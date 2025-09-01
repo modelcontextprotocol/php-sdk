@@ -571,12 +571,6 @@ parameters:
 			path: src/Server/ServerBuilder.php
 
 		-
-			message: '#^Method Mcp\\Server\\ServerBuilder\:\:registerManualElements\(\) is unused\.$#'
-			identifier: method.unused
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
 			message: '#^Method Mcp\\Server\\ServerBuilder\:\:withDiscovery\(\) has parameter \$excludeDirs with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1

@@ -34,6 +34,7 @@ use Mcp\Server;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 
 /**
@@ -218,6 +219,8 @@ final class ServerBuilder
         $container = $this->container ?? new Container();
         $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $this->logger);
 
+        $this->registerManualElements($registry, $this->logger);
+
         if (null !== $this->discoveryBasePath) {
             $discovery = new Discoverer($registry, $this->logger);
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
@@ -233,7 +236,7 @@ final class ServerBuilder
      * Helper to perform the actual registration based on stored data.
      * Moved into the builder.
      */
-    private function registerManualElements(Registry $registry, LoggerInterface $logger): void
+    private function registerManualElements(Registry $registry, LoggerInterface $logger = new NullLogger()): void
     {
         if (empty($this->manualTools) && empty($this->manualResources) && empty($this->manualResourceTemplates) && empty($this->manualPrompts)) {
             return;
