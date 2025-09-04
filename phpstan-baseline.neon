@@ -559,12 +559,6 @@ parameters:
 			path: src/Server/RequestHandler/ListToolsHandler.php
 
 		-
-			message: '#^Instantiated class Mcp\\Server\\ConfigurationException not found\.$#'
-			identifier: class.notFound
-			count: 4
-			path: src/Server/ServerBuilder.php
-
-		-
 			message: '#^Method Mcp\\Server\\ServerBuilder\:\:getCompletionProviders\(\) return type has no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
 			count: 1
@@ -700,10 +694,4 @@ parameters:
 			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$paginationLimit is never read, only written\.$#'
 			identifier: property.onlyWritten
 			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Throwing object of an unknown class Mcp\\Server\\ConfigurationException\.$#'
-			identifier: class.notFound
-			count: 4
 			path: src/Server/ServerBuilder.php

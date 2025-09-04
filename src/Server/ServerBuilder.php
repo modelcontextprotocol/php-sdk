@@ -21,6 +21,7 @@ use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\Handler;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Implementation;
