@@ -57,7 +57,6 @@ Since this package has no tagged releases yet, it is required to extend your `co
     "prefer-stable": true,
 ```
 
-
 ## ⚡ Quick Start: Stdio Server with Discovery
 
 This example demonstrates the most common usage pattern - a `stdio` server using attribute discovery.
