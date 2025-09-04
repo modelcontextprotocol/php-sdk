@@ -134,7 +134,7 @@ final class ServerBuilder
     /**
      * Provides a PSR-3 logger instance. Defaults to NullLogger.
      */
-    public function withLogger(LoggerInterface $logger): self
+    public function withLogger(LoggerInterface $logger = new NullLogger()): self
     {
         $this->logger = $logger;
 
@@ -216,6 +216,10 @@ final class ServerBuilder
      */
     public function build(): Server
     {
+        if (null === $this->logger) {
+            $this->withLogger();
+        }
+
         $container = $this->container ?? new Container();
         $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $this->logger);
 
