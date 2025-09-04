@@ -1,6 +1,6 @@
 # MCP PHP SDK
 
-The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers in PHP. Maintained by Symfony and The PHP Foundation.
+The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers in PHP.
 
 > [!IMPORTANT]
 > Currently, we are still in the process of merging [Symfony's MCP SDK](https://github.com/symfony/mcp-sdk) and

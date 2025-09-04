@@ -134,7 +134,7 @@ final class ServerBuilder
     /**
      * Provides a PSR-3 logger instance. Defaults to NullLogger.
      */
-    public function withLogger(LoggerInterface $logger = new NullLogger()): self
+    public function withLogger(LoggerInterface $logger): self
     {
         $this->logger = $logger;
 
@@ -219,18 +219,18 @@ final class ServerBuilder
         $logger = $this->logger ?? new NullLogger();
 
         $container = $this->container ?? new Container();
-        $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $this->logger);
+        $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $logger);
 
-        $this->registerManualElements($registry, $this->logger);
+        $this->registerManualElements($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
-            $discovery = new Discoverer($registry, $this->logger);
+            $discovery = new Discoverer($registry, $logger);
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
         }
 
         return new Server(
-            Handler::make($registry, $this->serverInfo, $this->logger),
-            $this->logger,
+            Handler::make($registry, $this->serverInfo, $logger),
+            $logger,
         );
     }
 
