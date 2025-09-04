@@ -22,13 +22,13 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: "none"
 
+      - name: Composer Validation
+        run: composer validate --strict
+
       - name: Install Composer
         uses: "ramsey/composer-install@v3"
         with:
           dependency-versions: "${{ matrix.dependencies }}"
-
-      - name: Composer Validation
-        run: composer validate --strict
 
       - name: Install PHP Dependencies
         run: composer install --no-scripts
@@ -48,11 +48,11 @@ jobs:
           php-version: '8.1'
           coverage: "none"
 
-      - name: Install Composer
-        uses: "ramsey/composer-install@v3"
-
       - name: Composer Validation
         run: composer validate --strict
+
+      - name: Install Composer
+        uses: "ramsey/composer-install@v3"
 
       - name: Install PHP Dependencies
         run: composer install --no-scripts
