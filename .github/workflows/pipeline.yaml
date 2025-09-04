@@ -30,9 +30,6 @@ jobs:
         with:
           dependency-versions: "${{ matrix.dependencies }}"
 
-      - name: Install PHP Dependencies
-        run: composer install --no-scripts
-
       - name: Tests
         run: vendor/bin/phpunit --exclude-group inspector
 
@@ -53,9 +50,6 @@ jobs:
 
       - name: Install Composer
         uses: "ramsey/composer-install@v3"
-
-      - name: Install PHP Dependencies
-        run: composer install --no-scripts
 
       - name: Code Style PHP
         run: vendor/bin/php-cs-fixer fix --dry-run
