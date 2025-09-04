@@ -15,7 +15,7 @@ Install the SDK using Composer:
 Usage
 -----
 
-The `Model Context Protocol`_ is built on top of JSON-RPC. There two types of
+The `Model Context Protocol`_ is built on top of JSON-RPC. There are two types of
 messages. A Notification and Request. The Notification is just a status update
 that something has happened. There is never a response to a Notification. A Request
 is a message that expects a response. There are 3 concepts/capabilities that you
@@ -152,6 +152,6 @@ and value objects to work with. They will assure that you follow the `Model Cont
 specification.
 
 You also have the Transport abstraction that allows you to create your own transport
-if non of the standard ones fit your needs.
+if none of the standard ones fit your needs.
 
 .. _`Model Context Protocol`: https://modelcontextprotocol.io/

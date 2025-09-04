@@ -18,7 +18,7 @@ DEBUG=1 php index.php
 
 You will see debug outputs to help you understand what is happening.
 
-In this terminal you can now test add some json strings. See `example-requests.json`.
+In this terminal you can now test by adding some JSON strings. See `example-requests.json`.
 
 Run with Inspector:
 

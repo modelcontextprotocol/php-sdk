@@ -2,7 +2,7 @@
 
 This directory contains various examples of how to use the PHP MCP SDK.
 
-You can run examples 01-08 already with the dependencies installed in the root directory of the SDK, for example 09 see
+You can run examples 01-08 with the dependencies already installed in the root directory of the SDK. For example 09, see the
 README in the `examples/09-standalone-cli` directory.
 
 For running an example, you execute the `server.php` like this:

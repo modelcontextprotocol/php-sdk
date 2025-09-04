@@ -15,7 +15,7 @@ parameters:
     ignoreErrors:
         -
             message: "#^Method .*::test.*\\(\\) has no return type specified\\.$#"
-        # This errors should actually be fixed, but are ignored for now
+        # These errors should actually be fixed, but are ignored for now
         -
             identifier: missingType.iterableValue
             path: src/Capability/Discovery/SchemaGenerator.php
