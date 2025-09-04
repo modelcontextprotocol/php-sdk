@@ -39,10 +39,6 @@
         "symfony/event-dispatcher": "^6.4 || ^7.0",
         "symfony/process": "^6.4 || ^7.0"
     },
-    "suggest": {
-        "psr/cache": "To use CachePoolStore with SSE Transport",
-        "symfony/console": "To use SymfonyConsoleTransport for STDIO"
-    },
     "autoload": {
         "psr-4": {
             "Mcp\\": "src/"
