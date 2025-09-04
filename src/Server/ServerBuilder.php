@@ -216,9 +216,7 @@ final class ServerBuilder
      */
     public function build(): Server
     {
-        if (null === $this->logger) {
-            $this->withLogger();
-        }
+        $logger = $this->logger ?? new NullLogger();
 
         $container = $this->container ?? new Container();
         $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $this->logger);
