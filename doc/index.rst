@@ -118,7 +118,7 @@ We would also need a class to actually execute the tool::
         }
     }
 
-If you have multiple tools, you can put them in a ToolChain::
+If you have multiple tools, you can put them in a ``ToolChain``::
 
     $tools = new ToolChain([
         new CurrentTimeToolMetadata(),
@@ -130,10 +130,10 @@ If you have multiple tools, you can put them in a ToolChain::
         [
             new ToolCallHandler($tools),
             new ToolListHandler($tools),
-            // Other RequestHandlers ...
+            // other RequestHandlers ...
         ],
         [
-            // Other NotificationHandlers ...
+            // other NotificationHandlers ...
         ],
         new NullLogger()
     );
