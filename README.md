@@ -70,8 +70,7 @@ Create `src/CalculatorElements.php`:
 
 namespace App;
 
-use PhpMcp\Server\Attributes\McpTool;
-use PhpMcp\Server\Attributes\Schema;
+use Mcp\Capability\Attribute\McpTool;
 
 class CalculatorElements
 {
