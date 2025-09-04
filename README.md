@@ -66,6 +66,8 @@ This example demonstrates the most common usage pattern - a `stdio` server using
 Create `src/CalculatorElements.php`:
 
 ```php
+<?php
+
 namespace App;
 
 use PhpMcp\Server\Attributes\McpTool;
