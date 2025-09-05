@@ -85,9 +85,27 @@ class ReferenceHandler
         $finalArgs = [];
 
         foreach ($reflection->getParameters() as $parameter) {
-            // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
+
+            // Handle variadic parameters
+            if ($parameter->isVariadic()) {
+                // For variadic parameters, collect all remaining arguments
+                $variadicArgs = [];
+                foreach ($arguments as $key => $value) {
+                    if (is_numeric($key) && $key >= $paramPosition) {
+                        try {
+                            $variadicArgs[] = $this->castArgumentType($value, $parameter);
+                        } catch (InvalidArgumentException $e) {
+                            throw RegistryException::invalidParams($e->getMessage(), $e);
+                        } catch (\Throwable $e) {
+                            throw RegistryException::internalError("Error processing variadic parameter `{$paramName}`: {$e->getMessage()}", $e);
+                        }
+                    }
+                }
+                $finalArgs[$paramPosition] = $variadicArgs;
+                continue;
+            }
 
             if (isset($arguments[$paramName])) {
                 $argument = $arguments[$paramName];
