@@ -11,9 +11,11 @@
 
 namespace Mcp\Event;
 
+use Symfony\Contracts\EventDispatcher\Event;
+
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ResourceListChangedEvent
+final class ResourceListChangedEvent extends Event
 {
 }
