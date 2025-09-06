@@ -124,7 +124,7 @@ final class MessageFactory
         if (\in_array($messageType, $this->registeredMessages, true)) {
             $data['jsonrpc'] = MessageInterface::JSONRPC_VERSION;
             $data['method'] = $messageType::getMethod();
-            $messageType::fromArray($data);
+            return $messageType::fromArray($data);
         }
 
         throw new InvalidArgumentException(\sprintf('Message type "%s" is not registered.', $messageType));
