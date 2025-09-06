@@ -12,6 +12,7 @@
 namespace Mcp\Server;
 
 use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
@@ -150,6 +151,17 @@ final class ServerBuilder
     }
 
     /**
+     * Provides a PSR-16 cache instance for discovery caching.
+     * When provided, discovery results will be cached to improve performance.
+     */
+    public function withCache(CacheInterface $cache): self
+    {
+        $this->cache = $cache;
+
+        return $this;
+    }
+
+    /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
      */
@@ -225,7 +237,15 @@ final class ServerBuilder
         $this->registerManualElements($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
-            $discovery = new Discoverer($registry, $logger);
+            $discoverer = new Discoverer($registry, $logger);
+            
+            // Use cached discoverer if cache is provided
+            if (null !== $this->cache) {
+                $discovery = new CachedDiscoverer($discoverer, $this->cache, $logger);
+            } else {
+                $discovery = $discoverer;
+            }
+            
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
         }
 
