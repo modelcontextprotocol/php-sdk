@@ -17,6 +17,7 @@ use Symfony\Component\Cache\Psr16Cache;
 Server::make()
     ->withServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
     ->withDiscovery(__DIR__, ['.'])
+    ->withLogger(logger())
     ->withCache(new Psr16Cache(new ArrayAdapter())) // Enable discovery caching
     ->build()
     ->connect(new StdioTransport());
