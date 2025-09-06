@@ -21,7 +21,7 @@ Until the first major release, this SDK is considered
 ## 🚧 Roadmap
 
 Features
-- [x] bring back php-mcp examples
+- [x] Bring back PHP-MCP examples
 - [ ] Glue handler, registry and reference handlers
 - [ ] Revive `ServerBuilder`
 - [ ] Revive transports 
@@ -29,7 +29,7 @@ Features
   - [ ] Http/SSE-based Transport https://github.com/modelcontextprotocol/php-sdk/issues/8
 - [ ] Support pagination
 - [ ] Support Schema validation
-- [ ] Support Multiple Versions of MCP Specification https://github.com/modelcontextprotocol/php-sdk/issues/14
+- [ ] Support multiple versions of the MCP specification https://github.com/modelcontextprotocol/php-sdk/issues/14
 - [ ] (Re-)Implement missing Notification & Request Handlers https://github.com/modelcontextprotocol/php-sdk/issues/9
 
 ---
@@ -143,7 +143,7 @@ the project. See the [contributing guide](CONTRIBUTING.md) to get started before
 [send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
 
 ## Credits
-The starting point for this SDK was [PHP-MCP](https://github.com/php-mcp/server) project, initiated by [Kyrian Obikwelu](https://github.com/CodeWithKyrian). We are grateful for the work done by Kyrian and other contributors to that repository, which created a solid foundation for this SDK.
+The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by [Kyrian Obikwelu](https://github.com/CodeWithKyrian). We are grateful for the work done by Kyrian and other contributors to that repository, which created a solid foundation for this SDK.
 
 ## License
 
