@@ -23,6 +23,7 @@ use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\Handler;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -231,6 +232,7 @@ final class ServerBuilder
 
         return new Server(
             Handler::make($registry, $this->serverInfo, $logger),
+            NotificationPublisher::make(),
             $logger,
         );
     }

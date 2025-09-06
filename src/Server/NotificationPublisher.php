@@ -8,7 +8,6 @@ use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
 use Mcp\JsonRpc\MessageFactory;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceListChangedNotification;
@@ -26,7 +25,7 @@ final class NotificationPublisher implements EventSubscriberInterface
         ToolListChangedEvent::class => ToolListChangedNotification::class,
     ];
 
-    /** @var list<HasMethodInterface> */
+    /** @var list<Notification> */
     private array $queue = [];
 
     public function __construct(
@@ -37,6 +36,11 @@ final class NotificationPublisher implements EventSubscriberInterface
     public static function getSubscribedEvents(): array
     {
         return array_fill_keys(array_keys(self::EVENTS_TO_NOTIFICATIONS), 'onEvent');
+    }
+
+    public static function make(): self
+    {
+        return new self(MessageFactory::make());
     }
 
     public function onEvent(object $event): void
@@ -53,9 +57,7 @@ final class NotificationPublisher implements EventSubscriberInterface
     }
 
     /**
-     * Yield and clear queued notifications; Server will encode+send them.
-     *
-     * @return iterable<HasMethodInterface>
+     * @return iterable<Notification>
      */
     public function flush(): iterable
     {

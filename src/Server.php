@@ -12,6 +12,7 @@
 namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
+use Mcp\Server\NotificationPublisher;
 use Mcp\Server\ServerBuilder;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
@@ -24,6 +25,7 @@ final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
+        private readonly NotificationPublisher $notificationPublisher,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -61,6 +63,10 @@ final class Server
                     ]);
                     continue;
                 }
+            }
+
+            foreach ($this->notificationPublisher->flush() as $notification) {
+                $transport->send($notification);
             }
 
             usleep(1000);
