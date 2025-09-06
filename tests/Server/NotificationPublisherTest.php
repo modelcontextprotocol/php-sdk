@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Tests\Server;
 
 use Mcp\JsonRpc\MessageFactory;
@@ -9,6 +18,9 @@ use Mcp\Server\NotificationPublisher;
 use PHPUnit\Framework\TestCase;
 use Symfony\Contracts\EventDispatcher\Event;
 
+/**
+ * @author Aggelos Bellos <aggelosbellos7@gmail.com>
+ */
 class NotificationPublisherTest extends TestCase
 {
     public function testOnEventCreatesNotification(): void
@@ -25,7 +37,7 @@ class NotificationPublisherTest extends TestCase
 
         $flushedNotifications = $notificationPublisher->flush();
 
-        $this->assertCount(count($expectedNotifications), $flushedNotifications);
+        $this->assertCount(\count($expectedNotifications), $flushedNotifications);
 
         foreach ($flushedNotifications as $index => $notification) {
             $this->assertInstanceOf($expectedNotifications[$index], $notification);
