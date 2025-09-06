@@ -12,14 +12,13 @@ use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
-use Symfony\Component\EventDispatcher\EventSubscriberInterface;
 
-final class NotificationPublisher implements EventSubscriberInterface
+class NotificationPublisher
 {
     /**
      * @var array<class-string<mixed>, class-string<Notification>>
      */
-    private const EVENTS_TO_NOTIFICATIONS = [
+    public const EVENTS_TO_NOTIFICATIONS = [
         ResourceListChangedEvent::class => ResourceListChangedNotification::class,
         PromptListChangedEvent::class => PromptListChangedNotification::class,
         ToolListChangedEvent::class => ToolListChangedNotification::class,
@@ -31,11 +30,6 @@ final class NotificationPublisher implements EventSubscriberInterface
     public function __construct(
         private readonly MessageFactory $factory,
     ) {
-    }
-
-    public static function getSubscribedEvents(): array
-    {
-        return array_fill_keys(array_keys(self::EVENTS_TO_NOTIFICATIONS), 'onEvent');
     }
 
     public static function make(): self
