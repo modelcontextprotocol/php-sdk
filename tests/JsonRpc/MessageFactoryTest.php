@@ -11,10 +11,12 @@
 
 namespace Mcp\Tests\JsonRpc;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Request\GetPromptRequest;
 use PHPUnit\Framework\TestCase;
 
@@ -79,6 +81,22 @@ final class MessageFactoryTest extends TestCase
 
         $result = array_shift($results);
         $this->assertInstanceOf(InitializedNotification::class, $result);
+    }
+
+    public function testCreateByType(): void
+    {
+        $result = $this->factory->createByType(InitializedNotification::class, []);
+        $this->assertInstanceOf(InitializedNotification::class, $result);
+    }
+
+    public function testCreateByTypeWithMissingData(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(
+            'Invalid or missing "requestId" parameter for "notifications/cancelled" notification.'
+        );
+
+        $this->factory->createByType(CancelledNotification::class, []);
     }
 
     /**
