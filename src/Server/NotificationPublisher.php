@@ -43,7 +43,7 @@ class NotificationPublisher
         return $instance;
     }
 
-    public function onEvent(object $event): void
+    public function onEvent(Event $event): void
     {
         $eventClass = $event::class;
         if (!isset(self::EVENTS_TO_NOTIFICATIONS[$eventClass])) {
