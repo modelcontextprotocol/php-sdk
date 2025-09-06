@@ -14,10 +14,16 @@ namespace Mcp\JsonRpc;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\Notification;
 use Mcp\Schema\Request;
 
 /**
+ * @phpstan-type RequestData array{
+ *      id: string|int,
+ *      params?: array<string, mixed>,
+ *  }
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class MessageFactory
@@ -101,6 +107,27 @@ final class MessageFactory
                 continue;
             }
         }
+    }
+
+    /**
+     * Creates a message by its type and parameters.
+     *
+     * @template T of value-of<self::REGISTERED_MESSAGES>
+     *
+     * @param class-string<T> $messageType
+     * @param RequestData     $data
+     *
+     * @phpstan-return T
+     */
+    public function createByType(string $messageType, array $data): HasMethodInterface
+    {
+        if (\in_array($messageType, $this->registeredMessages, true)) {
+            $data['jsonrpc'] = MessageInterface::JSONRPC_VERSION;
+            $data['method'] = $messageType::getMethod();
+            $messageType::fromArray($data);
+        }
+
+        throw new InvalidArgumentException(\sprintf('Message type "%s" is not registered.', $messageType));
     }
 
     /**
