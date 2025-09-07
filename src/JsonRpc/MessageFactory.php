@@ -112,12 +112,12 @@ final class MessageFactory
     /**
      * Creates a message by its type and parameters.
      *
-     * @template T of value-of<self::REGISTERED_MESSAGES>
+     * @template T of HasMethodInterface
      *
      * @param class-string<T> $messageType
      * @param RequestData     $data
      *
-     * @phpstan-return T
+     * @return T
      */
     public function createByType(string $messageType, array $data): HasMethodInterface
     {
