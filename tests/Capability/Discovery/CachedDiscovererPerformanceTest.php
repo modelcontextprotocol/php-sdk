@@ -25,7 +25,7 @@ class CachedDiscovererPerformanceTest extends TestCase
     public function testCachedDiscoveryIsFasterThanUncached(): void
     {
         // Create a temporary directory with some PHP files for testing
-        $tempDir = sys_get_temp_dir() . '/mcp_discovery_test_' . uniqid();
+        $tempDir = sys_get_temp_dir().'/mcp_discovery_test_'.uniqid();
         mkdir($tempDir, 0755, true);
 
         // Create some test PHP files with MCP attributes
@@ -110,7 +110,7 @@ class TestResource {
         ];
 
         foreach ($files as $filename => $content) {
-            file_put_contents($tempDir . '/' . $filename, $content);
+            file_put_contents($tempDir.'/'.$filename, $content);
         }
     }
 
@@ -122,7 +122,7 @@ class TestResource {
 
         $files = array_diff(scandir($dir), ['.', '..']);
         foreach ($files as $file) {
-            $path = $dir . '/' . $file;
+            $path = $dir.'/'.$file;
             if (is_dir($path)) {
                 $this->removeDirectory($path);
             } else {

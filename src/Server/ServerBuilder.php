@@ -238,14 +238,14 @@ final class ServerBuilder
 
         if (null !== $this->discoveryBasePath) {
             $discoverer = new Discoverer($registry, $logger);
-            
+
             // Use cached discoverer if cache is provided
             if (null !== $this->cache) {
                 $discovery = new CachedDiscoverer($discoverer, $this->cache, $logger);
             } else {
                 $discovery = $discoverer;
             }
-            
+
             // Discover elements and apply them to the registry
             $discoveryState = $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
             $discoverer->applyDiscoveryState($discoveryState);

@@ -26,35 +26,35 @@ class CachedDiscovererTest extends TestCase
         // Create a real registry and discoverer for proper testing
         $registry = new Registry(new ReferenceHandler(), null, new NullLogger());
         $discoverer = new Discoverer($registry, new NullLogger());
-        
+
         // Create a mock cache that tracks calls
         $cache = $this->createMock(CacheInterface::class);
         $cache->expects($this->once())
             ->method('get')
             ->willReturn(null); // First call: cache miss
-        
+
         $cache->expects($this->once())
             ->method('set')
             ->willReturn(true); // Cache the results
-        
+
         // Create the cached discoverer
         $cachedDiscoverer = new CachedDiscoverer(
             $discoverer,
             $cache,
             new NullLogger()
         );
-        
+
         // First call should hit the discoverer and cache the results
         $result = $cachedDiscoverer->discover('/test/path', ['.'], []);
         $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result);
     }
-    
+
     public function testCachedDiscovererReturnsCachedResults(): void
     {
         // Create a real registry and discoverer for proper testing
         $registry = new Registry(new ReferenceHandler(), null, new NullLogger());
         $discoverer = new Discoverer($registry, new NullLogger());
-        
+
         // Create mock cached data
         $cachedData = [
             'tools' => [],
@@ -62,51 +62,51 @@ class CachedDiscovererTest extends TestCase
             'prompts' => [],
             'resourceTemplates' => [],
         ];
-        
+
         // Create a mock cache that returns cached data
         $cache = $this->createMock(CacheInterface::class);
         $cache->expects($this->once())
             ->method('get')
             ->willReturn($cachedData); // Cache hit
-        
+
         $cache->expects($this->never())
             ->method('set'); // Should not cache again
-        
+
         // Create the cached discoverer
         $cachedDiscoverer = new CachedDiscoverer(
             $discoverer,
             $cache,
             new NullLogger()
         );
-        
+
         // Call should use cached results without calling the underlying discoverer
         $result = $cachedDiscoverer->discover('/test/path', ['.'], []);
         $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result);
     }
-    
+
     public function testCacheKeyGeneration(): void
     {
         // Create a real registry and discoverer for proper testing
         $registry = new Registry(new ReferenceHandler(), null, new NullLogger());
         $discoverer = new Discoverer($registry, new NullLogger());
-        
+
         $cache = $this->createMock(CacheInterface::class);
-        
+
         // Test that different parameters generate different cache keys
         $cache->expects($this->exactly(2))
             ->method('get')
             ->willReturn(null);
-        
+
         $cache->expects($this->exactly(2))
             ->method('set')
             ->willReturn(true);
-        
+
         $cachedDiscoverer = new CachedDiscoverer(
             $discoverer,
             $cache,
             new NullLogger()
         );
-        
+
         // Different base paths should generate different cache keys
         $result1 = $cachedDiscoverer->discover('/path1', ['.'], []);
         $result2 = $cachedDiscoverer->discover('/path2', ['.'], []);

@@ -1,5 +1,8 @@
 <?php
 
+
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -9,15 +12,13 @@
  * file that was distributed with this source code.
  */
 
-declare(strict_types=1);
-
 namespace Mcp\Example\CachedDiscoveryExample;
 
 use Mcp\Capability\Attribute\McpTool;
 
 /**
  * Example MCP elements for demonstrating cached discovery.
- * 
+ *
  * This class contains simple calculator tools that will be discovered
  * and cached for improved performance on subsequent server starts.
  */
@@ -38,16 +39,16 @@ class CachedCalculatorElements
     #[McpTool(name: 'divide_numbers')]
     public function divide(int $a, int $b): float
     {
-        if ($b === 0) {
+        if (0 === $b) {
             throw new \InvalidArgumentException('Division by zero is not allowed');
         }
-        
+
         return $a / $b;
     }
 
     #[McpTool(name: 'power')]
     public function power(int $base, int $exponent): int
     {
-        return (int) pow($base, $exponent);
+        return (int) $base ** $exponent;
     }
 }

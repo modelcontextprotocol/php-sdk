@@ -138,10 +138,10 @@ class Discoverer
     /**
      * Process a single PHP file for MCP elements on classes or methods.
      *
-     * @param DiscoveredCount $discoveredCount
-     * @param array<string, ToolReference> $tools
-     * @param array<string, ResourceReference> $resources
-     * @param array<string, PromptReference> $prompts
+     * @param DiscoveredCount                          $discoveredCount
+     * @param array<string, ToolReference>             $tools
+     * @param array<string, ResourceReference>         $resources
+     * @param array<string, PromptReference>           $prompts
      * @param array<string, ResourceTemplateReference> $resourceTemplates
      */
     private function processFile(SplFileInfo $file, array &$discoveredCount, array &$tools, array &$resources, array &$prompts, array &$resourceTemplates): void
@@ -217,13 +217,13 @@ class Discoverer
      * Process a method with a given MCP attribute instance.
      * Can be called for regular methods or the __invoke method of an invokable class.
      *
-     * @param \ReflectionMethod                                                       $method          The target method (e.g., regular method or __invoke).
-     * @param DiscoveredCount                                                         $discoveredCount pass by reference to update counts
-     * @param \ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute       the ReflectionAttribute instance found (on method or class)
-     * @param array<string, ToolReference> $tools
-     * @param array<string, ResourceReference> $resources
-     * @param array<string, PromptReference> $prompts
-     * @param array<string, ResourceTemplateReference> $resourceTemplates
+     * @param \ReflectionMethod                                                       $method            The target method (e.g., regular method or __invoke).
+     * @param DiscoveredCount                                                         $discoveredCount   pass by reference to update counts
+     * @param \ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute         the ReflectionAttribute instance found (on method or class)
+     * @param array<string, ToolReference>                                            $tools
+     * @param array<string, ResourceReference>                                        $resources
+     * @param array<string, PromptReference>                                          $prompts
+     * @param array<string, ResourceTemplateReference>                                $resourceTemplates
      */
     private function processMethod(\ReflectionMethod $method, array &$discoveredCount, \ReflectionAttribute $attribute, array &$tools, array &$resources, array &$prompts, array &$resourceTemplates): void
     {

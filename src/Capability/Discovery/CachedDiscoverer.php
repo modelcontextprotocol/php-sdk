@@ -16,10 +16,10 @@ use Psr\SimpleCache\CacheInterface;
 
 /**
  * Cached decorator for the Discoverer class.
- * 
+ *
  * This decorator caches the results of file system operations and reflection
  * to improve performance when discovery is called multiple times.
- * 
+ *
  * @author Xentixar <xentixar@gmail.com>
  */
 class CachedDiscoverer
@@ -45,16 +45,16 @@ class CachedDiscoverer
     public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
     {
         $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs);
-        
+
         // Check if we have cached results
         $cachedResult = $this->cache->get($cacheKey);
-        if ($cachedResult !== null) {
+        if (null !== $cachedResult) {
             $this->logger->debug('Using cached discovery results', [
                 'cache_key' => $cacheKey,
                 'base_path' => $basePath,
                 'directories' => $directories,
             ]);
-            
+
             // Restore the discovery state from cache
             return $this->restoreDiscoveryStateFromCache($cachedResult);
         }
@@ -67,10 +67,10 @@ class CachedDiscoverer
 
         // Perform fresh discovery
         $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs);
-        
+
         // Cache the results
         $this->cacheDiscoveryResults($cacheKey, $discoveryState);
-        
+
         return $discoveryState;
     }
 
@@ -87,8 +87,8 @@ class CachedDiscoverer
             'directories' => $directories,
             'exclude_dirs' => $excludeDirs,
         ];
-        
-        return self::CACHE_PREFIX . md5(serialize($keyData));
+
+        return self::CACHE_PREFIX.md5(serialize($keyData));
     }
 
     /**
@@ -99,10 +99,10 @@ class CachedDiscoverer
         try {
             // Convert state to array for caching
             $stateData = $state->toArray();
-            
+
             // Store in cache
             $this->cache->set($cacheKey, $stateData, $this->cacheTtl);
-            
+
             $this->logger->debug('Cached discovery results', [
                 'cache_key' => $cacheKey,
                 'ttl' => $this->cacheTtl,
@@ -142,7 +142,7 @@ class CachedDiscoverer
         // This is a simple implementation that clears all discovery cache entries
         // In a more sophisticated implementation, we might want to track cache keys
         // and clear them selectively
-        
+
         $this->cache->clear();
         $this->logger->info('Discovery cache cleared');
     }

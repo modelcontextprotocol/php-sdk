@@ -18,18 +18,18 @@ use Mcp\Capability\Registry\ToolReference;
 
 /**
  * Represents the state of discovered MCP capabilities.
- * 
+ *
  * This class encapsulates all discovered elements (tools, resources, prompts, resource templates)
  * and provides methods to apply this state to a registry.
- * 
+ *
  * @author Xentixar <xentixar@gmail.com>
  */
 class DiscoveryState
 {
     /**
-     * @param array<string, ToolReference> $tools
-     * @param array<string, ResourceReference> $resources
-     * @param array<string, PromptReference> $prompts
+     * @param array<string, ToolReference>             $tools
+     * @param array<string, ResourceReference>         $resources
+     * @param array<string, PromptReference>           $prompts
      * @param array<string, ResourceTemplateReference> $resourceTemplates
      */
     public function __construct(
@@ -88,24 +88,24 @@ class DiscoveryState
      */
     public function getElementCount(): int
     {
-        return count($this->tools)
-            + count($this->resources)
-            + count($this->prompts)
-            + count($this->resourceTemplates);
+        return \count($this->tools)
+            + \count($this->resources)
+            + \count($this->prompts)
+            + \count($this->resourceTemplates);
     }
 
     /**
      * Get a breakdown of discovered elements by type.
-     * 
+     *
      * @return array{tools: int, resources: int, prompts: int, resourceTemplates: int}
      */
     public function getElementCounts(): array
     {
         return [
-            'tools' => count($this->tools),
-            'resources' => count($this->resources),
-            'prompts' => count($this->prompts),
-            'resourceTemplates' => count($this->resourceTemplates),
+            'tools' => \count($this->tools),
+            'resources' => \count($this->resources),
+            'prompts' => \count($this->prompts),
+            'resourceTemplates' => \count($this->resourceTemplates),
         ];
     }
 
@@ -113,9 +113,9 @@ class DiscoveryState
      * Create a new DiscoveryState by merging with another state.
      * Elements from the other state take precedence.
      */
-    public function merge(DiscoveryState $other): DiscoveryState
+    public function merge(self $other): self
     {
-        return new DiscoveryState(
+        return new self(
             tools: array_merge($this->tools, $other->tools),
             resources: array_merge($this->resources, $other->resources),
             prompts: array_merge($this->prompts, $other->prompts),
@@ -125,7 +125,7 @@ class DiscoveryState
 
     /**
      * Convert the state to an array for serialization.
-     * 
+     *
      * @return array<string, mixed>
      */
     public function toArray(): array
@@ -140,12 +140,12 @@ class DiscoveryState
 
     /**
      * Create a DiscoveryState from an array (for deserialization).
-     * 
+     *
      * @param array<string, mixed> $data
      */
-    public static function fromArray(array $data): DiscoveryState
+    public static function fromArray(array $data): self
     {
-        return new DiscoveryState(
+        return new self(
             tools: $data['tools'] ?? [],
             resources: $data['resources'] ?? [],
             prompts: $data['prompts'] ?? [],
