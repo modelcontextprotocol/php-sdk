@@ -11,13 +11,12 @@
 
 namespace Mcp\Server\RequestHandler;
 
-use Mcp\Capability\Registry;
+use Mcp\Capability\Tool\ToolExecutorInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
-use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\MethodHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -29,7 +28,7 @@ use Psr\Log\NullLogger;
 final class CallToolHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly Registry $registry,
+        private readonly ToolExecutorInterface $toolExecutor,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -44,16 +43,19 @@ final class CallToolHandler implements MethodHandlerInterface
         \assert($message instanceof CallToolRequest);
 
         try {
-            $content = $this->registry->handleCallTool($message->name, $message->arguments);
+            $content = $this->toolExecutor->call($message);
         } catch (ExceptionInterface $exception) {
-            $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $message->name, $exception->getMessage()), [
-                'tool' => $message->name,
-                'arguments' => $message->arguments,
-            ]);
+            $this->logger->error(
+                \sprintf('Error while executing tool "%s": "%s".', $message->name, $exception->getMessage()),
+                [
+                    'tool' => $message->name,
+                    'arguments' => $message->arguments,
+                ],
+            );
 
             return Error::forInternalError('Error while executing tool', $message->getId());
         }
 
-        return new Response($message->getId(), new CallToolResult($content));
+        return new Response($message->getId(), $content);
     }
 }

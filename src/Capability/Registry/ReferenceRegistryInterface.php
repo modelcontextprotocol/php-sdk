@@ -49,7 +49,7 @@ interface ReferenceRegistryInterface
     /**
      * Registers a resource template with its handler and completion providers.
      *
-     * @param callable|CallableArray|string          $handler
+     * @param callable|CallableArray|string      $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerResourceTemplate(
@@ -62,7 +62,7 @@ interface ReferenceRegistryInterface
     /**
      * Registers a prompt with its handler and completion providers.
      *
-     * @param callable|CallableArray|string          $handler
+     * @param callable|CallableArray|string      $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerPrompt(

@@ -54,7 +54,7 @@ interface ReferenceProviderInterface
     /**
      * Gets all registered resources.
      *
-     * @return array<string, Resource>
+     * @return array<string, resource>
      */
     public function getResources(): array;
 

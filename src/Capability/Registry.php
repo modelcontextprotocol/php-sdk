@@ -66,7 +66,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+    }
 
     // === ReferenceRegistry interface methods ===
 
@@ -132,7 +133,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
-     * @param callable|CallableArray|string $handler
+     * @param callable|CallableArray|string      $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerResourceTemplate(
@@ -163,7 +164,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
-     * @param callable|CallableArray|string $handler
+     * @param callable|CallableArray|string      $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerPrompt(
@@ -271,7 +272,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     public function getTools(): array
     {
-        return array_map(fn(ToolReference $tool) => $tool->tool, $this->tools);
+        return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
     }
 
     /**
@@ -279,7 +280,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     public function getResources(): array
     {
-        return array_map(fn(ResourceReference $resource) => $resource->schema, $this->resources);
+        return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
     }
 
     /**
@@ -287,7 +288,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     public function getPrompts(): array
     {
-        return array_map(fn(PromptReference $prompt) => $prompt->prompt, $this->prompts);
+        return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
     }
 
     /**
@@ -295,7 +296,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     public function getResourceTemplates(): array
     {
-        return array_map(fn(ResourceTemplateReference $template) => $template->resourceTemplate,
+        return array_map(fn (ResourceTemplateReference $template) => $template->resourceTemplate,
             $this->resourceTemplates);
     }
 

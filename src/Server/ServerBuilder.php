@@ -18,9 +18,15 @@ use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
+use Mcp\Capability\Prompt\DefaultPromptGetter;
+use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\Resource\DefaultResourceReader;
+use Mcp\Capability\Resource\ResourceReaderInterface;
+use Mcp\Capability\Tool\DefaultToolExecutor;
+use Mcp\Capability\Tool\ToolExecutorInterface;
 use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\Handler;
 use Mcp\Schema\Annotations;
@@ -48,6 +54,12 @@ final class ServerBuilder
     private ?LoggerInterface $logger = null;
 
     private ?CacheInterface $cache = null;
+
+    private ?ToolExecutorInterface $toolExecutor = null;
+
+    private ?ResourceReaderInterface $resourceReader = null;
+
+    private ?PromptGetterInterface $promptGetter = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
 
@@ -149,6 +161,27 @@ final class ServerBuilder
         return $this;
     }
 
+    public function withToolExecutor(ToolExecutorInterface $toolExecutor): self
+    {
+        $this->toolExecutor = $toolExecutor;
+
+        return $this;
+    }
+
+    public function withResourceReader(ResourceReaderInterface $resourceReader): self
+    {
+        $this->resourceReader = $resourceReader;
+
+        return $this;
+    }
+
+    public function withPromptGetter(PromptGetterInterface $promptGetter): self
+    {
+        $this->promptGetter = $promptGetter;
+
+        return $this;
+    }
+
     /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
@@ -220,7 +253,12 @@ final class ServerBuilder
         $logger = $this->logger ?? new NullLogger();
 
         $container = $this->container ?? new Container();
-        $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $logger);
+        $registry = new Registry($this->eventDispatcher, $logger);
+
+        $referenceHandler = new ReferenceHandler($container);
+        $toolExecutor = $this->toolExecutor ??= new DefaultToolExecutor($registry, $referenceHandler, $logger);
+        $resourceReader = $this->resourceReader ??= new DefaultResourceReader($registry, $referenceHandler);
+        $promptGetter = $this->promptGetter ??= new DefaultPromptGetter($registry, $referenceHandler);
 
         $this->registerManualElements($registry, $logger);
 
@@ -230,8 +268,15 @@ final class ServerBuilder
         }
 
         return new Server(
-            Handler::make($registry, $this->serverInfo, $logger),
-            $logger,
+            jsonRpcHandler: Handler::make(
+                registry: $registry,
+                implementation: $this->serverInfo,
+                toolExecutor: $toolExecutor,
+                resourceReader: $resourceReader,
+                promptGetter: $promptGetter,
+                logger: $logger,
+            ),
+            logger: $logger,
         );
     }
 

@@ -11,7 +11,10 @@
 
 namespace Mcp\JsonRpc;
 
+use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;
+use Mcp\Capability\Resource\ResourceReaderInterface;
+use Mcp\Capability\Tool\ToolExecutorInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
@@ -27,11 +30,9 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @final
- *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class Handler
+final class Handler
 {
     /**
      * @var array<int, MethodHandlerInterface>
@@ -52,22 +53,25 @@ class Handler
     public static function make(
         Registry $registry,
         Implementation $implementation,
+        ToolExecutorInterface $toolExecutor,
+        ResourceReaderInterface $resourceReader,
+        PromptGetterInterface $promptGetter,
         LoggerInterface $logger = new NullLogger(),
     ): self {
         return new self(
-            MessageFactory::make(),
-            [
+            messageFactory: MessageFactory::make(),
+            methodHandlers: [
                 new NotificationHandler\InitializedHandler(),
                 new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
                 new RequestHandler\PingHandler(),
                 new RequestHandler\ListPromptsHandler($registry),
-                new RequestHandler\GetPromptHandler($registry),
+                new RequestHandler\GetPromptHandler($promptGetter),
                 new RequestHandler\ListResourcesHandler($registry),
-                new RequestHandler\ReadResourceHandler($registry),
-                new RequestHandler\CallToolHandler($registry, $logger),
+                new RequestHandler\ReadResourceHandler($resourceReader),
+                new RequestHandler\CallToolHandler($toolExecutor, $logger),
                 new RequestHandler\ListToolsHandler($registry),
             ],
-            $logger,
+            logger: $logger,
         );
     }
 
