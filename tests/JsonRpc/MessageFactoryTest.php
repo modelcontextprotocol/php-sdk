@@ -16,7 +16,6 @@ use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
-use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Request\GetPromptRequest;
 use PHPUnit\Framework\TestCase;
 

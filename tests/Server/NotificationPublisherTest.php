@@ -14,25 +14,28 @@ declare(strict_types=1);
 namespace Mcp\Tests\Server;
 
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Server\NotificationPublisher;
 use PHPUnit\Framework\TestCase;
-use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * @author Aggelos Bellos <aggelosbellos7@gmail.com>
  */
 class NotificationPublisherTest extends TestCase
 {
-    public function testOnEventCreatesNotification(): void
+    public function testEnqueue(): void
     {
-        $expectedNotifications = [];
+        $expectedNotifications = [
+            ToolListChangedNotification::class,
+            ResourceListChangedNotification::class,
+            PromptListChangedNotification::class,
+        ];
         $notificationPublisher = new NotificationPublisher(MessageFactory::make());
 
-        foreach (NotificationPublisher::EVENTS_TO_NOTIFICATIONS as $eventClass => $notificationClass) {
-            /** @var Event $event */
-            $event = new $eventClass();
-            $notificationPublisher->enqueue($event);
-            $expectedNotifications[] = $notificationClass;
+        foreach ($expectedNotifications as $notificationType) {
+            $notificationPublisher->enqueue($notificationType);
         }
 
         $flushedNotifications = $notificationPublisher->flush();
