@@ -45,17 +45,13 @@ class NotificationPublisher
     }
 
     /**
-     * @return iterable<Notification>
+     * @return \Generator<int, Notification, void, void>
      */
     public function flush(): iterable
     {
-        if (!$this->queue) {
-            return [];
-        }
-
         $out = $this->queue;
         $this->queue = [];
 
-        return $out;
+        yield from $out;
     }
 }

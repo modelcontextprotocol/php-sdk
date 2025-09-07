@@ -38,7 +38,7 @@ class NotificationPublisherTest extends TestCase
             $notificationPublisher->enqueue($notificationType);
         }
 
-        $flushedNotifications = $notificationPublisher->flush();
+        $flushedNotifications = iterator_to_array($notificationPublisher->flush());
 
         $this->assertCount(\count($expectedNotifications), $flushedNotifications);
 
@@ -46,6 +46,6 @@ class NotificationPublisherTest extends TestCase
             $this->assertInstanceOf($expectedNotifications[$index], $notification);
         }
 
-        $this->assertEmpty($notificationPublisher->flush());
+        $this->assertEmpty(iterator_to_array($notificationPublisher->flush()));
     }
 }
