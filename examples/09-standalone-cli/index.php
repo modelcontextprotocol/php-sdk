@@ -27,8 +27,10 @@ $jsonRpcHandler = new Mcp\JsonRpc\Handler(
     $logger
 );
 
+$notificationPublisher = Mcp\Server\NotificationPublisher::make();
+
 // Set up the server
-$sever = new Mcp\Server($jsonRpcHandler, $logger);
+$sever = new Mcp\Server($jsonRpcHandler, $notificationPublisher, $logger);
 
 // Create the transport layer using Stdio
 $transport = new Mcp\Server\Transport\StdioTransport(logger: $logger);
