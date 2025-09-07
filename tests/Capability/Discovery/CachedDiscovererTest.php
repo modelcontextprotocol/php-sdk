@@ -45,7 +45,8 @@ class CachedDiscovererTest extends TestCase
         );
         
         // First call should hit the discoverer and cache the results
-        $cachedDiscoverer->discover('/test/path', ['.'], []);
+        $result = $cachedDiscoverer->discover('/test/path', ['.'], []);
+        $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result);
     }
     
     public function testCachedDiscovererReturnsCachedResults(): void
@@ -79,7 +80,8 @@ class CachedDiscovererTest extends TestCase
         );
         
         // Call should use cached results without calling the underlying discoverer
-        $cachedDiscoverer->discover('/test/path', ['.'], []);
+        $result = $cachedDiscoverer->discover('/test/path', ['.'], []);
+        $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result);
     }
     
     public function testCacheKeyGeneration(): void
@@ -106,7 +108,9 @@ class CachedDiscovererTest extends TestCase
         );
         
         // Different base paths should generate different cache keys
-        $cachedDiscoverer->discover('/path1', ['.'], []);
-        $cachedDiscoverer->discover('/path2', ['.'], []);
+        $result1 = $cachedDiscoverer->discover('/path1', ['.'], []);
+        $result2 = $cachedDiscoverer->discover('/path2', ['.'], []);
+        $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result1);
+        $this->assertInstanceOf(\Mcp\Capability\Discovery\DiscoveryState::class, $result2);
     }
 }

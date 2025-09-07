@@ -246,7 +246,9 @@ final class ServerBuilder
                 $discovery = $discoverer;
             }
             
-            $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
+            // Discover elements and apply them to the registry
+            $discoveryState = $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
+            $discoverer->applyDiscoveryState($discoveryState);
         }
 
         return new Server(

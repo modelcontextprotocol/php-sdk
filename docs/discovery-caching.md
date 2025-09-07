@@ -116,8 +116,9 @@ See the `examples/10-cached-discovery-stdio/` directory for a complete working e
 
 ## Implementation Details
 
-The caching system uses the decorator pattern:
+The caching system uses the decorator pattern with a clean state-based approach:
 - `CachedDiscoverer` wraps the existing `Discoverer` class
-- Uses reflection to extract and restore registry state
+- Uses `DiscoveryState` objects to represent discovered capabilities
 - Only caches discovered elements (not manually registered ones)
 - Maintains backward compatibility - works with or without cache
+- Clean separation of concerns between discovery and registry state management

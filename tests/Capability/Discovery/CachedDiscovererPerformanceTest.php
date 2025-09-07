@@ -37,7 +37,8 @@ class CachedDiscovererPerformanceTest extends TestCase
             $discoverer1 = new Discoverer($registry1, new NullLogger());
 
             $startTime = microtime(true);
-            $discoverer1->discover($tempDir, ['.'], []);
+            $discoveryState1 = $discoverer1->discover($tempDir, ['.'], []);
+            $discoverer1->applyDiscoveryState($discoveryState1);
             $uncachedTime = microtime(true) - $startTime;
 
             // Test cached discovery (first call - cache miss)
@@ -47,7 +48,8 @@ class CachedDiscovererPerformanceTest extends TestCase
             $cachedDiscoverer = new CachedDiscoverer($discoverer2, $cache, new NullLogger());
 
             $startTime = microtime(true);
-            $cachedDiscoverer->discover($tempDir, ['.'], []);
+            $discoveryState2 = $cachedDiscoverer->discover($tempDir, ['.'], []);
+            $discoverer2->applyDiscoveryState($discoveryState2);
             $cachedFirstTime = microtime(true) - $startTime;
 
             // Test cached discovery (second call - cache hit)
@@ -56,7 +58,8 @@ class CachedDiscovererPerformanceTest extends TestCase
             $cachedDiscoverer2 = new CachedDiscoverer($discoverer3, $cache, new NullLogger());
 
             $startTime = microtime(true);
-            $cachedDiscoverer2->discover($tempDir, ['.'], []);
+            $discoveryState3 = $cachedDiscoverer2->discover($tempDir, ['.'], []);
+            $discoverer3->applyDiscoveryState($discoveryState3);
             $cachedSecondTime = microtime(true) - $startTime;
 
             // Verify performance improvements
