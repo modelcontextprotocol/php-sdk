@@ -17,13 +17,12 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
-use Mcp\Event\PromptListChangedEvent;
-use Mcp\Event\ResourceListChangedEvent;
-use Mcp\Event\ResourceTemplateListChangedEvent;
-use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\ResourceContents;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -102,7 +101,7 @@ class Registry
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
 
-        $this->notificationPublisher->enqueue(new ToolListChangedEvent());
+        $this->notificationPublisher->enqueue(ToolListChangedNotification::class);
     }
 
     /**
@@ -121,7 +120,7 @@ class Registry
 
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
 
-        $this->notificationPublisher->enqueue(new ResourceListChangedEvent());
+        $this->notificationPublisher->enqueue(ResourceListChangedNotification::class);
     }
 
     /**
@@ -145,7 +144,8 @@ class Registry
 
         $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference($template, $handler, $isManual, $completionProviders);
 
-        $this->notificationPublisher->enqueue(new ResourceTemplateListChangedEvent());
+        // TODO: Create ResourceTemplateListChangedNotification.
+        // $this->notificationPublisher->enqueue(ResourceTemplateListChangedNotification::class);
     }
 
     /**
@@ -169,7 +169,7 @@ class Registry
 
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
 
-        $this->notificationPublisher->enqueue(new PromptListChangedEvent());
+        $this->notificationPublisher->enqueue(PromptListChangedNotification::class);
     }
 
     /**

@@ -13,30 +13,14 @@ declare(strict_types=1);
 
 namespace Mcp\Server;
 
-use Mcp\Event\PromptListChangedEvent;
-use Mcp\Event\ResourceListChangedEvent;
-use Mcp\Event\ToolListChangedEvent;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Notification;
-use Mcp\Schema\Notification\PromptListChangedNotification;
-use Mcp\Schema\Notification\ResourceListChangedNotification;
-use Mcp\Schema\Notification\ToolListChangedNotification;
-use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * @author Aggelos Bellos <aggelosbellos7@gmail.com>
  */
 class NotificationPublisher
 {
-    /**
-     * @var array<class-string<Event>, class-string<Notification>>
-     */
-    public const EVENTS_TO_NOTIFICATIONS = [
-        ResourceListChangedEvent::class => ResourceListChangedNotification::class,
-        PromptListChangedEvent::class => PromptListChangedNotification::class,
-        ToolListChangedEvent::class => ToolListChangedNotification::class,
-    ];
-
     /** @var list<Notification> */
     private array $queue = [];
 
@@ -50,14 +34,12 @@ class NotificationPublisher
         return new self(MessageFactory::make());
     }
 
-    public function enqueue(Event $event): void
+    /**
+     * @param class-string<Notification> $notificationType
+     * @return void
+     */
+    public function enqueue(string $notificationType): void
     {
-        $eventClass = $event::class;
-        if (!isset(self::EVENTS_TO_NOTIFICATIONS[$eventClass])) {
-            return;
-        }
-
-        $notificationType = self::EVENTS_TO_NOTIFICATIONS[$eventClass];
         $notification = $this->factory->createByType($notificationType, []);
 
         $this->queue[] = $notification;
