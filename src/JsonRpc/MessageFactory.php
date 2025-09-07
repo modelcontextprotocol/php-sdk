@@ -20,7 +20,6 @@ use Mcp\Schema\Request;
 
 /**
  * @phpstan-type RequestData array{
- *      id: string|int,
  *      params?: array<string, mixed>,
  *  }
  *
