@@ -19,6 +19,7 @@ use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Server\NotificationPublisher;
 use Mcp\Tests\Capability\Attribute\CompletionProviderFixture;
 use Mcp\Tests\Capability\Discovery\Fixtures\DiscoverableToolHandler;
 use Mcp\Tests\Capability\Discovery\Fixtures\InvocablePromptFixture;
@@ -34,7 +35,7 @@ class DiscoveryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->registry = new Registry();
+        $this->registry = new Registry(NotificationPublisher::make());
         $this->discoverer = new Discoverer($this->registry);
     }
 

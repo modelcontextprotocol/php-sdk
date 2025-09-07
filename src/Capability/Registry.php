@@ -29,7 +29,7 @@ use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use Mcp\Server\NotificationPublisher;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -61,8 +61,8 @@ class Registry
     private array $resourceTemplates = [];
 
     public function __construct(
+        private readonly NotificationPublisher $notificationPublisher,
         private readonly ReferenceHandler $referenceHandler = new ReferenceHandler(),
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -75,12 +75,12 @@ class Registry
 
         return new ServerCapabilities(
             tools: true, // [] !== $this->tools,
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            toolsListChanged: true,
             resources: [] !== $this->resources || [] !== $this->resourceTemplates,
             resourcesSubscribe: false,
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            resourcesListChanged: true,
             prompts: [] !== $this->prompts,
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            promptsListChanged: true,
             logging: false, // true,
             completions: true,
         );
@@ -102,7 +102,7 @@ class Registry
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->notificationPublisher->enqueue(new ToolListChangedEvent());
     }
 
     /**
@@ -121,7 +121,7 @@ class Registry
 
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->notificationPublisher->enqueue(new ResourceListChangedEvent());
     }
 
     /**
@@ -145,7 +145,7 @@ class Registry
 
         $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference($template, $handler, $isManual, $completionProviders);
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        $this->notificationPublisher->enqueue(new ResourceTemplateListChangedEvent());
     }
 
     /**
@@ -169,7 +169,7 @@ class Registry
 
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->notificationPublisher->enqueue(new PromptListChangedEvent());
     }
 
     /**

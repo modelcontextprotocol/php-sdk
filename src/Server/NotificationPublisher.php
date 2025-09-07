@@ -21,7 +21,6 @@ use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
-use Symfony\Component\EventDispatcher\EventDispatcher;
 use Symfony\Contracts\EventDispatcher\Event;
 
 /**
@@ -46,16 +45,12 @@ class NotificationPublisher
     ) {
     }
 
-    public static function make(EventDispatcher $eventDispatcher): self
+    public static function make(): self
     {
-        $instance = new self(MessageFactory::make());
-
-        $eventDispatcher->addListener(Event::class, [$instance, 'onEvent']);
-
-        return $instance;
+        return new self(MessageFactory::make());
     }
 
-    public function onEvent(Event $event): void
+    public function enqueue(Event $event): void
     {
         $eventClass = $event::class;
         if (!isset(self::EVENTS_TO_NOTIFICATIONS[$eventClass])) {

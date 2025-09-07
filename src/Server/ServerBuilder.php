@@ -33,12 +33,9 @@ use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Psr\Container\ContainerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
-use Symfony\Component\EventDispatcher\EventDispatcher;
-use Symfony\Contracts\EventDispatcher\Event;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -50,8 +47,6 @@ final class ServerBuilder
     private ?LoggerInterface $logger = null;
 
     private ?CacheInterface $cache = null;
-
-    private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
 
@@ -144,13 +139,6 @@ final class ServerBuilder
         return $this;
     }
 
-    public function withEventDispatcher(EventDispatcherInterface $eventDispatcher): self
-    {
-        $this->eventDispatcher = $eventDispatcher;
-
-        return $this;
-    }
-
     /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
@@ -219,19 +207,10 @@ final class ServerBuilder
      */
     public function build(): Server
     {
-        $internalDispatcher = new EventDispatcher();
-
-        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            $internalDispatcher->addListener(
-                Event::class,
-                fn ($event) => $this->eventDispatcher?->dispatch($event)
-            );
-        }
-
         $logger = $this->logger ?? new NullLogger();
-
+        $notificationPublisher = NotificationPublisher::make();
         $container = $this->container ?? new Container();
-        $registry = new Registry(new ReferenceHandler($container), $internalDispatcher, $logger);
+        $registry = new Registry($notificationPublisher, new ReferenceHandler($container), $logger);
 
         $this->registerManualElements($registry, $logger);
 
@@ -242,7 +221,7 @@ final class ServerBuilder
 
         return new Server(
             Handler::make($registry, $this->serverInfo, $logger),
-            NotificationPublisher::make($internalDispatcher),
+            $notificationPublisher,
             $logger,
         );
     }

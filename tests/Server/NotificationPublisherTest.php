@@ -31,7 +31,7 @@ class NotificationPublisherTest extends TestCase
         foreach (NotificationPublisher::EVENTS_TO_NOTIFICATIONS as $eventClass => $notificationClass) {
             /** @var Event $event */
             $event = new $eventClass();
-            $notificationPublisher->onEvent($event);
+            $notificationPublisher->enqueue($event);
             $expectedNotifications[] = $notificationClass;
         }
 
