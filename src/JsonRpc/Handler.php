@@ -12,7 +12,8 @@
 namespace Mcp\JsonRpc;
 
 use Mcp\Capability\Prompt\PromptGetterInterface;
-use Mcp\Capability\Registry;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Resource\ResourceReaderInterface;
 use Mcp\Capability\Tool\ToolExecutorInterface;
 use Mcp\Exception\ExceptionInterface;
@@ -32,7 +33,7 @@ use Psr\Log\NullLogger;
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Handler
+final class Handler implements HandlerInterface
 {
     /**
      * @var array<int, MethodHandlerInterface>
@@ -51,7 +52,8 @@ final class Handler
     }
 
     public static function make(
-        Registry $registry,
+        ReferenceRegistryInterface $registry,
+        ReferenceProviderInterface $referenceProvider,
         Implementation $implementation,
         ToolExecutorInterface $toolExecutor,
         ResourceReaderInterface $resourceReader,
@@ -64,23 +66,17 @@ final class Handler
                 new NotificationHandler\InitializedHandler(),
                 new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
                 new RequestHandler\PingHandler(),
-                new RequestHandler\ListPromptsHandler($registry),
+                new RequestHandler\ListPromptsHandler($referenceProvider),
                 new RequestHandler\GetPromptHandler($promptGetter),
-                new RequestHandler\ListResourcesHandler($registry),
+                new RequestHandler\ListResourcesHandler($referenceProvider),
                 new RequestHandler\ReadResourceHandler($resourceReader),
                 new RequestHandler\CallToolHandler($toolExecutor, $logger),
-                new RequestHandler\ListToolsHandler($registry),
+                new RequestHandler\ListToolsHandler($referenceProvider),
             ],
             logger: $logger,
         );
     }
 
-    /**
-     * @return iterable<string|null>
-     *
-     * @throws ExceptionInterface When a handler throws an exception during message processing
-     * @throws \JsonException     When JSON encoding of the response fails
-     */
     public function process(string $input): iterable
     {
         $this->logger->info('Received message to process.', ['message' => $input]);

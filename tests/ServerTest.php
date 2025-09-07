@@ -12,6 +12,7 @@
 namespace Mcp\Tests;
 
 use Mcp\JsonRpc\Handler;
+use Mcp\JsonRpc\HandlerInterface;
 use Mcp\Server;
 use Mcp\Server\Transport\InMemoryTransport;
 use PHPUnit\Framework\MockObject\Stub\Exception;
@@ -28,10 +29,11 @@ class ServerTest extends TestCase
             ->getMock();
         $logger->expects($this->once())->method('error');
 
-        $handler = $this->getMockBuilder(Handler::class)
+        $handler = $this->getMockBuilder(HandlerInterface::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['process'])
             ->getMock();
+
         $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(new Exception(new \JsonException('foobar')), ['success']);
 
         $transport = $this->getMockBuilder(InMemoryTransport::class)
