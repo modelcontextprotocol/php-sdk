@@ -123,6 +123,7 @@ final class MessageFactory
         if (\in_array($messageType, $this->registeredMessages, true)) {
             $data['jsonrpc'] = MessageInterface::JSONRPC_VERSION;
             $data['method'] = $messageType::getMethod();
+
             return $messageType::fromArray($data);
         }
 
