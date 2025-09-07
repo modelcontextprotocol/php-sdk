@@ -71,7 +71,6 @@ final class DispatchableRegistry implements ReferenceRegistryInterface
         bool $isManual = false,
     ): void {
         $this->referenceProvider->registerPrompt($prompt, $handler, $completionProviders, $isManual);
-
         $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
     }
 

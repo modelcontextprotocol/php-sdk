@@ -162,7 +162,7 @@ class ResourceTemplateReference extends ElementReference
      * - array: Converted to JSON if MIME type is application/json or contains 'json'
      *          For other MIME types, will try to convert to JSON with a warning
      */
-    protected function formatResult(mixed $readResult, string $uri, ?string $mimeType = null): array
+    public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null): array
     {
         if ($readResult instanceof ResourceContents) {
             return [$readResult];

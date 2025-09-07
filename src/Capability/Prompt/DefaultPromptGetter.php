@@ -42,7 +42,7 @@ final class DefaultPromptGetter implements PromptGetterInterface
 
         return new GetPromptResult(
             $reference->formatResult(
-                $this->referenceHandler->handle($reference, $request->arguments),
+                $this->referenceHandler->handle($reference, $request->arguments ?? []),
             ),
         );
     }

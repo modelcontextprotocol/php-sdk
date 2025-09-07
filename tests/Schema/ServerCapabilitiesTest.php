@@ -35,7 +35,7 @@ class ServerCapabilitiesTest extends TestCase
     public function testConstructorWithAllParameters(): void
     {
         $experimental = ['feature1' => true, 'feature2' => 'enabled'];
-        
+
         $capabilities = new ServerCapabilities(
             tools: false,
             toolsListChanged: true,
@@ -190,7 +190,7 @@ class ServerCapabilitiesTest extends TestCase
     public function testFromArrayWithPromptsArrayListChanged(): void
     {
         $data = [
-            'prompts' => ['listChanged' => true]
+            'prompts' => ['listChanged' => true],
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -205,7 +205,7 @@ class ServerCapabilitiesTest extends TestCase
         $prompts->listChanged = true;
 
         $data = [
-            'prompts' => $prompts
+            'prompts' => $prompts,
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -219,8 +219,8 @@ class ServerCapabilitiesTest extends TestCase
         $data = [
             'resources' => [
                 'subscribe' => true,
-                'listChanged' => false
-            ]
+                'listChanged' => false,
+            ],
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -237,7 +237,7 @@ class ServerCapabilitiesTest extends TestCase
         $resources->listChanged = true;
 
         $data = [
-            'resources' => $resources
+            'resources' => $resources,
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -250,7 +250,7 @@ class ServerCapabilitiesTest extends TestCase
     public function testFromArrayWithToolsArrayListChanged(): void
     {
         $data = [
-            'tools' => ['listChanged' => false]
+            'tools' => ['listChanged' => false],
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -265,7 +265,7 @@ class ServerCapabilitiesTest extends TestCase
         $tools->listChanged = true;
 
         $data = [
-            'tools' => $tools
+            'tools' => $tools,
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -278,7 +278,7 @@ class ServerCapabilitiesTest extends TestCase
     {
         $experimental = ['feature1' => true, 'feature2' => 'test'];
         $data = [
-            'experimental' => $experimental
+            'experimental' => $experimental,
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -292,12 +292,12 @@ class ServerCapabilitiesTest extends TestCase
             'tools' => ['listChanged' => true],
             'resources' => [
                 'subscribe' => true,
-                'listChanged' => false
+                'listChanged' => false,
             ],
             'prompts' => ['listChanged' => true],
             'logging' => new \stdClass(),
             'completions' => new \stdClass(),
-            'experimental' => ['customFeature' => 'enabled']
+            'experimental' => ['customFeature' => 'enabled'],
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);
@@ -353,14 +353,14 @@ class ServerCapabilitiesTest extends TestCase
         $this->assertEquals(new \stdClass(), $json['completions']);
 
         $this->assertArrayHasKey('prompts', $json);
-        $this->assertEquals(true, $json['prompts']->listChanged);
+        $this->assertTrue($json['prompts']->listChanged);
 
         $this->assertArrayHasKey('resources', $json);
-        $this->assertEquals(true, $json['resources']->subscribe);
-        $this->assertEquals(true, $json['resources']->listChanged);
+        $this->assertTrue($json['resources']->subscribe);
+        $this->assertTrue($json['resources']->listChanged);
 
         $this->assertArrayHasKey('tools', $json);
-        $this->assertEquals(true, $json['tools']->listChanged);
+        $this->assertTrue($json['tools']->listChanged);
 
         $this->assertArrayHasKey('experimental', $json);
         $this->assertEquals((object) $experimental, $json['experimental']);
@@ -450,7 +450,7 @@ class ServerCapabilitiesTest extends TestCase
         $data = [
             'prompts' => [],
             'resources' => [],
-            'tools' => []
+            'tools' => [],
         ];
 
         $capabilities = ServerCapabilities::fromArray($data);

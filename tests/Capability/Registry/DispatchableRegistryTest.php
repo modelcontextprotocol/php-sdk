@@ -41,7 +41,7 @@ class DispatchableRegistryTest extends TestCase
     public function testConstructorWithoutEventDispatcher(): void
     {
         $dispatchableRegistry = new DispatchableRegistry($this->referenceRegistry);
-        
+
         $this->assertInstanceOf(DispatchableRegistry::class, $dispatchableRegistry);
     }
 
@@ -100,7 +100,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterToolDelegatesToReferenceRegistryAndDispatchesEvent(): void
     {
         $tool = $this->createValidTool('test_tool');
-        $handler = fn() => 'result';
+        $handler = fn () => 'result';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerTool')
@@ -116,7 +116,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterToolWithManualFlag(): void
     {
         $tool = $this->createValidTool('test_tool');
-        $handler = fn() => 'result';
+        $handler = fn () => 'result';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerTool')
@@ -133,7 +133,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $dispatchableRegistry = new DispatchableRegistry($this->referenceRegistry, null);
         $tool = $this->createValidTool('test_tool');
-        $handler = fn() => 'result';
+        $handler = fn () => 'result';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerTool')
@@ -146,7 +146,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceDelegatesToReferenceRegistryAndDispatchesEvent(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResource')
@@ -162,7 +162,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceWithManualFlag(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResource')
@@ -179,7 +179,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $dispatchableRegistry = new DispatchableRegistry($this->referenceRegistry, null);
         $resource = $this->createValidResource('test://resource');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResource')
@@ -191,7 +191,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceTemplateDelegatesToReferenceRegistryAndDispatchesEvent(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
         $completionProviders = ['id' => 'TestProvider'];
 
         $this->referenceRegistry->expects($this->once())
@@ -208,7 +208,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceTemplateWithDefaults(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResourceTemplate')
@@ -224,7 +224,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceTemplateWithManualFlag(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResourceTemplate')
@@ -241,7 +241,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $dispatchableRegistry = new DispatchableRegistry($this->referenceRegistry, null);
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResourceTemplate')
@@ -253,7 +253,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterPromptDelegatesToReferenceRegistryAndDispatchesEvent(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $handler = fn() => [];
+        $handler = fn () => [];
         $completionProviders = ['param' => 'TestProvider'];
 
         $this->referenceRegistry->expects($this->once())
@@ -270,7 +270,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterPromptWithDefaults(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $handler = fn() => [];
+        $handler = fn () => [];
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerPrompt')
@@ -286,7 +286,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterPromptWithManualFlag(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $handler = fn() => [];
+        $handler = fn () => [];
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerPrompt')
@@ -303,7 +303,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $dispatchableRegistry = new DispatchableRegistry($this->referenceRegistry, null);
         $prompt = $this->createValidPrompt('test_prompt');
-        $handler = fn() => [];
+        $handler = fn () => [];
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerPrompt')
@@ -355,7 +355,7 @@ class DispatchableRegistryTest extends TestCase
     public function testRegisterResourceHandlesCallableHandler(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn() => 'content';
+        $handler = fn () => 'content';
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResource')
@@ -375,9 +375,9 @@ class DispatchableRegistryTest extends TestCase
             inputSchema: [
                 'type' => 'object',
                 'properties' => [
-                    'param' => ['type' => 'string']
+                    'param' => ['type' => 'string'],
                 ],
-                'required' => null
+                'required' => null,
             ],
             description: "Test tool: {$name}",
             annotations: null

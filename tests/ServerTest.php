@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests;
 
-use Mcp\JsonRpc\Handler;
 use Mcp\JsonRpc\HandlerInterface;
 use Mcp\Server;
 use Mcp\Server\Transport\InMemoryTransport;
