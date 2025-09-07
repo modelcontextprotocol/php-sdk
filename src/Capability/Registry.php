@@ -69,8 +69,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     ) {
     }
 
-    // === ReferenceRegistry interface methods ===
-
     public function getCapabilities(): ServerCapabilities
     {
         if (!$this->hasElements()) {
@@ -225,8 +223,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $this->logger->debug(\sprintf('Removed %d discovered elements from internal registry.', $clearCount));
         }
     }
-
-    // === ReferenceProvider interface methods ===
 
     public function getTool(string $name): ?ToolReference
     {
