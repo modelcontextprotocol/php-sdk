@@ -183,7 +183,7 @@ class DefaultPromptGetterTest extends TestCase
     {
         $request = new GetPromptRequest('json_error_prompt', []);
         $prompt = $this->createValidPrompt('json_error_prompt');
-        
+
         // Create a mock PromptReference that will throw JsonException during formatResult
         $promptReference = $this->createMock(PromptReference::class);
         $promptReference->expects($this->once())
@@ -462,7 +462,7 @@ class DefaultPromptGetterTest extends TestCase
         $request = new GetPromptRequest('format_test_prompt', []);
         $prompt = $this->createValidPrompt('format_test_prompt');
         $promptReference = new PromptReference($prompt, fn () => 'Format test');
-        
+
         // Test that the formatted result from PromptReference.formatResult is properly returned
         $handlerResult = [
             'role' => 'user',
@@ -490,7 +490,7 @@ class DefaultPromptGetterTest extends TestCase
     }
 
     /**
-     * Test that invalid handler results throw RuntimeException from PromptReference.formatResult()
+     * Test that invalid handler results throw RuntimeException from PromptReference.formatResult().
      */
     public function testGetThrowsRuntimeExceptionForInvalidHandlerResult(): void
     {
@@ -517,7 +517,7 @@ class DefaultPromptGetterTest extends TestCase
     }
 
     /**
-     * Test that null result from handler throws RuntimeException
+     * Test that null result from handler throws RuntimeException.
      */
     public function testGetThrowsRuntimeExceptionForNullHandlerResult(): void
     {
@@ -544,7 +544,7 @@ class DefaultPromptGetterTest extends TestCase
     }
 
     /**
-     * Test that scalar result from handler throws RuntimeException
+     * Test that scalar result from handler throws RuntimeException.
      */
     public function testGetThrowsRuntimeExceptionForScalarHandlerResult(): void
     {
@@ -571,7 +571,7 @@ class DefaultPromptGetterTest extends TestCase
     }
 
     /**
-     * Test that boolean result from handler throws RuntimeException
+     * Test that boolean result from handler throws RuntimeException.
      */
     public function testGetThrowsRuntimeExceptionForBooleanHandlerResult(): void
     {
@@ -598,7 +598,7 @@ class DefaultPromptGetterTest extends TestCase
     }
 
     /**
-     * Test that object result from handler throws RuntimeException
+     * Test that object result from handler throws RuntimeException.
      */
     public function testGetThrowsRuntimeExceptionForObjectHandlerResult(): void
     {
