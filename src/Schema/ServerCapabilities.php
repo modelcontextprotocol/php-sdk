@@ -45,6 +45,21 @@ class ServerCapabilities implements \JsonSerializable
     ) {
     }
 
+    public function withEvents(): self
+    {
+        return new self(
+            tools: $this->tools,
+            toolsListChanged: true,
+            resources: $this->resources,
+            resourcesSubscribe: $this->resourcesSubscribe,
+            resourcesListChanged: true,
+            prompts: $this->prompts,
+            promptsListChanged: true,
+            logging: $this->logging,
+            completions: $this->completions,
+        );
+    }
+
     /**
      * @param array{
      *     logging?: mixed,
@@ -106,7 +121,7 @@ class ServerCapabilities implements \JsonSerializable
             promptsListChanged: $promptsListChanged,
             logging: $loggingEnabled,
             completions: $completionsEnabled,
-            experimental: $data['experimental'] ?? null
+            experimental: $data['experimental'] ?? null,
         );
     }
 
