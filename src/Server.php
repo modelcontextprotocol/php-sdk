@@ -25,8 +25,7 @@ final class Server
     public function __construct(
         private readonly Handler $jsonRpcHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+    ) {}
 
     public static function make(): ServerBuilder
     {
@@ -40,33 +39,26 @@ final class Server
             'transport' => $transport::class,
         ]);
 
-        while ($transport->isConnected()) {
-            foreach ($transport->receive() as $message) {
-                if (null === $message) {
+        $transport->setMessageHandler(function (string $rawMessage) use ($transport) {
+            $this->handleMessage($rawMessage, $transport);
+        });
+    }
+
+    private function handleMessage(string $rawMessage, TransportInterface $transport): void
+    {
+        try {
+            foreach ($this->jsonRpcHandler->process($rawMessage) as $response) {
+                if (null === $response) {
                     continue;
                 }
 
-                try {
-                    foreach ($this->jsonRpcHandler->process($message) as $response) {
-                        if (null === $response) {
-                            continue;
-                        }
-
-                        $transport->send($response);
-                    }
-                } catch (\JsonException $e) {
-                    $this->logger->error('Failed to encode response to JSON.', [
-                        'message' => $message,
-                        'exception' => $e,
-                    ]);
-                    continue;
-                }
+                $transport->send($response);
             }
-
-            usleep(1000);
+        } catch (\JsonException $e) {
+            $this->logger->error('Failed to encode response to JSON.', [
+                'message' => $rawMessage,
+                'exception' => $e,
+            ]);
         }
-
-        $transport->close();
-        $this->logger->info('Transport closed');
     }
 }
