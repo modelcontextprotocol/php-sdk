@@ -11,7 +11,6 @@
 
 namespace Mcp\Capability;
 
-use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
@@ -27,8 +26,6 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @phpstan-import-type CallableArray from ElementReference
- *
  * Registry implementation that manages MCP element registration and access.
  * Implements both ReferenceProvider (for access) and ReferenceRegistry (for registration)
  * following the Interface Segregation Principle.
@@ -82,9 +79,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         );
     }
 
-    /**
-     * @param callable|CallableArray|string $handler
-     */
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void
     {
         $toolName = $tool->name;
@@ -101,9 +95,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
     }
 
-    /**
-     * @param callable|CallableArray|string $handler
-     */
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void
     {
         $uri = $resource->uri;
@@ -120,10 +111,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
     }
 
-    /**
-     * @param callable|CallableArray|string      $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
     public function registerResourceTemplate(
         ResourceTemplate $template,
         callable|array|string $handler,
@@ -149,10 +136,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         );
     }
 
-    /**
-     * @param callable|CallableArray|string      $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
     public function registerPrompt(
         Prompt $prompt,
         callable|array|string $handler,
@@ -173,9 +156,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
     }
 
-    /**
-     * Clear discovered elements from registry.
-     */
     public function clear(): void
     {
         $clearCount = 0;
@@ -249,42 +229,27 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return $this->prompts[$name] ?? null;
     }
 
-    /**
-     * @return array<string, Tool>
-     */
     public function getTools(): array
     {
         return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
     }
 
-    /**
-     * @return array<string, resource>
-     */
     public function getResources(): array
     {
         return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
     }
 
-    /**
-     * @return array<string, Prompt>
-     */
     public function getPrompts(): array
     {
         return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
     }
 
-    /**
-     * @return array<string, ResourceTemplate>
-     */
     public function getResourceTemplates(): array
     {
         return array_map(fn (ResourceTemplateReference $template) => $template->resourceTemplate,
             $this->resourceTemplates);
     }
 
-    /**
-     * Checks if any elements (manual or discovered) are currently registered.
-     */
     public function hasElements(): bool
     {
         return !empty($this->tools)

@@ -55,7 +55,8 @@ class ResourceTemplateReference extends ElementReference
     }
 
     /**
-     * Gets the resource template.
+     * @deprecated
+     * Gets the resource template
      *
      * @return array<int, ResourceContents> array of ResourceContents objects
      */

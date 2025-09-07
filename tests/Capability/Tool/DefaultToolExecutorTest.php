@@ -21,15 +21,16 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class DefaultToolExecutorTest extends TestCase
 {
     private DefaultToolExecutor $toolExecutor;
-    private ReferenceProviderInterface $referenceProvider;
-    private ReferenceHandlerInterface $referenceHandler;
-    private LoggerInterface $logger;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
+    private LoggerInterface|MockObject $logger;
 
     protected function setUp(): void
     {

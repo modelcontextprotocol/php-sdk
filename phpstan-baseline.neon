@@ -403,96 +403,6 @@ parameters:
 			path: examples/09-standalone-cli/src/Builder.php
 
 		-
-			message: '#^Call to protected method formatResult\(\) of class Mcp\\Capability\\Registry\\ResourceReference\.$#'
-			identifier: method.protected
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Cannot import type alias CallableArray\: type alias does not exist in Mcp\\Capability\\Registry\\ElementReference\.$#'
-			identifier: typeAlias.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:handleCallTool\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:handleCallTool\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:handleGetPrompt\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:registerPrompt\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:registerResource\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:registerResourceTemplate\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:registerTool\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^PHPDoc tag @param for parameter \$handler with type \(callable\)\|Mcp\\Capability\\CallableArray\|string is not subtype of native type array\|\(callable\)\|string\.$#'
-			identifier: parameter.phpDocType
-			count: 4
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Parameter \$handler of method Mcp\\Capability\\Registry\:\:registerPrompt\(\) has invalid type Mcp\\Capability\\CallableArray\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Parameter \$handler of method Mcp\\Capability\\Registry\:\:registerResource\(\) has invalid type Mcp\\Capability\\CallableArray\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Parameter \$handler of method Mcp\\Capability\\Registry\:\:registerResourceTemplate\(\) has invalid type Mcp\\Capability\\CallableArray\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Parameter \$handler of method Mcp\\Capability\\Registry\:\:registerTool\(\) has invalid type Mcp\\Capability\\CallableArray\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Capability/Registry/ResourceTemplateReference.php
-
-		-
 			message: '#^PHPDoc tag @return with type array is incompatible with native type object\.$#'
 			identifier: return.phpDocType
 			count: 1
@@ -505,30 +415,6 @@ parameters:
 			path: src/Schema/Result/ReadResourceResult.php
 
 		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:getPrompts\(\) invoked with 2 parameters, 0 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: src/Server/RequestHandler/ListPromptsHandler.php
-
-		-
-			message: '#^Result of && is always false\.$#'
-			identifier: booleanAnd.alwaysFalse
-			count: 1
-			path: src/Server/RequestHandler/ListPromptsHandler.php
-
-		-
-			message: '#^Strict comparison using \!\=\= between null and null will always evaluate to false\.$#'
-			identifier: notIdentical.alwaysFalse
-			count: 1
-			path: src/Server/RequestHandler/ListPromptsHandler.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:getResources\(\) invoked with 2 parameters, 0 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: src/Server/RequestHandler/ListResourcesHandler.php
-
-		-
 			message: '#^Result of && is always false\.$#'
 			identifier: booleanAnd.alwaysFalse
 			count: 1
@@ -539,12 +425,6 @@ parameters:
 			identifier: notIdentical.alwaysFalse
 			count: 1
 			path: src/Server/RequestHandler/ListResourcesHandler.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:getTools\(\) invoked with 2 parameters, 0 required\.$#'
-			identifier: arguments.count
-			count: 1
-			path: src/Server/RequestHandler/ListToolsHandler.php
 
 		-
 			message: '#^Result of && is always false\.$#'

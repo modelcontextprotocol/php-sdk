@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Capability\Prompt;
 
+use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\DefaultPromptGetter;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
@@ -23,13 +24,14 @@ use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class DefaultPromptGetterTest extends TestCase
 {
     private DefaultPromptGetter $promptGetter;
-    private ReferenceProviderInterface $referenceProvider;
-    private ReferenceHandlerInterface $referenceHandler;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
 
     protected function setUp(): void
     {
@@ -393,7 +395,7 @@ class DefaultPromptGetterTest extends TestCase
     {
         $request = new GetPromptRequest('completion_prompt', ['param' => 'value']);
         $prompt = $this->createValidPrompt('completion_prompt');
-        $completionProviders = ['param' => 'SomeCompletionProvider'];
+        $completionProviders = ['param' => EnumCompletionProvider::class];
         $promptReference = new PromptReference(
             $prompt,
             fn () => 'Completion content',

@@ -12,6 +12,7 @@
 namespace Capability\Registry;
 
 use Mcp\Capability\DispatchableRegistry;
+use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
@@ -22,13 +23,14 @@ use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 
 class DispatchableRegistryTest extends TestCase
 {
-    private ReferenceRegistryInterface $referenceRegistry;
-    private EventDispatcherInterface $eventDispatcher;
+    private ReferenceRegistryInterface|MockObject $referenceRegistry;
+    private EventDispatcherInterface|MockObject $eventDispatcher;
     private DispatchableRegistry $dispatchableRegistry;
 
     protected function setUp(): void
@@ -192,7 +194,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $template = $this->createValidResourceTemplate('test://{id}');
         $handler = fn () => 'content';
-        $completionProviders = ['id' => 'TestProvider'];
+        $completionProviders = ['id' => EnumCompletionProvider::class];
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerResourceTemplate')
@@ -254,7 +256,7 @@ class DispatchableRegistryTest extends TestCase
     {
         $prompt = $this->createValidPrompt('test_prompt');
         $handler = fn () => [];
-        $completionProviders = ['param' => 'TestProvider'];
+        $completionProviders = ['param' => EnumCompletionProvider::class];
 
         $this->referenceRegistry->expects($this->once())
             ->method('registerPrompt')

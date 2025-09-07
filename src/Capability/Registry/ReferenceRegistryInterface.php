@@ -18,7 +18,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 
 /**
- * @phpstan-import-type CallableArray from ElementReference
+ * @phpstan-import-type Handler from ElementReference
  *
  * Interface for registering MCP elements.
  * Separates the concern of registering elements from accessing them.
@@ -35,21 +35,21 @@ interface ReferenceRegistryInterface
     /**
      * Registers a tool with its handler.
      *
-     * @param callable|CallableArray|string $handler
+     * @param Handler $handler
      */
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource with its handler.
      *
-     * @param callable|CallableArray|string $handler
+     * @param Handler $handler
      */
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource template with its handler and completion providers.
      *
-     * @param callable|CallableArray|string      $handler
+     * @param Handler                            $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerResourceTemplate(
@@ -62,7 +62,7 @@ interface ReferenceRegistryInterface
     /**
      * Registers a prompt with its handler and completion providers.
      *
-     * @param callable|CallableArray|string      $handler
+     * @param Handler                            $handler
      * @param array<string, class-string|object> $completionProviders
      */
     public function registerPrompt(

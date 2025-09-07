@@ -23,13 +23,14 @@ use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\ReadResourceResult;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
 class DefaultResourceReaderTest extends TestCase
 {
     private DefaultResourceReader $resourceReader;
-    private ReferenceProviderInterface $referenceProvider;
-    private ReferenceHandlerInterface $referenceHandler;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
 
     protected function setUp(): void
     {

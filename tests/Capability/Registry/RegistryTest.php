@@ -11,19 +11,21 @@
 
 namespace Mcp\Tests\Capability\Registry;
 
+use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 class RegistryTest extends TestCase
 {
     private Registry $registry;
-    private LoggerInterface $logger;
+    private LoggerInterface|MockObject $logger;
 
     protected function setUp(): void
     {
@@ -151,7 +153,7 @@ class RegistryTest extends TestCase
     public function testRegisterResourceTemplateWithCompletionProviders(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $completionProviders = ['id' => 'TestProvider'];
+        $completionProviders = ['id' => EnumCompletionProvider::class];
 
         $this->registry->registerResourceTemplate($template, fn () => 'content', $completionProviders);
 
@@ -180,7 +182,7 @@ class RegistryTest extends TestCase
     public function testRegisterPromptWithCompletionProviders(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $completionProviders = ['param' => 'TestProvider'];
+        $completionProviders = ['param' => EnumCompletionProvider::class];
 
         $this->registry->registerPrompt($prompt, fn () => [], $completionProviders);
 
