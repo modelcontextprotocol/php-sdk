@@ -66,7 +66,15 @@ final class Server
             }
 
             foreach ($this->notificationPublisher->flush() as $notification) {
-                $transport->send($notification);
+                try {
+                    $transport->send(json_encode($notification, \JSON_THROW_ON_ERROR));
+                } catch (\JsonException $e) {
+                    $this->logger->error('Failed to encode notification to JSON.', [
+                        'notification' => $notification::class,
+                        'exception' => $e,
+                    ]);
+                    continue;
+                }
             }
 
             usleep(1000);
