@@ -17,6 +17,9 @@ use Mcp\Exception\RegistryException;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 
+/**
+ * @author Pavel Buchnev   <butschster@gmail.com>
+ */
 final class DefaultPromptGetter implements PromptGetterInterface
 {
     public function __construct(

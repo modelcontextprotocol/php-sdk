@@ -17,6 +17,9 @@ use Mcp\Exception\RegistryException;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
 
+/**
+ * @author Pavel Buchnev   <butschster@gmail.com>
+ */
 final class DefaultResourceReader implements ResourceReaderInterface
 {
     public function __construct(
