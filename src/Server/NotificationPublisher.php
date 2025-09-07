@@ -36,7 +36,6 @@ class NotificationPublisher
 
     /**
      * @param class-string<Notification> $notificationType
-     * @return void
      */
     public function enqueue(string $notificationType): void
     {
