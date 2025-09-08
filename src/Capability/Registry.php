@@ -22,11 +22,13 @@ use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
+use Mcp\Server\RequestHandler\Reference\Page;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -244,27 +246,92 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return $this->prompts[$name] ?? null;
     }
 
-    public function getTools(): array
+    public function getTools(?int $limit = null, ?string $cursor = null): Page
     {
-        return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
-    }
+        $tools = [];
+        foreach ($this->tools as $toolReference) {
+            $tools[$toolReference->tool->name] = $toolReference->tool;
+        }
 
-    public function getResources(): array
-    {
-        return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
-    }
+        if (null === $limit) {
+            return new Page($tools, null);
+        }
 
-    public function getPrompts(): array
-    {
-        return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
-    }
+        $paginatedTools = $this->paginateResults($tools, $limit, $cursor);
 
-    public function getResourceTemplates(): array
-    {
-        return array_map(
-            fn (ResourceTemplateReference $template) => $template->resourceTemplate,
-            $this->resourceTemplates
+        $nextCursor = $this->calculateNextCursor(
+            \count($tools),
+            $cursor,
+            $limit
         );
+
+        return new Page($paginatedTools, $nextCursor);
+    }
+
+    public function getResources(?int $limit = null, ?string $cursor = null): Page
+    {
+        $resources = [];
+        foreach ($this->resources as $resourceReference) {
+            $resources[$resourceReference->schema->uri] = $resourceReference->schema;
+        }
+
+        if (null === $limit) {
+            return new Page($resources, null);
+        }
+
+        $paginatedResources = $this->paginateResults($resources, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($resources),
+            $cursor,
+            $limit
+        );
+
+        return new Page($paginatedResources, $nextCursor);
+    }
+
+    public function getPrompts(?int $limit = null, ?string $cursor = null): Page
+    {
+        $prompts = [];
+        foreach ($this->prompts as $promptReference) {
+            $prompts[$promptReference->prompt->name] = $promptReference->prompt;
+        }
+
+        if (null === $limit) {
+            return new Page($prompts, null);
+        }
+
+        $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($prompts),
+            $cursor,
+            $limit
+        );
+
+        return new Page($paginatedPrompts, $nextCursor);
+    }
+
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
+    {
+        $templates = [];
+        foreach ($this->resourceTemplates as $templateReference) {
+            $templates[$templateReference->resourceTemplate->uriTemplate] = $templateReference->resourceTemplate;
+        }
+
+        if (null === $limit) {
+            return new Page($templates, null);
+        }
+
+        $paginatedTemplates = $this->paginateResults($templates, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($templates),
+            $cursor,
+            $limit
+        );
+
+        return new Page($paginatedTemplates, $nextCursor);
     }
 
     public function hasElements(): bool
@@ -326,5 +393,64 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
                 $this->eventDispatcher->dispatch(new PromptListChangedEvent());
             }
         }
+    }
+
+    /**
+     * Calculate next cursor for pagination.
+     *
+     * @param int         $totalItems    Count of all items
+     * @param string|null $currentCursor Current cursor position
+     * @param int         $limit         Number requested/returned per page
+     */
+    private function calculateNextCursor(int $totalItems, ?string $currentCursor, int $limit): ?string
+    {
+        $currentOffset = 0;
+
+        if (null !== $currentCursor) {
+            $decodedCursor = base64_decode($currentCursor, true);
+            if (false !== $decodedCursor && is_numeric($decodedCursor)) {
+                $currentOffset = (int) $decodedCursor;
+            }
+        }
+
+        $nextOffset = $currentOffset + $limit;
+
+        if ($nextOffset < $totalItems) {
+            return base64_encode((string) $nextOffset);
+        }
+
+        return null;
+    }
+
+    /**
+     * Helper method to paginate results using cursor-based pagination.
+     *
+     * @param array<int|string, mixed> $items  The full array of items to paginate The full array of items to paginate
+     * @param int                      $limit  Maximum number of items to return
+     * @param string|null              $cursor Base64 encoded offset position
+     *
+     * @return array<int|string, mixed> Paginated results
+     *
+     * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
+     */
+    private function paginateResults(array $items, int $limit, ?string $cursor = null): array
+    {
+        $offset = 0;
+        if (null !== $cursor) {
+            $decodedCursor = base64_decode($cursor, true);
+
+            if (false === $decodedCursor || !is_numeric($decodedCursor)) {
+                throw new InvalidCursorException($cursor);
+            }
+
+            $offset = (int) $decodedCursor;
+
+            // Validate offset is within reasonable bounds
+            if ($offset < 0 || $offset > \count($items)) {
+                throw new InvalidCursorException($cursor);
+            }
+        }
+
+        return array_values(\array_slice($items, $offset, $limit));
     }
 }

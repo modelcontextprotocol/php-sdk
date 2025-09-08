@@ -161,10 +161,10 @@ class RegistryProviderTest extends TestCase
 
         $tools = $this->registry->getTools();
         $this->assertCount(2, $tools);
-        $this->assertArrayHasKey('tool1', $tools);
-        $this->assertArrayHasKey('tool2', $tools);
-        $this->assertInstanceOf(Tool::class, $tools['tool1']);
-        $this->assertInstanceOf(Tool::class, $tools['tool2']);
+        $this->assertArrayHasKey('tool1', $tools->references);
+        $this->assertArrayHasKey('tool2', $tools->references);
+        $this->assertInstanceOf(Tool::class, $tools->references['tool1']);
+        $this->assertInstanceOf(Tool::class, $tools->references['tool2']);
     }
 
     public function testGetResourcesReturnsAllRegisteredResources(): void
@@ -177,10 +177,10 @@ class RegistryProviderTest extends TestCase
 
         $resources = $this->registry->getResources();
         $this->assertCount(2, $resources);
-        $this->assertArrayHasKey('test://resource1', $resources);
-        $this->assertArrayHasKey('test://resource2', $resources);
-        $this->assertInstanceOf(Resource::class, $resources['test://resource1']);
-        $this->assertInstanceOf(Resource::class, $resources['test://resource2']);
+        $this->assertArrayHasKey('test://resource1', $resources->references);
+        $this->assertArrayHasKey('test://resource2', $resources->references);
+        $this->assertInstanceOf(Resource::class, $resources->references['test://resource1']);
+        $this->assertInstanceOf(Resource::class, $resources->references['test://resource2']);
     }
 
     public function testGetPromptsReturnsAllRegisteredPrompts(): void
@@ -193,10 +193,10 @@ class RegistryProviderTest extends TestCase
 
         $prompts = $this->registry->getPrompts();
         $this->assertCount(2, $prompts);
-        $this->assertArrayHasKey('prompt1', $prompts);
-        $this->assertArrayHasKey('prompt2', $prompts);
-        $this->assertInstanceOf(Prompt::class, $prompts['prompt1']);
-        $this->assertInstanceOf(Prompt::class, $prompts['prompt2']);
+        $this->assertArrayHasKey('prompt1', $prompts->references);
+        $this->assertArrayHasKey('prompt2', $prompts->references);
+        $this->assertInstanceOf(Prompt::class, $prompts->references['prompt1']);
+        $this->assertInstanceOf(Prompt::class, $prompts->references['prompt2']);
     }
 
     public function testGetResourceTemplatesReturnsAllRegisteredTemplates(): void
@@ -209,10 +209,10 @@ class RegistryProviderTest extends TestCase
 
         $templates = $this->registry->getResourceTemplates();
         $this->assertCount(2, $templates);
-        $this->assertArrayHasKey('test1://{id}', $templates);
-        $this->assertArrayHasKey('test2://{category}', $templates);
-        $this->assertInstanceOf(ResourceTemplate::class, $templates['test1://{id}']);
-        $this->assertInstanceOf(ResourceTemplate::class, $templates['test2://{category}']);
+        $this->assertArrayHasKey('test1://{id}', $templates->references);
+        $this->assertArrayHasKey('test2://{category}', $templates->references);
+        $this->assertInstanceOf(ResourceTemplate::class, $templates->references['test1://{id}']);
+        $this->assertInstanceOf(ResourceTemplate::class, $templates->references['test2://{category}']);
     }
 
     public function testHasElementsReturnsFalseForEmptyRegistry(): void
