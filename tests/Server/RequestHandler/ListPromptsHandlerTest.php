@@ -19,7 +19,6 @@ use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Server\RequestHandler\ListPromptsHandler;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
-use ReflectionClass;
 
 class ListPromptsHandlerTest extends TestCase
 {
@@ -166,7 +165,7 @@ class ListPromptsHandlerTest extends TestCase
     {
         // Arrange
         $this->addPromptsToRegistry(6);
-        $exactBoundaryCursor = base64_encode('6');
+        $exactBoundaryCursor = base64_encode('6'); // Exactly at the end
         $request = $this->createListPromptsRequest(cursor: $exactBoundaryCursor);
 
         // Act
@@ -208,12 +207,13 @@ class ListPromptsHandlerTest extends TestCase
 
     private function createListPromptsRequest(?string $cursor = null): ListPromptsRequest
     {
-        $listPromptsRequest = new ListPromptsRequest(cursor: $cursor);
-
-        $reflection = new ReflectionClass($listPromptsRequest);
-        $idProperty = $reflection->getProperty('id');
-        $idProperty->setValue($listPromptsRequest, 'test-request-id');
+        $mock = $this->getMockBuilder(ListPromptsRequest::class)
+            ->setConstructorArgs([$cursor])
+            ->onlyMethods(['getId'])
+            ->getMock();
         
-        return $listPromptsRequest;
+        $mock->method('getId')->willReturn('test-request-id');
+        
+        return $mock;
     }
 }
