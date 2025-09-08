@@ -42,13 +42,15 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(3, $response->result->resources);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(3, $result->resources);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('resource://test/resource_0', $response->result->resources[0]->uri);
-        $this->assertEquals('resource://test/resource_1', $response->result->resources[1]->uri);
-        $this->assertEquals('resource://test/resource_2', $response->result->resources[2]->uri);
+        $this->assertEquals('resource://test/resource_0', $result->resources[0]->uri);
+        $this->assertEquals('resource://test/resource_1', $result->resources[1]->uri);
+        $this->assertEquals('resource://test/resource_2', $result->resources[2]->uri);
     }
 
     #[TestDox('Returns paginated resources with cursor')]
@@ -62,13 +64,15 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(3, $response->result->resources);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(3, $result->resources);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('resource://test/resource_0', $response->result->resources[0]->uri);
-        $this->assertEquals('resource://test/resource_1', $response->result->resources[1]->uri);
-        $this->assertEquals('resource://test/resource_2', $response->result->resources[2]->uri);
+        $this->assertEquals('resource://test/resource_0', $result->resources[0]->uri);
+        $this->assertEquals('resource://test/resource_1', $result->resources[1]->uri);
+        $this->assertEquals('resource://test/resource_2', $result->resources[2]->uri);
     }
 
     #[TestDox('Returns second page with cursor')]
@@ -85,13 +89,15 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(3, $response->result->resources);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(3, $result->resources);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('resource://test/resource_3', $response->result->resources[0]->uri);
-        $this->assertEquals('resource://test/resource_4', $response->result->resources[1]->uri);
-        $this->assertEquals('resource://test/resource_5', $response->result->resources[2]->uri);
+        $this->assertEquals('resource://test/resource_3', $result->resources[0]->uri);
+        $this->assertEquals('resource://test/resource_4', $result->resources[1]->uri);
+        $this->assertEquals('resource://test/resource_5', $result->resources[2]->uri);
     }
 
     #[TestDox('Returns last page with null cursor')]
@@ -108,12 +114,14 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(2, $response->result->resources);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(2, $result->resources);
+        $this->assertNull($result->nextCursor);
 
-        $this->assertEquals('resource://test/resource_3', $response->result->resources[0]->uri);
-        $this->assertEquals('resource://test/resource_4', $response->result->resources[1]->uri);
+        $this->assertEquals('resource://test/resource_3', $result->resources[0]->uri);
+        $this->assertEquals('resource://test/resource_4', $result->resources[1]->uri);
     }
 
     #[TestDox('Handles empty registry')]
@@ -126,9 +134,11 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(0, $response->result->resources);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(0, $result->resources);
+        $this->assertNull($result->nextCursor);
     }
 
     #[TestDox('Throws exception for invalid cursor')]
