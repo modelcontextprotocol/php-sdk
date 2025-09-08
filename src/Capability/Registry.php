@@ -22,6 +22,7 @@ use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Prompt;
@@ -306,30 +307,137 @@ class Registry
     /**
      * @return array<string, Tool>
      */
-    public function getTools(): array
+    public function getTools(?int $limit = null, ?string $cursor = null): array
     {
-        return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
+        $tools = [];
+        foreach ($this->tools as $toolReference) {
+            $tools[] = $toolReference->tool;
+        }
+        
+        if ($limit === null) {
+            return $tools;
+        }
+        
+        return $this->paginateResults($tools, $limit, $cursor);
     }
 
     /**
      * @return array<string, resource>
      */
-    public function getResources(): array
+    public function getResources(?int $limit = null, ?string $cursor = null): array
     {
-        return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
+        $resources = [];
+        foreach ($this->resources as $resource) {
+            $resources[] = $resource->schema;
+        }
+        
+        if ($limit === null) {
+            return $resources;
+        }
+        
+        return $this->paginateResults($resources, $limit, $cursor);
     }
 
     /**
      * @return array<string, Prompt>
      */
-    public function getPrompts(): array
+    public function getPrompts(?int $limit = null, ?string $cursor = null): array
     {
-        return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
+        $prompts = [];
+        foreach ($this->prompts as $promptReference) {
+            $prompts[] = $promptReference->prompt;
+        }
+        
+        if ($limit === null) {
+            return $prompts;
+        }
+        
+        return $this->paginateResults($prompts, $limit, $cursor);
     }
 
-    /** @return array<string, ResourceTemplate> */
-    public function getResourceTemplates(): array
+    /**
+     * Get total count of tools.
+     */
+    public function getToolsCount(): int
     {
-        return array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
+        return count($this->tools);
+    }
+
+    /**
+     * Get total count of prompts.
+     */
+    public function getPromptsCount(): int
+    {
+        return count($this->prompts);
+    }
+
+    /**
+     * Get total count of resources.
+     */
+    public function getResourcesCount(): int
+    {
+        return count($this->resources);
+    }
+
+    /** 
+     * @return array<string, ResourceTemplate> 
+     */
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
+    {
+        $templates = array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
+        
+        if ($limit === null) {
+            return $templates;
+        }
+        
+        return $this->paginateResults($templates, $limit, $cursor);
+    }
+
+    /**
+     * @throws InvalidCursorException
+     */
+    private function paginateResults(array $items, int $limit, ?string $cursor = null): array
+    {
+        $offset = 0;
+        if ($cursor !== null) {
+            $decodedCursor = base64_decode($cursor, true);
+
+            if ($decodedCursor === false || !is_numeric($decodedCursor)) {
+                throw new InvalidCursorException($cursor);
+            }
+            
+            $offset = $decodedCursor;
+            
+            // Validate offset is within reasonable bounds
+            if ($offset < 0 || $offset > count($items)) {
+                throw new InvalidCursorException($cursor);
+            }
+        }
+
+        return array_slice($items, $offset, $limit);
+    }
+
+    /**
+     * Calculate next cursor for pagination.
+     */
+    public function calculateNextCursor(int $totalCount, ?string $currentCursor, int $returnedCount): ?string
+    {
+        $currentOffset = 0;
+
+        if ($currentCursor !== null) {
+            $decodedCursor = base64_decode($currentCursor, true);
+            if ($decodedCursor !== false && is_numeric($decodedCursor)) {
+                $currentOffset = $decodedCursor;
+            }
+        }
+        
+        $nextOffset = $currentOffset + $returnedCount;
+        
+        // If we have more items available, return next cursor
+        if ($nextOffset < $totalCount) {
+            return base64_encode((string) $nextOffset);
+        }
+        
+        return null;
     }
 }
