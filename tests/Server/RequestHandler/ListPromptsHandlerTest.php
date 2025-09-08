@@ -42,13 +42,15 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(3, $response->result->prompts);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(3, $result->prompts);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('prompt_0', $response->result->prompts[0]->name);
-        $this->assertEquals('prompt_1', $response->result->prompts[1]->name);
-        $this->assertEquals('prompt_2', $response->result->prompts[2]->name);
+        $this->assertEquals('prompt_0', $result->prompts[0]->name);
+        $this->assertEquals('prompt_1', $result->prompts[1]->name);
+        $this->assertEquals('prompt_2', $result->prompts[2]->name);
     }
 
     #[TestDox('Returns paginated prompts with cursor')]
@@ -62,13 +64,15 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(3, $response->result->prompts);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(3, $result->prompts);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('prompt_0', $response->result->prompts[0]->name);
-        $this->assertEquals('prompt_1', $response->result->prompts[1]->name);
-        $this->assertEquals('prompt_2', $response->result->prompts[2]->name);
+        $this->assertEquals('prompt_0', $result->prompts[0]->name);
+        $this->assertEquals('prompt_1', $result->prompts[1]->name);
+        $this->assertEquals('prompt_2', $result->prompts[2]->name);
     }
 
     #[TestDox('Returns second page with cursor')]
@@ -85,13 +89,15 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(3, $response->result->prompts);
-        $this->assertNotNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(3, $result->prompts);
+        $this->assertNotNull($result->nextCursor);
 
-        $this->assertEquals('prompt_3', $response->result->prompts[0]->name);
-        $this->assertEquals('prompt_4', $response->result->prompts[1]->name);
-        $this->assertEquals('prompt_5', $response->result->prompts[2]->name);
+        $this->assertEquals('prompt_3', $result->prompts[0]->name);
+        $this->assertEquals('prompt_4', $result->prompts[1]->name);
+        $this->assertEquals('prompt_5', $result->prompts[2]->name);
     }
 
     #[TestDox('Returns last page with null cursor')]
@@ -108,12 +114,14 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(2, $response->result->prompts);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(2, $result->prompts);
+        $this->assertNull($result->nextCursor);
 
-        $this->assertEquals('prompt_3', $response->result->prompts[0]->name);
-        $this->assertEquals('prompt_4', $response->result->prompts[1]->name);
+        $this->assertEquals('prompt_3', $result->prompts[0]->name);
+        $this->assertEquals('prompt_4', $result->prompts[1]->name);
     }
 
     #[TestDox('Handles empty registry')]
@@ -126,9 +134,11 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(0, $response->result->prompts);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(0, $result->prompts);
+        $this->assertNull($result->nextCursor);
     }
 
     #[TestDox('Throws exception for invalid cursor')]
@@ -172,9 +182,11 @@ class ListPromptsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListPromptsResult::class, $response->result);
-        $this->assertCount(0, $response->result->prompts);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListPromptsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListPromptsResult::class, $result);
+        $this->assertCount(0, $result->prompts);
+        $this->assertNull($result->nextCursor);
     }
 
     #[TestDox('Maintains stable cursors across calls')]
