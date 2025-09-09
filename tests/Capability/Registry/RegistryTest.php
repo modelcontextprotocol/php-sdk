@@ -30,7 +30,7 @@ class RegistryTest extends TestCase
     protected function setUp(): void
     {
         $this->logger = $this->createMock(LoggerInterface::class);
-        $this->registry = new Registry($this->logger);
+        $this->registry = new Registry(null, $this->logger);
     }
 
     public function testConstructorWithDefaults(): void

@@ -279,16 +279,12 @@ final class ServerBuilder
         $logger = $this->logger ?? new NullLogger();
 
         $container = $this->container ?? new Container();
-        $referenceProvider = new Registry($logger);
-        $registry = new DispatchableRegistry(
-            referenceProvider: new Registry($logger),
-            eventDispatcher: $this->eventDispatcher,
-        );
+        $registry = new Registry($this->eventDispatcher, $logger);
 
         $referenceHandler = new ReferenceHandler($container);
-        $toolExecutor = $this->toolExecutor ??= new ToolExecutor($referenceProvider, $referenceHandler, $logger);
-        $resourceReader = $this->resourceReader ??= new ResourceReader($referenceProvider, $referenceHandler);
-        $promptGetter = $this->promptGetter ??= new PromptGetter($referenceProvider, $referenceHandler);
+        $toolExecutor = $this->toolExecutor ??= new ToolExecutor($registry, $referenceHandler, $logger);
+        $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler);
+        $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler);
 
         $this->registerManualElements($registry, $logger);
 
@@ -300,7 +296,7 @@ final class ServerBuilder
         return new Server(
             jsonRpcHandler: Handler::make(
                 registry: $registry,
-                referenceProvider: $referenceProvider,
+                referenceProvider: $registry,
                 implementation: $this->serverInfo,
                 toolExecutor: $toolExecutor,
                 resourceReader: $resourceReader,
