@@ -21,7 +21,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class InitializeRequest extends Request
+final class InitializeRequest extends Request
 {
     /**
      * @param string             $protocolVersion The latest version of the Model Context Protocol that the client supports. The client MAY decide to support older versions as well.
@@ -59,7 +59,10 @@ class InitializeRequest extends Request
         return new self($params['protocolVersion'], $capabilities, $clientInfo);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{protocolVersion: string, capabilities: ClientCapabilities, clientInfo: Implementation}
+     */
+    protected function getParams(): array
     {
         return [
             'protocolVersion' => $this->protocolVersion,

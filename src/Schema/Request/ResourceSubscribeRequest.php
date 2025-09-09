@@ -20,10 +20,10 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ResourceSubscribeRequest extends Request
+final class ResourceSubscribeRequest extends Request
 {
     /**
-     * @param string $uri the URI of the resource to subscribe to
+     * @param non-empty-string $uri the URI of the resource to subscribe to
      */
     public function __construct(
         public readonly string $uri,
@@ -44,7 +44,10 @@ class ResourceSubscribeRequest extends Request
         return new self($params['uri']);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{uri: non-empty-string}
+     */
+    protected function getParams(): array
     {
         return ['uri' => $this->uri];
     }

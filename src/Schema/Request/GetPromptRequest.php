@@ -19,7 +19,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class GetPromptRequest extends Request
+final class GetPromptRequest extends Request
 {
     /**
      * @param string                    $name      the name of the prompt to get
@@ -55,7 +55,10 @@ class GetPromptRequest extends Request
         return new self($params['name'], $arguments);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{name: string, arguments?: array<string, mixed>}
+     */
+    protected function getParams(): array
     {
         $params = ['name' => $this->name];
 

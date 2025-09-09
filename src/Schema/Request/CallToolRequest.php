@@ -19,7 +19,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class CallToolRequest extends Request
+final class CallToolRequest extends Request
 {
     /**
      * @param string               $name      the name of the tool to invoke
@@ -58,7 +58,10 @@ class CallToolRequest extends Request
         );
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{name: string, arguments: array<string, mixed>}
+     */
+    protected function getParams(): array
     {
         return [
             'name' => $this->name,

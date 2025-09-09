@@ -18,7 +18,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ListResourceTemplatesRequest extends Request
+final class ListResourceTemplatesRequest extends Request
 {
     /**
      * @param string|null $cursor An opaque token representing the current pagination position.
@@ -40,6 +40,9 @@ class ListResourceTemplatesRequest extends Request
         return new self($params['cursor'] ?? null);
     }
 
+    /**
+     * @return array{cursor:string}|null
+     */
     protected function getParams(): ?array
     {
         $params = [];

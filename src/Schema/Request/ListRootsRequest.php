@@ -24,7 +24,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ListRootsRequest extends Request
+final class ListRootsRequest extends Request
 {
     public function __construct(
     ) {

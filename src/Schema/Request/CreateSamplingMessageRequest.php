@@ -23,7 +23,7 @@ use Mcp\Schema\ModelPreferences;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class CreateSamplingMessageRequest extends Request
+final class CreateSamplingMessageRequest extends Request
 {
     /**
      * @param SamplingMessage[]     $messages       the messages to send to the model
@@ -86,7 +86,19 @@ class CreateSamplingMessageRequest extends Request
         );
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{
+     *     messages: SamplingMessage[],
+     *     maxTokens: int,
+     *     preferences?: ModelPreferences,
+     *     systemPrompt?: string,
+     *     includeContext?: string,
+     *     temperature?: float,
+     *     stopSequences?: string[],
+     *     metadata?: array<string, mixed>
+     * }
+     */
+    protected function getParams(): array
     {
         $params = [
             'messages' => $this->messages,

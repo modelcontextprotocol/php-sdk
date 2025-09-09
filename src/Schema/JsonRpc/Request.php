@@ -97,7 +97,7 @@ abstract class Request implements HasMethodInterface, MessageInterface
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return array<non-empty-string, mixed>|null
      */
     abstract protected function getParams(): ?array;
 }
