@@ -4,3 +4,4 @@
 /.php-cs-fixer.dist.php export-ignore
 /phpstan.dist.neon export-ignore
 /phpunit.xml.dist export-ignore
+/Makefile export-ignore
