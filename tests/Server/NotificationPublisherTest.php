@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Mcp\Tests\Server;
 
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;

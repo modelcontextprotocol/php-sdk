@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;

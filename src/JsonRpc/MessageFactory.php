@@ -14,7 +14,6 @@ namespace Mcp\JsonRpc;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
-use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\Notification;
 use Mcp\Schema\Request;
 
@@ -111,7 +110,7 @@ final class MessageFactory
     /**
      * @return class-string<HasMethodInterface>
      */
-    private function getType(string $method/**/): string
+    private function getType(string $method): string
     {
         foreach (self::REGISTERED_MESSAGES as $type) {
             if ($type::getMethod() === $method) {
