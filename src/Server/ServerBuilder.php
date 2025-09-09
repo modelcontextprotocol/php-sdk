@@ -55,7 +55,7 @@ final class ServerBuilder
 
     private ?CacheInterface $cache = null;
 
-    private ?ToolCallerInterface $toolExecutor = null;
+    private ?ToolCallerInterface $toolCaller = null;
 
     private ?ResourceReaderInterface $resourceReader = null;
 
@@ -161,9 +161,9 @@ final class ServerBuilder
         return $this;
     }
 
-    public function withToolExecutor(ToolCallerInterface $toolExecutor): self
+    public function withToolCaller(ToolCallerInterface $toolCaller): self
     {
-        $this->toolExecutor = $toolExecutor;
+        $this->toolCaller = $toolCaller;
 
         return $this;
     }
@@ -281,7 +281,7 @@ final class ServerBuilder
         $registry = new Registry($this->eventDispatcher, $logger);
 
         $referenceHandler = new ReferenceHandler($container);
-        $toolExecutor = $this->toolExecutor ??= new ToolCaller($registry, $referenceHandler, $logger);
+        $toolCaller = $this->toolCaller ??= new ToolCaller($registry, $referenceHandler, $logger);
         $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler, $logger);
         $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler, $logger);
 
@@ -297,7 +297,7 @@ final class ServerBuilder
                 registry: $registry,
                 referenceProvider: $registry,
                 implementation: $this->serverInfo,
-                toolExecutor: $toolExecutor,
+                toolCaller: $toolCaller,
                 resourceReader: $resourceReader,
                 promptGetter: $promptGetter,
                 logger: $logger,

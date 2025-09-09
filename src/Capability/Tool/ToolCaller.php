@@ -25,7 +25,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Default implementation of ToolExecutorInterface that uses ReferenceProvider
+ * Default implementation of ToolCallerInterface that uses ReferenceProvider
  * and ReferenceHandlerInterface to execute tools.
  *
  * @author Pavel Buchnev <butschster@gmail.com>

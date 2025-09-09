@@ -28,7 +28,7 @@ use Psr\Log\NullLogger;
 final class CallToolHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly ToolCallerInterface $toolExecutor,
+        private readonly ToolCallerInterface $toolCaller,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -43,7 +43,7 @@ final class CallToolHandler implements MethodHandlerInterface
         \assert($message instanceof CallToolRequest);
 
         try {
-            $content = $this->toolExecutor->call($message);
+            $content = $this->toolCaller->call($message);
         } catch (ExceptionInterface $exception) {
             $this->logger->error(
                 \sprintf('Error while executing tool "%s": "%s".', $message->name, $exception->getMessage()),
