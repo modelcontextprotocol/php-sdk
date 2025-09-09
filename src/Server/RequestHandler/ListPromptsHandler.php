@@ -27,8 +27,7 @@ final class ListPromptsHandler implements MethodHandlerInterface
     public function __construct(
         private readonly Registry $registry,
         private readonly int $pageSize = 20,
-    ) {
-    }
+    ) {}
 
     public function supports(HasMethodInterface $message): bool
     {
