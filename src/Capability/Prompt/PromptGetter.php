@@ -13,6 +13,8 @@ namespace Mcp\Capability\Prompt;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Exception\PromptGetException;
+use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\RegistryException;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
@@ -25,8 +27,7 @@ final class PromptGetter implements PromptGetterInterface
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
-    ) {
-    }
+    ) {}
 
     /**
      * @throws RegistryException
@@ -37,13 +38,17 @@ final class PromptGetter implements PromptGetterInterface
         $reference = $this->referenceProvider->getPrompt($request->name);
 
         if (null === $reference) {
-            throw new \InvalidArgumentException(\sprintf('Prompt "%s" is not registered.', $request->name));
+            throw new PromptNotFoundException($request);
         }
 
-        return new GetPromptResult(
-            $reference->formatResult(
-                $this->referenceHandler->handle($reference, $request->arguments ?? []),
-            ),
-        );
+        try {
+            return new GetPromptResult(
+                $reference->formatResult(
+                    $this->referenceHandler->handle($reference, $request->arguments ?? []),
+                ),
+            );
+        } catch (\Throwable $e) {
+            throw new PromptGetException($request, $e);
+        }
     }
 }

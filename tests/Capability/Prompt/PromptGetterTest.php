@@ -16,6 +16,8 @@ use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Exception\PromptGetException;
+use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\RegistryException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\PromptMessage;
@@ -151,8 +153,8 @@ class PromptGetterTest extends TestCase
             ->expects($this->never())
             ->method('handle');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Prompt "nonexistent_prompt" is not registered.');
+        $this->expectException(PromptNotFoundException::class);
+        $this->expectExceptionMessage('Prompt not found for name: "nonexistent_prompt".');
 
         $this->promptGetter->get($request);
     }
@@ -176,7 +178,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, ['param' => 'value'])
             ->willThrowException($handlerException);
 
-        $this->expectException(RegistryException::class);
+        $this->expectException(PromptGetException::class);
 
         $this->promptGetter->get($request);
     }
@@ -204,7 +206,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn('some result');
 
-        $this->expectException(\JsonException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('JSON encoding failed');
 
         $this->promptGetter->get($request);
@@ -331,31 +333,6 @@ class PromptGetterTest extends TestCase
 
         $this->assertInstanceOf(GetPromptResult::class, $result);
         $this->assertCount(0, $result->messages);
-    }
-
-    public function testGetHandlesDifferentExceptionTypes(): void
-    {
-        $request = new GetPromptRequest('error_prompt', []);
-        $prompt = $this->createValidPrompt('error_prompt');
-        $promptReference = new PromptReference($prompt, fn () => throw new \InvalidArgumentException('Invalid input'));
-        $handlerException = new \InvalidArgumentException('Invalid input');
-
-        $this->referenceProvider
-            ->expects($this->once())
-            ->method('getPrompt')
-            ->with('error_prompt')
-            ->willReturn($promptReference);
-
-        $this->referenceHandler
-            ->expects($this->once())
-            ->method('handle')
-            ->with($promptReference, [])
-            ->willThrowException($handlerException);
-
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid input');
-
-        $this->promptGetter->get($request);
     }
 
     public function testGetWithTypedContentStructure(): void
@@ -512,7 +489,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn('This is not a valid prompt format');
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);
@@ -539,7 +516,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn(null);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);
@@ -566,7 +543,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn(42);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);
@@ -593,7 +570,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn(true);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);
@@ -622,7 +599,7 @@ class PromptGetterTest extends TestCase
             ->with($promptReference, [])
             ->willReturn($objectResult);
 
-        $this->expectException(RuntimeException::class);
+        $this->expectException(PromptGetException::class);
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);

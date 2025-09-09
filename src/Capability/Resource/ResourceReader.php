@@ -13,7 +13,8 @@ namespace Mcp\Capability\Resource;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Exception\RegistryException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
 
@@ -25,25 +26,25 @@ final class ResourceReader implements ResourceReaderInterface
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
-    ) {
-    }
+    ) {}
 
-    /**
-     * @throws RegistryException
-     */
     public function read(ReadResourceRequest $request): ReadResourceResult
     {
         $reference = $this->referenceProvider->getResource($request->uri);
 
         if (null === $reference) {
-            throw new \InvalidArgumentException(\sprintf('Resource "%s" is not registered.', $request->uri));
+            throw new ResourceNotFoundException($request);
         }
 
-        return new ReadResourceResult(
-            $reference->formatResult(
-                $this->referenceHandler->handle($reference, ['uri' => $request->uri]),
-                $request->uri,
-            ),
-        );
+        try {
+            return new ReadResourceResult(
+                $reference->formatResult(
+                    $this->referenceHandler->handle($reference, ['uri' => $request->uri]),
+                    $request->uri,
+                ),
+            );
+        } catch (\Throwable $e) {
+            throw new ResourceReadException($request, $e);
+        }
     }
 }

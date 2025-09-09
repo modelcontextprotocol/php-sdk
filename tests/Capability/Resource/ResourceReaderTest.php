@@ -17,6 +17,8 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Resource\ResourceReader;
 use Mcp\Exception\RegistryException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Request\ReadResourceRequest;
@@ -239,8 +241,8 @@ class ResourceReaderTest extends TestCase
             ->expects($this->never())
             ->method('handle');
 
-        $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Resource "nonexistent://resource" is not registered.');
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage('Resource not found for uri: "nonexistent://resource".');
 
         $this->resourceReader->read($request);
     }
@@ -264,7 +266,7 @@ class ResourceReaderTest extends TestCase
             ->with($resourceReference, ['uri' => 'failing://resource'])
             ->willThrowException($handlerException);
 
-        $this->expectException(RegistryException::class);
+        $this->expectException(ResourceReadException::class);
         $this->expectExceptionMessage('Handler execution failed');
 
         $this->resourceReader->read($request);
