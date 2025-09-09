@@ -26,7 +26,7 @@ class PingRequest extends Request
         return 'ping';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self();
     }

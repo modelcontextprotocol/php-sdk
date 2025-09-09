@@ -38,7 +38,7 @@ class CompletionCompleteRequest extends Request
         return 'completion/complete';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['ref']) || !\is_array($params['ref'])) {
             throw new InvalidArgumentException('Missing or invalid "ref" parameter for completion/complete.');

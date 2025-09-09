@@ -36,7 +36,7 @@ class CallToolRequest extends Request
         return 'tools/call';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['name']) || !\is_string($params['name'])) {
             throw new InvalidArgumentException('Missing or invalid "name" parameter for tools/call.');

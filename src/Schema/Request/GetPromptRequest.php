@@ -36,7 +36,7 @@ class GetPromptRequest extends Request
         return 'prompts/get';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['name']) || !\is_string($params['name']) || empty($params['name'])) {
             throw new InvalidArgumentException('Missing or invalid "name" parameter for prompts/get.');

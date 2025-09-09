@@ -35,7 +35,7 @@ class ListRootsRequest extends Request
         return 'roots/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self();
     }

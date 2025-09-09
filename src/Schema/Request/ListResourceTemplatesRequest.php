@@ -35,7 +35,7 @@ class ListResourceTemplatesRequest extends Request
         return 'resources/templates/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self($params['cursor'] ?? null);
     }

@@ -59,7 +59,7 @@ class CreateSamplingMessageRequest extends Request
         return 'sampling/createMessage';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['messages']) || !\is_array($params['messages'])) {
             throw new InvalidArgumentException('Missing or invalid "messages" parameter for sampling/createMessage.');

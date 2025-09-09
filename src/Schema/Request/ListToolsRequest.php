@@ -35,7 +35,7 @@ class ListToolsRequest extends Request
         return 'tools/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self($params['cursor'] ?? null);
     }

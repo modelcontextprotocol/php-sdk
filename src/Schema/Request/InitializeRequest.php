@@ -40,7 +40,7 @@ class InitializeRequest extends Request
         return 'initialize';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['protocolVersion'])) {
             throw new InvalidArgumentException('protocolVersion is required');
