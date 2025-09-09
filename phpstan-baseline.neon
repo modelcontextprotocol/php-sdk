@@ -606,23 +606,6 @@ parameters:
 			count: 1
 			path: src/Server/ServerBuilder.php
 
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache \(Psr\\SimpleCache\\CacheInterface\|null\) is never assigned Psr\\SimpleCache\\CacheInterface so it can be removed from the property type\.$#'
-			identifier: property.unusedType
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache has unknown class Psr\\SimpleCache\\CacheInterface as its type\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Server/ServerBuilder.php
 
 		-
 			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$discoveryExcludeDirs type has no value type specified in iterable type array\.$#'
