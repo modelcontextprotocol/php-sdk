@@ -109,31 +109,9 @@ final class MessageFactory
     }
 
     /**
-     * Creates a message by its type and parameters.
-     *
-     * @template T of HasMethodInterface
-     *
-     * @param class-string<T> $messageType
-     * @param RequestData     $data
-     *
-     * @return T
-     */
-    public function createByType(string $messageType, array $data): HasMethodInterface
-    {
-        if (\in_array($messageType, $this->registeredMessages, true)) {
-            $data['jsonrpc'] = MessageInterface::JSONRPC_VERSION;
-            $data['method'] = $messageType::getMethod();
-
-            return $messageType::fromArray($data);
-        }
-
-        throw new InvalidArgumentException(\sprintf('Message type "%s" is not registered.', $messageType));
-    }
-
-    /**
      * @return class-string<HasMethodInterface>
      */
-    private function getType(string $method): string
+    private function getType(string $method/**/): string
     {
         foreach (self::REGISTERED_MESSAGES as $type) {
             if ($type::getMethod() === $method) {

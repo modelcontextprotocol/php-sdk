@@ -82,22 +82,6 @@ final class MessageFactoryTest extends TestCase
         $this->assertInstanceOf(InitializedNotification::class, $result);
     }
 
-    public function testCreateByType(): void
-    {
-        $result = $this->factory->createByType(InitializedNotification::class, []);
-        $this->assertInstanceOf(InitializedNotification::class, $result);
-    }
-
-    public function testCreateByTypeWithMissingData(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage(
-            'Invalid or missing "requestId" parameter for "notifications/cancelled" notification.'
-        );
-
-        $this->factory->createByType(CancelledNotification::class, []);
-    }
-
     /**
      * @param iterable<mixed> $items
      */
