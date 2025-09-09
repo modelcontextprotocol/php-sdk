@@ -36,7 +36,7 @@ abstract class Request implements HasMethodInterface, MessageInterface
     /**
      * @param RequestData $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data): static
     {
         if (($data['jsonrpc'] ?? null) !== MessageInterface::JSONRPC_VERSION) {
             throw new InvalidArgumentException('Invalid or missing "jsonrpc" version for Request.');
@@ -68,7 +68,7 @@ abstract class Request implements HasMethodInterface, MessageInterface
     /**
      * @param array<string, mixed>|null $params
      */
-    abstract protected static function fromParams(?array $params): self;
+    abstract protected static function fromParams(?array $params): static;
 
     public function getId(): string|int
     {
