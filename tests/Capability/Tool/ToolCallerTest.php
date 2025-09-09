@@ -27,7 +27,7 @@ use Psr\Log\LoggerInterface;
 
 class ToolCallerTest extends TestCase
 {
-    private ToolCaller $toolExecutor;
+    private ToolCaller $toolCaller;
     private ReferenceProviderInterface|MockObject $referenceProvider;
     private ReferenceHandlerInterface|MockObject $referenceHandler;
     private LoggerInterface|MockObject $logger;
@@ -38,7 +38,7 @@ class ToolCallerTest extends TestCase
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->toolExecutor = new ToolCaller(
+        $this->toolCaller = new ToolCaller(
             $this->referenceProvider,
             $this->referenceHandler,
             $this->logger,
@@ -78,7 +78,7 @@ class ToolCallerTest extends TestCase
                 )
             );
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -109,7 +109,7 @@ class ToolCallerTest extends TestCase
             ->expects($this->exactly(2))
             ->method('debug');
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
     }
@@ -139,7 +139,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, $arguments)
             ->willReturn(['processed' => true]);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -172,7 +172,7 @@ class ToolCallerTest extends TestCase
         $this->expectException(ToolNotFoundException::class);
         $this->expectExceptionMessage('Tool not found for call: "nonexistent_tool".');
 
-        $this->toolExecutor->call($request);
+        $this->toolCaller->call($request);
     }
 
     public function testCallThrowsToolExecutionExceptionWhenHandlerThrowsException(): void
@@ -216,7 +216,7 @@ class ToolCallerTest extends TestCase
 
         $thrownException = null;
         try {
-            $this->toolExecutor->call($request);
+            $this->toolCaller->call($request);
         } catch (ToolCallException $e) {
             $thrownException = $e;
             throw $e;
@@ -250,7 +250,7 @@ class ToolCallerTest extends TestCase
             ->expects($this->exactly(2))
             ->method('debug');
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -276,7 +276,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn(true);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -303,7 +303,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn($arrayResult);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -333,7 +333,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn($contentResult);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -365,7 +365,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn($contentArray);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(2, $result->content);
@@ -407,7 +407,7 @@ class ToolCallerTest extends TestCase
         $this->expectException(ToolCallException::class);
         $this->expectExceptionMessage('Tool call "error_tool" failed with error: "Invalid input".');
 
-        $this->toolExecutor->call($request);
+        $this->toolCaller->call($request);
     }
 
     public function testCallLogsResultTypeCorrectlyForString(): void
@@ -432,7 +432,7 @@ class ToolCallerTest extends TestCase
             ->expects($this->exactly(2))
             ->method('debug');
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
     }
@@ -459,7 +459,7 @@ class ToolCallerTest extends TestCase
             ->expects($this->exactly(2))
             ->method('debug');
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
     }
@@ -486,7 +486,7 @@ class ToolCallerTest extends TestCase
             ->expects($this->exactly(2))
             ->method('debug');
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
     }
@@ -517,7 +517,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn([]);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -549,7 +549,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn($mixedResult);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         // The ToolReference.formatResult should handle this mixed array
@@ -576,7 +576,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn($objectResult);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
@@ -602,7 +602,7 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, [])
             ->willReturn(false);
 
-        $result = $this->toolExecutor->call($request);
+        $result = $this->toolCaller->call($request);
 
         $this->assertInstanceOf(CallToolResult::class, $result);
         $this->assertCount(1, $result->content);
