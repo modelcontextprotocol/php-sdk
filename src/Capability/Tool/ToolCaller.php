@@ -40,8 +40,8 @@ final class ToolCaller implements ToolCallerInterface
     }
 
     /**
-     * @throws ToolCallException if the tool execution fails
-     * @throws ToolNotFoundException  if the tool is not found
+     * @throws ToolCallException     if the tool execution fails
+     * @throws ToolNotFoundException if the tool is not found
      */
     public function call(CallToolRequest $request): CallToolResult
     {

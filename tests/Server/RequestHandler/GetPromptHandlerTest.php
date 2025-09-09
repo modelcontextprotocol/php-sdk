@@ -18,7 +18,6 @@ use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
@@ -326,9 +325,7 @@ class GetPromptHandlerTest extends TestCase
     }
 
     /**
-     * @param string $name
      * @param array<string, mixed>|null $arguments
-     * @return GetPromptRequest
      */
     private function createGetPromptRequest(string $name, ?array $arguments = null): GetPromptRequest
     {

@@ -17,7 +17,6 @@ use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
