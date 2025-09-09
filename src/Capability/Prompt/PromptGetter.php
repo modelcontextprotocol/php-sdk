@@ -21,7 +21,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @author Pavel Buchnev   <butschster@gmail.com>
+ * @author Pavel Buchnev <butschster@gmail.com>
  */
 final class PromptGetter implements PromptGetterInterface
 {
