@@ -15,7 +15,7 @@ use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Capability\Tool\ToolExecutorInterface;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
@@ -50,14 +50,16 @@ class Handler
         iterable $methodHandlers,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array($methodHandlers) : $methodHandlers;
+        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array(
+            $methodHandlers,
+        ) : $methodHandlers;
     }
 
     public static function make(
         ReferenceRegistryInterface $registry,
         ReferenceProviderInterface $referenceProvider,
         Implementation $implementation,
-        ToolExecutorInterface $toolExecutor,
+        ToolCallerInterface $toolExecutor,
         ResourceReaderInterface $resourceReader,
         PromptGetterInterface $promptGetter,
         LoggerInterface $logger = new NullLogger(),
@@ -79,6 +81,12 @@ class Handler
         );
     }
 
+    /**
+     * @return iterable<string|null>
+     *
+     * @throws ExceptionInterface When a handler throws an exception during message processing
+     * @throws \JsonException     When JSON encoding of the response fails
+     */
     public function process(string $input): iterable
     {
         $this->logger->info('Received message to process.', ['message' => $input]);
@@ -109,7 +117,8 @@ class Handler
             } catch (\DomainException) {
                 yield null;
             } catch (NotFoundExceptionInterface $e) {
-                $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e]);
+                $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e],
+                );
 
                 yield $this->encodeResponse(Error::forMethodNotFound($e->getMessage()));
             } catch (\InvalidArgumentException $e) {
