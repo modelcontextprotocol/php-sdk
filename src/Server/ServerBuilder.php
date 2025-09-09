@@ -33,7 +33,6 @@ use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Psr\Container\ContainerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
@@ -48,8 +47,6 @@ final class ServerBuilder
     private ?LoggerInterface $logger = null;
 
     private ?CacheInterface $cache = null;
-
-    private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
 
@@ -142,13 +139,6 @@ final class ServerBuilder
         return $this;
     }
 
-    public function withEventDispatcher(EventDispatcherInterface $eventDispatcher): self
-    {
-        $this->eventDispatcher = $eventDispatcher;
-
-        return $this;
-    }
-
     /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
@@ -218,9 +208,9 @@ final class ServerBuilder
     public function build(): Server
     {
         $logger = $this->logger ?? new NullLogger();
-
+        $notificationPublisher = new NotificationPublisher();
         $container = $this->container ?? new Container();
-        $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $logger);
+        $registry = new Registry($notificationPublisher, new ReferenceHandler($container), $logger);
 
         $this->registerManualElements($registry, $logger);
 
@@ -231,6 +221,7 @@ final class ServerBuilder
 
         return new Server(
             Handler::make($registry, $this->serverInfo, $logger),
+            $notificationPublisher,
             $logger,
         );
     }

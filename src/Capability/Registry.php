@@ -17,19 +17,18 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
-use Mcp\Event\PromptListChangedEvent;
-use Mcp\Event\ResourceListChangedEvent;
-use Mcp\Event\ResourceTemplateListChangedEvent;
-use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\ResourceContents;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use Mcp\Server\NotificationPublisher;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -61,8 +60,8 @@ class Registry
     private array $resourceTemplates = [];
 
     public function __construct(
+        private readonly NotificationPublisher $notificationPublisher = new NotificationPublisher(),
         private readonly ReferenceHandler $referenceHandler = new ReferenceHandler(),
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -75,12 +74,12 @@ class Registry
 
         return new ServerCapabilities(
             tools: true, // [] !== $this->tools,
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            toolsListChanged: true,
             resources: [] !== $this->resources || [] !== $this->resourceTemplates,
             resourcesSubscribe: false,
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            resourcesListChanged: true,
             prompts: [] !== $this->prompts,
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            promptsListChanged: true,
             logging: false, // true,
             completions: true,
         );
@@ -102,7 +101,7 @@ class Registry
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->notificationPublisher->enqueue(new ToolListChangedNotification());
     }
 
     /**
@@ -121,7 +120,7 @@ class Registry
 
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->notificationPublisher->enqueue(new ResourceListChangedNotification());
     }
 
     /**
@@ -145,7 +144,8 @@ class Registry
 
         $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference($template, $handler, $isManual, $completionProviders);
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        // TODO: Create ResourceTemplateListChangedNotification.
+        // $this->notificationPublisher->enqueue(ResourceTemplateListChangedNotification::class);
     }
 
     /**
@@ -169,7 +169,7 @@ class Registry
 
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->notificationPublisher->enqueue(new PromptListChangedNotification());
     }
 
     /**
