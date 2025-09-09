@@ -33,9 +33,8 @@ class NotificationPublisher
      */
     public function flush(): iterable
     {
-        $out = $this->queue;
-        $this->queue = [];
+        yield from $this->queue;
 
-        yield from $out;
+        $this->queue = [];
     }
 }
