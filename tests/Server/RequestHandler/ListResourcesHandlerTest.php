@@ -13,8 +13,8 @@ namespace Mcp\Tests\Server\RequestHandler;
 
 use Mcp\Capability\Registry;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\Resource;
 use Mcp\Schema\Request\ListResourcesRequest;
+use Mcp\Schema\Resource;
 use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Server\RequestHandler\ListResourcesHandler;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -82,7 +82,7 @@ class ListResourcesHandlerTest extends TestCase
         $this->addResourcesToRegistry(10);
         $firstPageRequest = $this->createListResourcesRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -107,7 +107,7 @@ class ListResourcesHandlerTest extends TestCase
         $this->addResourcesToRegistry(5);
         $firstPageRequest = $this->createListResourcesRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -192,7 +192,7 @@ class ListResourcesHandlerTest extends TestCase
     {
         // Arrange
         $this->addResourcesToRegistry(10);
-        
+
         // Act
         $request = $this->createListResourcesRequest();
         $response1 = $this->handler->handle($request);
@@ -205,14 +205,14 @@ class ListResourcesHandlerTest extends TestCase
 
     private function addResourcesToRegistry(int $count): void
     {
-        for ($i = 0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; ++$i) {
             $resource = new Resource(
                 uri: "resource://test/resource_$i",
                 name: "resource_$i",
                 description: "Test resource $i"
             );
             // Use a simple callable as handler
-            $this->registry->registerResource($resource, fn() => null);
+            $this->registry->registerResource($resource, fn () => null);
         }
     }
 
@@ -222,9 +222,9 @@ class ListResourcesHandlerTest extends TestCase
             ->setConstructorArgs([$cursor])
             ->onlyMethods(['getId'])
             ->getMock();
-        
+
         $mock->method('getId')->willReturn('test-request-id');
-        
+
         return $mock;
     }
 }

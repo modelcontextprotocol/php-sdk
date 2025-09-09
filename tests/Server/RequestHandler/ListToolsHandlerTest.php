@@ -13,9 +13,9 @@ namespace Mcp\Tests\Server\RequestHandler;
 
 use Mcp\Capability\Registry;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\Tool;
 use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Result\ListToolsResult;
+use Mcp\Schema\Tool;
 use Mcp\Server\RequestHandler\ListToolsHandler;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -82,7 +82,7 @@ class ListToolsHandlerTest extends TestCase
         $this->addToolsToRegistry(10);
         $firstPageRequest = $this->createListToolsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -107,7 +107,7 @@ class ListToolsHandlerTest extends TestCase
         $this->addToolsToRegistry(5);
         $firstPageRequest = $this->createListToolsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -215,7 +215,7 @@ class ListToolsHandlerTest extends TestCase
     {
         // Arrange
         $this->addToolsToRegistry(10);
-        
+
         // Act
         $request = $this->createListToolsRequest();
         $response1 = $this->handler->handle($request);
@@ -228,7 +228,7 @@ class ListToolsHandlerTest extends TestCase
 
     private function addToolsToRegistry(int $count): void
     {
-        for ($i = 0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; ++$i) {
             $tool = new Tool(
                 name: "tool_$i",
                 inputSchema: ['type' => 'object'],
@@ -236,7 +236,7 @@ class ListToolsHandlerTest extends TestCase
                 annotations: null
             );
 
-            $this->registry->registerTool($tool, fn() => null);
+            $this->registry->registerTool($tool, fn () => null);
         }
     }
 
@@ -246,9 +246,9 @@ class ListToolsHandlerTest extends TestCase
             ->setConstructorArgs([$cursor])
             ->onlyMethods(['getId'])
             ->getMock();
-        
+
         $mock->method('getId')->willReturn('test-request-id');
-        
+
         return $mock;
     }
 }

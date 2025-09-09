@@ -16,7 +16,6 @@ use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourcesRequest;
-use Mcp\Schema\Resource;
 use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Server\MethodHandlerInterface;
 
@@ -28,7 +27,8 @@ final class ListResourcesHandler implements MethodHandlerInterface
     public function __construct(
         private readonly Registry $registry,
         private readonly int $pageSize = 20,
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

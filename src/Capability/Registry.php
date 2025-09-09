@@ -313,11 +313,11 @@ class Registry
         foreach ($this->tools as $toolReference) {
             $tools[] = $toolReference->tool;
         }
-        
-        if ($limit === null) {
+
+        if (null === $limit) {
             return $tools;
         }
-        
+
         return $this->paginateResults($tools, $limit, $cursor);
     }
 
@@ -330,11 +330,11 @@ class Registry
         foreach ($this->resources as $resource) {
             $resources[] = $resource->schema;
         }
-        
-        if ($limit === null) {
+
+        if (null === $limit) {
             return $resources;
         }
-        
+
         return $this->paginateResults($resources, $limit, $cursor);
     }
 
@@ -347,11 +347,11 @@ class Registry
         foreach ($this->prompts as $promptReference) {
             $prompts[] = $promptReference->prompt;
         }
-        
-        if ($limit === null) {
+
+        if (null === $limit) {
             return $prompts;
         }
-        
+
         return $this->paginateResults($prompts, $limit, $cursor);
     }
 
@@ -360,7 +360,7 @@ class Registry
      */
     public function getToolsCount(): int
     {
-        return count($this->tools);
+        return \count($this->tools);
     }
 
     /**
@@ -368,7 +368,7 @@ class Registry
      */
     public function getPromptsCount(): int
     {
-        return count($this->prompts);
+        return \count($this->prompts);
     }
 
     /**
@@ -376,20 +376,20 @@ class Registry
      */
     public function getResourcesCount(): int
     {
-        return count($this->resources);
+        return \count($this->resources);
     }
 
-    /** 
-     * @return array<string, ResourceTemplate> 
+    /**
+     * @return array<string, ResourceTemplate>
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
     {
         $templates = array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
-        
-        if ($limit === null) {
+
+        if (null === $limit) {
             return $templates;
         }
-        
+
         return $this->paginateResults($templates, $limit, $cursor);
     }
 
@@ -399,22 +399,22 @@ class Registry
     private function paginateResults(array $items, int $limit, ?string $cursor = null): array
     {
         $offset = 0;
-        if ($cursor !== null) {
+        if (null !== $cursor) {
             $decodedCursor = base64_decode($cursor, true);
 
-            if ($decodedCursor === false || !is_numeric($decodedCursor)) {
+            if (false === $decodedCursor || !is_numeric($decodedCursor)) {
                 throw new InvalidCursorException($cursor);
             }
-            
+
             $offset = $decodedCursor;
-            
+
             // Validate offset is within reasonable bounds
-            if ($offset < 0 || $offset > count($items)) {
+            if ($offset < 0 || $offset > \count($items)) {
                 throw new InvalidCursorException($cursor);
             }
         }
 
-        return array_slice($items, $offset, $limit);
+        return \array_slice($items, $offset, $limit);
     }
 
     /**
@@ -424,20 +424,20 @@ class Registry
     {
         $currentOffset = 0;
 
-        if ($currentCursor !== null) {
+        if (null !== $currentCursor) {
             $decodedCursor = base64_decode($currentCursor, true);
-            if ($decodedCursor !== false && is_numeric($decodedCursor)) {
+            if (false !== $decodedCursor && is_numeric($decodedCursor)) {
                 $currentOffset = $decodedCursor;
             }
         }
-        
+
         $nextOffset = $currentOffset + $returnedCount;
-        
+
         // If we have more items available, return next cursor
         if ($nextOffset < $totalCount) {
             return base64_encode((string) $nextOffset);
         }
-        
+
         return null;
     }
 }

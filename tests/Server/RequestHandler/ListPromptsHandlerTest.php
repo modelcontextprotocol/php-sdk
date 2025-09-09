@@ -82,7 +82,7 @@ class ListPromptsHandlerTest extends TestCase
         $this->addPromptsToRegistry(10);
         $firstPageRequest = $this->createListPromptsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -107,7 +107,7 @@ class ListPromptsHandlerTest extends TestCase
         $this->addPromptsToRegistry(5);
         $firstPageRequest = $this->createListPromptsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
-        
+
         $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResponse->result->nextCursor);
 
         // Act
@@ -194,7 +194,7 @@ class ListPromptsHandlerTest extends TestCase
     {
         // Arrange
         $this->addPromptsToRegistry(10);
-        
+
         // Act
         $request = $this->createListPromptsRequest();
         $response1 = $this->handler->handle($request);
@@ -207,13 +207,13 @@ class ListPromptsHandlerTest extends TestCase
 
     private function addPromptsToRegistry(int $count): void
     {
-        for ($i = 0; $i < $count; $i++) {
+        for ($i = 0; $i < $count; ++$i) {
             $prompt = new Prompt(
                 name: "prompt_$i",
                 description: "Test prompt $i"
             );
 
-            $this->registry->registerPrompt($prompt, fn() => null);
+            $this->registry->registerPrompt($prompt, fn () => null);
         }
     }
 
@@ -223,9 +223,9 @@ class ListPromptsHandlerTest extends TestCase
             ->setConstructorArgs([$cursor])
             ->onlyMethods(['getId'])
             ->getMock();
-        
+
         $mock->method('getId')->willReturn('test-request-id');
-        
+
         return $mock;
     }
 }
