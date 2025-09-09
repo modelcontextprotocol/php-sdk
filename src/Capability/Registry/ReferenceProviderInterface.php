@@ -12,7 +12,6 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 
@@ -54,7 +53,7 @@ interface ReferenceProviderInterface
     /**
      * Gets all registered resources.
      *
-     * @return array<string, resource>
+     * @return array<string, \Mcp\Schema\Resource>
      */
     public function getResources(): array;
 
