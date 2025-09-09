@@ -20,8 +20,8 @@ use Psr\Log\NullLogger;
  */
 class StdioTransport implements TransportInterface
 {
-    private string $buffer = '';
-    private $messageHandler = null;
+    /** @var array<string, array<callable>> */
+    private array $listeners = [];
 
     /**
      * @param resource $input
@@ -35,9 +35,22 @@ class StdioTransport implements TransportInterface
 
     public function initialize(): void {}
 
-    public function setMessageHandler(callable $handler): void
+    public function on(string $event, callable $listener): void
     {
-        $this->messageHandler = $handler;
+        if (!isset($this->listeners[$event])) {
+            $this->listeners[$event] = [];
+        }
+        $this->listeners[$event][] = $listener;
+    }
+
+    public function emit(string $event, mixed ...$args): void
+    {
+        if (!isset($this->listeners[$event])) {
+            return;
+        }
+        foreach ($this->listeners[$event] as $listener) {
+            $listener(...$args);
+        }
     }
 
     public function send(string $data): void
@@ -49,10 +62,6 @@ class StdioTransport implements TransportInterface
 
     public function listen(): mixed
     {
-        if ($this->messageHandler === null) {
-            throw new \LogicException('Cannot listen without a message handler. Did you forget to call Server::connect()?');
-        }
-
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
 
         while (!feof($this->input)) {
@@ -64,7 +73,7 @@ class StdioTransport implements TransportInterface
             $trimmedLine = trim($line);
             if (!empty($trimmedLine)) {
                 $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
-                call_user_func($this->messageHandler, $trimmedLine);
+                $this->emit('message', $trimmedLine);
             }
         }
 
