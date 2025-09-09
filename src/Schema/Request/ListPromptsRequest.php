@@ -18,7 +18,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ListPromptsRequest extends Request
+final class ListPromptsRequest extends Request
 {
     /**
      * If provided, the server should return results starting after this cursor.
@@ -35,11 +35,14 @@ class ListPromptsRequest extends Request
         return 'prompts/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self($params['cursor'] ?? null);
     }
 
+    /**
+     * @return array{cursor:string}|null
+     */
     protected function getParams(): ?array
     {
         $params = [];
