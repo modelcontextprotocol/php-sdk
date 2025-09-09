@@ -19,14 +19,14 @@ use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\DispatchableRegistry;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
-use Mcp\Capability\Prompt\DefaultPromptGetter;
+use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ReferenceHandler;
-use Mcp\Capability\Resource\DefaultResourceReader;
+use Mcp\Capability\Resource\ResourceReader;
 use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Capability\Tool\DefaultToolExecutor;
+use Mcp\Capability\Tool\ToolExecutor;
 use Mcp\Capability\Tool\ToolExecutorInterface;
 use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\Handler;
@@ -286,9 +286,9 @@ final class ServerBuilder
         );
 
         $referenceHandler = new ReferenceHandler($container);
-        $toolExecutor = $this->toolExecutor ??= new DefaultToolExecutor($referenceProvider, $referenceHandler, $logger);
-        $resourceReader = $this->resourceReader ??= new DefaultResourceReader($referenceProvider, $referenceHandler);
-        $promptGetter = $this->promptGetter ??= new DefaultPromptGetter($referenceProvider, $referenceHandler);
+        $toolExecutor = $this->toolExecutor ??= new ToolExecutor($referenceProvider, $referenceHandler, $logger);
+        $resourceReader = $this->resourceReader ??= new ResourceReader($referenceProvider, $referenceHandler);
+        $promptGetter = $this->promptGetter ??= new PromptGetter($referenceProvider, $referenceHandler);
 
         $this->registerManualElements($registry, $logger);
 

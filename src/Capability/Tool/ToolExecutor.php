@@ -30,7 +30,7 @@ use Psr\Log\NullLogger;
  *
  * @author Pavel Buchnev <butschster@gmail.com>
  */
-final class DefaultToolExecutor implements ToolExecutorInterface
+final class ToolExecutor implements ToolExecutorInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,

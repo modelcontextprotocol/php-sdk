@@ -15,7 +15,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
-use Mcp\Capability\Resource\DefaultResourceReader;
+use Mcp\Capability\Resource\ResourceReader;
 use Mcp\Exception\RegistryException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
@@ -26,9 +26,9 @@ use Mcp\Schema\Result\ReadResourceResult;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-class DefaultResourceReaderTest extends TestCase
+class ResourceReaderTest extends TestCase
 {
-    private DefaultResourceReader $resourceReader;
+    private ResourceReader $resourceReader;
     private ReferenceProviderInterface|MockObject $referenceProvider;
     private ReferenceHandlerInterface|MockObject $referenceHandler;
 
@@ -37,7 +37,7 @@ class DefaultResourceReaderTest extends TestCase
         $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
 
-        $this->resourceReader = new DefaultResourceReader(
+        $this->resourceReader = new ResourceReader(
             $this->referenceProvider,
             $this->referenceHandler,
         );

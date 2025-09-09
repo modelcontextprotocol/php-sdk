@@ -9,18 +9,18 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Capability\Resource;
+namespace Mcp\Capability\Prompt;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\RegistryException;
-use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Schema\Request\GetPromptRequest;
+use Mcp\Schema\Result\GetPromptResult;
 
 /**
  * @author Pavel Buchnev   <butschster@gmail.com>
  */
-final class DefaultResourceReader implements ResourceReaderInterface
+final class PromptGetter implements PromptGetterInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
@@ -30,19 +30,19 @@ final class DefaultResourceReader implements ResourceReaderInterface
 
     /**
      * @throws RegistryException
+     * @throws \JsonException
      */
-    public function read(ReadResourceRequest $request): ReadResourceResult
+    public function get(GetPromptRequest $request): GetPromptResult
     {
-        $reference = $this->referenceProvider->getResource($request->uri);
+        $reference = $this->referenceProvider->getPrompt($request->name);
 
         if (null === $reference) {
-            throw new \InvalidArgumentException(\sprintf('Resource "%s" is not registered.', $request->uri));
+            throw new \InvalidArgumentException(\sprintf('Prompt "%s" is not registered.', $request->name));
         }
 
-        return new ReadResourceResult(
+        return new GetPromptResult(
             $reference->formatResult(
-                $this->referenceHandler->handle($reference, ['uri' => $request->uri]),
-                $request->uri,
+                $this->referenceHandler->handle($reference, $request->arguments ?? []),
             ),
         );
     }

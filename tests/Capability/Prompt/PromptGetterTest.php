@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Capability\Prompt;
 
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
-use Mcp\Capability\Prompt\DefaultPromptGetter;
+use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
@@ -27,9 +27,9 @@ use Mcp\Schema\Result\GetPromptResult;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-class DefaultPromptGetterTest extends TestCase
+class PromptGetterTest extends TestCase
 {
-    private DefaultPromptGetter $promptGetter;
+    private PromptGetter $promptGetter;
     private ReferenceProviderInterface|MockObject $referenceProvider;
     private ReferenceHandlerInterface|MockObject $referenceHandler;
 
@@ -38,7 +38,7 @@ class DefaultPromptGetterTest extends TestCase
         $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
 
-        $this->promptGetter = new DefaultPromptGetter(
+        $this->promptGetter = new PromptGetter(
             $this->referenceProvider,
             $this->referenceHandler,
         );

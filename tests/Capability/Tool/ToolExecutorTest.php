@@ -14,7 +14,7 @@ namespace Mcp\Tests\Capability\Tool;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ToolReference;
-use Mcp\Capability\Tool\DefaultToolExecutor;
+use Mcp\Capability\Tool\ToolExecutor;
 use Mcp\Exception\ToolExecutionException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -25,9 +25,9 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
-class DefaultToolExecutorTest extends TestCase
+class ToolExecutorTest extends TestCase
 {
-    private DefaultToolExecutor $toolExecutor;
+    private ToolExecutor $toolExecutor;
     private ReferenceProviderInterface|MockObject $referenceProvider;
     private ReferenceHandlerInterface|MockObject $referenceHandler;
     private LoggerInterface|MockObject $logger;
@@ -38,7 +38,7 @@ class DefaultToolExecutorTest extends TestCase
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->toolExecutor = new DefaultToolExecutor(
+        $this->toolExecutor = new ToolExecutor(
             $this->referenceProvider,
             $this->referenceHandler,
             $this->logger,
@@ -493,10 +493,10 @@ class DefaultToolExecutorTest extends TestCase
 
     public function testConstructorWithDefaultLogger(): void
     {
-        $executor = new DefaultToolExecutor($this->referenceProvider, $this->referenceHandler);
+        $executor = new ToolExecutor($this->referenceProvider, $this->referenceHandler);
 
         // Verify it's constructed without throwing exceptions
-        $this->assertInstanceOf(DefaultToolExecutor::class, $executor);
+        $this->assertInstanceOf(ToolExecutor::class, $executor);
     }
 
     public function testCallHandlesEmptyArrayResult(): void
