@@ -19,10 +19,10 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ReadResourceRequest extends Request
+final class ReadResourceRequest extends Request
 {
     /**
-     * @param string $uri the URI of the resource to read
+     * @param non-empty-string $uri the URI of the resource to read
      */
     public function __construct(
         public readonly string $uri,
@@ -34,7 +34,7 @@ class ReadResourceRequest extends Request
         return 'resources/read';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['uri']) || !\is_string($params['uri']) || empty($params['uri'])) {
             throw new InvalidArgumentException('Missing or invalid "uri" parameter for resources/read.');
@@ -43,7 +43,10 @@ class ReadResourceRequest extends Request
         return new self($params['uri']);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{uri: non-empty-string}
+     */
+    protected function getParams(): array
     {
         return [
             'uri' => $this->uri,

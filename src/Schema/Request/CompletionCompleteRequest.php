@@ -21,7 +21,7 @@ use Mcp\Schema\ResourceReference;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class CompletionCompleteRequest extends Request
+final class CompletionCompleteRequest extends Request
 {
     /**
      * @param PromptReference|ResourceReference    $ref      the prompt or resource to complete
@@ -38,7 +38,7 @@ class CompletionCompleteRequest extends Request
         return 'completion/complete';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['ref']) || !\is_array($params['ref'])) {
             throw new InvalidArgumentException('Missing or invalid "ref" parameter for completion/complete.');
@@ -57,7 +57,13 @@ class CompletionCompleteRequest extends Request
         return new self($ref, $params['argument']);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{
+     *     ref: PromptReference|ResourceReference,
+     *     argument: array{ name: string, value: string }
+     * }
+     */
+    protected function getParams(): array
     {
         return [
             'ref' => $this->ref,

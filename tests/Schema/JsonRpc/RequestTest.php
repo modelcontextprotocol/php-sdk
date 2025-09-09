@@ -24,7 +24,7 @@ final class RequestTest extends TestCase
                 return 'foo/bar';
             }
 
-            public static function fromParams(?array $params): self
+            public static function fromParams(?array $params): static
             {
                 return new self();
             }

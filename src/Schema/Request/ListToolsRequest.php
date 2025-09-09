@@ -18,7 +18,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ListToolsRequest extends Request
+final class ListToolsRequest extends Request
 {
     /**
      * @param string|null $cursor An opaque token representing the current pagination position.
@@ -35,11 +35,14 @@ class ListToolsRequest extends Request
         return 'tools/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self($params['cursor'] ?? null);
     }
 
+    /**
+     * @return array{cursor:string}|null
+     */
     protected function getParams(): ?array
     {
         $params = [];

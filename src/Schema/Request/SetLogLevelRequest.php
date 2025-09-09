@@ -20,7 +20,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class SetLogLevelRequest extends Request
+final class SetLogLevelRequest extends Request
 {
     /**
      * @param LoggingLevel $level The level of logging that the client wants to receive from the server. The server
@@ -37,7 +37,7 @@ class SetLogLevelRequest extends Request
         return 'logging/setLevel';
     }
 
-    protected static function fromParams(?array $params): self
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['level']) || !\is_string($params['level']) || empty($params['level'])) {
             throw new InvalidArgumentException('Missing or invalid "level" parameter for "logging/setLevel".');
@@ -46,7 +46,10 @@ class SetLogLevelRequest extends Request
         return new self(LoggingLevel::from($params['level']));
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{level: value-of<LoggingLevel>}
+     */
+    protected function getParams(): array
     {
         return [
             'level' => $this->level->value,

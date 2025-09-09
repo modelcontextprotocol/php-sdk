@@ -24,7 +24,7 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ListRootsRequest extends Request
+final class ListRootsRequest extends Request
 {
     public function __construct(
     ) {
@@ -35,7 +35,7 @@ class ListRootsRequest extends Request
         return 'roots/list';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         return new self();
     }
