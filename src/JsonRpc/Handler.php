@@ -31,9 +31,10 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
+ * @final
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class Handler implements HandlerInterface
+class Handler
 {
     /**
      * @var array<int, MethodHandlerInterface>

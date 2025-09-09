@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests;
 
-use Mcp\JsonRpc\HandlerInterface;
+use Mcp\JsonRpc\Handler;
 use Mcp\Server;
 use Mcp\Server\Transport\InMemoryTransport;
 use PHPUnit\Framework\MockObject\Stub\Exception;
@@ -28,7 +28,7 @@ class ServerTest extends TestCase
             ->getMock();
         $logger->expects($this->once())->method('error');
 
-        $handler = $this->getMockBuilder(HandlerInterface::class)
+        $handler = $this->getMockBuilder(Handler::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['process'])
             ->getMock();
