@@ -20,10 +20,10 @@ use Mcp\Schema\JsonRpc\Request;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ResourceUnsubscribeRequest extends Request
+final class ResourceUnsubscribeRequest extends Request
 {
     /**
-     * @param string $uri the URI of the resource to unsubscribe from
+     * @param non-empty-string $uri the URI of the resource to unsubscribe from
      */
     public function __construct(
         public readonly string $uri,
@@ -35,7 +35,7 @@ class ResourceUnsubscribeRequest extends Request
         return 'resources/unsubscribe';
     }
 
-    protected static function fromParams(?array $params): Request
+    protected static function fromParams(?array $params): static
     {
         if (!isset($params['uri']) || !\is_string($params['uri']) || empty($params['uri'])) {
             throw new InvalidArgumentException('Missing or invalid "uri" parameter for resources/unsubscribe.');
@@ -44,7 +44,10 @@ class ResourceUnsubscribeRequest extends Request
         return new self($params['uri']);
     }
 
-    protected function getParams(): ?array
+    /**
+     * @return array{uri: non-empty-string}
+     */
+    protected function getParams(): array
     {
         return ['uri' => $this->uri];
     }
