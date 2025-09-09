@@ -35,12 +35,13 @@ final class Server
     public function connect(TransportInterface $transport): void
     {
         $transport->initialize();
+
         $this->logger->info('Transport initialized.', [
             'transport' => $transport::class,
         ]);
 
-        $transport->setMessageHandler(function (string $rawMessage) use ($transport) {
-            $this->handleMessage($rawMessage, $transport);
+        $transport->on('message', function (string $message) use ($transport) {
+            $this->handleMessage($message, $transport);
         });
     }
 

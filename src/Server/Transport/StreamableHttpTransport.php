@@ -25,8 +25,17 @@ use Psr\Log\NullLogger;
  */
 class StreamableHttpTransport implements TransportInterface
 {
-    private $messageHandler = null;
-    private $outgoingMessages = [];
+    /** @var array<string, array<callable>> */
+    private array $listeners = [];
+
+    /** @var string[] */
+    private array $outgoingMessages = [];
+
+    private array $corsHeaders = [
+        'Access-Control-Allow-Origin' => '*',
+        'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
+        'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization, Accept',
+    ];
 
     public function __construct(
         private readonly ServerRequestInterface $request,
@@ -37,9 +46,23 @@ class StreamableHttpTransport implements TransportInterface
 
     public function initialize(): void {}
 
-    public function setMessageHandler(callable $handler): void
+    public function on(string $event, callable $listener): void
     {
-        $this->messageHandler = $handler;
+        if (!isset($this->listeners[$event])) {
+            $this->listeners[$event] = [];
+        }
+        $this->listeners[$event][] = $listener;
+    }
+
+    public function emit(string $event, mixed ...$args): void
+    {
+        if (!isset($this->listeners[$event])) {
+            return;
+        }
+
+        foreach ($this->listeners[$event] as $listener) {
+            $listener(...$args);
+        }
     }
 
     public function send(string $data): void
@@ -49,58 +72,95 @@ class StreamableHttpTransport implements TransportInterface
 
     public function listen(): mixed
     {
-        if ($this->messageHandler === null) {
-            $this->logger->error('Cannot listen without a message handler. Did you forget to call Server::connect()?');
-            return $this->createErrorResponse(Error::forInternalError('Internal Server Error: Transport not configured.'), 500);
-        }
 
-        switch ($this->request->getMethod()) {
-            case 'POST':
-                $body = $this->request->getBody()->getContents();
-                if (empty($body)) {
-                    return $this->createErrorResponse(Error::forInvalidRequest('Bad Request: Empty request body.'), 400);
-                }
-
-                call_user_func($this->messageHandler, $body);
-                break;
-
-            case 'GET':
-            case 'DELETE':
-                return $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405);
-
-            default:
-                return $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405)
-                    ->withHeader('Allow', 'POST');
-        }
-
-        return $this->buildResponse();
+        return match ($this->request->getMethod()) {
+            'OPTIONS' => $this->handleOptionsRequest(),
+            'GET' => $this->handleGetRequest(),
+            'POST' => $this->handlePostRequest(),
+            'DELETE' => $this->handleDeleteRequest(),
+            default => $this->handleUnsupportedRequest(),
+        };
     }
 
-    public function close(): void {}
-
-    private function buildResponse(): ResponseInterface
+    protected function handleOptionsRequest(): ResponseInterface
     {
-        $hasRequestsInInput = !empty($this->request->getBody()->getContents());
+        return $this->withCorsHeaders($this->responseFactory->createResponse(204));
+    }
+
+    protected function handlePostRequest(): ResponseInterface
+    {
+        $acceptHeader = $this->request->getHeaderLine('Accept');
+        if (!str_contains($acceptHeader, 'application/json') || !str_contains($acceptHeader, 'text/event-stream')) {
+            $error = Error::forInvalidRequest('Not Acceptable: Client must accept both application/json and text/event-stream.');
+            return $this->createErrorResponse($error, 406);
+        }
+
+        if (!str_contains($this->request->getHeaderLine('Content-Type'), 'application/json')) {
+            $error = Error::forInvalidRequest('Unsupported Media Type: Content-Type must be application/json.');
+            return $this->createErrorResponse($error, 415);
+        }
+
+        $body = $this->request->getBody()->getContents();
+        if (empty($body)) {
+            $error = Error::forInvalidRequest('Bad Request: Empty request body.');
+            return $this->createErrorResponse($error, 400);
+        }
+
+        $this->emit('message', $body);
+
+        $hasRequestsInInput = str_contains($body, '"id"');
         $hasResponsesInOutput = !empty($this->outgoingMessages);
 
         if ($hasRequestsInInput && !$hasResponsesInOutput) {
-            return $this->responseFactory->createResponse(202);
+            return $this->withCorsHeaders($this->responseFactory->createResponse(202));
         }
 
         $responseBody = count($this->outgoingMessages) === 1
             ? $this->outgoingMessages[0]
             : '[' . implode(',', $this->outgoingMessages) . ']';
 
-        return $this->responseFactory->createResponse(200)
+        $response = $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($responseBody));
+
+        return $this->withCorsHeaders($response);
     }
 
-    private function createErrorResponse(Error $jsonRpcErrpr, int $statusCode): ResponseInterface
+    protected function handleGetRequest(): ResponseInterface
     {
-        $errorPayload = json_encode($jsonRpcErrpr, \JSON_THROW_ON_ERROR);
+        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 501);
+        return $this->withCorsHeaders($response);
+    }
+
+    protected function handleDeleteRequest(): ResponseInterface
+    {
+        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 501);
+        return $this->withCorsHeaders($response);
+    }
+
+    protected function handleUnsupportedRequest(): ResponseInterface
+    {
+        $response = $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405);
+        return $this->withCorsHeaders($response);
+    }
+
+    protected function withCorsHeaders(ResponseInterface $response): ResponseInterface
+    {
+        foreach ($this->corsHeaders as $name => $value) {
+            $response = $response->withHeader($name, $value);
+        }
+
+        return $response;
+    }
+
+    protected function createErrorResponse(Error $jsonRpcError, int $statusCode): ResponseInterface
+    {
+        $errorPayload = json_encode($jsonRpcError, \JSON_THROW_ON_ERROR);
+
         return $this->responseFactory->createResponse($statusCode)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream(json_encode($errorPayload)));
+            ->withBody($this->streamFactory->createStream($errorPayload));
     }
+
+    public function close(): void {}
 }

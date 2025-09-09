@@ -13,6 +13,7 @@ namespace Mcp\Server;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 interface TransportInterface
 {
@@ -22,13 +23,20 @@ interface TransportInterface
     public function initialize(): void;
 
     /**
-     * Registers the callback that the Server will use to process incoming messages.
-     * The transport must call this handler whenever a raw JSON-RPC message string is received.
+     * Registers an event listener for the specified event.
      *
-     * @param callable(string): void $handler The message processing callback.
+     * @param string $event The event name to listen for
+     * @param callable $listener The callback function to execute when the event occurs
      */
-    public function setMessageHandler(callable $handler): void;
+    public function on(string $event, callable $listener): void;
 
+    /**
+     * Triggers an event and executes all registered listeners.
+     *
+     * @param string $event The event name to emit
+     * @param mixed ...$args Variable number of arguments to pass to the listeners
+     */
+    public function emit(string $event, mixed ...$args): void;
 
     /**
      * Starts the transport's execution process.
@@ -43,11 +51,16 @@ interface TransportInterface
 
     /**
      * Sends a raw JSON-RPC message string back to the client.
+     *
+     * @param string $data The JSON-RPC message string to send
      */
     public function send(string $data): void;
 
     /**
      * Closes the transport and cleans up any resources.
+     *
+     * This method should be called when the transport is no longer needed.
+     * It should clean up any resources and close any connections.
      */
     public function close(): void;
 }
