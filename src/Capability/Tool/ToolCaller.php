@@ -13,7 +13,7 @@ namespace Mcp\Capability\Tool;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Exception\ToolExecutionException;
+use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\EmbeddedResource;
@@ -30,7 +30,7 @@ use Psr\Log\NullLogger;
  *
  * @author Pavel Buchnev <butschster@gmail.com>
  */
-final class ToolExecutor implements ToolExecutorInterface
+final class ToolCaller implements ToolCallerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
@@ -40,7 +40,7 @@ final class ToolExecutor implements ToolExecutorInterface
     }
 
     /**
-     * @throws ToolExecutionException if the tool execution fails
+     * @throws ToolCallException if the tool execution fails
      * @throws ToolNotFoundException  if the tool is not found
      */
     public function call(CallToolRequest $request): CallToolResult
@@ -75,7 +75,7 @@ final class ToolExecutor implements ToolExecutorInterface
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            throw new ToolExecutionException($request, $e);
+            throw new ToolCallException($request, $e);
         }
     }
 }

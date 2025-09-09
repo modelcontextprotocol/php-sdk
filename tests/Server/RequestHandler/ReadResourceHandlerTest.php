@@ -244,6 +244,7 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
+        $this->assertInstanceOf(TextResourceContents::class, $response->result->contents[0]);
         $this->assertEquals('', $response->result->contents[0]->text);
     }
 
@@ -337,7 +338,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertCount(0, $response->result->contents);
     }
 
-    private function createReadResourceRequest(string $uri): Request
+    private function createReadResourceRequest(string $uri): ReadResourceRequest
     {
         return ReadResourceRequest::fromArray([
             'jsonrpc' => '2.0',

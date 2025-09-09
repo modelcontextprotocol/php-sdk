@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Server\RequestHandler;
 
-use Mcp\Capability\Tool\ToolExecutorInterface;
-use Mcp\Exception\ToolExecutionException;
+use Mcp\Capability\Tool\ToolCallerInterface;
+use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
@@ -28,12 +28,12 @@ use Psr\Log\LoggerInterface;
 class CallToolHandlerTest extends TestCase
 {
     private CallToolHandler $handler;
-    private ToolExecutorInterface|MockObject $toolExecutor;
+    private ToolCallerInterface|MockObject $toolExecutor;
     private LoggerInterface|MockObject $logger;
 
     protected function setUp(): void
     {
-        $this->toolExecutor = $this->createMock(ToolExecutorInterface::class);
+        $this->toolExecutor = $this->createMock(ToolCallerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
         $this->handler = new CallToolHandler(
@@ -145,7 +145,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolExecutionExceptionReturnsError(): void
     {
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
-        $exception = new ToolExecutionException($request, new \RuntimeException('Tool execution failed'));
+        $exception = new ToolCallException($request, new \RuntimeException('Tool execution failed'));
 
         $this->toolExecutor
             ->expects($this->once())
@@ -157,7 +157,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('error')
             ->with(
-                'Error while executing tool "failing_tool": "Execution of tool "failing_tool" failed with error: "Tool execution failed".".',
+                'Error while executing tool "failing_tool": "Tool call "failing_tool" failed with error: "Tool execution failed".".',
                 [
                     'tool' => 'failing_tool',
                     'arguments' => ['param' => 'value'],
@@ -217,7 +217,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleLogsErrorWithCorrectParameters(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
-        $exception = new ToolExecutionException($request, new \RuntimeException('Custom error message'));
+        $exception = new ToolCallException($request, new \RuntimeException('Custom error message'));
 
         $this->toolExecutor
             ->expects($this->once())
@@ -228,7 +228,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('error')
             ->with(
-                'Error while executing tool "test_tool": "Execution of tool "test_tool" failed with error: "Custom error message".".',
+                'Error while executing tool "test_tool": "Tool call "test_tool" failed with error: "Custom error message".".',
                 [
                     'tool' => 'test_tool',
                     'arguments' => ['key1' => 'value1', 'key2' => 42],
@@ -277,7 +277,10 @@ class CallToolHandlerTest extends TestCase
         $this->assertSame($expectedResult, $response->result);
     }
 
-    private function createCallToolRequest(string $name, array $arguments): Request
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    private function createCallToolRequest(string $name, array $arguments): CallToolRequest
     {
         return CallToolRequest::fromArray([
             'jsonrpc' => '2.0',

@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\RequestHandler;
 
-use Mcp\Capability\Tool\ToolExecutorInterface;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
@@ -28,7 +28,7 @@ use Psr\Log\NullLogger;
 final class CallToolHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly ToolExecutorInterface $toolExecutor,
+        private readonly ToolCallerInterface $toolExecutor,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }

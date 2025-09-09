@@ -14,8 +14,8 @@ namespace Mcp\Tests\Capability\Tool;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ToolReference;
-use Mcp\Capability\Tool\ToolExecutor;
-use Mcp\Exception\ToolExecutionException;
+use Mcp\Capability\Tool\ToolCaller;
+use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\CallToolRequest;
@@ -25,9 +25,9 @@ use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
-class ToolExecutorTest extends TestCase
+class ToolCallerTest extends TestCase
 {
-    private ToolExecutor $toolExecutor;
+    private ToolCaller $toolExecutor;
     private ReferenceProviderInterface|MockObject $referenceProvider;
     private ReferenceHandlerInterface|MockObject $referenceHandler;
     private LoggerInterface|MockObject $logger;
@@ -38,7 +38,7 @@ class ToolExecutorTest extends TestCase
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->toolExecutor = new ToolExecutor(
+        $this->toolExecutor = new ToolCaller(
             $this->referenceProvider,
             $this->referenceHandler,
             $this->logger,
@@ -211,13 +211,13 @@ class ToolExecutorTest extends TestCase
                 })
             );
 
-        $this->expectException(ToolExecutionException::class);
-        $this->expectExceptionMessage('Execution of tool "failing_tool" failed with error: "Handler failed".');
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('Tool call "failing_tool" failed with error: "Handler failed".');
 
         $thrownException = null;
         try {
             $this->toolExecutor->call($request);
-        } catch (ToolExecutionException $e) {
+        } catch (ToolCallException $e) {
             $thrownException = $e;
             throw $e;
         } finally {
@@ -404,8 +404,8 @@ class ToolExecutorTest extends TestCase
                 })
             );
 
-        $this->expectException(ToolExecutionException::class);
-        $this->expectExceptionMessage('Execution of tool "error_tool" failed with error: "Invalid input".');
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('Tool call "error_tool" failed with error: "Invalid input".');
 
         $this->toolExecutor->call($request);
     }
@@ -493,10 +493,10 @@ class ToolExecutorTest extends TestCase
 
     public function testConstructorWithDefaultLogger(): void
     {
-        $executor = new ToolExecutor($this->referenceProvider, $this->referenceHandler);
+        $executor = new ToolCaller($this->referenceProvider, $this->referenceHandler);
 
         // Verify it's constructed without throwing exceptions
-        $this->assertInstanceOf(ToolExecutor::class, $executor);
+        $this->assertInstanceOf(ToolCaller::class, $executor);
     }
 
     public function testCallHandlesEmptyArrayResult(): void

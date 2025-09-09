@@ -325,7 +325,12 @@ class GetPromptHandlerTest extends TestCase
         $this->assertSame($expectedResult, $response->result);
     }
 
-    private function createGetPromptRequest(string $name, ?array $arguments = null): Request
+    /**
+     * @param string $name
+     * @param array<string, mixed>|null $arguments
+     * @return GetPromptRequest
+     */
+    private function createGetPromptRequest(string $name, ?array $arguments = null): GetPromptRequest
     {
         return GetPromptRequest::fromArray([
             'jsonrpc' => '2.0',

@@ -25,8 +25,8 @@ use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Resource\ResourceReader;
 use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Capability\Tool\ToolExecutor;
-use Mcp\Capability\Tool\ToolExecutorInterface;
+use Mcp\Capability\Tool\ToolCaller;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\Handler;
 use Mcp\Schema\Annotations;
@@ -55,7 +55,7 @@ final class ServerBuilder
 
     private ?CacheInterface $cache = null;
 
-    private ?ToolExecutorInterface $toolExecutor = null;
+    private ?ToolCallerInterface $toolExecutor = null;
 
     private ?ResourceReaderInterface $resourceReader = null;
 
@@ -161,7 +161,7 @@ final class ServerBuilder
         return $this;
     }
 
-    public function withToolExecutor(ToolExecutorInterface $toolExecutor): self
+    public function withToolExecutor(ToolCallerInterface $toolExecutor): self
     {
         $this->toolExecutor = $toolExecutor;
 
@@ -281,7 +281,7 @@ final class ServerBuilder
         $registry = new Registry($this->eventDispatcher, $logger);
 
         $referenceHandler = new ReferenceHandler($container);
-        $toolExecutor = $this->toolExecutor ??= new ToolExecutor($registry, $referenceHandler, $logger);
+        $toolExecutor = $this->toolExecutor ??= new ToolCaller($registry, $referenceHandler, $logger);
         $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler, $logger);
         $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler, $logger);
 
