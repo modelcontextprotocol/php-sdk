@@ -32,6 +32,7 @@ use Psr\Log\NullLogger;
 
 /**
  * @final
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 class Handler

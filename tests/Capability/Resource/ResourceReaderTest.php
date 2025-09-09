@@ -27,6 +27,7 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\ReadResourceResult;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ResourceReaderTest extends TestCase
 {
@@ -469,6 +470,28 @@ class ResourceReaderTest extends TestCase
 
         $this->assertInstanceOf(ReadResourceResult::class, $result);
         $this->assertSame($formattedResult, $result->contents);
+    }
+
+    public function testConstructorWithDefaultLogger(): void
+    {
+        $resourceReader = new ResourceReader(
+            $this->referenceProvider,
+            $this->referenceHandler,
+        );
+
+        $this->assertInstanceOf(ResourceReader::class, $resourceReader);
+    }
+
+    public function testConstructorWithCustomLogger(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $resourceReader = new ResourceReader(
+            $this->referenceProvider,
+            $this->referenceHandler,
+            $logger,
+        );
+
+        $this->assertInstanceOf(ResourceReader::class, $resourceReader);
     }
 
     private function createValidResource(string $uri, string $name, ?string $mimeType = null): Resource

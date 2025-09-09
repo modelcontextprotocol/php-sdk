@@ -16,7 +16,6 @@ use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
-use Mcp\Capability\DispatchableRegistry;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Prompt\PromptGetter;
@@ -283,8 +282,8 @@ final class ServerBuilder
 
         $referenceHandler = new ReferenceHandler($container);
         $toolExecutor = $this->toolExecutor ??= new ToolExecutor($registry, $referenceHandler, $logger);
-        $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler);
-        $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler);
+        $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler, $logger);
+        $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler, $logger);
 
         $this->registerManualElements($registry, $logger);
 

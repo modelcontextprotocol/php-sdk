@@ -19,7 +19,6 @@ use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\RegistryException;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
@@ -28,6 +27,7 @@ use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class PromptGetterTest extends TestCase
 {
@@ -603,6 +603,28 @@ class PromptGetterTest extends TestCase
         $this->expectExceptionMessage('Prompt generator method must return an array of messages.');
 
         $this->promptGetter->get($request);
+    }
+
+    public function testConstructorWithDefaultLogger(): void
+    {
+        $promptGetter = new PromptGetter(
+            $this->referenceProvider,
+            $this->referenceHandler,
+        );
+
+        $this->assertInstanceOf(PromptGetter::class, $promptGetter);
+    }
+
+    public function testConstructorWithCustomLogger(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $promptGetter = new PromptGetter(
+            $this->referenceProvider,
+            $this->referenceHandler,
+            $logger,
+        );
+
+        $this->assertInstanceOf(PromptGetter::class, $promptGetter);
     }
 
     private function createValidPrompt(string $name): Prompt

@@ -17,6 +17,8 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * @author Pavel Buchnev   <butschster@gmail.com>
@@ -26,24 +28,40 @@ final class ResourceReader implements ResourceReaderInterface
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
-    ) {}
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+    }
 
     public function read(ReadResourceRequest $request): ReadResourceResult
     {
-        $reference = $this->referenceProvider->getResource($request->uri);
+        $uri = $request->uri;
+
+        $this->logger->debug('Reading resource', ['uri' => $uri]);
+
+        $reference = $this->referenceProvider->getResource($uri);
 
         if (null === $reference) {
+            $this->logger->warning('Resource not found', ['uri' => $uri]);
             throw new ResourceNotFoundException($request);
         }
 
         try {
-            return new ReadResourceResult(
-                $reference->formatResult(
-                    $this->referenceHandler->handle($reference, ['uri' => $request->uri]),
-                    $request->uri,
-                ),
-            );
+            $result = $this->referenceHandler->handle($reference, ['uri' => $uri]);
+            $formattedResult = $reference->formatResult($result, $uri);
+
+            $this->logger->debug('Resource read successfully', [
+                'uri' => $uri,
+                'result_type' => \gettype($result),
+            ]);
+
+            return new ReadResourceResult($formattedResult);
         } catch (\Throwable $e) {
+            $this->logger->error('Resource read failed', [
+                'uri' => $uri,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             throw new ResourceReadException($request, $e);
         }
     }

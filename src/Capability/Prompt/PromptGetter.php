@@ -15,9 +15,10 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
-use Mcp\Exception\RegistryException;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * @author Pavel Buchnev   <butschster@gmail.com>
@@ -27,27 +28,41 @@ final class PromptGetter implements PromptGetterInterface
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
-    ) {}
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+    }
 
-    /**
-     * @throws RegistryException
-     * @throws \JsonException
-     */
     public function get(GetPromptRequest $request): GetPromptResult
     {
-        $reference = $this->referenceProvider->getPrompt($request->name);
+        $promptName = $request->name;
+        $arguments = $request->arguments ?? [];
+
+        $this->logger->debug('Getting prompt', ['name' => $promptName, 'arguments' => $arguments]);
+
+        $reference = $this->referenceProvider->getPrompt($promptName);
 
         if (null === $reference) {
+            $this->logger->warning('Prompt not found', ['name' => $promptName]);
             throw new PromptNotFoundException($request);
         }
 
         try {
-            return new GetPromptResult(
-                $reference->formatResult(
-                    $this->referenceHandler->handle($reference, $request->arguments ?? []),
-                ),
-            );
+            $result = $this->referenceHandler->handle($reference, $arguments);
+            $formattedResult = $reference->formatResult($result);
+
+            $this->logger->debug('Prompt retrieved successfully', [
+                'name' => $promptName,
+                'result_type' => \gettype($result),
+            ]);
+
+            return new GetPromptResult($formattedResult);
         } catch (\Throwable $e) {
+            $this->logger->error('Prompt retrieval failed', [
+                'name' => $promptName,
+                'exception' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
             throw new PromptGetException($request, $e);
         }
     }

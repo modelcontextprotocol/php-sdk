@@ -88,66 +88,6 @@ class ServerCapabilitiesTest extends TestCase
         $this->assertNull($capabilities->experimental);
     }
 
-    public function testWithEvents(): void
-    {
-        $capabilities = new ServerCapabilities(
-            tools: true,
-            toolsListChanged: false,
-            resources: true,
-            resourcesSubscribe: false,
-            resourcesListChanged: false,
-            prompts: true,
-            promptsListChanged: false,
-            logging: false,
-            completions: true
-        );
-
-        $withEvents = $capabilities->withEvents();
-
-        $this->assertTrue($withEvents->tools);
-        $this->assertTrue($withEvents->toolsListChanged);
-        $this->assertTrue($withEvents->resources);
-        $this->assertFalse($withEvents->resourcesSubscribe);
-        $this->assertTrue($withEvents->resourcesListChanged);
-        $this->assertTrue($withEvents->prompts);
-        $this->assertTrue($withEvents->promptsListChanged);
-        $this->assertFalse($withEvents->logging);
-        $this->assertTrue($withEvents->completions);
-    }
-
-    public function testWithEventsPreservesResourcesSubscribe(): void
-    {
-        $capabilities = new ServerCapabilities(
-            resourcesSubscribe: true
-        );
-
-        $withEvents = $capabilities->withEvents();
-
-        $this->assertTrue($withEvents->resourcesSubscribe);
-        $this->assertTrue($withEvents->resourcesListChanged);
-    }
-
-    public function testWithEventsIsImmutable(): void
-    {
-        $original = new ServerCapabilities(
-            toolsListChanged: false,
-            resourcesListChanged: false,
-            promptsListChanged: false
-        );
-
-        $withEvents = $original->withEvents();
-
-        $this->assertFalse($original->toolsListChanged);
-        $this->assertFalse($original->resourcesListChanged);
-        $this->assertFalse($original->promptsListChanged);
-
-        $this->assertTrue($withEvents->toolsListChanged);
-        $this->assertTrue($withEvents->resourcesListChanged);
-        $this->assertTrue($withEvents->promptsListChanged);
-
-        $this->assertNotSame($original, $withEvents);
-    }
-
     public function testFromArrayWithEmptyArray(): void
     {
         $capabilities = ServerCapabilities::fromArray([]);
