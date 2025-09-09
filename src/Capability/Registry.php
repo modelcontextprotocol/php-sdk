@@ -60,7 +60,7 @@ class Registry
     private array $resourceTemplates = [];
 
     public function __construct(
-        private readonly NotificationPublisher $notificationPublisher,
+        private readonly NotificationPublisher $notificationPublisher = new NotificationPublisher(),
         private readonly ReferenceHandler $referenceHandler = new ReferenceHandler(),
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
