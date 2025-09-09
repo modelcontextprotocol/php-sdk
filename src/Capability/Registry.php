@@ -101,7 +101,7 @@ class Registry
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
 
-        $this->notificationPublisher->enqueue(ToolListChangedNotification::class);
+        $this->notificationPublisher->enqueue(new ToolListChangedNotification());
     }
 
     /**
@@ -120,7 +120,7 @@ class Registry
 
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
 
-        $this->notificationPublisher->enqueue(ResourceListChangedNotification::class);
+        $this->notificationPublisher->enqueue(new ResourceListChangedNotification());
     }
 
     /**
@@ -169,7 +169,7 @@ class Registry
 
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
 
-        $this->notificationPublisher->enqueue(PromptListChangedNotification::class);
+        $this->notificationPublisher->enqueue(new PromptListChangedNotification());
     }
 
     /**

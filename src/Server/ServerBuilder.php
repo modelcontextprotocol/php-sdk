@@ -208,7 +208,7 @@ final class ServerBuilder
     public function build(): Server
     {
         $logger = $this->logger ?? new NullLogger();
-        $notificationPublisher = NotificationPublisher::make();
+        $notificationPublisher = new NotificationPublisher();
         $container = $this->container ?? new Container();
         $registry = new Registry($notificationPublisher, new ReferenceHandler($container), $logger);
 

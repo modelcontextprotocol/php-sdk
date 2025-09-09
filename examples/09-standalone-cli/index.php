@@ -27,7 +27,7 @@ $jsonRpcHandler = new Mcp\JsonRpc\Handler(
     $logger
 );
 
-$notificationPublisher = Mcp\Server\NotificationPublisher::make();
+$notificationPublisher = new Mcp\Server\NotificationPublisher();
 
 // Set up the server
 $sever = new Mcp\Server($jsonRpcHandler, $notificationPublisher, $logger);

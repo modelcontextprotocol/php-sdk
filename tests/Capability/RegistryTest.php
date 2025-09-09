@@ -47,7 +47,7 @@ class RegistryTest extends TestCase
         $notificationPublisher = $this->createMock(NotificationPublisher::class);
         $notificationPublisher->expects($this->once())
             ->method('enqueue')
-            ->with(ToolListChangedNotification::class);
+            ->with(new ToolListChangedNotification());
 
         $registry = new Registry($notificationPublisher);
         $registry->registerTool($tool, fn () => null);
@@ -67,7 +67,7 @@ class RegistryTest extends TestCase
         $notificationPublisher = $this->createMock(NotificationPublisher::class);
         $notificationPublisher->expects($this->once())
             ->method('enqueue')
-            ->with(ResourceListChangedNotification::class);
+            ->with(new ResourceListChangedNotification());
 
         $registry = new Registry($notificationPublisher);
         $registry->registerResource($resource, fn () => null);
@@ -86,7 +86,7 @@ class RegistryTest extends TestCase
         $notificationPublisher = $this->createMock(NotificationPublisher::class);
         $notificationPublisher->expects($this->once())
             ->method('enqueue')
-            ->with(PromptListChangedNotification::class);
+            ->with(new PromptListChangedNotification());
 
         $registry = new Registry($notificationPublisher);
         $registry->registerPrompt($prompt, fn () => null);

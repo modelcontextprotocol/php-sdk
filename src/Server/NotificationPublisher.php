@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace Mcp\Server;
 
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Notification;
 
 /**
@@ -24,23 +23,8 @@ class NotificationPublisher
     /** @var list<Notification> */
     private array $queue = [];
 
-    public function __construct(
-        private readonly MessageFactory $factory,
-    ) {
-    }
-
-    public static function make(): self
+    public function enqueue(Notification $notification): void
     {
-        return new self(MessageFactory::make());
-    }
-
-    /**
-     * @param class-string<Notification> $notificationType
-     */
-    public function enqueue(string $notificationType): void
-    {
-        $notification = $this->factory->createByType($notificationType, []);
-
         $this->queue[] = $notification;
     }
 

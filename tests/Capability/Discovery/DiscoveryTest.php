@@ -35,7 +35,7 @@ class DiscoveryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->registry = new Registry(NotificationPublisher::make());
+        $this->registry = new Registry(new NotificationPublisher());
         $this->discoverer = new Discoverer($this->registry);
     }
 

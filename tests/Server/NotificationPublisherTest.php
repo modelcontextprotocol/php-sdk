@@ -28,11 +28,11 @@ class NotificationPublisherTest extends TestCase
     public function testEnqueue(): void
     {
         $expectedNotifications = [
-            ToolListChangedNotification::class,
-            ResourceListChangedNotification::class,
-            PromptListChangedNotification::class,
+            new ToolListChangedNotification(),
+            new ResourceListChangedNotification(),
+            new PromptListChangedNotification(),
         ];
-        $notificationPublisher = new NotificationPublisher(MessageFactory::make());
+        $notificationPublisher = new NotificationPublisher();
 
         foreach ($expectedNotifications as $notificationType) {
             $notificationPublisher->enqueue($notificationType);
@@ -43,7 +43,7 @@ class NotificationPublisherTest extends TestCase
         $this->assertCount(\count($expectedNotifications), $flushedNotifications);
 
         foreach ($flushedNotifications as $index => $notification) {
-            $this->assertInstanceOf($expectedNotifications[$index], $notification);
+            $this->assertSame($expectedNotifications[$index], $notification);
         }
 
         $this->assertEmpty(iterator_to_array($notificationPublisher->flush()));
