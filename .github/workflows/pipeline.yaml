@@ -31,7 +31,7 @@ jobs:
           dependency-versions: "${{ matrix.dependencies }}"
 
       - name: Tests
-        run: vendor/bin/phpunit --exclude-group inspector
+        run: composer test -- --exclude-group inspector
 
   qa:
     runs-on: ubuntu-latest
@@ -52,7 +52,7 @@ jobs:
         uses: "ramsey/composer-install@v3"
 
       - name: Code Style PHP
-        run: vendor/bin/php-cs-fixer fix --dry-run
+        run: composer lint:check
 
       - name: PHPStan
-        run: vendor/bin/phpstan analyse
+        run: composer stan
