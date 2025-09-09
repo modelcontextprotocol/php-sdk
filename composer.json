@@ -56,5 +56,21 @@
     },
     "config": {
         "sort-packages": true
+    },
+    "scripts": {
+      "test": [
+        "phpunit"
+      ],
+      "stan": [
+        "phpstan"
+      ],
+      "lint": [
+        "php-cs-fixer fix"
+      ],
+      "prepare": [
+        "composer test",
+        "composer stan",
+        "composer lint"
+      ]
     }
 }
