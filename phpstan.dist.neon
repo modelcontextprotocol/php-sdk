@@ -13,8 +13,6 @@ parameters:
         - tests/Capability/Discovery/SchemaGeneratorFixture.php
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
-        -
-            message: "#^Method .*::test.*\\(\\) has no return type specified\\.$#"
         # These errors should actually be fixed, but are ignored for now
         -
             identifier: missingType.iterableValue
