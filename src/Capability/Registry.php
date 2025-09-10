@@ -401,8 +401,19 @@ class Registry
             }
         }
 
-        // Return slice of items starting from offset
-        return array_values(\array_slice($items, $offset, $limit, true));
+        $result = [];
+        $count = 0;
+        $currentIndex = 0;
+
+        foreach ($items as $item) {
+            if ($currentIndex >= $offset && $count < $limit) {
+                $result[] = $item;
+                ++$count;
+            }
+            ++$currentIndex;
+        }
+
+        return $result;
     }
 
     /**
