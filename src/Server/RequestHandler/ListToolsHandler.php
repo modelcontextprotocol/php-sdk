@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\RequestHandler;
 
-use Mcp\Capability\Registry;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListToolsRequest;
@@ -25,7 +25,7 @@ use Mcp\Server\MethodHandlerInterface;
 final class ListToolsHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly Registry $registry,
+        private readonly ReferenceProviderInterface $registry,
         private readonly int $pageSize = 20,
     ) {
     }

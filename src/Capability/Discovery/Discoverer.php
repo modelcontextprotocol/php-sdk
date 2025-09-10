@@ -19,7 +19,7 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ProviderInterface;
-use Mcp\Capability\Registry;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
@@ -44,7 +44,7 @@ use Symfony\Component\Finder\SplFileInfo;
 class Discoverer
 {
     public function __construct(
-        private readonly Registry $registry,
+        private readonly ReferenceRegistryInterface $registry,
         private readonly LoggerInterface $logger = new NullLogger(),
         private ?DocBlockParser $docBlockParser = null,
         private ?SchemaGenerator $schemaGenerator = null,

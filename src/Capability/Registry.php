@@ -11,9 +11,9 @@
 
 namespace Mcp\Capability;
 
-use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\PromptReference;
-use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
@@ -21,9 +21,6 @@ use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Schema\Content\PromptMessage;
-use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -34,11 +31,14 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @phpstan-import-type CallableArray from ElementReference
+ * Registry implementation that manages MCP element registration and access.
+ * Implements both ReferenceProvider (for access) and ReferenceRegistry (for registration)
+ * following the Interface Segregation Principle.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * @author Pavel Buchnev   <butschster@gmail.com>
  */
-class Registry
+final class Registry implements ReferenceProviderInterface, ReferenceRegistryInterface
 {
     /**
      * @var array<string, ToolReference>
@@ -61,7 +61,6 @@ class Registry
     private array $resourceTemplates = [];
 
     public function __construct(
-        private readonly ReferenceHandler $referenceHandler = new ReferenceHandler(),
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
@@ -74,28 +73,27 @@ class Registry
         }
 
         return new ServerCapabilities(
-            tools: true, // [] !== $this->tools,
+            tools: [] !== $this->tools,
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             resources: [] !== $this->resources || [] !== $this->resourceTemplates,
             resourcesSubscribe: false,
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: [] !== $this->prompts,
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: false, // true,
+            logging: false,
             completions: true,
         );
     }
 
-    /**
-     * @param callable|CallableArray|string $handler
-     */
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void
     {
         $toolName = $tool->name;
         $existing = $this->tools[$toolName] ?? null;
 
         if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug("Ignoring discovered tool '{$toolName}' as it conflicts with a manually registered one.");
+            $this->logger->debug(
+                "Ignoring discovered tool '{$toolName}' as it conflicts with a manually registered one.",
+            );
 
             return;
         }
@@ -105,16 +103,15 @@ class Registry
         $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
     }
 
-    /**
-     * @param callable|CallableArray|string $handler
-     */
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void
     {
         $uri = $resource->uri;
         $existing = $this->resources[$uri] ?? null;
 
         if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug("Ignoring discovered resource '{$uri}' as it conflicts with a manually registered one.");
+            $this->logger->debug(
+                "Ignoring discovered resource '{$uri}' as it conflicts with a manually registered one.",
+            );
 
             return;
         }
@@ -124,10 +121,6 @@ class Registry
         $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
     }
 
-    /**
-     * @param callable|CallableArray|string      $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
     public function registerResourceTemplate(
         ResourceTemplate $template,
         callable|array|string $handler,
@@ -138,20 +131,23 @@ class Registry
         $existing = $this->resourceTemplates[$uriTemplate] ?? null;
 
         if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug("Ignoring discovered template '{$uriTemplate}' as it conflicts with a manually registered one.");
+            $this->logger->debug(
+                "Ignoring discovered template '{$uriTemplate}' as it conflicts with a manually registered one.",
+            );
 
             return;
         }
 
-        $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference($template, $handler, $isManual, $completionProviders);
+        $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference(
+            $template,
+            $handler,
+            $isManual,
+            $completionProviders,
+        );
 
         $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
     }
 
-    /**
-     * @param callable|CallableArray|string      $handler
-     * @param array<string, class-string|object> $completionProviders
-     */
     public function registerPrompt(
         Prompt $prompt,
         callable|array|string $handler,
@@ -162,7 +158,9 @@ class Registry
         $existing = $this->prompts[$promptName] ?? null;
 
         if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug("Ignoring discovered prompt '{$promptName}' as it conflicts with a manually registered one.");
+            $this->logger->debug(
+                "Ignoring discovered prompt '{$promptName}' as it conflicts with a manually registered one.",
+            );
 
             return;
         }
@@ -172,20 +170,6 @@ class Registry
         $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
     }
 
-    /**
-     * Checks if any elements (manual or discovered) are currently registered.
-     */
-    public function hasElements(): bool
-    {
-        return !empty($this->tools)
-            || !empty($this->resources)
-            || !empty($this->prompts)
-            || !empty($this->resourceTemplates);
-    }
-
-    /**
-     * Clear discovered elements from registry.
-     */
     public function clear(): void
     {
         $clearCount = 0;
@@ -220,43 +204,15 @@ class Registry
         }
     }
 
-    public function handleCallTool(string $name, array $arguments): array
-    {
-        $reference = $this->getTool($name);
-
-        if (null === $reference) {
-            throw new InvalidArgumentException(\sprintf('Tool "%s" is not registered.', $name));
-        }
-
-        return $reference->formatResult(
-            $this->referenceHandler->handle($reference, $arguments)
-        );
-    }
-
     public function getTool(string $name): ?ToolReference
     {
         return $this->tools[$name] ?? null;
     }
 
-    /**
-     * @return ResourceContents[]
-     */
-    public function handleReadResource(string $uri): array
-    {
-        $reference = $this->getResource($uri);
-
-        if (null === $reference) {
-            throw new InvalidArgumentException(\sprintf('Resource "%s" is not registered.', $uri));
-        }
-
-        return $reference->formatResult(
-            $this->referenceHandler->handle($reference, ['uri' => $uri]),
-            $uri,
-        );
-    }
-
-    public function getResource(string $uri, bool $includeTemplates = true): ResourceReference|ResourceTemplateReference|null
-    {
+    public function getResource(
+        string $uri,
+        bool $includeTemplates = true,
+    ): ResourceReference|ResourceTemplateReference|null {
         $registration = $this->resources[$uri] ?? null;
         if ($registration) {
             return $registration;
@@ -282,54 +238,37 @@ class Registry
         return $this->resourceTemplates[$uriTemplate] ?? null;
     }
 
-    /**
-     * @return PromptMessage[]
-     */
-    public function handleGetPrompt(string $name, ?array $arguments): array
-    {
-        $reference = $this->getPrompt($name);
-
-        if (null === $reference) {
-            throw new InvalidArgumentException(\sprintf('Prompt "%s" is not registered.', $name));
-        }
-
-        return $reference->formatResult(
-            $this->referenceHandler->handle($reference, $arguments)
-        );
-    }
-
     public function getPrompt(string $name): ?PromptReference
     {
         return $this->prompts[$name] ?? null;
     }
 
-    /**
-     * @return array<string, Tool>
-     */
     public function getTools(): array
     {
         return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
     }
 
-    /**
-     * @return array<string, resource>
-     */
     public function getResources(): array
     {
         return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
     }
 
-    /**
-     * @return array<string, Prompt>
-     */
     public function getPrompts(): array
     {
         return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
     }
 
-    /** @return array<string, ResourceTemplate> */
     public function getResourceTemplates(): array
     {
-        return array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
+        return array_map(fn (ResourceTemplateReference $template) => $template->resourceTemplate,
+            $this->resourceTemplates);
+    }
+
+    public function hasElements(): bool
+    {
+        return !empty($this->tools)
+            || !empty($this->resources)
+            || !empty($this->prompts)
+            || !empty($this->resourceTemplates);
     }
 }

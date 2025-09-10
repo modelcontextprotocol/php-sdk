@@ -18,7 +18,7 @@ use Psr\Container\ContainerInterface;
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ReferenceHandler
+final class ReferenceHandler implements ReferenceHandlerInterface
 {
     public function __construct(
         private readonly ?ContainerInterface $container = null,
