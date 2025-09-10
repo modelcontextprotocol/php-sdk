@@ -13,6 +13,8 @@ namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
 use Mcp\Server\ServerBuilder;
+use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -24,6 +26,9 @@ final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
+        private readonly SessionFactoryInterface $sessionFactory,
+        private readonly SessionStoreInterface $sessionStore,
+        private readonly int $sessionTtl,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {}
 
@@ -45,10 +50,10 @@ final class Server
         });
     }
 
-    private function handleMessage(string $rawMessage, TransportInterface $transport): void
+    private function handleMessage(string $message, TransportInterface $transport): void
     {
         try {
-            foreach ($this->jsonRpcHandler->process($rawMessage) as $response) {
+            foreach ($this->jsonRpcHandler->process($message) as $response) {
                 if (null === $response) {
                     continue;
                 }
@@ -57,7 +62,7 @@ final class Server
             }
         } catch (\JsonException $e) {
             $this->logger->error('Failed to encode response to JSON.', [
-                'message' => $rawMessage,
+                'message' => $message,
                 'exception' => $e,
             ]);
         }
