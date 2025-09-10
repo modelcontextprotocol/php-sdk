@@ -169,11 +169,23 @@ class ValidHandlerClass
     {
     }
 
+    private function privateMethod(): void /* @phpstan-ignore method.unused */
+    {
+    }
+
     protected function protectedMethod(): void
     {
     }
 
     public static function staticMethod(): void
+    {
+    }
+
+    public function __construct()
+    {
+    }
+
+    public function __destruct()
     {
     }
 }

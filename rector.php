@@ -16,6 +16,10 @@ declare(strict_types=1);
  */
 
 use Rector\Config\RectorConfig;
+use Rector\DeadCode\Rector\ClassMethod\RemoveEmptyClassMethodRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodParameterRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPrivateMethodRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveUnusedPublicMethodParameterRector;
 use Rector\Php80\Rector\Class_\ClassPropertyAssignToConstructorPromotionRector;
 use Rector\Set\ValueObject\SetList;
 
@@ -39,7 +43,18 @@ return RectorConfig::configure()
     ->withRules([
         ClassPropertyAssignToConstructorPromotionRector::class,
     ])
-    // Skip certain paths that shouldn't be modified
     ->withSkip([
+        RemoveUnusedPublicMethodParameterRector::class => [
+            __DIR__.'/tests/Capability/Discovery/HandlerResolverTest.php',
+        ],
+        RemoveUnusedPrivateMethodParameterRector::class => [
+            __DIR__.'/tests/Capability/Discovery/HandlerResolverTest.php',
+        ],
+        RemoveEmptyClassMethodRector::class => [
+            __DIR__.'/tests/Capability/Discovery/HandlerResolverTest.php',
+        ],
+        RemoveUnusedPrivateMethodRector::class => [
+            __DIR__.'/tests/Capability/Discovery/HandlerResolverTest.php',
+        ],
         __DIR__.'/vendor',
     ]);
