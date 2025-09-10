@@ -12,6 +12,7 @@
 namespace Mcp\Server\RequestHandler;
 
 use Mcp\Capability\Registry;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourcesRequest;
@@ -34,13 +35,22 @@ final class ListResourcesHandler implements MethodHandlerInterface
         return $message instanceof ListResourcesRequest;
     }
 
+    /**
+     * @throws InvalidCursorException
+     */
     public function handle(ListResourcesRequest|HasMethodInterface $message): Response
     {
         \assert($message instanceof ListResourcesRequest);
 
-        $cursor = null;
+        $allResources = $this->registry->getResources();
+
         $resources = $this->registry->getResources($this->pageSize, $message->cursor);
-        $nextCursor = (null !== $cursor && \count($resources) === $this->pageSize) ? $cursor : null;
+
+        $nextCursor = $this->registry->calculateNextCursor(
+            $allResources,
+            $message->cursor,
+            \count($resources)
+        );
 
         return new Response(
             $message->getId(),

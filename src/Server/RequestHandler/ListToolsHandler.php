@@ -12,6 +12,7 @@
 namespace Mcp\Server\RequestHandler;
 
 use Mcp\Capability\Registry;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListToolsRequest;
@@ -35,13 +36,22 @@ final class ListToolsHandler implements MethodHandlerInterface
         return $message instanceof ListToolsRequest;
     }
 
+    /**
+     * @throws InvalidCursorException When the cursor is invalid
+     */
     public function handle(ListToolsRequest|HasMethodInterface $message): Response
     {
         \assert($message instanceof ListToolsRequest);
 
-        $cursor = null;
+        $allTools = $this->registry->getTools();
+
         $tools = $this->registry->getTools($this->pageSize, $message->cursor);
-        $nextCursor = (null !== $cursor && \count($tools) === $this->pageSize) ? $cursor : null;
+
+        $nextCursor = $this->registry->calculateNextCursor(
+            $allTools,
+            $message->cursor,
+            \count($tools)
+        );
 
         return new Response(
             $message->getId(),

@@ -12,6 +12,7 @@
 namespace Mcp\Server\RequestHandler;
 
 use Mcp\Capability\Registry;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListPromptsRequest;
@@ -34,13 +35,22 @@ final class ListPromptsHandler implements MethodHandlerInterface
         return $message instanceof ListPromptsRequest;
     }
 
+    /**
+     * @throws InvalidCursorException
+     */
     public function handle(ListPromptsRequest|HasMethodInterface $message): Response
     {
         \assert($message instanceof ListPromptsRequest);
 
-        $cursor = null;
+        $allPrompts = $this->registry->getPrompts();
+
         $prompts = $this->registry->getPrompts($this->pageSize, $message->cursor);
-        $nextCursor = (null !== $cursor && \count($prompts) === $this->pageSize) ? $cursor : null;
+
+        $nextCursor = $this->registry->calculateNextCursor(
+            $allPrompts,
+            $message->cursor,
+            \count($prompts)
+        );
 
         return new Response(
             $message->getId(),
