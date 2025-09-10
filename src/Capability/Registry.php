@@ -356,7 +356,7 @@ class Registry
     }
 
     /**
-     * @return list<ResourceTemplate> 
+     * @return list<ResourceTemplate>
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
     {
@@ -364,21 +364,23 @@ class Registry
         foreach ($this->resourceTemplates as $templateReference) {
             $templates[] = $templateReference->resourceTemplate;
         }
-        
-        if ($limit === null) {
+
+        if (null === $limit) {
             return $templates;
         }
-        
+
         return $this->paginateResults($templates, $limit, $cursor);
     }
 
     /**
      * Helper method to paginate results using cursor-based pagination.
-     * 
-     * @param list<mixed> $items The full array of items to paginate
-     * @param int $limit Maximum number of items to return
+     *
+     * @param list<mixed> $items  The full array of items to paginate
+     * @param int         $limit  Maximum number of items to return
      * @param string|null $cursor Base64 encoded offset position
+     *
      * @return list<mixed> Paginated results
+     *
      * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
      */
     private function paginateResults(array $items, int $limit, ?string $cursor = null): array
@@ -392,22 +394,23 @@ class Registry
             }
 
             $offset = (int) $decodedCursor;
-            
+
             // Validate offset is within reasonable bounds
             if ($offset < 0 || $offset > \count($items)) {
                 throw new InvalidCursorException($cursor);
             }
         }
-        
+
         // Return slice of items starting from offset
-        return array_values(array_slice($items, $offset, $limit, true));
+        return array_values(\array_slice($items, $offset, $limit, true));
     }
 
     /**
      * Calculate next cursor for pagination.
-     * @param list<mixed> $allItems The complete array of items
+     *
+     * @param list<mixed> $allItems      The complete array of items
      * @param string|null $currentCursor Current cursor position
-     * @param int $returnedCount Number of items actually returned
+     * @param int         $returnedCount Number of items actually returned
      */
     public function calculateNextCursor(array $allItems, ?string $currentCursor, int $returnedCount): ?string
     {
@@ -423,7 +426,7 @@ class Registry
         $nextOffset = $currentOffset + $returnedCount;
 
         // If we have more items available, return next cursor
-        if ($nextOffset < count($allItems)) {
+        if ($nextOffset < \count($allItems)) {
             return base64_encode((string) $nextOffset);
         }
 

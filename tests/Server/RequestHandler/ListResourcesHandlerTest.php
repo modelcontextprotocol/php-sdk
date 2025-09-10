@@ -233,11 +233,11 @@ class ListResourcesHandlerTest extends TestCase
             'id' => 'test-request-id',
             'method' => 'resources/list',
         ];
-        
-        if ($cursor !== null) {
+
+        if (null !== $cursor) {
             $data['params'] = ['cursor' => $cursor];
         }
-        
+
         return ListResourcesRequest::fromArray($data);
     }
 }

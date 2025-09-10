@@ -242,7 +242,7 @@ class ListToolsHandlerTest extends TestCase
                 inputSchema: [
                     'type' => 'object',
                     'properties' => [],
-                    'required' => []
+                    'required' => [],
                 ],
                 description: "Test tool $i",
                 annotations: null
@@ -259,11 +259,11 @@ class ListToolsHandlerTest extends TestCase
             'id' => 'test-request-id',
             'method' => 'tools/list',
         ];
-        
-        if ($cursor !== null) {
+
+        if (null !== $cursor) {
             $data['params'] = ['cursor' => $cursor];
         }
-        
+
         return ListToolsRequest::fromArray($data);
     }
 }

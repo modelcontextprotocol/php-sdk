@@ -232,11 +232,11 @@ class ListPromptsHandlerTest extends TestCase
             'id' => 'test-request-id',
             'method' => 'prompts/list',
         ];
-        
-        if ($cursor !== null) {
+
+        if (null !== $cursor) {
             $data['params'] = ['cursor' => $cursor];
         }
-        
+
         return ListPromptsRequest::fromArray($data);
     }
 }
