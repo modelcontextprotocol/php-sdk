@@ -367,37 +367,19 @@ parameters:
 			path: examples/08-schema-showcase-streamable/server.php
 
 		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\CallToolHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\ToolChain given\.$#'
+			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListPromptsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\PromptChain given\.$#'
 			identifier: argument.type
 			count: 1
 			path: examples/09-standalone-cli/src/Builder.php
 
 		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\GetPromptHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\PromptChain given\.$#'
+			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListResourcesHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ResourceChain given\.$#'
 			identifier: argument.type
 			count: 1
 			path: examples/09-standalone-cli/src/Builder.php
 
 		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListPromptsHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\PromptChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListResourcesHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\ResourceChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListToolsHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\ToolChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ReadResourceHandler constructor expects Mcp\\Capability\\Registry, Mcp\\Capability\\ResourceChain given\.$#'
+			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListToolsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ToolChain given\.$#'
 			identifier: argument.type
 			count: 1
 			path: examples/09-standalone-cli/src/Builder.php
@@ -419,6 +401,42 @@ parameters:
 			identifier: booleanAnd.alwaysFalse
 			count: 1
 			path: src/Server/RequestHandler/ListResourcesHandler.php
+
+		-
+			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getPrompts\(\) invoked with 2 parameters, 0 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Server/RequestHandler/ListPromptsHandler.php
+
+		-
+			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Capability/Registry/ResourceTemplateReference.php
+
+		-
+			message: '#^Result of && is always false\.$#'
+			identifier: booleanAnd.alwaysFalse
+			count: 1
+			path: src/Server/RequestHandler/ListPromptsHandler.php
+
+		-
+			message: '#^Strict comparison using \!\=\= between null and null will always evaluate to false\.$#'
+			identifier: notIdentical.alwaysFalse
+			count: 1
+			path: src/Server/RequestHandler/ListPromptsHandler.php
+
+		-
+			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getResources\(\) invoked with 2 parameters, 0 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Server/RequestHandler/ListResourcesHandler.php
+
+		-
+			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getTools\(\) invoked with 2 parameters, 0 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Server/RequestHandler/ListToolsHandler.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between null and null will always evaluate to false\.$#'
