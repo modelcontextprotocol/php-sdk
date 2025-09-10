@@ -32,11 +32,14 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Session\SessionFactory;
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Psr\SimpleCache\CacheInterface;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -47,11 +50,14 @@ final class ServerBuilder
 
     private ?LoggerInterface $logger = null;
 
-    private ?CacheInterface $cache = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
+
+    private ?SessionFactoryInterface $sessionFactory = null;
+    private ?SessionStoreInterface $sessionStore = null;
+    private ?int $sessionTtl = 3600;
 
     private ?int $paginationLimit = 50;
 
@@ -160,6 +166,18 @@ final class ServerBuilder
         return $this;
     }
 
+    public function withSession(
+        SessionFactoryInterface $sessionFactory,
+        SessionStoreInterface $sessionStore,
+        int $ttl = 3600
+    ): self {
+        $this->sessionFactory = $sessionFactory;
+        $this->sessionStore = $sessionStore;
+        $this->sessionTtl = $ttl;
+
+        return $this;
+    }
+
     public function withDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
@@ -222,6 +240,9 @@ final class ServerBuilder
         $container = $this->container ?? new Container();
         $registry = new Registry(new ReferenceHandler($container), $this->eventDispatcher, $logger);
 
+        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
+        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($this->sessionTtl);
+
         $this->registerManualElements($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
@@ -231,6 +252,9 @@ final class ServerBuilder
 
         return new Server(
             Handler::make($registry, $this->serverInfo, $logger),
+            $sessionFactory,
+            $sessionStore,
+            $this->sessionTtl,
             $logger,
         );
     }
@@ -254,7 +278,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_tool_' . spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -284,7 +308,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_resource_' . spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -317,7 +341,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_template_' . spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -350,7 +374,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_prompt_' . spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -371,7 +395,7 @@ final class ServerBuilder
                         continue;
                     }
 
-                    $paramTag = $paramTags['$'.$param->getName()] ?? null;
+                    $paramTag = $paramTags['$' . $param->getName()] ?? null;
                     $arguments[] = new PromptArgument(
                         $param->getName(),
                         $paramTag ? trim((string) $paramTag->getDescription()) : null,

@@ -128,13 +128,13 @@ class StreamableHttpTransport implements TransportInterface
 
     protected function handleGetRequest(): ResponseInterface
     {
-        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 501);
+        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 405);
         return $this->withCorsHeaders($response);
     }
 
     protected function handleDeleteRequest(): ResponseInterface
     {
-        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 501);
+        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 405);
         return $this->withCorsHeaders($response);
     }
 
