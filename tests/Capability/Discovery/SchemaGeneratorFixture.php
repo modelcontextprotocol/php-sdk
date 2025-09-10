@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
 
+use stdClass;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Tests\Fixtures\Enum\BackedIntEnum;
 use Mcp\Tests\Fixtures\Enum\BackedStringEnum;
@@ -30,7 +35,7 @@ class SchemaGeneratorFixture
     /**
      * Type hints only - no Schema attributes.
      */
-    public function typeHintsOnly(string $name, int $age, bool $active, array $tags, ?\stdClass $config = null): void
+    public function typeHintsOnly(string $name, int $age, bool $active, array $tags, ?stdClass $config = null): void
     {
     }
 
@@ -80,7 +85,7 @@ class SchemaGeneratorFixture
     ])]
     public function methodLevelCompleteDefinition(string $field, string $operator, mixed $value): array
     {
-        return compact('field', 'operator', 'value');
+        return ['field' => $field, 'operator' => $operator, 'value' => $value];
     }
 
     /**
@@ -98,7 +103,7 @@ class SchemaGeneratorFixture
     )]
     public function methodLevelWithProperties(string $username, string $email, int $age, bool $isActive = true): array
     {
-        return compact('username', 'email', 'age', 'isActive');
+        return ['username' => $username, 'email' => $email, 'age' => $age, 'isActive' => $isActive];
     }
 
     /**
@@ -149,7 +154,7 @@ class SchemaGeneratorFixture
         )]
         ?array $notificationConfig = null,
     ): array {
-        return compact('recipientId', 'messageBody', 'priority', 'notificationConfig');
+        return ['recipientId' => $recipientId, 'messageBody' => $messageBody, 'priority' => $priority, 'notificationConfig' => $notificationConfig];
     }
 
     /**
@@ -208,7 +213,7 @@ class SchemaGeneratorFixture
         #[Schema(description: 'The specific new boolean value.', type: 'boolean')]
         mixed $newValue,
     ): array {
-        return compact('settingKey', 'newValue');
+        return ['settingKey' => $settingKey, 'newValue' => $newValue];
     }
 
     /**

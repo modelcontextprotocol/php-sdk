@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Prompt\Completion;
 
+use stdClass;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Tests\Fixtures\Enum\PriorityEnum;
@@ -20,14 +25,14 @@ use PHPUnit\Framework\TestCase;
 
 class EnumCompletionProviderTest extends TestCase
 {
-    public function testCreatesProviderFromStringBackedEnum()
+    public function testCreatesProviderFromStringBackedEnum(): void
     {
         $provider = new EnumCompletionProvider(StatusEnum::class);
         $result = $provider->getCompletions('');
         $this->assertSame(['draft', 'published', 'archived'], $result);
     }
 
-    public function testCreatesProviderFromIntBackedEnumUsingNames()
+    public function testCreatesProviderFromIntBackedEnumUsingNames(): void
     {
         $provider = new EnumCompletionProvider(PriorityEnum::class);
         $result = $provider->getCompletions('');
@@ -35,7 +40,7 @@ class EnumCompletionProviderTest extends TestCase
         $this->assertSame(['LOW', 'MEDIUM', 'HIGH'], $result);
     }
 
-    public function testCreatesProviderFromUnitEnumUsingNames()
+    public function testCreatesProviderFromUnitEnumUsingNames(): void
     {
         $provider = new EnumCompletionProvider(UnitEnum::class);
         $result = $provider->getCompletions('');
@@ -43,7 +48,7 @@ class EnumCompletionProviderTest extends TestCase
         $this->assertSame(['Yes', 'No'], $result);
     }
 
-    public function testFiltersStringEnumValuesByPrefix()
+    public function testFiltersStringEnumValuesByPrefix(): void
     {
         $provider = new EnumCompletionProvider(StatusEnum::class);
         $result = $provider->getCompletions('ar');
@@ -51,7 +56,7 @@ class EnumCompletionProviderTest extends TestCase
         $this->assertEquals(['archived'], $result);
     }
 
-    public function testFiltersUnitEnumValuesByPrefix()
+    public function testFiltersUnitEnumValuesByPrefix(): void
     {
         $provider = new EnumCompletionProvider(UnitEnum::class);
         $result = $provider->getCompletions('Y');
@@ -59,7 +64,7 @@ class EnumCompletionProviderTest extends TestCase
         $this->assertSame(['Yes'], $result);
     }
 
-    public function testReturnsEmptyArrayWhenNoValuesMatchPrefix()
+    public function testReturnsEmptyArrayWhenNoValuesMatchPrefix(): void
     {
         $provider = new EnumCompletionProvider(StatusEnum::class);
         $result = $provider->getCompletions('xyz');
@@ -67,15 +72,15 @@ class EnumCompletionProviderTest extends TestCase
         $this->assertSame([], $result);
     }
 
-    public function testThrowsExceptionForNonEnumClass()
+    public function testThrowsExceptionForNonEnumClass(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Class "stdClass" is not an enum.');
 
-        new EnumCompletionProvider(\stdClass::class);
+        new EnumCompletionProvider(stdClass::class);
     }
 
-    public function testThrowsExceptionForNonExistentClass()
+    public function testThrowsExceptionForNonExistentClass(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Class "NonExistentClass" is not an enum.');

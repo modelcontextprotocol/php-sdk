@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery\Fixtures;
@@ -49,11 +53,6 @@ class DiscoverableToolHandler
     public function internalHelperMethod(int $value): int
     {
         return $value * 2;
-    }
-
-    #[McpTool(name: 'private_tool_should_be_ignored')] // On private method
-    private function aPrivateTool(): void
-    {
     }
 
     #[McpTool(name: 'protected_tool_should_be_ignored')] // On protected method

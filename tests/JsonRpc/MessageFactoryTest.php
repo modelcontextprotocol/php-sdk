@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\JsonRpc;
 
+use JsonException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
@@ -31,7 +36,7 @@ final class MessageFactoryTest extends TestCase
         ]);
     }
 
-    public function testCreateRequest()
+    public function testCreateRequest(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "prompts/get", "params": {"name": "create_story"}, "id": 123}';
 
@@ -43,7 +48,7 @@ final class MessageFactoryTest extends TestCase
         $this->assertSame(123, $result->getId());
     }
 
-    public function testCreateNotification()
+    public function testCreateNotification(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 12345}}';
 
@@ -54,21 +59,21 @@ final class MessageFactoryTest extends TestCase
         $this->assertSame(12345, $result->requestId);
     }
 
-    public function testInvalidJson()
+    public function testInvalidJson(): void
     {
-        $this->expectException(\JsonException::class);
+        $this->expectException(JsonException::class);
 
         $this->first($this->factory->create('invalid json'));
     }
 
-    public function testMissingMethod()
+    public function testMissingMethod(): void
     {
         $result = $this->first($this->factory->create('{"jsonrpc": "2.0", "params": {}, "id": 1}'));
         $this->assertInstanceOf(InvalidInputMessageException::class, $result);
         $this->assertEquals('Invalid JSON-RPC request, missing valid "method".', $result->getMessage());
     }
 
-    public function testBatchMissingMethod()
+    public function testBatchMissingMethod(): void
     {
         $results = $this->factory->create('[{"jsonrpc": "2.0", "params": {}, "id": 1}, {"jsonrpc": "2.0", "method": "notifications/initialized", "params": {}}]');
 

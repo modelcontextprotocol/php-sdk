@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Attribute;
 
+use InvalidArgumentException;
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Tests\Fixtures\Enum\StatusEnum;
 use PHPUnit\Framework\TestCase;
@@ -57,14 +62,14 @@ class CompletionProviderTest extends TestCase
 
     public function testThrowsExceptionWhenNoParametersProvided(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
         new CompletionProvider();
     }
 
     public function testThrowsExceptionWhenMultipleParametersProvided(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
         new CompletionProvider(
             provider: CompletionProviderFixture::class,
@@ -74,7 +79,7 @@ class CompletionProviderTest extends TestCase
 
     public function testThrowsExceptionWhenAllParametersProvided(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
         new CompletionProvider(
             provider: CompletionProviderFixture::class,

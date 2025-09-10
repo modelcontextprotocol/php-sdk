@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Schema\JsonRpc;
@@ -16,7 +20,7 @@ use PHPUnit\Framework\TestCase;
 
 final class NotificationTest extends TestCase
 {
-    public function testMetaIsLoopedThrough()
+    public function testMetaIsLoopedThrough(): void
     {
         $notificationImplementation = new class extends Notification {
             public static function getMethod(): string

@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
@@ -38,7 +42,7 @@ class DiscoveryTest extends TestCase
         $this->discoverer = new Discoverer($this->registry);
     }
 
-    public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles()
+    public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles(): void
     {
         $this->discoverer->discover(__DIR__, ['Fixtures']);
 
@@ -121,7 +125,7 @@ class DiscoveryTest extends TestCase
         $this->assertEquals([InvocableResourceTemplateFixture::class, '__invoke'], $invokableUserTemplate->handler);
     }
 
-    public function testDoesNotDiscoverElementsFromExcludedDirectories()
+    public function testDoesNotDiscoverElementsFromExcludedDirectories(): void
     {
         $this->discoverer->discover(__DIR__, ['Fixtures']);
         $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('hidden_subdir_tool'));
@@ -132,13 +136,13 @@ class DiscoveryTest extends TestCase
         $this->assertNull($this->registry->getTool('hidden_subdir_tool'));
     }
 
-    public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles()
+    public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles(): void
     {
         $this->discoverer->discover(__DIR__, ['EmptyDir']);
         $this->assertEmpty($this->registry->getTools());
     }
 
-    public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute()
+    public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute(): void
     {
         $this->discoverer->discover(__DIR__, ['Fixtures']);
 
@@ -155,7 +159,7 @@ class DiscoveryTest extends TestCase
         $this->assertEquals('An invokable calculator tool.', $invokableCalc->tool->description);
     }
 
-    public function testDiscoversEnhancedCompletionProvidersWithValuesAndEnumAttributes()
+    public function testDiscoversEnhancedCompletionProvidersWithValuesAndEnumAttributes(): void
     {
         $this->discoverer->discover(__DIR__, ['Fixtures']);
 

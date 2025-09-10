@@ -1,15 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
+
+use stdClass;
+use RuntimeException;
 
 /**
  * A stub class for testing DocBlock parsing.
@@ -44,10 +51,10 @@ class DocBlockTestFixture
      * @param bool                 $param3 nothing to say
      * @param                      $param4 Missing type
      * @param array<string, mixed> $param5 array description
-     * @param \stdClass            $param6 object param
+     * @param stdClass $param6 object param
      */
     /* @phpstan-ignore-next-line missingType.parameter */
-    public function methodWithParams(string $param1, ?int $param2, bool $param3, $param4, array $param5, \stdClass $param6): void
+    public function methodWithParams(string $param1, ?int $param2, bool $param3, $param4, array $param5, stdClass $param6): void
     {
     }
 
@@ -68,7 +75,7 @@ class DocBlockTestFixture
      *
      * @return bool status of the operation
      *
-     * @throws \RuntimeException if processing fails
+     * @throws RuntimeException if processing fails
      *
      * @deprecated use newMethod() instead
      * @see DocBlockTestFixture::newMethod()

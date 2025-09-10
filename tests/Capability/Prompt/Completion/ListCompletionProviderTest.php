@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Prompt\Completion;
@@ -16,7 +20,7 @@ use PHPUnit\Framework\TestCase;
 
 class ListCompletionProviderTest extends TestCase
 {
-    public function testReturnsAllValuesWhenCurrentValueIsEmpty()
+    public function testReturnsAllValuesWhenCurrentValueIsEmpty(): void
     {
         $values = ['apple', 'banana', 'cherry'];
         $provider = new ListCompletionProvider($values);
@@ -25,7 +29,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertSame($values, $result);
     }
 
-    public function testFiltersValuesBasedOnCurrentValuePrefix()
+    public function testFiltersValuesBasedOnCurrentValuePrefix(): void
     {
         $values = ['apple', 'apricot', 'banana', 'cherry'];
         $provider = new ListCompletionProvider($values);
@@ -34,7 +38,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertSame(['apple', 'apricot'], $result);
     }
 
-    public function testReturnsEmptyArrayWhenNoValuesMatch()
+    public function testReturnsEmptyArrayWhenNoValuesMatch(): void
     {
         $values = ['apple', 'banana', 'cherry'];
         $provider = new ListCompletionProvider($values);
@@ -43,7 +47,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertSame([], $result);
     }
 
-    public function testWorksWithSingleCharacterPrefix()
+    public function testWorksWithSingleCharacterPrefix(): void
     {
         $values = ['apple', 'banana', 'cherry'];
         $provider = new ListCompletionProvider($values);
@@ -52,7 +56,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertSame(['apple'], $result);
     }
 
-    public function testIsCaseSensitiveByDefault()
+    public function testIsCaseSensitiveByDefault(): void
     {
         $values = ['Apple', 'apple', 'APPLE'];
         $provider = new ListCompletionProvider($values);
@@ -61,7 +65,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertEquals(['Apple', 'APPLE'], $result);
     }
 
-    public function testHandlesEmptyValuesArray()
+    public function testHandlesEmptyValuesArray(): void
     {
         $provider = new ListCompletionProvider([]);
         $result = $provider->getCompletions('test');
@@ -69,7 +73,7 @@ class ListCompletionProviderTest extends TestCase
         $this->assertSame([], $result);
     }
 
-    public function testPreservesArrayOrder()
+    public function testPreservesArrayOrder(): void
     {
         $values = ['zebra', 'apple', 'banana'];
         $provider = new ListCompletionProvider($values);

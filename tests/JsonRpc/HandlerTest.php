@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\JsonRpc;
@@ -21,7 +25,7 @@ use PHPUnit\Framework\TestCase;
 class HandlerTest extends TestCase
 {
     #[TestDox('Make sure a single notification can be handled by multiple handlers.')]
-    public function testHandleMultipleNotifications()
+    public function testHandleMultipleNotifications(): void
     {
         $handlerA = $this->getMockBuilder(MethodHandlerInterface::class)
             ->disableOriginalConstructor()
@@ -52,7 +56,7 @@ class HandlerTest extends TestCase
     }
 
     #[TestDox('Make sure a single request can NOT be handled by multiple handlers.')]
-    public function testHandleMultipleRequests()
+    public function testHandleMultipleRequests(): void
     {
         $handlerA = $this->getMockBuilder(MethodHandlerInterface::class)
             ->disableOriginalConstructor()

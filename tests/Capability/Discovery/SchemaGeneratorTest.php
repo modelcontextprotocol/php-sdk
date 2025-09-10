@@ -1,16 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
 
+use ReflectionMethod;
+use stdClass;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use PHPUnit\Framework\TestCase;
@@ -24,20 +30,20 @@ final class SchemaGeneratorTest extends TestCase
         $this->schemaGenerator = new SchemaGenerator(new DocBlockParser());
     }
 
-    public function testGeneratesEmptyPropertiesObjectForMethodWithNoParameters()
+    public function testGeneratesEmptyPropertiesObjectForMethodWithNoParameters(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParams');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'noParams');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals([
             'type' => 'object',
-            'properties' => new \stdClass(),
+            'properties' => new stdClass(),
         ], $schema);
         $this->assertArrayNotHasKey('required', $schema);
     }
 
-    public function testInfersBasicTypesFromPhpTypeHints()
+    public function testInfersBasicTypesFromPhpTypeHints(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintsOnly');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintsOnly');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'string'], $schema['properties']['name']);
         $this->assertEquals(['type' => 'integer'], $schema['properties']['age']);
@@ -47,9 +53,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['name', 'age', 'active', 'tags'], $schema['required']);
     }
 
-    public function testInfersTypesAndDescriptionsFromDocBlockTags()
+    public function testInfersTypesAndDescriptionsFromDocBlockTags(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'docBlockOnly');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'docBlockOnly');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'string', 'description' => 'The username'], $schema['properties']['username']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Number of items'], $schema['properties']['count']);
@@ -58,9 +64,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['username', 'count', 'enabled', 'data'], $schema['required']);
     }
 
-    public function testUsesPhpTypeHintsForTypeAndDocBlockForDescriptions()
+    public function testUsesPhpTypeHintsForTypeAndDocBlockForDescriptions(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintsWithDocBlock');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintsWithDocBlock');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'string', 'description' => 'User email address'], $schema['properties']['email']);
         $this->assertEquals(['type' => 'integer', 'description' => 'User score'], $schema['properties']['score']);
@@ -68,9 +74,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['email', 'score', 'verified'], $schema['required']);
     }
 
-    public function testUsesCompleteSchemaDefinitionFromMethodLevelSchemaAttribute()
+    public function testUsesCompleteSchemaDefinitionFromMethodLevelSchemaAttribute(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelCompleteDefinition');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelCompleteDefinition');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals([
             'type' => 'object',
@@ -90,9 +96,9 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema);
     }
 
-    public function testGeneratesSchemaFromMethodLevelSchemaAttributeWithProperties()
+    public function testGeneratesSchemaFromMethodLevelSchemaAttributeWithProperties(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelWithProperties');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelWithProperties');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals('Creates a new user with detailed information.', $schema['description']);
         $this->assertEquals(['type' => 'string', 'minLength' => 3, 'pattern' => '^[a-zA-Z0-9_]+$'], $schema['properties']['username']);
@@ -102,9 +108,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['age', 'username', 'email'], $schema['required']);
     }
 
-    public function testGeneratesSchemaForSingleArrayArgumentFromMethodLevelSchemaAttribute()
+    public function testGeneratesSchemaForSingleArrayArgumentFromMethodLevelSchemaAttribute(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelArrayArgument');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelArrayArgument');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals([
             'type' => 'array',
@@ -122,9 +128,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['profiles'], $schema['required']);
     }
 
-    public function testGeneratesSchemaFromIndividualParameterLevelSchemaAttributes()
+    public function testGeneratesSchemaFromIndividualParameterLevelSchemaAttributes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterLevelOnly');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'parameterLevelOnly');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['description' => 'Recipient ID', 'pattern' => '^user_', 'type' => 'string'], $schema['properties']['recipientId']);
         $this->assertEquals(['maxLength' => 1024, 'type' => 'string'], $schema['properties']['messageBody']);
@@ -141,9 +147,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['recipientId', 'messageBody'], $schema['required']);
     }
 
-    public function testAppliesStringConstraintsFromParameterLevelSchemaAttributes()
+    public function testAppliesStringConstraintsFromParameterLevelSchemaAttributes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterStringConstraints');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'parameterStringConstraints');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['format' => 'email', 'type' => 'string'], $schema['properties']['email']);
         $this->assertEquals(['minLength' => 8, 'pattern' => '^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$', 'type' => 'string'], $schema['properties']['password']);
@@ -151,9 +157,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['email', 'password', 'regularString'], $schema['required']);
     }
 
-    public function testAppliesNumericConstraintsFromParameterLevelSchemaAttributes()
+    public function testAppliesNumericConstraintsFromParameterLevelSchemaAttributes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterNumericConstraints');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'parameterNumericConstraints');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['minimum' => 18, 'maximum' => 120, 'type' => 'integer'], $schema['properties']['age']);
         $this->assertEquals(['minimum' => 0, 'maximum' => 5, 'exclusiveMaximum' => true, 'type' => 'number'], $schema['properties']['rating']);
@@ -161,36 +167,36 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['age', 'rating', 'count'], $schema['required']);
     }
 
-    public function testAppliesArrayConstraintsFromParameterLevelSchemaAttributes()
+    public function testAppliesArrayConstraintsFromParameterLevelSchemaAttributes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterArrayConstraints');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'parameterArrayConstraints');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string'], 'minItems' => 1, 'uniqueItems' => true], $schema['properties']['tags']);
         $this->assertEquals(['type' => 'array', 'items' => ['type' => 'integer', 'minimum' => 0, 'maximum' => 100], 'minItems' => 1, 'maxItems' => 5], $schema['properties']['scores']);
         $this->assertEqualsCanonicalizing(['tags', 'scores'], $schema['required']);
     }
 
-    public function testMergesMethodLevelAndParameterLevelSchemaAttributes()
+    public function testMergesMethodLevelAndParameterLevelSchemaAttributes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodAndParameterLevel');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'methodAndParameterLevel');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'string', 'description' => 'The key of the setting.'], $schema['properties']['settingKey']);
         $this->assertEquals(['description' => 'The specific new boolean value.', 'type' => 'boolean'], $schema['properties']['newValue']);
         $this->assertEqualsCanonicalizing(['settingKey', 'newValue'], $schema['required']);
     }
 
-    public function testCombinesPhpTypeHintsDocBlockDescriptionsAndParameterLevelSchemaConstraints()
+    public function testCombinesPhpTypeHintsDocBlockDescriptionsAndParameterLevelSchemaConstraints(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintDocBlockAndParameterSchema');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'typeHintDocBlockAndParameterSchema');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['minLength' => 3, 'pattern' => '^[a-zA-Z0-9_]+$', 'type' => 'string', 'description' => "The user's name"], $schema['properties']['username']);
         $this->assertEquals(['minimum' => 1, 'maximum' => 10, 'type' => 'integer', 'description' => 'Task priority level'], $schema['properties']['priority']);
         $this->assertEqualsCanonicalizing(['username', 'priority'], $schema['required']);
     }
 
-    public function testGeneratesCorrectSchemaForEnumParameters()
+    public function testGeneratesCorrectSchemaForEnumParameters(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'string', 'description' => 'Backed string enum', 'enum' => ['A', 'B']], $schema['properties']['stringEnum']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Backed int enum', 'enum' => [1, 2]], $schema['properties']['intEnum']);
@@ -200,9 +206,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['stringEnum', 'intEnum', 'unitEnum'], $schema['required']);
     }
 
-    public function testGeneratesCorrectSchemaForArrayTypeDeclarations()
+    public function testGeneratesCorrectSchemaForArrayTypeDeclarations(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'arrayTypeScenarios');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'arrayTypeScenarios');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'array', 'description' => 'Generic array'], $schema['properties']['genericArray']);
         $this->assertEquals(['type' => 'array', 'description' => 'Array of strings', 'items' => ['type' => 'string']], $schema['properties']['stringArray']);
@@ -216,9 +222,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['genericArray', 'stringArray', 'intArray', 'mixedMap', 'objectLikeArray', 'nestedObjectArray'], $schema['required']);
     }
 
-    public function testHandlesNullableTypeHintsAndOptionalParameters()
+    public function testHandlesNullableTypeHintsAndOptionalParameters(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableAndOptional');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'nullableAndOptional');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => ['null', 'string'], 'description' => 'Nullable string'], $schema['properties']['nullableString']);
         $this->assertEquals(['type' => ['null', 'integer'], 'description' => 'Nullable integer', 'default' => null], $schema['properties']['nullableInt']);
@@ -228,43 +234,43 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['nullableString'], $schema['required']);
     }
 
-    public function testGeneratesSchemaForPhpUnionTypes()
+    public function testGeneratesSchemaForPhpUnionTypes(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'unionTypes');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'unionTypes');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => ['integer', 'string'], 'description' => 'String or integer'], $schema['properties']['stringOrInt']);
         $this->assertEquals(['type' => ['null', 'boolean', 'string'], 'description' => 'Bool, string or null'], $schema['properties']['multiUnion']);
         $this->assertEqualsCanonicalizing(['stringOrInt', 'multiUnion'], $schema['required']);
     }
 
-    public function testRepresentsVariadicStringParametersAsArrayOfStrings()
+    public function testRepresentsVariadicStringParametersAsArrayOfStrings(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicStrings');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'variadicStrings');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'array', 'description' => 'Variadic strings', 'items' => ['type' => 'string']], $schema['properties']['items']);
         $this->assertArrayNotHasKey('required', $schema);
     }
 
-    public function testAppliesItemConstraintsToVariadicParameters()
+    public function testAppliesItemConstraintsToVariadicParameters(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicWithConstraints');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'variadicWithConstraints');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['items' => ['type' => 'integer', 'minimum' => 0], 'type' => 'array', 'description' => 'Variadic integers'], $schema['properties']['numbers']);
         $this->assertArrayNotHasKey('required', $schema);
     }
 
-    public function testHandlesMixedTypeHintsOmittingExplicitType()
+    public function testHandlesMixedTypeHintsOmittingExplicitType(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'mixedTypes');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'mixedTypes');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['description' => 'Any value'], $schema['properties']['anyValue']);
         $this->assertEquals(['description' => 'Optional any value', 'default' => 'default'], $schema['properties']['optionalAny']);
         $this->assertEqualsCanonicalizing(['anyValue'], $schema['required']);
     }
 
-    public function testGeneratesSchemaForComplexNestedObjectAndArrayStructures()
+    public function testGeneratesSchemaForComplexNestedObjectAndArrayStructures(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'complexNestedSchema');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'complexNestedSchema');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals([
             'type' => 'object',
@@ -301,9 +307,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['order'], $schema['required']);
     }
 
-    public function testTypePrecedenceParameterSchemaOverridesDocBlockOverridesPhpTypeHint()
+    public function testTypePrecedenceParameterSchemaOverridesDocBlockOverridesPhpTypeHint(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'typePrecedenceTest');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'typePrecedenceTest');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['type' => 'integer', 'description' => 'DocBlock says integer despite string type hint'], $schema['properties']['numericString']);
         $this->assertEquals(['format' => 'email', 'minLength' => 5, 'type' => 'string', 'description' => 'String with Schema constraints'], $schema['properties']['stringWithConstraints']);
@@ -311,18 +317,18 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['numericString', 'stringWithConstraints', 'arrayWithItems'], $schema['required']);
     }
 
-    public function testGeneratesEmptyPropertiesObjectForMethodWithNoParametersEvenWithMethodLevelSchema()
+    public function testGeneratesEmptyPropertiesObjectForMethodWithNoParametersEvenWithMethodLevelSchema(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParamsWithSchema');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'noParamsWithSchema');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals('Gets server status. Takes no arguments.', $schema['description']);
-        $this->assertInstanceOf(\stdClass::class, $schema['properties']);
+        $this->assertInstanceOf(stdClass::class, $schema['properties']);
         $this->assertArrayNotHasKey('required', $schema);
     }
 
-    public function testInfersParameterTypeAsAnyIfOnlyConstraintsAreGiven()
+    public function testInfersParameterTypeAsAnyIfOnlyConstraintsAreGiven(): void
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterSchemaInferredType');
+        $method = new ReflectionMethod(SchemaGeneratorFixture::class, 'parameterSchemaInferredType');
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['description' => 'Some parameter', 'minLength' => 3], $schema['properties']['inferredParam']);
         $this->assertEquals(['inferredParam'], $schema['required']);

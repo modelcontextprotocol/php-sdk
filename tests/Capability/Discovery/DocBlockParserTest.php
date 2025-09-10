@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
 
+use ReflectionMethod;
 use Mcp\Capability\Discovery\DocBlockParser;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
@@ -28,36 +33,36 @@ class DocBlockParserTest extends TestCase
         $this->parser = new DocBlockParser();
     }
 
-    public function testGetSummaryReturnsCorrectSummary()
+    public function testGetSummaryReturnsCorrectSummary(): void
     {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
+        $method = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
         $docComment = $method->getDocComment() ?: null;
         $docBlock = $this->parser->parseDocBlock($docComment);
         $this->assertEquals('Simple summary line.', $this->parser->getSummary($docBlock));
 
-        $method2 = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
+        $method2 = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
         $docComment2 = $method2->getDocComment() ?: null;
         $docBlock2 = $this->parser->parseDocBlock($docComment2);
         $this->assertEquals('Summary line here.', $this->parser->getSummary($docBlock2));
     }
 
-    public function testGetDescriptionReturnsCorrectDescription()
+    public function testGetDescriptionReturnsCorrectDescription(): void
     {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
+        $method = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
         $docComment = $method->getDocComment() ?: null;
         $docBlock = $this->parser->parseDocBlock($docComment);
         $expectedDesc = "Summary line here.\n\nThis is a longer description spanning\nmultiple lines.\nIt might contain *markdown* or `code`.";
         $this->assertEquals($expectedDesc, $this->parser->getDescription($docBlock));
 
-        $method2 = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
+        $method2 = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
         $docComment2 = $method2->getDocComment() ?: null;
         $docBlock2 = $this->parser->parseDocBlock($docComment2);
         $this->assertEquals('Simple summary line.', $this->parser->getDescription($docBlock2));
     }
 
-    public function testGetParamTagsReturnsStructuredParamInfo()
+    public function testGetParamTagsReturnsStructuredParamInfo(): void
     {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithParams');
+        $method = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithParams');
         $docComment = $method->getDocComment() ?: null;
         $docBlock = $this->parser->parseDocBlock($docComment);
         $params = $this->parser->getParamTags($docBlock);
@@ -101,9 +106,9 @@ class DocBlockParserTest extends TestCase
         $this->assertEquals('object param', $this->parser->getParamDescription($params['$param6']));
     }
 
-    public function testGetTagsByNameReturnsSpecificTags()
+    public function testGetTagsByNameReturnsSpecificTags(): void
     {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithMultipleTags');
+        $method = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithMultipleTags');
         $docComment = $method->getDocComment() ?: null;
         $docBlock = $this->parser->parseDocBlock($docComment);
 
@@ -129,9 +134,9 @@ class DocBlockParserTest extends TestCase
         $this->assertEmpty($nonExistentTags);
     }
 
-    public function testHandlesMethodWithNoDocblockGracefully()
+    public function testHandlesMethodWithNoDocblockGracefully(): void
     {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithNoDocBlock');
+        $method = new ReflectionMethod(DocBlockTestFixture::class, 'methodWithNoDocBlock');
         $docComment = $method->getDocComment() ?: null;
         $docBlock = $this->parser->parseDocBlock($docComment);
 

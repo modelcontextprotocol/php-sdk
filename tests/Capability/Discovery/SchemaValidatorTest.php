@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Tests\Capability\Discovery;
@@ -26,7 +30,7 @@ class SchemaValidatorTest extends TestCase
 
     // --- Basic Validation Tests ---
 
-    public function testValidDataPassesValidation()
+    public function testValidDataPassesValidation(): void
     {
         $schema = $this->getSimpleSchema();
         $data = $this->getValidData();
@@ -36,7 +40,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEmpty($errors);
     }
 
-    public function testInvalidTypeGeneratesTypeError()
+    public function testInvalidTypeGeneratesTypeError(): void
     {
         $schema = $this->getSimpleSchema();
         $data = $this->getValidData();
@@ -50,7 +54,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Expected `integer`', $errors[0]['message']);
     }
 
-    public function testMissingRequiredPropertyGeneratesRequiredError()
+    public function testMissingRequiredPropertyGeneratesRequiredError(): void
     {
         $schema = $this->getSimpleSchema();
         $data = $this->getValidData();
@@ -62,7 +66,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Missing required properties: `name`', $errors[0]['message']);
     }
 
-    public function testAdditionalPropertyGeneratesAdditionalPropertiesError()
+    public function testAdditionalPropertyGeneratesAdditionalPropertiesError(): void
     {
         $schema = $this->getSimpleSchema();
         $data = $this->getValidData();
@@ -77,7 +81,7 @@ class SchemaValidatorTest extends TestCase
 
     // --- Keyword Constraint Tests ---
 
-    public function testEnumConstraintViolation()
+    public function testEnumConstraintViolation(): void
     {
         $schema = ['type' => 'string', 'enum' => ['A', 'B']];
         $data = 'C';
@@ -88,7 +92,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('must be one of the allowed values: "A", "B"', $errors[0]['message']);
     }
 
-    public function testMinimumConstraintViolation()
+    public function testMinimumConstraintViolation(): void
     {
         $schema = ['type' => 'integer', 'minimum' => 10];
         $data = 5;
@@ -99,7 +103,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('must be greater than or equal to 10', $errors[0]['message']);
     }
 
-    public function testMaxLengthConstraintViolation()
+    public function testMaxLengthConstraintViolation(): void
     {
         $schema = ['type' => 'string', 'maxLength' => 5];
         $data = 'toolong';
@@ -110,7 +114,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Maximum string length is 5, found 7', $errors[0]['message']);
     }
 
-    public function testPatternConstraintViolation()
+    public function testPatternConstraintViolation(): void
     {
         $schema = ['type' => 'string', 'pattern' => '^[a-z]+$'];
         $data = '123';
@@ -121,7 +125,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('does not match the required pattern: `^[a-z]+$`', $errors[0]['message']);
     }
 
-    public function testMinItemsConstraintViolation()
+    public function testMinItemsConstraintViolation(): void
     {
         $schema = ['type' => 'array', 'minItems' => 2];
         $data = ['one'];
@@ -132,7 +136,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Array should have at least 2 items, 1 found', $errors[0]['message']);
     }
 
-    public function testUniqueItemsConstraintViolation()
+    public function testUniqueItemsConstraintViolation(): void
     {
         $schema = ['type' => 'array', 'uniqueItems' => true];
         $data = ['a', 'b', 'a'];
@@ -144,7 +148,7 @@ class SchemaValidatorTest extends TestCase
     }
 
     // --- Nested Structures and Pointers ---
-    public function testNestedObjectValidationErrorPointer()
+    public function testNestedObjectValidationErrorPointer(): void
     {
         $schema = [
             'type' => 'object',
@@ -164,7 +168,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('/user/id', $errors[0]['pointer']);
     }
 
-    public function testArrayItemValidationErrorPointer()
+    public function testArrayItemValidationErrorPointer(): void
     {
         $schema = [
             'type' => 'array',
@@ -178,7 +182,7 @@ class SchemaValidatorTest extends TestCase
     }
 
     // --- Data Conversion Tests ---
-    public function testValidatesDataPassedAsStdClassObject()
+    public function testValidatesDataPassedAsStdClassObject(): void
     {
         $schema = $this->getSimpleSchema();
         $dataObj = json_decode(json_encode($this->getValidData())); // Convert to stdClass
@@ -187,7 +191,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEmpty($errors);
     }
 
-    public function testValidatesDataWithNestedAssociativeArraysCorrectly()
+    public function testValidatesDataWithNestedAssociativeArraysCorrectly(): void
     {
         $schema = [
             'type' => 'object',
@@ -207,7 +211,7 @@ class SchemaValidatorTest extends TestCase
     }
 
     // --- Edge Cases ---
-    public function testHandlesInvalidSchemaStructureGracefully()
+    public function testHandlesInvalidSchemaStructureGracefully(): void
     {
         $schema = ['type' => 'object', 'properties' => ['name' => ['type' => 123]]]; // Invalid type value
         $data = ['name' => 'test'];
@@ -218,7 +222,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Schema validation process failed', $errors[0]['message']);
     }
 
-    public function testHandlesEmptyDataObjectAgainstSchemaRequiringProperties()
+    public function testHandlesEmptyDataObjectAgainstSchemaRequiringProperties(): void
     {
         $schema = $this->getSimpleSchema(); // Requires name, age etc.
         $data = []; // Empty data
@@ -229,7 +233,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('required', $errors[0]['keyword']);
     }
 
-    public function testHandlesEmptySchemaAllowsAnything()
+    public function testHandlesEmptySchemaAllowsAnything(): void
     {
         $schema = []; // Empty schema object/array implies no constraints
         $data = ['anything' => [1, 2], 'goes' => true];
@@ -241,7 +245,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('Invalid schema', $errors[0]['message']);
     }
 
-    public function testValidatesSchemaWithStringFormatConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithStringFormatConstraintsFromSchemaAttribute(): void
     {
         $emailSchema = (new Schema(format: 'email'))->toArray();
 
@@ -256,7 +260,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertStringContainsString('email', $invalidErrors[0]['message']);
     }
 
-    public function testValidatesSchemaWithStringLengthConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithStringLengthConstraintsFromSchemaAttribute(): void
     {
         $passwordSchema = (new Schema(minLength: 8, pattern: '^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{8,}$'))->toArray();
 
@@ -275,7 +279,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('pattern', $noDigitErrors[0]['keyword']);
     }
 
-    public function testValidatesSchemaWithNumericConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithNumericConstraintsFromSchemaAttribute(): void
     {
         $ageSchema = (new Schema(minimum: 18, maximum: 120))->toArray();
 
@@ -294,9 +298,9 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('maximum', $tooHighErrors[0]['keyword']);
     }
 
-    public function testValidatesSchemaWithArrayConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithArrayConstraintsFromSchemaAttribute(): void
     {
-        $tagsSchema = (new Schema(uniqueItems: true, minItems: 2))->toArray();
+        $tagsSchema = (new Schema(minItems: 2, uniqueItems: true))->toArray();
 
         // Valid tags array
         $validErrors = $this->validator->validateAgainstJsonSchema(['php', 'javascript', 'python'], $tagsSchema);
@@ -313,7 +317,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('minItems', $tooFewErrors[0]['keyword']);
     }
 
-    public function testValidatesSchemaWithObjectConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithObjectConstraintsFromSchemaAttribute(): void
     {
         $userSchema = (new Schema(
             properties: [
@@ -363,7 +367,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('minimum', $ageErrors[0]['keyword']);
     }
 
-    public function testValidatesSchemaWithNestedConstraintsFromSchemaAttribute()
+    public function testValidatesSchemaWithNestedConstraintsFromSchemaAttribute(): void
     {
         $orderSchema = (new Schema(
             properties: [
