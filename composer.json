@@ -79,12 +79,14 @@
         "ci-lowest": [
             "@deps-low",
             "@cs",
+            "@rector",
             "@phpstan",
             "@tests"
         ],
         "ci-stable": [
             "@deps-stable",
             "@cs",
+            "@rector",
             "@phpstan",
             "@tests"
         ],
