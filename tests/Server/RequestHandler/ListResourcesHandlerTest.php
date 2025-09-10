@@ -83,7 +83,9 @@ class ListResourcesHandlerTest extends TestCase
         $firstPageRequest = $this->createListResourcesRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListResourcesResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
@@ -108,7 +110,9 @@ class ListResourcesHandlerTest extends TestCase
         $firstPageRequest = $this->createListResourcesRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListResourcesResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListResourcesRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
@@ -182,9 +186,11 @@ class ListResourcesHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        $this->assertInstanceOf(ListResourcesResult::class, $response->result);
-        $this->assertCount(0, $response->result->resources);
-        $this->assertNull($response->result->nextCursor);
+        /** @var ListResourcesResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListResourcesResult::class, $result);
+        $this->assertCount(0, $result->resources);
+        $this->assertNull($result->nextCursor);
     }
 
     #[TestDox('Maintains stable cursors across calls')]
@@ -199,8 +205,12 @@ class ListResourcesHandlerTest extends TestCase
         $response2 = $this->handler->handle($request);
 
         // Assert
-        $this->assertEquals($response1->result->nextCursor, $response2->result->nextCursor);
-        $this->assertEquals($response1->result->resources, $response2->result->resources);
+        /** @var ListResourcesResult $result1 */
+        $result1 = $response1->result;
+        /** @var ListResourcesResult $result2 */
+        $result2 = $response2->result;
+        $this->assertEquals($result1->nextCursor, $result2->nextCursor);
+        $this->assertEquals($result1->resources, $result2->resources);
     }
 
     private function addResourcesToRegistry(int $count): void
@@ -218,13 +228,16 @@ class ListResourcesHandlerTest extends TestCase
 
     private function createListResourcesRequest(?string $cursor = null): ListResourcesRequest
     {
-        $mock = $this->getMockBuilder(ListResourcesRequest::class)
-            ->setConstructorArgs([$cursor])
-            ->onlyMethods(['getId'])
-            ->getMock();
-
-        $mock->method('getId')->willReturn('test-request-id');
-
-        return $mock;
+        $data = [
+            'jsonrpc' => '2.0',
+            'id' => 'test-request-id',
+            'method' => 'resources/list',
+        ];
+        
+        if ($cursor !== null) {
+            $data['params'] = ['cursor' => $cursor];
+        }
+        
+        return ListResourcesRequest::fromArray($data);
     }
 }
