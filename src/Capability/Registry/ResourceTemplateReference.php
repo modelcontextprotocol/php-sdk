@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Registry;
 
+use JsonException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\EmbeddedResource;
@@ -19,6 +24,7 @@ use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Psr\Container\ContainerInterface;
+use SplFileInfo;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -173,7 +179,7 @@ class ResourceTemplateReference extends ElementReference
         }
 
         if (\is_array($readResult)) {
-            if (empty($readResult)) {
+            if ([] === $readResult) {
                 return [new TextResourceContents($uri, 'application/json', '[]')];
             }
 
@@ -220,7 +226,7 @@ class ResourceTemplateReference extends ElementReference
         }
 
         if (\is_string($readResult)) {
-            $mimeType = $mimeType ?? $this->guessMimeTypeFromString($readResult);
+            $mimeType ??= $this->guessMimeTypeFromString($readResult);
 
             return [new TextResourceContents($uri, $mimeType, $readResult)];
         }
@@ -249,7 +255,7 @@ class ResourceTemplateReference extends ElementReference
             return [new TextResourceContents($uri, $mimeType, $readResult['text'])];
         }
 
-        if ($readResult instanceof \SplFileInfo && $readResult->isFile() && $readResult->isReadable()) {
+        if ($readResult instanceof SplFileInfo && $readResult->isFile() && $readResult->isReadable()) {
             if ($mimeType && str_contains(strtolower($mimeType), 'text')) {
                 return [new TextResourceContents($uri, $mimeType, file_get_contents($readResult->getPathname()))];
             }
@@ -264,17 +270,17 @@ class ResourceTemplateReference extends ElementReference
                     $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
 
                     return [new TextResourceContents($uri, $mimeType, $jsonString)];
-                } catch (\JsonException $e) {
+                } catch (JsonException $e) {
                     throw new RuntimeException("Failed to encode array as JSON for URI '{$uri}': {$e->getMessage()}");
                 }
             }
 
             try {
                 $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
-                $mimeType = $mimeType ?? 'application/json';
+                $mimeType ??= 'application/json';
 
                 return [new TextResourceContents($uri, $mimeType, $jsonString)];
-            } catch (\JsonException $e) {
+            } catch (JsonException $e) {
                 throw new RuntimeException("Failed to encode array as JSON for URI '{$uri}': {$e->getMessage()}");
             }
         }

@@ -1,16 +1,25 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Discovery;
 
+use Throwable;
+use ReflectionClass;
+use ReflectionMethod;
+use ReflectionException;
+use ReflectionNamedType;
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
@@ -28,6 +37,7 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use ReflectionAttribute;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
 
@@ -80,7 +90,7 @@ class Discoverer
                 }
             }
 
-            if (empty($absolutePaths)) {
+            if ([] === $absolutePaths) {
                 $this->logger->warning('No valid discovery directories found to scan.', [
                     'configured_paths' => $directories,
                     'base_path' => $basePath,
@@ -97,7 +107,7 @@ class Discoverer
             foreach ($finder as $file) {
                 $this->processFile($file, $discoveredCount);
             }
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('Error during file finding process for MCP discovery', [
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -136,7 +146,7 @@ class Discoverer
         }
 
         try {
-            $reflectionClass = new \ReflectionClass($className);
+            $reflectionClass = new ReflectionClass($className);
 
             if ($reflectionClass->isAbstract() || $reflectionClass->isInterface() || $reflectionClass->isTrait() || $reflectionClass->isEnum()) {
                 return;
@@ -148,7 +158,7 @@ class Discoverer
                 if ($invokeMethod->isPublic() && !$invokeMethod->isStatic()) {
                     $attributeTypes = [McpTool::class, McpResource::class, McpPrompt::class, McpResourceTemplate::class];
                     foreach ($attributeTypes as $attributeType) {
-                        $classAttribute = $reflectionClass->getAttributes($attributeType, \ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
+                        $classAttribute = $reflectionClass->getAttributes($attributeType, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($classAttribute) {
                             $this->processMethod($invokeMethod, $discoveredCount, $classAttribute);
                             $processedViaClassAttribute = true;
@@ -159,16 +169,28 @@ class Discoverer
             }
 
             if (!$processedViaClassAttribute) {
-                foreach ($reflectionClass->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
-                    if (
-                        $method->getDeclaringClass()->getName() !== $reflectionClass->getName()
-                        || $method->isStatic() || $method->isAbstract() || $method->isConstructor() || $method->isDestructor() || '__invoke' === $method->getName()
-                    ) {
+                foreach ($reflectionClass->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+                    if ($method->getDeclaringClass()->getName() !== $reflectionClass->getName()) {
+                        continue;
+                    }
+                    if ($method->isStatic()) {
+                        continue;
+                    }
+                    if ($method->isAbstract()) {
+                        continue;
+                    }
+                    if ($method->isConstructor()) {
+                        continue;
+                    }
+                    if ($method->isDestructor()) {
+                        continue;
+                    }
+                    if ('__invoke' === $method->getName()) {
                         continue;
                     }
                     $attributeTypes = [McpTool::class, McpResource::class, McpPrompt::class, McpResourceTemplate::class];
                     foreach ($attributeTypes as $attributeType) {
-                        $methodAttribute = $method->getAttributes($attributeType, \ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
+                        $methodAttribute = $method->getAttributes($attributeType, ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($methodAttribute) {
                             $this->processMethod($method, $discoveredCount, $methodAttribute);
                             break;
@@ -176,9 +198,9 @@ class Discoverer
                     }
                 }
             }
-        } catch (\ReflectionException $e) {
+        } catch (ReflectionException $e) {
             $this->logger->error('Reflection error processing file for MCP discovery', ['file' => $filePath, 'class' => $className, 'exception' => $e->getMessage()]);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('Unexpected error processing file for MCP discovery', [
                 'file' => $filePath,
                 'class' => $className,
@@ -192,11 +214,11 @@ class Discoverer
      * Process a method with a given MCP attribute instance.
      * Can be called for regular methods or the __invoke method of an invokable class.
      *
-     * @param \ReflectionMethod                                                       $method          The target method (e.g., regular method or __invoke).
+     * @param ReflectionMethod $method The target method (e.g., regular method or __invoke).
      * @param DiscoveredCount                                                         $discoveredCount pass by reference to update counts
-     * @param \ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute       the ReflectionAttribute instance found (on method or class)
+     * @param ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute the ReflectionAttribute instance found (on method or class)
      */
-    private function processMethod(\ReflectionMethod $method, array &$discoveredCount, \ReflectionAttribute $attribute): void
+    private function processMethod(ReflectionMethod $method, array &$discoveredCount, ReflectionAttribute $attribute): void
     {
         $className = $method->getDeclaringClass()->getName();
         $classShortName = $method->getDeclaringClass()->getShortName();
@@ -237,7 +259,7 @@ class Discoverer
                     $paramTags = $this->docBlockParser->getParamTags($docBlock);
                     foreach ($method->getParameters() as $param) {
                         $reflectionType = $param->getType();
-                        if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+                        if ($reflectionType instanceof ReflectionNamedType && !$reflectionType->isBuiltin()) {
                             continue;
                         }
                         $paramTag = $paramTags['$'.$param->getName()] ?? null;
@@ -262,8 +284,8 @@ class Discoverer
                     break;
             }
         } catch (ExceptionInterface $e) {
-            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e->getMessage(), 'trace' => $e->getPrevious() ? $e->getPrevious()->getTraceAsString() : $e->getTraceAsString()]);
-        } catch (\Throwable $e) {
+            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e->getMessage(), 'trace' => $e->getPrevious() instanceof Throwable ? $e->getPrevious()->getTraceAsString() : $e->getTraceAsString()]);
+        } catch (Throwable $e) {
             $this->logger->error("Unexpected error processing attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
         }
     }
@@ -271,16 +293,16 @@ class Discoverer
     /**
      * @return array<string, string|ProviderInterface>
      */
-    private function getCompletionProviders(\ReflectionMethod $reflectionMethod): array
+    private function getCompletionProviders(ReflectionMethod $reflectionMethod): array
     {
         $completionProviders = [];
         foreach ($reflectionMethod->getParameters() as $param) {
             $reflectionType = $param->getType();
-            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+            if ($reflectionType instanceof ReflectionNamedType && !$reflectionType->isBuiltin()) {
                 continue;
             }
 
-            $completionAttributes = $param->getAttributes(CompletionProvider::class, \ReflectionAttribute::IS_INSTANCEOF);
+            $completionAttributes = $param->getAttributes(CompletionProvider::class, ReflectionAttribute::IS_INSTANCEOF);
             if (!empty($completionAttributes)) {
                 $attributeInstance = $completionAttributes[0]->newInstance();
 
@@ -329,7 +351,7 @@ class Discoverer
             }
 
             $tokens = token_get_all($content);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->warning("Failed to read or tokenize file during class discovery: {$filePath}", ['exception' => $e->getMessage()]);
 
             return null;
@@ -376,18 +398,16 @@ class Discoverer
                 continue;
             }
 
-            if ($level === ($namespaceFound && str_contains($content, "namespace {$namespace} {") ? 1 : 0)) {
-                if (\is_array($token) && \in_array($token[0], [\T_CLASS, \T_INTERFACE, \T_TRAIT, \defined('T_ENUM') ? \T_ENUM : -1])) {
-                    for ($j = $i + 1; $j < $tokenCount; ++$j) {
-                        if (\is_array($tokens[$j]) && \T_STRING === $tokens[$j][0]) {
-                            $className = $tokens[$j][1];
-                            $potentialClasses[] = $namespace ? $namespace.'\\'.$className : $className;
-                            $i = $j;
-                            break;
-                        }
-                        if (';' === $tokens[$j] || '{' === $tokens[$j] || ')' === $tokens[$j]) {
-                            break;
-                        }
+            if ($level === ($namespaceFound && str_contains($content, "namespace {$namespace} {") ? 1 : 0) && (\is_array($token) && \in_array($token[0], [\T_CLASS, \T_INTERFACE, \T_TRAIT, \defined('T_ENUM') ? \T_ENUM : -1]))) {
+                for ($j = $i + 1; $j < $tokenCount; ++$j) {
+                    if (\is_array($tokens[$j]) && \T_STRING === $tokens[$j][0]) {
+                        $className = $tokens[$j][1];
+                        $potentialClasses[] = '' !== $namespace && '0' !== $namespace ? $namespace.'\\'.$className : $className;
+                        $i = $j;
+                        break;
+                    }
+                    if (';' === $tokens[$j] || '{' === $tokens[$j] || ')' === $tokens[$j]) {
+                        break;
                     }
                 }
             }
@@ -399,7 +419,7 @@ class Discoverer
             }
         }
 
-        if (!empty($potentialClasses)) {
+        if ([] !== $potentialClasses) {
             if (!class_exists($potentialClasses[0], false)) {
                 $this->logger->debug('getClassFromFile returning potential non-class type. Are you sure this class has been autoloaded?', ['file' => $filePath, 'type' => $potentialClasses[0]]);
             }

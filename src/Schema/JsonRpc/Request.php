@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\JsonRpc;
 
+use stdClass;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
@@ -48,7 +53,7 @@ abstract class Request implements HasMethodInterface, MessageInterface
             throw new InvalidArgumentException('Invalid or missing "method" for Request.');
         }
         $params = $data['params'] ?? null;
-        if ($params instanceof \stdClass) {
+        if ($params instanceof stdClass) {
             $params = (array) $params;
         }
         if (null !== $params && !\is_array($params)) {

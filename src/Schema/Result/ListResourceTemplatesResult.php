@@ -1,18 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\Result;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\ResourceTemplate;
 
@@ -50,7 +53,7 @@ class ListResourceTemplatesResult implements ResultInterface
         }
 
         return new self(
-            array_map(fn (array $resourceTemplate) => ResourceTemplate::fromArray($resourceTemplate), $data['resourceTemplates']),
+            array_map(fn (array $resourceTemplate): ResourceTemplate => ResourceTemplate::fromArray($resourceTemplate), $data['resourceTemplates']),
             $data['nextCursor'] ?? null
         );
     }

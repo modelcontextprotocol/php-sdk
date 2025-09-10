@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability;
 
+use Throwable;
 use Mcp\Capability\Prompt\CollectionInterface;
 use Mcp\Capability\Prompt\IdentifierInterface;
 use Mcp\Capability\Prompt\MetadataInterface;
@@ -66,7 +71,7 @@ class PromptChain implements PromptGetterInterface, CollectionInterface
             if ($item instanceof PromptGetterInterface && $request->name === $item->getName()) {
                 try {
                     return $item->get($request);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     throw new PromptGetException($request, $e);
                 }
             }

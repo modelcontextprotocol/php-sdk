@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability;
@@ -177,10 +181,10 @@ class Registry
      */
     public function hasElements(): bool
     {
-        return !empty($this->tools)
-            || !empty($this->resources)
-            || !empty($this->prompts)
-            || !empty($this->resourceTemplates);
+        return [] !== $this->tools
+            || [] !== $this->resources
+            || [] !== $this->prompts
+            || [] !== $this->resourceTemplates;
     }
 
     /**
@@ -224,7 +228,7 @@ class Registry
     {
         $reference = $this->getTool($name);
 
-        if (null === $reference) {
+        if (!$reference instanceof ToolReference) {
             throw new InvalidArgumentException(\sprintf('Tool "%s" is not registered.', $name));
         }
 
@@ -289,7 +293,7 @@ class Registry
     {
         $reference = $this->getPrompt($name);
 
-        if (null === $reference) {
+        if (!$reference instanceof PromptReference) {
             throw new InvalidArgumentException(\sprintf('Prompt "%s" is not registered.', $name));
         }
 
@@ -308,7 +312,7 @@ class Registry
      */
     public function getTools(): array
     {
-        return array_map(fn (ToolReference $tool) => $tool->tool, $this->tools);
+        return array_map(fn (ToolReference $tool): Tool => $tool->tool, $this->tools);
     }
 
     /**
@@ -316,7 +320,7 @@ class Registry
      */
     public function getResources(): array
     {
-        return array_map(fn (ResourceReference $resource) => $resource->schema, $this->resources);
+        return array_map(fn (ResourceReference $resource): Resource => $resource->schema, $this->resources);
     }
 
     /**
@@ -324,12 +328,12 @@ class Registry
      */
     public function getPrompts(): array
     {
-        return array_map(fn (PromptReference $prompt) => $prompt->prompt, $this->prompts);
+        return array_map(fn (PromptReference $prompt): Prompt => $prompt->prompt, $this->prompts);
     }
 
     /** @return array<string, ResourceTemplate> */
     public function getResourceTemplates(): array
     {
-        return array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
+        return array_map(fn (ResourceTemplateReference $template): ResourceTemplate => $template->resourceTemplate, $this->resourceTemplates);
     }
 }

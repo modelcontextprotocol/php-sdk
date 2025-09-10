@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\Request;
 
+use stdClass;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Request;
 
@@ -44,7 +49,7 @@ final class CallToolRequest extends Request
 
         $arguments = $params['arguments'] ?? [];
 
-        if ($arguments instanceof \stdClass) {
+        if ($arguments instanceof stdClass) {
             $arguments = (array) $arguments;
         }
 

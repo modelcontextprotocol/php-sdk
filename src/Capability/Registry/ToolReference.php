@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Registry;
 
+use JsonException;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Tool;
@@ -50,7 +55,7 @@ class ToolReference extends ElementReference
      *
      * @return Content[] the content items for CallToolResult
      *
-     * @throws \JsonException if JSON encoding fails for non-Content array/object results
+     * @throws JsonException if JSON encoding fails for non-Content array/object results
      */
     public function formatResult(mixed $toolExecutionResult): array
     {
@@ -59,7 +64,7 @@ class ToolReference extends ElementReference
         }
 
         if (\is_array($toolExecutionResult)) {
-            if (empty($toolExecutionResult)) {
+            if ([] === $toolExecutionResult) {
                 return [new TextContent('[]')];
             }
 

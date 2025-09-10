@@ -1,16 +1,26 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Server;
 
+use ReflectionFunction;
+use Closure;
+use Throwable;
+use ReflectionMethod;
+use ReflectionNamedType;
+use ReflectionAttribute;
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
@@ -36,7 +46,6 @@ use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Psr\SimpleCache\CacheInterface;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -47,49 +56,23 @@ final class ServerBuilder
 
     private ?LoggerInterface $logger = null;
 
-    private ?CacheInterface $cache = null;
-
     private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
 
-    private ?int $paginationLimit = 50;
-
-    private ?string $instructions = null;
-
-    /** @var array<
-     *     array{handler: array|string|Closure,
-     *     name: string|null,
-     *     description: string|null,
-     *     annotations: ToolAnnotations|null}
-     * > */
+    /**
+     * @var array<array{handler: array|string|Closure, name: string|null, description: string|null, annotations: ToolAnnotations|null}> */
     private array $manualTools = [];
 
-    /** @var array<
-     *     array{handler: array|string|Closure,
-     *     uri: string,
-     *     name: string|null,
-     *     description: string|null,
-     *     mimeType: string|null,
-     *     size: int|null,
-     *     annotations: Annotations|null}
-     * > */
+    /**
+     * @var array<array{handler: array|string|Closure, uri: string, name: string|null, description: string|null, mimeType: string|null, size: int|null, annotations: Annotations|null}> */
     private array $manualResources = [];
 
-    /** @var array<
-     *     array{handler: array|string|Closure,
-     *     uriTemplate: string,
-     *     name: string|null,
-     *     description: string|null,
-     *     mimeType: string|null,
-     *     annotations: Annotations|null}
-     * > */
+    /**
+     * @var array<array{handler: array|string|Closure, uriTemplate: string, name: string|null, description: string|null, mimeType: string|null, annotations: Annotations|null}> */
     private array $manualResourceTemplates = [];
-    /** @var array<
-     *     array{handler: array|string|Closure,
-     *     name: string|null,
-     *     description: string|null}
-     * > */
+    /**
+     * @var array<array{handler: array|string|Closure, name: string|null, description: string|null}> */
     private array $manualPrompts = [];
     private ?string $discoveryBasePath = null;
     /**
@@ -111,10 +94,8 @@ final class ServerBuilder
     /**
      * Configures the server's pagination limit.
      */
-    public function withPaginationLimit(int $paginationLimit): self
+    public function withPaginationLimit(): self
     {
-        $this->paginationLimit = $paginationLimit;
-
         return $this;
     }
 
@@ -125,10 +106,8 @@ final class ServerBuilder
      * etc. It can be thought of like a "hint" to the model. For example, this information MAY
      * be added to the system prompt.
      */
-    public function withInstructions(?string $instructions): self
+    public function withInstructions(): self
     {
-        $this->instructions = $instructions;
-
         return $this;
     }
 
@@ -177,7 +156,7 @@ final class ServerBuilder
      */
     public function withTool(callable|array|string $handler, ?string $name = null, ?string $description = null, ?ToolAnnotations $annotations = null, ?array $inputSchema = null): self
     {
-        $this->manualTools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema');
+        $this->manualTools[] = ['handler' => $handler, 'name' => $name, 'description' => $description, 'annotations' => $annotations, 'inputSchema' => $inputSchema];
 
         return $this;
     }
@@ -187,7 +166,7 @@ final class ServerBuilder
      */
     public function withResource(callable|array|string $handler, string $uri, ?string $name = null, ?string $description = null, ?string $mimeType = null, ?int $size = null, ?Annotations $annotations = null): self
     {
-        $this->manualResources[] = compact('handler', 'uri', 'name', 'description', 'mimeType', 'size', 'annotations');
+        $this->manualResources[] = ['handler' => $handler, 'uri' => $uri, 'name' => $name, 'description' => $description, 'mimeType' => $mimeType, 'size' => $size, 'annotations' => $annotations];
 
         return $this;
     }
@@ -197,7 +176,7 @@ final class ServerBuilder
      */
     public function withResourceTemplate(callable|array|string $handler, string $uriTemplate, ?string $name = null, ?string $description = null, ?string $mimeType = null, ?Annotations $annotations = null): self
     {
-        $this->manualResourceTemplates[] = compact('handler', 'uriTemplate', 'name', 'description', 'mimeType', 'annotations');
+        $this->manualResourceTemplates[] = ['handler' => $handler, 'uriTemplate' => $uriTemplate, 'name' => $name, 'description' => $description, 'mimeType' => $mimeType, 'annotations' => $annotations];
 
         return $this;
     }
@@ -207,7 +186,7 @@ final class ServerBuilder
      */
     public function withPrompt(callable|array|string $handler, ?string $name = null, ?string $description = null): self
     {
-        $this->manualPrompts[] = compact('handler', 'name', 'description');
+        $this->manualPrompts[] = ['handler' => $handler, 'name' => $name, 'description' => $description];
 
         return $this;
     }
@@ -241,7 +220,7 @@ final class ServerBuilder
      */
     private function registerManualElements(Registry $registry, LoggerInterface $logger = new NullLogger()): void
     {
-        if (empty($this->manualTools) && empty($this->manualResources) && empty($this->manualResourceTemplates) && empty($this->manualPrompts)) {
+        if ([] === $this->manualTools && [] === $this->manualResources && [] === $this->manualResourceTemplates && [] === $this->manualPrompts) {
             return;
         }
 
@@ -253,7 +232,7 @@ final class ServerBuilder
             try {
                 $reflection = HandlerResolver::resolve($data['handler']);
 
-                if ($reflection instanceof \ReflectionFunction) {
+                if ($reflection instanceof ReflectionFunction) {
                     $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
@@ -270,9 +249,9 @@ final class ServerBuilder
                 $tool = new Tool($name, $inputSchema, $description, $data['annotations']);
                 $registry->registerTool($tool, $data['handler'], true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $data['handler'] instanceof Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
                 $logger->debug("Registered manual tool {$name} from handler {$handlerDesc}");
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $logger->error('Failed to register manual tool', ['handler' => $data['handler'], 'name' => $data['name'], 'exception' => $e]);
                 throw new ConfigurationException("Error registering manual tool '{$data['name']}': {$e->getMessage()}", 0, $e);
             }
@@ -283,7 +262,7 @@ final class ServerBuilder
             try {
                 $reflection = HandlerResolver::resolve($data['handler']);
 
-                if ($reflection instanceof \ReflectionFunction) {
+                if ($reflection instanceof ReflectionFunction) {
                     $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
@@ -303,9 +282,9 @@ final class ServerBuilder
                 $resource = new Resource($uri, $name, $description, $mimeType, $annotations, $size);
                 $registry->registerResource($resource, $data['handler'], true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $data['handler'] instanceof Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
                 $logger->debug("Registered manual resource {$name} from handler {$handlerDesc}");
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $logger->error('Failed to register manual resource', ['handler' => $data['handler'], 'uri' => $data['uri'], 'exception' => $e]);
                 throw new ConfigurationException("Error registering manual resource '{$data['uri']}': {$e->getMessage()}", 0, $e);
             }
@@ -316,7 +295,7 @@ final class ServerBuilder
             try {
                 $reflection = HandlerResolver::resolve($data['handler']);
 
-                if ($reflection instanceof \ReflectionFunction) {
+                if ($reflection instanceof ReflectionFunction) {
                     $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
@@ -336,9 +315,9 @@ final class ServerBuilder
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $data['handler'] instanceof Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
                 $logger->debug("Registered manual template {$name} from handler {$handlerDesc}");
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $logger->error('Failed to register manual template', ['handler' => $data['handler'], 'uriTemplate' => $data['uriTemplate'], 'exception' => $e]);
                 throw new ConfigurationException("Error registering manual resource template '{$data['uriTemplate']}': {$e->getMessage()}", 0, $e);
             }
@@ -349,7 +328,7 @@ final class ServerBuilder
             try {
                 $reflection = HandlerResolver::resolve($data['handler']);
 
-                if ($reflection instanceof \ReflectionFunction) {
+                if ($reflection instanceof ReflectionFunction) {
                     $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
@@ -362,12 +341,12 @@ final class ServerBuilder
                 }
 
                 $arguments = [];
-                $paramTags = $reflection instanceof \ReflectionMethod ? $docBlockParser->getParamTags($docBlockParser->parseDocBlock($reflection->getDocComment() ?? null)) : [];
+                $paramTags = $reflection instanceof ReflectionMethod ? $docBlockParser->getParamTags($docBlockParser->parseDocBlock($reflection->getDocComment() ?? null)) : [];
                 foreach ($reflection->getParameters() as $param) {
                     $reflectionType = $param->getType();
 
                     // Basic DI check (heuristic)
-                    if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+                    if ($reflectionType instanceof ReflectionNamedType && !$reflectionType->isBuiltin()) {
                         continue;
                     }
 
@@ -383,9 +362,9 @@ final class ServerBuilder
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $data['handler'] instanceof Closure ? 'Closure' : (\is_array($data['handler']) ? implode('::', $data['handler']) : $data['handler']);
                 $logger->debug("Registered manual prompt {$name} from handler {$handlerDesc}");
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $logger->error('Failed to register manual prompt', ['handler' => $data['handler'], 'name' => $data['name'], 'exception' => $e]);
                 throw new ConfigurationException("Error registering manual prompt '{$data['name']}': {$e->getMessage()}", 0, $e);
             }
@@ -394,16 +373,16 @@ final class ServerBuilder
         $logger->debug('Manual element registration complete.');
     }
 
-    private function getCompletionProviders(\ReflectionMethod|\ReflectionFunction $reflection): array
+    private function getCompletionProviders(ReflectionMethod|ReflectionFunction $reflection): array
     {
         $completionProviders = [];
         foreach ($reflection->getParameters() as $param) {
             $reflectionType = $param->getType();
-            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+            if ($reflectionType instanceof ReflectionNamedType && !$reflectionType->isBuiltin()) {
                 continue;
             }
 
-            $completionAttributes = $param->getAttributes(CompletionProvider::class, \ReflectionAttribute::IS_INSTANCEOF);
+            $completionAttributes = $param->getAttributes(CompletionProvider::class, ReflectionAttribute::IS_INSTANCEOF);
             if (!empty($completionAttributes)) {
                 $attributeInstance = $completionAttributes[0]->newInstance();
 

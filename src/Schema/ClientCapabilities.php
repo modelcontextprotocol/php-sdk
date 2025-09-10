@@ -1,15 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema;
+
+use JsonSerializable;
+use stdClass;
 
 /**
  * Capabilities a client may support. Known capabilities are defined here, in this schema, but this is not a closed set:
@@ -17,7 +24,7 @@ namespace Mcp\Schema;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ClientCapabilities implements \JsonSerializable
+class ClientCapabilities implements JsonSerializable
 {
     /**
      * @param array<string, mixed> $experimental
@@ -45,7 +52,7 @@ class ClientCapabilities implements \JsonSerializable
         $rootsListChanged = null;
         if ($rootsEnabled) {
             if (\is_array($data['roots']) && \array_key_exists('listChanged', $data['roots'])) {
-                $rootsListChanged = (bool) $data['roots']['listChanged'];
+                $rootsListChanged = $data['roots']['listChanged'];
             } elseif (\is_object($data['roots']) && property_exists($data['roots'], 'listChanged')) {
                 $rootsListChanged = (bool) $data['roots']->listChanged;
             }
@@ -75,14 +82,14 @@ class ClientCapabilities implements \JsonSerializable
     {
         $data = [];
         if ($this->roots || $this->rootsListChanged) {
-            $data['roots'] = new \stdClass();
+            $data['roots'] = new stdClass();
             if ($this->rootsListChanged) {
                 $data['roots']->listChanged = $this->rootsListChanged;
             }
         }
 
         if ($this->sampling) {
-            $data['sampling'] = new \stdClass();
+            $data['sampling'] = new stdClass();
         }
 
         if ($this->experimental) {

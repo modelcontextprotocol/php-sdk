@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Server\Transport\Sse;
 
+use Generator;
 use Mcp\Server\TransportInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -37,7 +42,7 @@ final class StreamTransport implements TransportInterface
         return 0 === connection_aborted();
     }
 
-    public function receive(): \Generator
+    public function receive(): Generator
     {
         yield $this->store->pop($this->id);
     }

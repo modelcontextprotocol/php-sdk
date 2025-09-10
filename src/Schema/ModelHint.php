@@ -1,15 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema;
+
+use JsonSerializable;
 
 /**
  * Hints to use for model selection.
@@ -18,7 +24,7 @@ namespace Mcp\Schema;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ModelHint implements \JsonSerializable
+class ModelHint implements JsonSerializable
 {
     /**
      * @param string|null $name A hint for a model name.

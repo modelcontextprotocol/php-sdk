@@ -1,16 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema;
 
+use JsonSerializable;
+use stdClass;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
@@ -32,7 +38,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Tool implements \JsonSerializable
+class Tool implements JsonSerializable
 {
     /**
      * @param string               $name        the name of the tool
@@ -68,7 +74,7 @@ class Tool implements \JsonSerializable
             throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
         }
         if (isset($data['inputSchema']['properties']) && \is_array($data['inputSchema']['properties']) && empty($data['inputSchema']['properties'])) {
-            $data['inputSchema']['properties'] = new \stdClass();
+            $data['inputSchema']['properties'] = new stdClass();
         }
 
         return new self(
@@ -96,7 +102,7 @@ class Tool implements \JsonSerializable
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }
-        if (null !== $this->annotations) {
+        if ($this->annotations instanceof ToolAnnotations) {
             $data['annotations'] = $this->annotations;
         }
 

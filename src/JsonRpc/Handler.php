@@ -1,16 +1,25 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\JsonRpc;
 
+use Traversable;
+use JsonException;
+use DomainException;
+use InvalidArgumentException;
+use Throwable;
 use Mcp\Capability\Registry;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
@@ -21,8 +30,15 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\MethodHandlerInterface;
-use Mcp\Server\NotificationHandler;
-use Mcp\Server\RequestHandler;
+use Mcp\Server\NotificationHandler\InitializedHandler;
+use Mcp\Server\RequestHandler\CallToolHandler;
+use Mcp\Server\RequestHandler\GetPromptHandler;
+use Mcp\Server\RequestHandler\InitializeHandler;
+use Mcp\Server\RequestHandler\ListPromptsHandler;
+use Mcp\Server\RequestHandler\ListResourcesHandler;
+use Mcp\Server\RequestHandler\ListToolsHandler;
+use Mcp\Server\RequestHandler\PingHandler;
+use Mcp\Server\RequestHandler\ReadResourceHandler;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -46,7 +62,7 @@ class Handler
         iterable $methodHandlers,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array($methodHandlers) : $methodHandlers;
+        $this->methodHandlers = $methodHandlers instanceof Traversable ? iterator_to_array($methodHandlers) : $methodHandlers;
     }
 
     public static function make(
@@ -57,15 +73,15 @@ class Handler
         return new self(
             MessageFactory::make(),
             [
-                new NotificationHandler\InitializedHandler(),
-                new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
-                new RequestHandler\PingHandler(),
-                new RequestHandler\ListPromptsHandler($registry),
-                new RequestHandler\GetPromptHandler($registry),
-                new RequestHandler\ListResourcesHandler($registry),
-                new RequestHandler\ReadResourceHandler($registry),
-                new RequestHandler\CallToolHandler($registry, $logger),
-                new RequestHandler\ListToolsHandler($registry),
+                new InitializedHandler(),
+                new InitializeHandler($registry->getCapabilities(), $implementation),
+                new PingHandler(),
+                new ListPromptsHandler($registry),
+                new GetPromptHandler($registry),
+                new ListResourcesHandler($registry),
+                new ReadResourceHandler($registry),
+                new CallToolHandler($registry, $logger),
+                new ListToolsHandler($registry),
             ],
             $logger,
         );
@@ -75,7 +91,7 @@ class Handler
      * @return iterable<string|null>
      *
      * @throws ExceptionInterface When a handler throws an exception during message processing
-     * @throws \JsonException     When JSON encoding of the response fails
+     * @throws JsonException When JSON encoding of the response fails
      */
     public function process(string $input): iterable
     {
@@ -83,7 +99,7 @@ class Handler
 
         try {
             $messages = $this->messageFactory->create($input);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             $this->logger->warning('Failed to decode json message.', ['exception' => $e]);
 
             yield $this->encodeResponse(Error::forParseError($e->getMessage()));
@@ -104,17 +120,17 @@ class Handler
 
             try {
                 yield $this->encodeResponse($this->handle($message));
-            } catch (\DomainException) {
+            } catch (DomainException) {
                 yield null;
             } catch (NotFoundExceptionInterface $e) {
                 $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e]);
 
                 yield $this->encodeResponse(Error::forMethodNotFound($e->getMessage()));
-            } catch (\InvalidArgumentException $e) {
+            } catch (InvalidArgumentException $e) {
                 $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
 
                 yield $this->encodeResponse(Error::forInvalidParams($e->getMessage()));
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 $this->logger->critical(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
 
                 yield $this->encodeResponse(Error::forInternalError($e->getMessage()));
@@ -123,7 +139,7 @@ class Handler
     }
 
     /**
-     * @throws \JsonException When JSON encoding fails
+     * @throws JsonException When JSON encoding fails
      */
     private function encodeResponse(Response|Error|null $response): ?string
     {

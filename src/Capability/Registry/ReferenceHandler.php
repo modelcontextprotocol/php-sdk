@@ -1,19 +1,33 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Registry;
 
+use ReflectionFunctionAbstract;
+use Throwable;
+use Closure;
+use ReflectionNamedType;
+use BackedEnum;
+use UnitEnum;
+use TypeError;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Psr\Container\ContainerInterface;
+use ReflectionFunction;
+use ReflectionMethod;
+use ReflectionParameter;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -32,7 +46,7 @@ class ReferenceHandler
     {
         if (\is_string($reference->handler)) {
             if (class_exists($reference->handler) && method_exists($reference->handler, '__invoke')) {
-                $reflection = new \ReflectionMethod($reference->handler, '__invoke');
+                $reflection = new ReflectionMethod($reference->handler, '__invoke');
                 $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
@@ -40,7 +54,7 @@ class ReferenceHandler
             }
 
             if (\function_exists($reference->handler)) {
-                $reflection = new \ReflectionFunction($reference->handler);
+                $reflection = new ReflectionFunction($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
                 return \call_user_func($reference->handler, ...$arguments);
@@ -56,7 +70,7 @@ class ReferenceHandler
 
         if (\is_array($reference->handler)) {
             [$className, $methodName] = $reference->handler;
-            $reflection = new \ReflectionMethod($className, $methodName);
+            $reflection = new ReflectionMethod($className, $methodName);
             $instance = $this->getClassInstance($className);
             $arguments = $this->prepareArguments($reflection, $arguments);
 
@@ -68,7 +82,7 @@ class ReferenceHandler
 
     private function getClassInstance(string $className): object
     {
-        if (null !== $this->container && $this->container->has($className)) {
+        if ($this->container instanceof ContainerInterface && $this->container->has($className)) {
             return $this->container->get($className);
         }
 
@@ -80,7 +94,7 @@ class ReferenceHandler
      *
      * @return array<int, mixed>
      */
-    private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments): array
+    private function prepareArguments(ReflectionFunctionAbstract $reflection, array $arguments): array
     {
         $finalArgs = [];
 
@@ -95,7 +109,7 @@ class ReferenceHandler
                     $finalArgs[$paramPosition] = $this->castArgumentType($argument, $parameter);
                 } catch (InvalidArgumentException $e) {
                     throw RegistryException::invalidParams($e->getMessage(), $e);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
                 }
             } elseif ($parameter->isDefaultValueAvailable()) {
@@ -105,7 +119,7 @@ class ReferenceHandler
             } elseif ($parameter->isOptional()) {
                 continue;
             } else {
-                $reflectionName = $reflection instanceof \ReflectionMethod
+                $reflectionName = $reflection instanceof ReflectionMethod
                     ? $reflection->class.'::'.$reflection->name
                     : 'Closure';
                 throw RegistryException::internalError("Missing required argument `{$paramName}` for {$reflectionName}.");
@@ -118,20 +132,20 @@ class ReferenceHandler
     /**
      * Gets a ReflectionMethod or ReflectionFunction for a callable.
      */
-    private function getReflectionForCallable(callable $handler): \ReflectionMethod|\ReflectionFunction
+    private function getReflectionForCallable(callable $handler): ReflectionMethod|ReflectionFunction
     {
         if (\is_string($handler)) {
-            return new \ReflectionFunction($handler);
+            return new ReflectionFunction($handler);
         }
 
-        if ($handler instanceof \Closure) {
-            return new \ReflectionFunction($handler);
+        if ($handler instanceof Closure) {
+            return new ReflectionFunction($handler);
         }
 
         if (\is_array($handler) && 2 === \count($handler)) {
             [$class, $method] = $handler;
 
-            return new \ReflectionMethod($class, $method);
+            return new ReflectionMethod($class, $method);
         }
 
         throw new InvalidArgumentException('Cannot create reflection for this callable type');
@@ -142,47 +156,44 @@ class ReferenceHandler
      *
      * @throws InvalidArgumentException if casting is impossible for the required type
      */
-    private function castArgumentType(mixed $argument, \ReflectionParameter $parameter): mixed
+    private function castArgumentType(mixed $argument, ReflectionParameter $parameter): mixed
     {
         $type = $parameter->getType();
 
-        if (null === $argument) {
-            if ($type && $type->allowsNull()) {
-                return null;
-            }
+        if (null === $argument && ($type && $type->allowsNull())) {
+            return null;
         }
 
-        if (!$type instanceof \ReflectionNamedType) {
+        if (!$type instanceof ReflectionNamedType) {
             return $argument;
         }
 
         $typeName = $type->getName();
 
         if (enum_exists($typeName)) {
-            if (\is_object($argument) && $argument instanceof $typeName) {
+            if ($argument instanceof $typeName) {
                 return $argument;
             }
-
-            if (is_subclass_of($typeName, \BackedEnum::class)) {
+            if (is_subclass_of($typeName, BackedEnum::class)) {
                 $value = $typeName::tryFrom($argument);
                 if (null === $value) {
                     throw new InvalidArgumentException("Invalid value '{$argument}' for backed enum {$typeName}. Expected one of its backing values.");
                 }
 
                 return $value;
-            } else {
-                if (\is_string($argument)) {
-                    foreach ($typeName::cases() as $case) {
-                        if ($case->name === $argument) {
-                            return $case;
-                        }
-                    }
-                    $validNames = array_map(fn ($c) => $c->name, $typeName::cases());
-                    throw new InvalidArgumentException("Invalid value '{$argument}' for unit enum {$typeName}. Expected one of: ".implode(', ', $validNames).'.');
-                } else {
-                    throw new InvalidArgumentException("Invalid value type '{$argument}' for unit enum {$typeName}. Expected a string matching a case name.");
-                }
             }
+
+            if (\is_string($argument)) {
+                foreach ($typeName::cases() as $case) {
+                    if ($case->name === $argument) {
+                        return $case;
+                    }
+                }
+                $validNames = array_map(fn (UnitEnum $c): string => $c->name, $typeName::cases());
+
+                throw new InvalidArgumentException("Invalid value '{$argument}' for unit enum {$typeName}. Expected one of: ".implode(', ', $validNames).'.');
+            }
+            throw new InvalidArgumentException("Invalid value type '{$argument}' for unit enum {$typeName}. Expected a string matching a case name.");
         }
 
         try {
@@ -194,7 +205,7 @@ class ReferenceHandler
                 'array' => $this->castToArray($argument),
                 default => $argument,
             };
-        } catch (\TypeError $e) {
+        } catch (TypeError $e) {
             throw new InvalidArgumentException("Value cannot be cast to required type `{$typeName}`.", 0, $e);
         }
     }

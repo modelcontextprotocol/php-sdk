@@ -1,15 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema;
+
+use JsonSerializable;
+use stdClass;
 
 /**
  * Capabilities that a server may support. Known capabilities are defined here, in this schema, but this is not a closed
@@ -17,7 +24,7 @@ namespace Mcp\Schema;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ServerCapabilities implements \JsonSerializable
+class ServerCapabilities implements JsonSerializable
 {
     /**
      * @param ?bool                 $tools                server exposes callable tools
@@ -66,7 +73,7 @@ class ServerCapabilities implements \JsonSerializable
         $promptsListChanged = null;
         if (isset($data['prompts'])) {
             if (\is_array($data['prompts']) && \array_key_exists('listChanged', $data['prompts'])) {
-                $promptsListChanged = (bool) $data['prompts']['listChanged'];
+                $promptsListChanged = $data['prompts']['listChanged'];
             } elseif (\is_object($data['prompts']) && property_exists($data['prompts'], 'listChanged')) {
                 $promptsListChanged = (bool) $data['prompts']->listChanged;
             }
@@ -76,12 +83,12 @@ class ServerCapabilities implements \JsonSerializable
         $resourcesListChanged = null;
         if (isset($data['resources'])) {
             if (\is_array($data['resources']) && \array_key_exists('subscribe', $data['resources'])) {
-                $resourcesSubscribe = (bool) $data['resources']['subscribe'];
+                $resourcesSubscribe = $data['resources']['subscribe'];
             } elseif (\is_object($data['resources']) && property_exists($data['resources'], 'subscribe')) {
                 $resourcesSubscribe = (bool) $data['resources']->subscribe;
             }
             if (\is_array($data['resources']) && \array_key_exists('listChanged', $data['resources'])) {
-                $resourcesListChanged = (bool) $data['resources']['listChanged'];
+                $resourcesListChanged = $data['resources']['listChanged'];
             } elseif (\is_object($data['resources']) && property_exists($data['resources'], 'listChanged')) {
                 $resourcesListChanged = (bool) $data['resources']->listChanged;
             }
@@ -125,21 +132,21 @@ class ServerCapabilities implements \JsonSerializable
         $data = [];
 
         if ($this->logging) {
-            $data['logging'] = new \stdClass();
+            $data['logging'] = new stdClass();
         }
         if ($this->completions) {
-            $data['completions'] = new \stdClass();
+            $data['completions'] = new stdClass();
         }
 
         if ($this->prompts || $this->promptsListChanged) {
-            $data['prompts'] = new \stdClass();
+            $data['prompts'] = new stdClass();
             if ($this->promptsListChanged) {
                 $data['prompts']->listChanged = $this->promptsListChanged;
             }
         }
 
         if ($this->resources || $this->resourcesSubscribe || $this->resourcesListChanged) {
-            $data['resources'] = new \stdClass();
+            $data['resources'] = new stdClass();
             if ($this->resourcesSubscribe) {
                 $data['resources']->subscribe = $this->resourcesSubscribe;
             }
@@ -149,7 +156,7 @@ class ServerCapabilities implements \JsonSerializable
         }
 
         if ($this->tools || $this->toolsListChanged) {
-            $data['tools'] = new \stdClass();
+            $data['tools'] = new stdClass();
             if ($this->toolsListChanged) {
                 $data['tools']->listChanged = $this->toolsListChanged;
             }

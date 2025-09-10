@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Server\RequestHandler;
@@ -39,7 +43,7 @@ final class ListPromptsHandler implements MethodHandlerInterface
         \assert($message instanceof ListPromptsRequest);
 
         $cursor = null;
-        $prompts = $this->registry->getPrompts($this->pageSize, $message->cursor);
+        $prompts = $this->registry->getPrompts();
         $nextCursor = (null !== $cursor && \count($prompts) === $this->pageSize) ? $cursor : null;
 
         return new Response(

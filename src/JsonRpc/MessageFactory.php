@@ -1,21 +1,48 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\JsonRpc;
 
+use JsonException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
-use Mcp\Schema\Notification;
-use Mcp\Schema\Request;
+use Mcp\Schema\Notification\CancelledNotification;
+use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Notification\ProgressNotification;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+use Mcp\Schema\Notification\RootsListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\Request\CompletionCompleteRequest;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Request\GetPromptRequest;
+use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\Request\ListPromptsRequest;
+use Mcp\Schema\Request\ListResourcesRequest;
+use Mcp\Schema\Request\ListResourceTemplatesRequest;
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Request\ListToolsRequest;
+use Mcp\Schema\Request\PingRequest;
+use Mcp\Schema\Request\ReadResourceRequest;
+use Mcp\Schema\Request\ResourceSubscribeRequest;
+use Mcp\Schema\Request\ResourceUnsubscribeRequest;
+use Mcp\Schema\Request\SetLogLevelRequest;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -28,30 +55,30 @@ final class MessageFactory
      * @var array<int, class-string<HasMethodInterface>>
      */
     private const REGISTERED_MESSAGES = [
-        Notification\CancelledNotification::class,
-        Notification\InitializedNotification::class,
-        Notification\LoggingMessageNotification::class,
-        Notification\ProgressNotification::class,
-        Notification\PromptListChangedNotification::class,
-        Notification\ResourceListChangedNotification::class,
-        Notification\ResourceUpdatedNotification::class,
-        Notification\RootsListChangedNotification::class,
-        Notification\ToolListChangedNotification::class,
-        Request\CallToolRequest::class,
-        Request\CompletionCompleteRequest::class,
-        Request\CreateSamplingMessageRequest::class,
-        Request\GetPromptRequest::class,
-        Request\InitializeRequest::class,
-        Request\ListPromptsRequest::class,
-        Request\ListResourcesRequest::class,
-        Request\ListResourceTemplatesRequest::class,
-        Request\ListRootsRequest::class,
-        Request\ListToolsRequest::class,
-        Request\PingRequest::class,
-        Request\ReadResourceRequest::class,
-        Request\ResourceSubscribeRequest::class,
-        Request\ResourceUnsubscribeRequest::class,
-        Request\SetLogLevelRequest::class,
+        CancelledNotification::class,
+        InitializedNotification::class,
+        LoggingMessageNotification::class,
+        ProgressNotification::class,
+        PromptListChangedNotification::class,
+        ResourceListChangedNotification::class,
+        ResourceUpdatedNotification::class,
+        RootsListChangedNotification::class,
+        ToolListChangedNotification::class,
+        CallToolRequest::class,
+        CompletionCompleteRequest::class,
+        CreateSamplingMessageRequest::class,
+        GetPromptRequest::class,
+        InitializeRequest::class,
+        ListPromptsRequest::class,
+        ListResourcesRequest::class,
+        ListResourceTemplatesRequest::class,
+        ListRootsRequest::class,
+        ListToolsRequest::class,
+        PingRequest::class,
+        ReadResourceRequest::class,
+        ResourceSubscribeRequest::class,
+        ResourceUnsubscribeRequest::class,
+        SetLogLevelRequest::class,
     ];
 
     /**
@@ -78,7 +105,7 @@ final class MessageFactory
     /**
      * @return iterable<HasMethodInterface|InvalidInputMessageException>
      *
-     * @throws \JsonException When the input string is not valid JSON
+     * @throws JsonException When the input string is not valid JSON
      */
     public function create(string $input): iterable
     {

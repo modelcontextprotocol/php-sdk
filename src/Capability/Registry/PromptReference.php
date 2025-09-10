@@ -1,16 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Registry;
 
+use Closure;
+use JsonException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\BlobResourceContents;
@@ -38,7 +44,7 @@ class PromptReference extends ElementReference
      */
     public function __construct(
         public readonly Prompt $prompt,
-        \Closure|array|string $handler,
+        Closure|array|string $handler,
         bool $isManual = false,
         public readonly array $completionProviders = [],
     ) {
@@ -80,7 +86,7 @@ class PromptReference extends ElementReference
      * @return PromptMessage[] array of PromptMessage objects
      *
      * @throws \RuntimeException if the result cannot be formatted
-     * @throws \JsonException    if JSON encoding fails
+     * @throws JsonException if JSON encoding fails
      */
     public function formatResult(mixed $promptGenerationResult): array
     {
@@ -92,7 +98,7 @@ class PromptReference extends ElementReference
             throw new RuntimeException('Prompt generator method must return an array of messages.');
         }
 
-        if (empty($promptGenerationResult)) {
+        if ([] === $promptGenerationResult) {
             return [];
         }
 
@@ -114,7 +120,7 @@ class PromptReference extends ElementReference
 
             if ($hasPromptMessages) {
                 $result = [];
-                foreach ($promptGenerationResult as $index => $item) {
+                foreach ($promptGenerationResult as $item) {
                     if ($item instanceof PromptMessage) {
                         $result[] = $item;
                     } else {

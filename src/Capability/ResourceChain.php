@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability;
 
+use Throwable;
 use Mcp\Capability\Resource\CollectionInterface;
 use Mcp\Capability\Resource\IdentifierInterface;
 use Mcp\Capability\Resource\MetadataInterface;
@@ -66,7 +71,7 @@ class ResourceChain implements CollectionInterface, ResourceReaderInterface
             if ($item instanceof ResourceReaderInterface && $request->uri === $item->getUri()) {
                 try {
                     return $item->read($request);
-                } catch (\Throwable $e) {
+                } catch (Throwable $e) {
                     throw new ResourceReadException($request, $e);
                 }
             }

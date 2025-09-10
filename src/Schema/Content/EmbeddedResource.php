@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\Content;
 
+use SplFileInfo;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Annotations;
@@ -114,7 +119,7 @@ class EmbeddedResource extends Content
         return new self(new BlobResourceContents($uri, $mimeType, base64_encode($content)), $annotations);
     }
 
-    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?Annotations $annotations = null): self
+    public static function fromSplFileInfo(string $uri, SplFileInfo $file, ?string $explicitMimeType = null, ?Annotations $annotations = null): self
     {
         $content = file_get_contents($file->getPathname());
         if (false === $content) {
@@ -137,7 +142,7 @@ class EmbeddedResource extends Content
             'type' => $this->type,
             'resource' => $this->resource,
         ];
-        if (null !== $this->annotations) {
+        if ($this->annotations instanceof Annotations) {
             $data['annotations'] = $this->annotations;
         }
 

@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema;
 
+use JsonSerializable;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
@@ -29,7 +34,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Resource implements \JsonSerializable
+class Resource implements JsonSerializable
 {
     /**
      * Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.
@@ -86,7 +91,7 @@ class Resource implements \JsonSerializable
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
-            size: isset($data['size']) ? (int) $data['size'] : null
+            size: $data['size'] ?? null
         );
     }
 
@@ -112,7 +117,7 @@ class Resource implements \JsonSerializable
         if (null !== $this->mimeType) {
             $data['mimeType'] = $this->mimeType;
         }
-        if (null !== $this->annotations) {
+        if ($this->annotations instanceof Annotations) {
             $data['annotations'] = $this->annotations;
         }
         if (null !== $this->size) {

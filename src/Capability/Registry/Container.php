@@ -1,16 +1,25 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Registry;
 
+use ReflectionClass;
+use ReflectionException;
+use Throwable;
+use ReflectionParameter;
+use ReflectionNamedType;
 use Mcp\Exception\ContainerException;
 use Mcp\Exception\ServiceNotFoundException;
 use Psr\Container\ContainerExceptionInterface;
@@ -69,7 +78,7 @@ final class Container implements ContainerInterface
 
         try {
             // 3. Reflect on the class
-            $reflector = new \ReflectionClass($id);
+            $reflector = new ReflectionClass($id);
 
             // Check if class is instantiable (abstract classes, interfaces cannot be directly instantiated)
             if (!$reflector->isInstantiable()) {
@@ -101,11 +110,11 @@ final class Container implements ContainerInterface
             $this->instances[$id] = $instance;
 
             return $instance;
-        } catch (\ReflectionException $e) {
+        } catch (ReflectionException $e) {
             throw new ContainerException(\sprintf('Reflection failed for %s.', $id), 0, $e);
         } catch (ContainerExceptionInterface $e) { // Re-throw container exceptions directly
             throw $e;
-        } catch (\Throwable $e) { // Catch other instantiation errors
+        } catch (Throwable $e) { // Catch other instantiation errors
             throw new ContainerException("Failed to instantiate or resolve dependencies for '{$id}': ".$e->getMessage(), (int) $e->getCode(), $e);
         } finally {
             // 7. Remove from resolving stack once done (success or failure)
@@ -118,12 +127,12 @@ final class Container implements ContainerInterface
      *
      * @throws ContainerExceptionInterface if a required dependency cannot be resolved
      */
-    private function resolveParameter(\ReflectionParameter $parameter, string $consumerClassId): mixed
+    private function resolveParameter(ReflectionParameter $parameter, string $consumerClassId): mixed
     {
         // Check for type hint
         $type = $parameter->getType();
 
-        if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+        if ($type instanceof ReflectionNamedType && !$type->isBuiltin()) {
             // Type hint is a class or interface name
             $typeName = $type->getName();
             try {
@@ -152,12 +161,12 @@ final class Container implements ContainerInterface
         }
 
         // Check if it was a built-in type without a default (unresolvable by this basic container)
-        if ($type instanceof \ReflectionNamedType && $type->isBuiltin()) {
+        if ($type instanceof ReflectionNamedType && $type->isBuiltin()) {
             throw new ContainerException("Cannot auto-wire built-in type '{$type->getName()}' for required parameter \${$parameter->getName()} in '{$consumerClassId}' constructor. Provide a default value or use a more advanced container.");
         }
 
         // Check if it was a union/intersection type without a default (also unresolvable)
-        if (null !== $type && !$type instanceof \ReflectionNamedType) {
+        if (null !== $type && !$type instanceof ReflectionNamedType) {
             throw new ContainerException("Cannot auto-wire complex type (union/intersection) for required parameter \${$parameter->getName()} in '{$consumerClassId}' constructor. Provide a default value or use a more advanced container.");
         }
 

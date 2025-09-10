@@ -1,21 +1,28 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Discovery;
 
+use JsonException;
+use Throwable;
 use Mcp\Exception\InvalidArgumentException;
 use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use stdClass;
 
 /**
  * Validates data against JSON Schema definitions using opis/json-schema.
@@ -33,7 +40,7 @@ class SchemaValidator
     private ?Validator $jsonSchemaValidator = null;
 
     public function __construct(
-        private LoggerInterface $logger = new NullLogger(),
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -47,8 +54,8 @@ class SchemaValidator
      */
     public function validateAgainstJsonSchema(mixed $data, array|object $schema): array
     {
-        if (\is_array($data) && empty($data)) {
-            $data = new \stdClass();
+        if ([] === $data) {
+            $data = new stdClass();
         }
 
         try {
@@ -67,7 +74,7 @@ class SchemaValidator
             // --- Data Preparation ---
             // Opis Validator generally prefers objects for object validation
             $dataToValidate = $this->convertDataForValidator($data);
-        } catch (\JsonException $e) {
+        } catch (JsonException $e) {
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation (JSON conversion failed).', ['exception' => $e]);
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Invalid schema definition provided (JSON error).']];
@@ -75,7 +82,7 @@ class SchemaValidator
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation.', ['exception' => $e]);
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => $e->getMessage()]];
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('MCP SDK: Error preparing data/schema for validation.', ['exception' => $e]);
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Internal validation preparation error.']];
@@ -85,7 +92,7 @@ class SchemaValidator
 
         try {
             $result = $validator->validate($dataToValidate, $schemaObject);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             $this->logger->error('MCP SDK: JSON Schema validation failed internally.', [
                 'exception_message' => $e->getMessage(),
                 'exception_trace' => $e->getTraceAsString(),
@@ -103,11 +110,11 @@ class SchemaValidator
         $formattedErrors = [];
         $topError = $result->error();
 
-        if ($topError) {
+        if ($topError instanceof ValidationError) {
             $this->collectSubErrors($topError, $formattedErrors);
         }
 
-        if (empty($formattedErrors) && $topError) { // Fallback
+        if ([] === $formattedErrors && $topError instanceof ValidationError) { // Fallback
             $formattedErrors[] = [
                 'pointer' => $this->formatJsonPointerPath($topError->data()->path()),
                 'keyword' => $topError->keyword(),
@@ -123,7 +130,7 @@ class SchemaValidator
      */
     private function getJsonSchemaValidator(): Validator
     {
-        if (null === $this->jsonSchemaValidator) {
+        if (!$this->jsonSchemaValidator instanceof Validator) {
             $this->jsonSchemaValidator = new Validator();
             // Potentially configure resolver here if needed later
         }
@@ -138,20 +145,21 @@ class SchemaValidator
     {
         if (\is_array($data)) {
             // Check if it's an associative array (keys are not sequential numbers 0..N-1)
-            if (!empty($data) && array_keys($data) !== range(0, \count($data) - 1)) {
-                $obj = new \stdClass();
+            if ([] !== $data && array_keys($data) !== range(0, \count($data) - 1)) {
+                $obj = new stdClass();
                 foreach ($data as $key => $value) {
                     $obj->{$key} = $this->convertDataForValidator($value);
                 }
 
                 return $obj;
-            } else {
-                // It's a list (sequential array), convert items recursively
-                return array_map([$this, 'convertDataForValidator'], $data);
             }
-        } elseif (\is_object($data) && $data instanceof \stdClass) {
+
+            // It's a list (sequential array), convert items recursively
+            return array_map([$this, 'convertDataForValidator'], $data);
+        }
+        if ($data instanceof stdClass) {
             // Deep copy/convert stdClass objects as well
-            $obj = new \stdClass();
+            $obj = new stdClass();
             foreach (get_object_vars($data) as $key => $value) {
                 $obj->{$key} = $this->convertDataForValidator($value);
             }
@@ -171,7 +179,7 @@ class SchemaValidator
     private function collectSubErrors(ValidationError $error, array &$collectedErrors): void
     {
         $subErrors = $error->subErrors();
-        if (empty($subErrors)) {
+        if ([] === $subErrors) {
             $collectedErrors[] = [
                 'pointer' => $this->formatJsonPointerPath($error->data()->path()),
                 'keyword' => $error->keyword(),
@@ -191,10 +199,10 @@ class SchemaValidator
      */
     private function formatJsonPointerPath(?array $pathComponents): string
     {
-        if (empty($pathComponents)) {
+        if (null === $pathComponents || [] === $pathComponents) {
             return '/';
         }
-        $escapedComponents = array_map(function ($component) {
+        $escapedComponents = array_map(function ($component): string {
             $componentStr = (string) $component;
 
             return str_replace(['~', '/'], ['~0', '~1'], $componentStr);
@@ -215,7 +223,7 @@ class SchemaValidator
         switch (strtolower($keyword)) {
             case 'required':
                 $missing = $args['missing'] ?? [];
-                $formattedMissing = implode(', ', array_map(fn ($p) => "`{$p}`", $missing));
+                $formattedMissing = implode(', ', array_map(fn ($p): string => "`{$p}`", $missing));
                 $message = "Missing required properties: {$formattedMissing}.";
                 break;
             case 'type':
@@ -233,10 +241,10 @@ class SchemaValidator
                 } else {
                     $this->logger->warning("MCP SDK: Could not retrieve 'enum' values from schema info for error.", ['error_args' => $args]);
                 }
-                if (empty($allowedValues)) {
+                if ([] === $allowedValues) {
                     $message = 'Value does not match the allowed enumeration.';
                 } else {
-                    $formattedAllowed = array_map(function ($v) { /* ... formatting logic ... */
+                    $formattedAllowed = array_map(function ($v): string { /* ... formatting logic ... */
                         if (\is_string($v)) {
                             return '"'.$v.'"';
                         }
@@ -309,7 +317,7 @@ class SchemaValidator
                 break;
             case 'additionalProperties': // Corrected casing
                 $unexpected = $args['properties'] ?? [];
-                $formattedUnexpected = implode(', ', array_map(fn ($p) => "`{$p}`", $unexpected));
+                $formattedUnexpected = implode(', ', array_map(fn ($p): string => "`{$p}`", $unexpected));
                 $message = "Object contains unexpected additional properties: {$formattedUnexpected}.";
                 break;
             case 'format':
@@ -320,7 +328,7 @@ class SchemaValidator
                 $builtInMessage = $error->message();
                 if ($builtInMessage && 'The data must match the schema' !== $builtInMessage) {
                     $placeholders = $args;
-                    $builtInMessage = preg_replace_callback('/\{(\w+)\}/', function ($match) use ($placeholders) {
+                    $builtInMessage = preg_replace_callback('/\{(\w+)\}/', function (array $match) use ($placeholders): string|false {
                         $key = $match[1];
                         $value = $placeholders[$key] ?? '{'.$key.'}';
 

@@ -1,15 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\Content;
+
+use JsonSerializable;
 
 /**
  * The contents of a specific resource or sub-resource.
@@ -21,7 +27,7 @@ namespace Mcp\Schema\Content;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-abstract class ResourceContents implements \JsonSerializable
+abstract class ResourceContents implements JsonSerializable
 {
     /**
      * @param string      $uri      the URI of the resource or sub-resource

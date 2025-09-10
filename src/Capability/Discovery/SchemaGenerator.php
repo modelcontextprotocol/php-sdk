@@ -1,18 +1,34 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Discovery;
 
+use ReflectionMethod;
+use ReflectionFunction;
+use ReflectionAttribute;
+use stdClass;
+use ReflectionNamedType;
+use ReflectionEnum;
+use BackedEnum;
+use UnitEnum;
+use ReflectionUnionType;
+use ReflectionIntersectionType;
 use Mcp\Capability\Attribute\Schema;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
+use ReflectionParameter;
+use ReflectionType;
 
 /**
  * Generates JSON Schema for method parameters with intelligent Schema attribute handling.
@@ -24,20 +40,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *
  * @phpstan-import-type SchemaAttributeData from Schema
  *
- * @phpstan-type ParameterInfo array{
- *     name: string,
- *     doc_block_tag: Param|null,
- *     reflection_param: \ReflectionParameter,
- *     reflection_type_object: \ReflectionType|null,
- *     type_string: string,
- *     description: string|null,
- *     required: bool,
- *     allows_null: bool,
- *     default_value: mixed|null,
- *     has_default: bool,
- *     is_variadic: bool,
- *     parameter_schema: array<string, mixed>
- * }
+ * @phpstan-type ParameterInfo array{name: string, doc_block_tag: Param|null, reflection_param: ReflectionParameter, reflection_type_object: ReflectionType|null, type_string: string, description: string|null, required: bool, allows_null: bool, default_value: mixed|null, has_default: bool, is_variadic: bool, parameter_schema: array<string, mixed>}
  * @phpstan-type InferredParameterSchema array{
  *     type?: string|array,
  *     description?: string,
@@ -66,7 +69,7 @@ class SchemaGenerator
      *
      * @return array<string, mixed>
      */
-    public function generate(\ReflectionMethod|\ReflectionFunction $reflection): array
+    public function generate(ReflectionMethod|ReflectionFunction $reflection): array
     {
         $methodSchema = $this->extractMethodLevelSchema($reflection);
 
@@ -84,10 +87,10 @@ class SchemaGenerator
      *
      * @return SchemaAttributeData
      */
-    private function extractMethodLevelSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    private function extractMethodLevelSchema(ReflectionMethod|ReflectionFunction $reflection): ?array
     {
-        $schemaAttrs = $reflection->getAttributes(Schema::class, \ReflectionAttribute::IS_INSTANCEOF);
-        if (empty($schemaAttrs)) {
+        $schemaAttrs = $reflection->getAttributes(Schema::class, ReflectionAttribute::IS_INSTANCEOF);
+        if ([] === $schemaAttrs) {
             return null;
         }
 
@@ -102,10 +105,10 @@ class SchemaGenerator
      *
      * @return SchemaAttributeData
      */
-    private function extractParameterLevelSchema(\ReflectionParameter $parameter): array
+    private function extractParameterLevelSchema(ReflectionParameter $parameter): array
     {
-        $schemaAttrs = $parameter->getAttributes(Schema::class, \ReflectionAttribute::IS_INSTANCEOF);
-        if (empty($schemaAttrs)) {
+        $schemaAttrs = $parameter->getAttributes(Schema::class, ReflectionAttribute::IS_INSTANCEOF);
+        if ([] === $schemaAttrs) {
             return [];
         }
 
@@ -164,7 +167,7 @@ class SchemaGenerator
 
         // Clean up empty properties
         if (empty($schema['properties'])) {
-            $schema['properties'] = new \stdClass();
+            $schema['properties'] = new stdClass();
         }
         if (empty($schema['required'])) {
             unset($schema['required']);
@@ -196,7 +199,7 @@ class SchemaGenerator
         // Parameter-level takes highest precedence
         $parameterLevelSchema = $paramInfo['parameter_schema'];
         if (!empty($parameterLevelSchema)) {
-            $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
+            return array_merge($mergedSchema, $parameterLevelSchema);
         }
 
         return $mergedSchema;
@@ -270,7 +273,7 @@ class SchemaGenerator
         // If no items specified by Schema attribute, infer from type
         if (!isset($paramSchema['items'])) {
             $itemJsonTypes = $this->mapPhpTypeToJsonSchemaType($paramInfo['type_string']);
-            $nonNullItemTypes = array_filter($itemJsonTypes, fn ($t) => 'null' !== $t);
+            $nonNullItemTypes = array_filter($itemJsonTypes, fn (string $t): bool => 'null' !== $t);
 
             if (1 === \count($nonNullItemTypes)) {
                 $paramSchema['items'] = ['type' => $nonNullItemTypes[0]];
@@ -315,15 +318,15 @@ class SchemaGenerator
     {
         $reflectionType = $paramInfo['reflection_type_object'];
 
-        if (!($reflectionType instanceof \ReflectionNamedType) || $reflectionType->isBuiltin() || !enum_exists($reflectionType->getName())) {
+        if (!($reflectionType instanceof ReflectionNamedType) || $reflectionType->isBuiltin() || !enum_exists($reflectionType->getName())) {
             return $paramSchema;
         }
 
         $enumClass = $reflectionType->getName();
-        $enumReflection = new \ReflectionEnum($enumClass);
+        $enumReflection = new ReflectionEnum($enumClass);
         $backingTypeReflection = $enumReflection->getBackingType();
 
-        if ($enumReflection->isBacked() && $backingTypeReflection instanceof \ReflectionNamedType) {
+        if ($enumReflection->isBacked() && $backingTypeReflection instanceof ReflectionNamedType) {
             $paramSchema['enum'] = array_column($enumClass::cases(), 'value');
             $jsonBackingType = match ($backingTypeReflection->getName()) {
                 'int' => 'integer',
@@ -364,7 +367,7 @@ class SchemaGenerator
         $allowsNull = $paramInfo['allows_null'];
 
         // Handle object-like arrays using array{} syntax
-        if (preg_match('/^array\s*{/i', $typeString)) {
+        if (preg_match('/^array\s*{/i', (string) $typeString)) {
             $objectSchema = $this->inferArrayItemsType($typeString);
             if (\is_array($objectSchema) && isset($objectSchema['properties'])) {
                 $paramSchema = array_merge($paramSchema, $objectSchema);
@@ -401,7 +404,7 @@ class SchemaGenerator
      *
      * @return ParameterInfo[]
      */
-    private function parseParametersInfo(\ReflectionMethod|\ReflectionFunction $reflection): array
+    private function parseParametersInfo(ReflectionMethod|ReflectionFunction $reflection): array
     {
         $docComment = $reflection->getDocComment() ?: null;
         $docBlock = $this->docBlockParser->parseDocBlock($docComment);
@@ -421,11 +424,11 @@ class SchemaGenerator
 
             $parameterSchema = $this->extractParameterLevelSchema($rp);
 
-            if ($defaultValue instanceof \BackedEnum) {
+            if ($defaultValue instanceof BackedEnum) {
                 $defaultValue = $defaultValue->value;
             }
 
-            if ($defaultValue instanceof \UnitEnum) {
+            if ($defaultValue instanceof UnitEnum) {
                 $defaultValue = $defaultValue->name;
             }
 
@@ -460,7 +463,7 @@ class SchemaGenerator
     /**
      * Determines the type string for a parameter, prioritizing DocBlock.
      */
-    private function getParameterTypeString(\ReflectionParameter $rp, ?Param $paramTag): string
+    private function getParameterTypeString(ReflectionParameter $rp, ?Param $paramTag): string
     {
         $docBlockType = $this->docBlockParser->getParamTypeString($paramTag);
         $isDocBlockTypeGeneric = false;
@@ -486,12 +489,15 @@ class SchemaGenerator
 
         // Otherwise, use the DocBlock type if it was valid and non-generic
         if (null !== $docBlockType && !$isDocBlockTypeGeneric) {
-            // Consider if DocBlock adds nullability missing from reflection
-            if (false !== stripos($docBlockType, 'null') && $reflectionTypeString && false === stripos($reflectionTypeString, 'null') && !str_ends_with($reflectionTypeString, '|null')) {
-                // If reflection didn't capture null, but docblock did, append |null (if not already mixed)
-                if ('mixed' !== $reflectionTypeString) {
-                    return $reflectionTypeString.'|null';
-                }
+            if (!(false !== stripos($docBlockType, 'null') && $reflectionTypeString && false === stripos($reflectionTypeString, 'null'))) {
+                return $docBlockType;
+            }
+            if (str_ends_with($reflectionTypeString, '|null')) {
+                return $docBlockType;
+            }
+            // If reflection didn't capture null, but docblock did, append |null (if not already mixed)
+            if ('mixed' !== $reflectionTypeString) {
+                return $reflectionTypeString.'|null';
             }
 
             return $docBlockType;
@@ -509,27 +515,27 @@ class SchemaGenerator
     /**
      * Converts a ReflectionType object into a type string representation.
      */
-    private function getTypeStringFromReflection(?\ReflectionType $type, bool $nativeAllowsNull): string
+    private function getTypeStringFromReflection(?ReflectionType $type, bool $nativeAllowsNull): string
     {
-        if (null === $type) {
+        if (!$type instanceof ReflectionType) {
             return 'mixed';
         }
 
         $types = [];
-        if ($type instanceof \ReflectionUnionType) {
+        if ($type instanceof ReflectionUnionType) {
             foreach ($type->getTypes() as $innerType) {
                 $types[] = $this->getTypeStringFromReflection($innerType, $innerType->allowsNull());
             }
             if ($nativeAllowsNull) {
-                $types = array_filter($types, fn ($t) => 'null' !== strtolower($t));
+                $types = array_filter($types, fn (string $t): bool => 'null' !== strtolower($t));
             }
             $typeString = implode('|', array_unique(array_filter($types)));
-        } elseif ($type instanceof \ReflectionIntersectionType) {
+        } elseif ($type instanceof ReflectionIntersectionType) {
             foreach ($type->getTypes() as $innerType) {
                 $types[] = $this->getTypeStringFromReflection($innerType, false);
             }
             $typeString = implode('&', array_unique(array_filter($types)));
-        } elseif ($type instanceof \ReflectionNamedType) {
+        } elseif ($type instanceof ReflectionNamedType) {
             $typeString = $type->getName();
         } else {
             return 'mixed';
@@ -544,29 +550,27 @@ class SchemaGenerator
         };
 
         $isNullable = $nativeAllowsNull;
-        if ($type instanceof \ReflectionNamedType && 'mixed' === $type->getName()) {
+        if ($type instanceof ReflectionNamedType && 'mixed' === $type->getName()) {
             $isNullable = true;
         }
 
-        if ($type instanceof \ReflectionUnionType && !$nativeAllowsNull) {
+        if ($type instanceof ReflectionUnionType && !$nativeAllowsNull) {
             foreach ($type->getTypes() as $innerType) {
-                if ($innerType instanceof \ReflectionNamedType && 'null' === strtolower($innerType->getName())) {
+                if ($innerType instanceof ReflectionNamedType && 'null' === strtolower($innerType->getName())) {
                     $isNullable = true;
                     break;
                 }
             }
         }
 
-        if ($isNullable && 'mixed' !== $typeString && false === stripos($typeString, 'null')) {
-            if (!str_ends_with($typeString, '|null') && !str_ends_with($typeString, '&null')) {
-                $typeString .= '|null';
-            }
+        if ($isNullable && 'mixed' !== $typeString && false === stripos($typeString, 'null') && (!str_ends_with($typeString, '|null') && !str_ends_with($typeString, '&null'))) {
+            $typeString .= '|null';
         }
 
         // Remove leading backslash from class names, but handle built-ins like 'int' or unions like 'int|string'
         if (str_contains($typeString, '\\')) {
             $parts = preg_split('/([|&])/', $typeString, -1, \PREG_SPLIT_DELIM_CAPTURE);
-            $processedParts = array_map(fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
+            $processedParts = array_map(fn ($part): string => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
             $typeString = implode('', $processedParts);
         }
 
@@ -716,11 +720,11 @@ class SchemaGenerator
         }
 
         // Process the last property
-        if (!empty($buffer)) {
+        if ('' !== $buffer && '0' !== $buffer) {
             $this->parsePropertyDefinition(trim($buffer), $properties, $required);
         }
 
-        if (!empty($properties)) {
+        if ([] !== $properties) {
             return [
                 'type' => 'object',
                 'properties' => $properties,

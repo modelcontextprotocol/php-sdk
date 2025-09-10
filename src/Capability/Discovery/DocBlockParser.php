@@ -1,20 +1,26 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Capability\Discovery;
 
+use Throwable;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
+use phpDocumentor\Reflection\Type;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -25,7 +31,7 @@ use Psr\Log\NullLogger;
  */
 class DocBlockParser
 {
-    private DocBlockFactoryInterface $docBlockFactory;
+    private readonly DocBlockFactoryInterface $docBlockFactory;
 
     public function __construct(
         ?DocBlockFactoryInterface $docBlockFactory = null,
@@ -39,12 +45,12 @@ class DocBlockParser
      */
     public function parseDocBlock(string|false|null $docComment): ?DocBlock
     {
-        if (false === $docComment || null === $docComment || empty($docComment)) {
+        if (false === $docComment || null === $docComment || ('' === $docComment || '0' === $docComment)) {
             return null;
         }
         try {
             return $this->docBlockFactory->create($docComment);
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             // Log error or handle gracefully if invalid DocBlock syntax is encountered
             $this->logger->warning('Failed to parse DocBlock', [
                 'error' => $e->getMessage(),
@@ -60,7 +66,7 @@ class DocBlockParser
      */
     public function getSummary(?DocBlock $docBlock): ?string
     {
-        if (!$docBlock) {
+        if (!$docBlock instanceof DocBlock) {
             return null;
         }
         $summary = trim($docBlock->getSummary());
@@ -73,7 +79,7 @@ class DocBlockParser
      */
     public function getDescription(?DocBlock $docBlock): ?string
     {
-        if (!$docBlock) {
+        if (!$docBlock instanceof DocBlock) {
             return null;
         }
         $summary = trim($docBlock->getSummary());
@@ -82,10 +88,10 @@ class DocBlockParser
         if ($summary && $descriptionBody) {
             return $summary."\n\n".$descriptionBody;
         }
-        if ($summary) {
+        if ('' !== $summary && '0' !== $summary) {
             return $summary;
         }
-        if ($descriptionBody) {
+        if ('' !== $descriptionBody && '0' !== $descriptionBody) {
             return $descriptionBody;
         }
 
@@ -99,7 +105,7 @@ class DocBlockParser
      */
     public function getParamTags(?DocBlock $docBlock): array
     {
-        if (!$docBlock) {
+        if (!$docBlock instanceof DocBlock) {
             return [];
         }
 
@@ -119,7 +125,7 @@ class DocBlockParser
      */
     public function getParamDescription(?Param $paramTag): ?string
     {
-        return $paramTag ? (trim((string) $paramTag->getDescription()) ?: null) : null;
+        return $paramTag instanceof Param ? (trim((string) $paramTag->getDescription()) ?: null) : null;
     }
 
     /**
@@ -127,9 +133,9 @@ class DocBlockParser
      */
     public function getParamTypeString(?Param $paramTag): ?string
     {
-        if ($paramTag && $paramTag->getType()) {
+        if ($paramTag instanceof Param && $paramTag->getType() instanceof Type) {
             $typeFromTag = trim((string) $paramTag->getType());
-            if (!empty($typeFromTag)) {
+            if ('' !== $typeFromTag && '0' !== $typeFromTag) {
                 return ltrim($typeFromTag, '\\');
             }
         }

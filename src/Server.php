@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp;
 
+use JsonException;
 use Mcp\JsonRpc\Handler;
 use Mcp\Server\ServerBuilder;
 use Mcp\Server\TransportInterface;
@@ -54,7 +59,7 @@ final class Server
 
                         $transport->send($response);
                     }
-                } catch (\JsonException $e) {
+                } catch (JsonException $e) {
                     $this->logger->error('Failed to encode response to JSON.', [
                         'message' => $message,
                         'exception' => $e,

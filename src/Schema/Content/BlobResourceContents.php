@@ -1,16 +1,21 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Schema\Content;
 
+use SplFileInfo;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
@@ -64,7 +69,7 @@ class BlobResourceContents extends ResourceContents
         return new self($uri, $mimeType, base64_encode($blob));
     }
 
-    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null): self
+    public static function fromSplFileInfo(string $uri, SplFileInfo $file, ?string $explicitMimeType = null): self
     {
         $mimeType = $explicitMimeType ?? mime_content_type($file->getPathname());
         $blob = file_get_contents($file->getPathname());
