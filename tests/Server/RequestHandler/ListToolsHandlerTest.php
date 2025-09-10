@@ -42,7 +42,7 @@ class ListToolsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(3, $result->tools);
@@ -64,7 +64,7 @@ class ListToolsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(3, $result->tools);
@@ -83,13 +83,15 @@ class ListToolsHandlerTest extends TestCase
         $firstPageRequest = $this->createListToolsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListToolsResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(3, $result->tools);
@@ -108,13 +110,15 @@ class ListToolsHandlerTest extends TestCase
         $firstPageRequest = $this->createListToolsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListToolsResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListToolsRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(2, $result->tools);
@@ -135,7 +139,7 @@ class ListToolsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(2, $result->tools);
@@ -155,7 +159,7 @@ class ListToolsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(0, $result->tools);
@@ -203,7 +207,7 @@ class ListToolsHandlerTest extends TestCase
         $response = $this->handler->handle($request);
 
         // Assert
-        /** @var ListToolsHandler $result */
+        /** @var ListToolsResult $result */
         $result = $response->result;
         $this->assertInstanceOf(ListToolsResult::class, $result);
         $this->assertCount(0, $result->tools);
@@ -222,8 +226,12 @@ class ListToolsHandlerTest extends TestCase
         $response2 = $this->handler->handle($request);
 
         // Assert
-        $this->assertEquals($response1->result->nextCursor, $response2->result->nextCursor);
-        $this->assertEquals($response1->result->tools, $response2->result->tools);
+        /** @var ListToolsResult $result1 */
+        $result1 = $response1->result;
+        /** @var ListToolsResult $result2 */
+        $result2 = $response2->result;
+        $this->assertEquals($result1->nextCursor, $result2->nextCursor);
+        $this->assertEquals($result1->tools, $result2->tools);
     }
 
     private function addToolsToRegistry(int $count): void
@@ -231,7 +239,11 @@ class ListToolsHandlerTest extends TestCase
         for ($i = 0; $i < $count; ++$i) {
             $tool = new Tool(
                 name: "tool_$i",
-                inputSchema: ['type' => 'object'],
+                inputSchema: [
+                    'type' => 'object',
+                    'properties' => [],
+                    'required' => []
+                ],
                 description: "Test tool $i",
                 annotations: null
             );
@@ -242,13 +254,16 @@ class ListToolsHandlerTest extends TestCase
 
     private function createListToolsRequest(?string $cursor = null): ListToolsRequest
     {
-        $mock = $this->getMockBuilder(ListToolsRequest::class)
-            ->setConstructorArgs([$cursor])
-            ->onlyMethods(['getId'])
-            ->getMock();
-
-        $mock->method('getId')->willReturn('test-request-id');
-
-        return $mock;
+        $data = [
+            'jsonrpc' => '2.0',
+            'id' => 'test-request-id',
+            'method' => 'tools/list',
+        ];
+        
+        if ($cursor !== null) {
+            $data['params'] = ['cursor' => $cursor];
+        }
+        
+        return ListToolsRequest::fromArray($data);
     }
 }
