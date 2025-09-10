@@ -305,7 +305,7 @@ class Registry
     }
 
     /**
-     * @return array<string, Tool>
+     * @return list<Tool>
      */
     public function getTools(?int $limit = null, ?string $cursor = null): array
     {
@@ -322,13 +322,13 @@ class Registry
     }
 
     /**
-     * @return array<string, resource>
+     * @return list<resource>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): array
     {
         $resources = [];
-        foreach ($this->resources as $resource) {
-            $resources[] = $resource->schema;
+        foreach ($this->resources as $resourceReference) {
+            $resources[] = $resourceReference->schema;
         }
 
         if (null === $limit) {
@@ -339,7 +339,7 @@ class Registry
     }
 
     /**
-     * @return array<string, Prompt>
+     * @return list<Prompt>
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): array
     {
@@ -356,45 +356,30 @@ class Registry
     }
 
     /**
-     * Get total count of tools.
-     */
-    public function getToolsCount(): int
-    {
-        return \count($this->tools);
-    }
-
-    /**
-     * Get total count of prompts.
-     */
-    public function getPromptsCount(): int
-    {
-        return \count($this->prompts);
-    }
-
-    /**
-     * Get total count of resources.
-     */
-    public function getResourcesCount(): int
-    {
-        return \count($this->resources);
-    }
-
-    /**
-     * @return array<string, ResourceTemplate>
+     * @return list<ResourceTemplate> 
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
     {
-        $templates = array_map(fn ($template) => $template->resourceTemplate, $this->resourceTemplates);
-
-        if (null === $limit) {
+        $templates = [];
+        foreach ($this->resourceTemplates as $templateReference) {
+            $templates[] = $templateReference->resourceTemplate;
+        }
+        
+        if ($limit === null) {
             return $templates;
         }
-
+        
         return $this->paginateResults($templates, $limit, $cursor);
     }
 
     /**
-     * @throws InvalidCursorException
+     * Helper method to paginate results using cursor-based pagination.
+     * 
+     * @param list<mixed> $items The full array of items to paginate
+     * @param int $limit Maximum number of items to return
+     * @param string|null $cursor Base64 encoded offset position
+     * @return list<mixed> Paginated results
+     * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
      */
     private function paginateResults(array $items, int $limit, ?string $cursor = null): array
     {
@@ -406,35 +391,39 @@ class Registry
                 throw new InvalidCursorException($cursor);
             }
 
-            $offset = $decodedCursor;
-
+            $offset = (int) $decodedCursor;
+            
             // Validate offset is within reasonable bounds
             if ($offset < 0 || $offset > \count($items)) {
                 throw new InvalidCursorException($cursor);
             }
         }
-
-        return \array_slice($items, $offset, $limit);
+        
+        // Return slice of items starting from offset
+        return array_values(array_slice($items, $offset, $limit, true));
     }
 
     /**
      * Calculate next cursor for pagination.
+     * @param list<mixed> $allItems The complete array of items
+     * @param string|null $currentCursor Current cursor position
+     * @param int $returnedCount Number of items actually returned
      */
-    public function calculateNextCursor(int $totalCount, ?string $currentCursor, int $returnedCount): ?string
+    public function calculateNextCursor(array $allItems, ?string $currentCursor, int $returnedCount): ?string
     {
         $currentOffset = 0;
 
         if (null !== $currentCursor) {
             $decodedCursor = base64_decode($currentCursor, true);
             if (false !== $decodedCursor && is_numeric($decodedCursor)) {
-                $currentOffset = $decodedCursor;
+                $currentOffset = (int) $decodedCursor;
             }
         }
 
         $nextOffset = $currentOffset + $returnedCount;
 
         // If we have more items available, return next cursor
-        if ($nextOffset < $totalCount) {
+        if ($nextOffset < count($allItems)) {
             return base64_encode((string) $nextOffset);
         }
 
