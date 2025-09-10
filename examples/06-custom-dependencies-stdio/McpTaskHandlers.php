@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Example\DependenciesStdioExample;
@@ -20,9 +24,9 @@ use Psr\Log\LoggerInterface;
 class McpTaskHandlers
 {
     public function __construct(
-        private TaskRepositoryInterface $taskRepo,
-        private StatsServiceInterface $statsService,
-        private LoggerInterface $logger,
+        private readonly TaskRepositoryInterface $taskRepo,
+        private readonly StatsServiceInterface $statsService,
+        private readonly LoggerInterface $logger,
     ) {
         $this->logger->info('McpTaskHandlers instantiated with dependencies.');
     }

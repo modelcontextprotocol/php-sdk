@@ -1,5 +1,24 @@
 <?php
 
+/**
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
+ */
+
+use App\Builder;
+use Mcp\JsonRpc\Handler;
+use Mcp\JsonRpc\MessageFactory;
+use Mcp\Server;
+use Mcp\Server\Transport\StdioTransport;
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -21,17 +40,17 @@ $output = new SymfonyConsole\Output\ConsoleOutput($debug ? OutputInterface::VERB
 $logger = new SymfonyConsole\Logger\ConsoleLogger($output);
 
 // Configure the JsonRpcHandler and build the functionality
-$jsonRpcHandler = new Mcp\JsonRpc\Handler(
-    Mcp\JsonRpc\MessageFactory::make(),
-    App\Builder::buildMethodHandlers(),
+$jsonRpcHandler = new Handler(
+    MessageFactory::make(),
+    Builder::buildMethodHandlers(),
     $logger
 );
 
 // Set up the server
-$sever = new Mcp\Server($jsonRpcHandler, $logger);
+$sever = new Server($jsonRpcHandler, $logger);
 
 // Create the transport layer using Stdio
-$transport = new Mcp\Server\Transport\StdioTransport(logger: $logger);
+$transport = new StdioTransport(logger: $logger);
 
 // Start our application
 $sever->connect($transport);

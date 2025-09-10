@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Example\DependenciesStdioExample\Service;
@@ -19,11 +23,8 @@ class InMemoryTaskRepository implements TaskRepositoryInterface
 
     private int $nextTaskId = 1;
 
-    private LoggerInterface $logger;
-
-    public function __construct(LoggerInterface $logger)
+    public function __construct(private readonly LoggerInterface $logger)
     {
-        $this->logger = $logger;
         // Add some initial tasks
         $this->addTask('user1', 'Buy groceries');
         $this->addTask('user1', 'Write MCP example');
@@ -47,7 +48,7 @@ class InMemoryTaskRepository implements TaskRepositoryInterface
 
     public function getTasksForUser(string $userId): array
     {
-        return array_values(array_filter($this->tasks, fn ($task) => $task['userId'] === $userId && !$task['completed']));
+        return array_values(array_filter($this->tasks, fn (array $task): bool => $task['userId'] === $userId && !$task['completed']));
     }
 
     public function getAllTasks(): array

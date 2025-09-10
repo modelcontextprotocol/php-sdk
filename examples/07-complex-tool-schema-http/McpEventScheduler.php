@@ -1,12 +1,16 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Example\ComplexSchemaHttpExample;
@@ -19,7 +23,7 @@ use Psr\Log\LoggerInterface;
 class McpEventScheduler
 {
     public function __construct(
-        private LoggerInterface $logger,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -47,7 +51,7 @@ class McpEventScheduler
         ?array $attendees = null, // Optional array of strings, nullable
         bool $sendInvites = true,   // Optional with default
     ): array {
-        $this->logger->info("Tool 'schedule_event' called", compact('title', 'date', 'type', 'time', 'priority', 'attendees', 'sendInvites'));
+        $this->logger->info("Tool 'schedule_event' called", ['title' => $title, 'date' => $date, 'type' => $type, 'time' => $time, 'priority' => $priority, 'attendees' => $attendees, 'sendInvites' => $sendInvites]);
 
         // Simulate scheduling logic
         $eventDetails = [

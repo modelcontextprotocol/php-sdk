@@ -1,29 +1,30 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Example\DependenciesStdioExample\Service;
 
 class SystemStatsService implements StatsServiceInterface
 {
-    private TaskRepositoryInterface $taskRepository;
-
-    public function __construct(TaskRepositoryInterface $taskRepository)
+    public function __construct(private readonly TaskRepositoryInterface $taskRepository)
     {
-        $this->taskRepository = $taskRepository;
     }
 
     public function getSystemStats(): array
     {
         $allTasks = $this->taskRepository->getAllTasks();
-        $completed = \count(array_filter($allTasks, fn ($task) => $task['completed']));
+        $completed = \count(array_filter($allTasks, fn (array $task) => $task['completed']));
         $pending = \count($allTasks) - $completed;
 
         return [

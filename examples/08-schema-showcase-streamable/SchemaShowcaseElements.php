@@ -1,16 +1,22 @@
 <?php
 
-/*
+/**
  * This file is part of the official PHP MCP SDK.
  *
  * A collaboration between Symfony and the PHP Foundation.
  *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+ * Copyright (c) 2025 PHP SDK for Model Context Protocol
+ *
+ * For the full copyright and license information, please view
+ * the LICENSE file that was distributed with this source code.
+ *
+ * @see https://github.com/modelcontextprotocol/php-sdk
  */
 
 namespace Mcp\Example\SchemaShowcaseExample;
 
+use DateTime;
+use DateInterval;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 
@@ -111,7 +117,7 @@ class SchemaShowcaseElements
         if (null === $result) {
             return [
                 'error' => 'divide' === $operation ? 'Division by zero' : 'Invalid operation',
-                'inputs' => compact('first', 'second', 'operation', 'precision'),
+                'inputs' => ['first' => $first, 'second' => $second, 'operation' => $operation, 'precision' => $precision],
             ];
         }
 
@@ -192,7 +198,7 @@ class SchemaShowcaseElements
         }
 
         return [
-            'valid' => empty($errors),
+            'valid' => [] === $errors,
             'profile' => $profile,
             'errors' => $errors,
             'warnings' => $warnings,
@@ -249,10 +255,10 @@ class SchemaShowcaseElements
                 $processed = array_unique($processed);
                 break;
             case 'filter_short':
-                $processed = array_filter($processed, fn ($item) => \strlen($item) <= 10);
+                $processed = array_filter($processed, fn ($item): bool => \strlen((string) $item) <= 10);
                 break;
             case 'filter_long':
-                $processed = array_filter($processed, fn ($item) => \strlen($item) > 10);
+                $processed = array_filter($processed, fn ($item): bool => \strlen((string) $item) > 10);
                 break;
         }
 
@@ -400,9 +406,9 @@ class SchemaShowcaseElements
     ): array {
         fwrite(\STDERR, "Schedule event tool called: $title at $startTime\n");
 
-        $start = \DateTime::createFromFormat(\DateTime::ISO8601, $startTime);
+        $start = DateTime::createFromFormat(DateTime::ISO8601, $startTime);
         if (!$start) {
-            $start = \DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $startTime);
+            $start = DateTime::createFromFormat('Y-m-d\TH:i:s\Z', $startTime);
         }
 
         if (!$start) {
@@ -414,7 +420,7 @@ class SchemaShowcaseElements
         }
 
         $end = clone $start;
-        $end->add(new \DateInterval('PT'.($durationHours * 60).'M'));
+        $end->add(new DateInterval('PT'.($durationHours * 60).'M'));
 
         $event = [
             'id' => uniqid('event_'),
@@ -433,7 +439,7 @@ class SchemaShowcaseElements
             'info' => [
                 'attendee_count' => \count($attendees),
                 'is_all_day' => $durationHours >= 24,
-                'is_future' => $start > new \DateTime(),
+                'is_future' => $start > new DateTime(),
                 'timezone_note' => 'Times are in UTC',
             ],
         ];
