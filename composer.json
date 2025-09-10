@@ -29,12 +29,15 @@
         "symfony/uid": "^6.4 || ^7.3"
     },
     "require-dev": {
+        "captainhook/captainhook-phar": "^5.25",
         "ergebnis/composer-normalize": "^2.48",
         "ergebnis/license": "^2.7",
+        "ergebnis/php-cs-fixer-config": "^6.54",
         "php-cs-fixer/shim": "^3.84",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.5",
         "psr/cache": "^3.0",
+        "rector/rector": "^2.1",
         "symfony/console": "^6.4 || ^7.3",
         "symfony/process": "^6.4 || ^7.3"
     },
@@ -58,25 +61,33 @@
     },
     "config": {
         "allow-plugins": {
+            "captainhook/captainhook-phar": true,
             "ergebnis/composer-normalize": true
         },
         "sort-packages": true
     },
     "scripts": {
-        "post-install-cmd": [
-            "@composer normalize"
+        "post-install-cmd": "@composer normalize",
+        "post-update-cmd": "@composer normalize",
+        "ci": "@ci-stable",
+        "ci-lowest": [
+            "@deps-low",
+            "@cs",
+            "@phpstan",
+            "@tests"
         ],
-        "post-update-cmd": [
-            "@composer normalize"
+        "ci-stable": [
+            "@deps-stable",
+            "@cs",
+            "@phpstan",
+            "@tests"
         ],
-        "cs:fix": [
-            "vendor/bin/php-cs-fixer fix --diff --verbose"
-        ],
-        "phpstan": [
-            "vendor/bin/phpstan --memory-limit=-1"
-        ],
-        "tests": [
-            "vendor/bin/phpunit --testdox"
-        ]
+        "coverage": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-html=coverage",
+        "cs": "vendor/bin/php-cs-fixer fix --diff --verbose",
+        "deps-low": "composer update --prefer-lowest --prefer-stable --no-interaction",
+        "deps-stable": "composer update --prefer-stable --no-interaction",
+        "phpstan": "vendor/bin/phpstan --memory-limit=-1",
+        "rector": "vendor/bin/rector process",
+        "tests": "vendor/bin/phpunit"
     }
 }

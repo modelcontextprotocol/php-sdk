@@ -1,0 +1,24 @@
+{
+    "pre-push": {
+        "enabled": true,
+        "actions": [
+            {
+                "action": "composer run-script tests"
+            }
+        ]
+    },
+    "pre-commit": {
+        "enabled": true,
+        "actions": [
+            {
+                "action": "composer run-script cs"
+            },
+            {
+                "action": "composer run-script phpstan"
+            },
+            {
+                "action": "composer run-script rector"
+            }
+        ]
+    }
+}
