@@ -43,10 +43,12 @@ final class ListToolsHandler implements MethodHandlerInterface
     {
         \assert($message instanceof ListToolsRequest);
 
+        $allTools = $this->registry->getTools();
+
         $tools = $this->registry->getTools($this->pageSize, $message->cursor);
 
         $nextCursor = $this->registry->calculateNextCursor(
-            $this->registry->getToolsCount(),
+            $allTools,
             $message->cursor,
             \count($tools)
         );

@@ -42,10 +42,12 @@ final class ListResourcesHandler implements MethodHandlerInterface
     {
         \assert($message instanceof ListResourcesRequest);
 
+        $allResources = $this->registry->getResources();
+
         $resources = $this->registry->getResources($this->pageSize, $message->cursor);
 
         $nextCursor = $this->registry->calculateNextCursor(
-            $this->registry->getResourcesCount(),
+            $allResources,
             $message->cursor,
             \count($resources)
         );
