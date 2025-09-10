@@ -67,8 +67,14 @@
         "sort-packages": true
     },
     "scripts": {
-        "post-install-cmd": "@composer normalize",
-        "post-update-cmd": "@composer normalize",
+        "post-install-cmd": [
+            "@composer normalize",
+            "vendor/bin/captainhook install -f"
+        ],
+        "post-update-cmd": [
+            "@composer normalize",
+            "vendor/bin/captainhook install -f"
+        ],
         "ci": "@ci-stable",
         "ci-lowest": [
             "@deps-low",
