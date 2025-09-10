@@ -1,0 +1,55 @@
+# Composer dependencies
+/vendor/
+
+# Composer lock file (can be regenerated with composer install)
+/composer.lock
+
+# PHP error logs and cache files
+*.log
+/error_log
+/cache/
+/tmp/
+
+# macOS system files
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+
+# Windows system files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux system files
+*~
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Environment files (may contain sensitive data)
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# Build and distribution files
+/build/
+/dist/
+
+# Node modules (if any frontend assets are added later)
+/node_modules/
+
+# Test coverage reports
+/coverage/
+/phpunit.xml
+
+# PHPStan cache
+/.phpstan.cache

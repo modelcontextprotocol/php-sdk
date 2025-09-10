@@ -20,7 +20,8 @@ use Psr\Log\NullLogger;
  */
 class StdioTransport implements TransportInterface
 {
-    private string $buffer = '';
+    /** @var array<string, array<callable>> */
+    private array $listeners = [];
 
     /**
      * @param resource $input
@@ -30,35 +31,25 @@ class StdioTransport implements TransportInterface
         private $input = \STDIN,
         private $output = \STDOUT,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
+    ) {}
+
+    public function initialize(): void {}
+
+    public function on(string $event, callable $listener): void
+    {
+        if (!isset($this->listeners[$event])) {
+            $this->listeners[$event] = [];
+        }
+        $this->listeners[$event][] = $listener;
     }
 
-    public function initialize(): void
+    public function emit(string $event, mixed ...$args): void
     {
-    }
-
-    public function isConnected(): bool
-    {
-        return true;
-    }
-
-    public function receive(): \Generator
-    {
-        $line = fgets($this->input);
-
-        $this->logger->debug('Received message on StdioTransport.', [
-            'line' => $line,
-        ]);
-
-        if (false === $line) {
+        if (!isset($this->listeners[$event])) {
             return;
         }
-        $this->buffer .= rtrim($line).\PHP_EOL;
-        if (str_contains($this->buffer, \PHP_EOL)) {
-            $lines = explode(\PHP_EOL, $this->buffer);
-            $this->buffer = array_pop($lines);
-
-            yield from $lines;
+        foreach ($this->listeners[$event] as $listener) {
+            $listener(...$args);
         }
     }
 
@@ -66,10 +57,39 @@ class StdioTransport implements TransportInterface
     {
         $this->logger->debug('Sending data to client via StdioTransport.', ['data' => $data]);
 
-        fwrite($this->output, $data.\PHP_EOL);
+        fwrite($this->output, $data . \PHP_EOL);
+    }
+
+    public function listen(): mixed
+    {
+        $this->logger->info('StdioTransport is listening for messages on STDIN...');
+
+        while (!feof($this->input)) {
+            $line = fgets($this->input);
+            if ($line === false) {
+                break;
+            }
+
+            $trimmedLine = trim($line);
+            if (!empty($trimmedLine)) {
+                $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
+                $this->emit('message', $trimmedLine);
+            }
+        }
+
+        $this->logger->info('StdioTransport finished listening.');
+
+        return null;
     }
 
     public function close(): void
     {
+        if (is_resource($this->input)) {
+            fclose($this->input);
+        }
+
+        if (is_resource($this->output)) {
+            fclose($this->output);
+        }
     }
 }

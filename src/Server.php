@@ -13,6 +13,8 @@ namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
 use Mcp\Server\ServerBuilder;
+use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -24,9 +26,11 @@ final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
+        private readonly SessionFactoryInterface $sessionFactory,
+        private readonly SessionStoreInterface $sessionStore,
+        private readonly int $sessionTtl,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+    ) {}
 
     public static function make(): ServerBuilder
     {
@@ -36,37 +40,31 @@ final class Server
     public function connect(TransportInterface $transport): void
     {
         $transport->initialize();
+
         $this->logger->info('Transport initialized.', [
             'transport' => $transport::class,
         ]);
 
-        while ($transport->isConnected()) {
-            foreach ($transport->receive() as $message) {
-                if (null === $message) {
+        $transport->on('message', function (string $message) use ($transport) {
+            $this->handleMessage($message, $transport);
+        });
+    }
+
+    private function handleMessage(string $message, TransportInterface $transport): void
+    {
+        try {
+            foreach ($this->jsonRpcHandler->process($message) as $response) {
+                if (null === $response) {
                     continue;
                 }
 
-                try {
-                    foreach ($this->jsonRpcHandler->process($message) as $response) {
-                        if (null === $response) {
-                            continue;
-                        }
-
-                        $transport->send($response);
-                    }
-                } catch (\JsonException $e) {
-                    $this->logger->error('Failed to encode response to JSON.', [
-                        'message' => $message,
-                        'exception' => $e,
-                    ]);
-                    continue;
-                }
+                $transport->send($response);
             }
-
-            usleep(1000);
+        } catch (\JsonException $e) {
+            $this->logger->error('Failed to encode response to JSON.', [
+                'message' => $message,
+                'exception' => $e,
+            ]);
         }
-
-        $transport->close();
-        $this->logger->info('Transport closed');
     }
 }
