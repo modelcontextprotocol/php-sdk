@@ -9,9 +9,23 @@
  * file that was distributed with this source code.
  */
 
-if (!file_exists(__DIR__.'/src')) {
+if (!file_exists(__DIR__ . '/src')) {
     exit(0);
 }
+
+use Ergebnis\License;
+use PhpCsFixer\Config;
+use PhpCsFixer\Finder;
+
+$license = License\Type\MIT::text(
+    __DIR__ . '/LICENSE',
+    License\Range::since(
+        License\Year::fromString('2025'),
+        new DateTimeZone('UTC')
+    )
+);
+$license->save();
+
 
 $fileHeaderParts = [
     <<<'EOF'
@@ -25,6 +39,7 @@ $fileHeaderParts = [
         For the full copyright and license information, please view the LICENSE
         file that was distributed with this source code.
         EOF,
+    trim($license->header())
 ];
 
 return (new PhpCsFixer\Config())
@@ -36,7 +51,10 @@ return (new PhpCsFixer\Config())
         'protected_to_private' => false,
         'declare_strict_types' => false,
         'header_comment' => [
-            'header' => implode('', $fileHeaderParts),
+            'header' => trim(implode('', $fileHeaderParts)),
+            'comment_type' => 'PHPDoc',
+            'location' => 'after_declare_strict',
+            'separate' => 'both',
         ],
         'php_unit_test_case_static_method_calls' => ['call_type' => 'this'],
     ])

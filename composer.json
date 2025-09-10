@@ -1,8 +1,8 @@
 {
     "name": "mcp/sdk",
-    "type": "library",
     "description": "Model Context Protocol SDK for Client and Server applications in PHP",
     "license": "MIT",
+    "type": "library",
     "authors": [
         {
             "name": "Christopher Hertel",
@@ -29,6 +29,8 @@
         "symfony/uid": "^6.4 || ^7.3"
     },
     "require-dev": {
+        "ergebnis/composer-normalize": "^2.48",
+        "ergebnis/license": "^2.7",
         "php-cs-fixer/shim": "^3.84",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^10.5",
@@ -43,18 +45,38 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Mcp\\Example\\StdioCalculatorExample\\": "examples/01-discovery-stdio-calculator/",
+            "Mcp\\Example\\CombinedHttpExample\\": "examples/04-combined-registration-http/",
+            "Mcp\\Example\\ComplexSchemaHttpExample\\": "examples/07-complex-tool-schema-http/",
+            "Mcp\\Example\\DependenciesStdioExample\\": "examples/06-custom-dependencies-stdio/",
             "Mcp\\Example\\HttpUserProfileExample\\": "examples/02-discovery-http-userprofile/",
             "Mcp\\Example\\ManualStdioExample\\": "examples/03-manual-registration-stdio/",
-            "Mcp\\Example\\CombinedHttpExample\\": "examples/04-combined-registration-http/",
-            "Mcp\\Example\\StdioEnvVariables\\": "examples/05-stdio-env-variables/",
-            "Mcp\\Example\\DependenciesStdioExample\\": "examples/06-custom-dependencies-stdio/",
-            "Mcp\\Example\\ComplexSchemaHttpExample\\": "examples/07-complex-tool-schema-http/",
             "Mcp\\Example\\SchemaShowcaseExample\\": "examples/08-schema-showcase-streamable/",
+            "Mcp\\Example\\StdioCalculatorExample\\": "examples/01-discovery-stdio-calculator/",
+            "Mcp\\Example\\StdioEnvVariables\\": "examples/05-stdio-env-variables/",
             "Mcp\\Tests\\": "tests/"
         }
     },
     "config": {
+        "allow-plugins": {
+            "ergebnis/composer-normalize": true
+        },
         "sort-packages": true
+    },
+    "scripts": {
+        "post-install-cmd": [
+            "@composer normalize"
+        ],
+        "post-update-cmd": [
+            "@composer normalize"
+        ],
+        "cs:fix": [
+            "vendor/bin/php-cs-fixer fix --diff --verbose"
+        ],
+        "phpstan": [
+            "vendor/bin/phpstan --memory-limit=-1"
+        ],
+        "tests": [
+            "vendor/bin/phpunit --testdox"
+        ]
     }
 }
