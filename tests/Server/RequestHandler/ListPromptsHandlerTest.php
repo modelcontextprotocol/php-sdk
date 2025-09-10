@@ -83,7 +83,9 @@ class ListPromptsHandlerTest extends TestCase
         $firstPageRequest = $this->createListPromptsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListPromptsResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
@@ -108,7 +110,9 @@ class ListPromptsHandlerTest extends TestCase
         $firstPageRequest = $this->createListPromptsRequest();
         $firstPageResponse = $this->handler->handle($firstPageRequest);
 
-        $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResponse->result->nextCursor);
+        /** @var ListPromptsResult $firstPageResult */
+        $firstPageResult = $firstPageResponse->result;
+        $secondPageRequest = $this->createListPromptsRequest(cursor: $firstPageResult->nextCursor);
 
         // Act
         $response = $this->handler->handle($secondPageRequest);
@@ -201,8 +205,12 @@ class ListPromptsHandlerTest extends TestCase
         $response2 = $this->handler->handle($request);
 
         // Assert
-        $this->assertEquals($response1->result->nextCursor, $response2->result->nextCursor);
-        $this->assertEquals($response1->result->prompts, $response2->result->prompts);
+        /** @var ListPromptsResult $result1 */
+        $result1 = $response1->result;
+        /** @var ListPromptsResult $result2 */
+        $result2 = $response2->result;
+        $this->assertEquals($result1->nextCursor, $result2->nextCursor);
+        $this->assertEquals($result1->prompts, $result2->prompts);
     }
 
     private function addPromptsToRegistry(int $count): void
@@ -219,13 +227,16 @@ class ListPromptsHandlerTest extends TestCase
 
     private function createListPromptsRequest(?string $cursor = null): ListPromptsRequest
     {
-        $mock = $this->getMockBuilder(ListPromptsRequest::class)
-            ->setConstructorArgs([$cursor])
-            ->onlyMethods(['getId'])
-            ->getMock();
-
-        $mock->method('getId')->willReturn('test-request-id');
-
-        return $mock;
+        $data = [
+            'jsonrpc' => '2.0',
+            'id' => 'test-request-id',
+            'method' => 'prompts/list',
+        ];
+        
+        if ($cursor !== null) {
+            $data['params'] = ['cursor' => $cursor];
+        }
+        
+        return ListPromptsRequest::fromArray($data);
     }
 }
