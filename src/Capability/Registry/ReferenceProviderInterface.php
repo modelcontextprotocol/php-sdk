@@ -54,7 +54,7 @@ interface ReferenceProviderInterface
     /**
      * Gets all registered resources.
      *
-     * @return ReferencePage<Resource>
+     * @return ReferencePage<resource>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage;
 

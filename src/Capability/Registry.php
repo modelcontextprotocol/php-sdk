@@ -21,9 +21,7 @@ use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -277,7 +275,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      *  Gets all registered resources.
      *
-     * @return ReferencePage<Resource>
+     * @return ReferencePage<resource>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage
     {
