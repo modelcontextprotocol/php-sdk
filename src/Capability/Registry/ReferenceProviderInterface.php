@@ -12,7 +12,6 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Schema\Prompt;
-use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Server\RequestHandler\ReferencePage;
 
@@ -46,37 +45,21 @@ interface ReferenceProviderInterface
 
     /**
      * Gets all registered tools.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered resources.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered prompts.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered resource templates.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage;
 

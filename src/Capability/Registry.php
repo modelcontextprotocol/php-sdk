@@ -247,10 +247,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     /**
      * Gets all registered tools.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -276,10 +272,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     /**
      *  Gets all registered resources.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -305,10 +297,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     /**
      *  Gets all registered prompts.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -334,10 +322,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     /**
      *  Gets all registered resource templates.
-     *
-     * @param int|null    $limit
-     * @param string|null $cursor
-     * @return ReferencePage
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage
     {

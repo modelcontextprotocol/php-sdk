@@ -18,7 +18,6 @@ final class ReferencePage implements \Countable, \ArrayAccess
 {
     /**
      * @param array<int|string, mixed> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
-     * @param string|null $nextCursor
      */
     public function __construct(
         public readonly array $references,
