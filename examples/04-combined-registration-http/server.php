@@ -20,12 +20,12 @@ use Mcp\Server\Transports\HttpServerTransport;
 logger()->info('Starting MCP Combined Registration (HTTP) Server...');
 
 Server::make()
-    ->withServerInfo('Combined HTTP Server', '1.0.0')
-    ->withLogger(logger())
-    ->withContainer(container())
-    ->withDiscovery(__DIR__, ['.'])
-    ->withTool([ManualHandlers::class, 'manualGreeter'])
-    ->withResource(
+    ->setServerInfo('Combined HTTP Server', '1.0.0')
+    ->setLogger(logger())
+    ->setContainer(container())
+    ->setDiscovery(__DIR__, ['.'])
+    ->addTool([ManualHandlers::class, 'manualGreeter'])
+    ->addResource(
         [ManualHandlers::class, 'getPriorityConfigManual'],
         'config://priority',
         'priority_config_manual',

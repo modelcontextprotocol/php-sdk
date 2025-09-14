@@ -20,13 +20,13 @@ use Mcp\Server\Transport\StdioTransport;
 logger()->info('Starting MCP Manual Registration (Stdio) Server...');
 
 Server::make()
-    ->withServerInfo('Manual Reg Server', '1.0.0')
-    ->withLogger(logger())
-    ->withContainer(container())
-    ->withTool([SimpleHandlers::class, 'echoText'], 'echo_text')
-    ->withResource([SimpleHandlers::class, 'getAppVersion'], 'app://version', 'application_version', mimeType: 'text/plain')
-    ->withPrompt([SimpleHandlers::class, 'greetingPrompt'], 'personalized_greeting')
-    ->withResourceTemplate([SimpleHandlers::class, 'getItemDetails'], 'item://{itemId}/details', 'get_item_details', mimeType: 'application/json')
+    ->setServerInfo('Manual Reg Server', '1.0.0')
+    ->setLogger(logger())
+    ->setContainer(container())
+    ->addTool([SimpleHandlers::class, 'echoText'], 'echo_text')
+    ->addResource([SimpleHandlers::class, 'getAppVersion'], 'app://version', 'application_version', mimeType: 'text/plain')
+    ->addPrompt([SimpleHandlers::class, 'greetingPrompt'], 'personalized_greeting')
+    ->addResourceTemplate([SimpleHandlers::class, 'getItemDetails'], 'item://{itemId}/details', 'get_item_details', mimeType: 'application/json')
     ->build()
     ->connect(new StdioTransport(logger: logger()));
 

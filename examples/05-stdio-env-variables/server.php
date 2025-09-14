@@ -50,9 +50,9 @@ use Mcp\Server\Transport\StdioTransport;
 logger()->info('Starting MCP Stdio Environment Variable Example Server...');
 
 Server::make()
-    ->withServerInfo('Env Var Server', '1.0.0')
-    ->withLogger(logger())
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('Env Var Server', '1.0.0')
+    ->setLogger(logger())
+    ->setDiscovery(__DIR__, ['.'])
     ->build()
     ->connect(new StdioTransport(logger: logger()));
 

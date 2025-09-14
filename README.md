@@ -98,8 +98,8 @@ use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 Server::make()
-    ->withServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
+    ->setDiscovery(__DIR__, ['.'])
     ->build()
     ->connect(new StdioTransport());
 ```
