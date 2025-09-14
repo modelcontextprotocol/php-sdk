@@ -279,10 +279,10 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     public function exportDiscoveryState(): DiscoveryState
     {
         return new DiscoveryState(
-            tools: array_filter($this->tools, fn($tool) => !$tool->isManual),
-            resources: array_filter($this->resources, fn($resource) => !$resource->isManual),
-            prompts: array_filter($this->prompts, fn($prompt) => !$prompt->isManual),
-            resourceTemplates: array_filter($this->resourceTemplates, fn($template) => !$template->isManual),
+            tools: array_filter($this->tools, fn ($tool) => !$tool->isManual),
+            resources: array_filter($this->resources, fn ($resource) => !$resource->isManual),
+            prompts: array_filter($this->prompts, fn ($prompt) => !$prompt->isManual),
+            resourceTemplates: array_filter($this->resourceTemplates, fn ($template) => !$template->isManual),
         );
     }
 
