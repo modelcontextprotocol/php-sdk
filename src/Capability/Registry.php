@@ -338,6 +338,42 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return $this->paginateResults($templates, $limit, $cursor);
     }
 
+    public function hasElements(): bool
+    {
+        return !empty($this->tools)
+            || !empty($this->resources)
+            || !empty($this->prompts)
+            || !empty($this->resourceTemplates);
+    }
+
+    /**
+     * Calculate next cursor for pagination.
+     *
+     * @param list<mixed> $allItems      The complete array of items
+     * @param string|null $currentCursor Current cursor position
+     * @param int         $returnedCount Number of items actually returned
+     */
+    public function calculateNextCursor(array $allItems, ?string $currentCursor, int $returnedCount): ?string
+    {
+        $currentOffset = 0;
+
+        if (null !== $currentCursor) {
+            $decodedCursor = base64_decode($currentCursor, true);
+            if (false !== $decodedCursor && is_numeric($decodedCursor)) {
+                $currentOffset = (int) $decodedCursor;
+            }
+        }
+
+        $nextOffset = $currentOffset + $returnedCount;
+
+        // If we have more items available, return next cursor
+        if ($nextOffset < \count($allItems)) {
+            return base64_encode((string) $nextOffset);
+        }
+
+        return null;
+    }
+
     /**
      * Helper method to paginate results using cursor-based pagination.
      *
@@ -380,41 +416,5 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         return $result;
-    }
-
-    /**
-     * Calculate next cursor for pagination.
-     *
-     * @param list<mixed> $allItems      The complete array of items
-     * @param string|null $currentCursor Current cursor position
-     * @param int         $returnedCount Number of items actually returned
-     */
-    public function calculateNextCursor(array $allItems, ?string $currentCursor, int $returnedCount): ?string
-    {
-        $currentOffset = 0;
-
-        if (null !== $currentCursor) {
-            $decodedCursor = base64_decode($currentCursor, true);
-            if (false !== $decodedCursor && is_numeric($decodedCursor)) {
-                $currentOffset = (int) $decodedCursor;
-            }
-        }
-
-        $nextOffset = $currentOffset + $returnedCount;
-
-        // If we have more items available, return next cursor
-        if ($nextOffset < \count($allItems)) {
-            return base64_encode((string) $nextOffset);
-        }
-
-        return null;
-    }
-
-    public function hasElements(): bool
-    {
-        return !empty($this->tools)
-            || !empty($this->resources)
-            || !empty($this->prompts)
-            || !empty($this->resourceTemplates);
     }
 }
