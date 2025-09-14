@@ -12,7 +12,7 @@
 namespace App;
 
 use Mcp\Capability\Tool\MetadataInterface;
-use Mcp\Capability\Tool\ToolExecutorInterface;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -20,7 +20,7 @@ use Mcp\Schema\Result\CallToolResult;
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-class ExampleTool implements MetadataInterface, ToolExecutorInterface
+class ExampleTool implements MetadataInterface, ToolCallerInterface
 {
     public function call(CallToolRequest $request): CallToolResult
     {

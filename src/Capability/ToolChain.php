@@ -14,9 +14,9 @@ namespace Mcp\Capability;
 use Mcp\Capability\Tool\CollectionInterface;
 use Mcp\Capability\Tool\IdentifierInterface;
 use Mcp\Capability\Tool\MetadataInterface;
-use Mcp\Capability\Tool\ToolExecutorInterface;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Exception\ToolExecutionException;
+use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -26,7 +26,7 @@ use Mcp\Schema\Result\CallToolResult;
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-class ToolChain implements ToolExecutorInterface, CollectionInterface
+class ToolChain implements ToolCallerInterface, CollectionInterface
 {
     public function __construct(
         /**
@@ -63,11 +63,11 @@ class ToolChain implements ToolExecutorInterface, CollectionInterface
     public function call(CallToolRequest $request): CallToolResult
     {
         foreach ($this->items as $item) {
-            if ($item instanceof ToolExecutorInterface && $request->name === $item->getName()) {
+            if ($item instanceof ToolCallerInterface && $request->name === $item->getName()) {
                 try {
                     return $item->call($request);
                 } catch (\Throwable $e) {
-                    throw new ToolExecutionException($request, $e);
+                    throw new ToolCallException($request, $e);
                 }
             }
         }

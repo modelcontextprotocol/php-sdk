@@ -11,14 +11,13 @@
 
 namespace Mcp\Server\RequestHandler;
 
-use Mcp\Capability\Registry;
+use Mcp\Capability\Resource\ResourceReaderInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\MethodHandlerInterface;
 
 /**
@@ -27,7 +26,7 @@ use Mcp\Server\MethodHandlerInterface;
 final class ReadResourceHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly Registry $registry,
+        private readonly ResourceReaderInterface $resourceReader,
     ) {
     }
 
@@ -41,13 +40,13 @@ final class ReadResourceHandler implements MethodHandlerInterface
         \assert($message instanceof ReadResourceRequest);
 
         try {
-            $contents = $this->registry->handleReadResource($message->uri);
+            $contents = $this->resourceReader->read($message);
         } catch (ResourceNotFoundException $e) {
             return new Error($message->getId(), Error::RESOURCE_NOT_FOUND, $e->getMessage());
         } catch (ExceptionInterface) {
             return Error::forInternalError('Error while reading resource', $message->getId());
         }
 
-        return new Response($message->getId(), new ReadResourceResult($contents));
+        return new Response($message->getId(), $contents);
     }
 }
