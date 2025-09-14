@@ -47,28 +47,36 @@ interface ReferenceProviderInterface
     /**
      * Gets all registered tools.
      *
-     * @return ReferencePage<Tool>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered resources.
      *
-     * @return ReferencePage<resource>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered prompts.
      *
-     * @return ReferencePage<Prompt>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage;
 
     /**
      * Gets all registered resource templates.
      *
-     * @return ReferencePage<ResourceTemplate>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage;
 

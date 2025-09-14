@@ -248,7 +248,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      * Gets all registered tools.
      *
-     * @return ReferencePage<Tool>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -275,7 +277,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      *  Gets all registered resources.
      *
-     * @return ReferencePage<resource>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -302,7 +306,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      *  Gets all registered prompts.
      *
-     * @return ReferencePage<Prompt>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -329,7 +335,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      *  Gets all registered resource templates.
      *
-     * @return ReferencePage<ResourceTemplate>
+     * @param int|null    $limit
+     * @param string|null $cursor
+     * @return ReferencePage
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage
     {
@@ -391,11 +399,11 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      * Helper method to paginate results using cursor-based pagination.
      *
-     * @param list<mixed> $items  The full array of items to paginate
-     * @param int         $limit  Maximum number of items to return
-     * @param string|null $cursor Base64 encoded offset position
+     * @param array<int|string, mixed> $items  The full array of items to paginate The full array of items to paginate
+     * @param int                      $limit  Maximum number of items to return
+     * @param string|null              $cursor Base64 encoded offset position
      *
-     * @return list<mixed> Paginated results
+     * @return array<int|string, mixed> Paginated results
      *
      * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
      */

@@ -385,24 +385,6 @@ parameters:
 			path: examples/09-standalone-cli/src/Builder.php
 
 		-
-			message: '#^Access to an undefined property Mcp\\Capability\\Registry\:\:\$referenceHandler\.$#'
-			identifier: property.notFound
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Method Mcp\\Capability\\Registry\:\:handleGetPrompt\(\) has parameter \$arguments with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
-			message: '#^Return type \(list\<Mcp\\Schema\\Resource\>\) of method Mcp\\Capability\\Registry\:\:getResources\(\) should be compatible with return type \(list\<resource\>\) of method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getResources\(\)$#'
-			identifier: method.childReturnType
-			count: 1
-			path: src/Capability/Registry.php
-
-		-
 			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
 			identifier: method.notFound
 			count: 1
@@ -419,30 +401,6 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php
-
-		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:calculateNextCursor\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Server/RequestHandler/ListPromptsHandler.php
-
-		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:calculateNextCursor\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Server/RequestHandler/ListResourcesHandler.php
-
-		-
-			message: '#^Parameter \#1 \$resources of class Mcp\\Schema\\Result\\ListResourcesResult constructor expects array\<Mcp\\Schema\\Resource\>, list\<resource\> given\.$#'
-			identifier: argument.type
-			count: 1
-			path: src/Server/RequestHandler/ListResourcesHandler.php
-
-		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:calculateNextCursor\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Server/RequestHandler/ListToolsHandler.php
 
 		-
 			message: '#^Method Mcp\\Server\\ServerBuilder\:\:getCompletionProviders\(\) return type has no value type specified in iterable type array\.$#'
@@ -581,27 +539,3 @@ parameters:
 			identifier: property.onlyWritten
 			count: 1
 			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Offset ''prompt1'' does not exist on list\<Mcp\\Schema\\Prompt\>\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: tests/Capability/Registry/RegistryProviderTest.php
-
-		-
-			message: '#^Offset ''test1\://\{id\}'' does not exist on list\<Mcp\\Schema\\ResourceTemplate\>\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: tests/Capability/Registry/RegistryProviderTest.php
-
-		-
-			message: '#^Offset ''test\://resource1'' does not exist on list\<Mcp\\Schema\\Resource\>\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: tests/Capability/Registry/RegistryProviderTest.php
-
-		-
-			message: '#^Offset ''tool1'' does not exist on list\<Mcp\\Schema\\Tool\>\.$#'
-			identifier: offsetAccess.notFound
-			count: 1
-			path: tests/Capability/Registry/RegistryProviderTest.php

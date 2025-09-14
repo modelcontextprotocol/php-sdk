@@ -11,8 +11,15 @@
 
 namespace Mcp\Server\RequestHandler;
 
+/**
+ * @implements \ArrayAccess<int|string, mixed>
+ */
 final class ReferencePage implements \Countable, \ArrayAccess
 {
+    /**
+     * @param array<int|string, mixed> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
+     * @param string|null $nextCursor
+     */
     public function __construct(
         public readonly array $references,
         public readonly ?string $nextCursor,
@@ -36,11 +43,11 @@ final class ReferencePage implements \Countable, \ArrayAccess
 
     public function offsetSet(mixed $offset, mixed $value): void
     {
-        // TODO: Implement offsetSet() method.
+        return;
     }
 
     public function offsetUnset(mixed $offset): void
     {
-        // TODO: Implement offsetUnset() method.
+        return;
     }
 }
