@@ -1,6 +1,7 @@
 <?php
 
-require_once __DIR__ . '/vendor/autoload.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
+chdir(__DIR__);
 
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
@@ -14,8 +15,9 @@ $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory,
 $request = $creator->fromGlobals();
 
 $server = Server::make()
-    ->withServerInfo('HTTP MCP Server', '1.0.0')
-    ->withDiscovery(__DIR__, ['src'])
+    ->withServerInfo('HTTP MCP Server', '1.0.0', 'MCP Server over HTTP transport')
+    ->withContainer(container())
+    ->withDiscovery(__DIR__, ['.'])
     ->build();
 
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);

@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace Mcp\Example\HttpTransportExample;
 
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
