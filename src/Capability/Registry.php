@@ -29,6 +29,7 @@ use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
+use Mcp\Server\RequestHandler\ReferencePage;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -241,22 +242,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return $this->resourceTemplates[$uriTemplate] ?? null;
     }
 
-    /**
-     * @return PromptMessage[]
-     */
-    public function handleGetPrompt(string $name, ?array $arguments): array
-    {
-        $reference = $this->getPrompt($name);
-
-        if (null === $reference) {
-            throw new InvalidArgumentException(\sprintf('Prompt "%s" is not registered.', $name));
-        }
-
-        return $reference->formatResult(
-            $this->referenceHandler->handle($reference, $arguments)
-        );
-    }
-
     public function getPrompt(string $name): ?PromptReference
     {
         return $this->prompts[$name] ?? null;
@@ -265,77 +250,109 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      * Gets all registered tools.
      *
-     * @return list<Tool>
+     * @return ReferencePage<Tool>
      */
-    public function getTools(?int $limit = null, ?string $cursor = null): array
+    public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage
     {
         $tools = [];
         foreach ($this->tools as $toolReference) {
-            $tools[] = $toolReference->tool;
+            $tools[$toolReference->tool->name] = $toolReference->tool;
         }
 
         if (null === $limit) {
-            return $tools;
+            return new ReferencePage($tools, null);
         }
 
-        return $this->paginateResults($tools, $limit, $cursor);
+        $paginatedTools = $this->paginateResults($tools, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($tools),
+            $cursor,
+            $limit
+        );
+
+        return new ReferencePage($paginatedTools, $nextCursor);
     }
 
     /**
      *  Gets all registered resources.
      *
-     * @return list<resource>
+     * @return ReferencePage<Resource>
      */
-    public function getResources(?int $limit = null, ?string $cursor = null): array
+    public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage
     {
         $resources = [];
         foreach ($this->resources as $resourceReference) {
-            $resources[] = $resourceReference->schema;
+            $resources[$resourceReference->schema->uri] = $resourceReference->schema;
         }
 
         if (null === $limit) {
-            return $resources;
+            return new ReferencePage($resources, null);
         }
 
-        return $this->paginateResults($resources, $limit, $cursor);
+        $paginatedResources = $this->paginateResults($resources, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($resources),
+            $cursor,
+            $limit
+        );
+
+        return new ReferencePage($paginatedResources, $nextCursor);
     }
 
     /**
      *  Gets all registered prompts.
      *
-     * @return list<Prompt>
+     * @return ReferencePage<Prompt>
      */
-    public function getPrompts(?int $limit = null, ?string $cursor = null): array
+    public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage
     {
         $prompts = [];
         foreach ($this->prompts as $promptReference) {
-            $prompts[] = $promptReference->prompt;
+            $prompts[$promptReference->prompt->name] = $promptReference->prompt;
         }
 
         if (null === $limit) {
-            return $prompts;
+            return new ReferencePage($prompts, null);
         }
 
-        return $this->paginateResults($prompts, $limit, $cursor);
+        $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($prompts),
+            $cursor,
+            $limit
+        );
+
+        return new ReferencePage($paginatedPrompts, $nextCursor);
     }
 
     /**
      *  Gets all registered resource templates.
      *
-     * @return list<ResourceTemplate>
+     * @return ReferencePage<ResourceTemplate>
      */
-    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage
     {
         $templates = [];
         foreach ($this->resourceTemplates as $templateReference) {
-            $templates[] = $templateReference->resourceTemplate;
+            $templates[$templateReference->resourceTemplate->uriTemplate] = $templateReference->resourceTemplate;
         }
 
         if (null === $limit) {
-            return $templates;
+            return new ReferencePage($templates, null);
         }
 
-        return $this->paginateResults($templates, $limit, $cursor);
+        $paginatedTemplates = $this->paginateResults($templates, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($templates),
+            $cursor,
+            $limit
+        );
+
+        return new ReferencePage($paginatedTemplates, $nextCursor);
     }
 
     public function hasElements(): bool
@@ -349,11 +366,11 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      * Calculate next cursor for pagination.
      *
-     * @param list<mixed> $allItems      The complete array of items
+     * @param int         $totalItems    Count of all items
      * @param string|null $currentCursor Current cursor position
-     * @param int         $returnedCount Number of items actually returned
+     * @param int         $limit         Number requested/returned per page
      */
-    public function calculateNextCursor(array $allItems, ?string $currentCursor, int $returnedCount): ?string
+    private function calculateNextCursor(int $totalItems, ?string $currentCursor, int $limit): ?string
     {
         $currentOffset = 0;
 
@@ -364,10 +381,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             }
         }
 
-        $nextOffset = $currentOffset + $returnedCount;
+        $nextOffset = $currentOffset + $limit;
 
-        // If we have more items available, return next cursor
-        if ($nextOffset < \count($allItems)) {
+        if ($nextOffset < $totalItems) {
             return base64_encode((string) $nextOffset);
         }
 

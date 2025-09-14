@@ -42,19 +42,11 @@ final class ListPromptsHandler implements MethodHandlerInterface
     {
         \assert($message instanceof ListPromptsRequest);
 
-        $allPrompts = $this->registry->getPrompts();
-
-        $prompts = $this->registry->getPrompts($this->pageSize, $message->cursor);
-
-        $nextCursor = $this->registry->calculateNextCursor(
-            $allPrompts,
-            $message->cursor,
-            \count($prompts)
-        );
+        $page = $this->registry->getPrompts($this->pageSize, $message->cursor);
 
         return new Response(
             $message->getId(),
-            new ListPromptsResult($prompts, $nextCursor),
+            new ListPromptsResult($page->references, $page->nextCursor),
         );
     }
 }
