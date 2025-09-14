@@ -19,7 +19,11 @@ use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Prompt\Completion\ProviderInterface;
+use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
+use Mcp\Capability\Registry\ResourceReference;
+use Mcp\Capability\Registry\ResourceTemplateReference;
+use Mcp\Capability\Registry\ToolReference;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
@@ -54,13 +58,13 @@ class Discoverer
     }
 
     /**
-     * Discover MCP elements in the specified directories.
+     * Discover MCP elements in the specified directories and return the discovery state.
      *
      * @param string        $basePath    the base path for resolving directories
      * @param array<string> $directories list of directories (relative to base path) to scan
      * @param array<string> $excludeDirs list of directories (relative to base path) to exclude from the scan
      */
-    public function discover(string $basePath, array $directories, array $excludeDirs = []): void
+    public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
     {
         $startTime = microtime(true);
         $discoveredCount = [
@@ -69,6 +73,12 @@ class Discoverer
             'prompts' => 0,
             'resourceTemplates' => 0,
         ];
+
+        // Collections to store discovered elements
+        $tools = [];
+        $resources = [];
+        $prompts = [];
+        $resourceTemplates = [];
 
         try {
             $finder = new Finder();
@@ -86,7 +96,7 @@ class Discoverer
                     'base_path' => $basePath,
                 ]);
 
-                return;
+                return new DiscoveryState();
             }
 
             $finder->files()
@@ -95,7 +105,7 @@ class Discoverer
                 ->name('*.php');
 
             foreach ($finder as $file) {
-                $this->processFile($file, $discoveredCount);
+                $this->processFile($file, $discoveredCount, $tools, $resources, $prompts, $resourceTemplates);
             }
         } catch (\Throwable $e) {
             $this->logger->error('Error during file finding process for MCP discovery'.json_encode($e->getTrace(), \JSON_PRETTY_PRINT), [
@@ -112,14 +122,29 @@ class Discoverer
             'prompts' => $discoveredCount['prompts'],
             'resourceTemplates' => $discoveredCount['resourceTemplates'],
         ]);
+
+        return new DiscoveryState($tools, $resources, $prompts, $resourceTemplates);
+    }
+
+    /**
+     * Apply a discovery state to the registry.
+     * This method imports the discovered elements into the registry.
+     */
+    public function applyDiscoveryState(DiscoveryState $state): void
+    {
+        $this->registry->importDiscoveryState($state);
     }
 
     /**
      * Process a single PHP file for MCP elements on classes or methods.
      *
-     * @param DiscoveredCount $discoveredCount
+     * @param DiscoveredCount                          $discoveredCount
+     * @param array<string, ToolReference>             $tools
+     * @param array<string, ResourceReference>         $resources
+     * @param array<string, PromptReference>           $prompts
+     * @param array<string, ResourceTemplateReference> $resourceTemplates
      */
-    private function processFile(SplFileInfo $file, array &$discoveredCount): void
+    private function processFile(SplFileInfo $file, array &$discoveredCount, array &$tools, array &$resources, array &$prompts, array &$resourceTemplates): void
     {
         $filePath = $file->getRealPath();
         if (false === $filePath) {
@@ -150,7 +175,7 @@ class Discoverer
                     foreach ($attributeTypes as $attributeType) {
                         $classAttribute = $reflectionClass->getAttributes($attributeType, \ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($classAttribute) {
-                            $this->processMethod($invokeMethod, $discoveredCount, $classAttribute);
+                            $this->processMethod($invokeMethod, $discoveredCount, $classAttribute, $tools, $resources, $prompts, $resourceTemplates);
                             $processedViaClassAttribute = true;
                             break;
                         }
@@ -170,7 +195,7 @@ class Discoverer
                     foreach ($attributeTypes as $attributeType) {
                         $methodAttribute = $method->getAttributes($attributeType, \ReflectionAttribute::IS_INSTANCEOF)[0] ?? null;
                         if ($methodAttribute) {
-                            $this->processMethod($method, $discoveredCount, $methodAttribute);
+                            $this->processMethod($method, $discoveredCount, $methodAttribute, $tools, $resources, $prompts, $resourceTemplates);
                             break;
                         }
                     }
@@ -192,11 +217,15 @@ class Discoverer
      * Process a method with a given MCP attribute instance.
      * Can be called for regular methods or the __invoke method of an invokable class.
      *
-     * @param \ReflectionMethod                                                       $method          The target method (e.g., regular method or __invoke).
-     * @param DiscoveredCount                                                         $discoveredCount pass by reference to update counts
-     * @param \ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute       the ReflectionAttribute instance found (on method or class)
+     * @param \ReflectionMethod                                                       $method            The target method (e.g., regular method or __invoke).
+     * @param DiscoveredCount                                                         $discoveredCount   pass by reference to update counts
+     * @param \ReflectionAttribute<McpTool|McpResource|McpPrompt|McpResourceTemplate> $attribute         the ReflectionAttribute instance found (on method or class)
+     * @param array<string, ToolReference>                                            $tools
+     * @param array<string, ResourceReference>                                        $resources
+     * @param array<string, PromptReference>                                          $prompts
+     * @param array<string, ResourceTemplateReference>                                $resourceTemplates
      */
-    private function processMethod(\ReflectionMethod $method, array &$discoveredCount, \ReflectionAttribute $attribute): void
+    private function processMethod(\ReflectionMethod $method, array &$discoveredCount, \ReflectionAttribute $attribute, array &$tools, array &$resources, array &$prompts, array &$resourceTemplates): void
     {
         $className = $method->getDeclaringClass()->getName();
         $classShortName = $method->getDeclaringClass()->getShortName();
@@ -213,7 +242,7 @@ class Discoverer
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
                     $inputSchema = $this->schemaGenerator->generate($method);
                     $tool = new Tool($name, $inputSchema, $description, $instance->annotations);
-                    $this->registry->registerTool($tool, [$className, $methodName]);
+                    $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
                     ++$discoveredCount['tools'];
                     break;
 
@@ -225,7 +254,7 @@ class Discoverer
                     $size = $instance->size;
                     $annotations = $instance->annotations;
                     $resource = new Resource($instance->uri, $name, $description, $mimeType, $annotations, $size);
-                    $this->registry->registerResource($resource, [$className, $methodName]);
+                    $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName], false);
                     ++$discoveredCount['resources'];
                     break;
 
@@ -245,7 +274,7 @@ class Discoverer
                     }
                     $prompt = new Prompt($name, $description, $arguments);
                     $completionProviders = $this->getCompletionProviders($method);
-                    $this->registry->registerPrompt($prompt, [$className, $methodName], $completionProviders);
+                    $prompts[$name] = new PromptReference($prompt, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['prompts'];
                     break;
 
@@ -257,7 +286,7 @@ class Discoverer
                     $annotations = $instance->annotations;
                     $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations);
                     $completionProviders = $this->getCompletionProviders($method);
-                    $this->registry->registerResourceTemplate($resourceTemplate, [$className, $methodName], $completionProviders);
+                    $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['resourceTemplates'];
                     break;
             }
