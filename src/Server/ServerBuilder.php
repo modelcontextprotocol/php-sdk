@@ -12,6 +12,7 @@
 namespace Mcp\Server;
 
 use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
@@ -206,6 +207,16 @@ final class ServerBuilder
     }
 
     /**
+     * Enables discovery caching with the provided cache implementation.
+     */
+    public function withCache(CacheInterface $cache): self
+    {
+        $this->cache = $cache;
+
+        return $this;
+    }
+
+    /**
      * Manually registers a tool handler.
      */
     public function addTool(
@@ -288,8 +299,18 @@ final class ServerBuilder
         $this->registerCapabilities($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
-            $discovery = new Discoverer($registry, $logger);
-            $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
+            $discoverer = new Discoverer($registry, $logger);
+
+            // Use cached discoverer if cache is provided
+            if (null !== $this->cache) {
+                $discovery = new CachedDiscoverer($discoverer, $this->cache, $logger);
+            } else {
+                $discovery = $discoverer;
+            }
+
+            // Discover elements and apply them to the registry
+            $discoveryState = $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
+            $discoverer->applyDiscoveryState($discoveryState);
         }
 
         return new Server(
