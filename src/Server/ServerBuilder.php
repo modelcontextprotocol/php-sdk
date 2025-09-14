@@ -311,6 +311,10 @@ final class ServerBuilder
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
         }
 
+        $sessionTtl = $this->sessionTtl ?? 3600;
+        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
+        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
+
         return new Server(
             jsonRpcHandler: Handler::make(
                 registry: $registry,
@@ -321,6 +325,9 @@ final class ServerBuilder
                 promptGetter: $promptGetter,
                 logger: $logger,
             ),
+            sessionFactory: $sessionFactory,
+            sessionStore: $sessionStore,
+            sessionTtl: $sessionTtl,
             logger: $logger,
         );
     }
