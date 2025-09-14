@@ -24,7 +24,6 @@ use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Content\PromptMessage;
-use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -206,19 +205,6 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         if ($clearCount > 0) {
             $this->logger->debug(\sprintf('Removed %d discovered elements from internal registry.', $clearCount));
         }
-    }
-
-    public function handleCallTool(string $name, array $arguments): array
-    {
-        $reference = $this->getTool($name);
-
-        if (null === $reference) {
-            throw new InvalidArgumentException(\sprintf('Tool "%s" is not registered.', $name));
-        }
-
-        return $reference->formatResult(
-            $this->referenceHandler->handle($reference, $arguments)
-        );
     }
 
     public function getTool(string $name): ?ToolReference
@@ -414,5 +400,13 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         return null;
+    }
+
+    public function hasElements(): bool
+    {
+        return !empty($this->tools)
+            || !empty($this->resources)
+            || !empty($this->prompts)
+            || !empty($this->resourceTemplates);
     }
 }

@@ -12,6 +12,7 @@
 namespace Mcp\Server\RequestHandler;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListPromptsRequest;
