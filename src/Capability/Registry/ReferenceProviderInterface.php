@@ -46,30 +46,30 @@ interface ReferenceProviderInterface
     /**
      * Gets all registered tools.
      *
-     * @return array<string, Tool>
+     * @return list<Tool>
      */
-    public function getTools(): array;
+    public function getTools(?int $limit = null, ?string $cursor = null): array;
 
     /**
      * Gets all registered resources.
      *
-     * @return array<string, \Mcp\Schema\Resource>
+     * @return list<resource>
      */
-    public function getResources(): array;
+    public function getResources(?int $limit = null, ?string $cursor = null): array;
 
     /**
      * Gets all registered prompts.
      *
-     * @return array<string, Prompt>
+     * @return list<Prompt>
      */
-    public function getPrompts(): array;
+    public function getPrompts(?int $limit = null, ?string $cursor = null): array;
 
     /**
      * Gets all registered resource templates.
      *
-     * @return array<string, ResourceTemplate>
+     * @return list<ResourceTemplate>
      */
-    public function getResourceTemplates(): array;
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array;
 
     /**
      * Checks if any elements (manual or discovered) are currently registered.

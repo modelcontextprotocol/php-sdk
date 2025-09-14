@@ -263,6 +263,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
+     * Gets all registered tools.
+     *
      * @return list<Tool>
      */
     public function getTools(?int $limit = null, ?string $cursor = null): array
@@ -280,6 +282,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
+     *  Gets all registered resources.
+     *
      * @return list<resource>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): array
@@ -297,6 +301,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
+     *  Gets all registered prompts.
+     *
      * @return list<Prompt>
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): array
@@ -314,6 +320,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
+     *  Gets all registered resource templates.
+     *
      * @return list<ResourceTemplate>
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): array
