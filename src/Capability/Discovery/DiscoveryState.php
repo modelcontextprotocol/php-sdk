@@ -37,7 +37,8 @@ class DiscoveryState
         private readonly array $resources = [],
         private readonly array $prompts = [],
         private readonly array $resourceTemplates = [],
-    ) {}
+    ) {
+    }
 
     /**
      * @return array<string, ToolReference>
@@ -87,10 +88,10 @@ class DiscoveryState
      */
     public function getElementCount(): int
     {
-        return count($this->tools)
-            + count($this->resources)
-            + count($this->prompts)
-            + count($this->resourceTemplates);
+        return \count($this->tools)
+            + \count($this->resources)
+            + \count($this->prompts)
+            + \count($this->resourceTemplates);
     }
 
     /**
@@ -101,10 +102,10 @@ class DiscoveryState
     public function getElementCounts(): array
     {
         return [
-            'tools' => count($this->tools),
-            'resources' => count($this->resources),
-            'prompts' => count($this->prompts),
-            'resourceTemplates' => count($this->resourceTemplates),
+            'tools' => \count($this->tools),
+            'resources' => \count($this->resources),
+            'prompts' => \count($this->prompts),
+            'resourceTemplates' => \count($this->resourceTemplates),
         ];
     }
 

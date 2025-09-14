@@ -15,7 +15,6 @@ use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\ReferenceHandler;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
