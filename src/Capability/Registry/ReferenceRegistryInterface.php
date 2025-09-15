@@ -79,8 +79,13 @@ interface ReferenceRegistryInterface
     public function clear(): void;
 
     /**
-     * Import discovery state, replacing all discovered elements.
+     * Get the current discovery state (only discovered elements, not manual ones).
+     */
+    public function getDiscoveryState(): DiscoveryState;
+
+    /**
+     * Set discovery state, replacing all discovered elements.
      * Manual elements are preserved.
      */
-    public function importDiscoveryState(DiscoveryState $state): void;
+    public function setDiscoveryState(DiscoveryState $state): void;
 }

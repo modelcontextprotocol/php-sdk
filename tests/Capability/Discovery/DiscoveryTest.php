@@ -40,8 +40,7 @@ class DiscoveryTest extends TestCase
 
     public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles()
     {
-        $discoveryState = $this->discoverer->discover(__DIR__, ['Fixtures']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['Fixtures']);
 
         $tools = $this->registry->getTools();
         $this->assertCount(4, $tools);
@@ -124,28 +123,24 @@ class DiscoveryTest extends TestCase
 
     public function testDoesNotDiscoverElementsFromExcludedDirectories()
     {
-        $discoveryState = $this->discoverer->discover(__DIR__, ['Fixtures']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['Fixtures']);
         $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('hidden_subdir_tool'));
 
         $this->registry->clear();
 
-        $discoveryState = $this->discoverer->discover(__DIR__, ['Fixtures'], ['SubDir']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['Fixtures'], ['SubDir']);
         $this->assertNull($this->registry->getTool('hidden_subdir_tool'));
     }
 
     public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles()
     {
-        $discoveryState = $this->discoverer->discover(__DIR__, ['EmptyDir']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['EmptyDir']);
         $this->assertEmpty($this->registry->getTools());
     }
 
     public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute()
     {
-        $discoveryState = $this->discoverer->discover(__DIR__, ['Fixtures']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['Fixtures']);
 
         $repeatActionTool = $this->registry->getTool('repeatAction');
         $this->assertEquals('repeatAction', $repeatActionTool->tool->name);
@@ -162,8 +157,7 @@ class DiscoveryTest extends TestCase
 
     public function testDiscoversEnhancedCompletionProvidersWithValuesAndEnumAttributes()
     {
-        $discoveryState = $this->discoverer->discover(__DIR__, ['Fixtures']);
-        $this->discoverer->applyDiscoveryState($discoveryState);
+        $this->discoverer->discover(__DIR__, ['Fixtures']);
 
         $contentPrompt = $this->registry->getPrompt('content_creator');
         $this->assertInstanceOf(PromptReference::class, $contentPrompt);
