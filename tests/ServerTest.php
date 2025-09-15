@@ -33,6 +33,7 @@ class ServerTest extends TestCase
             ->disableOriginalConstructor()
             ->onlyMethods(['process'])
             ->getMock();
+
         $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(new Exception(new \JsonException('foobar')), ['success']);
 
         $notificationPublisher = $this->createMock(NotificationPublisher::class);

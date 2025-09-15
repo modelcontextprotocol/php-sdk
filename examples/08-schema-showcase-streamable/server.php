@@ -19,9 +19,9 @@ use Mcp\Server\Transports\StreamableHttpServerTransport;
 logger()->info('Starting MCP Schema Showcase Server...');
 
 Server::make()
-    ->withServerInfo('Schema Showcase', '1.0.0')
-    ->withLogger(logger())
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('Schema Showcase', '1.0.0')
+    ->setLogger(logger())
+    ->setDiscovery(__DIR__, ['.'])
     ->build()
     ->connect(new StreamableHttpServerTransport('127.0.0.1', 8080, 'mcp'));
 

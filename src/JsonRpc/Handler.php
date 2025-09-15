@@ -11,7 +11,11 @@
 
 namespace Mcp\JsonRpc;
 
-use Mcp\Capability\Registry;
+use Mcp\Capability\Prompt\PromptGetterInterface;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
+use Mcp\Capability\Resource\ResourceReaderInterface;
+use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
@@ -46,28 +50,34 @@ class Handler
         iterable $methodHandlers,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array($methodHandlers) : $methodHandlers;
+        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array(
+            $methodHandlers,
+        ) : $methodHandlers;
     }
 
     public static function make(
-        Registry $registry,
+        ReferenceRegistryInterface $registry,
+        ReferenceProviderInterface $referenceProvider,
         Implementation $implementation,
+        ToolCallerInterface $toolCaller,
+        ResourceReaderInterface $resourceReader,
+        PromptGetterInterface $promptGetter,
         LoggerInterface $logger = new NullLogger(),
     ): self {
         return new self(
-            MessageFactory::make(),
-            [
+            messageFactory: MessageFactory::make(),
+            methodHandlers: [
                 new NotificationHandler\InitializedHandler(),
                 new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
                 new RequestHandler\PingHandler(),
-                new RequestHandler\ListPromptsHandler($registry),
-                new RequestHandler\GetPromptHandler($registry),
-                new RequestHandler\ListResourcesHandler($registry),
-                new RequestHandler\ReadResourceHandler($registry),
-                new RequestHandler\CallToolHandler($registry, $logger),
-                new RequestHandler\ListToolsHandler($registry),
+                new RequestHandler\ListPromptsHandler($referenceProvider),
+                new RequestHandler\GetPromptHandler($promptGetter),
+                new RequestHandler\ListResourcesHandler($referenceProvider),
+                new RequestHandler\ReadResourceHandler($resourceReader),
+                new RequestHandler\CallToolHandler($toolCaller, $logger),
+                new RequestHandler\ListToolsHandler($referenceProvider),
             ],
-            $logger,
+            logger: $logger,
         );
     }
 
@@ -107,7 +117,8 @@ class Handler
             } catch (\DomainException) {
                 yield null;
             } catch (NotFoundExceptionInterface $e) {
-                $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e]);
+                $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e],
+                );
 
                 yield $this->encodeResponse(Error::forMethodNotFound($e->getMessage()));
             } catch (\InvalidArgumentException $e) {

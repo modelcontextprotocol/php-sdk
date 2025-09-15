@@ -24,11 +24,11 @@ $container = new Container();
 $container->set(LoggerInterface::class, logger());
 
 Server::make()
-    ->withServerInfo('HTTP User Profiles', '1.0.0')
-    ->withLogger(logger())
-    ->withContainer($container)
-    ->withDiscovery(__DIR__, ['.'])
-    ->withTool(
+    ->setServerInfo('HTTP User Profiles', '1.0.0')
+    ->setLogger(logger())
+    ->setContainer($container)
+    ->setDiscovery(__DIR__, ['.'])
+    ->addTool(
         function (float $a, float $b, string $operation = 'add'): array {
             $result = match ($operation) {
                 'add' => $a + $b,
@@ -47,7 +47,7 @@ Server::make()
         name: 'calculator',
         description: 'Perform basic math operations (add, subtract, multiply, divide)'
     )
-    ->withResource(
+    ->addResource(
         function (): array {
             $memoryUsage = memory_get_usage(true);
             $memoryPeak = memory_get_peak_usage(true);

@@ -51,7 +51,7 @@ class ServerCapabilities implements \JsonSerializable
      *     completions?: mixed,
      *     prompts?: array{listChanged?: bool}|object,
      *     resources?: array{listChanged?: bool, subscribe?: bool}|object,
-     *     tools?: object,
+     *     tools?: object|array{listChanged?: bool},
      *     experimental?: array<string, mixed>,
      * } $data
      */
@@ -106,7 +106,7 @@ class ServerCapabilities implements \JsonSerializable
             promptsListChanged: $promptsListChanged,
             logging: $loggingEnabled,
             completions: $completionsEnabled,
-            experimental: $data['experimental'] ?? null
+            experimental: $data['experimental'] ?? null,
         );
     }
 
