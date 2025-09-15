@@ -24,7 +24,7 @@ use Mcp\Capability\Registry\ToolReference;
  *
  * @author Xentixar <xentixar@gmail.com>
  */
-class DiscoveryState
+final class DiscoveryState
 {
     /**
      * @param array<string, ToolReference>             $tools
@@ -107,49 +107,5 @@ class DiscoveryState
             'prompts' => \count($this->prompts),
             'resourceTemplates' => \count($this->resourceTemplates),
         ];
-    }
-
-    /**
-     * Create a new DiscoveryState by merging with another state.
-     * Elements from the other state take precedence.
-     */
-    public function merge(self $other): self
-    {
-        return new self(
-            tools: array_merge($this->tools, $other->tools),
-            resources: array_merge($this->resources, $other->resources),
-            prompts: array_merge($this->prompts, $other->prompts),
-            resourceTemplates: array_merge($this->resourceTemplates, $other->resourceTemplates),
-        );
-    }
-
-    /**
-     * Convert the state to an array for serialization.
-     *
-     * @return array<string, mixed>
-     */
-    public function toArray(): array
-    {
-        return [
-            'tools' => $this->tools,
-            'resources' => $this->resources,
-            'prompts' => $this->prompts,
-            'resourceTemplates' => $this->resourceTemplates,
-        ];
-    }
-
-    /**
-     * Create a DiscoveryState from an array (for deserialization).
-     *
-     * @param array<string, mixed> $data
-     */
-    public static function fromArray(array $data): self
-    {
-        return new self(
-            tools: $data['tools'] ?? [],
-            resources: $data['resources'] ?? [],
-            prompts: $data['prompts'] ?? [],
-            resourceTemplates: $data['resourceTemplates'] ?? [],
-        );
     }
 }

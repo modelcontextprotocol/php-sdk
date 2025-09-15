@@ -321,18 +321,13 @@ final class ServerBuilder
         $this->registerCapabilities($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
-            $discoverer = new Discoverer($registry, $logger);
+            $discovery = new Discoverer($registry, $logger);
 
-            // Use cached discoverer if cache is provided
             if (null !== $this->cache) {
-                $discovery = new CachedDiscoverer($discoverer, $this->cache, $logger);
-            } else {
-                $discovery = $discoverer;
+                $discovery = new CachedDiscoverer($discovery, $this->cache, $logger);
             }
 
-            // Discover elements and apply them to the registry
-            $discoveryState = $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
-            $discoverer->applyDiscoveryState($discoveryState);
+            $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
         }
 
         $sessionTtl = $this->sessionTtl ?? 3600;

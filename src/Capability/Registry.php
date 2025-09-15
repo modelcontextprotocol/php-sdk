@@ -261,8 +261,10 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     public function getResourceTemplates(): array
     {
-        return array_map(fn (ResourceTemplateReference $template) => $template->resourceTemplate,
-            $this->resourceTemplates);
+        return array_map(
+            fn (ResourceTemplateReference $template) => $template->resourceTemplate,
+            $this->resourceTemplates
+        );
     }
 
     public function hasElements(): bool
@@ -274,9 +276,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
-     * Export the current discovery state (only discovered elements, not manual ones).
+     * Get the current discovery state (only discovered elements, not manual ones).
      */
-    public function exportDiscoveryState(): DiscoveryState
+    public function getDiscoveryState(): DiscoveryState
     {
         return new DiscoveryState(
             tools: array_filter($this->tools, fn ($tool) => !$tool->isManual),
@@ -287,10 +289,10 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
-     * Import discovery state, replacing all discovered elements.
+     * Set discovery state, replacing all discovered elements.
      * Manual elements are preserved.
      */
-    public function importDiscoveryState(DiscoveryState $state): void
+    public function setDiscoveryState(DiscoveryState $state): void
     {
         // Clear existing discovered elements
         $this->clear();

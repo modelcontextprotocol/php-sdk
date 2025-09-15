@@ -25,15 +25,12 @@ use Psr\SimpleCache\CacheInterface;
 class CachedDiscoverer
 {
     private const CACHE_PREFIX = 'mcp_discovery_';
-    private const CACHE_TTL = 3600; // 1 hour default TTL
 
     public function __construct(
         private readonly Discoverer $discoverer,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
-        private readonly int $cacheTtl = self::CACHE_TTL,
-    ) {
-    }
+    ) {}
 
     /**
      * Discover MCP elements in the specified directories with caching.
@@ -46,7 +43,6 @@ class CachedDiscoverer
     {
         $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs);
 
-        // Check if we have cached results
         $cachedResult = $this->cache->get($cacheKey);
         if (null !== $cachedResult) {
             $this->logger->debug('Using cached discovery results', [
@@ -55,8 +51,7 @@ class CachedDiscoverer
                 'directories' => $directories,
             ]);
 
-            // Restore the discovery state from cache
-            return $this->restoreDiscoveryStateFromCache($cachedResult);
+            return $cachedResult;
         }
 
         $this->logger->debug('Cache miss, performing fresh discovery', [
@@ -65,11 +60,9 @@ class CachedDiscoverer
             'directories' => $directories,
         ]);
 
-        // Perform fresh discovery
         $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs);
 
-        // Cache the results
-        $this->cacheDiscoveryResults($cacheKey, $discoveryState);
+        $this->cache->set($cacheKey, $discoveryState);
 
         return $discoveryState;
     }
@@ -88,49 +81,7 @@ class CachedDiscoverer
             'exclude_dirs' => $excludeDirs,
         ];
 
-        return self::CACHE_PREFIX.md5(serialize($keyData));
-    }
-
-    /**
-     * Cache the discovery state.
-     */
-    private function cacheDiscoveryResults(string $cacheKey, DiscoveryState $state): void
-    {
-        try {
-            // Convert state to array for caching
-            $stateData = $state->toArray();
-
-            // Store in cache
-            $this->cache->set($cacheKey, $stateData, $this->cacheTtl);
-
-            $this->logger->debug('Cached discovery results', [
-                'cache_key' => $cacheKey,
-                'ttl' => $this->cacheTtl,
-                'element_count' => $state->getElementCount(),
-            ]);
-        } catch (\Throwable $e) {
-            $this->logger->warning('Failed to cache discovery results', [
-                'cache_key' => $cacheKey,
-                'exception' => $e->getMessage(),
-            ]);
-        }
-    }
-
-    /**
-     * Restore discovery state from cached data.
-     *
-     * @param array<string, mixed> $cachedResult
-     */
-    private function restoreDiscoveryStateFromCache(array $cachedResult): DiscoveryState
-    {
-        try {
-            return DiscoveryState::fromArray($cachedResult);
-        } catch (\Throwable $e) {
-            $this->logger->error('Failed to restore discovery state from cache', [
-                'exception' => $e->getMessage(),
-            ]);
-            throw $e;
-        }
+        return self::CACHE_PREFIX . md5(serialize($keyData));
     }
 
     /**
@@ -139,10 +90,6 @@ class CachedDiscoverer
      */
     public function clearCache(): void
     {
-        // This is a simple implementation that clears all discovery cache entries
-        // In a more sophisticated implementation, we might want to track cache keys
-        // and clear them selectively
-
         $this->cache->clear();
         $this->logger->info('Discovery cache cleared');
     }
