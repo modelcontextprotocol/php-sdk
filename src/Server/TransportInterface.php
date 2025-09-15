@@ -11,6 +11,8 @@
 
 namespace Mcp\Server;
 
+use Symfony\Component\Uid\Uuid;
+
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -23,20 +25,11 @@ interface TransportInterface
     public function initialize(): void;
 
     /**
-     * Registers an event listener for the specified event.
+     * Registers a callback that will be invoked whenever the transport receives an incoming message.
      *
-     * @param string $event The event name to listen for
-     * @param callable $listener The callback function to execute when the event occurs
+     * @param callable(string $message, ?Uuid $sessionId): void $listener The callback function to execute when the message occurs
      */
-    public function on(string $event, callable $listener): void;
-
-    /**
-     * Triggers an event and executes all registered listeners.
-     *
-     * @param string $event The event name to emit
-     * @param mixed ...$args Variable number of arguments to pass to the listeners
-     */
-    public function emit(string $event, mixed ...$args): void;
+    public function onMessage(callable $listener): void;
 
     /**
      * Starts the transport's execution process.

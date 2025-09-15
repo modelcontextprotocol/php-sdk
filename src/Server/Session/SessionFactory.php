@@ -13,13 +13,13 @@ use Symfony\Component\Uid\Uuid;
  */
 class SessionFactory implements SessionFactoryInterface
 {
-    public function create(Uuid $id, SessionStoreInterface $store): SessionInterface
+    public function create(SessionStoreInterface $store): SessionInterface
     {
-        return new Session($store, $id);
+        return new Session($store, Uuid::v4());
     }
 
-    public function createNew(SessionStoreInterface $store): SessionInterface
+    public function createWithId(Uuid $id, SessionStoreInterface $store): SessionInterface
     {
-        return $this->create(Uuid::v4(), $store);
+        return new Session($store, $id);
     }
 }

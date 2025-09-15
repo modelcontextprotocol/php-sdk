@@ -19,14 +19,15 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StreamableHttpTransport implements TransportInterface
 {
-    /** @var array<string, array<callable>> */
-    private array $listeners = [];
+    private $messageListener;
+    private ?Uuid $sessionId = null;
 
     /** @var string[] */
     private array $outgoingMessages = [];
@@ -42,27 +43,16 @@ class StreamableHttpTransport implements TransportInterface
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
         private readonly LoggerInterface $logger = new NullLogger()
-    ) {}
+    ) {
+        $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
+        $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+    }
 
     public function initialize(): void {}
 
-    public function on(string $event, callable $listener): void
+    public function onMessage(callable $listener): void
     {
-        if (!isset($this->listeners[$event])) {
-            $this->listeners[$event] = [];
-        }
-        $this->listeners[$event][] = $listener;
-    }
-
-    public function emit(string $event, mixed ...$args): void
-    {
-        if (!isset($this->listeners[$event])) {
-            return;
-        }
-
-        foreach ($this->listeners[$event] as $listener) {
-            $listener(...$args);
-        }
+        $this->messageListener = $listener;
     }
 
     public function send(string $data): void
@@ -106,7 +96,7 @@ class StreamableHttpTransport implements TransportInterface
             return $this->createErrorResponse($error, 400);
         }
 
-        $this->emit('message', $body);
+        call_user_func($this->messageListener, $body, $this->sessionId);
 
         $hasRequestsInInput = str_contains($body, '"id"');
         $hasResponsesInOutput = !empty($this->outgoingMessages);

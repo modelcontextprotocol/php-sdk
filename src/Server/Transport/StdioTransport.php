@@ -12,16 +12,14 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
-use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Uid\UuidV4;
 use Psr\Log\NullLogger;
+use Psr\Log\LoggerInterface;
 
-/**
- * Heavily inspired by https://jolicode.com/blog/mcp-the-open-protocol-that-turns-llm-chatbots-into-intelligent-agents.
- */
 class StdioTransport implements TransportInterface
 {
-    /** @var array<string, array<callable>> */
-    private array $listeners = [];
+    private $messageListener;
 
     /**
      * @param resource $input
@@ -30,27 +28,15 @@ class StdioTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly Uuid $sessionId = new UuidV4(),
+        private readonly LoggerInterface $logger = new NullLogger()
     ) {}
 
     public function initialize(): void {}
 
-    public function on(string $event, callable $listener): void
+    public function onMessage(callable $listener): void
     {
-        if (!isset($this->listeners[$event])) {
-            $this->listeners[$event] = [];
-        }
-        $this->listeners[$event][] = $listener;
-    }
-
-    public function emit(string $event, mixed ...$args): void
-    {
-        if (!isset($this->listeners[$event])) {
-            return;
-        }
-        foreach ($this->listeners[$event] as $listener) {
-            $listener(...$args);
-        }
+        $this->messageListener = $listener;
     }
 
     public function send(string $data): void
@@ -73,7 +59,7 @@ class StdioTransport implements TransportInterface
             $trimmedLine = trim($line);
             if (!empty($trimmedLine)) {
                 $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
-                $this->emit('message', $trimmedLine);
+                call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
             }
         }
 

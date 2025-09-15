@@ -27,6 +27,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\MethodHandlerInterface;
 use Mcp\Server\NotificationHandler;
 use Mcp\Server\RequestHandler;
+use Symfony\Component\Uid\Uuid;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -87,7 +88,7 @@ class Handler
      * @throws ExceptionInterface When a handler throws an exception during message processing
      * @throws \JsonException     When JSON encoding of the response fails
      */
-    public function process(string $input): iterable
+    public function process(string $input, ?Uuid $sessionId): iterable
     {
         $this->logger->info('Received message to process.', ['message' => $input]);
 
@@ -117,7 +118,9 @@ class Handler
             } catch (\DomainException) {
                 yield null;
             } catch (NotFoundExceptionInterface $e) {
-                $this->logger->warning(\sprintf('Failed to create response: %s', $e->getMessage()), ['exception' => $e],
+                $this->logger->warning(
+                    \sprintf('Failed to create response: %s', $e->getMessage()),
+                    ['exception' => $e],
                 );
 
                 yield $this->encodeResponse(Error::forMethodNotFound($e->getMessage()));

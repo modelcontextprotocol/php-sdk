@@ -15,12 +15,14 @@ use Symfony\Component\Uid\Uuid;
 interface SessionFactoryInterface
 {
     /**
-     * Create a session with a specific UUID.
+     * Creates a new session with an auto-generated UUID.
+     * This is the standard factory method for creating sessions.
      */
-    public function create(Uuid $id, SessionStoreInterface $store): SessionInterface;
+    public function create(SessionStoreInterface $store): SessionInterface;
 
     /**
-     * Create a new session with a generated UUID.
+     * Creates a session with a specific UUID.
+     * Use this when you need to reconstruct a session with a known ID.
      */
-    public function createNew(SessionStoreInterface $store): SessionInterface;
+    public function createWithId(Uuid $id, SessionStoreInterface $store): SessionInterface;
 }

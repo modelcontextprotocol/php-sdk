@@ -18,6 +18,7 @@ use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -45,15 +46,15 @@ final class Server
             'transport' => $transport::class,
         ]);
 
-        $transport->on('message', function (string $message) use ($transport) {
-            $this->handleMessage($message, $transport);
+        $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
+            $this->handleMessage($message, $sessionId, $transport);
         });
     }
 
-    private function handleMessage(string $message, TransportInterface $transport): void
+    private function handleMessage(string $message, ?Uuid $sessionId, TransportInterface $transport): void
     {
         try {
-            foreach ($this->jsonRpcHandler->process($message) as $response) {
+            foreach ($this->jsonRpcHandler->process($message, $sessionId) as $response) {
                 if (null === $response) {
                     continue;
                 }
