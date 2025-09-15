@@ -13,6 +13,9 @@ namespace Mcp\Tests\Capability\Registry;
 
 use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -303,6 +306,57 @@ class RegistryTest extends TestCase
         // Second registration should override the first
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertEquals('second', ($toolRef->handler)());
+    }
+
+    public function testToolRegistrationTriggersNotification(): void
+    {
+        $tool = $this->createValidTool('the-best-tool-name-ever');
+
+        $expected = [$tool->name => $tool];
+
+        $notificationPublisher = $this->createMock(NotificationPublisher::class);
+        $notificationPublisher->expects($this->once())
+            ->method('enqueue')
+            ->with(new ToolListChangedNotification());
+
+        $registry = new Registry($notificationPublisher);
+        $registry->registerTool($tool, fn () => null);
+
+        $this->assertSame($expected, $registry->getTools());
+    }
+
+    public function testResourceRegistrationTriggersNotification(): void
+    {
+        $resource = $this->createValidResource('config://the-best-resource-uri-ever');
+
+        $expected = [$resource->uri => $resource];
+
+        $notificationPublisher = $this->createMock(NotificationPublisher::class);
+        $notificationPublisher->expects($this->once())
+            ->method('enqueue')
+            ->with(new ResourceListChangedNotification());
+
+        $registry = new Registry($notificationPublisher);
+        $registry->registerResource($resource, fn () => null);
+
+        $this->assertSame($expected, $registry->getResources());
+    }
+
+    public function testPromptRegistrationTriggersNotification(): void
+    {
+        $prompt = $this->createValidPrompt('the-best-prompt-ever');
+
+        $expected = [$prompt->name => $prompt];
+
+        $notificationPublisher = $this->createMock(NotificationPublisher::class);
+        $notificationPublisher->expects($this->once())
+            ->method('enqueue')
+            ->with(new PromptListChangedNotification());
+
+        $registry = new Registry($notificationPublisher);
+        $registry->registerPrompt($prompt, fn () => null);
+
+        $this->assertSame($expected, $registry->getPrompts());
     }
 
     private function createValidTool(string $name): Tool
