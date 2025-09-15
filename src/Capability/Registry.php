@@ -27,7 +27,7 @@ use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Mcp\Server\RequestHandler\ReferencePage;
+use Mcp\Server\RequestHandler\Reference\Page;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -248,7 +248,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     /**
      * Gets all registered tools.
      */
-    public function getTools(?int $limit = null, ?string $cursor = null): ReferencePage
+    public function getTools(?int $limit = null, ?string $cursor = null): Page
     {
         $tools = [];
         foreach ($this->tools as $toolReference) {
@@ -256,7 +256,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         if (null === $limit) {
-            return new ReferencePage($tools, null);
+            return new Page($tools, null);
         }
 
         $paginatedTools = $this->paginateResults($tools, $limit, $cursor);
@@ -267,13 +267,13 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $limit
         );
 
-        return new ReferencePage($paginatedTools, $nextCursor);
+        return new Page($paginatedTools, $nextCursor);
     }
 
     /**
      *  Gets all registered resources.
      */
-    public function getResources(?int $limit = null, ?string $cursor = null): ReferencePage
+    public function getResources(?int $limit = null, ?string $cursor = null): Page
     {
         $resources = [];
         foreach ($this->resources as $resourceReference) {
@@ -281,7 +281,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         if (null === $limit) {
-            return new ReferencePage($resources, null);
+            return new Page($resources, null);
         }
 
         $paginatedResources = $this->paginateResults($resources, $limit, $cursor);
@@ -292,13 +292,13 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $limit
         );
 
-        return new ReferencePage($paginatedResources, $nextCursor);
+        return new Page($paginatedResources, $nextCursor);
     }
 
     /**
      *  Gets all registered prompts.
      */
-    public function getPrompts(?int $limit = null, ?string $cursor = null): ReferencePage
+    public function getPrompts(?int $limit = null, ?string $cursor = null): Page
     {
         $prompts = [];
         foreach ($this->prompts as $promptReference) {
@@ -306,7 +306,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         if (null === $limit) {
-            return new ReferencePage($prompts, null);
+            return new Page($prompts, null);
         }
 
         $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
@@ -317,13 +317,13 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $limit
         );
 
-        return new ReferencePage($paginatedPrompts, $nextCursor);
+        return new Page($paginatedPrompts, $nextCursor);
     }
 
     /**
      *  Gets all registered resource templates.
      */
-    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): ReferencePage
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
     {
         $templates = [];
         foreach ($this->resourceTemplates as $templateReference) {
@@ -331,7 +331,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         if (null === $limit) {
-            return new ReferencePage($templates, null);
+            return new Page($templates, null);
         }
 
         $paginatedTemplates = $this->paginateResults($templates, $limit, $cursor);
@@ -342,7 +342,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $limit
         );
 
-        return new ReferencePage($paginatedTemplates, $nextCursor);
+        return new Page($paginatedTemplates, $nextCursor);
     }
 
     public function hasElements(): bool

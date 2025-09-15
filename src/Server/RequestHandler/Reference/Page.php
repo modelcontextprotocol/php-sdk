@@ -9,12 +9,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler;
+namespace Mcp\Server\RequestHandler\Reference;
 
 /**
  * @implements \ArrayAccess<int|string, mixed>
  */
-final class ReferencePage implements \Countable, \ArrayAccess
+final class Page implements \Countable, \ArrayAccess
 {
     /**
      * @param array<int|string, mixed> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
