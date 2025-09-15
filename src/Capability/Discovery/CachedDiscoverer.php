@@ -30,7 +30,8 @@ class CachedDiscoverer
         private readonly Discoverer $discoverer,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
-    ) {}
+    ) {
+    }
 
     /**
      * Discover MCP elements in the specified directories with caching.
@@ -81,7 +82,7 @@ class CachedDiscoverer
             'exclude_dirs' => $excludeDirs,
         ];
 
-        return self::CACHE_PREFIX . md5(serialize($keyData));
+        return self::CACHE_PREFIX.md5(serialize($keyData));
     }
 
     /**

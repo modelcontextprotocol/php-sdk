@@ -12,7 +12,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-require_once __DIR__ . '/../bootstrap.php';
+require_once __DIR__.'/../bootstrap.php';
 
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
