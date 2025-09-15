@@ -83,7 +83,7 @@ class Discoverer
             $finder = new Finder();
             $absolutePaths = [];
             foreach ($directories as $dir) {
-                $path = rtrim($basePath, '/') . '/' . ltrim($dir, '/');
+                $path = rtrim($basePath, '/').'/'.ltrim($dir, '/');
                 if (is_dir($path)) {
                     $absolutePaths[] = $path;
                 }
@@ -266,7 +266,7 @@ class Discoverer
                         if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
                             continue;
                         }
-                        $paramTag = $paramTags['$' . $param->getName()] ?? null;
+                        $paramTag = $paramTags['$'.$param->getName()] ?? null;
                         $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
                     }
                     $prompt = new Prompt($name, $description, $arguments);
@@ -407,7 +407,7 @@ class Discoverer
                     for ($j = $i + 1; $j < $tokenCount; ++$j) {
                         if (\is_array($tokens[$j]) && \T_STRING === $tokens[$j][0]) {
                             $className = $tokens[$j][1];
-                            $potentialClasses[] = $namespace ? $namespace . '\\' . $className : $className;
+                            $potentialClasses[] = $namespace ? $namespace.'\\'.$className : $className;
                             $i = $j;
                             break;
                         }
