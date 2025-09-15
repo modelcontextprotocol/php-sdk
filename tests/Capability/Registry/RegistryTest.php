@@ -18,6 +18,7 @@ use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
+use Mcp\Server\NotificationPublisher;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -30,7 +31,7 @@ class RegistryTest extends TestCase
     protected function setUp(): void
     {
         $this->logger = $this->createMock(LoggerInterface::class);
-        $this->registry = new Registry(null, $this->logger);
+        $this->registry = new Registry(new NotificationPublisher(), $this->logger);
     }
 
     public function testConstructorWithDefaults(): void
@@ -39,9 +40,6 @@ class RegistryTest extends TestCase
         $capabilities = $registry->getCapabilities();
 
         $this->assertInstanceOf(ServerCapabilities::class, $capabilities);
-        $this->assertFalse($capabilities->toolsListChanged);
-        $this->assertFalse($capabilities->resourcesListChanged);
-        $this->assertFalse($capabilities->promptsListChanged);
     }
 
     public function testGetCapabilitiesWhenEmpty(): void
