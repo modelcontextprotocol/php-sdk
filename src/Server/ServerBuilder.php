@@ -39,7 +39,6 @@ use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Psr\Container\ContainerInterface;
-use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
@@ -60,8 +59,6 @@ final class ServerBuilder
     private ?ResourceReaderInterface $resourceReader = null;
 
     private ?PromptGetterInterface $promptGetter = null;
-
-    private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
 
@@ -150,13 +147,6 @@ final class ServerBuilder
     public function setLogger(LoggerInterface $logger): self
     {
         $this->logger = $logger;
-
-        return $this;
-    }
-
-    public function setEventDispatcher(EventDispatcherInterface $eventDispatcher): self
-    {
-        $this->eventDispatcher = $eventDispatcher;
 
         return $this;
     }
@@ -276,9 +266,9 @@ final class ServerBuilder
     public function build(): Server
     {
         $logger = $this->logger ?? new NullLogger();
-
+        $notificationPublisher = new NotificationPublisher();
         $container = $this->container ?? new Container();
-        $registry = new Registry($this->eventDispatcher, $logger);
+        $registry = new Registry($notificationPublisher, $logger);
 
         $referenceHandler = new ReferenceHandler($container);
         $toolCaller = $this->toolCaller ??= new ToolCaller($registry, $referenceHandler, $logger);
@@ -302,6 +292,7 @@ final class ServerBuilder
                 promptGetter: $promptGetter,
                 logger: $logger,
             ),
+            notificationPublisher: $notificationPublisher,
             logger: $logger,
         );
     }

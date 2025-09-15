@@ -18,6 +18,10 @@ use Mcp\Schema\Notification;
 use Mcp\Schema\Request;
 
 /**
+ * @phpstan-type RequestData array{
+ *      params?: array<string, mixed>,
+ *  }
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class MessageFactory

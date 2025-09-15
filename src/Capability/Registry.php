@@ -17,16 +17,15 @@ use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
-use Mcp\Event\PromptListChangedEvent;
-use Mcp\Event\ResourceListChangedEvent;
-use Mcp\Event\ResourceTemplateListChangedEvent;
-use Mcp\Event\ToolListChangedEvent;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Psr\EventDispatcher\EventDispatcherInterface;
+use Mcp\Server\NotificationPublisher;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -61,7 +60,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     private array $resourceTemplates = [];
 
     public function __construct(
-        private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly NotificationPublisher $notificationPublisher = new NotificationPublisher(),
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -74,12 +73,12 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         return new ServerCapabilities(
             tools: [] !== $this->tools,
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            toolsListChanged: true,
             resources: [] !== $this->resources || [] !== $this->resourceTemplates,
             resourcesSubscribe: false,
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            resourcesListChanged: true,
             prompts: [] !== $this->prompts,
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            promptsListChanged: true,
             logging: false,
             completions: true,
         );
@@ -100,7 +99,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->notificationPublisher->enqueue(new ToolListChangedNotification());
     }
 
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void
@@ -118,7 +117,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->notificationPublisher->enqueue(new ResourceListChangedNotification());
     }
 
     public function registerResourceTemplate(
@@ -145,7 +144,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $completionProviders,
         );
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        // TODO: Create ResourceTemplateListChangedNotification.
+        // $this->notificationPublisher->enqueue(ResourceTemplateListChangedNotification::class);
     }
 
     public function registerPrompt(
@@ -167,7 +167,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->notificationPublisher->enqueue(new PromptListChangedNotification());
     }
 
     public function clear(): void

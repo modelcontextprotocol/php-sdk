@@ -12,6 +12,7 @@
 namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
+use Mcp\Server\NotificationPublisher;
 use Mcp\Server\ServerBuilder;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
@@ -24,6 +25,7 @@ final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
+        private readonly NotificationPublisher $notificationPublisher,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -57,6 +59,18 @@ final class Server
                 } catch (\JsonException $e) {
                     $this->logger->error('Failed to encode response to JSON.', [
                         'message' => $message,
+                        'exception' => $e,
+                    ]);
+                    continue;
+                }
+            }
+
+            foreach ($this->notificationPublisher->flush() as $notification) {
+                try {
+                    $transport->send(json_encode($notification, \JSON_THROW_ON_ERROR));
+                } catch (\JsonException $e) {
+                    $this->logger->error('Failed to encode notification to JSON.', [
+                        'notification' => $notification::class,
                         'exception' => $e,
                     ]);
                     continue;
