@@ -28,10 +28,10 @@ $statsService = new Services\SystemStatsService($taskRepo);
 $container->set(Services\StatsServiceInterface::class, $statsService);
 
 Server::make()
-    ->withServerInfo('Task Manager Server', '1.0.0')
-    ->withLogger(logger())
-    ->withContainer($container)
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('Task Manager Server', '1.0.0')
+    ->setLogger(logger())
+    ->setContainer($container)
+    ->setDiscovery(__DIR__, ['.'])
     ->build()
     ->connect(new StdioTransport(logger: logger()));
 

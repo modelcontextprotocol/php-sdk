@@ -19,10 +19,10 @@ use Mcp\Server\Transport\StdioTransport;
 logger()->info('Starting MCP Stdio Calculator Server...');
 
 Server::make()
-    ->withServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
-    ->withContainer(container())
-    ->withLogger(logger())
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
+    ->setContainer(container())
+    ->setLogger(logger())
+    ->setDiscovery(__DIR__, ['.'])
     ->build()
     ->connect(new StdioTransport(logger: logger()));
 
