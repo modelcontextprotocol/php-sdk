@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -76,4 +77,15 @@ interface ReferenceRegistryInterface
      * Clear discovered elements from registry.
      */
     public function clear(): void;
+
+    /**
+     * Get the current discovery state (only discovered elements, not manual ones).
+     */
+    public function getDiscoveryState(): DiscoveryState;
+
+    /**
+     * Set discovery state, replacing all discovered elements.
+     * Manual elements are preserved.
+     */
+    public function setDiscoveryState(DiscoveryState $state): void;
 }

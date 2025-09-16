@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability;
 
+use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
@@ -260,8 +261,10 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     public function getResourceTemplates(): array
     {
-        return array_map(fn (ResourceTemplateReference $template) => $template->resourceTemplate,
-            $this->resourceTemplates);
+        return array_map(
+            fn (ResourceTemplateReference $template) => $template->resourceTemplate,
+            $this->resourceTemplates
+        );
     }
 
     public function hasElements(): bool
@@ -270,5 +273,58 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             || !empty($this->resources)
             || !empty($this->prompts)
             || !empty($this->resourceTemplates);
+    }
+
+    /**
+     * Get the current discovery state (only discovered elements, not manual ones).
+     */
+    public function getDiscoveryState(): DiscoveryState
+    {
+        return new DiscoveryState(
+            tools: array_filter($this->tools, fn ($tool) => !$tool->isManual),
+            resources: array_filter($this->resources, fn ($resource) => !$resource->isManual),
+            prompts: array_filter($this->prompts, fn ($prompt) => !$prompt->isManual),
+            resourceTemplates: array_filter($this->resourceTemplates, fn ($template) => !$template->isManual),
+        );
+    }
+
+    /**
+     * Set discovery state, replacing all discovered elements.
+     * Manual elements are preserved.
+     */
+    public function setDiscoveryState(DiscoveryState $state): void
+    {
+        // Clear existing discovered elements
+        $this->clear();
+
+        // Import new discovered elements
+        foreach ($state->getTools() as $name => $tool) {
+            $this->tools[$name] = $tool;
+        }
+
+        foreach ($state->getResources() as $uri => $resource) {
+            $this->resources[$uri] = $resource;
+        }
+
+        foreach ($state->getPrompts() as $name => $prompt) {
+            $this->prompts[$name] = $prompt;
+        }
+
+        foreach ($state->getResourceTemplates() as $uriTemplate => $template) {
+            $this->resourceTemplates[$uriTemplate] = $template;
+        }
+
+        // Dispatch events for the imported elements
+        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
+            if (!empty($state->getTools())) {
+                $this->eventDispatcher->dispatch(new ToolListChangedEvent());
+            }
+            if (!empty($state->getResources()) || !empty($state->getResourceTemplates())) {
+                $this->eventDispatcher->dispatch(new ResourceListChangedEvent());
+            }
+            if (!empty($state->getPrompts())) {
+                $this->eventDispatcher->dispatch(new PromptListChangedEvent());
+            }
+        }
     }
 }
