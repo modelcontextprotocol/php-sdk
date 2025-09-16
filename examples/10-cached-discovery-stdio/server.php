@@ -20,9 +20,9 @@ use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
 Server::make()
-    ->withServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
-    ->withDiscovery(__DIR__, ['.'])
-    ->withLogger(logger())
+    ->setServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
+    ->setDiscovery(__DIR__, ['.'])
+    ->setLogger(logger())
     ->withCache(new Psr16Cache(new ArrayAdapter()))
     ->build()
     ->connect(new StdioTransport());
