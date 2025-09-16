@@ -231,7 +231,7 @@ final class ServerBuilder
     /**
      * Enables discovery caching with the provided cache implementation.
      */
-    public function withCache(CacheInterface $cache): self
+    public function setCache(CacheInterface $cache): self
     {
         $this->cache = $cache;
 
