@@ -175,6 +175,38 @@ class ToolCallerTest extends TestCase
         $this->toolCaller->call($request);
     }
 
+    public function testCallThrowsToolExecutionException(): void
+    {
+        $request = new CallToolRequest('test_tool', ['param' => 'value']);
+        $tool = $this->createValidTool('test_tool');
+        $exception = new class extends \Exception implements \Mcp\Exception\ToolExecutionExceptionInterface {
+            public function getErrorMessages(): array
+            {
+                return ['test error'];
+            }
+        };
+        $toolReference = new ToolReference($tool, fn () => throw $exception);
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('test_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['param' => 'value'])
+            ->willThrowException($exception);
+
+        $result = $this->toolCaller->call($request);
+
+        $this->assertCount(1, $result->content);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertEquals('test error', $result->content[0]->text);
+        $this->assertTrue($result->isError);
+    }
+
     public function testCallThrowsToolExecutionExceptionWhenHandlerThrowsException(): void
     {
         $request = new CallToolRequest('failing_tool', ['param' => 'value']);

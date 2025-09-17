@@ -17,6 +17,7 @@ use Mcp\Capability\Tool\MetadataInterface;
 use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Exception\ToolCallException;
+use Mcp\Exception\ToolExecutionExceptionInterface;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -67,6 +68,10 @@ class ToolChain implements ToolCallerInterface, CollectionInterface
                 try {
                     return $item->call($request);
                 } catch (\Throwable $e) {
+                    if ($e instanceof ToolExecutionExceptionInterface) {
+                        throw $e;
+                    }
+
                     throw new ToolCallException($request, $e);
                 }
             }
