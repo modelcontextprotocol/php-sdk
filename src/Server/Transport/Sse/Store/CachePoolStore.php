@@ -45,6 +45,11 @@ final class CachePoolStore implements StoreInterface
         }
 
         $messages = $item->get();
+
+        if ([] === $messages) {
+            return null;
+        }
+
         $message = array_shift($messages);
 
         $item->set($messages);
