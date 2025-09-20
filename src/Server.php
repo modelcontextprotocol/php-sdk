@@ -11,6 +11,7 @@
 
 namespace Mcp;
 
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\JsonRpc\Handler;
 use Mcp\Server\ServerBuilder;
 use Mcp\Server\TransportInterface;
@@ -24,6 +25,7 @@ final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
+        private readonly ReferenceProviderInterface $registry,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -31,6 +33,11 @@ final class Server
     public static function make(): ServerBuilder
     {
         return new ServerBuilder();
+    }
+
+    public function getRegistry(): ReferenceProviderInterface
+    {
+        return $this->registry;
     }
 
     public function connect(TransportInterface $transport): void
