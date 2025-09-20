@@ -200,7 +200,7 @@ final class ServerBuilder
         return $this;
     }
 
-    public function withSession(
+    public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
         int $ttl = 3600

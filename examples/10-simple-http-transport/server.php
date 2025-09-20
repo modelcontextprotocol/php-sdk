@@ -16,10 +16,10 @@ $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory,
 $request = $creator->fromGlobals();
 
 $server = Server::make()
-    ->withServerInfo('HTTP MCP Server', '1.0.0', 'MCP Server over HTTP transport')
-    ->withContainer(container())
-    ->withSession(new FileSessionStore(__DIR__ . '/sessions'))
-    ->withDiscovery(__DIR__, ['.'])
+    ->setServerInfo('HTTP MCP Server', '1.0.0', 'MCP Server over HTTP transport')
+    ->setContainer(container())
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setDiscovery(__DIR__, ['.'])
     ->build();
 
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
