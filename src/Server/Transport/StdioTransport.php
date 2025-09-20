@@ -75,7 +75,7 @@ class StdioTransport implements TransportInterface
 
         $this->logger->info('StdioTransport finished listening.');
 
-        if (is_callable($this->sessionEndListener)) {
+        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
             call_user_func($this->sessionEndListener, $this->sessionId);
         }
 
@@ -89,7 +89,7 @@ class StdioTransport implements TransportInterface
 
     public function close(): void
     {
-        if (is_callable($this->sessionEndListener)) {
+        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
             call_user_func($this->sessionEndListener, $this->sessionId);
         }
 

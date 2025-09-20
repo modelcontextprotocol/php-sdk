@@ -12,6 +12,7 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -19,35 +20,57 @@ use Mcp\Server\TransportInterface;
 class InMemoryTransport implements TransportInterface
 {
     private bool $connected = true;
+    private $messageListener = null;
+    private $sessionDestroyListener = null;
+    private ?Uuid $sessionId = null;
 
     /**
      * @param list<string> $messages
      */
     public function __construct(
         private readonly array $messages = [],
-    ) {
+    ) {}
+
+    public function initialize(): void {}
+
+    public function onMessage(callable $listener): void
+    {
+        $this->messageListener = $listener;
     }
 
-    public function initialize(): void
+    public function send(string $data, array $context): void
     {
+        if (isset($context['session_id'])) {
+            $this->sessionId = $context['session_id'];
+        }
     }
 
-    public function isConnected(): bool
+    public function listen(): mixed
     {
-        return $this->connected;
-    }
+        foreach ($this->messages as $message) {
+            if (is_callable($this->messageListener)) {
+                call_user_func($this->messageListener, $message, $this->sessionId);
+            }
+        }
 
-    public function receive(): \Generator
-    {
-        yield from $this->messages;
         $this->connected = false;
+
+        if (is_callable($this->sessionDestroyListener) && $this->sessionId !== null) {
+            call_user_func($this->sessionDestroyListener, $this->sessionId);
+        }
+
+        return null;
     }
 
-    public function send(string $data): void
+    public function onSessionEnd(callable $listener): void
     {
+        $this->sessionDestroyListener = $listener;
     }
 
     public function close(): void
     {
+        if (is_callable($this->sessionDestroyListener) && $this->sessionId !== null) {
+            call_user_func($this->sessionDestroyListener, $this->sessionId);
+        }
     }
 }
