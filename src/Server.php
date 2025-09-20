@@ -13,8 +13,6 @@ namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
 use Mcp\Server\ServerBuilder;
-use Mcp\Server\Session\SessionFactoryInterface;
-use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -22,14 +20,12 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
-        private readonly SessionFactoryInterface $sessionFactory,
-        private readonly SessionStoreInterface $sessionStore,
-        private readonly int $sessionTtl,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {}
 
@@ -47,25 +43,24 @@ final class Server
         ]);
 
         $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
-            $this->handleMessage($message, $sessionId, $transport);
-        });
-    }
+            try {
+                foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
+                    if (null === $response) {
+                        continue;
+                    }
 
-    private function handleMessage(string $message, ?Uuid $sessionId, TransportInterface $transport): void
-    {
-        try {
-            foreach ($this->jsonRpcHandler->process($message, $sessionId) as $response) {
-                if (null === $response) {
-                    continue;
+                    $transport->send($response, $context);
                 }
-
-                $transport->send($response);
+            } catch (\JsonException $e) {
+                $this->logger->error('Failed to encode response to JSON.', [
+                    'message' => $message,
+                    'exception' => $e,
+                ]);
             }
-        } catch (\JsonException $e) {
-            $this->logger->error('Failed to encode response to JSON.', [
-                'message' => $message,
-                'exception' => $e,
-            ]);
-        }
+        });
+
+        $transport->onSessionEnd(function (Uuid $sessionId) {
+            $this->jsonRpcHandler->destroySession($sessionId);
+        });
     }
 }

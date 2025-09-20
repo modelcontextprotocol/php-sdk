@@ -17,6 +17,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -27,15 +28,14 @@ final class ListToolsHandler implements MethodHandlerInterface
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
         private readonly int $pageSize = 20,
-    ) {
-    }
+    ) {}
 
     public function supports(HasMethodInterface $message): bool
     {
         return $message instanceof ListToolsRequest;
     }
 
-    public function handle(ListToolsRequest|HasMethodInterface $message): Response
+    public function handle(ListToolsRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
         \assert($message instanceof ListToolsRequest);
 

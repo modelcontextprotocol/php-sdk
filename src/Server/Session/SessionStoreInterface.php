@@ -10,6 +10,13 @@ use Symfony\Component\Uid\Uuid;
 interface SessionStoreInterface
 {
     /**
+     * Check if a session exists
+     * @param Uuid $id The session id.
+     * @return bool True if the session exists, false otherwise.
+     */
+    public function exists(Uuid $id): bool;
+
+    /**
      * Read session data
      *
      * Returns an encoded string of the read data.
@@ -35,7 +42,7 @@ interface SessionStoreInterface
     /**
      * Cleanup old sessions
      * Sessions that have not updated for
-     * the last maxlifetime seconds will be removed.
+     * the configured TTL will be removed.
      */
-    public function gc(int $maxLifetime): array;
+    public function gc(): array;
 }

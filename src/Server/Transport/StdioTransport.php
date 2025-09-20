@@ -13,13 +13,18 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
 use Symfony\Component\Uid\Uuid;
-use Symfony\Component\Uid\UuidV4;
 use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
 
+/**
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ */
 class StdioTransport implements TransportInterface
 {
-    private $messageListener;
+    private $messageListener = null;
+    private $sessionEndListener = null;
+
+    private ?Uuid $sessionId = null;
 
     /**
      * @param resource $input
@@ -28,7 +33,6 @@ class StdioTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        private readonly Uuid $sessionId = new UuidV4(),
         private readonly LoggerInterface $logger = new NullLogger()
     ) {}
 
@@ -39,9 +43,13 @@ class StdioTransport implements TransportInterface
         $this->messageListener = $listener;
     }
 
-    public function send(string $data): void
+    public function send(string $data, array $context): void
     {
         $this->logger->debug('Sending data to client via StdioTransport.', ['data' => $data]);
+
+        if (isset($context['session_id'])) {
+            $this->sessionId = $context['session_id'];
+        }
 
         fwrite($this->output, $data . \PHP_EOL);
     }
@@ -59,17 +67,32 @@ class StdioTransport implements TransportInterface
             $trimmedLine = trim($line);
             if (!empty($trimmedLine)) {
                 $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
-                call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
+                if (is_callable($this->messageListener)) {
+                    call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
+                }
             }
         }
 
         $this->logger->info('StdioTransport finished listening.');
 
+        if (is_callable($this->sessionEndListener)) {
+            call_user_func($this->sessionEndListener, $this->sessionId);
+        }
+
         return null;
+    }
+
+    public function onSessionEnd(callable $listener): void
+    {
+        $this->sessionEndListener = $listener;
     }
 
     public function close(): void
     {
+        if (is_callable($this->sessionEndListener)) {
+            call_user_func($this->sessionEndListener, $this->sessionId);
+        }
+
         if (is_resource($this->input)) {
             fclose($this->input);
         }

@@ -26,11 +26,15 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport implements TransportInterface
 {
-    private $messageListener;
+    private $messageListener = null;
+    private $sessionEndListener = null;
+
     private ?Uuid $sessionId = null;
 
     /** @var string[] */
     private array $outgoingMessages = [];
+    private ?Uuid $outgoingSessionId = null;
+    private ?int $outgoingStatusCode = null;
 
     private array $corsHeaders = [
         'Access-Control-Allow-Origin' => '*',
@@ -50,19 +54,21 @@ class StreamableHttpTransport implements TransportInterface
 
     public function initialize(): void {}
 
-    public function onMessage(callable $listener): void
-    {
-        $this->messageListener = $listener;
-    }
-
-    public function send(string $data): void
+    public function send(string $data, array $context): void
     {
         $this->outgoingMessages[] = $data;
+
+        if (isset($context['session_id'])) {
+            $this->outgoingSessionId = $context['session_id'];
+        }
+
+        if (isset($context['status_code']) && \is_int($context['status_code'])) {
+            $this->outgoingStatusCode = $context['status_code'];
+        }
     }
 
     public function listen(): mixed
     {
-
         return match ($this->request->getMethod()) {
             'OPTIONS' => $this->handleOptionsRequest(),
             'GET' => $this->handleGetRequest(),
@@ -70,6 +76,16 @@ class StreamableHttpTransport implements TransportInterface
             'DELETE' => $this->handleDeleteRequest(),
             default => $this->handleUnsupportedRequest(),
         };
+    }
+
+    public function onMessage(callable $listener): void
+    {
+        $this->messageListener = $listener;
+    }
+
+    public function onSessionEnd(callable $listener): void
+    {
+        $this->sessionEndListener = $listener;
     }
 
     protected function handleOptionsRequest(): ResponseInterface
@@ -96,12 +112,11 @@ class StreamableHttpTransport implements TransportInterface
             return $this->createErrorResponse($error, 400);
         }
 
-        call_user_func($this->messageListener, $body, $this->sessionId);
+        if (is_callable($this->messageListener)) {
+            call_user_func($this->messageListener, $body, $this->sessionId);
+        }
 
-        $hasRequestsInInput = str_contains($body, '"id"');
-        $hasResponsesInOutput = !empty($this->outgoingMessages);
-
-        if ($hasRequestsInInput && !$hasResponsesInOutput) {
+        if (empty($this->outgoingMessages)) {
             return $this->withCorsHeaders($this->responseFactory->createResponse(202));
         }
 
@@ -109,9 +124,15 @@ class StreamableHttpTransport implements TransportInterface
             ? $this->outgoingMessages[0]
             : '[' . implode(',', $this->outgoingMessages) . ']';
 
-        $response = $this->responseFactory->createResponse(200)
+        $status = $this->outgoingStatusCode ?? 200;
+
+        $response = $this->responseFactory->createResponse($status)
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($responseBody));
+
+        if ($this->outgoingSessionId) {
+            $response = $response->withHeader('Mcp-Session-Id', $this->outgoingSessionId->toRfc4122());
+        }
 
         return $this->withCorsHeaders($response);
     }
@@ -124,8 +145,16 @@ class StreamableHttpTransport implements TransportInterface
 
     protected function handleDeleteRequest(): ResponseInterface
     {
-        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 405);
-        return $this->withCorsHeaders($response);
+        if (!$this->sessionId) {
+            $error = Error::forInvalidRequest('Bad Request: Mcp-Session-Id header is required for DELETE requests.');
+            return $this->createErrorResponse($error, 400);
+        }
+
+        if (is_callable($this->sessionEndListener)) {
+            call_user_func($this->sessionEndListener, $this->sessionId);
+        }
+
+        return $this->withCorsHeaders($this->responseFactory->createResponse(204));
     }
 
     protected function handleUnsupportedRequest(): ResponseInterface

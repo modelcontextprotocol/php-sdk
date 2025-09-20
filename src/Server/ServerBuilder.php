@@ -201,8 +201,8 @@ final class ServerBuilder
     }
 
     public function withSession(
-        SessionFactoryInterface $sessionFactory,
         SessionStoreInterface $sessionStore,
+        SessionFactoryInterface $sessionFactory = new SessionFactory(),
         int $ttl = 3600
     ): self {
         $this->sessionFactory = $sessionFactory;
@@ -323,11 +323,10 @@ final class ServerBuilder
                 toolCaller: $toolCaller,
                 resourceReader: $resourceReader,
                 promptGetter: $promptGetter,
+                sessionStore: $sessionStore,
+                sessionFactory: $sessionFactory,
                 logger: $logger,
             ),
-            sessionFactory: $sessionFactory,
-            sessionStore: $sessionStore,
-            sessionTtl: $sessionTtl,
             logger: $logger,
         );
     }

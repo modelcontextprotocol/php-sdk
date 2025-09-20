@@ -18,6 +18,7 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -30,15 +31,14 @@ final class CallToolHandler implements MethodHandlerInterface
     public function __construct(
         private readonly ToolCallerInterface $toolCaller,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+    ) {}
 
     public function supports(HasMethodInterface $message): bool
     {
         return $message instanceof CallToolRequest;
     }
 
-    public function handle(CallToolRequest|HasMethodInterface $message): Response|Error
+    public function handle(CallToolRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
     {
         \assert($message instanceof CallToolRequest);
 

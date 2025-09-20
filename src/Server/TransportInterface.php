@@ -11,7 +11,6 @@
 
 namespace Mcp\Server;
 
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -46,8 +45,18 @@ interface TransportInterface
      * Sends a raw JSON-RPC message string back to the client.
      *
      * @param string $data The JSON-RPC message string to send
+     * @param array $context The context of the message
      */
-    public function send(string $data): void;
+    public function send(string $data, array $context): void;
+
+
+    /**
+     * Registers a callback that will be invoked when a session needs to be destroyed.
+     * This can happen when a client disconnects or explicitly ends their session.
+     *
+     * @param callable(Uuid $sessionId): void $listener The callback function to execute when destroying a session
+     */
+    public function onSessionEnd(callable $listener): void;
 
     /**
      * Closes the transport and cleans up any resources.

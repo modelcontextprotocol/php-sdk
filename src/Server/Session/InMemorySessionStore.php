@@ -21,6 +21,11 @@ class InMemorySessionStore implements SessionStoreInterface
         protected readonly ClockInterface $clock = new NativeClock(),
     ) {}
 
+    public function exists(Uuid $id): bool
+    {
+        return isset($this->store[$id->toRfc4122()]);
+    }
+
     public function read(Uuid $sessionId): string|false
     {
         $session = $this->store[$sessionId->toRfc4122()] ?? '';
@@ -57,14 +62,14 @@ class InMemorySessionStore implements SessionStoreInterface
         return true;
     }
 
-    public function gc(int $maxLifetime): array
+    public function gc(): array
     {
         $currentTimestamp = $this->clock->now()->getTimestamp();
         $deletedSessions = [];
 
         foreach ($this->store as $sessionId => $session) {
             $sessionId = Uuid::fromString($sessionId);
-            if ($currentTimestamp - $session['timestamp'] > $maxLifetime) {
+            if ($currentTimestamp - $session['timestamp'] > $this->ttl) {
                 unset($this->store[$sessionId->toRfc4122()]);
                 $deletedSessions[] = $sessionId;
             }
