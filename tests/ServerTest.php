@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests;
 
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\JsonRpc\Handler;
 use Mcp\Server;
 use Mcp\Server\Transport\InMemoryTransport;
@@ -41,7 +42,20 @@ class ServerTest extends TestCase
             ->getMock();
         $transport->expects($this->once())->method('send')->with('success');
 
-        $server = new Server($handler, $logger);
+        $registry = $this->createMock(ReferenceProviderInterface::class);
+
+        $server = new Server($handler, $registry, $logger);
         $server->connect($transport);
+    }
+
+    public function testGetRegistry()
+    {
+        $handler = $this->createMock(Handler::class);
+        $registry = $this->createMock(ReferenceProviderInterface::class);
+        $logger = new NullLogger();
+
+        $server = new Server($handler, $registry, $logger);
+
+        $this->assertSame($registry, $server->getRegistry());
     }
 }

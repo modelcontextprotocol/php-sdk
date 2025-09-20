@@ -302,6 +302,7 @@ final class ServerBuilder
                 promptGetter: $promptGetter,
                 logger: $logger,
             ),
+            registry: $registry,
             logger: $logger,
         );
     }

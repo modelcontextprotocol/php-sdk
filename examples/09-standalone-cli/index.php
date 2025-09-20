@@ -13,12 +13,16 @@ require __DIR__.'/vendor/autoload.php';
 
 use Symfony\Component\Console as SymfonyConsole;
 use Symfony\Component\Console\Output\OutputInterface;
+use Mcp\Capability\Registry;
 
 $debug = (bool) ($_SERVER['DEBUG'] ?? false);
 
 // Setup input, output and logger
 $output = new SymfonyConsole\Output\ConsoleOutput($debug ? OutputInterface::VERBOSITY_VERY_VERBOSE : OutputInterface::VERBOSITY_NORMAL);
 $logger = new SymfonyConsole\Logger\ConsoleLogger($output);
+
+// Configure the registry (empty for this standalone example)
+$registry = new Registry();
 
 // Configure the JsonRpcHandler and build the functionality
 $jsonRpcHandler = new Mcp\JsonRpc\Handler(
@@ -28,7 +32,7 @@ $jsonRpcHandler = new Mcp\JsonRpc\Handler(
 );
 
 // Set up the server
-$sever = new Mcp\Server($jsonRpcHandler, $logger);
+$sever = new Mcp\Server($jsonRpcHandler, $registry, $logger);
 
 // Create the transport layer using Stdio
 $transport = new Mcp\Server\Transport\StdioTransport(logger: $logger);
