@@ -16,6 +16,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -27,7 +28,7 @@ final class PingHandler implements MethodHandlerInterface
         return $message instanceof PingRequest;
     }
 
-    public function handle(PingRequest|HasMethodInterface $message): Response
+    public function handle(PingRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
         \assert($message instanceof PingRequest);
 

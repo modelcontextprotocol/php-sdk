@@ -16,17 +16,18 @@ use Mcp\Server\ServerBuilder;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Server
 {
     public function __construct(
         private readonly Handler $jsonRpcHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+    ) {}
 
     public static function make(): ServerBuilder
     {
@@ -36,37 +37,30 @@ final class Server
     public function connect(TransportInterface $transport): void
     {
         $transport->initialize();
+
         $this->logger->info('Transport initialized.', [
             'transport' => $transport::class,
         ]);
 
-        while ($transport->isConnected()) {
-            foreach ($transport->receive() as $message) {
-                if (null === $message) {
-                    continue;
-                }
-
-                try {
-                    foreach ($this->jsonRpcHandler->process($message) as $response) {
-                        if (null === $response) {
-                            continue;
-                        }
-
-                        $transport->send($response);
+        $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
+            try {
+                foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
+                    if (null === $response) {
+                        continue;
                     }
-                } catch (\JsonException $e) {
-                    $this->logger->error('Failed to encode response to JSON.', [
-                        'message' => $message,
-                        'exception' => $e,
-                    ]);
-                    continue;
+
+                    $transport->send($response, $context);
                 }
+            } catch (\JsonException $e) {
+                $this->logger->error('Failed to encode response to JSON.', [
+                    'message' => $message,
+                    'exception' => $e,
+                ]);
             }
+        });
 
-            usleep(1000);
-        }
-
-        $transport->close();
-        $this->logger->info('Transport closed');
+        $transport->onSessionEnd(function (Uuid $sessionId) {
+            $this->jsonRpcHandler->destroySession($sessionId);
+        });
     }
 }

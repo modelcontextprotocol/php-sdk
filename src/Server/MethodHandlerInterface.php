@@ -16,6 +16,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -27,5 +28,5 @@ interface MethodHandlerInterface
     /**
      * @throws ExceptionInterface When the handler encounters an error processing the request
      */
-    public function handle(HasMethodInterface $message): Response|Error|null;
+    public function handle(HasMethodInterface $message, SessionInterface $session): Response|Error|null;
 }

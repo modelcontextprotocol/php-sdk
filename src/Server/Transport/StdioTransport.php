@@ -12,15 +12,19 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
-use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 use Psr\Log\NullLogger;
+use Psr\Log\LoggerInterface;
 
 /**
- * Heavily inspired by https://jolicode.com/blog/mcp-the-open-protocol-that-turns-llm-chatbots-into-intelligent-agents.
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StdioTransport implements TransportInterface
 {
-    private string $buffer = '';
+    private $messageListener = null;
+    private $sessionEndListener = null;
+
+    private ?Uuid $sessionId = null;
 
     /**
      * @param resource $input
@@ -29,47 +33,72 @@ class StdioTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+        private readonly LoggerInterface $logger = new NullLogger()
+    ) {}
 
-    public function initialize(): void
+    public function initialize(): void {}
+
+    public function onMessage(callable $listener): void
     {
+        $this->messageListener = $listener;
     }
 
-    public function isConnected(): bool
-    {
-        return true;
-    }
-
-    public function receive(): \Generator
-    {
-        $line = fgets($this->input);
-
-        $this->logger->debug('Received message on StdioTransport.', [
-            'line' => $line,
-        ]);
-
-        if (false === $line) {
-            return;
-        }
-        $this->buffer .= rtrim($line).\PHP_EOL;
-        if (str_contains($this->buffer, \PHP_EOL)) {
-            $lines = explode(\PHP_EOL, $this->buffer);
-            $this->buffer = array_pop($lines);
-
-            yield from $lines;
-        }
-    }
-
-    public function send(string $data): void
+    public function send(string $data, array $context): void
     {
         $this->logger->debug('Sending data to client via StdioTransport.', ['data' => $data]);
 
-        fwrite($this->output, $data.\PHP_EOL);
+        if (isset($context['session_id'])) {
+            $this->sessionId = $context['session_id'];
+        }
+
+        fwrite($this->output, $data . \PHP_EOL);
+    }
+
+    public function listen(): mixed
+    {
+        $this->logger->info('StdioTransport is listening for messages on STDIN...');
+
+        while (!feof($this->input)) {
+            $line = fgets($this->input);
+            if ($line === false) {
+                break;
+            }
+
+            $trimmedLine = trim($line);
+            if (!empty($trimmedLine)) {
+                $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
+                if (is_callable($this->messageListener)) {
+                    call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
+                }
+            }
+        }
+
+        $this->logger->info('StdioTransport finished listening.');
+
+        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
+            call_user_func($this->sessionEndListener, $this->sessionId);
+        }
+
+        return null;
+    }
+
+    public function onSessionEnd(callable $listener): void
+    {
+        $this->sessionEndListener = $listener;
     }
 
     public function close(): void
     {
+        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
+            call_user_func($this->sessionEndListener, $this->sessionId);
+        }
+
+        if (is_resource($this->input)) {
+            fclose($this->input);
+        }
+
+        if (is_resource($this->output)) {
+            fclose($this->output);
+        }
     }
 }

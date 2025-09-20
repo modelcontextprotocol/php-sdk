@@ -21,6 +21,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\RequestHandler\ReadResourceHandler;
+use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -28,10 +29,12 @@ class ReadResourceHandlerTest extends TestCase
 {
     private ReadResourceHandler $handler;
     private ResourceReaderInterface|MockObject $resourceReader;
+    private SessionInterface|MockObject $session;
 
     protected function setUp(): void
     {
         $this->resourceReader = $this->createMock(ResourceReaderInterface::class);
+        $this->session = $this->createMock(SessionInterface::class);
 
         $this->handler = new ReadResourceHandler($this->resourceReader);
     }
@@ -60,7 +63,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -84,7 +87,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -112,7 +115,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -131,12 +134,12 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
-        $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
+        $this->assertEquals('Resource not found for uri: "' . $uri . '".', $response->message);
     }
 
     public function testHandleResourceReadExceptionReturnsGenericError(): void
@@ -154,7 +157,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -188,7 +191,7 @@ class ReadResourceHandlerTest extends TestCase
                 ->with($request)
                 ->willReturn($expectedResult);
 
-            $response = $this->handler->handle($request);
+            $response = $this->handler->handle($request, $this->session);
 
             $this->assertInstanceOf(Response::class, $response);
             $this->assertSame($expectedResult, $response->result);
@@ -216,7 +219,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -239,7 +242,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -287,7 +290,7 @@ class ReadResourceHandlerTest extends TestCase
                 ->with($request)
                 ->willReturn($expectedResult);
 
-            $response = $this->handler->handle($request);
+            $response = $this->handler->handle($request, $this->session);
 
             $this->assertInstanceOf(Response::class, $response);
             $this->assertSame($expectedResult, $response->result);
@@ -311,11 +314,11 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
-        $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
+        $this->assertEquals('Resource not found for uri: "' . $uri . '".', $response->message);
     }
 
     public function testHandleResourceReadWithEmptyResult(): void
@@ -330,7 +333,7 @@ class ReadResourceHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -342,7 +345,7 @@ class ReadResourceHandlerTest extends TestCase
         return ReadResourceRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => ReadResourceRequest::getMethod(),
-            'id' => 'test-request-'.uniqid(),
+            'id' => 'test-request-' . uniqid(),
             'params' => [
                 'uri' => $uri,
             ],

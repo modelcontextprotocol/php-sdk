@@ -33,15 +33,20 @@ class ServerTest extends TestCase
             ->onlyMethods(['process'])
             ->getMock();
 
-        $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(new Exception(new \JsonException('foobar')), ['success']);
+        $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(
+            new Exception(new \JsonException('foobar')),
+            [['success', []]]
+        );
 
         $transport = $this->getMockBuilder(InMemoryTransport::class)
             ->setConstructorArgs([['foo', 'bar']])
             ->onlyMethods(['send'])
             ->getMock();
-        $transport->expects($this->once())->method('send')->with('success');
+        $transport->expects($this->once())->method('send')->with('success', []);
 
         $server = new Server($handler, $logger);
         $server->connect($transport);
+
+        $transport->listen();
     }
 }
