@@ -24,16 +24,16 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\MethodHandlerInterface;
-use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\NotificationHandler;
 use Mcp\Server\RequestHandler;
 use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionStoreInterface;
-use Mcp\Schema\Request\InitializeRequest;
-use Symfony\Component\Uid\Uuid;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @final
@@ -126,9 +126,10 @@ class Handler
 
         if ($hasInitializeRequest) {
             // Spec: An initialize request must not be part of a batch.
-            if (count($messages) > 1) {
+            if (\count($messages) > 1) {
                 $error = Error::forInvalidRequest('The "initialize" request MUST NOT be part of a batch.');
                 yield [$this->encodeResponse($error), []];
+
                 return;
             }
 
@@ -136,6 +137,7 @@ class Handler
             if ($sessionId) {
                 $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
                 yield [$this->encodeResponse($error), []];
+
                 return;
             }
 
@@ -144,12 +146,14 @@ class Handler
             if (!$sessionId) {
                 $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.');
                 yield [$this->encodeResponse($error), ['status_code' => 400]];
+
                 return;
             }
 
             if (!$this->sessionStore->exists($sessionId)) {
                 $error = Error::forInvalidRequest('Session not found or has expired.');
                 yield [$this->encodeResponse($error), ['status_code' => 404]];
+
                 return;
             }
 
@@ -169,8 +173,8 @@ class Handler
             ]);
 
             try {
-                $response = $this->encodeResponse($this->handle($message, $session));
-                yield [$response, ['session_id' => $session->getId()]];
+                $response = $this->handle($message, $session);
+                yield [$this->encodeResponse($response), ['session_id' => $session->getId()]];
             } catch (\DomainException) {
                 yield [null, []];
             } catch (NotFoundExceptionInterface $e) {
@@ -268,8 +272,8 @@ class Handler
         $deletedSessions = $this->sessionStore->gc();
         if (!empty($deletedSessions)) {
             $this->logger->debug('Garbage collected expired sessions.', [
-                'count' => count($deletedSessions),
-                'session_ids' => array_map(fn(Uuid $id) => $id->toRfc4122(), $deletedSessions),
+                'count' => \count($deletedSessions),
+                'session_ids' => array_map(fn (Uuid $id) => $id->toRfc4122(), $deletedSessions),
             ]);
         }
     }

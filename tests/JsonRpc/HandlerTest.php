@@ -16,11 +16,10 @@ use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\MethodHandlerInterface;
 use Mcp\Server\Session\SessionFactoryInterface;
-use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 class HandlerTest extends TestCase

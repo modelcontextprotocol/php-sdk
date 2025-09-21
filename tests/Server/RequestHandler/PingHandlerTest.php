@@ -144,7 +144,7 @@ class PingHandlerTest extends TestCase
         return PingRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => PingRequest::getMethod(),
-            'id' => 'test-request-' . uniqid(),
+            'id' => 'test-request-'.uniqid(),
         ]);
     }
 }

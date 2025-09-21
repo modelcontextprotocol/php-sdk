@@ -10,7 +10,7 @@
  * file that was distributed with this source code.
  */
 
-require_once dirname(__DIR__) . '/bootstrap.php';
+require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Server;

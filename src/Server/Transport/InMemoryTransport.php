@@ -20,8 +20,8 @@ use Symfony\Component\Uid\Uuid;
 class InMemoryTransport implements TransportInterface
 {
     private bool $connected = true;
-    private $messageListener = null;
-    private $sessionDestroyListener = null;
+    private $messageListener;
+    private $sessionDestroyListener;
     private ?Uuid $sessionId = null;
 
     /**
@@ -29,9 +29,12 @@ class InMemoryTransport implements TransportInterface
      */
     public function __construct(
         private readonly array $messages = [],
-    ) {}
+    ) {
+    }
 
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     public function onMessage(callable $listener): void
     {
@@ -48,15 +51,15 @@ class InMemoryTransport implements TransportInterface
     public function listen(): mixed
     {
         foreach ($this->messages as $message) {
-            if (is_callable($this->messageListener)) {
-                call_user_func($this->messageListener, $message, $this->sessionId);
+            if (\is_callable($this->messageListener)) {
+                \call_user_func($this->messageListener, $message, $this->sessionId);
             }
         }
 
         $this->connected = false;
 
-        if (is_callable($this->sessionDestroyListener) && $this->sessionId !== null) {
-            call_user_func($this->sessionDestroyListener, $this->sessionId);
+        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionDestroyListener, $this->sessionId);
         }
 
         return null;
@@ -69,8 +72,8 @@ class InMemoryTransport implements TransportInterface
 
     public function close(): void
     {
-        if (is_callable($this->sessionDestroyListener) && $this->sessionId !== null) {
-            call_user_func($this->sessionDestroyListener, $this->sessionId);
+        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionDestroyListener, $this->sessionId);
         }
     }
 }

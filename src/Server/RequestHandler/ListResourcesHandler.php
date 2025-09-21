@@ -27,7 +27,8 @@ final class ListResourcesHandler implements MethodHandlerInterface
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
         private readonly int $pageSize = 20,
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

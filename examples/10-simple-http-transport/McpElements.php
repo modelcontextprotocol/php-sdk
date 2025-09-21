@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Example\HttpTransportExample;
 
 use Mcp\Capability\Attribute\McpPrompt;
@@ -8,10 +17,12 @@ use Mcp\Capability\Attribute\McpTool;
 
 class McpElements
 {
-    public function __construct() {}
+    public function __construct()
+    {
+    }
 
     /**
-     * Get the current server time
+     * Get the current server time.
      */
     #[McpTool(name: 'current_time')]
     public function getCurrentTime(string $format = 'Y-m-d H:i:s'): string
@@ -24,7 +35,7 @@ class McpElements
     }
 
     /**
-     * Calculate simple math operations
+     * Calculate simple math operations.
      */
     #[McpTool(name: 'calculate')]
     public function calculate(float $a, float $b, string $operation): float|string
@@ -33,13 +44,13 @@ class McpElements
             'add', '+' => $a + $b,
             'subtract', '-' => $a - $b,
             'multiply', '*' => $a * $b,
-            'divide', '/' => $b != 0 ? $a / $b : 'Error: Division by zero',
-            default => 'Error: Unknown operation. Use: add, subtract, multiply, divide'
+            'divide', '/' => 0 != $b ? $a / $b : 'Error: Division by zero',
+            default => 'Error: Unknown operation. Use: add, subtract, multiply, divide',
         };
     }
 
     /**
-     * Server information resource
+     * Server information resource.
      */
     #[McpResource(
         uri: 'info://server/status',
@@ -54,12 +65,12 @@ class McpElements
             'timestamp' => time(),
             'version' => '1.0.0',
             'transport' => 'HTTP',
-            'uptime' => time() - $_SERVER['REQUEST_TIME']
+            'uptime' => time() - $_SERVER['REQUEST_TIME'],
         ];
     }
 
     /**
-     * Configuration resource
+     * Configuration resource.
      */
     #[McpResource(
         uri: 'config://app/settings',
@@ -73,12 +84,12 @@ class McpElements
             'debug' => $_SERVER['DEBUG'] ?? false,
             'environment' => $_SERVER['APP_ENV'] ?? 'production',
             'timezone' => date_default_timezone_get(),
-            'locale' => 'en_US'
+            'locale' => 'en_US',
         ];
     }
 
     /**
-     * Greeting prompt
+     * Greeting prompt.
      */
     #[McpPrompt(
         name: 'greet',
@@ -90,12 +101,12 @@ class McpElements
             'morning' => 'Good morning',
             'afternoon' => 'Good afternoon',
             'evening', 'night' => 'Good evening',
-            default => 'Hello'
+            default => 'Hello',
         };
 
         return [
             'role' => 'user',
-            'content' => "# {$greeting}, {$firstName}!\n\nWelcome to our MCP HTTP Server example. This demonstrates how to use the Model Context Protocol over HTTP transport."
+            'content' => "# {$greeting}, {$firstName}!\n\nWelcome to our MCP HTTP Server example. This demonstrates how to use the Model Context Protocol over HTTP transport.",
         ];
     }
 }

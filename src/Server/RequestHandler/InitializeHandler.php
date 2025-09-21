@@ -28,7 +28,8 @@ final class InitializeHandler implements MethodHandlerInterface
     public function __construct(
         public readonly ?ServerCapabilities $capabilities = new ServerCapabilities(),
         public readonly ?Implementation $serverInfo = new Implementation(),
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

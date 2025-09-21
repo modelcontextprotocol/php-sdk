@@ -26,8 +26,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport implements TransportInterface
 {
-    private $messageListener = null;
-    private $sessionEndListener = null;
+    private $messageListener;
+    private $sessionEndListener;
 
     private ?Uuid $sessionId = null;
 
@@ -46,13 +46,15 @@ class StreamableHttpTransport implements TransportInterface
         private readonly ServerRequestInterface $request,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
-        private readonly LoggerInterface $logger = new NullLogger()
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
         $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
     }
 
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     public function send(string $data, array $context): void
     {
@@ -98,31 +100,34 @@ class StreamableHttpTransport implements TransportInterface
         $acceptHeader = $this->request->getHeaderLine('Accept');
         if (!str_contains($acceptHeader, 'application/json') || !str_contains($acceptHeader, 'text/event-stream')) {
             $error = Error::forInvalidRequest('Not Acceptable: Client must accept both application/json and text/event-stream.');
+
             return $this->createErrorResponse($error, 406);
         }
 
         if (!str_contains($this->request->getHeaderLine('Content-Type'), 'application/json')) {
             $error = Error::forInvalidRequest('Unsupported Media Type: Content-Type must be application/json.');
+
             return $this->createErrorResponse($error, 415);
         }
 
         $body = $this->request->getBody()->getContents();
         if (empty($body)) {
             $error = Error::forInvalidRequest('Bad Request: Empty request body.');
+
             return $this->createErrorResponse($error, 400);
         }
 
-        if (is_callable($this->messageListener)) {
-            call_user_func($this->messageListener, $body, $this->sessionId);
+        if (\is_callable($this->messageListener)) {
+            \call_user_func($this->messageListener, $body, $this->sessionId);
         }
 
         if (empty($this->outgoingMessages)) {
             return $this->withCorsHeaders($this->responseFactory->createResponse(202));
         }
 
-        $responseBody = count($this->outgoingMessages) === 1
+        $responseBody = 1 === \count($this->outgoingMessages)
             ? $this->outgoingMessages[0]
-            : '[' . implode(',', $this->outgoingMessages) . ']';
+            : '['.implode(',', $this->outgoingMessages).']';
 
         $status = $this->outgoingStatusCode ?? 200;
 
@@ -140,6 +145,7 @@ class StreamableHttpTransport implements TransportInterface
     protected function handleGetRequest(): ResponseInterface
     {
         $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 405);
+
         return $this->withCorsHeaders($response);
     }
 
@@ -147,11 +153,12 @@ class StreamableHttpTransport implements TransportInterface
     {
         if (!$this->sessionId) {
             $error = Error::forInvalidRequest('Bad Request: Mcp-Session-Id header is required for DELETE requests.');
+
             return $this->createErrorResponse($error, 400);
         }
 
-        if (is_callable($this->sessionEndListener)) {
-            call_user_func($this->sessionEndListener, $this->sessionId);
+        if (\is_callable($this->sessionEndListener)) {
+            \call_user_func($this->sessionEndListener, $this->sessionId);
         }
 
         return $this->withCorsHeaders($this->responseFactory->createResponse(204));
@@ -160,6 +167,7 @@ class StreamableHttpTransport implements TransportInterface
     protected function handleUnsupportedRequest(): ResponseInterface
     {
         $response = $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405);
+
         return $this->withCorsHeaders($response);
     }
 
@@ -181,5 +189,7 @@ class StreamableHttpTransport implements TransportInterface
             ->withBody($this->streamFactory->createStream($errorPayload));
     }
 
-    public function close(): void {}
+    public function close(): void
+    {
+    }
 }

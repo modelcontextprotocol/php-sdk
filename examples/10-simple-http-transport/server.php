@@ -1,14 +1,23 @@
 <?php
 
-require_once dirname(__DIR__) . '/bootstrap.php';
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Server;
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7Server\ServerRequestCreator;
-use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Server\Session\FileSessionStore;
 
 $psr17Factory = new Psr17Factory();
 $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
@@ -18,7 +27,7 @@ $request = $creator->fromGlobals();
 $server = Server::make()
     ->setServerInfo('HTTP MCP Server', '1.0.0', 'MCP Server over HTTP transport')
     ->setContainer(container())
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__, ['.'])
     ->build();
 

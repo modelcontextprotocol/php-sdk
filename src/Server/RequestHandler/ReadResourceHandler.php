@@ -28,7 +28,8 @@ final class ReadResourceHandler implements MethodHandlerInterface
 {
     public function __construct(
         private readonly ResourceReaderInterface $resourceReader,
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

@@ -2,9 +2,17 @@
 
 declare(strict_types=1);
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Server\Session;
 
-use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -19,7 +27,8 @@ class InMemorySessionStore implements SessionStoreInterface
     public function __construct(
         protected readonly int $ttl = 3600,
         protected readonly ClockInterface $clock = new NativeClock(),
-    ) {}
+    ) {
+    }
 
     public function exists(Uuid $id): bool
     {
@@ -29,7 +38,7 @@ class InMemorySessionStore implements SessionStoreInterface
     public function read(Uuid $sessionId): string|false
     {
         $session = $this->store[$sessionId->toRfc4122()] ?? '';
-        if ($session === '') {
+        if ('' === $session) {
             return false;
         }
 
@@ -37,6 +46,7 @@ class InMemorySessionStore implements SessionStoreInterface
 
         if ($currentTimestamp - $session['timestamp'] > $this->ttl) {
             unset($this->store[$sessionId]);
+
             return false;
         }
 

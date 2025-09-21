@@ -139,7 +139,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
-        $this->assertEquals('Resource not found for uri: "' . $uri . '".', $response->message);
+        $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
     }
 
     public function testHandleResourceReadExceptionReturnsGenericError(): void
@@ -318,7 +318,7 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
-        $this->assertEquals('Resource not found for uri: "' . $uri . '".', $response->message);
+        $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
     }
 
     public function testHandleResourceReadWithEmptyResult(): void
@@ -345,7 +345,7 @@ class ReadResourceHandlerTest extends TestCase
         return ReadResourceRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => ReadResourceRequest::getMethod(),
-            'id' => 'test-request-' . uniqid(),
+            'id' => 'test-request-'.uniqid(),
             'params' => [
                 'uri' => $uri,
             ],

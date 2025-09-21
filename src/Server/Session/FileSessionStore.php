@@ -2,6 +2,15 @@
 
 declare(strict_types=1);
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Server\Session;
 
 use Mcp\Server\NativeClock;
@@ -24,7 +33,7 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         if (!is_dir($this->directory) || !is_writable($this->directory)) {
-            throw new \RuntimeException(sprintf('Session directory "%s" is not writable.', $this->directory));
+            throw new \RuntimeException(\sprintf('Session directory "%s" is not writable.', $this->directory));
         }
     }
 
@@ -37,6 +46,7 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         $mtime = @filemtime($path) ?: 0;
+
         return ($this->clock->now()->getTimestamp() - $mtime) <= $this->ttl;
     }
 
@@ -51,11 +61,12 @@ class FileSessionStore implements SessionStoreInterface
         $mtime = @filemtime($path) ?: 0;
         if (($this->clock->now()->getTimestamp() - $mtime) > $this->ttl) {
             @unlink($path);
+
             return false;
         }
 
         $data = @file_get_contents($path);
-        if ($data === false) {
+        if (false === $data) {
             return false;
         }
 
@@ -66,16 +77,17 @@ class FileSessionStore implements SessionStoreInterface
     {
         $path = $this->pathFor($sessionId);
 
-        $tmp = $path . '.tmp';
-        if (@file_put_contents($tmp, $data, LOCK_EX) === false) {
+        $tmp = $path.'.tmp';
+        if (false === @file_put_contents($tmp, $data, \LOCK_EX)) {
             return false;
         }
 
         // Atomic move
         if (!@rename($tmp, $path)) {
             // Fallback if rename fails cross-device
-            if (@copy($tmp, $path) === false) {
+            if (false === @copy($tmp, $path)) {
                 @unlink($tmp);
+
                 return false;
             }
             @unlink($tmp);
@@ -107,17 +119,17 @@ class FileSessionStore implements SessionStoreInterface
         $now = $this->clock->now()->getTimestamp();
 
         $dir = @opendir($this->directory);
-        if ($dir === false) {
+        if (false === $dir) {
             return $deleted;
         }
 
         while (($entry = readdir($dir)) !== false) {
             // Skip dot entries
-            if ($entry === '.' || $entry === '..') {
+            if ('.' === $entry || '..' === $entry) {
                 continue;
             }
 
-            $path = $this->directory . DIRECTORY_SEPARATOR . $entry;
+            $path = $this->directory.\DIRECTORY_SEPARATOR.$entry;
             if (!is_file($path)) {
                 continue;
             }
@@ -140,6 +152,6 @@ class FileSessionStore implements SessionStoreInterface
 
     private function pathFor(Uuid $id): string
     {
-        return $this->directory . DIRECTORY_SEPARATOR . $id->toRfc4122();
+        return $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
     }
 }

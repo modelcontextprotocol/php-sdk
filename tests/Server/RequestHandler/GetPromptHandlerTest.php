@@ -335,7 +335,7 @@ class GetPromptHandlerTest extends TestCase
         return GetPromptRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => GetPromptRequest::getMethod(),
-            'id' => 'test-request-' . uniqid(),
+            'id' => 'test-request-'.uniqid(),
             'params' => [
                 'name' => $name,
                 'arguments' => $arguments,

@@ -27,7 +27,8 @@ final class Server
     public function __construct(
         private readonly Handler $jsonRpcHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+    }
 
     public static function make(): ServerBuilder
     {

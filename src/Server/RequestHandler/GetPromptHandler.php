@@ -27,7 +27,8 @@ final class GetPromptHandler implements MethodHandlerInterface
 {
     public function __construct(
         private readonly PromptGetterInterface $promptGetter,
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

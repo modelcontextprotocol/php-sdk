@@ -38,8 +38,8 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
-use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionStoreInterface;
 use Psr\Container\ContainerInterface;
@@ -203,7 +203,7 @@ final class ServerBuilder
     public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
-        int $ttl = 3600
+        int $ttl = 3600,
     ): self {
         $this->sessionFactory = $sessionFactory;
         $this->sessionStore = $sessionStore;
@@ -352,7 +352,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_tool_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -387,7 +387,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_resource_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -425,7 +425,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_template_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -463,7 +463,7 @@ final class ServerBuilder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_prompt_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -486,7 +486,7 @@ final class ServerBuilder
                         continue;
                     }
 
-                    $paramTag = $paramTags['$' . $param->getName()] ?? null;
+                    $paramTag = $paramTags['$'.$param->getName()] ?? null;
                     $arguments[] = new PromptArgument(
                         $param->getName(),
                         $paramTag ? trim((string) $paramTag->getDescription()) : null,

@@ -287,7 +287,7 @@ class CallToolHandlerTest extends TestCase
         return CallToolRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => CallToolRequest::getMethod(),
-            'id' => 'test-request-' . uniqid(),
+            'id' => 'test-request-'.uniqid(),
             'params' => [
                 'name' => $name,
                 'arguments' => $arguments,

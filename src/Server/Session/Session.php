@@ -2,10 +2,17 @@
 
 declare(strict_types=1);
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Server\Session;
 
-use Mcp\Server\Session\SessionStoreInterface;
-use Mcp\Server\Session\SessionInterface;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
@@ -16,7 +23,7 @@ class Session implements SessionInterface
 {
     /**
      * @param array<string, mixed> $data Stores all session data.
-     * Keys are snake_case by convention for MCP-specific data.
+     *                                   Keys are snake_case by convention for MCP-specific data.
      *
      * Official keys are:
      * - initialized: bool
@@ -26,7 +33,7 @@ class Session implements SessionInterface
      */
     public function __construct(
         protected SessionStoreInterface $store,
-        protected Uuid $id =  new UuidV4(),
+        protected Uuid $id = new UuidV4(),
         protected array $data = [],
     ) {
         if ($rawData = $this->store->read($this->id)) {
@@ -55,7 +62,7 @@ class Session implements SessionInterface
         $data = $this->data;
 
         foreach ($key as $segment) {
-            if (is_array($data) && array_key_exists($segment, $data)) {
+            if (\is_array($data) && \array_key_exists($segment, $data)) {
                 $data = $data[$segment];
             } else {
                 return $default;
@@ -70,9 +77,9 @@ class Session implements SessionInterface
         $segments = explode('.', $key);
         $data = &$this->data;
 
-        while (count($segments) > 1) {
+        while (\count($segments) > 1) {
             $segment = array_shift($segments);
-            if (!isset($data[$segment]) || !is_array($data[$segment])) {
+            if (!isset($data[$segment]) || !\is_array($data[$segment])) {
                 $data[$segment] = [];
             }
             $data = &$data[$segment];
@@ -90,9 +97,9 @@ class Session implements SessionInterface
         $data = $this->data;
 
         foreach ($key as $segment) {
-            if (is_array($data) && array_key_exists($segment, $data)) {
+            if (\is_array($data) && \array_key_exists($segment, $data)) {
                 $data = $data[$segment];
-            } elseif (is_object($data) && isset($data->{$segment})) {
+            } elseif (\is_object($data) && isset($data->{$segment})) {
                 $data = $data->{$segment};
             } else {
                 return false;
@@ -107,9 +114,9 @@ class Session implements SessionInterface
         $segments = explode('.', $key);
         $data = &$this->data;
 
-        while (count($segments) > 1) {
+        while (\count($segments) > 1) {
             $segment = array_shift($segments);
-            if (!isset($data[$segment]) || !is_array($data[$segment])) {
+            if (!isset($data[$segment]) || !\is_array($data[$segment])) {
                 $data[$segment] = [];
             }
             $data = &$data[$segment];
@@ -130,6 +137,7 @@ class Session implements SessionInterface
     {
         $value = $this->get($key, $default);
         $this->forget($key);
+
         return $value;
     }
 

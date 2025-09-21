@@ -31,7 +31,8 @@ final class CallToolHandler implements MethodHandlerInterface
     public function __construct(
         private readonly ToolCallerInterface $toolCaller,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+    }
 
     public function supports(HasMethodInterface $message): bool
     {

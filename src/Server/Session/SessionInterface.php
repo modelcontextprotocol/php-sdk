@@ -1,15 +1,22 @@
 <?php
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 namespace Mcp\Server\Session;
 
-use JsonSerializable;
-use Mcp\Server\Session\SessionStoreInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-interface SessionInterface extends JsonSerializable
+interface SessionInterface extends \JsonSerializable
 {
     /**
      * Get the session ID.
@@ -69,8 +76,6 @@ interface SessionInterface extends JsonSerializable
 
     /**
      * Get the session store instance.
-     *
-     * @return SessionStoreInterface
      */
     public function getStore(): SessionStoreInterface;
 }

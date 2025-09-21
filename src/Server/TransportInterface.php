@@ -11,7 +11,6 @@
 
 namespace Mcp\Server;
 
-
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -37,18 +36,17 @@ interface TransportInterface
      * - For a single-request transport like HTTP, this will process the request
      *   and return a result (e.g., a PSR-7 Response) to be sent to the client.
      *
-     * @return mixed The result of the transport's execution, if any.
+     * @return mixed the result of the transport's execution, if any
      */
     public function listen(): mixed;
 
     /**
      * Sends a raw JSON-RPC message string back to the client.
      *
-     * @param string $data The JSON-RPC message string to send
-     * @param array $context The context of the message
+     * @param string $data    The JSON-RPC message string to send
+     * @param array  $context The context of the message
      */
     public function send(string $data, array $context): void;
-
 
     /**
      * Registers a callback that will be invoked when a session needs to be destroyed.

@@ -12,17 +12,17 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
-use Symfony\Component\Uid\Uuid;
-use Psr\Log\NullLogger;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StdioTransport implements TransportInterface
 {
-    private $messageListener = null;
-    private $sessionEndListener = null;
+    private $messageListener;
+    private $sessionEndListener;
 
     private ?Uuid $sessionId = null;
 
@@ -33,10 +33,13 @@ class StdioTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        private readonly LoggerInterface $logger = new NullLogger()
-    ) {}
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+    }
 
-    public function initialize(): void {}
+    public function initialize(): void
+    {
+    }
 
     public function onMessage(callable $listener): void
     {
@@ -51,7 +54,7 @@ class StdioTransport implements TransportInterface
             $this->sessionId = $context['session_id'];
         }
 
-        fwrite($this->output, $data . \PHP_EOL);
+        fwrite($this->output, $data.\PHP_EOL);
     }
 
     public function listen(): mixed
@@ -60,23 +63,23 @@ class StdioTransport implements TransportInterface
 
         while (!feof($this->input)) {
             $line = fgets($this->input);
-            if ($line === false) {
+            if (false === $line) {
                 break;
             }
 
             $trimmedLine = trim($line);
             if (!empty($trimmedLine)) {
                 $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
-                if (is_callable($this->messageListener)) {
-                    call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
+                if (\is_callable($this->messageListener)) {
+                    \call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
                 }
             }
         }
 
         $this->logger->info('StdioTransport finished listening.');
 
-        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
-            call_user_func($this->sessionEndListener, $this->sessionId);
+        if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionEndListener, $this->sessionId);
         }
 
         return null;
@@ -89,15 +92,15 @@ class StdioTransport implements TransportInterface
 
     public function close(): void
     {
-        if (is_callable($this->sessionEndListener) && $this->sessionId !== null) {
-            call_user_func($this->sessionEndListener, $this->sessionId);
+        if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionEndListener, $this->sessionId);
         }
 
-        if (is_resource($this->input)) {
+        if (\is_resource($this->input)) {
             fclose($this->input);
         }
 
-        if (is_resource($this->output)) {
+        if (\is_resource($this->output)) {
             fclose($this->output);
         }
     }
