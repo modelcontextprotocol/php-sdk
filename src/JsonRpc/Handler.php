@@ -23,6 +23,7 @@ use Mcp\Exception\NotFoundExceptionInterface;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\MethodHandlerInterface;
@@ -158,11 +159,9 @@ class Handler
         }
 
         foreach ($messages as $message) {
-            $messageId = method_exists($message, 'getId') ? $message->getId() : 0;
-
             if ($message instanceof InvalidInputMessageException) {
                 $this->logger->warning('Failed to create message.', ['exception' => $message]);
-                $error = Error::forInvalidRequest($message->getMessage(), $messageId);
+                $error = Error::forInvalidRequest($message->getMessage());
                 yield [$this->encodeResponse($error), []];
                 continue;
             }
@@ -170,6 +169,8 @@ class Handler
             $this->logger->debug(\sprintf('Decoded incoming message "%s".', $message::class), [
                 'method' => $message->getMethod(),
             ]);
+
+            $messageId = $message instanceof Request ? $message->getId() : 0;
 
             try {
                 $response = $this->handle($message, $session);
