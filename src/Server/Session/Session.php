@@ -151,6 +151,7 @@ class Session implements SessionInterface
         $this->data = $attributes;
     }
 
+    /** @return array<string, mixed> */
     public function jsonSerialize(): array
     {
         return $this->all();

@@ -21,7 +21,10 @@ use Symfony\Component\Uid\Uuid;
  */
 class StdioTransport implements TransportInterface
 {
+    /** @var callable(string, ?Uuid): void */
     private $messageListener;
+
+    /** @var callable(Uuid): void */
     private $sessionEndListener;
 
     private ?Uuid $sessionId = null;

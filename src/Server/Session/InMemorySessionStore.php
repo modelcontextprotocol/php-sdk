@@ -20,7 +20,7 @@ use Symfony\Component\Uid\Uuid;
 class InMemorySessionStore implements SessionStoreInterface
 {
     /**
-     * @var array<string, array{ data: array, timestamp: int }>
+     * @var array<string, array{ data: string, timestamp: int }>
      */
     protected array $store = [];
 
@@ -45,7 +45,7 @@ class InMemorySessionStore implements SessionStoreInterface
         $currentTimestamp = $this->clock->now()->getTimestamp();
 
         if ($currentTimestamp - $session['timestamp'] > $this->ttl) {
-            unset($this->store[$sessionId]);
+            unset($this->store[$sessionId->toRfc4122()]);
 
             return false;
         }
@@ -66,7 +66,7 @@ class InMemorySessionStore implements SessionStoreInterface
     public function destroy(Uuid $sessionId): bool
     {
         if (isset($this->store[$sessionId->toRfc4122()])) {
-            unset($this->store[$sessionId]);
+            unset($this->store[$sessionId->toRfc4122()]);
         }
 
         return true;

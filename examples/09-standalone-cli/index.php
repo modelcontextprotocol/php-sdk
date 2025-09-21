@@ -11,6 +11,8 @@
 
 require __DIR__.'/vendor/autoload.php';
 
+use Mcp\Server;
+use Mcp\Server\Transport\StdioTransport;
 use Symfony\Component\Console as SymfonyConsole;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -20,18 +22,14 @@ $debug = (bool) ($_SERVER['DEBUG'] ?? false);
 $output = new SymfonyConsole\Output\ConsoleOutput($debug ? OutputInterface::VERBOSITY_VERY_VERBOSE : OutputInterface::VERBOSITY_NORMAL);
 $logger = new SymfonyConsole\Logger\ConsoleLogger($output);
 
-// Configure the JsonRpcHandler and build the functionality
-$jsonRpcHandler = new Mcp\JsonRpc\Handler(
-    Mcp\JsonRpc\MessageFactory::make(),
-    App\Builder::buildMethodHandlers(),
-    $logger
-);
+$server = Server::make()
+    ->setServerInfo('Standalone CLI', '1.0.0')
+    ->setLogger($logger)
+    ->setDiscovery(__DIR__, ['.'])
+    ->build();
 
-// Set up the server
-$sever = new Mcp\Server($jsonRpcHandler, $logger);
+$transport = new StdioTransport(logger: $logger);
 
-// Create the transport layer using Stdio
-$transport = new Mcp\Server\Transport\StdioTransport(logger: $logger);
+$server->connect($transport);
 
-// Start our application
-$sever->connect($transport);
+$transport->listen();

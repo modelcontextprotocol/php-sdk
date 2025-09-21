@@ -57,6 +57,8 @@ interface SessionStoreInterface
      * Cleanup old sessions
      * Sessions that have not updated for
      * the configured TTL will be removed.
+     *
+     * @return Uuid[]
      */
     public function gc(): array;
 }

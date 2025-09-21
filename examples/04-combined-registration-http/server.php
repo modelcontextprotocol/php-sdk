@@ -13,16 +13,24 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\CombinedHttpExample\Manual\ManualHandlers;
 use Mcp\Server;
-use Mcp\Server\Transports\HttpServerTransport;
+use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Transport\StreamableHttpTransport;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7Server\ServerRequestCreator;
 
-logger()->info('Starting MCP Combined Registration (HTTP) Server...');
+$psr17Factory = new Psr17Factory();
+$creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
 
-Server::make()
+$request = $creator->fromGlobals();
+
+$server = Server::make()
     ->setServerInfo('Combined HTTP Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__, ['.'])
     ->addTool([ManualHandlers::class, 'manualGreeter'])
     ->addResource(
@@ -30,7 +38,12 @@ Server::make()
         'config://priority',
         'priority_config_manual',
     )
-    ->build()
-    ->connect(new HttpServerTransport('127.0.0.1', 8081, 'mcp_combined'));
+    ->build();
 
-logger()->info('Server listener stopped gracefully.');
+$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
+
+$server->connect($transport);
+
+$response = $transport->listen();
+
+(new SapiEmitter())->emit($response);

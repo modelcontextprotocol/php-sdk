@@ -19,9 +19,12 @@ use Symfony\Component\Uid\Uuid;
  */
 class InMemoryTransport implements TransportInterface
 {
-    private bool $connected = true;
+    /** @var callable(string, ?Uuid): void */
     private $messageListener;
+
+    /** @var callable(Uuid): void */
     private $sessionDestroyListener;
+
     private ?Uuid $sessionId = null;
 
     /**
@@ -55,8 +58,6 @@ class InMemoryTransport implements TransportInterface
                 \call_user_func($this->messageListener, $message, $this->sessionId);
             }
         }
-
-        $this->connected = false;
 
         if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
             \call_user_func($this->sessionDestroyListener, $this->sessionId);

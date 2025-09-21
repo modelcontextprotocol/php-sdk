@@ -46,6 +46,7 @@ use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
+use Psr\SimpleCache\CacheInterface;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -69,8 +70,10 @@ final class ServerBuilder
     private ?ContainerInterface $container = null;
 
     private ?SessionFactoryInterface $sessionFactory = null;
+
     private ?SessionStoreInterface $sessionStore = null;
-    private ?int $sessionTtl = 3600;
+
+    private int $sessionTtl = 3600;
 
     private ?int $paginationLimit = 50;
 

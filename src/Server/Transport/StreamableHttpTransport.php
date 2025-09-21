@@ -26,7 +26,10 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport implements TransportInterface
 {
+    /** @var callable(string, ?Uuid): void */
     private $messageListener;
+
+    /** @var callable(Uuid): void */
     private $sessionEndListener;
 
     private ?Uuid $sessionId = null;
@@ -36,6 +39,7 @@ class StreamableHttpTransport implements TransportInterface
     private ?Uuid $outgoingSessionId = null;
     private ?int $outgoingStatusCode = null;
 
+    /** @var array<string, string> */
     private array $corsHeaders = [
         'Access-Control-Allow-Origin' => '*',
         'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
@@ -67,6 +71,12 @@ class StreamableHttpTransport implements TransportInterface
         if (isset($context['status_code']) && \is_int($context['status_code'])) {
             $this->outgoingStatusCode = $context['status_code'];
         }
+
+        $this->logger->debug('Sending data to client via StreamableHttpTransport.', [
+            'data' => $data,
+            'session_id' => $this->outgoingSessionId?->toRfc4122(),
+            'status_code' => $this->outgoingStatusCode,
+        ]);
     }
 
     public function listen(): mixed
@@ -100,12 +110,14 @@ class StreamableHttpTransport implements TransportInterface
         $acceptHeader = $this->request->getHeaderLine('Accept');
         if (!str_contains($acceptHeader, 'application/json') || !str_contains($acceptHeader, 'text/event-stream')) {
             $error = Error::forInvalidRequest('Not Acceptable: Client must accept both application/json and text/event-stream.');
+            $this->logger->warning('Client does not accept required content types.', ['accept' => $acceptHeader]);
 
             return $this->createErrorResponse($error, 406);
         }
 
         if (!str_contains($this->request->getHeaderLine('Content-Type'), 'application/json')) {
             $error = Error::forInvalidRequest('Unsupported Media Type: Content-Type must be application/json.');
+            $this->logger->warning('Client sent unsupported content type.', ['content_type' => $this->request->getHeaderLine('Content-Type')]);
 
             return $this->createErrorResponse($error, 415);
         }
@@ -113,9 +125,15 @@ class StreamableHttpTransport implements TransportInterface
         $body = $this->request->getBody()->getContents();
         if (empty($body)) {
             $error = Error::forInvalidRequest('Bad Request: Empty request body.');
+            $this->logger->warning('Client sent empty request body.');
 
             return $this->createErrorResponse($error, 400);
         }
+
+        $this->logger->debug('Received message on StreamableHttpTransport.', [
+            'body' => $body,
+            'session_id' => $this->sessionId?->toRfc4122(),
+        ]);
 
         if (\is_callable($this->messageListener)) {
             \call_user_func($this->messageListener, $body, $this->sessionId);
@@ -153,6 +171,7 @@ class StreamableHttpTransport implements TransportInterface
     {
         if (!$this->sessionId) {
             $error = Error::forInvalidRequest('Bad Request: Mcp-Session-Id header is required for DELETE requests.');
+            $this->logger->warning('DELETE request received without session ID.');
 
             return $this->createErrorResponse($error, 400);
         }
@@ -166,6 +185,10 @@ class StreamableHttpTransport implements TransportInterface
 
     protected function handleUnsupportedRequest(): ResponseInterface
     {
+        $this->logger->warning('Unsupported HTTP method received.', [
+            'method' => $this->request->getMethod(),
+        ]);
+
         $response = $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405);
 
         return $this->withCorsHeaders($response);

@@ -65,12 +65,16 @@ interface SessionInterface extends \JsonSerializable
 
     /**
      * Get all attributes of the session.
+     *
+     * @return array<string, mixed>
      */
     public function all(): array;
 
     /**
      * Set all attributes of the session, typically for hydration.
      * This will overwrite existing attributes.
+     *
+     * @param array<string, mixed> $attributes
      */
     public function hydrate(array $attributes): void;
 

@@ -51,6 +51,8 @@ class McpElements
 
     /**
      * Server information resource.
+     *
+     * @return array{status: string, timestamp: int, version: string, transport: string, uptime: int}
      */
     #[McpResource(
         uri: 'info://server/status',
@@ -71,6 +73,8 @@ class McpElements
 
     /**
      * Configuration resource.
+     *
+     * @return array{debug: bool, environment: string, timezone: string, locale: string}
      */
     #[McpResource(
         uri: 'config://app/settings',
@@ -90,6 +94,8 @@ class McpElements
 
     /**
      * Greeting prompt.
+     *
+     * @return array{role: string, content: string}
      */
     #[McpPrompt(
         name: 'greet',

@@ -11,6 +11,8 @@
 
 namespace Mcp\Server;
 
+use Symfony\Component\Uid\Uuid;
+
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -43,8 +45,8 @@ interface TransportInterface
     /**
      * Sends a raw JSON-RPC message string back to the client.
      *
-     * @param string $data    The JSON-RPC message string to send
-     * @param array  $context The context of the message
+     * @param string               $data    The JSON-RPC message string to send
+     * @param array<string, mixed> $context The context of the message
      */
     public function send(string $data, array $context): void;
 
