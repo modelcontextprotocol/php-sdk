@@ -13,20 +13,23 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\Capability\Registry\Container;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Server;
-use Psr\Log\LoggerInterface;
+use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Transport\StreamableHttpTransport;
+use Nyholm\Psr7\Factory\Psr17Factory;
+use Nyholm\Psr7Server\ServerRequestCreator;
 
-logger()->info('Starting MCP HTTP User Profile Server...');
+$psr17Factory = new Psr17Factory();
+$creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
 
-// --- Setup DI Container for DI in McpElements class ---
-$container = new Container();
-$container->set(LoggerInterface::class, logger());
+$request = $creator->fromGlobals();
 
-Server::make()
+$server = Server::make()
     ->setServerInfo('HTTP User Profiles', '1.0.0')
     ->setLogger(logger())
-    ->setContainer($container)
+    ->setContainer(container())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__, ['.'])
     ->addTool(
         function (float $a, float $b, string $operation = 'add'): array {
@@ -70,7 +73,12 @@ Server::make()
         description: 'Current system status and runtime information',
         mimeType: 'application/json'
     )
-    ->build()
-    ->connect(new StreamableHttpServerTransport('127.0.0.1', 8080, 'mcp'));
+    ->build();
 
-logger()->info('Server listener stopped gracefully.');
+$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
+
+$server->connect($transport);
+
+$response = $transport->listen();
+
+(new SapiEmitter())->emit($response);

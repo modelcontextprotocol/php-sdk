@@ -12,13 +12,20 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Server\TransportInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 class InMemoryTransport implements TransportInterface
 {
-    private bool $connected = true;
+    /** @var callable(string, ?Uuid): void */
+    private $messageListener;
+
+    /** @var callable(Uuid): void */
+    private $sessionDestroyListener;
+
+    private ?Uuid $sessionId = null;
 
     /**
      * @param list<string> $messages
@@ -32,22 +39,42 @@ class InMemoryTransport implements TransportInterface
     {
     }
 
-    public function isConnected(): bool
+    public function onMessage(callable $listener): void
     {
-        return $this->connected;
+        $this->messageListener = $listener;
     }
 
-    public function receive(): \Generator
+    public function send(string $data, array $context): void
     {
-        yield from $this->messages;
-        $this->connected = false;
+        if (isset($context['session_id'])) {
+            $this->sessionId = $context['session_id'];
+        }
     }
 
-    public function send(string $data): void
+    public function listen(): mixed
     {
+        foreach ($this->messages as $message) {
+            if (\is_callable($this->messageListener)) {
+                \call_user_func($this->messageListener, $message, $this->sessionId);
+            }
+        }
+
+        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionDestroyListener, $this->sessionId);
+        }
+
+        return null;
+    }
+
+    public function onSessionEnd(callable $listener): void
+    {
+        $this->sessionDestroyListener = $listener;
     }
 
     public function close(): void
     {
+        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
+            \call_user_func($this->sessionDestroyListener, $this->sessionId);
+        }
     }
 }

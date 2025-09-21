@@ -18,6 +18,7 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -34,7 +35,7 @@ final class GetPromptHandler implements MethodHandlerInterface
         return $message instanceof GetPromptRequest;
     }
 
-    public function handle(GetPromptRequest|HasMethodInterface $message): Response|Error
+    public function handle(GetPromptRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
     {
         \assert($message instanceof GetPromptRequest);
 

@@ -1,4 +1,3 @@
-#!/usr/bin/env php
 <?php
 
 /*
@@ -26,8 +25,7 @@ $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory,
 $request = $creator->fromGlobals();
 
 $server = Server::make()
-    ->setServerInfo('Event Scheduler Server', '1.0.0')
-    ->setLogger(logger())
+    ->setServerInfo('HTTP MCP Server', '1.0.0', 'MCP Server over HTTP transport')
     ->setContainer(container())
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__, ['.'])

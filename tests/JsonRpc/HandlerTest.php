@@ -15,8 +15,12 @@ use Mcp\JsonRpc\Handler;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Uid\Uuid;
 
 class HandlerTest extends TestCase
 {
@@ -44,9 +48,24 @@ class HandlerTest extends TestCase
         $handlerC->method('supports')->willReturn(true);
         $handlerC->expects($this->once())->method('handle');
 
-        $jsonRpc = new Handler(MessageFactory::make(), [$handlerA, $handlerB, $handlerC]);
+        $sessionFactory = $this->createMock(SessionFactoryInterface::class);
+        $sessionStore = $this->createMock(SessionStoreInterface::class);
+        $session = $this->createMock(SessionInterface::class);
+
+        $sessionFactory->method('create')->willReturn($session);
+        $sessionFactory->method('createWithId')->willReturn($session);
+        $sessionStore->method('exists')->willReturn(true);
+
+        $jsonRpc = new Handler(
+            MessageFactory::make(),
+            $sessionFactory,
+            $sessionStore,
+            [$handlerA, $handlerB, $handlerC]
+        );
+        $sessionId = Uuid::v4();
         $result = $jsonRpc->process(
-            '{"jsonrpc": "2.0", "method": "notifications/initialized"}'
+            '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            $sessionId
         );
         iterator_to_array($result);
     }
@@ -75,9 +94,24 @@ class HandlerTest extends TestCase
         $handlerC->method('supports')->willReturn(true);
         $handlerC->expects($this->never())->method('handle');
 
-        $jsonRpc = new Handler(MessageFactory::make(), [$handlerA, $handlerB, $handlerC]);
+        $sessionFactory = $this->createMock(SessionFactoryInterface::class);
+        $sessionStore = $this->createMock(SessionStoreInterface::class);
+        $session = $this->createMock(SessionInterface::class);
+
+        $sessionFactory->method('create')->willReturn($session);
+        $sessionFactory->method('createWithId')->willReturn($session);
+        $sessionStore->method('exists')->willReturn(true);
+
+        $jsonRpc = new Handler(
+            MessageFactory::make(),
+            $sessionFactory,
+            $sessionStore,
+            [$handlerA, $handlerB, $handlerC]
+        );
+        $sessionId = Uuid::v4();
         $result = $jsonRpc->process(
-            '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}'
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
+            $sessionId
         );
         iterator_to_array($result);
     }

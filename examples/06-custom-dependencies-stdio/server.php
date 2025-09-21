@@ -27,12 +27,17 @@ $container->set(Services\TaskRepositoryInterface::class, $taskRepo);
 $statsService = new Services\SystemStatsService($taskRepo);
 $container->set(Services\StatsServiceInterface::class, $statsService);
 
-Server::make()
+$server = Server::make()
     ->setServerInfo('Task Manager Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer($container)
     ->setDiscovery(__DIR__, ['.'])
-    ->build()
-    ->connect(new StdioTransport(logger: logger()));
+    ->build();
+
+$transport = new StdioTransport(logger: logger());
+
+$server->connect($transport);
+
+$transport->listen();
 
 logger()->info('Server listener stopped gracefully.');

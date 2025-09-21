@@ -17,6 +17,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourcesRequest;
 use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -34,7 +35,7 @@ final class ListResourcesHandler implements MethodHandlerInterface
         return $message instanceof ListResourcesRequest;
     }
 
-    public function handle(ListResourcesRequest|HasMethodInterface $message): Response
+    public function handle(ListResourcesRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
         \assert($message instanceof ListResourcesRequest);
 

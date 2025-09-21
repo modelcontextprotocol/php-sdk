@@ -16,14 +16,17 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\RequestHandler\PingHandler;
+use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 
 class PingHandlerTest extends TestCase
 {
     private PingHandler $handler;
+    private SessionInterface $session;
 
     protected function setUp(): void
     {
+        $this->session = $this->createMock(SessionInterface::class);
         $this->handler = new PingHandler();
     }
 
@@ -38,7 +41,7 @@ class PingHandlerTest extends TestCase
     {
         $request = $this->createPingRequest();
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -50,8 +53,8 @@ class PingHandlerTest extends TestCase
         $request1 = $this->createPingRequest();
         $request2 = $this->createPingRequest();
 
-        $response1 = $this->handler->handle($request1);
-        $response2 = $this->handler->handle($request2);
+        $response1 = $this->handler->handle($request1, $this->session);
+        $response2 = $this->handler->handle($request2, $this->session);
 
         $this->assertInstanceOf(Response::class, $response1);
         $this->assertInstanceOf(Response::class, $response2);
@@ -66,8 +69,8 @@ class PingHandlerTest extends TestCase
         $request = $this->createPingRequest();
 
         // Handle same request multiple times
-        $response1 = $this->handler->handle($request);
-        $response2 = $this->handler->handle($request);
+        $response1 = $this->handler->handle($request, $this->session);
+        $response2 = $this->handler->handle($request, $this->session);
 
         // Both responses should be identical
         $this->assertEquals($response1->id, $response2->id);
@@ -80,7 +83,7 @@ class PingHandlerTest extends TestCase
     public function testEmptyResultIsCorrectType(): void
     {
         $request = $this->createPingRequest();
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(EmptyResult::class, $response->result);
 
@@ -96,8 +99,8 @@ class PingHandlerTest extends TestCase
 
         $request = $this->createPingRequest();
 
-        $response1 = $handler1->handle($request);
-        $response2 = $handler2->handle($request);
+        $response1 = $handler1->handle($request, $this->session);
+        $response2 = $handler2->handle($request, $this->session);
 
         // Both handlers should produce equivalent results
         $this->assertEquals($response1->id, $response2->id);
@@ -125,7 +128,7 @@ class PingHandlerTest extends TestCase
         // Create multiple ping requests
         for ($i = 0; $i < 5; ++$i) {
             $requests[$i] = $this->createPingRequest();
-            $responses[$i] = $this->handler->handle($requests[$i]);
+            $responses[$i] = $this->handler->handle($requests[$i], $this->session);
         }
 
         // All responses should be valid

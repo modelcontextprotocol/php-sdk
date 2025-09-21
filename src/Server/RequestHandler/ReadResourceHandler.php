@@ -19,6 +19,7 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -35,7 +36,7 @@ final class ReadResourceHandler implements MethodHandlerInterface
         return $message instanceof ReadResourceRequest;
     }
 
-    public function handle(ReadResourceRequest|HasMethodInterface $message): Response|Error
+    public function handle(ReadResourceRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
     {
         \assert($message instanceof ReadResourceRequest);
 

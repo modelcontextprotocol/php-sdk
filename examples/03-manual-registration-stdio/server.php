@@ -19,7 +19,7 @@ use Mcp\Server\Transport\StdioTransport;
 
 logger()->info('Starting MCP Manual Registration (Stdio) Server...');
 
-Server::make()
+$server = Server::make()
     ->setServerInfo('Manual Reg Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
@@ -27,7 +27,12 @@ Server::make()
     ->addResource([SimpleHandlers::class, 'getAppVersion'], 'app://version', 'application_version', mimeType: 'text/plain')
     ->addPrompt([SimpleHandlers::class, 'greetingPrompt'], 'personalized_greeting')
     ->addResourceTemplate([SimpleHandlers::class, 'getItemDetails'], 'item://{itemId}/details', 'get_item_details', mimeType: 'application/json')
-    ->build()
-    ->connect(new StdioTransport(logger: logger()));
+    ->build();
+
+$transport = new StdioTransport(logger: logger());
+
+$server->connect($transport);
+
+$transport->listen();
 
 logger()->info('Server listener stopped gracefully.');

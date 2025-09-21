@@ -22,6 +22,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Server\RequestHandler\GetPromptHandler;
+use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
@@ -29,10 +30,12 @@ class GetPromptHandlerTest extends TestCase
 {
     private GetPromptHandler $handler;
     private PromptGetterInterface|MockObject $promptGetter;
+    private SessionInterface|MockObject $session;
 
     protected function setUp(): void
     {
         $this->promptGetter = $this->createMock(PromptGetterInterface::class);
+        $this->session = $this->createMock(SessionInterface::class);
 
         $this->handler = new GetPromptHandler($this->promptGetter);
     }
@@ -61,7 +64,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -93,7 +96,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -116,7 +119,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -139,7 +142,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -164,7 +167,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -182,7 +185,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -201,7 +204,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
@@ -241,7 +244,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -269,7 +272,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -289,7 +292,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);
@@ -318,7 +321,7 @@ class GetPromptHandlerTest extends TestCase
             ->with($request)
             ->willReturn($expectedResult);
 
-        $response = $this->handler->handle($request);
+        $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($expectedResult, $response->result);

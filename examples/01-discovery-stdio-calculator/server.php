@@ -18,12 +18,17 @@ use Mcp\Server\Transport\StdioTransport;
 
 logger()->info('Starting MCP Stdio Calculator Server...');
 
-Server::make()
+$server = Server::make()
     ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
     ->setContainer(container())
     ->setLogger(logger())
     ->setDiscovery(__DIR__, ['.'])
-    ->build()
-    ->connect(new StdioTransport(logger: logger()));
+    ->build();
+
+$transport = new StdioTransport(logger: logger());
+
+$server->connect($transport);
+
+$transport->listen();
 
 logger()->info('Server listener stopped gracefully.');

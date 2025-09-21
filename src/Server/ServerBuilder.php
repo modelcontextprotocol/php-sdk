@@ -38,6 +38,10 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionFactory;
+use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionStoreInterface;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -64,6 +68,12 @@ final class ServerBuilder
     private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
+
+    private ?SessionFactoryInterface $sessionFactory = null;
+
+    private ?SessionStoreInterface $sessionStore = null;
+
+    private int $sessionTtl = 3600;
 
     private ?int $paginationLimit = 50;
 
@@ -193,6 +203,18 @@ final class ServerBuilder
         return $this;
     }
 
+    public function setSession(
+        SessionStoreInterface $sessionStore,
+        SessionFactoryInterface $sessionFactory = new SessionFactory(),
+        int $ttl = 3600,
+    ): self {
+        $this->sessionFactory = $sessionFactory;
+        $this->sessionStore = $sessionStore;
+        $this->sessionTtl = $ttl;
+
+        return $this;
+    }
+
     public function setDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
@@ -292,6 +314,10 @@ final class ServerBuilder
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
         }
 
+        $sessionTtl = $this->sessionTtl ?? 3600;
+        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
+        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
+
         return new Server(
             jsonRpcHandler: Handler::make(
                 registry: $registry,
@@ -300,6 +326,8 @@ final class ServerBuilder
                 toolCaller: $toolCaller,
                 resourceReader: $resourceReader,
                 promptGetter: $promptGetter,
+                sessionStore: $sessionStore,
+                sessionFactory: $sessionFactory,
                 logger: $logger,
             ),
             logger: $logger,

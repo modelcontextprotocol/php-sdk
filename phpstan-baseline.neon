@@ -54,17 +54,6 @@ parameters:
 			count: 1
 			path: examples/02-discovery-http-userprofile/server.php
 
-		-
-			message: '#^Instantiated class StreamableHttpServerTransport not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: examples/02-discovery-http-userprofile/server.php
-
-		-
-			message: '#^Parameter \#1 \$transport of method Mcp\\Server\:\:connect\(\) expects Mcp\\Server\\TransportInterface, StreamableHttpServerTransport given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/02-discovery-http-userprofile/server.php
 
 		-
 			message: '#^Method Mcp\\Example\\ManualStdioExample\\SimpleHandlers\:\:getItemDetails\(\) return type has no value type specified in iterable type array\.$#'
@@ -84,17 +73,6 @@ parameters:
 			count: 2
 			path: examples/04-combined-registration-http/server.php
 
-		-
-			message: '#^Instantiated class Mcp\\Server\\Transports\\HttpServerTransport not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: examples/04-combined-registration-http/server.php
-
-		-
-			message: '#^Parameter \#1 \$transport of method Mcp\\Server\:\:connect\(\) expects Mcp\\Server\\TransportInterface, Mcp\\Server\\Transports\\HttpServerTransport given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/04-combined-registration-http/server.php
 
 		-
 			message: '#^Method Mcp\\Example\\StdioEnvVariables\\EnvToolHandler\:\:processData\(\) return type has no value type specified in iterable type array\.$#'
@@ -288,17 +266,6 @@ parameters:
 			count: 2
 			path: examples/07-complex-tool-schema-http/McpEventScheduler.php
 
-		-
-			message: '#^Instantiated class Mcp\\Server\\Transports\\HttpServerTransport not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: examples/07-complex-tool-schema-http/server.php
-
-		-
-			message: '#^Parameter \#1 \$transport of method Mcp\\Server\:\:connect\(\) expects Mcp\\Server\\TransportInterface, Mcp\\Server\\Transports\\HttpServerTransport given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/07-complex-tool-schema-http/server.php
 
 		-
 			message: '#^Method Mcp\\Example\\SchemaShowcaseExample\\SchemaShowcaseElements\:\:calculateRange\(\) return type has no value type specified in iterable type array\.$#'
@@ -354,17 +321,6 @@ parameters:
 			count: 1
 			path: examples/08-schema-showcase-streamable/SchemaShowcaseElements.php
 
-		-
-			message: '#^Instantiated class Mcp\\Server\\Transports\\StreamableHttpServerTransport not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: examples/08-schema-showcase-streamable/server.php
-
-		-
-			message: '#^Parameter \#1 \$transport of method Mcp\\Server\:\:connect\(\) expects Mcp\\Server\\TransportInterface, Mcp\\Server\\Transports\\StreamableHttpServerTransport given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/08-schema-showcase-streamable/server.php
 
 		-
 			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListPromptsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\PromptChain given\.$#'

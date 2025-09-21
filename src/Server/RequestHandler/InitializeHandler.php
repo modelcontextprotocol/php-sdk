@@ -18,6 +18,7 @@ use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -35,11 +36,14 @@ final class InitializeHandler implements MethodHandlerInterface
         return $message instanceof InitializeRequest;
     }
 
-    public function handle(InitializeRequest|HasMethodInterface $message): Response
+    public function handle(InitializeRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
         \assert($message instanceof InitializeRequest);
 
-        return new Response($message->getId(),
+        $session->set('client_info', $message->clientInfo->jsonSerialize());
+
+        return new Response(
+            $message->getId(),
             new InitializeResult($this->capabilities, $this->serverInfo),
         );
     }
