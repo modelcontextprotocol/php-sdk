@@ -14,27 +14,19 @@ namespace Mcp\Tests;
 use Mcp\JsonRpc\Handler;
 use Mcp\Server;
 use Mcp\Server\Transport\InMemoryTransport;
-use PHPUnit\Framework\MockObject\Stub\Exception;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\NullLogger;
 
 class ServerTest extends TestCase
 {
     public function testJsonExceptions()
     {
-        $logger = $this->getMockBuilder(NullLogger::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['error'])
-            ->getMock();
-        $logger->expects($this->once())->method('error');
-
         $handler = $this->getMockBuilder(Handler::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['process'])
             ->getMock();
 
         $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(
-            new Exception(new \JsonException('foobar')),
+            [['{"jsonrpc":"2.0","id":0,"error":{"code":-32700,"message":"Parse error"}}', []]],
             [['success', []]]
         );
 
@@ -42,9 +34,12 @@ class ServerTest extends TestCase
             ->setConstructorArgs([['foo', 'bar']])
             ->onlyMethods(['send'])
             ->getMock();
-        $transport->expects($this->once())->method('send')->with('success', []);
+        $transport->expects($this->exactly(2))->method('send')->willReturnOnConsecutiveCalls(
+            null,
+            null
+        );
 
-        $server = new Server($handler, $logger);
+        $server = new Server($handler);
         $server->connect($transport);
 
         $transport->listen();

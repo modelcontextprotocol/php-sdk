@@ -94,9 +94,6 @@ class Handler
 
     /**
      * @return iterable<array{string|null, array<string, mixed>}>
-     *
-     * @throws ExceptionInterface When a handler throws an exception during message processing
-     * @throws \JsonException     When JSON encoding of the response fails
      */
     public function process(string $input, ?Uuid $sessionId): iterable
     {
@@ -161,9 +158,11 @@ class Handler
         }
 
         foreach ($messages as $message) {
+            $messageId = method_exists($message, 'getId') ? $message->getId() : 0;
+
             if ($message instanceof InvalidInputMessageException) {
                 $this->logger->warning('Failed to create message.', ['exception' => $message]);
-                $error = Error::forInvalidRequest($message->getMessage(), 0);
+                $error = Error::forInvalidRequest($message->getMessage(), $messageId);
                 yield [$this->encodeResponse($error), []];
                 continue;
             }
@@ -183,17 +182,17 @@ class Handler
                     ['exception' => $e],
                 );
 
-                $error = Error::forMethodNotFound($e->getMessage());
+                $error = Error::forMethodNotFound($e->getMessage(), $messageId);
                 yield [$this->encodeResponse($error), []];
             } catch (\InvalidArgumentException $e) {
                 $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
 
-                $error = Error::forInvalidParams($e->getMessage());
+                $error = Error::forInvalidParams($e->getMessage(), $messageId);
                 yield [$this->encodeResponse($error), []];
             } catch (\Throwable $e) {
                 $this->logger->critical(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
 
-                $error = Error::forInternalError($e->getMessage());
+                $error = Error::forInternalError($e->getMessage(), $messageId);
                 yield [$this->encodeResponse($error), []];
             }
         }
@@ -202,7 +201,7 @@ class Handler
     }
 
     /**
-     * @throws \JsonException When JSON encoding fails
+     * Encodes a response to JSON, handling encoding errors gracefully.
      */
     private function encodeResponse(Response|Error|null $response): ?string
     {
@@ -214,11 +213,26 @@ class Handler
 
         $this->logger->info('Encoding response.', ['response' => $response]);
 
-        if ($response instanceof Response && [] === $response->result) {
-            return json_encode($response, \JSON_THROW_ON_ERROR | \JSON_FORCE_OBJECT);
-        }
+        try {
+            if ($response instanceof Response && [] === $response->result) {
+                return json_encode($response, \JSON_THROW_ON_ERROR | \JSON_FORCE_OBJECT);
+            }
 
-        return json_encode($response, \JSON_THROW_ON_ERROR);
+            return json_encode($response, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $this->logger->error('Failed to encode response to JSON.', [
+                'message_id' => $response->getId(),
+                'exception' => $e,
+            ]);
+
+            $fallbackError = new Error(
+                id: $response->getId(),
+                code: Error::INTERNAL_ERROR,
+                message: 'Response could not be encoded to JSON'
+            );
+
+            return json_encode($fallbackError, \JSON_THROW_ON_ERROR);
+        }
     }
 
     /**
