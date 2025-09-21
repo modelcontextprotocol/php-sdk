@@ -19,7 +19,7 @@ use Psr\Log\NullLogger;
 /**
  * @phpstan-type Config array{precision: int, allow_negative: bool}
  */
-class McpElements
+final class McpElements
 {
     /**
      * @var Config

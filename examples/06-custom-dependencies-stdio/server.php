@@ -13,7 +13,10 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\DependenciesStdioExample\Services;
+use Mcp\Example\DependenciesStdioExample\Service\InMemoryTaskRepository;
+use Mcp\Example\DependenciesStdioExample\Service\StatsServiceInterface;
+use Mcp\Example\DependenciesStdioExample\Service\SystemStatsService;
+use Mcp\Example\DependenciesStdioExample\Service\TaskRepositoryInterface;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
@@ -21,11 +24,11 @@ logger()->info('Starting MCP Custom Dependencies (Stdio) Server...');
 
 $container = container();
 
-$taskRepo = new Services\InMemoryTaskRepository(logger());
-$container->set(Services\TaskRepositoryInterface::class, $taskRepo);
+$taskRepo = new InMemoryTaskRepository(logger());
+$container->set(TaskRepositoryInterface::class, $taskRepo);
 
-$statsService = new Services\SystemStatsService($taskRepo);
-$container->set(Services\StatsServiceInterface::class, $statsService);
+$statsService = new SystemStatsService($taskRepo);
+$container->set(StatsServiceInterface::class, $statsService);
 
 $server = Server::make()
     ->setServerInfo('Task Manager Server', '1.0.0')

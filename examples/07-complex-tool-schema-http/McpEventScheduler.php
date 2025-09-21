@@ -12,14 +12,14 @@
 namespace Mcp\Example\ComplexSchemaHttpExample;
 
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\ComplexSchemaHttpExample\Model\EventPriority;
-use Mcp\ComplexSchemaHttpExample\Model\EventType;
+use Mcp\Example\ComplexSchemaHttpExample\Model\EventPriority;
+use Mcp\Example\ComplexSchemaHttpExample\Model\EventType;
 use Psr\Log\LoggerInterface;
 
-class McpEventScheduler
+final class McpEventScheduler
 {
     public function __construct(
-        private LoggerInterface $logger,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -35,17 +35,17 @@ class McpEventScheduler
      * @param string[]|null $attendees   an optional list of attendee email addresses
      * @param bool          $sendInvites send calendar invites to attendees? Defaults to true if attendees are provided
      *
-     * @return array confirmation of the scheduled event
+     * @return array<string, mixed> confirmation of the scheduled event
      */
     #[McpTool(name: 'schedule_event')]
     public function scheduleEvent(
         string $title,
         string $date,
         EventType $type,
-        ?string $time = null, // Optional, nullable
-        EventPriority $priority = EventPriority::Normal, // Optional with enum default
-        ?array $attendees = null, // Optional array of strings, nullable
-        bool $sendInvites = true,   // Optional with default
+        ?string $time = null,
+        EventPriority $priority = EventPriority::Normal,
+        ?array $attendees = null,
+        bool $sendInvites = true,
     ): array {
         $this->logger->info("Tool 'schedule_event' called", compact('title', 'date', 'type', 'time', 'priority', 'attendees', 'sendInvites'));
 
@@ -65,7 +65,7 @@ class McpEventScheduler
 
         return [
             'success' => true,
-            'message' => "Event '{$title}' scheduled successfully for {$date}.",
+            'message' => \sprintf('Event "%s" scheduled successfully for "%s".', $title, $date),
             'event_details' => $eventDetails,
         ];
     }

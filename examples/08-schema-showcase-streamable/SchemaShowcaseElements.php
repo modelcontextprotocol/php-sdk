@@ -13,12 +13,20 @@ namespace Mcp\Example\SchemaShowcaseExample;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Psr\Log\LoggerInterface;
 
-class SchemaShowcaseElements
+final class SchemaShowcaseElements
 {
+    public function __construct(
+        private readonly LoggerInterface $logger,
+    ) {
+    }
+
     /**
      * Validates and formats text with string constraints.
      * Demonstrates: minLength, maxLength, pattern validation.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'format_text',
@@ -41,7 +49,7 @@ class SchemaShowcaseElements
         )]
         string $format = 'sentence',
     ): array {
-        fwrite(\STDERR, "Format text tool called: text='$text', format='$format'\n");
+        $this->logger->info(\sprintf('Tool format_text called with text: %s and format: %s', $text, $format));
 
         $formatted = match ($format) {
             'uppercase' => strtoupper($text),
@@ -63,6 +71,8 @@ class SchemaShowcaseElements
      * Performs mathematical operations with numeric constraints.
      *
      * Demonstrates: METHOD-LEVEL Schema
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(name: 'calculate_range')]
     #[Schema(
@@ -97,7 +107,7 @@ class SchemaShowcaseElements
     )]
     public function calculateRange(float $first, float $second, string $operation, int $precision = 2): array
     {
-        fwrite(\STDERR, "Calculate range tool called: $first $operation $second (precision: $precision)\n");
+        $this->logger->info(\sprintf('Tool calculate_range called with: %f %s %f (precision: %d)', $first, $operation, $second, $precision));
 
         $result = match ($operation) {
             'add' => $first + $second,
@@ -126,6 +136,10 @@ class SchemaShowcaseElements
     /**
      * Processes user profile data with object schema validation.
      * Demonstrates: object properties, required fields, additionalProperties.
+     *
+     * @param array<string, mixed> $profile
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'validate_profile',
@@ -172,7 +186,7 @@ class SchemaShowcaseElements
         )]
         array $profile,
     ): array {
-        fwrite(\STDERR, 'Validate profile tool called with: '.json_encode($profile)."\n");
+        $this->logger->info(\sprintf('Tool validate_profile called: %s', json_encode($profile)));
 
         $errors = [];
         $warnings = [];
@@ -203,6 +217,10 @@ class SchemaShowcaseElements
     /**
      * Manages a list of items with array constraints.
      * Demonstrates: array items, minItems, maxItems, uniqueItems.
+     *
+     * @param string[] $items
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'manage_list',
@@ -230,7 +248,7 @@ class SchemaShowcaseElements
         )]
         string $action = 'sort',
     ): array {
-        fwrite(\STDERR, 'Manage list tool called with '.\count($items)." items, action: $action\n");
+        $this->logger->info(\sprintf('Tool manage_list called with %d items, action: %s', \count($items), $action));
 
         $original = $items;
         $processed = $items;
@@ -273,6 +291,8 @@ class SchemaShowcaseElements
     /**
      * Generates configuration with format validation.
      * Demonstrates: format constraints (date-time, uri, etc).
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'generate_config',
@@ -316,7 +336,7 @@ class SchemaShowcaseElements
         )]
         int $port = 8080,
     ): array {
-        fwrite(\STDERR, "Generate config tool called for app: $appName\n");
+        $this->logger->info(\sprintf('Tool generate_config called for app: %s at %s', $appName, $baseUrl));
 
         $config = [
             'app' => [
@@ -350,6 +370,10 @@ class SchemaShowcaseElements
     /**
      * Processes time-based data with date-time format validation.
      * Demonstrates: date-time format, exclusiveMinimum, exclusiveMaximum.
+     *
+     * @param string[] $attendees
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'schedule_event',
@@ -398,7 +422,7 @@ class SchemaShowcaseElements
         )]
         array $attendees = [],
     ): array {
-        fwrite(\STDERR, "Schedule event tool called: $title at $startTime\n");
+        $this->logger->info(\sprintf('Tool schedule_event called: %s at %s for %.1f hours', $title, $startTime, $durationHours));
 
         $start = \DateTime::createFromFormat(\DateTime::ISO8601, $startTime);
         if (!$start) {

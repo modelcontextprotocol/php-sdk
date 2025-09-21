@@ -13,16 +13,19 @@ namespace Mcp\Example\DependenciesStdioExample;
 
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\DependenciesStdioExample\Services\StatsServiceInterface;
-use Mcp\DependenciesStdioExample\Services\TaskRepositoryInterface;
+use Mcp\Example\DependenciesStdioExample\Service\StatsServiceInterface;
+use Mcp\Example\DependenciesStdioExample\Service\TaskRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
-class McpTaskHandlers
+/**
+ * @phpstan-import-type Task from TaskRepositoryInterface
+ */
+final class McpTaskHandlers
 {
     public function __construct(
-        private TaskRepositoryInterface $taskRepo,
-        private StatsServiceInterface $statsService,
-        private LoggerInterface $logger,
+        private readonly TaskRepositoryInterface $taskRepo,
+        private readonly StatsServiceInterface $statsService,
+        private readonly LoggerInterface $logger,
     ) {
         $this->logger->info('McpTaskHandlers instantiated with dependencies.');
     }
@@ -33,7 +36,7 @@ class McpTaskHandlers
      * @param string $userId      the ID of the user
      * @param string $description the task description
      *
-     * @return array the created task details
+     * @return Task the created task details
      */
     #[McpTool(name: 'add_task')]
     public function addTask(string $userId, string $description): array
@@ -48,7 +51,7 @@ class McpTaskHandlers
      *
      * @param string $userId the ID of the user
      *
-     * @return array a list of tasks
+     * @return Task[] a list of tasks
      */
     #[McpTool(name: 'list_user_tasks')]
     public function listUserTasks(string $userId): array
@@ -63,7 +66,7 @@ class McpTaskHandlers
      *
      * @param int $taskId the ID of the task to complete
      *
-     * @return array status of the operation
+     * @return array<string, mixed> status of the operation
      */
     #[McpTool(name: 'complete_task')]
     public function completeTask(int $taskId): array
@@ -77,7 +80,7 @@ class McpTaskHandlers
     /**
      * Provides current system statistics.
      *
-     * @return array system statistics
+     * @return array<string, int> system statistics
      */
     #[McpResource(uri: 'stats://system/overview', name: 'system_stats', mimeType: 'application/json')]
     public function getSystemStatistics(): array

@@ -16,10 +16,7 @@ use Psr\Log\LoggerInterface;
 require_once dirname(__DIR__).'/vendor/autoload.php';
 
 set_exception_handler(function (Throwable $t): never {
-    fwrite(\STDERR, "[MCP SERVER CRITICAL ERROR]\n");
-    fwrite(\STDERR, 'Error: '.$t->getMessage()."\n");
-    fwrite(\STDERR, 'File: '.$t->getFile().':'.$t->getLine()."\n");
-    fwrite(\STDERR, $t->getTraceAsString()."\n");
+    logger()->critical('Uncaught exception: '.$t->getMessage(), ['exception' => $t]);
 
     exit(1);
 });
@@ -42,9 +39,9 @@ function logger(): LoggerInterface
                 ([] === $context || !$debug) ? '' : json_encode($context),
             );
 
-            if ($_SERVER['FILE_LOG'] ?? false) {
+            if (($_SERVER['FILE_LOG'] ?? false) || !defined('STDERR')) {
                 file_put_contents('dev.log', $logMessage, \FILE_APPEND);
-            } elseif (defined('STDERR')) {
+            } else {
                 fwrite(\STDERR, $logMessage);
             }
         }

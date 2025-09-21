@@ -13,7 +13,7 @@ namespace Mcp\Example\ManualStdioExample;
 
 use Psr\Log\LoggerInterface;
 
-class SimpleHandlers
+final class SimpleHandlers
 {
     private string $appVersion = '1.0-manual';
 
@@ -54,7 +54,7 @@ class SimpleHandlers
      *
      * @param string $userName the name of the user
      *
-     * @return array the prompt messages
+     * @return array<string, string>[] the prompt messages
      */
     public function greetingPrompt(string $userName): array
     {
@@ -70,7 +70,7 @@ class SimpleHandlers
      *
      * @param string $itemId the ID of the item
      *
-     * @return array item details
+     * @return array<string, string> item details
      */
     public function getItemDetails(string $itemId): array
     {

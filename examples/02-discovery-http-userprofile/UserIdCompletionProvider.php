@@ -13,12 +13,12 @@ namespace Mcp\Example\HttpUserProfileExample;
 
 use Mcp\Capability\Prompt\Completion\ProviderInterface;
 
-class UserIdCompletionProvider implements ProviderInterface
+final class UserIdCompletionProvider implements ProviderInterface
 {
+    private const AVAILABLE_USER_IDS = ['101', '102', '103'];
+
     public function getCompletions(string $currentValue): array
     {
-        $availableUserIds = ['101', '102', '103'];
-
-        return array_filter($availableUserIds, fn (string $userId) => str_contains($userId, $currentValue));
+        return array_filter(self::AVAILABLE_USER_IDS, fn (string $userId) => str_contains($userId, $currentValue));
     }
 }

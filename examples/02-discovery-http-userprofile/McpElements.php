@@ -18,9 +18,16 @@ use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
 use Psr\Log\LoggerInterface;
 
-class McpElements
+/**
+ * @phpstan-type User array{name: string, email: string, role: string}
+ */
+final class McpElements
 {
-    // Simulate a simple user database
+    /**
+     * Simulate a simple user database.
+     *
+     * @var array<int, User>
+     */
     private array $users = [
         '101' => ['name' => 'Alice', 'email' => 'alice@example.com', 'role' => 'admin'],
         '102' => ['name' => 'Bob', 'email' => 'bob@example.com', 'role' => 'user'],
@@ -28,7 +35,7 @@ class McpElements
     ];
 
     public function __construct(
-        private LoggerInterface $logger,
+        private readonly LoggerInterface $logger,
     ) {
         $this->logger->debug('HttpUserProfileExample McpElements instantiated.');
     }
@@ -38,7 +45,7 @@ class McpElements
      *
      * @param string $userId the ID of the user (from URI)
      *
-     * @return array user profile data
+     * @return User user profile data
      *
      * @throws McpServerException if the user is not found
      */
@@ -64,7 +71,7 @@ class McpElements
     /**
      * Retrieves a list of all known user IDs.
      *
-     * @return array list of user IDs
+     * @return int[] list of user IDs
      */
     #[McpResource(
         uri: 'user://list/ids',
@@ -86,7 +93,7 @@ class McpElements
      * @param string      $userId        the ID of the user to message
      * @param string|null $customMessage an optional custom message part
      *
-     * @return array status of the operation
+     * @return array<string, bool|string> status of the operation
      */
     #[McpTool(name: 'send_welcome')]
     public function sendWelcomeMessage(string $userId, ?string $customMessage = null): array
@@ -106,6 +113,9 @@ class McpElements
         return ['success' => true, 'message_sent' => $message];
     }
 
+    /**
+     * @return array<string, bool|string>
+     */
     #[McpTool(name: 'test_tool_without_params')]
     public function testToolWithoutParams(): array
     {
@@ -118,7 +128,7 @@ class McpElements
      * @param string $userId the user ID to generate the bio for
      * @param string $tone   Desired tone (e.g., 'formal', 'casual').
      *
-     * @return array prompt messages
+     * @return array<string, string>[] prompt messages
      *
      * @throws McpServerException if user not found
      */

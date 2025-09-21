@@ -14,7 +14,7 @@ namespace Mcp\Example\CombinedHttpExample;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
 
-class DiscoveredElements
+final class DiscoveredElements
 {
     /**
      * A tool discovered via attributes.
