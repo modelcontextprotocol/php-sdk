@@ -98,7 +98,7 @@ class Discoverer
                 $this->processFile($file, $discoveredCount);
             }
         } catch (\Throwable $e) {
-            $this->logger->error('Error during file finding process for MCP discovery', [
+            $this->logger->error('Error during file finding process for MCP discovery'.json_encode($e->getTrace(), \JSON_PRETTY_PRINT), [
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
