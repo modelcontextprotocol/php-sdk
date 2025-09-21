@@ -44,9 +44,9 @@ function logger(): LoggerInterface
 
             if ($_SERVER['FILE_LOG'] ?? false) {
                 file_put_contents('dev.log', $logMessage, \FILE_APPEND);
+            } elseif (defined('STDERR')) {
+                fwrite(\STDERR, $logMessage);
             }
-
-            fwrite(\STDERR, $logMessage);
         }
     };
 }

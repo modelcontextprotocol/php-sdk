@@ -321,25 +321,6 @@ parameters:
 			count: 1
 			path: examples/08-schema-showcase-streamable/SchemaShowcaseElements.php
 
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListPromptsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\PromptChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListResourcesHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ResourceChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListToolsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ToolChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
 		-
 			message: '#^PHPDoc tag @return with type array is incompatible with native type object\.$#'
 			identifier: return.phpDocType
