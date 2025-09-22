@@ -15,6 +15,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\Tool\ToolCaller;
+use Mcp\Exception\ReferenceExecutionException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -179,12 +180,7 @@ class ToolCallerTest extends TestCase
     {
         $request = new CallToolRequest('test_tool', ['param' => 'value']);
         $tool = $this->createValidTool('test_tool');
-        $exception = new class extends \Exception implements \Mcp\Exception\ToolExecutionExceptionInterface {
-            public function getErrorMessages(): array
-            {
-                return ['test error'];
-            }
-        };
+        $exception = new ReferenceExecutionException(['test error']);
         $toolReference = new ToolReference($tool, fn () => throw $exception);
 
         $this->referenceProvider
@@ -199,12 +195,10 @@ class ToolCallerTest extends TestCase
             ->with($toolReference, ['param' => 'value'])
             ->willThrowException($exception);
 
-        $result = $this->toolCaller->call($request);
+        $this->expectException(ToolCallException::class);
+        $this->expectExceptionMessage('Tool call "test_tool" failed with error: "test error".');
 
-        $this->assertCount(1, $result->content);
-        $this->assertInstanceOf(TextContent::class, $result->content[0]);
-        $this->assertEquals('test error', $result->content[0]->text);
-        $this->assertTrue($result->isError);
+        $this->toolCaller->call($request);
     }
 
     public function testCallThrowsToolExecutionExceptionWhenHandlerThrowsException(): void

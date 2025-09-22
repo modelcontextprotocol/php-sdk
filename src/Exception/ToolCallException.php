@@ -20,8 +20,12 @@ final class ToolCallException extends \RuntimeException implements ExceptionInte
 {
     public function __construct(
         public readonly CallToolRequest $request,
-        ?\Throwable $previous = null,
+        public readonly RegistryException $registryException,
     ) {
-        parent::__construct(\sprintf('Tool call "%s" failed with error: "%s".', $request->name, $previous?->getMessage() ?? ''), previous: $previous);
+        $message = ($this->registryException->getPrevious() ?? $this->registryException)->getMessage();
+        parent::__construct(
+            \sprintf('Tool call "%s" failed with error: "%s".', $request->name, $message),
+            previous: $this->registryException->getPrevious(),
+        );
     }
 }

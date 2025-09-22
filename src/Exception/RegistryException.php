@@ -13,7 +13,7 @@ namespace Mcp\Exception;
 
 use Mcp\Schema\JsonRpc\Error;
 
-final class RegistryException extends \Exception implements ExceptionInterface
+class RegistryException extends \Exception implements ExceptionInterface
 {
     public static function invalidParams(string $message = 'Invalid params', ?\Throwable $previous = null): self
     {

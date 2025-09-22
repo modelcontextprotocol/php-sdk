@@ -74,7 +74,7 @@ class Handler
                 new RequestHandler\GetPromptHandler($promptGetter),
                 new RequestHandler\ListResourcesHandler($referenceProvider),
                 new RequestHandler\ReadResourceHandler($resourceReader),
-                new RequestHandler\CallToolHandler($toolCaller, $logger),
+                new RequestHandler\CallToolHandler($toolCaller),
                 new RequestHandler\ListToolsHandler($referenceProvider),
             ],
             logger: $logger,

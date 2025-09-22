@@ -27,9 +27,8 @@ interface ReferenceHandlerInterface
      *
      * @return mixed the result of the element execution
      *
-     * @throws \Mcp\Exception\InvalidArgumentException        if the handler is invalid
-     * @throws \Mcp\Exception\ToolExecutionExceptionInterface if the tool reports an error during its execution
-     * @throws \Mcp\Exception\RegistryException               if execution fails
+     * @throws \Mcp\Exception\InvalidArgumentException if the handler is invalid
+     * @throws \Mcp\Exception\RegistryException        if execution fails
      */
     public function handle(ElementReference $reference, array $arguments): mixed;
 }

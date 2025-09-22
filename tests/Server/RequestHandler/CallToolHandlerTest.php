@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Server\RequestHandler;
 
 use Mcp\Capability\Tool\ToolCallerInterface;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -22,23 +23,17 @@ use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\RequestHandler\CallToolHandler;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
 {
     private CallToolHandler $handler;
     private ToolCallerInterface|MockObject $toolExecutor;
-    private LoggerInterface|MockObject $logger;
 
     protected function setUp(): void
     {
         $this->toolExecutor = $this->createMock(ToolCallerInterface::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->handler = new CallToolHandler(
-            $this->toolExecutor,
-            $this->logger,
-        );
+        $this->handler = new CallToolHandler($this->toolExecutor);
     }
 
     public function testSupportsCallToolRequest(): void
@@ -58,10 +53,6 @@ class CallToolHandlerTest extends TestCase
             ->method('call')
             ->with($request)
             ->willReturn($expectedResult);
-
-        $this->logger
-            ->expects($this->never())
-            ->method('error');
 
         $response = $this->handler->handle($request);
 
@@ -122,29 +113,18 @@ class CallToolHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "nonexistent_tool": "Tool not found for call: "nonexistent_tool".".',
-                [
-                    'tool' => 'nonexistent_tool',
-                    'arguments' => ['param' => 'value'],
-                ],
-            );
-
         $response = $this->handler->handle($request);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while executing tool', $response->message);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+        $this->assertEquals('Tool not found for call: "nonexistent_tool".', $response->message);
     }
 
     public function testHandleToolExecutionExceptionReturnsError(): void
     {
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
-        $exception = new ToolCallException($request, new \RuntimeException('Tool execution failed'));
+        $exception = new ToolCallException($request, RegistryException::internalError('Tool execution failed', previous: new \RuntimeException()));
 
         $this->toolExecutor
             ->expects($this->once())
@@ -152,23 +132,12 @@ class CallToolHandlerTest extends TestCase
             ->with($request)
             ->willThrowException($exception);
 
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "failing_tool": "Tool call "failing_tool" failed with error: "Tool execution failed".".',
-                [
-                    'tool' => 'failing_tool',
-                    'arguments' => ['param' => 'value'],
-                ],
-            );
-
         $response = $this->handler->handle($request);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while executing tool', $response->message);
+        $this->assertEquals('Internal error: Tool execution failed (See server logs)', $response->message);
     }
 
     public function testHandleWithNullResult(): void
@@ -216,23 +185,12 @@ class CallToolHandlerTest extends TestCase
     public function testHandleLogsErrorWithCorrectParameters(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
-        $exception = new ToolCallException($request, new \RuntimeException('Custom error message'));
+        $exception = new ToolCallException($request, RegistryException::internalError(previous: new \RuntimeException('Custom error message')));
 
         $this->toolExecutor
             ->expects($this->once())
             ->method('call')
             ->willThrowException($exception);
-
-        $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "test_tool": "Tool call "test_tool" failed with error: "Custom error message".".',
-                [
-                    'tool' => 'test_tool',
-                    'arguments' => ['key1' => 'value1', 'key2' => 42],
-                ],
-            );
 
         $this->handler->handle($request);
     }

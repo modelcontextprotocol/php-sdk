@@ -16,8 +16,8 @@ use Mcp\Capability\Tool\IdentifierInterface;
 use Mcp\Capability\Tool\MetadataInterface;
 use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\InvalidCursorException;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ToolCallException;
-use Mcp\Exception\ToolExecutionExceptionInterface;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -67,12 +67,10 @@ class ToolChain implements ToolCallerInterface, CollectionInterface
             if ($item instanceof ToolCallerInterface && $request->name === $item->getName()) {
                 try {
                     return $item->call($request);
+                } catch (ToolCallException|ToolNotFoundException $e) {
+                    throw $e;
                 } catch (\Throwable $e) {
-                    if ($e instanceof ToolExecutionExceptionInterface) {
-                        throw $e;
-                    }
-
-                    throw new ToolCallException($request, $e);
+                    throw new ToolCallException($request, RegistryException::internalError('Error while executing tool', $e));
                 }
             }
         }

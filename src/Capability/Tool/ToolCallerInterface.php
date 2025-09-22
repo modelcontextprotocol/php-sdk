@@ -12,7 +12,6 @@
 namespace Mcp\Capability\Tool;
 
 use Mcp\Exception\ToolCallException;
-use Mcp\Exception\ToolExecutionExceptionInterface;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -23,9 +22,8 @@ use Mcp\Schema\Result\CallToolResult;
 interface ToolCallerInterface
 {
     /**
-     * @throws ToolCallException               if the tool execution fails
-     * @throws ToolNotFoundException           if the tool is not found
-     * @throws ToolExecutionExceptionInterface if the tool reports an error during its execution
+     * @throws ToolCallException     if the tool execution fails
+     * @throws ToolNotFoundException if the tool is not found
      */
     public function call(CallToolRequest $request): CallToolResult;
 }

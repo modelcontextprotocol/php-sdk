@@ -12,14 +12,16 @@
 namespace Mcp\Server\RequestHandler;
 
 use Mcp\Capability\Tool\ToolCallerInterface;
-use Mcp\Exception\ExceptionInterface;
+use Mcp\Exception\ReferenceExecutionException;
+use Mcp\Exception\ToolCallException;
+use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\MethodHandlerInterface;
-use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -29,7 +31,6 @@ final class CallToolHandler implements MethodHandlerInterface
 {
     public function __construct(
         private readonly ToolCallerInterface $toolCaller,
-        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -44,16 +45,19 @@ final class CallToolHandler implements MethodHandlerInterface
 
         try {
             $content = $this->toolCaller->call($message);
-        } catch (ExceptionInterface $exception) {
-            $this->logger->error(
-                \sprintf('Error while executing tool "%s": "%s".', $message->name, $exception->getMessage()),
-                [
-                    'tool' => $message->name,
-                    'arguments' => $message->arguments,
-                ],
-            );
+        } catch (ToolNotFoundException $exception) {
+            return Error::forInvalidParams($exception->getMessage(), $message->getId());
+        } catch (ToolCallException $exception) {
+            $registryException = $exception->registryException;
 
-            return Error::forInternalError('Error while executing tool', $message->getId());
+            if ($registryException instanceof ReferenceExecutionException) {
+                return new Response($message->getId(), CallToolResult::error(array_map(
+                    fn (string $message): TextContent => new TextContent($message),
+                    $registryException->messages,
+                )));
+            }
+
+            return new Error($message->getId(), $registryException->getCode(), $registryException->getMessage());
         }
 
         return new Response($message->getId(), $content);

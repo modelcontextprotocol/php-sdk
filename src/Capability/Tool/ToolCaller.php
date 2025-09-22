@@ -13,8 +13,8 @@ namespace Mcp\Capability\Tool;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ToolCallException;
-use Mcp\Exception\ToolExecutionExceptionInterface;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\EmbeddedResource;
@@ -69,19 +69,20 @@ final class ToolCaller implements ToolCallerInterface
             ]);
 
             return new CallToolResult($formattedResult);
-        } catch (ToolExecutionExceptionInterface $e) {
-            return CallToolResult::error(array_map(
-                fn (string $message): TextContent => new TextContent($message),
-                $e->getErrorMessages(),
-            ));
+        } catch (RegistryException $e) {
+            throw new ToolCallException($request, $e);
         } catch (\Throwable $e) {
+            if ($e instanceof ToolCallException) {
+                throw $e;
+            }
+
             $this->logger->error('Tool execution failed', [
                 'name' => $toolName,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
             ]);
 
-            throw new ToolCallException($request, $e);
+            throw new ToolCallException($request, RegistryException::internalError('Error while executing tool', $e));
         }
     }
 }
