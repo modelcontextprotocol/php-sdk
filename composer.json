@@ -59,8 +59,7 @@
       "Mcp\\Example\\DependenciesStdioExample\\": "examples/06-custom-dependencies-stdio/",
       "Mcp\\Example\\ComplexSchemaHttpExample\\": "examples/07-complex-tool-schema-http/",
       "Mcp\\Example\\SchemaShowcaseExample\\": "examples/08-schema-showcase-streamable/",
-      "Mcp\\Example\\HttpTransportExample\\": "examples/10-simple-http-transport/",
-      "Mcp\\Example\\CachedDiscoveryExample\\": "examples/10-cached-discovery-stdio/",
+      "Mcp\\Example\\CachedDiscoveryExample\\": "examples/09-cached-discovery-stdio/",
       "Mcp\\Tests\\": "tests/"
     }
   },

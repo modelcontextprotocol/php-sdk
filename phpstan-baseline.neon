@@ -321,35 +321,7 @@ parameters:
 			count: 1
 			path: examples/08-schema-showcase-streamable/SchemaShowcaseElements.php
 
-		-
-			message: '#^Instantiated class Mcp\\Server\\Transports\\StreamableHttpServerTransport not found\.$#'
-			identifier: class.notFound
-			count: 1
-			path: examples/08-schema-showcase-streamable/server.php
 
-		-
-			message: '#^Parameter \#1 \$transport of method Mcp\\Server\:\:connect\(\) expects Mcp\\Server\\TransportInterface, Mcp\\Server\\Transports\\StreamableHttpServerTransport given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/08-schema-showcase-streamable/server.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListPromptsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\PromptChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListResourcesHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ResourceChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
-
-		-
-			message: '#^Parameter \#1 \$registry of class Mcp\\Server\\RequestHandler\\ListToolsHandler constructor expects Mcp\\Capability\\Registry\\ReferenceProviderInterface, Mcp\\Capability\\ToolChain given\.$#'
-			identifier: argument.type
-			count: 1
-			path: examples/09-standalone-cli/src/Builder.php
 
 		-
 			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'

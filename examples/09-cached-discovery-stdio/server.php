@@ -12,17 +12,28 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-require_once __DIR__.'/../bootstrap.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
+chdir(__DIR__);
 
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
-Server::make()
+logger()->info('Starting MCP Cached Discovery Calculator Server...');
+
+$server = Server::make()
     ->setServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
-    ->setDiscovery(__DIR__, ['.'])
+    ->setContainer(container())
     ->setLogger(logger())
+    ->setDiscovery(__DIR__, ['.'])
     ->setCache(new Psr16Cache(new ArrayAdapter()))
-    ->build()
-    ->connect(new StdioTransport());
+    ->build();
+
+$transport = new StdioTransport(logger: logger());
+
+$server->connect($transport);
+
+$transport->listen();
+
+logger()->info('Server listener stopped gracefully.');
