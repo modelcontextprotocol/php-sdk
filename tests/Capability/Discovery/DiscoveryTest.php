@@ -135,7 +135,8 @@ class DiscoveryTest extends TestCase
     public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles()
     {
         $this->discoverer->discover(__DIR__, ['EmptyDir']);
-        $this->assertEmpty($this->registry->getTools());
+        $tools = $this->registry->getTools();
+        $this->assertEmpty($tools->references);
     }
 
     public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute()

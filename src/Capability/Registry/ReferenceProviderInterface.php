@@ -11,9 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
-use Mcp\Schema\Prompt;
-use Mcp\Schema\ResourceTemplate;
-use Mcp\Schema\Tool;
+use Mcp\Server\RequestHandler\Reference\Page;
 
 /**
  * Interface for providing access to registered MCP elements.
@@ -45,31 +43,23 @@ interface ReferenceProviderInterface
 
     /**
      * Gets all registered tools.
-     *
-     * @return array<string, Tool>
      */
-    public function getTools(): array;
+    public function getTools(?int $limit = null, ?string $cursor = null): Page;
 
     /**
      * Gets all registered resources.
-     *
-     * @return array<string, \Mcp\Schema\Resource>
      */
-    public function getResources(): array;
+    public function getResources(?int $limit = null, ?string $cursor = null): Page;
 
     /**
      * Gets all registered prompts.
-     *
-     * @return array<string, Prompt>
      */
-    public function getPrompts(): array;
+    public function getPrompts(?int $limit = null, ?string $cursor = null): Page;
 
     /**
      * Gets all registered resource templates.
-     *
-     * @return array<string, ResourceTemplate>
      */
-    public function getResourceTemplates(): array;
+    public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page;
 
     /**
      * Checks if any elements (manual or discovered) are currently registered.
