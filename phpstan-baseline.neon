@@ -321,6 +321,14 @@ parameters:
 			count: 1
 			path: examples/08-schema-showcase-streamable/SchemaShowcaseElements.php
 
+
+
+		-
+			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
+			identifier: method.notFound
+			count: 1
+			path: src/Capability/Registry/ResourceTemplateReference.php
+
 		-
 			message: '#^PHPDoc tag @return with type array is incompatible with native type object\.$#'
 			identifier: return.phpDocType
@@ -334,22 +342,10 @@ parameters:
 			path: src/Schema/Result/ReadResourceResult.php
 
 		-
-			message: '#^Result of && is always false\.$#'
-			identifier: booleanAnd.alwaysFalse
-			count: 1
-			path: src/Server/RequestHandler/ListResourcesHandler.php
-
-		-
 			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getPrompts\(\) invoked with 2 parameters, 0 required\.$#'
 			identifier: arguments.count
 			count: 1
 			path: src/Server/RequestHandler/ListPromptsHandler.php
-
-		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Capability/Registry/ResourceTemplateReference.php
 
 		-
 			message: '#^Result of && is always false\.$#'
@@ -370,16 +366,22 @@ parameters:
 			path: src/Server/RequestHandler/ListResourcesHandler.php
 
 		-
-			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getTools\(\) invoked with 2 parameters, 0 required\.$#'
-			identifier: arguments.count
+			message: '#^Result of && is always false\.$#'
+			identifier: booleanAnd.alwaysFalse
 			count: 1
-			path: src/Server/RequestHandler/ListToolsHandler.php
+			path: src/Server/RequestHandler/ListResourcesHandler.php
 
 		-
 			message: '#^Strict comparison using \!\=\= between null and null will always evaluate to false\.$#'
 			identifier: notIdentical.alwaysFalse
 			count: 1
 			path: src/Server/RequestHandler/ListResourcesHandler.php
+
+		-
+			message: '#^Method Mcp\\Capability\\Registry\\ReferenceProviderInterface\:\:getTools\(\) invoked with 2 parameters, 0 required\.$#'
+			identifier: arguments.count
+			count: 1
+			path: src/Server/RequestHandler/ListToolsHandler.php
 
 		-
 			message: '#^Result of && is always false\.$#'
@@ -438,24 +440,6 @@ parameters:
 		-
 			message: '#^Method Mcp\\Server\\ServerBuilder\:\:addTool\(\) has parameter \$inputSchema with no value type specified in iterable type array\.$#'
 			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache \(Psr\\SimpleCache\\CacheInterface\|null\) is never assigned Psr\\SimpleCache\\CacheInterface so it can be removed from the property type\.$#'
-			identifier: property.unusedType
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache has unknown class Psr\\SimpleCache\\CacheInterface as its type\.$#'
-			identifier: class.notFound
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$cache is never read, only written\.$#'
-			identifier: property.onlyWritten
 			count: 1
 			path: src/Server/ServerBuilder.php
 
