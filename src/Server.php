@@ -44,19 +44,12 @@ final class Server
         ]);
 
         $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
-            try {
-                foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
-                    if (null === $response) {
-                        continue;
-                    }
-
-                    $transport->send($response, $context);
+            foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
+                if (null === $response) {
+                    continue;
                 }
-            } catch (\JsonException $e) {
-                $this->logger->error('Failed to encode response to JSON.', [
-                    'message' => $message,
-                    'exception' => $e,
-                ]);
+
+                $transport->send($response, $context);
             }
         });
 
