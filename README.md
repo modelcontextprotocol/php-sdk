@@ -22,28 +22,15 @@ Until the first major release, this SDK is considered
 
 Features
 - [x] Bring back PHP-MCP examples
-- [ ] Glue handler, registry and reference handlers
-- [ ] Revive `ServerBuilder`
-- [ ] Revive transports 
-  - [ ] Streamable Transport https://github.com/modelcontextprotocol/php-sdk/issues/7
-  - [ ] Http/SSE-based Transport https://github.com/modelcontextprotocol/php-sdk/issues/8
+- [x] Glue handler, registry and reference handlers
+- [x] Revive `ServerBuilder`
+- [x] Revive transports 
+  - [x] Streamable Transport https://github.com/modelcontextprotocol/php-sdk/issues/7
+  - [ ] ~~Http/SSE-based Transport https://github.com/modelcontextprotocol/php-sdk/issues/8~~
 - [ ] Support pagination
 - [ ] Support Schema validation
 - [ ] Support multiple versions of the MCP specification https://github.com/modelcontextprotocol/php-sdk/issues/14
 - [ ] (Re-)Implement missing Notification & Request Handlers https://github.com/modelcontextprotocol/php-sdk/issues/9
-
----
-
-Examples working
-- [x] 01-discovery-stdio-calculator
-- [ ] 02-discovery-http-userprofile
-- [x] 03-manual-registration-stdio
-- [ ] 04-combined-registration-http
-- [ ] 05-stdio-env-variables
-- [ ] 06-custom-dependencies-stdio
-- [ ] 07-complex-tool-schema-http
-- [ ] 08-schema-showcase-streamable
-- [ ] 09-standalone-cli
 
 ## Installation
 

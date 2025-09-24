@@ -13,17 +13,20 @@ namespace Mcp\Example\DependenciesStdioExample\Service;
 
 use Psr\Log\LoggerInterface;
 
-class InMemoryTaskRepository implements TaskRepositoryInterface
+/**
+ * @phpstan-import-type Task from TaskRepositoryInterface
+ */
+final class InMemoryTaskRepository implements TaskRepositoryInterface
 {
+    /**
+     * @var array<int, Task>
+     */
     private array $tasks = [];
-
     private int $nextTaskId = 1;
 
-    private LoggerInterface $logger;
-
-    public function __construct(LoggerInterface $logger)
-    {
-        $this->logger = $logger;
+    public function __construct(
+        private readonly LoggerInterface $logger,
+    ) {
         // Add some initial tasks
         $this->addTask('user1', 'Buy groceries');
         $this->addTask('user1', 'Write MCP example');

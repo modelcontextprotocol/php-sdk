@@ -11,13 +11,11 @@
 
 namespace Mcp\Example\DependenciesStdioExample\Service;
 
-class SystemStatsService implements StatsServiceInterface
+final class SystemStatsService implements StatsServiceInterface
 {
-    private TaskRepositoryInterface $taskRepository;
-
-    public function __construct(TaskRepositoryInterface $taskRepository)
-    {
-        $this->taskRepository = $taskRepository;
+    public function __construct(
+        private readonly TaskRepositoryInterface $taskRepository,
+    ) {
     }
 
     public function getSystemStats(): array

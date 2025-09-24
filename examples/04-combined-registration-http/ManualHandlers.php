@@ -13,10 +13,10 @@ namespace Mcp\Example\CombinedHttpExample;
 
 use Psr\Log\LoggerInterface;
 
-class ManualHandlers
+final class ManualHandlers
 {
     public function __construct(
-        private LoggerInterface $logger,
+        private readonly LoggerInterface $logger,
     ) {
     }
 

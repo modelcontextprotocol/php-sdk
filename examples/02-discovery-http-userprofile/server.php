@@ -54,7 +54,7 @@ $server = Server::make()
         function (): array {
             $memoryUsage = memory_get_usage(true);
             $memoryPeak = memory_get_peak_usage(true);
-            $uptime = time() - $_SERVER['REQUEST_TIME_FLOAT'] ?? time();
+            $uptime = time() - ($_SERVER['REQUEST_TIME_FLOAT'] ?? time());
             $serverSoftware = $_SERVER['SERVER_SOFTWARE'] ?? 'CLI';
 
             return [

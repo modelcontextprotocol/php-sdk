@@ -27,6 +27,7 @@ $request = $creator->fromGlobals();
 
 $server = Server::make()
     ->setServerInfo('Schema Showcase', '1.0.0')
+    ->setContainer(container())
     ->setLogger(logger())
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__, ['.'])

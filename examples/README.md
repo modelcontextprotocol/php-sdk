@@ -7,7 +7,11 @@ README in the `examples/09-standalone-cli` directory.
 
 For running an example, you execute the `server.php` like this:
 ```bash
+# For examples using STDIO transport
 php examples/01-discovery-stdio-calculator/server.php
+
+# For examples using Streamable HTTP transport
+php -S localhost:8000 examples/02-discovery-http-userprofile/server.php
 ```
 
 You will see debug outputs to help you understand what is happening.

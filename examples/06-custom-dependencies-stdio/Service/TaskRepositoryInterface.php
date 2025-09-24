@@ -11,12 +11,24 @@
 
 namespace Mcp\Example\DependenciesStdioExample\Service;
 
+/**
+ * @phpstan-type Task array{id: int, userId: string, description: string, completed: bool, createdAt: string}
+ */
 interface TaskRepositoryInterface
 {
+    /**
+     * @return Task
+     */
     public function addTask(string $userId, string $description): array;
 
+    /**
+     * @return Task[]
+     */
     public function getTasksForUser(string $userId): array;
 
+    /**
+     * @return Task[]
+     */
     public function getAllTasks(): array;
 
     public function completeTask(int $taskId): bool;

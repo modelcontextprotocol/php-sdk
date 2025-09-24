@@ -13,5 +13,8 @@ namespace Mcp\Example\DependenciesStdioExample\Service;
 
 interface StatsServiceInterface
 {
+    /**
+     * @return array<string, int>
+     */
     public function getSystemStats(): array;
 }

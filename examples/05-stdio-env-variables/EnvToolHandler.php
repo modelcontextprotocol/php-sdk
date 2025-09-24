@@ -13,7 +13,7 @@ namespace Mcp\Example\StdioEnvVariables;
 
 use Mcp\Capability\Attribute\McpTool;
 
-class EnvToolHandler
+final class EnvToolHandler
 {
     /**
      * Performs an action that can be modified by an environment variable.
@@ -21,7 +21,7 @@ class EnvToolHandler
      *
      * @param string $input some input data
      *
-     * @return array the result, varying by APP_MODE
+     * @return array<string, string|int> the result, varying by APP_MODE
      */
     #[McpTool(name: 'process_data_by_mode')]
     public function processData(string $input): array
