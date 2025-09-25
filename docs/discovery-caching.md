@@ -21,8 +21,7 @@ use Symfony\Component\Cache\Psr16Cache;
 
 $server = Server::make()
     ->setServerInfo('My Server', '1.0.0')
-    ->setDiscovery(__DIR__, ['.'])
-    ->setCache(new Psr16Cache(new ArrayAdapter())) // Enable caching
+    ->setDiscovery(__DIR__, ['.'], [], new Psr16Cache(new ArrayAdapter())) // Enable caching
     ->build();
 ```
 
@@ -69,8 +68,7 @@ $cache = DoctrineProvider::wrap(new ArrayCache());
 $cache = new Psr16Cache(new ArrayAdapter());
 
 $server = Server::make()
-    ->setDiscovery(__DIR__, ['.'])
-    ->setCache($cache)
+    ->setDiscovery(__DIR__, ['.'], [], $cache)
     ->build();
 ```
 
@@ -81,8 +79,7 @@ $server = Server::make()
 $cache = new Psr16Cache(new FilesystemAdapter('mcp-discovery', 0, '/var/cache'));
 
 $server = Server::make()
-    ->setDiscovery(__DIR__, ['.'])
-    ->setCache($cache)
+    ->setDiscovery(__DIR__, ['.'], [], $cache)
     ->build();
 ```
 
