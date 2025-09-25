@@ -26,8 +26,7 @@ $server = Server::make()
     ->setServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->setDiscovery(__DIR__, ['.'])
-    ->setCache(new Psr16Cache(new ArrayAdapter()))
+    ->setDiscovery(__DIR__, ['.'], [], new Psr16Cache(new ArrayAdapter()))
     ->build();
 
 $transport = new StdioTransport(logger: logger());

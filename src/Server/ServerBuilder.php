@@ -58,7 +58,7 @@ final class ServerBuilder
 
     private ?LoggerInterface $logger = null;
 
-    private ?CacheInterface $cache = null;
+    private ?CacheInterface $discoveryCache = null;
 
     private ?ToolCallerInterface $toolCaller = null;
 
@@ -220,20 +220,12 @@ final class ServerBuilder
         string $basePath,
         array $scanDirs = ['.', 'src'],
         array $excludeDirs = [],
+        ?CacheInterface $cache = null,
     ): self {
         $this->discoveryBasePath = $basePath;
         $this->discoveryScanDirs = $scanDirs;
         $this->discoveryExcludeDirs = $excludeDirs;
-
-        return $this;
-    }
-
-    /**
-     * Enables discovery caching with the provided cache implementation.
-     */
-    public function setCache(CacheInterface $cache): self
-    {
-        $this->cache = $cache;
+        $this->discoveryCache = $cache;
 
         return $this;
     }
@@ -323,8 +315,8 @@ final class ServerBuilder
         if (null !== $this->discoveryBasePath) {
             $discovery = new Discoverer($registry, $logger);
 
-            if (null !== $this->cache) {
-                $discovery = new CachedDiscoverer($discovery, $this->cache, $logger);
+            if (null !== $this->discoveryCache) {
+                $discovery = new CachedDiscoverer($discovery, $this->discoveryCache, $logger);
             }
 
             $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
