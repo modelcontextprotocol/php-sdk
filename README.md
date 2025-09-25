@@ -1,11 +1,10 @@
 # MCP PHP SDK
 
-The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers in PHP.
+The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers
+and clients in PHP.
 
 > [!IMPORTANT]
-> Currently, we are still in the process of merging [Symfony's MCP SDK](https://github.com/symfony/mcp-sdk) and
-> [PHP-MCP](https://github.com/php-mcp) components. Not all code paths are fully tested or complete, and this package
-> may still contain duplicate functionality or dead code.
+> Currently, the SDK is still in active development and not all components of the MCP specification are implemented.
 > 
 > If you want to help us stabilize the SDK, please see the
 > [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
@@ -21,27 +20,15 @@ Until the first major release, this SDK is considered
 ## 🚧 Roadmap
 
 Features
-- [x] Bring back PHP-MCP examples
-- [x] Glue handler, registry and reference handlers
-- [x] Revive `ServerBuilder`
-- [x] Revive transports 
-  - [x] Streamable Transport https://github.com/modelcontextprotocol/php-sdk/issues/7
-  - [ ] ~~Http/SSE-based Transport https://github.com/modelcontextprotocol/php-sdk/issues/8~~
-- [ ] Support pagination
-- [ ] Support Schema validation
-- [ ] Support multiple versions of the MCP specification https://github.com/modelcontextprotocol/php-sdk/issues/14
-- [ ] (Re-)Implement missing Notification & Request Handlers https://github.com/modelcontextprotocol/php-sdk/issues/9
+- [ ] Stabilize server component with all needed handlers and functional tests
+- [ ] Extend documentation, including integration pointer for popular frameworks
+- [ ] Implement Client component
+- [ ] Support multiple schema versions
 
 ## Installation
 
 ```bash
 composer require mcp/sdk
-```
-
-Since this package has no tagged releases yet, it is required to extend your `composer.json`:
-```json
-"minimum-stability": "dev",
-"prefer-stable": true
 ```
 
 ## ⚡ Quick Start: Stdio Server with Discovery
@@ -111,16 +98,19 @@ Add to your client configuration (e.g., `mcp.json`):
 Your AI assistant can now call:
 - `add_numbers` - Add two integers
 
+For more examples, see the [examples directory](examples).
+
 ## Documentation
 
-- [SDK documentation](doc/index.rst)
+- [SDK documentation](docs/index.md)
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
 - [Officially supported servers](https://github.com/modelcontextprotocol/servers)
 
-## Examples of MCP Tools that use this SDK
+## PHP libraries using the MCP SDK
 
-- https://github.com/pronskiy/mcp
+* https://github.com/pronskiy/mcp - additional DX layer
+* https://github.com/symfony/mcp-bundle - Symfony integration bundle
 
 ## Contributing
 
@@ -130,7 +120,9 @@ the project. See the [contributing guide](CONTRIBUTING.md) to get started before
 [send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
 
 ## Credits
-The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by [Kyrian Obikwelu](https://github.com/CodeWithKyrian). We are grateful for the work done by Kyrian and other contributors to that repository, which created a solid foundation for this SDK.
+Starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by
+[Kyrian Obikwelu](https://github.com/CodeWithKyrian), and the [Symfony AI initiative](https://github.com/symfony/ai).
+We are grateful for the work done by both projects and their contributors, which created a solid foundation for this SDK.
 
 ## License
 
