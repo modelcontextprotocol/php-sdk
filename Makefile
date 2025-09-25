@@ -15,8 +15,14 @@ phpstan:
 tests:
 	vendor/bin/phpunit
 
+unit-tests:
+	vendor/bin/phpunit --testsuite=unit
+
+inspector-tests:
+	vendor/bin/phpunit --testsuite=inspector
+
 coverage:
-	XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-html=coverage
+	XDEBUG_MODE=coverage vendor/bin/phpunit --testsuite=unit --coverage-html=coverage
 
 ci: ci-stable
 
