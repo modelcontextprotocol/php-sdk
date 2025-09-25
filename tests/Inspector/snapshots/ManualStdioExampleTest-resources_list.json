@@ -1,0 +1,10 @@
+{
+  "resources": [
+    {
+      "name": "application_version",
+      "uri": "app://version",
+      "description": "A manually registered resource providing app version.",
+      "mimeType": "text/plain"
+    }
+  ]
+}

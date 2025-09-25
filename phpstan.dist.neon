@@ -9,8 +9,8 @@ parameters:
         - tests/
     excludePaths:
         - examples/cli/vendor/* (?)
-        - tests/Capability/Discovery/Fixtures/
-        - tests/Capability/Discovery/SchemaGeneratorFixture.php
+        - tests/Unit/Capability/Discovery/Fixtures/
+        - tests/Unit/Capability/Discovery/SchemaGeneratorFixture.php
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
         -

@@ -6,7 +6,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  tests:
+  unit:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -22,16 +22,36 @@ jobs:
           php-version: ${{ matrix.php }}
           coverage: "none"
 
-      - name: Composer Validation
-        run: composer validate --strict
-
       - name: Install Composer
         uses: "ramsey/composer-install@v3"
         with:
           dependency-versions: "${{ matrix.dependencies }}"
 
       - name: Tests
-        run: vendor/bin/phpunit --exclude-group inspector
+        run: vendor/bin/phpunit --testsuite=unit
+
+  inspector:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: "none"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install Composer
+        uses: "ramsey/composer-install@v3"
+
+      - name: Tests
+        run: vendor/bin/phpunit --testsuite=inspector
 
   qa:
     runs-on: ubuntu-latest

@@ -1,0 +1,15 @@
+{
+  "prompts": [
+    {
+      "name": "personalized_greeting",
+      "description": "A manually registered prompt template.",
+      "arguments": [
+        {
+          "name": "userName",
+          "description": "the name of the user",
+          "required": true
+        }
+      ]
+    }
+  ]
+}

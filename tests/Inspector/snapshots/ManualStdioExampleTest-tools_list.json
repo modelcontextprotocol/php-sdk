@@ -1,0 +1,20 @@
+{
+  "tools": [
+    {
+      "name": "echo_text",
+      "description": "A manually registered tool to echo input.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "the text to echo"
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    }
+  ]
+}

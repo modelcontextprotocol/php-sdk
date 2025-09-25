@@ -1,6 +1,7 @@
 .phpunit.cache
 .php-cs-fixer.cache
 composer.lock
+coverage
 vendor
 examples/**/dev.log
 examples/**/sessions
