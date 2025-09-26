@@ -76,7 +76,7 @@ final class ServerBuilder
 
     private int $sessionTtl = 3600;
 
-    private ?int $paginationLimit = 50;
+    private int $paginationLimit = 50;
 
     private ?string $instructions = null;
 
@@ -119,6 +119,9 @@ final class ServerBuilder
      * @var array|string[]
      */
     private array $discoveryScanDirs = [];
+    /**
+     * @var array|string[]
+     */
     private array $discoveryExcludeDirs = [];
 
     /**
@@ -337,6 +340,7 @@ final class ServerBuilder
                 sessionStore: $sessionStore,
                 sessionFactory: $sessionFactory,
                 logger: $logger,
+                paginationLimit: $this->paginationLimit,
             ),
             logger: $logger,
         );

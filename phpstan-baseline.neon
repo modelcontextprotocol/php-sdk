@@ -79,25 +79,7 @@ parameters:
 			path: src/Server/ServerBuilder.php
 
 		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$discoveryExcludeDirs type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
 			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$instructions is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$paginationLimit \(int\|null\) is never assigned null so it can be removed from the property type\.$#'
-			identifier: property.unusedType
-			count: 1
-			path: src/Server/ServerBuilder.php
-
-		-
-			message: '#^Property Mcp\\Server\\ServerBuilder\:\:\$paginationLimit is never read, only written\.$#'
 			identifier: property.onlyWritten
 			count: 1
 			path: src/Server/ServerBuilder.php
