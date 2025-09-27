@@ -73,6 +73,7 @@ class Handler
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory,
         LoggerInterface $logger = new NullLogger(),
+        int $paginationLimit = 50,
     ): self {
         return new self(
             messageFactory: MessageFactory::make(),
@@ -82,12 +83,12 @@ class Handler
                 new NotificationHandler\InitializedHandler(),
                 new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
                 new RequestHandler\PingHandler(),
-                new RequestHandler\ListPromptsHandler($referenceProvider),
+                new RequestHandler\ListPromptsHandler($referenceProvider, $paginationLimit),
                 new RequestHandler\GetPromptHandler($promptGetter),
-                new RequestHandler\ListResourcesHandler($referenceProvider),
+                new RequestHandler\ListResourcesHandler($referenceProvider, $paginationLimit),
                 new RequestHandler\ReadResourceHandler($resourceReader),
                 new RequestHandler\CallToolHandler($toolCaller, $logger),
-                new RequestHandler\ListToolsHandler($referenceProvider),
+                new RequestHandler\ListToolsHandler($referenceProvider, $paginationLimit),
             ],
             logger: $logger,
         );

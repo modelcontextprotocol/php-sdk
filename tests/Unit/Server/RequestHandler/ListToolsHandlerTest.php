@@ -137,7 +137,7 @@ class ListToolsHandlerTest extends TestCase
     public function testReturnsAllToolsWhenCountIsLessThanPageSize(): void
     {
         // Arrange
-        $this->addToolsToRegistry(2); // Less than page size (3)
+        $this->addToolsToRegistry(2); // Less than page size 3
         $request = $this->createListToolsRequest();
 
         // Act
@@ -237,6 +237,51 @@ class ListToolsHandlerTest extends TestCase
         $result2 = $response2->result;
         $this->assertEquals($result1->nextCursor, $result2->nextCursor);
         $this->assertEquals($result1->tools, $result2->tools);
+    }
+
+    #[TestDox('Uses custom page size when provided')]
+    public function testUsesCustomPageSizeWhenProvided(): void
+    {
+        // Arrange
+        $customPageSize = 5;
+        $customHandler = new ListToolsHandler($this->registry, pageSize: $customPageSize);
+        $this->addToolsToRegistry(10);
+        $request = $this->createListToolsRequest();
+
+        // Act
+        $response = $customHandler->handle($request, $this->session);
+
+        // Assert
+        /** @var ListToolsResult $result */
+        $result = $response->result;
+        $this->assertInstanceOf(ListToolsResult::class, $result);
+        $this->assertCount($customPageSize, $result->tools);
+        $this->assertNotNull($result->nextCursor);
+    }
+
+    #[TestDox('Different page sizes produce different pagination results')]
+    public function testDifferentPageSizesProduceDifferentPaginationResults(): void
+    {
+        // Arrange
+        $this->addToolsToRegistry(10);
+        $smallPageHandler = new ListToolsHandler($this->registry, pageSize: 2);
+        $largePageHandler = new ListToolsHandler($this->registry, pageSize: 7);
+        $request = $this->createListToolsRequest();
+
+        // Act
+        $smallPageResponse = $smallPageHandler->handle($request, $this->session);
+        $largePageResponse = $largePageHandler->handle($request, $this->session);
+
+        // Assert
+        /** @var ListToolsResult $smallResult */
+        $smallResult = $smallPageResponse->result;
+        /** @var ListToolsResult $largeResult */
+        $largeResult = $largePageResponse->result;
+
+        $this->assertCount(2, $smallResult->tools);
+        $this->assertCount(7, $largeResult->tools);
+        $this->assertNotNull($smallResult->nextCursor);
+        $this->assertNotNull($largeResult->nextCursor);
     }
 
     private function addToolsToRegistry(int $count): void

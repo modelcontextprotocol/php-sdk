@@ -12,9 +12,9 @@
 namespace Mcp\Server\RequestHandler\Reference;
 
 /**
- * @implements \ArrayAccess<int|string, mixed>
+ * @extends \ArrayObject<int|string, mixed>
  */
-final class Page implements \Countable, \ArrayAccess
+final class Page extends \ArrayObject
 {
     /**
      * @param array<int|string, mixed> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
@@ -23,30 +23,11 @@ final class Page implements \Countable, \ArrayAccess
         public readonly array $references,
         public readonly ?string $nextCursor,
     ) {
+        parent::__construct($references, \ArrayObject::ARRAY_AS_PROPS);
     }
 
     public function count(): int
     {
         return \count($this->references);
-    }
-
-    public function offsetExists(mixed $offset): bool
-    {
-        return isset($this->references[$offset]);
-    }
-
-    public function offsetGet(mixed $offset): mixed
-    {
-        return $this->references[$offset] ?? null;
-    }
-
-    public function offsetSet(mixed $offset, mixed $value): void
-    {
-        return;
-    }
-
-    public function offsetUnset(mixed $offset): void
-    {
-        return;
     }
 }
