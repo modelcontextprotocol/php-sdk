@@ -22,7 +22,7 @@ use Symfony\Component\Cache\Psr16Cache;
 
 logger()->info('Starting MCP Cached Discovery Calculator Server...');
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
     ->setContainer(container())
     ->setLogger(logger())

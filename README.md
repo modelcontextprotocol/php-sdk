@@ -84,7 +84,7 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
-Server::make()
+Server::builder()
     ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
     ->setDiscovery(__DIR__, ['.'])
     ->build()
