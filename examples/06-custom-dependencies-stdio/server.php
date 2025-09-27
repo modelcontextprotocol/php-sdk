@@ -30,7 +30,7 @@ $container->set(TaskRepositoryInterface::class, $taskRepo);
 $statsService = new SystemStatsService($taskRepo);
 $container->set(StatsServiceInterface::class, $statsService);
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Task Manager Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer($container)

@@ -25,7 +25,7 @@ $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory,
 
 $request = $creator->fromGlobals();
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Event Scheduler Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())

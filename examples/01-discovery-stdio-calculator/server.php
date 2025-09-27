@@ -18,7 +18,7 @@ use Mcp\Server\Transport\StdioTransport;
 
 logger()->info('Starting MCP Stdio Calculator Server...');
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
     ->setContainer(container())
     ->setLogger(logger())

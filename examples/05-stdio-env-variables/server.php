@@ -49,7 +49,7 @@ use Mcp\Server\Transport\StdioTransport;
 
 logger()->info('Starting MCP Stdio Environment Variable Example Server...');
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Env Var Server', '1.0.0')
     ->setLogger(logger())
     ->setDiscovery(__DIR__, ['.'])

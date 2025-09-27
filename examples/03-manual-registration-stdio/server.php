@@ -19,7 +19,7 @@ use Mcp\Server\Transport\StdioTransport;
 
 logger()->info('Starting MCP Manual Registration (Stdio) Server...');
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Manual Reg Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
