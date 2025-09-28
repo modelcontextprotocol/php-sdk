@@ -27,8 +27,7 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
-use Mcp\Server\Handler\Notification as NotificationHandler;
-use Mcp\Server\Handler\Request as RequestHandler;
+use Mcp\Server\Handler;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -80,15 +79,15 @@ class JsonRpcHandler
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,
             methodHandlers: [
-                new NotificationHandler\InitializedHandler(),
-                new RequestHandler\InitializeHandler($registry->getCapabilities(), $implementation),
-                new RequestHandler\PingHandler(),
-                new RequestHandler\ListPromptsHandler($referenceProvider, $paginationLimit),
-                new RequestHandler\GetPromptHandler($promptGetter),
-                new RequestHandler\ListResourcesHandler($referenceProvider, $paginationLimit),
-                new RequestHandler\ReadResourceHandler($resourceReader),
-                new RequestHandler\CallToolHandler($toolCaller, $logger),
-                new RequestHandler\ListToolsHandler($referenceProvider, $paginationLimit),
+                new Notification\InitializedHandler(),
+                new Handler\Request\InitializeHandler($registry->getCapabilities(), $implementation),
+                new Handler\Request\PingHandler(),
+                new Handler\Request\ListPromptsHandler($referenceProvider, $paginationLimit),
+                new Handler\Request\GetPromptHandler($promptGetter),
+                new Handler\Request\ListResourcesHandler($referenceProvider, $paginationLimit),
+                new Handler\Request\ReadResourceHandler($resourceReader),
+                new Handler\Request\CallToolHandler($toolCaller, $logger),
+                new Handler\Request\ListToolsHandler($referenceProvider, $paginationLimit),
             ],
             logger: $logger,
         );
