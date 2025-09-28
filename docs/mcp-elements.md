@@ -1,6 +1,8 @@
 # MCP Elements
 
-MCP elements are the core capabilities of your server: Tools, Resources, Resource Templates, and Prompts. These elements define what your server can do and how clients can interact with it. The PHP MCP SDK provides both attribute-based discovery and manual registration methods.
+MCP elements are the core capabilities of your server: Tools, Resources, Resource Templates, and Prompts. These elements
+define what your server can do and how clients can interact with it. The PHP MCP SDK provides both attribute-based
+discovery and manual registration methods.
 
 ## Table of Contents
 
@@ -26,7 +28,8 @@ MCP defines four types of capabilities:
 
 Each capability can be registered using two methods:
 
-1. **Attribute-Based Discovery**: Use PHP attributes (`#[McpTool]`, `#[McpResource]`, etc.) on methods or classes. The server automatically discovers and registers them.
+1. **Attribute-Based Discovery**: Use PHP attributes (`#[McpTool]`, `#[McpResource]`, etc.) on methods or classes. The
+   server automatically discovers and registers them.
 
 2. **Manual Registration**: Explicitly register capabilities using `ServerBuilder` methods (`addTool()`, `addResource()`, etc.).
 
@@ -315,7 +318,8 @@ public function getFile(string $path): string
 
 ## Resource Templates
 
-Resource templates are **dynamic resources** that use parameterized URIs with variables. They follow all the same rules as static resources (URI schemas, return values, MIME types, etc.) but accept variables using [RFC 6570 URI template syntax](https://datatracker.ietf.org/doc/html/rfc6570).
+Resource templates are **dynamic resources** that use parameterized URIs with variables. They follow all the same rules
+as static resources (URI schemas, return values, MIME types, etc.) but accept variables using [RFC 6570 URI template syntax](https://datatracker.ietf.org/doc/html/rfc6570).
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
@@ -476,7 +480,9 @@ The SDK automatically validates that all messages have valid roles and converts 
 
 ## Completion Providers
 
-Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have dynamic parameters that benefit from completion hints.
+Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools
+and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have
+dynamic parameters that benefit from completion hints.
 
 ### Completion Provider Types
 
@@ -572,11 +578,13 @@ public function getUserProfile(
 
 > **Important**
 > 
-> Completion providers only offer **suggestions** to users. Users can still input any value, so **always validate parameters** in your handlers. Providers don't enforce validation - they're purely for UX improvement.
+> Completion providers only offer **suggestions** to users. Users can still input any value, so **always validate
+> parameters** in your handlers. Providers don't enforce validation - they're purely for UX improvement.
 
 ## Schema Generation and Validation
 
-The SDK automatically generates JSON schemas for **tool parameters** using a sophisticated priority system. Schema generation applies to both attribute-discovered and manually registered tools.
+The SDK automatically generates JSON schemas for **tool parameters** using a sophisticated priority system. Schema
+generation applies to both attribute-discovered and manually registered tools.
 
 ### Schema Generation Priority
 
@@ -682,7 +690,8 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
 }
 ```
 
-**Warning:** Only use complete schema override if you're well-versed with JSON Schema specification and have complex validation requirements that cannot be achieved through the priority system.
+**Warning:** Only use complete schema override if you're well-versed with JSON Schema specification and have complex
+validation requirements that cannot be achieved through the priority system.
 
 ## Discovery vs Manual Registration
 

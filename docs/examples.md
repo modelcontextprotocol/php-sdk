@@ -1,6 +1,7 @@
 # Examples
 
-The MCP PHP SDK includes comprehensive examples demonstrating different patterns and use cases. Each example showcases specific features and can be run independently to understand how the SDK works.
+The MCP PHP SDK includes comprehensive examples demonstrating different patterns and use cases. Each example showcases
+specific features and can be run independently to understand how the SDK works.
 
 ## Table of Contents
 
@@ -13,7 +14,8 @@ The MCP PHP SDK includes comprehensive examples demonstrating different patterns
 
 ## Getting Started
 
-All examples are located in the `examples/` directory and use the SDK dependencies from the root project. Most examples can be run directly without additional setup.
+All examples are located in the `examples/` directory and use the SDK dependencies from the root project. Most examples
+can be run directly without additional setup.
 
 ### Prerequisites
 

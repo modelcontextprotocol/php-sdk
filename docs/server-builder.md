@@ -1,6 +1,8 @@
 # Server Builder
 
-The server `Builder` is a fluent builder class that simplifies the creation and configuration of an MCP server instance. It provides methods for setting server information, configuring discovery, registering capabilities, and customizing various aspects of the server behavior.
+The server `Builder` is a fluent builder class that simplifies the creation and configuration of an MCP server instance.
+It provides methods for setting server information, configuring discovery, registering capabilities, and customizing
+various aspects of the server behavior.
 
 ## Table of Contents
 
@@ -40,7 +42,8 @@ $server = (new Builder())
     ->build();
 ```
 
-Both methods return a `Builder` instance that you can configure with fluent methods. The `build()` method returns the final `Server` instance ready for use.
+Both methods return a `Builder` instance that you can configure with fluent methods. The `build()` method returns the
+final `Server` instance ready for use.
 
 ## Server Configuration
 
@@ -126,7 +129,8 @@ $server = Server::builder()
 - If scanning `lib/` and there's `lib/tests/`, it will be excluded  
 - But if `vendor/` and `tests/` are at the same level as `src/`, they're not scanned anyway (not in `scanDirs`)
 
-> **Performance**: Always use a cache in production. The first run scans and caches all discovered MCP elements, making subsequent server startups nearly instantaneous.
+> **Performance**: Always use a cache in production. The first run scans and caches all discovered MCP elements, making
+> subsequent server startups nearly instantaneous.
 
 ## Session Management
 
@@ -282,7 +286,8 @@ $server = Server::builder()
     );
 ```
 
-**Note:** `name` and `description` are optional for all manual registrations. If not provided, they will be derived from the handler's method name and docblock.
+**Note:** `name` and `description` are optional for all manual registrations. If not provided, they will be derived from
+the handler's method name and docblock.
 
 For more details on MCP elements, handlers, and attribute-based discovery, see [MCP Elements](mcp-elements.md).
 
@@ -290,7 +295,8 @@ For more details on MCP elements, handlers, and attribute-based discovery, see [
 
 ### Container
 
-The container is used to resolve handlers and their dependencies when handlers inject dependencies in their constructors. The SDK includes a basic container with simple auto-wiring capabilities.
+The container is used to resolve handlers and their dependencies when handlers inject dependencies in their constructors.
+The SDK includes a basic container with simple auto-wiring capabilities.
 
 ```php
 use Mcp\Capability\Registry\Container;
@@ -340,7 +346,8 @@ $server = Server::builder()
 
 ## Custom Capability Handlers
 
-**Advanced customization for specific use cases.** Override the default capability handlers when you need completely custom behavior for how tools are executed, resources are read, or prompts are generated. Most users should stick with the default implementations.
+**Advanced customization for specific use cases.** Override the default capability handlers when you need completely custom
+behavior for how tools are executed, resources are read, or prompts are generated. Most users should stick with the default implementations.
 
 The default handlers work by:
 1. Looking up registered tools/resources/prompts by name/URI
@@ -350,7 +357,8 @@ The default handlers work by:
 
 ### Custom Tool Caller
 
-Replace how tool execution requests are processed. Your custom `ToolCallerInterface` receives a `CallToolRequest` (with tool name and arguments) and must return a `CallToolResult`.
+Replace how tool execution requests are processed. Your custom `ToolCallerInterface` receives a `CallToolRequest` (with
+tool name and arguments) and must return a `CallToolResult`.
 
 ```php
 use Mcp\Capability\Tool\ToolCallerInterface;
@@ -377,7 +385,8 @@ $server = Server::builder()
 
 ### Custom Resource Reader
 
-Replace how resource reading requests are processed. Your custom `ResourceReaderInterface` receives a `ReadResourceRequest` (with URI) and must return a `ReadResourceResult`.
+Replace how resource reading requests are processed. Your custom `ResourceReaderInterface` receives a `ReadResourceRequest`
+(with URI) and must return a `ReadResourceResult`.
 
 ```php
 use Mcp\Capability\Resource\ResourceReaderInterface;
@@ -402,7 +411,8 @@ $server = Server::builder()
 
 ### Custom Prompt Getter
 
-Replace how prompt generation requests are processed. Your custom `PromptGetterInterface` receives a `GetPromptRequest` (with prompt name and arguments) and must return a `GetPromptResult`.
+Replace how prompt generation requests are processed. Your custom `PromptGetterInterface` receives a `GetPromptRequest`
+(with prompt name and arguments) and must return a `GetPromptResult`.
 
 ```php
 use Mcp\Capability\Prompt\PromptGetterInterface;
@@ -426,7 +436,10 @@ $server = Server::builder()
     ->setPromptGetter(new CustomPromptGetter());
 ```
 
-> **Warning**: Custom capability handlers bypass the entire default registration system (discovered attributes, manual registration, container resolution, etc.). You become responsible for all aspect of execution, including error handling, logging, and result formatting. Only use this for very specific advanced use cases like custom authentication, complex routing, or integration with external systems.
+> **Warning**: Custom capability handlers bypass the entire default registration system (discovered attributes, manual
+> registration, container resolution, etc.). You become responsible for all aspect of execution, including error handling,
+> logging, and result formatting. Only use this for very specific advanced use cases like custom authentication, complex
+> routing, or integration with external systems.
 
 ## Complete Example
 
