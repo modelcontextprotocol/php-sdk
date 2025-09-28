@@ -13,7 +13,7 @@ namespace Mcp\Schema;
 
 /**
  * @phpstan-type PageItem Tool|Prompt|ResourceTemplate|Resource
- * 
+ *
  *  * @extends \ArrayObject<int|string, PageItem>
  */
 final class Page extends \ArrayObject
