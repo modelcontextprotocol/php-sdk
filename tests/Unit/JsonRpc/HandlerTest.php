@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\JsonRpc;
 
-use Mcp\JsonRpc\Handler;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -56,7 +56,7 @@ class HandlerTest extends TestCase
         $sessionFactory->method('createWithId')->willReturn($session);
         $sessionStore->method('exists')->willReturn(true);
 
-        $jsonRpc = new Handler(
+        $jsonRpc = new JsonRpcHandler(
             MessageFactory::make(),
             $sessionFactory,
             $sessionStore,
@@ -102,7 +102,7 @@ class HandlerTest extends TestCase
         $sessionFactory->method('createWithId')->willReturn($session);
         $sessionStore->method('exists')->willReturn(true);
 
-        $jsonRpc = new Handler(
+        $jsonRpc = new JsonRpcHandler(
             MessageFactory::make(),
             $sessionFactory,
             $sessionStore,

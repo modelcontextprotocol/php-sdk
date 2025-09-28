@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\RequestHandler;
+namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Exception\PromptGetException;
@@ -21,7 +21,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
-use Mcp\Server\RequestHandler\GetPromptHandler;
+use Mcp\Server\Handler\Request\GetPromptHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;

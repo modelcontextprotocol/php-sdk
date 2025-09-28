@@ -29,7 +29,6 @@ use Mcp\Capability\Resource\ResourceReaderInterface;
 use Mcp\Capability\Tool\ToolCaller;
 use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ConfigurationException;
-use Mcp\JsonRpc\Handler;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -39,6 +38,7 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Handler\JsonRpcHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -334,7 +334,7 @@ final class Builder
         $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
 
         return new Server(
-            jsonRpcHandler: Handler::make(
+            jsonRpcHandler: JsonRpcHandler::make(
                 registry: $registry,
                 referenceProvider: $registry,
                 implementation: $this->serverInfo,

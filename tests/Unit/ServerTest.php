@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit;
 
-use Mcp\JsonRpc\Handler;
 use Mcp\Server;
+use Mcp\Server\Handler\JsonRpcHandler;
 use Mcp\Server\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
 
@@ -20,7 +20,7 @@ class ServerTest extends TestCase
 {
     public function testJsonExceptions()
     {
-        $handler = $this->getMockBuilder(Handler::class)
+        $handler = $this->getMockBuilder(JsonRpcHandler::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['process'])
             ->getMock();

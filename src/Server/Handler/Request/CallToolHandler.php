@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler;
+namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ExceptionInterface;
@@ -17,7 +17,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

@@ -9,14 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\RequestHandler;
+namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Capability\Registry;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\Tool;
-use Mcp\Server\RequestHandler\ListToolsHandler;
+use Mcp\Server\Handler\Request\ListToolsHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;

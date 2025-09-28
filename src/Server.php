@@ -11,9 +11,9 @@
 
 namespace Mcp;
 
-use Mcp\JsonRpc\Handler;
 use Mcp\Server\Builder;
-use Mcp\Server\TransportInterface;
+use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
@@ -25,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
 final class Server
 {
     public function __construct(
-        private readonly Handler $jsonRpcHandler,
+        private readonly JsonRpcHandler $jsonRpcHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }

@@ -9,15 +9,17 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler\Reference;
+namespace Mcp\Schema;
 
 /**
- * @extends \ArrayObject<int|string, mixed>
+ * @phpstan-type PageItem Tool|Prompt|ResourceTemplate|Resource
+ *
+ * @extends \ArrayObject<int|string, PageItem>
  */
 final class Page extends \ArrayObject
 {
     /**
-     * @param array<int|string, mixed> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
+     * @param array<int|string, PageItem> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
      */
     public function __construct(
         public readonly array $references,
