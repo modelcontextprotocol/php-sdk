@@ -17,7 +17,7 @@ use Mcp\Schema\ServerCapabilities;
 /**
  * Value Object holding core configuration and shared dependencies for the MCP Server instance.
  *
- * This object is typically assembled by the ServerBuilder and passed to the Server constructor.
+ * This object is typically assembled by the Builder and passed to the Server constructor.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
