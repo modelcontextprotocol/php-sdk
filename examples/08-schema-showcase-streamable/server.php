@@ -25,7 +25,7 @@ $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory,
 
 $request = $creator->fromGlobals();
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('Schema Showcase', '1.0.0')
     ->setContainer(container())
     ->setLogger(logger())

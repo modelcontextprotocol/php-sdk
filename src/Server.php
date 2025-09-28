@@ -30,7 +30,7 @@ final class Server
     ) {
     }
 
-    public static function make(): ServerBuilder
+    public static function builder(): ServerBuilder
     {
         return new ServerBuilder();
     }

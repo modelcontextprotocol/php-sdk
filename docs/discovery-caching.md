@@ -19,7 +19,7 @@ use Mcp\Server;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
-$server = Server::make()
+$server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'], [], new Psr16Cache(new ArrayAdapter())) // Enable caching
     ->build();
@@ -67,7 +67,7 @@ $cache = DoctrineProvider::wrap(new ArrayCache());
 // Use in-memory cache for fast development cycles
 $cache = new Psr16Cache(new ArrayAdapter());
 
-$server = Server::make()
+$server = Server::builder()
     ->setDiscovery(__DIR__, ['.'], [], $cache)
     ->build();
 ```
@@ -78,7 +78,7 @@ $server = Server::make()
 // Use persistent cache
 $cache = new Psr16Cache(new FilesystemAdapter('mcp-discovery', 0, '/var/cache'));
 
-$server = Server::make()
+$server = Server::builder()
     ->setDiscovery(__DIR__, ['.'], [], $cache)
     ->build();
 ```
