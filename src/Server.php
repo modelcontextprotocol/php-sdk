@@ -11,8 +11,8 @@
 
 namespace Mcp;
 
+use Mcp\Server\Builder;
 use Mcp\Server\Handler\JsonRpcHandler;
-use Mcp\Server\ServerBuilder;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
