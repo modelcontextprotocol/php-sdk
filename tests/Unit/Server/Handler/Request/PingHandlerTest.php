@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\RequestHandler;
+namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
