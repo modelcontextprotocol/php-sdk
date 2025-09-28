@@ -18,11 +18,8 @@ All examples are located in the `examples/` directory and use the SDK dependenci
 ### Prerequisites
 
 ```bash
-# Install dependencies (from project root)
+# Install dependencies (in project root)
 composer install
-
-# Optional: Install HTTP-specific dependencies for web examples
-composer install --dev
 ```
 
 ## Running Examples
