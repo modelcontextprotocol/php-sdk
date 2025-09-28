@@ -1,13 +1,17 @@
 # MCP PHP SDK
 
-The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers and clients in PHP.
+The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers
+and clients in PHP.
 
 > [!IMPORTANT]
-> This SDK is currently in active development with ongoing refinement of its architecture and features. While functional, the API may experience changes as we work toward stabilization.
+> This SDK is currently in active development with ongoing refinement of its architecture and features. While
+> functional, the API may experience changes as we work toward stabilization.
 > 
 > If you want to help us stabilize the SDK, please see the [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
 
-This project represents a collaboration between [the PHP Foundation](https://thephp.foundation/) and the [Symfony project](https://symfony.com/). It adopts development practices and standards from the Symfony project, including [Coding Standards](https://symfony.com/doc/current/contributing/code/standards.html) and the [Backward Compatibility Promise](https://symfony.com/doc/current/contributing/code/bc.html).
+This project represents a collaboration between [the PHP Foundation](https://thephp.foundation/) and the [Symfony project](https://symfony.com/). It adopts
+development practices and standards from the Symfony project, including [Coding Standards](https://symfony.com/doc/current/contributing/code/standards.html) and the
+[Backward Compatibility Promise](https://symfony.com/doc/current/contributing/code/bc.html).
 
 Until the first major release, this SDK is considered [experimental](https://symfony.com/doc/current/contributing/code/experimental.html).
 
@@ -249,11 +253,14 @@ $server = Server::builder()
 
 ## Contributing
 
-We are passionate about supporting contributors of all levels of experience and would love to see you get involved in the project. See the [contributing guide](CONTRIBUTING.md) to get started before you [report issues](https://github.com/modelcontextprotocol/php-sdk/issues) and [send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
+We are passionate about supporting contributors of all levels of experience and would love to see you get involved in
+the project. See the [contributing guide](CONTRIBUTING.md) to get started before you [report issues](https://github.com/modelcontextprotocol/php-sdk/issues) and [send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
 
 ## Credits
 
-The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by [Kyrian Obikwelu](https://github.com/CodeWithKyrian), and the [Symfony AI initiative](https://github.com/symfony/ai). We are grateful for the work done by both projects and their contributors, which created a solid foundation for this SDK.
+The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by
+[Kyrian Obikwelu](https://github.com/CodeWithKyrian), and the [Symfony AI initiative](https://github.com/symfony/ai). We are grateful for the work
+done by both projects and their contributors, which created a solid foundation for this SDK.
 
 ## License
 

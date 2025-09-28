@@ -1,6 +1,7 @@
 # Transports
 
-Transports handle the communication layer between MCP servers and clients. The PHP MCP SDK provides two main transport implementations: STDIO for command-line integration and HTTP for web-based communication.
+Transports handle the communication layer between MCP servers and clients. The PHP MCP SDK provides two main transport
+implementations: STDIO for command-line integration and HTTP for web-based communication.
 
 ## Table of Contents
 
@@ -45,7 +46,8 @@ $transport = new StdioTransport(
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
 
 > [!IMPORTANT]
-> When using STDIO transport, **never** write to `STDOUT` in your handlers as it's reserved for JSON-RPC communication. Use `STDERR` for debugging instead.
+> When using STDIO transport, **never** write to `STDOUT` in your handlers as it's reserved for JSON-RPC communication.
+> Use `STDERR` for debugging instead.
 
 ### Example Server Script
 
@@ -90,7 +92,8 @@ For MCP clients like Claude Desktop:
 
 ## HTTP Transport
 
-The HTTP transport was designed to sit between any PHP project, regardless of the HTTP implementation or how they receive and process requests and send responses. It provides a flexible architecture that can integrate with any PSR-7 compatible application.
+The HTTP transport was designed to sit between any PHP project, regardless of the HTTP implementation or how they receive
+and process requests and send responses. It provides a flexible architecture that can integrate with any PSR-7 compatible application.
 
 ```php
 use Psr\Http\Message\ServerRequestInterface;
@@ -114,7 +117,8 @@ $transport = new StreamableHttpTransport(
 
 ### Architecture
 
-The HTTP transport doesn't run its own web server. Instead, it processes PSR-7 requests and returns PSR-7 responses that your application can handle however it needs to:
+The HTTP transport doesn't run its own web server. Instead, it processes PSR-7 requests and returns PSR-7 responses that
+your application can handle however it needs to:
 
 ```
 Your Web App → PSR-7 Request → StreamableHttpTransport → PSR-7 Response → Your Web App
@@ -294,7 +298,8 @@ You should route **all methods** to your MCP endpoint, not just POST.
 
 ### Session Management
 
-HTTP transport requires persistent sessions since PHP doesn't maintain state between requests. Unlike STDIO transport where in-memory sessions work fine, HTTP transport needs a persistent session store:
+HTTP transport requires persistent sessions since PHP doesn't maintain state between requests. Unlike STDIO transport
+where in-memory sessions work fine, HTTP transport needs a persistent session store:
 
 ```php
 use Mcp\Server\Session\FileSessionStore;
