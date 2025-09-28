@@ -11,7 +11,6 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;

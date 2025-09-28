@@ -16,7 +16,7 @@ use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Request\ListResourcesRequest;
 use Mcp\Schema\Resource;
 use Mcp\Schema\Result\ListResourcesResult;
-use Mcp\Server\RequestHandler\ListResourcesHandler;
+use Mcp\Server\Handler\Request\ListResourcesHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;

@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server;
+namespace Mcp\Server\Transport;
 
 use Symfony\Component\Uid\Uuid;
 

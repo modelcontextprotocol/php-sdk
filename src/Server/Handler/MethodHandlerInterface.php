@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server;
+namespace Mcp\Server\Handler;
 
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Schema\JsonRpc\Error;

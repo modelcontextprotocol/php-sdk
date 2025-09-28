@@ -15,7 +15,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\EmptyResult;
-use Mcp\Server\RequestHandler\PingHandler;
+use Mcp\Server\Handler\Request\PingHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 

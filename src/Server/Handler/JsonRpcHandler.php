@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\JsonRpc;
+namespace Mcp\Server\Handler;
 
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
@@ -20,15 +20,15 @@ use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\NotFoundExceptionInterface;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
-use Mcp\Server\MethodHandlerInterface;
-use Mcp\Server\NotificationHandler;
-use Mcp\Server\RequestHandler;
+use Mcp\Server\Handler\Notification as NotificationHandler;
+use Mcp\Server\Handler\Request as RequestHandler;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -41,7 +41,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class Handler
+class JsonRpcHandler
 {
     /**
      * @var array<int, MethodHandlerInterface>

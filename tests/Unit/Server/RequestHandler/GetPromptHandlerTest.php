@@ -21,7 +21,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
-use Mcp\Server\RequestHandler\GetPromptHandler;
+use Mcp\Server\Handler\Request\GetPromptHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;

@@ -9,29 +9,29 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\NotificationHandler;
+namespace Mcp\Server\Handler\Request;
 
-use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Schema\Notification\InitializedNotification;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Schema\Request\PingRequest;
+use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class InitializedHandler implements MethodHandlerInterface
+final class PingHandler implements MethodHandlerInterface
 {
     public function supports(HasMethodInterface $message): bool
     {
-        return $message instanceof InitializedNotification;
+        return $message instanceof PingRequest;
     }
 
-    public function handle(InitializedNotification|HasMethodInterface $message, SessionInterface $session): Response|Error|null
+    public function handle(PingRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
-        $session->set('initialized', true);
+        \assert($message instanceof PingRequest);
 
-        return null;
+        return new Response($message->getId(), new EmptyResult());
     }
 }

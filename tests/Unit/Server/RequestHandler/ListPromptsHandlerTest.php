@@ -16,7 +16,7 @@ use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Result\ListPromptsResult;
-use Mcp\Server\RequestHandler\ListPromptsHandler;
+use Mcp\Server\Handler\Request\ListPromptsHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;

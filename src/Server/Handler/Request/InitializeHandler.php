@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler;
+namespace Mcp\Server\Handler\Request;
 
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
@@ -17,7 +17,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**

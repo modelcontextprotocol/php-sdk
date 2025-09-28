@@ -11,7 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
-use Mcp\Server\RequestHandler\Reference\Page;
+use Mcp\Schema\Page;
 
 /**
  * Interface for providing access to registered MCP elements.

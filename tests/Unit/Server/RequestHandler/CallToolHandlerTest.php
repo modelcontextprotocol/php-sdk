@@ -19,7 +19,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
-use Mcp\Server\RequestHandler\CallToolHandler;
+use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;

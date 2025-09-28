@@ -9,22 +9,21 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler;
+namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Schema\Request\ListToolsRequest;
-use Mcp\Schema\Result\ListToolsResult;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Schema\Request\ListResourcesRequest;
+use Mcp\Schema\Result\ListResourcesResult;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
- * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ListToolsHandler implements MethodHandlerInterface
+final class ListResourcesHandler implements MethodHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
@@ -34,21 +33,21 @@ final class ListToolsHandler implements MethodHandlerInterface
 
     public function supports(HasMethodInterface $message): bool
     {
-        return $message instanceof ListToolsRequest;
+        return $message instanceof ListResourcesRequest;
     }
 
     /**
-     * @throws InvalidCursorException When the cursor is invalid
+     * @throws InvalidCursorException
      */
-    public function handle(ListToolsRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(ListResourcesRequest|HasMethodInterface $message, SessionInterface $session): Response
     {
-        \assert($message instanceof ListToolsRequest);
+        \assert($message instanceof ListResourcesRequest);
 
-        $page = $this->registry->getTools($this->pageSize, $message->cursor);
+        $page = $this->registry->getResources($this->pageSize, $message->cursor);
 
         return new Response(
             $message->getId(),
-            new ListToolsResult($page->references, $page->nextCursor),
+            new ListResourcesResult($page->references, $page->nextCursor),
         );
     }
 }

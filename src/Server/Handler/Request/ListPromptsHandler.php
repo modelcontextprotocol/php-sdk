@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\RequestHandler;
+namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\InvalidCursorException;
@@ -17,7 +17,7 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Result\ListPromptsResult;
-use Mcp\Server\MethodHandlerInterface;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**

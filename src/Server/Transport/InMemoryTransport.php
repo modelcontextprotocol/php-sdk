@@ -11,7 +11,6 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Server\TransportInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
