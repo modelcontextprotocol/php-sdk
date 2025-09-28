@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\HttpUserProfileExample;
+namespace Mcp\Example\HttpDiscoveryUserProfile;
 
 use Mcp\Capability\Prompt\Completion\ProviderInterface;
 

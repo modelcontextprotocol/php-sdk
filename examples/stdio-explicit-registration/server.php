@@ -13,7 +13,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\Example\ManualStdioExample\SimpleHandlers;
+use Mcp\Example\StdioExplicitRegistration\SimpleHandlers;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 

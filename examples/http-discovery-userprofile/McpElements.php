@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\HttpUserProfileExample;
+namespace Mcp\Example\HttpDiscoveryUserProfile;
 
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Attribute\McpPrompt;
@@ -37,7 +37,7 @@ final class McpElements
     public function __construct(
         private readonly LoggerInterface $logger,
     ) {
-        $this->logger->debug('HttpUserProfileExample McpElements instantiated.');
+        $this->logger->debug('HttpDiscoveryUserProfile McpElements instantiated.');
     }
 
     /**
