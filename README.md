@@ -227,7 +227,7 @@ $server = Server::builder()
     ->build();
 ```
 
-## 📚 Documentation
+## Documentation
 
 **Core Concepts:**
 - [Server Builder](docs/server-builder.md) - Complete ServerBuilder reference and configuration
