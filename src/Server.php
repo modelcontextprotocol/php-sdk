@@ -12,7 +12,7 @@
 namespace Mcp;
 
 use Mcp\JsonRpc\Handler;
-use Mcp\Server\ServerBuilder;
+use Mcp\Server\Builder;
 use Mcp\Server\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -30,9 +30,9 @@ final class Server
     ) {
     }
 
-    public static function builder(): ServerBuilder
+    public static function builder(): Builder
     {
-        return new ServerBuilder();
+        return new Builder();
     }
 
     public function connect(TransportInterface $transport): void

@@ -52,7 +52,7 @@ use Psr\SimpleCache\CacheInterface;
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-final class ServerBuilder
+final class Builder
 {
     private ?Implementation $serverInfo = null;
 
@@ -108,17 +108,21 @@ final class ServerBuilder
      *     annotations: Annotations|null}
      * > */
     private array $resourceTemplates = [];
+
     /** @var array<
      *     array{handler: array|string|\Closure,
      *     name: string|null,
      *     description: string|null}
      * > */
     private array $prompts = [];
+
     private ?string $discoveryBasePath = null;
+
     /**
-     * @var array|string[]
+     * @var string[]
      */
     private array $discoveryScanDirs = [];
+
     /**
      * @var array|string[]
      */
