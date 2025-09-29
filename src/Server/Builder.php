@@ -14,6 +14,7 @@ namespace Mcp\Server;
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Completion\ListCompletionProvider;
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
@@ -23,6 +24,7 @@ use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
+use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Resource\ResourceReader;
 use Mcp\Capability\Resource\ResourceReaderInterface;
@@ -50,6 +52,8 @@ use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 
 /**
+ * @phpstan-import-type Handler from ElementReference
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Builder
@@ -80,40 +84,48 @@ final class Builder
 
     private ?string $instructions = null;
 
-    /** @var array<
-     *     array{handler: array|string|\Closure,
-     *     name: string|null,
-     *     description: string|null,
-     *     annotations: ToolAnnotations|null}
-     * > */
+    /**
+     * @var array{
+     *     handler: Handler,
+     *     name: ?string,
+     *     description: ?string,
+     *     annotations: ?ToolAnnotations,
+     * }[]
+     */
     private array $tools = [];
 
-    /** @var array<
-     *     array{handler: array|string|\Closure,
+    /**
+     * @var array{
+     *     handler: Handler,
      *     uri: string,
-     *     name: string|null,
-     *     description: string|null,
-     *     mimeType: string|null,
+     *     name: ?string,
+     *     description: ?string,
+     *     mimeType: ?string,
      *     size: int|null,
-     *     annotations: Annotations|null}
-     * > */
+     *     annotations: ?Annotations,
+     * }[]
+     */
     private array $resources = [];
 
-    /** @var array<
-     *     array{handler: array|string|\Closure,
+    /**
+     * @var array{
+     *     handler: Handler,
      *     uriTemplate: string,
-     *     name: string|null,
-     *     description: string|null,
-     *     mimeType: string|null,
-     *     annotations: Annotations|null}
-     * > */
+     *     name: ?string,
+     *     description: ?string,
+     *     mimeType: ?string,
+     *     annotations: ?Annotations,
+     * }[]
+     */
     private array $resourceTemplates = [];
 
-    /** @var array<
-     *     array{handler: array|string|\Closure,
-     *     name: string|null,
-     *     description: string|null}
-     * > */
+    /**
+     * @var array{
+     *     handler: Handler,
+     *     name: ?string,
+     *     description: ?string,
+     * }[]
+     */
     private array $prompts = [];
 
     private ?string $discoveryBasePath = null;
@@ -223,6 +235,10 @@ final class Builder
         return $this;
     }
 
+    /**
+     * @param string[] $scanDirs
+     * @param string[] $excludeDirs
+     */
     public function setDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
@@ -239,6 +255,9 @@ final class Builder
 
     /**
      * Manually registers a tool handler.
+     *
+     * @param Handler                   $handler
+     * @param array<string, mixed>|null $inputSchema
      */
     public function addTool(
         callable|array|string $handler,
@@ -254,9 +273,11 @@ final class Builder
 
     /**
      * Manually registers a resource handler.
+     *
+     * @param Handler $handler
      */
     public function addResource(
-        callable|array|string $handler,
+        \Closure|array|string $handler,
         string $uri,
         ?string $name = null,
         ?string $description = null,
@@ -271,9 +292,11 @@ final class Builder
 
     /**
      * Manually registers a resource template handler.
+     *
+     * @param Handler $handler
      */
     public function addResourceTemplate(
-        callable|array|string $handler,
+        \Closure|array|string $handler,
         string $uriTemplate,
         ?string $name = null,
         ?string $description = null,
@@ -294,8 +317,10 @@ final class Builder
 
     /**
      * Manually registers a prompt handler.
+     *
+     * @param Handler $handler
      */
-    public function addPrompt(callable|array|string $handler, ?string $name = null, ?string $description = null): self
+    public function addPrompt(\Closure|array|string $handler, ?string $name = null, ?string $description = null): self
     {
         $this->prompts[] = compact('handler', 'name', 'description');
 
@@ -387,9 +412,7 @@ final class Builder
                 $tool = new Tool($name, $inputSchema, $description, $data['annotations']);
                 $registry->registerTool($tool, $data['handler'], true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array(
-                    $data['handler'],
-                ) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $logger->debug("Registered manual tool {$name} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $logger->error(
@@ -425,9 +448,7 @@ final class Builder
                 $resource = new Resource($uri, $name, $description, $mimeType, $annotations, $size);
                 $registry->registerResource($resource, $data['handler'], true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array(
-                    $data['handler'],
-                ) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $logger->debug("Registered manual resource {$name} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $logger->error(
@@ -463,9 +484,7 @@ final class Builder
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array(
-                    $data['handler'],
-                ) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $logger->debug("Registered manual template {$name} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $logger->error(
@@ -517,9 +536,7 @@ final class Builder
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
 
-                $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array(
-                    $data['handler'],
-                ) ? implode('::', $data['handler']) : $data['handler']);
+                $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $logger->debug("Registered manual prompt {$name} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $logger->error(
@@ -533,6 +550,28 @@ final class Builder
         $logger->debug('Manual element registration complete.');
     }
 
+    /**
+     * @param Handler $handler
+     */
+    private function getHandlerDescription(\Closure|array|string $handler): string
+    {
+        if ($handler instanceof \Closure) {
+            return 'Closure';
+        }
+
+        if (\is_array($handler)) {
+            return \sprintf('%s::%s',
+                \is_object($handler[0]) ? $handler[0]::class : $handler[0],
+                $handler[1],
+            );
+        }
+
+        return (string) $handler;
+    }
+
+    /**
+     * @return array<string, ProviderInterface>
+     */
     private function getCompletionProviders(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
         $completionProviders = [];
