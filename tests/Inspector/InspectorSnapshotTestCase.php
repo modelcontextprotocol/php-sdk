@@ -54,7 +54,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
         return [
             'Prompt Listing' => ['method' => 'prompts/list'],
             'Resource Listing' => ['method' => 'resources/list'],
-            // 'Resource Template Listing' => ['method' => 'resources/templates/list'],
+            'Resource Template Listing' => ['method' => 'resources/templates/list'],
             'Tool Listing' => ['method' => 'tools/list'],
         ];
     }

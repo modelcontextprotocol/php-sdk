@@ -86,6 +86,7 @@ class JsonRpcHandler
                 new Handler\Request\GetPromptHandler($promptGetter),
                 new Handler\Request\ListResourcesHandler($referenceProvider, $paginationLimit),
                 new Handler\Request\ReadResourceHandler($resourceReader),
+                new Handler\Request\ListResourceTemplatesHandler($referenceProvider, $paginationLimit),
                 new Handler\Request\CallToolHandler($toolCaller, $logger),
                 new Handler\Request\ListToolsHandler($referenceProvider, $paginationLimit),
             ],
