@@ -17,6 +17,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Server\Configuration;
 use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
@@ -26,8 +27,7 @@ use Mcp\Server\Session\SessionInterface;
 final class InitializeHandler implements MethodHandlerInterface
 {
     public function __construct(
-        public readonly ?ServerCapabilities $capabilities = new ServerCapabilities(),
-        public readonly ?Implementation $serverInfo = new Implementation(),
+        public readonly ?Configuration $configuration = null,
     ) {
     }
 
@@ -44,7 +44,11 @@ final class InitializeHandler implements MethodHandlerInterface
 
         return new Response(
             $message->getId(),
-            new InitializeResult($this->capabilities, $this->serverInfo),
+            new InitializeResult(
+                $this->configuration->capabilities ?? new ServerCapabilities(),
+                $this->configuration->serverInfo ?? new Implementation(),
+                $this->configuration?->instructions,
+            ),
         );
     }
 }
