@@ -17,14 +17,41 @@ use Symfony\Component\Process\Process;
 
 abstract class InspectorSnapshotTestCase extends TestCase
 {
+    /**
+     * @param array<string, mixed> $toolArgs
+     */
     #[DataProvider('provideMethods')]
-    public function testResourcesListOutputMatchesSnapshot(string $method): void
-    {
-        $process = Process::fromShellCommandline(
-            \sprintf('npx @modelcontextprotocol/inspector --cli php %s --method %s', $this->getServerScript(), $method)
-        )->mustRun();
+    public function testResourcesListOutputMatchesSnapshot(
+        string $method,
+        ?string $toolName = null,
+        array $toolArgs = [],
+        ?string $uri = null,
+    ): void {
+        $args = [
+            'npx', '@modelcontextprotocol/inspector', '--cli', 'php', $this->getServerScript(), '--method', $method,
+        ];
 
-        $output = $process->getOutput();
+        // Options for tools/call
+        if (null !== $toolName) {
+            $args[] = '--tool-name';
+            $args[] = $toolName;
+
+            foreach ($toolArgs as $key => $value) {
+                $args[] = '--tool-arg';
+                $args[] = \sprintf('%s=%s', $key, $value);
+            }
+        }
+
+        // Options for resources/read
+        if (null !== $uri) {
+            $args[] = '--uri';
+            $args[] = $uri;
+        }
+
+        $output = (new Process($args))
+            ->mustRun()
+            ->getOutput();
+
         $snapshotFile = $this->getSnapshotFilePath($method);
 
         if (!file_exists($snapshotFile)) {

@@ -17,6 +17,17 @@ final class StdioCalculatorExampleTest extends InspectorSnapshotTestCase
     {
         return [
             ...parent::provideListMethods(),
+            'Calculate Sum' => [
+                'method' => 'tools/call',
+                'toolName' => 'calculate',
+                'toolArgs' => ['a' => 12.5, 'b' => 7.3, 'operation' => 'add'],
+            ],
+            'Read Config' => [
+                'method' => 'resources/read',
+                'toolName' => null, // can be removed with newer PHPUnit versions
+                'toolArgs' => [], // can be removed with newer PHPUnit versions
+                'uri' => 'config://calculator/settings',
+            ],
         ];
     }
 
