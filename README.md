@@ -1,36 +1,27 @@
 # MCP PHP SDK
 
-The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers in PHP.
+The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers
+and clients in PHP.
 
 > [!IMPORTANT]
-> Currently, we are still in the process of merging [Symfony's MCP SDK](https://github.com/symfony/mcp-sdk) and
-> [PHP-MCP](https://github.com/php-mcp) components. Not all code paths are fully tested or complete, and this package
-> may still contain duplicate functionality or dead code.
+> This SDK is currently in active development with ongoing refinement of its architecture and features. While
+> functional, the API may experience changes as we work toward stabilization.
 > 
-> If you want to help us stabilize the SDK, please see the
-> [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
+> If you want to help us stabilize the SDK, please see the [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
 
-This project is a collaboration between [the PHP Foundation](https://thephp.foundation/) and the
-[Symfony project](https://symfony.com/). It adopts development practices and standards from the Symfony project,
-including [Coding Standards](https://symfony.com/doc/current/contributing/code/standards.html) and the
+This project represents a collaboration between [the PHP Foundation](https://thephp.foundation/) and the [Symfony project](https://symfony.com/). It adopts
+development practices and standards from the Symfony project, including [Coding Standards](https://symfony.com/doc/current/contributing/code/standards.html) and the
 [Backward Compatibility Promise](https://symfony.com/doc/current/contributing/code/bc.html).
 
-Until the first major release, this SDK is considered
-[experimental](https://symfony.com/doc/current/contributing/code/experimental.html).
+Until the first major release, this SDK is considered [experimental](https://symfony.com/doc/current/contributing/code/experimental.html).
 
-## 🚧 Roadmap
+## Roadmap
 
-Features
-- [x] Bring back PHP-MCP examples
-- [x] Glue handler, registry and reference handlers
-- [x] Revive `ServerBuilder`
-- [x] Revive transports 
-  - [x] Streamable Transport https://github.com/modelcontextprotocol/php-sdk/issues/7
-  - [ ] ~~Http/SSE-based Transport https://github.com/modelcontextprotocol/php-sdk/issues/8~~
-- [ ] Support pagination
-- [ ] Support Schema validation
-- [ ] Support multiple versions of the MCP specification https://github.com/modelcontextprotocol/php-sdk/issues/14
-- [ ] (Re-)Implement missing Notification & Request Handlers https://github.com/modelcontextprotocol/php-sdk/issues/9
+**Features**
+- [ ] Stabilize server component with all needed handlers and functional tests
+- [ ] Extend documentation, including integration guides for popular frameworks
+- [ ] Implement Client component
+- [ ] Support multiple schema versions
 
 ## Installation
 
@@ -38,19 +29,13 @@ Features
 composer require mcp/sdk
 ```
 
-Since this package has no tagged releases yet, it is required to extend your `composer.json`:
-```json
-"minimum-stability": "dev",
-"prefer-stable": true
-```
+## Quick Start
 
-## ⚡ Quick Start: Stdio Server with Discovery
+This example demonstrates the most common usage pattern - a STDIO server using attribute discovery.
 
-This example demonstrates the most common usage pattern - a `stdio` server using attribute discovery.
+### 1. Define Your MCP Elements
 
-**1. Define Your MCP Elements**
-
-Create `src/CalculatorElements.php`:
+Create a class with MCP capabilities using attributes:
 
 ```php
 <?php
@@ -58,20 +43,53 @@ Create `src/CalculatorElements.php`:
 namespace App;
 
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Capability\Attribute\McpResource;
 
 class CalculatorElements
 {
-    #[McpTool(name: 'add_numbers')]
+    /**
+     * Adds two numbers together.
+     * 
+     * @param int $a The first number
+     * @param int $b The second number
+     * @return int The sum of the two numbers
+     */
+    #[McpTool]
     public function add(int $a, int $b): int
     {
         return $a + $b;
     }
+
+    /**
+     * Performs basic arithmetic operations.
+     */
+    #[McpTool(name: 'calculate')]
+    public function calculate(float $a, float $b, string $operation): float|string
+    {
+        return match($operation) {
+            'add' => $a + $b,
+            'subtract' => $a - $b,
+            'multiply' => $a * $b,
+            'divide' => $b != 0 ? $a / $b : 'Error: Division by zero',
+            default => 'Error: Unknown operation'
+        };
+    }
+
+    #[McpResource(
+        uri: 'config://calculator/settings',
+        name: 'calculator_config',
+        mimeType: 'application/json'
+    )]
+    public function getSettings(): array
+    {
+        return ['precision' => 2, 'allow_negative' => true];
+    }
 }
 ```
 
-**2. Create the Server Script**
+### 2. Create the Server Script
 
-Create `mcp-server.php`:
+Create your MCP server:
 
 ```php
 #!/usr/bin/env php
@@ -84,54 +102,166 @@ require_once __DIR__ . '/vendor/autoload.php';
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
-Server::builder()
-    ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
+$server = Server::builder()
+    ->setServerInfo('Calculator Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'])
-    ->build()
-    ->connect(new StdioTransport());
+    ->build();
+
+$transport = new StdioTransport();
+$server->connect($transport);
+$transport->listen();
 ```
 
-**3. Configure Your MCP Client**
+### 3. Configure Your MCP Client
 
-Add to your client configuration (e.g., `mcp.json`):
+Add to your client configuration (e.g., Claude Desktop's `mcp.json`):
 
 ```json
 {
     "mcpServers": {
         "php-calculator": {
             "command": "php",
-            "args": ["/absolute/path/to/your/mcp-server.php"]
+            "args": ["/absolute/path/to/your/server.php"]
         }
     }
 }
 ```
 
-**4. Test the Server**
+### 4. Test Your Server
 
-Your AI assistant can now call:
-- `add_numbers` - Add two integers
+```bash
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector php /path/to/server.php
+
+# Your AI assistant can now call:
+# - add: Add two integers
+# - calculate: Perform arithmetic operations
+# - Read config://calculator/settings resource
+```
+
+## Key Features
+
+### Attribute-Based Discovery
+
+Define MCP elements using PHP attributes with automatic discovery:
+
+```php
+// Tool with automatic name and description from method
+#[McpTool]
+public function generateReport(): string { /* ... */ }
+
+// Tool with custom name
+#[McpTool(name: 'custom_name')]
+public function myMethod(): string { /* ... */ }
+
+// Resource with URI and metadata
+#[McpResource(uri: 'config://app/settings', mimeType: 'application/json')]
+public function getConfig(): array { /* ... */ }
+```
+
+### Manual Registration
+
+Register capabilities programmatically:
+
+```php
+$server = Server::builder()
+    ->addTool([MyClass::class, 'myMethod'], 'tool_name')
+    ->addResource([MyClass::class, 'getData'], 'data://config')
+    ->build();
+```
+
+### Multiple Transport Options
+
+**STDIO Transport** (Command-line integration):
+```php
+$transport = new StdioTransport();
+$server->connect($transport);
+$transport->listen();
+```
+
+**HTTP Transport** (Web-based communication):
+```php
+$transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
+$server->connect($transport);
+$response = $transport->listen();
+// Handle $response in your web application
+```
+
+### Session Management
+
+By default, the SDK uses in-memory sessions. You can configure different session stores:
+
+```php
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\FileSessionStore;
+
+// Use default in-memory sessions (TTL only)
+$server = Server::builder()
+    ->setSession(ttl: 7200) // 2 hours
+    ->build();
+
+// Use file-based sessions
+$server = Server::builder()
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->build();
+
+// Use in-memory with custom TTL
+$server = Server::builder()
+    ->setSession(new InMemorySessionStore(3600))
+    ->build();
+```
+
+### Discovery Caching
+
+Use any PSR-16 cache implementation to cache discovery results and avoid running discovery on every server start:
+
+```php
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+
+$cache = new Psr16Cache(new FilesystemAdapter('mcp-discovery'));
+
+$server = Server::builder()
+    ->setDiscovery(
+        basePath: __DIR__,
+        scanDirs: ['.', 'src'],      // Default: ['.', 'src']
+        excludeDirs: ['vendor'],     // Default: ['vendor', 'node_modules']
+        cache: $cache
+    )
+    ->build();
+```
 
 ## Documentation
 
-- [SDK documentation](doc/index.rst)
+**Core Concepts:**
+- [Server Builder](docs/server-builder.md) - Complete ServerBuilder reference and configuration
+- [Transports](docs/transports.md) - STDIO and HTTP transport setup and usage
+- [MCP Elements](docs/mcp-elements.md) - Creating tools, resources, and prompts
+
+**Learning:**
+- [Examples](docs/examples.md) - Comprehensive example walkthroughs
+
+**External Resources:**
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
 - [Officially supported servers](https://github.com/modelcontextprotocol/servers)
 
-## Examples of MCP Tools that use this SDK
+## PHP Libraries Using the MCP SDK
 
-- https://github.com/pronskiy/mcp
+* [pronskiy/mcp](https://github.com/pronskiy/mcp) - Additional DX layer
+* [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) - Symfony integration bundle
 
 ## Contributing
 
 We are passionate about supporting contributors of all levels of experience and would love to see you get involved in
-the project. See the [contributing guide](CONTRIBUTING.md) to get started before you
-[report issues](https://github.com/modelcontextprotocol/php-sdk/issues) and
-[send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
+the project. See the [contributing guide](CONTRIBUTING.md) to get started before you [report issues](https://github.com/modelcontextprotocol/php-sdk/issues) and [send pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
 
 ## Credits
-The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by [Kyrian Obikwelu](https://github.com/CodeWithKyrian). We are grateful for the work done by Kyrian and other contributors to that repository, which created a solid foundation for this SDK.
+
+The starting point for this SDK was the [PHP-MCP](https://github.com/php-mcp/server) project, initiated by
+[Kyrian Obikwelu](https://github.com/CodeWithKyrian), and the [Symfony AI initiative](https://github.com/symfony/ai). We are grateful for the work
+done by both projects and their contributors, which created a solid foundation for this SDK.
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
