@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\ComplexSchemaHttpExample\Model;
+namespace Mcp\Example\HttpComplexToolSchema\Model;
 
 enum EventPriority: int
 {

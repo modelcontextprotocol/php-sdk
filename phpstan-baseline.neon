@@ -1,16 +1,16 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Call to static method invalidParams\(\) on an unknown class Mcp\\Example\\HttpUserProfileExample\\McpServerException\.$#'
+			message: '#^Call to static method invalidParams\(\) on an unknown class Mcp\\Example\\HttpDiscoveryUserProfile\\McpServerException\.$#'
 			identifier: class.notFound
 			count: 2
-			path: examples/02-discovery-http-userprofile/McpElements.php
+			path: examples/http-discovery-userprofile/McpElements.php
 
 		-
-			message: '#^PHPDoc tag @throws with type Mcp\\Example\\HttpUserProfileExample\\McpServerException is not subtype of Throwable$#'
+			message: '#^PHPDoc tag @throws with type Mcp\\Example\\HttpDiscoveryUserProfile\\McpServerException is not subtype of Throwable$#'
 			identifier: throws.notThrowable
 			count: 2
-			path: examples/02-discovery-http-userprofile/McpElements.php
+			path: examples/http-discovery-userprofile/McpElements.php
 
 		-
 			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'

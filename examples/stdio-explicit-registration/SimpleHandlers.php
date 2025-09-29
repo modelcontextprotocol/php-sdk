@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\ManualStdioExample;
+namespace Mcp\Example\StdioExplicitRegistration;
 
 use Psr\Log\LoggerInterface;
 
