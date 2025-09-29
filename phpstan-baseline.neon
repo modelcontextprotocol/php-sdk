@@ -17,10 +17,3 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php
-
-		-
-			message: '#^Property Mcp\\Server\\Builder\:\:\$instructions is never read, only written\.$#'
-			identifier: property.onlyWritten
-			count: 1
-			path: src/Server/Builder.php
-
