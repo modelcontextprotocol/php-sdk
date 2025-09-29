@@ -19,20 +19,42 @@ abstract class InspectorSnapshotTestCase extends TestCase
 {
     private const INSPECTOR_VERSION = '0.16.8';
 
+    /**
+     * @param array<string, mixed> $toolArgs
+     */
     #[DataProvider('provideMethods')]
-    public function testResourcesListOutputMatchesSnapshot(string $method): void
-    {
-        $process = (new Process([
-            'npx',
-            \sprintf('@modelcontextprotocol/inspector@%s', self::INSPECTOR_VERSION),
-            '--cli',
-            'php',
-            $this->getServerScript(),
-            '--method',
-            $method,
-        ]))->mustRun();
+    public function testMethodOutputMatchesSnapshot(
+        string $method,
+        ?string $toolName = null,
+        array $toolArgs = [],
+        ?string $uri = null,
+    ): void {
+        $inspector = \sprintf('@modelcontextprotocol/inspector@%s', self::INSPECTOR_VERSION);
+        $args = [
+            'npx', $inspector, '--cli', 'php', $this->getServerScript(), '--method', $method,
+        ];
 
-        $output = $process->getOutput();
+        // Options for tools/call
+        if (null !== $toolName) {
+            $args[] = '--tool-name';
+            $args[] = $toolName;
+
+            foreach ($toolArgs as $key => $value) {
+                $args[] = '--tool-arg';
+                $args[] = \sprintf('%s=%s', $key, $value);
+            }
+        }
+
+        // Options for resources/read
+        if (null !== $uri) {
+            $args[] = '--uri';
+            $args[] = $uri;
+        }
+
+        $output = (new Process($args))
+            ->mustRun()
+            ->getOutput();
+
         $snapshotFile = $this->getSnapshotFilePath($method);
 
         if (!file_exists($snapshotFile)) {
