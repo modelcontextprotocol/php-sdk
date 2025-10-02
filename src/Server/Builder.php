@@ -81,10 +81,12 @@ final class Builder
     private ?string $instructions = null;
 
     /** @var array<
-     *     array{handler: array|string|\Closure,
+     *     array{handler: callable|array|string,
      *     name: string|null,
      *     description: string|null,
-     *     annotations: ToolAnnotations|null}
+     *     annotations: ToolAnnotations|null,
+     *     inputSchema: array|null,
+     *     outputSchema: array|null}
      * > */
     private array $tools = [];
 
@@ -223,6 +225,10 @@ final class Builder
         return $this;
     }
 
+    /**
+     * @param array<string> $scanDirs
+     * @param array<string> $excludeDirs
+     */
     public function setDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
@@ -239,6 +245,9 @@ final class Builder
 
     /**
      * Manually registers a tool handler.
+     *
+     * @param array{type: 'object', properties: array<string, mixed>, required: string[]|null}|null $inputSchema
+     * @param array{type: 'object', properties: array<string, mixed>, required: string[]|null}|null $outputSchema
      */
     public function addTool(
         callable|array|string $handler,
@@ -246,8 +255,9 @@ final class Builder
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
+        ?array $outputSchema = null,
     ): self {
-        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema');
+        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema', 'outputSchema');
 
         return $this;
     }
@@ -383,8 +393,9 @@ final class Builder
                 }
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
+                $outputSchema = isset($data['outputSchema']) && \is_array($data['outputSchema']) ? $data['outputSchema'] : null;
 
-                $tool = new Tool($name, $inputSchema, $description, $data['annotations']);
+                $tool = new Tool($name, $inputSchema, $description, $data['annotations'], $outputSchema);
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $data['handler'] instanceof \Closure ? 'Closure' : (\is_array(
@@ -533,6 +544,9 @@ final class Builder
         $logger->debug('Manual element registration complete.');
     }
 
+    /**
+     * @return array<string>
+     */
     private function getCompletionProviders(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
         $completionProviders = [];

@@ -610,6 +610,71 @@ class ToolCallerTest extends TestCase
         $this->assertEquals('false', $result->content[0]->text);
     }
 
+    public function testToolWithOutputSchemaIsProperlyConfigured(): void
+    {
+        $tool = $this->createValidTool('output_schema_tool');
+
+        // Verify the tool has outputSchema configured
+        $this->assertNotNull($tool->outputSchema);
+        $this->assertSame('object', $tool->outputSchema['type']);
+        $this->assertArrayHasKey('properties', $tool->outputSchema);
+        $this->assertArrayHasKey('result', $tool->outputSchema['properties']);
+        $this->assertSame('string', $tool->outputSchema['properties']['result']['type']);
+        $this->assertSame('The tool execution result', $tool->outputSchema['properties']['result']['description']);
+        $this->assertArrayHasKey('required', $tool->outputSchema);
+        $this->assertContains('result', $tool->outputSchema['required']);
+
+        // Verify JSON serialization includes outputSchema
+        $json = $tool->jsonSerialize();
+        $this->assertArrayHasKey('outputSchema', $json);
+        $this->assertSame($tool->outputSchema, $json['outputSchema']);
+    }
+
+    public function testCallHandlesStdClassResultWithOutputSchema(): void
+    {
+        $request = new CallToolRequest('structured_tool', []);
+        $tool = $this->createValidTool('structured_tool');
+
+        // Create a structured result that matches the outputSchema
+        $structuredResult = new \stdClass();
+        $structuredResult->result = 'structured response';
+        $structuredResult->metadata = 'additional info';
+
+        $toolReference = new ToolReference($tool, fn () => $structuredResult);
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('structured_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, [])
+            ->willReturn($structuredResult);
+
+        $this->logger
+            ->expects($this->exactly(2))
+            ->method('debug');
+
+        $result = $this->toolCaller->call($request);
+
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertCount(1, $result->content);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+
+        // Verify the structured result is properly formatted
+        $this->assertStringContainsString('"result": "structured response"', $result->content[0]->text);
+        $this->assertStringContainsString('"metadata": "additional info"', $result->content[0]->text);
+
+        // Verify the tool has outputSchema configured
+        $this->assertNotNull($tool->outputSchema);
+        $this->assertSame('object', $tool->outputSchema['type']);
+        $this->assertArrayHasKey('properties', $tool->outputSchema);
+        $this->assertArrayHasKey('result', $tool->outputSchema['properties']);
+    }
+
     private function createValidTool(string $name): Tool
     {
         return new Tool(
@@ -623,6 +688,16 @@ class ToolCallerTest extends TestCase
             ],
             description: "Test tool: {$name}",
             annotations: null,
+            outputSchema: [
+                'type' => 'object',
+                'properties' => [
+                    'result' => [
+                        'type' => 'string',
+                        'description' => 'The tool execution result',
+                    ],
+                ],
+                'required' => ['result'],
+            ],
         );
     }
 }
