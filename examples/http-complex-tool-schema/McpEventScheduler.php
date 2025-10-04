@@ -9,11 +9,11 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\ComplexSchemaHttpExample;
+namespace Mcp\Example\HttpComplexToolSchema;
 
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Example\ComplexSchemaHttpExample\Model\EventPriority;
-use Mcp\Example\ComplexSchemaHttpExample\Model\EventType;
+use Mcp\Example\HttpComplexToolSchema\Model\EventPriority;
+use Mcp\Example\HttpComplexToolSchema\Model\EventType;
 use Psr\Log\LoggerInterface;
 
 final class McpEventScheduler

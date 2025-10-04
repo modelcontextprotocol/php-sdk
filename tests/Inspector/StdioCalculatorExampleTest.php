@@ -22,6 +22,6 @@ final class StdioCalculatorExampleTest extends InspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 2).'/examples/01-discovery-stdio-calculator/server.php';
+        return \dirname(__DIR__, 2).'/examples/stdio-discovery-calculator/server.php';
     }
 }

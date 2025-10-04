@@ -11,7 +11,7 @@ declare(strict_types=1);
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\CachedDiscoveryExample;
+namespace Mcp\Example\StdioCachedDiscovery;
 
 use Mcp\Capability\Attribute\McpTool;
 

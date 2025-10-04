@@ -51,15 +51,15 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Mcp\\Example\\StdioCalculatorExample\\": "examples/01-discovery-stdio-calculator/",
-      "Mcp\\Example\\HttpUserProfileExample\\": "examples/02-discovery-http-userprofile/",
-      "Mcp\\Example\\ManualStdioExample\\": "examples/03-manual-registration-stdio/",
-      "Mcp\\Example\\CombinedHttpExample\\": "examples/04-combined-registration-http/",
-      "Mcp\\Example\\StdioEnvVariables\\": "examples/05-stdio-env-variables/",
-      "Mcp\\Example\\DependenciesStdioExample\\": "examples/06-custom-dependencies-stdio/",
-      "Mcp\\Example\\ComplexSchemaHttpExample\\": "examples/07-complex-tool-schema-http/",
-      "Mcp\\Example\\SchemaShowcaseExample\\": "examples/08-schema-showcase-streamable/",
-      "Mcp\\Example\\CachedDiscoveryExample\\": "examples/09-cached-discovery-stdio/",
+      "Mcp\\Example\\HttpCombinedRegistration\\": "examples/http-combined-registration/",
+      "Mcp\\Example\\HttpComplexToolSchema\\": "examples/http-complex-tool-schema/",
+      "Mcp\\Example\\HttpDiscoveryUserProfile\\": "examples/http-discovery-userprofile/",
+      "Mcp\\Example\\HttpSchemaShowcase\\": "examples/http-schema-showcase/",
+      "Mcp\\Example\\StdioCachedDiscovery\\": "examples/stdio-cached-discovery/",
+      "Mcp\\Example\\StdioCustomDependencies\\": "examples/stdio-custom-dependencies/",
+      "Mcp\\Example\\StdioDiscoveryCalculator\\": "examples/stdio-discovery-calculator/",
+      "Mcp\\Example\\StdioEnvVariables\\": "examples/stdio-env-variables/",
+      "Mcp\\Example\\StdioExplicitRegistration\\": "examples/stdio-explicit-registration/",
       "Mcp\\Tests\\": "tests/"
     }
   },

@@ -14,7 +14,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Example\CombinedHttpExample\ManualHandlers;
+use Mcp\Example\HttpCombinedRegistration\ManualHandlers;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
