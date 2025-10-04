@@ -16,6 +16,7 @@ use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
+use Mcp\Schema\Content\StructuredContent;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
@@ -49,6 +50,7 @@ class CallToolResult implements ResultInterface
      */
     public function __construct(
         public readonly array $content,
+        public readonly ?StructuredContent $structuredContent = null,
         public readonly bool $isError = false,
     ) {
         foreach ($this->content as $item) {
@@ -63,9 +65,9 @@ class CallToolResult implements ResultInterface
      *
      * @param array<TextContent|ImageContent|AudioContent|EmbeddedResource> $content The content of the tool result
      */
-    public static function success(array $content): self
+    public static function success(array $content, ?StructuredContent $structuredContent = null): self
     {
-        return new self($content, false);
+        return new self($content, $structuredContent, false);
     }
 
     /**
@@ -73,49 +75,63 @@ class CallToolResult implements ResultInterface
      *
      * @param array<TextContent|ImageContent|AudioContent|EmbeddedResource> $content The content of the tool result
      */
-    public static function error(array $content): self
+    public static function error(array $content, ?StructuredContent $structuredContent = null): self
     {
-        return new self($content, true);
+        return new self($content, $structuredContent, true);
     }
 
     /**
-     * @param array{
-     *     content: array<TextContentData|ImageContentData|AudioContentData|EmbeddedResourceData>,
-     *     isError?: bool,
-     * } $data
+     * @param array<int, TextContent|ImageContent|AudioContent|EmbeddedResource|StructuredContent> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['content']) || !\is_array($data['content'])) {
-            throw new InvalidArgumentException('Missing or invalid "content" array in CallToolResult data.');
-        }
-
         $contents = [];
+        $structuredContent = null;
+        $isError = false;
 
-        foreach ($data['content'] as $item) {
-            $contents[] = match ($item['type'] ?? null) {
-                'text' => TextContent::fromArray($item),
-                'image' => ImageContent::fromArray($item),
-                'audio' => AudioContent::fromArray($item),
-                'resource' => EmbeddedResource::fromArray($item),
+        foreach ($data as $item) {
+            if (!$item instanceof Content) {
+                throw new InvalidArgumentException('Provided array must be an array of Content objects.');
+            }
+            if ('structured' === $item->type) {
+                $structuredContent = $item;
+                continue;
+            }
+            $contents[] = match ($item->type) {
+                // TODO this should be enum, also `resource_link` missing.
+                // We shouldn't rely on user input for type and just use instanceof instead
+                'text', 'audio', 'image', 'resource' => $item,
                 default => throw new InvalidArgumentException(\sprintf('Invalid content type in CallToolResult data: "%s".', $item['type'] ?? null)),
             };
+
+            if ('text' === $item->type && $item instanceof TextContent) {
+                $isError = $item->isError;
+            }
         }
 
-        return new self($contents, $data['isError'] ?? false);
+        return new self($contents, $structuredContent, $isError);
     }
 
     /**
      * @return array{
-     *     content: array<TextContent|ImageContent|AudioContent|EmbeddedResource>,
+     *     content: array<TextContentData|ImageContentData|AudioContentData|EmbeddedResourceData>,
+     *     structuredContent?: mixed[],
      *     isError: bool,
      * }
      */
     public function jsonSerialize(): array
     {
-        return [
-            'content' => $this->content,
-            'isError' => $this->isError,
-        ];
+        $result['content'] = [];
+        foreach ($this->content as $item) {
+            $result['content'][] = $item->jsonSerialize();
+        }
+
+        $result['isError'] = $this->isError;
+
+        if ($this->structuredContent) {
+            $result['structuredContent'] = $this->structuredContent->jsonSerialize();
+        }
+
+        return $result;
     }
 }

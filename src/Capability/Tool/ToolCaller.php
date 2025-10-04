@@ -18,6 +18,7 @@ use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
+use Mcp\Schema\Content\StructuredContent;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
@@ -59,7 +60,16 @@ final class ToolCaller implements ToolCallerInterface
 
         try {
             $result = $this->referenceHandler->handle($toolReference, $arguments);
-            /** @var TextContent[]|ImageContent[]|EmbeddedResource[]|AudioContent[] $formattedResult */
+
+            if ($result instanceof CallToolResult) {
+                $this->logger->debug('Tool executed successfully', [
+                    'name' => $toolName,
+                    'result_type' => \gettype($result),
+                ]);
+
+                return $result;
+            }
+            /** @var array<int, TextContent|ImageContent|EmbeddedResource|AudioContent|StructuredContent> $formattedResult */
             $formattedResult = $toolReference->formatResult($result);
 
             $this->logger->debug('Tool executed successfully', [
@@ -67,7 +77,7 @@ final class ToolCaller implements ToolCallerInterface
                 'result_type' => \gettype($result),
             ]);
 
-            return new CallToolResult($formattedResult);
+            return CallToolResult::fromArray($formattedResult);
         } catch (\Throwable $e) {
             $this->logger->error('Tool execution failed', [
                 'name' => $toolName,

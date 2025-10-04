@@ -23,6 +23,7 @@ use Mcp\Schema\Annotations;
  *     type: 'text',
  *     text: string,
  *     annotations?: AnnotationsData,
+ *     isError: bool
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -34,10 +35,12 @@ class TextContent extends Content
      *
      * @param mixed        $text        The value to convert to text
      * @param ?Annotations $annotations Optional annotations describing the content
+     * @param bool         $isError     Optional, mark response as error
      */
     public function __construct(
         public mixed $text,
         public readonly ?Annotations $annotations = null,
+        public readonly bool $isError = false,
     ) {
         $this->text = (\is_array($text) || \is_object($text))
             ? json_encode($text, \JSON_PRETTY_PRINT) : (string) $text;
