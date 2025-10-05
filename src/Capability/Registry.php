@@ -63,6 +63,8 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     private array $resourceTemplates = [];
 
+    private ServerCapabilities $serverCapabilities;
+
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
@@ -75,7 +77,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             $this->logger->info('No capabilities registered on server.');
         }
 
-        return new ServerCapabilities(
+        return $this->serverCapabilities ?? new ServerCapabilities(
             tools: [] !== $this->tools,
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             resources: [] !== $this->resources || [] !== $this->resourceTemplates,
@@ -452,5 +454,10 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         return array_values(\array_slice($items, $offset, $limit));
+    }
+
+    public function setServerCapabilities(ServerCapabilities $serverCapabilities): void
+    {
+        $this->serverCapabilities = $serverCapabilities;
     }
 }
