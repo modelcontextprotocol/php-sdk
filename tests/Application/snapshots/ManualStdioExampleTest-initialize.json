@@ -1,0 +1,13 @@
+{
+  "capabilities": {
+    "prompts": {},
+    "resources": {},
+    "tools": {},
+    "completions": {}
+  },
+  "serverInfo": {
+    "name": "Manual Reg Server",
+    "version": "1.0.0"
+  },
+  "protocolVersion": "2025-06-18"
+}
