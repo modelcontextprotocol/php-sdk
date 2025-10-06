@@ -342,21 +342,9 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 
 ## Choosing a Transport
 
-### Use STDIO When:
+The choice between STDIO and HTTP transport depends on the client you want to integrate with.
+If you are integrating with a client that is running **locally** (like Claude Desktop), use STDIO.
+If you are building a server in a distributed environment and need to integrate with a **remote** client, use Streamable HTTP.
 
-- Building command-line tools
-- Integrating with MCP clients (Claude Desktop, etc.)
-- Simple request/response patterns
-- Process-based isolation is desired
-- Single session per process
-
-### Use HTTP When:
-
-- Building web services
-- Need browser compatibility
-- Integration with web frameworks
-- Multiple concurrent sessions
-- Web-based MCP clients
-- RESTful API patterns
-
-The key difference is that STDIO is process-based (one session per process) while HTTP is request-based (multiple sessions via headers).
+One additiona difference to consider is that STDIO is process-based (one session per process) while HTTP is
+request-based (multiple sessions via headers).

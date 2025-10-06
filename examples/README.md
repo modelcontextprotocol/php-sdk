@@ -2,16 +2,15 @@
 
 This directory contains various examples of how to use the PHP MCP SDK.
 
-You can run examples 01-08 with the dependencies already installed in the root directory of the SDK. For example 09, see the
-README in the `examples/09-standalone-cli` directory.
+You can run the examples with the dependencies already installed in the root directory of the SDK.
 
 For running an example, you execute the `server.php` like this:
 ```bash
 # For examples using STDIO transport
-php examples/01-discovery-stdio-calculator/server.php
+php examples/stdio-discovery-calculator/server.php
 
 # For examples using Streamable HTTP transport
-php -S localhost:8000 examples/02-discovery-http-userprofile/server.php
+php -S localhost:8000 examples/http-discovery-userprofile/server.php
 ```
 
 You will see debug outputs to help you understand what is happening.
@@ -19,7 +18,7 @@ You will see debug outputs to help you understand what is happening.
 Run with Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector php examples/01-discovery-stdio-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/stdio-discovery-calculator/server.php
 ```
 
 ## Debugging
@@ -30,5 +29,5 @@ directory.
 
 With the Inspector you can set the environment variables like this:
 ```bash
-npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/01-discovery-stdio-calculator/server.php
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/stdio-discovery-calculator/server.php
 ```
