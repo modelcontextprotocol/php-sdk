@@ -17,12 +17,20 @@ use Symfony\Component\Process\Process;
 
 abstract class InspectorSnapshotTestCase extends TestCase
 {
+    private const INSPECTOR_VERSION = '0.16.8';
+
     #[DataProvider('provideMethods')]
     public function testResourcesListOutputMatchesSnapshot(string $method): void
     {
-        $process = Process::fromShellCommandline(
-            \sprintf('npx @modelcontextprotocol/inspector --cli php %s --method %s', $this->getServerScript(), $method)
-        )->mustRun();
+        $process = (new Process([
+            'npx',
+            \sprintf('@modelcontextprotocol/inspector@%s', self::INSPECTOR_VERSION),
+            '--cli',
+            'php',
+            $this->getServerScript(),
+            '--method',
+            $method,
+        ]))->mustRun();
 
         $output = $process->getOutput();
         $snapshotFile = $this->getSnapshotFilePath($method);
