@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Prompt;
 
-use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
+use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;

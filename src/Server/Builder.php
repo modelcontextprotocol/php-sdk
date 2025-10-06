@@ -12,13 +12,13 @@
 namespace Mcp\Server;
 
 use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Capability\Completion\EnumCompletionProvider;
+use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
-use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
-use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Prompt\PromptGetter;
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;

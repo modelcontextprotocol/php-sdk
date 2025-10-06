@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Attribute;
 
-use Mcp\Capability\Prompt\Completion\ProviderInterface;
+use Mcp\Capability\Completion\ProviderInterface;
 
 class CompletionProviderFixture implements ProviderInterface
 {

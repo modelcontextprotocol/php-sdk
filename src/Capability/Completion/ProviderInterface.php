@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Capability\Prompt\Completion;
+namespace Mcp\Capability\Completion;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>

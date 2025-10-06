@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
+use Mcp\Capability\Completion\EnumCompletionProvider;
+use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Discovery\Discoverer;
-use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
-use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;

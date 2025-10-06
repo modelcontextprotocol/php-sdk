@@ -13,12 +13,6 @@ parameters:
 			path: examples/http-discovery-userprofile/McpElements.php
 
 		-
-			message: '#^Call to an undefined method Mcp\\Capability\\Registry\\ResourceTemplateReference\:\:handle\(\)\.$#'
-			identifier: method.notFound
-			count: 1
-			path: src/Capability/Registry/ResourceTemplateReference.php
-
-		-
 			message: '#^PHPDoc tag @return with type array is incompatible with native type object\.$#'
 			identifier: return.phpDocType
 			count: 1

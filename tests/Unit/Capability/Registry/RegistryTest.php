@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Registry;
 
-use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
+use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
