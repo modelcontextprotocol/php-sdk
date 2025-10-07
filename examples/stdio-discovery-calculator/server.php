@@ -20,6 +20,7 @@ logger()->info('Starting MCP Stdio Calculator Server...');
 
 $server = Server::builder()
     ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
+    ->setInstructions('This server supports basic arithmetic operations: add, subtract, multiply, and divide. Send JSON-RPC requests to perform calculations.')
     ->setContainer(container())
     ->setLogger(logger())
     ->setDiscovery(__DIR__, ['.'])

@@ -22,12 +22,12 @@ use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\NotFoundExceptionInterface;
 use Mcp\JsonRpc\MessageFactory;
-use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Server\Configuration;
 use Mcp\Server\Handler;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
@@ -66,7 +66,7 @@ class JsonRpcHandler
     public static function make(
         ReferenceRegistryInterface $registry,
         ReferenceProviderInterface $referenceProvider,
-        Implementation $implementation,
+        Configuration $configuration,
         ToolCallerInterface $toolCaller,
         ResourceReaderInterface $resourceReader,
         PromptGetterInterface $promptGetter,
@@ -81,7 +81,7 @@ class JsonRpcHandler
             sessionStore: $sessionStore,
             methodHandlers: [
                 new Notification\InitializedHandler(),
-                new Handler\Request\InitializeHandler($registry->getCapabilities(), $implementation),
+                new Handler\Request\InitializeHandler($configuration),
                 new Handler\Request\PingHandler(),
                 new Handler\Request\ListPromptsHandler($referenceProvider, $paginationLimit),
                 new Handler\Request\GetPromptHandler($promptGetter),

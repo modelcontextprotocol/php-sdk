@@ -362,14 +362,17 @@ final class Builder
             jsonRpcHandler: JsonRpcHandler::make(
                 registry: $registry,
                 referenceProvider: $registry,
-                implementation: $this->serverInfo,
+                configuration: new Configuration(
+                    $this->serverInfo,
+                    $registry->getCapabilities(),
+                    $this->paginationLimit, $this->instructions,
+                ),
                 toolCaller: $toolCaller,
                 resourceReader: $resourceReader,
                 promptGetter: $promptGetter,
                 sessionStore: $sessionStore,
                 sessionFactory: $sessionFactory,
                 logger: $logger,
-                paginationLimit: $this->paginationLimit,
             ),
             logger: $logger,
         );
