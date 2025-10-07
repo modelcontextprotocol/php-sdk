@@ -17,7 +17,6 @@ use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
@@ -32,11 +31,6 @@ use Mcp\Schema\JsonRpc\ResultInterface;
  * server does not support tool calls, or any other exceptional conditions,
  * should be reported as an MCP error response.
  *
- * @phpstan-import-type TextContentData from TextContent
- * @phpstan-import-type ImageContentData from ImageContent
- * @phpstan-import-type AudioContentData from AudioContent
- * @phpstan-import-type EmbeddedResourceData from EmbeddedResource
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class CallToolResult implements ResultInterface
@@ -44,8 +38,8 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult.
      *
-     * @param array<TextContent|ImageContent|AudioContent|EmbeddedResource> $content The content of the tool result
-     * @param bool                                                          $isError Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param Content[] $content The content of the tool result
+     * @param bool      $isError Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
      */
     public function __construct(
         public readonly array $content,
@@ -61,7 +55,7 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult with success status.
      *
-     * @param array<TextContent|ImageContent|AudioContent|EmbeddedResource> $content The content of the tool result
+     * @param Content[] $content The content of the tool result
      */
     public static function success(array $content): self
     {
@@ -71,7 +65,7 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult with error status.
      *
-     * @param array<TextContent|ImageContent|AudioContent|EmbeddedResource> $content The content of the tool result
+     * @param Content[] $content The content of the tool result
      */
     public static function error(array $content): self
     {
@@ -80,7 +74,7 @@ class CallToolResult implements ResultInterface
 
     /**
      * @param array{
-     *     content: array<TextContentData|ImageContentData|AudioContentData|EmbeddedResourceData>,
+     *     content: array<mixed>,
      *     isError?: bool,
      * } $data
      */
@@ -107,7 +101,7 @@ class CallToolResult implements ResultInterface
 
     /**
      * @return array{
-     *     content: array<TextContent|ImageContent|AudioContent|EmbeddedResource>,
+     *     content: array<mixed>,
      *     isError: bool,
      * }
      */

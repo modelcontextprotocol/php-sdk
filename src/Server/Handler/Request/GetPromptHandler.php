@@ -11,14 +11,20 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Prompt\PromptGetterInterface;
+use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\ExceptionInterface;
+use Mcp\Exception\PromptGetException;
+use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
+use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -26,7 +32,9 @@ use Mcp\Server\Session\SessionInterface;
 final class GetPromptHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly PromptGetterInterface $promptGetter,
+        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly ReferenceHandlerInterface $referenceHandler,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -39,12 +47,32 @@ final class GetPromptHandler implements MethodHandlerInterface
     {
         \assert($message instanceof GetPromptRequest);
 
+        $promptName = $message->name;
+        $arguments = $message->arguments ?? [];
+
         try {
-            $messages = $this->promptGetter->get($message);
-        } catch (ExceptionInterface) {
+            $reference = $this->referenceProvider->getPrompt($promptName);
+            if (null === $reference) {
+                throw new PromptNotFoundException($message);
+            }
+
+            $result = $this->referenceHandler->handle($reference, $arguments);
+
+            $formatted = $reference->formatResult($result);
+
+            return new Response($message->getId(), new GetPromptResult($formatted));
+        } catch (PromptNotFoundException $e) {
+            $this->logger->error('Prompt not found', ['prompt_name' => $promptName]);
+
+            return new Error($message->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
+        } catch (PromptGetException|ExceptionInterface $e) {
+            $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
+
+            return Error::forInternalError('Error while handling prompt', $message->getId());
+        } catch (\Throwable $e) {
+            $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
+
             return Error::forInternalError('Error while handling prompt', $message->getId());
         }
-
-        return new Response($message->getId(), $messages);
     }
 }

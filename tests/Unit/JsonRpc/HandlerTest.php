@@ -57,10 +57,10 @@ class HandlerTest extends TestCase
         $sessionStore->method('exists')->willReturn(true);
 
         $jsonRpc = new JsonRpcHandler(
-            MessageFactory::make(),
-            $sessionFactory,
-            $sessionStore,
-            [$handlerA, $handlerB, $handlerC]
+            methodHandlers: [$handlerA, $handlerB, $handlerC],
+            messageFactory: MessageFactory::make(),
+            sessionFactory: $sessionFactory,
+            sessionStore: $sessionStore,
         );
         $sessionId = Uuid::v4();
         $result = $jsonRpc->process(
@@ -103,10 +103,10 @@ class HandlerTest extends TestCase
         $sessionStore->method('exists')->willReturn(true);
 
         $jsonRpc = new JsonRpcHandler(
-            MessageFactory::make(),
-            $sessionFactory,
-            $sessionStore,
-            [$handlerA, $handlerB, $handlerC]
+            methodHandlers: [$handlerA, $handlerB, $handlerC],
+            messageFactory: MessageFactory::make(),
+            sessionFactory: $sessionFactory,
+            sessionStore: $sessionStore,
         );
         $sessionId = Uuid::v4();
         $result = $jsonRpc->process(

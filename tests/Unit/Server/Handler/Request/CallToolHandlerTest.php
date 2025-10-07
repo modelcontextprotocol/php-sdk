@@ -11,7 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Tool\ToolCallerInterface;
+use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ToolReference;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -28,18 +30,21 @@ use Psr\Log\LoggerInterface;
 class CallToolHandlerTest extends TestCase
 {
     private CallToolHandler $handler;
-    private ToolCallerInterface|MockObject $toolCaller;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
     private LoggerInterface|MockObject $logger;
     private SessionInterface|MockObject $session;
 
     protected function setUp(): void
     {
-        $this->toolCaller = $this->createMock(ToolCallerInterface::class);
+        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
         $this->handler = new CallToolHandler(
-            $this->toolCaller,
+            $this->referenceProvider,
+            $this->referenceHandler,
             $this->logger,
         );
     }
@@ -54,13 +59,26 @@ class CallToolHandlerTest extends TestCase
     public function testHandleSuccessfulToolCall(): void
     {
         $request = $this->createCallToolRequest('greet_user', ['name' => 'John']);
+        $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
 
-        $this->toolCaller
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('greet_user')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['name' => 'John'])
+            ->willReturn('Hello, John!');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Hello, John!')
+            ->willReturn([new TextContent('Hello, John!')]);
 
         $this->logger
             ->expects($this->never())
@@ -70,24 +88,37 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleToolCallWithEmptyArguments(): void
     {
         $request = $this->createCallToolRequest('simple_tool', []);
+        $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Simple result')]);
 
-        $this->toolCaller
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('simple_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, [])
+            ->willReturn('Simple result');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Simple result')
+            ->willReturn([new TextContent('Simple result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleToolCallWithComplexArguments(): void
@@ -100,48 +131,52 @@ class CallToolHandlerTest extends TestCase
             'null_param' => null,
         ];
         $request = $this->createCallToolRequest('complex_tool', $arguments);
+        $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Complex result')]);
 
-        $this->toolCaller
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('complex_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, $arguments)
+            ->willReturn('Complex result');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Complex result')
+            ->willReturn([new TextContent('Complex result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleToolNotFoundExceptionReturnsError(): void
     {
         $request = $this->createCallToolRequest('nonexistent_tool', ['param' => 'value']);
-        $exception = new ToolNotFoundException($request);
 
-        $this->toolCaller
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willThrowException($exception);
+            ->method('getTool')
+            ->with('nonexistent_tool')
+            ->willThrowException(new ToolNotFoundException($request));
 
         $this->logger
             ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "nonexistent_tool": "Tool not found for call: "nonexistent_tool".".',
-                [
-                    'tool' => 'nonexistent_tool',
-                    'arguments' => ['param' => 'value'],
-                ],
-            );
+            ->method('error');
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while executing tool', $response->message);
+        $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
     }
 
     public function testHandleToolExecutionExceptionReturnsError(): void
@@ -149,29 +184,28 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
         $exception = new ToolCallException($request, new \RuntimeException('Tool execution failed'));
 
-        $this->toolCaller
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
+            ->method('getTool')
+            ->with('failing_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['param' => 'value'])
             ->willThrowException($exception);
 
         $this->logger
             ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "failing_tool": "Tool call "failing_tool" failed with error: "Tool execution failed".".',
-                [
-                    'tool' => 'failing_tool',
-                    'arguments' => ['param' => 'value'],
-                ],
-            );
+            ->method('error');
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while executing tool', $response->message);
     }
 
     public function testHandleWithNullResult(): void
@@ -179,39 +213,34 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('null_tool', []);
         $expectedResult = new CallToolResult([]);
 
-        $this->toolCaller
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('null_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, [])
+            ->willReturn(null);
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with(null)
+            ->willReturn([]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-    }
-
-    public function testHandleWithErrorResult(): void
-    {
-        $request = $this->createCallToolRequest('error_tool', []);
-        $expectedResult = CallToolResult::error([new TextContent('Tool error occurred')]);
-
-        $this->toolCaller
-            ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
-
-        $response = $this->handler->handle($request, $this->session);
-
-        $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertTrue($response->result->isError);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testConstructorWithDefaultLogger(): void
     {
-        $handler = new CallToolHandler($this->toolCaller);
+        $handler = new CallToolHandler($this->referenceProvider, $this->referenceHandler);
 
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
@@ -221,9 +250,17 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException($request, new \RuntimeException('Custom error message'));
 
-        $this->toolCaller
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
+            ->method('getTool')
+            ->with('test_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['key1' => 'value1', 'key2' => 42])
             ->willThrowException($exception);
 
         $this->logger
@@ -245,16 +282,29 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
-        $this->toolCaller
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('tool-with_special.chars')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, [])
+            ->willReturn('Special tool result');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Special tool result')
+            ->willReturn([new TextContent('Special tool result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleWithSpecialCharactersInArguments(): void
@@ -267,16 +317,29 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('unicode_tool', $arguments);
         $expectedResult = new CallToolResult([new TextContent('Unicode handled')]);
 
-        $this->toolCaller
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('call')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getTool')
+            ->with('unicode_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, $arguments)
+            ->willReturn('Unicode handled');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Unicode handled')
+            ->willReturn([new TextContent('Unicode handled')]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     /**

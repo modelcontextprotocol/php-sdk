@@ -12,7 +12,7 @@ various aspects of the server behavior.
 - [Session Management](#session-management)
 - [Manual Capability Registration](#manual-capability-registration)
 - [Service Dependencies](#service-dependencies)
-- [Custom Capability Handlers](#custom-capability-handlers)
+- [Custom Method Handlers](#custom-method-handlers)
 - [Complete Example](#complete-example)
 - [Method Reference](#method-reference)
 
@@ -344,102 +344,50 @@ $server = Server::builder()
     ->setEventDispatcher($eventDispatcher);
 ```
 
-## Custom Capability Handlers
+## Custom Method Handlers
 
-**Advanced customization for specific use cases.** Override the default capability handlers when you need completely custom
-behavior for how tools are executed, resources are read, or prompts are generated. Most users should stick with the default implementations.
+**Low-level escape hatch.** Custom method handlers run before the SDK’s built-in handlers and give you total control over
+individual JSON-RPC methods. They do not receive the builder’s registry, container, or discovery output unless you pass
+those dependencies in yourself.
 
-The default handlers work by:
-1. Looking up registered tools/resources/prompts by name/URI
-2. Resolving the handler from the container
-3. Executing the handler with the provided arguments
-4. Formatting the result and handling errors
-
-### Custom Tool Caller
-
-Replace how tool execution requests are processed. Your custom `ToolCallerInterface` receives a `CallToolRequest` (with
-tool name and arguments) and must return a `CallToolResult`.
+Attach handlers with `addMethodHandler()` (single) or `addMethodHandlers()` (multiple). You can call these methods as
+many times as needed; each call prepends the handlers so they execute before the defaults:
 
 ```php
-use Mcp\Capability\Tool\ToolCallerInterface;
-use Mcp\Schema\Request\CallToolRequest;
-use Mcp\Schema\Result\CallToolResult;
-
-class CustomToolCaller implements ToolCallerInterface
-{
-    public function call(CallToolRequest $request): CallToolResult
-    {
-        // Custom tool routing, execution, authentication, caching, etc.
-        // You handle finding the tool, executing it, and formatting results
-        $toolName = $request->name;
-        $arguments = $request->arguments ?? [];
-        
-        // Your custom logic here
-        return new CallToolResult([/* content */]);
-    }
-}
-
 $server = Server::builder()
-    ->setToolCaller(new CustomToolCaller());
+    ->addMethodHandler(new AuditHandler())
+    ->addMethodHandlers([
+        new CustomListToolsHandler(),
+        new CustomCallToolHandler(),
+    ])
+    ->build();
 ```
 
-### Custom Resource Reader
-
-Replace how resource reading requests are processed. Your custom `ResourceReaderInterface` receives a `ReadResourceRequest`
-(with URI) and must return a `ReadResourceResult`.
+Custom handlers implement `MethodHandlerInterface`:
 
 ```php
-use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Server\Handler\MethodHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
 
-class CustomResourceReader implements ResourceReaderInterface
+interface MethodHandlerInterface
 {
-    public function read(ReadResourceRequest $request): ReadResourceResult
-    {
-        // Custom resource resolution, caching, access control, etc.
-        $uri = $request->uri;
-        
-        // Your custom logic here
-        return new ReadResourceResult([/* content */]);
-    }
-}
+    public function supports(HasMethodInterface $message): bool;
 
-$server = Server::builder()
-    ->setResourceReader(new CustomResourceReader());
+    public function handle(HasMethodInterface $message, SessionInterface $session);
+}
 ```
 
-### Custom Prompt Getter
+- `supports()` decides if the handler should look at the incoming message.
+- `handle()` must return a JSON-RPC `Response`, an `Error`, or `null`.
 
-Replace how prompt generation requests are processed. Your custom `PromptGetterInterface` receives a `GetPromptRequest`
-(with prompt name and arguments) and must return a `GetPromptResult`.
+Check out `examples/custom-method-handlers/server.php` for a complete example showing how to implement 
+custom `tool/list` and `tool/call` methods independently of the registry.
 
-```php
-use Mcp\Capability\Prompt\PromptGetterInterface;
-use Mcp\Schema\Request\GetPromptRequest;
-use Mcp\Schema\Result\GetPromptResult;
-
-class CustomPromptGetter implements PromptGetterInterface
-{
-    public function get(GetPromptRequest $request): GetPromptResult
-    {
-        // Custom prompt generation, template engines, dynamic content, etc.
-        $promptName = $request->name;
-        $arguments = $request->arguments ?? [];
-        
-        // Your custom logic here
-        return new GetPromptResult([/* messages */]);
-    }
-}
-
-$server = Server::builder()
-    ->setPromptGetter(new CustomPromptGetter());
-```
-
-> **Warning**: Custom capability handlers bypass the entire default registration system (discovered attributes, manual
-> registration, container resolution, etc.). You become responsible for all aspect of execution, including error handling,
-> logging, and result formatting. Only use this for very specific advanced use cases like custom authentication, complex
-> routing, or integration with external systems.
+> **Warning**: Custom method handlers bypass discovery, manual capability registration, and container lookups (unlesss 
+> you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
+> loads and executes them manually.
+> Reach for this API only when you need that level of control and are comfortable taking on the additional plumbing.
 
 ## Complete Example
 
@@ -505,9 +453,8 @@ $server = Server::builder()
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher |
-| `setToolCaller()` | caller | Set custom tool caller |
-| `setResourceReader()` | reader | Set custom resource reader |
-| `setPromptGetter()` | getter | Set custom prompt getter |
+| `addMethodHandler()` | handler | Prepend a single custom method handler |
+| `addMethodHandlers()` | handlers | Prepend multiple custom method handlers |
 | `addTool()` | handler, name?, description?, annotations?, inputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
