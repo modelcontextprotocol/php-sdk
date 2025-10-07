@@ -11,12 +11,6 @@
 
 namespace Mcp\Server\Handler;
 
-use Mcp\Capability\Completion\Completer;
-use Mcp\Capability\Prompt\PromptGetterInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
-use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Exception\InvalidInputMessageException;
@@ -27,8 +21,6 @@ use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\InitializeRequest;
-use Mcp\Server\Configuration;
-use Mcp\Server\Handler;
 use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -44,56 +36,15 @@ use Symfony\Component\Uid\Uuid;
 class JsonRpcHandler
 {
     /**
-     * @var array<int, MethodHandlerInterface>
-     */
-    private readonly array $methodHandlers;
-
-    /**
-     * @param iterable<int, MethodHandlerInterface> $methodHandlers
+     * @param array<int, MethodHandlerInterface> $methodHandlers
      */
     public function __construct(
+        private readonly array $methodHandlers,
         private readonly MessageFactory $messageFactory,
         private readonly SessionFactoryInterface $sessionFactory,
         private readonly SessionStoreInterface $sessionStore,
-        iterable $methodHandlers,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->methodHandlers = $methodHandlers instanceof \Traversable ? iterator_to_array(
-            $methodHandlers,
-        ) : $methodHandlers;
-    }
-
-    public static function make(
-        ReferenceRegistryInterface $registry,
-        ReferenceProviderInterface $referenceProvider,
-        Configuration $configuration,
-        ToolCallerInterface $toolCaller,
-        ResourceReaderInterface $resourceReader,
-        PromptGetterInterface $promptGetter,
-        SessionStoreInterface $sessionStore,
-        SessionFactoryInterface $sessionFactory,
-        LoggerInterface $logger = new NullLogger(),
-        int $paginationLimit = 50,
-    ): self {
-        return new self(
-            messageFactory: MessageFactory::make(),
-            sessionFactory: $sessionFactory,
-            sessionStore: $sessionStore,
-            methodHandlers: [
-                new Notification\InitializedHandler(),
-                new Handler\Request\InitializeHandler($configuration),
-                new Handler\Request\PingHandler(),
-                new Handler\Request\ListPromptsHandler($referenceProvider, $paginationLimit),
-                new Handler\Request\GetPromptHandler($promptGetter),
-                new Handler\Request\ListResourcesHandler($referenceProvider, $paginationLimit),
-                new Handler\Request\ReadResourceHandler($resourceReader),
-                new Handler\Request\ListResourceTemplatesHandler($referenceProvider, $paginationLimit),
-                new Handler\Request\CallToolHandler($toolCaller, $logger),
-                new Handler\Request\ListToolsHandler($referenceProvider, $paginationLimit),
-                new Handler\Request\CompletionCompleteHandler(new Completer($referenceProvider)),
-            ],
-            logger: $logger,
-        );
     }
 
     /**

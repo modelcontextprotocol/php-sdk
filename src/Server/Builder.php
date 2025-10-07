@@ -20,27 +20,24 @@ use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
-use Mcp\Capability\Prompt\PromptGetter;
-use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
-use Mcp\Capability\Resource\ResourceReader;
-use Mcp\Capability\Resource\ResourceReaderInterface;
-use Mcp\Capability\Tool\ToolCaller;
-use Mcp\Capability\Tool\ToolCallerInterface;
 use Mcp\Exception\ConfigurationException;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -64,12 +61,6 @@ final class Builder
 
     private ?CacheInterface $discoveryCache = null;
 
-    private ?ToolCallerInterface $toolCaller = null;
-
-    private ?ResourceReaderInterface $resourceReader = null;
-
-    private ?PromptGetterInterface $promptGetter = null;
-
     private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
@@ -83,6 +74,13 @@ final class Builder
     private int $paginationLimit = 50;
 
     private ?string $instructions = null;
+
+    private ?ServerCapabilities $explicitCapabilities = null;
+
+    /**
+     * @var array<int, MethodHandlerInterface>
+     */
+    private array $customMethodHandlers = [];
 
     /**
      * @var array{
@@ -175,6 +173,40 @@ final class Builder
     }
 
     /**
+     * Explicitly set server capabilities. If set, this overrides automatic detection.
+     */
+    public function setCapabilities(ServerCapabilities $capabilities): self
+    {
+        $this->explicitCapabilities = $capabilities;
+
+        return $this;
+    }
+
+    /**
+     * Register a single custom method handler.
+     */
+    public function addMethodHandler(MethodHandlerInterface $handler): self
+    {
+        $this->customMethodHandlers[] = $handler;
+
+        return $this;
+    }
+
+    /**
+     * Register multiple custom method handlers.
+     *
+     * @param iterable<int, MethodHandlerInterface> $handlers
+     */
+    public function addMethodHandlers(iterable $handlers): self
+    {
+        foreach ($handlers as $handler) {
+            $this->customMethodHandlers[] = $handler;
+        }
+
+        return $this;
+    }
+
+    /**
      * Provides a PSR-3 logger instance. Defaults to NullLogger.
      */
     public function setLogger(LoggerInterface $logger): self
@@ -187,27 +219,6 @@ final class Builder
     public function setEventDispatcher(EventDispatcherInterface $eventDispatcher): self
     {
         $this->eventDispatcher = $eventDispatcher;
-
-        return $this;
-    }
-
-    public function setToolCaller(ToolCallerInterface $toolCaller): self
-    {
-        $this->toolCaller = $toolCaller;
-
-        return $this;
-    }
-
-    public function setResourceReader(ResourceReaderInterface $resourceReader): self
-    {
-        $this->resourceReader = $resourceReader;
-
-        return $this;
-    }
-
-    public function setPromptGetter(PromptGetterInterface $promptGetter): self
-    {
-        $this->promptGetter = $promptGetter;
 
         return $this;
     }
@@ -333,49 +344,60 @@ final class Builder
     public function build(): Server
     {
         $logger = $this->logger ?? new NullLogger();
-
         $container = $this->container ?? new Container();
         $registry = new Registry($this->eventDispatcher, $logger);
-
-        $referenceHandler = new ReferenceHandler($container);
-        $toolCaller = $this->toolCaller ??= new ToolCaller($registry, $referenceHandler, $logger);
-        $resourceReader = $this->resourceReader ??= new ResourceReader($registry, $referenceHandler, $logger);
-        $promptGetter = $this->promptGetter ??= new PromptGetter($registry, $referenceHandler, $logger);
 
         $this->registerCapabilities($registry, $logger);
 
         if (null !== $this->discoveryBasePath) {
-            $discovery = new Discoverer($registry, $logger);
-
-            if (null !== $this->discoveryCache) {
-                $discovery = new CachedDiscoverer($discovery, $this->discoveryCache, $logger);
-            }
-
-            $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
+            $this->performDiscovery($registry, $logger);
         }
 
         $sessionTtl = $this->sessionTtl ?? 3600;
         $sessionFactory = $this->sessionFactory ?? new SessionFactory();
         $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
+        $messageFactory = MessageFactory::make();
 
-        return new Server(
-            jsonRpcHandler: JsonRpcHandler::make(
-                registry: $registry,
-                referenceProvider: $registry,
-                configuration: new Configuration(
-                    $this->serverInfo,
-                    $registry->getCapabilities(),
-                    $this->paginationLimit, $this->instructions,
-                ),
-                toolCaller: $toolCaller,
-                resourceReader: $resourceReader,
-                promptGetter: $promptGetter,
-                sessionStore: $sessionStore,
-                sessionFactory: $sessionFactory,
-                logger: $logger,
-            ),
+        $capabilities = $this->explicitCapabilities ?? $registry->getCapabilities();
+        $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
+        $referenceHandler = new ReferenceHandler($container);
+
+        $methodHandlers = array_merge($this->customMethodHandlers, [
+            new Handler\Request\PingHandler(),
+            new Handler\Request\InitializeHandler($configuration),
+            new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
+            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\ListResourcesHandler($registry, $this->paginationLimit),
+            new Handler\Request\ListResourceTemplatesHandler($registry, $this->paginationLimit),
+            new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
+            new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
+
+            new Handler\Notification\InitializedHandler(),
+        ]);
+
+        $jsonRpcHandler = new JsonRpcHandler(
+            methodHandlers: $methodHandlers,
+            messageFactory: $messageFactory,
+            sessionFactory: $sessionFactory,
+            sessionStore: $sessionStore,
             logger: $logger,
         );
+
+        return new Server($jsonRpcHandler, $logger);
+    }
+
+    private function performDiscovery(
+        Registry\ReferenceRegistryInterface $registry,
+        LoggerInterface $logger,
+    ): void {
+        $discovery = new Discoverer($registry, $logger);
+
+        if (null !== $this->discoveryCache) {
+            $discovery = new CachedDiscoverer($discovery, $this->discoveryCache, $logger);
+        }
+
+        $discovery->discover($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs);
     }
 
     /**

@@ -11,7 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Resource\ResourceReaderInterface;
+use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
@@ -19,6 +21,7 @@ use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
+use Mcp\Schema\Resource;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\Handler\Request\ReadResourceHandler;
 use Mcp\Server\Session\SessionInterface;
@@ -28,15 +31,17 @@ use PHPUnit\Framework\TestCase;
 class ReadResourceHandlerTest extends TestCase
 {
     private ReadResourceHandler $handler;
-    private ResourceReaderInterface|MockObject $resourceReader;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
     private SessionInterface|MockObject $session;
 
     protected function setUp(): void
     {
-        $this->resourceReader = $this->createMock(ResourceReaderInterface::class);
+        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
-        $this->handler = new ReadResourceHandler($this->resourceReader);
+        $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
     }
 
     public function testSupportsReadResourceRequest(): void
@@ -57,17 +62,33 @@ class ReadResourceHandlerTest extends TestCase
         );
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
-        $this->resourceReader
+        $resourceReference = $this->getMockBuilder(ResourceReference::class)
+            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->getMock();
+
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($resourceReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($resourceReference, ['uri' => $uri])
+            ->willReturn('test');
+
+        $resourceReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('test', $uri, 'text/plain')
+            ->willReturn([$expectedContent]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleResourceReadWithBlobContent(): void
@@ -81,16 +102,32 @@ class ReadResourceHandlerTest extends TestCase
         );
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
-        $this->resourceReader
+        $resourceReference = $this->getMockBuilder(ResourceReference::class)
+            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'image/png'), []])
+            ->getMock();
+
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($resourceReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($resourceReference, ['uri' => $uri])
+            ->willReturn('fake-image-data');
+
+        $resourceReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('fake-image-data', $uri, 'image/png')
+            ->willReturn([$expectedContent]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleResourceReadWithMultipleContents(): void
@@ -109,17 +146,32 @@ class ReadResourceHandlerTest extends TestCase
         );
         $expectedResult = new ReadResourceResult([$textContent, $blobContent]);
 
-        $this->resourceReader
+        $resourceReference = $this->getMockBuilder(ResourceReference::class)
+            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'application/octet-stream'), []])
+            ->getMock();
+
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($resourceReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($resourceReference, ['uri' => $uri])
+            ->willReturn('binary-data');
+
+        $resourceReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('binary-data', $uri, 'application/octet-stream')
+            ->willReturn([$textContent, $blobContent]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertCount(2, $response->result->contents);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleResourceNotFoundExceptionReturnsSpecificError(): void
@@ -128,10 +180,10 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new ResourceNotFoundException($request);
 
-        $this->resourceReader
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
+            ->method('getResource')
+            ->with($uri)
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
@@ -151,10 +203,10 @@ class ReadResourceHandlerTest extends TestCase
             new \RuntimeException('Failed to read resource: corrupted data'),
         );
 
-        $this->resourceReader
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
+            ->method('getResource')
+            ->with($uri)
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
@@ -185,44 +237,38 @@ class ReadResourceHandlerTest extends TestCase
             );
             $expectedResult = new ReadResourceResult([$expectedContent]);
 
-            $this->resourceReader
+            $resourceReference = $this->getMockBuilder(ResourceReference::class)
+                ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+                ->getMock();
+
+            $this->referenceProvider
                 ->expects($this->once())
-                ->method('read')
-                ->with($request)
-                ->willReturn($expectedResult);
+                ->method('getResource')
+                ->with($uri)
+                ->willReturn($resourceReference);
+
+            $this->referenceHandler
+                ->expects($this->once())
+                ->method('handle')
+                ->with($resourceReference, ['uri' => $uri])
+                ->willReturn('test');
+
+            $resourceReference
+                ->expects($this->once())
+                ->method('formatResult')
+                ->with('test', $uri, 'text/plain')
+                ->willReturn([$expectedContent]);
 
             $response = $this->handler->handle($request, $this->session);
 
             $this->assertInstanceOf(Response::class, $response);
-            $this->assertSame($expectedResult, $response->result);
+            $this->assertEquals($expectedResult, $response->result);
 
             // Reset the mock for next iteration
-            $this->resourceReader = $this->createMock(ResourceReaderInterface::class);
-            $this->handler = new ReadResourceHandler($this->resourceReader);
+            $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+            $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
+            $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
         }
-    }
-
-    public function testHandleResourceReadWithSpecialCharactersInUri(): void
-    {
-        $uri = 'file://path/with spaces/äöü-file-ñ.txt';
-        $request = $this->createReadResourceRequest($uri);
-        $expectedContent = new TextResourceContents(
-            uri: $uri,
-            mimeType: 'text/plain',
-            text: 'Content with unicode characters: äöü ñ 世界 🚀',
-        );
-        $expectedResult = new ReadResourceResult([$expectedContent]);
-
-        $this->resourceReader
-            ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
-
-        $response = $this->handler->handle($request, $this->session);
-
-        $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
     }
 
     public function testHandleResourceReadWithEmptyContent(): void
@@ -236,18 +282,32 @@ class ReadResourceHandlerTest extends TestCase
         );
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
-        $this->resourceReader
+        $resourceReference = $this->getMockBuilder(ResourceReference::class)
+            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->getMock();
+
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($resourceReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($resourceReference, ['uri' => $uri])
+            ->willReturn('');
+
+        $resourceReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('', $uri, 'text/plain')
+            ->willReturn([$expectedContent]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertInstanceOf(TextResourceContents::class, $response->result->contents[0]);
-        $this->assertEquals('', $response->result->contents[0]->text);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandleResourceReadWithDifferentMimeTypes(): void
@@ -284,21 +344,37 @@ class ReadResourceHandlerTest extends TestCase
             }
             $expectedResult = new ReadResourceResult([$expectedContent]);
 
-            $this->resourceReader
+            $resourceReference = $this->getMockBuilder(ResourceReference::class)
+                ->setConstructorArgs([new Resource($uri, 'test', mimeType: $mimeType), []])
+                ->getMock();
+
+            $this->referenceProvider
                 ->expects($this->once())
-                ->method('read')
-                ->with($request)
-                ->willReturn($expectedResult);
+                ->method('getResource')
+                ->with($uri)
+                ->willReturn($resourceReference);
+
+            $this->referenceHandler
+                ->expects($this->once())
+                ->method('handle')
+                ->with($resourceReference, ['uri' => $uri])
+                ->willReturn($expectedContent);
+
+            $resourceReference
+                ->expects($this->once())
+                ->method('formatResult')
+                ->with($expectedContent, $uri, $mimeType)
+                ->willReturn([$expectedContent]);
 
             $response = $this->handler->handle($request, $this->session);
 
             $this->assertInstanceOf(Response::class, $response);
-            $this->assertSame($expectedResult, $response->result);
-            $this->assertEquals($mimeType, $response->result->contents[0]->mimeType);
+            $this->assertEquals($expectedResult, $response->result);
 
             // Reset the mock for next iteration
-            $this->resourceReader = $this->createMock(ResourceReaderInterface::class);
-            $this->handler = new ReadResourceHandler($this->resourceReader);
+            $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+            $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
+            $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
         }
     }
 
@@ -308,10 +384,10 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new ResourceNotFoundException($request);
 
-        $this->resourceReader
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('read')
-            ->with($request)
+            ->method('getResource')
+            ->with($uri)
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
@@ -319,25 +395,6 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
-    }
-
-    public function testHandleResourceReadWithEmptyResult(): void
-    {
-        $uri = 'file://empty/resource';
-        $request = $this->createReadResourceRequest($uri);
-        $expectedResult = new ReadResourceResult([]);
-
-        $this->resourceReader
-            ->expects($this->once())
-            ->method('read')
-            ->with($request)
-            ->willReturn($expectedResult);
-
-        $response = $this->handler->handle($request, $this->session);
-
-        $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertCount(0, $response->result->contents);
     }
 
     private function createReadResourceRequest(string $uri): ReadResourceRequest

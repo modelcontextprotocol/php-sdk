@@ -11,7 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Prompt\PromptGetterInterface;
+use Mcp\Capability\Registry\PromptReference;
+use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\Content\PromptMessage;
@@ -29,15 +31,17 @@ use PHPUnit\Framework\TestCase;
 class GetPromptHandlerTest extends TestCase
 {
     private GetPromptHandler $handler;
-    private PromptGetterInterface|MockObject $promptGetter;
+    private ReferenceProviderInterface|MockObject $referenceProvider;
+    private ReferenceHandlerInterface|MockObject $referenceHandler;
     private SessionInterface|MockObject $session;
 
     protected function setUp(): void
     {
-        $this->promptGetter = $this->createMock(PromptGetterInterface::class);
+        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
-        $this->handler = new GetPromptHandler($this->promptGetter);
+        $this->handler = new GetPromptHandler($this->referenceProvider, $this->referenceHandler);
     }
 
     public function testSupportsGetPromptRequest(): void
@@ -53,22 +57,33 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::User, new TextContent('Hello, how can I help you?')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A greeting prompt',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('greeting_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, [])
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithArguments(): void
@@ -85,21 +100,31 @@ class GetPromptHandlerTest extends TestCase
                 new TextContent('Good morning, John. How may I assist you in your business meeting?'),
             ),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A personalized greeting prompt',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('personalized_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, $arguments)
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithNullArguments(): void
@@ -108,21 +133,31 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::Assistant, new TextContent('I am ready to help.')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A simple prompt',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('simple_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, [])
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithEmptyArguments(): void
@@ -131,21 +166,31 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::User, new TextContent('Default message')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A prompt with empty arguments',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('empty_args_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, [])
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithMultipleMessages(): void
@@ -156,22 +201,31 @@ class GetPromptHandlerTest extends TestCase
             new PromptMessage(Role::Assistant, new TextContent('Hi there! How can I help you today?')),
             new PromptMessage(Role::User, new TextContent('I need assistance with my project')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A conversation prompt',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('conversation_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, [])
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertCount(3, $response->result->messages);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptNotFoundExceptionReturnsError(): void
@@ -179,18 +233,18 @@ class GetPromptHandlerTest extends TestCase
         $request = $this->createGetPromptRequest('nonexistent_prompt');
         $exception = new PromptNotFoundException($request);
 
-        $this->promptGetter
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
+            ->method('getPrompt')
+            ->with('nonexistent_prompt')
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while handling prompt', $response->message);
+        $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
+        $this->assertEquals('Prompt not found for name: "nonexistent_prompt".', $response->message);
     }
 
     public function testHandlePromptGetExceptionReturnsError(): void
@@ -198,10 +252,10 @@ class GetPromptHandlerTest extends TestCase
         $request = $this->createGetPromptRequest('failing_prompt');
         $exception = new PromptGetException($request, new \RuntimeException('Failed to get prompt'));
 
-        $this->promptGetter
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
+            ->method('getPrompt')
+            ->with('failing_prompt')
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
@@ -233,21 +287,31 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::User, new TextContent('Complex prompt generated with all parameters')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A complex prompt with nested arguments',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('complex_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, $arguments)
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithSpecialCharacters(): void
@@ -261,42 +325,61 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::User, new TextContent('Unicode message processed')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A prompt handling unicode characters',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('unicode_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, $arguments)
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetReturnsEmptyMessages(): void
     {
         $request = $this->createGetPromptRequest('empty_prompt');
-        $expectedResult = new GetPromptResult(
-            description: 'An empty prompt',
-            messages: [],
-        );
+        $expectedResult = new GetPromptResult([]);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('empty_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, [])
+            ->willReturn([]);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with([])
+            ->willReturn([]);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
-        $this->assertCount(0, $response->result->messages);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     public function testHandlePromptGetWithLargeNumberOfArguments(): void
@@ -310,21 +393,31 @@ class GetPromptHandlerTest extends TestCase
         $expectedMessages = [
             new PromptMessage(Role::User, new TextContent('Processed 100 arguments')),
         ];
-        $expectedResult = new GetPromptResult(
-            description: 'A prompt with many arguments',
-            messages: $expectedMessages,
-        );
+        $expectedResult = new GetPromptResult($expectedMessages);
 
-        $this->promptGetter
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
             ->expects($this->once())
-            ->method('get')
-            ->with($request)
-            ->willReturn($expectedResult);
+            ->method('getPrompt')
+            ->with('many_args_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, $arguments)
+            ->willReturn($expectedMessages);
+
+        $promptReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with($expectedMessages)
+            ->willReturn($expectedMessages);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
-        $this->assertSame($expectedResult, $response->result);
+        $this->assertEquals($expectedResult, $response->result);
     }
 
     /**
