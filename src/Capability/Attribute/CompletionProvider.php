@@ -11,7 +11,7 @@
 
 namespace Mcp\Capability\Attribute;
 
-use Mcp\Capability\Prompt\Completion\ProviderInterface;
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Exception\InvalidArgumentException;
 
 /**

@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Capability\Prompt\Completion;
+namespace Mcp\Capability\Completion;
 
 use Mcp\Exception\InvalidArgumentException;
 

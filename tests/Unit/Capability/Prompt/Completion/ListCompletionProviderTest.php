@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Prompt\Completion;
 
-use Mcp\Capability\Prompt\Completion\ListCompletionProvider;
+use Mcp\Capability\Completion\ListCompletionProvider;
 use PHPUnit\Framework\TestCase;
 
 class ListCompletionProviderTest extends TestCase

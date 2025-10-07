@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler;
 
+use Mcp\Capability\Completion\Completer;
 use Mcp\Capability\Prompt\PromptGetterInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
@@ -89,6 +90,7 @@ class JsonRpcHandler
                 new Handler\Request\ListResourceTemplatesHandler($referenceProvider, $paginationLimit),
                 new Handler\Request\CallToolHandler($toolCaller, $logger),
                 new Handler\Request\ListToolsHandler($referenceProvider, $paginationLimit),
+                new Handler\Request\CompletionCompleteHandler(new Completer($referenceProvider)),
             ],
             logger: $logger,
         );

@@ -17,7 +17,6 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\ResourceTemplate;
-use Mcp\Schema\Result\CompletionCompleteResult;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -64,36 +63,10 @@ class ResourceTemplateReference extends ElementReference
     {
         $arguments = array_merge($this->uriVariables, ['uri' => $uri]);
 
-        $result = $this->handle($container, $arguments);
+        $referenceHandler = new ReferenceHandler($container);
+        $result = $referenceHandler->handle($this, $arguments);
 
         return $this->formatResult($result, $uri, $this->resourceTemplate->mimeType);
-    }
-
-    public function complete(ContainerInterface $container, string $argument, string $value): CompletionCompleteResult
-    {
-        $providerClassOrInstance = $this->completionProviders[$argument] ?? null;
-        if (null === $providerClassOrInstance) {
-            return new CompletionCompleteResult([]);
-        }
-
-        if (\is_string($providerClassOrInstance)) {
-            if (!class_exists($providerClassOrInstance)) {
-                throw new RuntimeException(\sprintf('Completion provider class "%s" does not exist.', $providerClassOrInstance));
-            }
-
-            $provider = $container->get($providerClassOrInstance);
-        } else {
-            $provider = $providerClassOrInstance;
-        }
-
-        $completions = $provider->getCompletions($value);
-
-        $total = \count($completions);
-        $hasMore = $total > 100;
-
-        $pagedCompletions = \array_slice($completions, 0, 100);
-
-        return new CompletionCompleteResult($pagedCompletions, $total, $hasMore);
     }
 
     /**

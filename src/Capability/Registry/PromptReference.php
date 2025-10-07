@@ -22,8 +22,6 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Result\CompletionCompleteResult;
-use Psr\Container\ContainerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -43,33 +41,6 @@ class PromptReference extends ElementReference
         public readonly array $completionProviders = [],
     ) {
         parent::__construct($handler, $isManual);
-    }
-
-    public function complete(ContainerInterface $container, string $argument, string $value): CompletionCompleteResult
-    {
-        $providerClassOrInstance = $this->completionProviders[$argument] ?? null;
-        if (null === $providerClassOrInstance) {
-            return new CompletionCompleteResult([]);
-        }
-
-        if (\is_string($providerClassOrInstance)) {
-            if (!class_exists($providerClassOrInstance)) {
-                throw new RuntimeException("Completion provider class '{$providerClassOrInstance}' does not exist.");
-            }
-
-            $provider = $container->get($providerClassOrInstance);
-        } else {
-            $provider = $providerClassOrInstance;
-        }
-
-        $completions = $provider->getCompletions($value);
-
-        $total = \count($completions);
-        $hasMore = $total > 100;
-
-        $pagedCompletions = \array_slice($completions, 0, 100);
-
-        return new CompletionCompleteResult($pagedCompletions, $total, $hasMore);
     }
 
     /**

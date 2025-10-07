@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Prompt\Completion;
 
-use Mcp\Capability\Prompt\Completion\EnumCompletionProvider;
+use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Tests\Unit\Fixtures\Enum\PriorityEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\StatusEnum;

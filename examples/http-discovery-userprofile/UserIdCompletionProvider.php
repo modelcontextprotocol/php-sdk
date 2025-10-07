@@ -11,7 +11,7 @@
 
 namespace Mcp\Example\HttpDiscoveryUserProfile;
 
-use Mcp\Capability\Prompt\Completion\ProviderInterface;
+use Mcp\Capability\Completion\ProviderInterface;
 
 final class UserIdCompletionProvider implements ProviderInterface
 {
