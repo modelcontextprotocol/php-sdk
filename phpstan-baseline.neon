@@ -13,64 +13,10 @@ parameters:
 			path: examples/http-discovery-userprofile/McpElements.php
 
 		-
-			message: '#^PHPDoc tag @return with type array is incompatible with native type object\.$#'
-			identifier: return.phpDocType
-			count: 1
-			path: src/Schema/Result/EmptyResult.php
-
-		-
 			message: '#^Method Mcp\\Schema\\Result\\ReadResourceResult\:\:jsonSerialize\(\) should return array\{contents\: array\<Mcp\\Schema\\Content\\BlobResourceContents\|Mcp\\Schema\\Content\\TextResourceContents\>\} but returns array\{contents\: array\<Mcp\\Schema\\Content\\ResourceContents\>\}\.$#'
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:addPrompt\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:addResource\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:addResourceTemplate\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:addTool\(\) has parameter \$handler with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:addTool\(\) has parameter \$inputSchema with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:getCompletionProviders\(\) return type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:setDiscovery\(\) has parameter \$excludeDirs with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Method Mcp\\Server\\Builder\:\:setDiscovery\(\) has parameter \$scanDirs with no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
 
 		-
 			message: '#^Property Mcp\\Server\\Builder\:\:\$instructions is never read, only written\.$#'
@@ -78,26 +24,3 @@ parameters:
 			count: 1
 			path: src/Server/Builder.php
 
-		-
-			message: '#^Property Mcp\\Server\\Builder\:\:\$prompts type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Property Mcp\\Server\\Builder\:\:\$resourceTemplates type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Property Mcp\\Server\\Builder\:\:\$resources type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
-
-		-
-			message: '#^Property Mcp\\Server\\Builder\:\:\$tools type has no value type specified in iterable type array\.$#'
-			identifier: missingType.iterableValue
-			count: 1
-			path: src/Server/Builder.php
