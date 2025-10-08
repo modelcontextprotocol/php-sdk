@@ -14,10 +14,8 @@ chdir(__DIR__);
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Exception\ToolCallException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
-use Mcp\Schema\JsonRpc\Error as JsonRpcError;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\ClientGateway;
@@ -57,18 +55,13 @@ $server = Server::builder()
                 implode(', ', $milestones)
             );
 
-            $response = $client->sample(
-                prompt: $prompt,
+            $result = $client->sample(
+                message: $prompt,
                 maxTokens: 400,
                 timeout: 90,
                 options: ['temperature' => 0.4]
             );
 
-            if ($response instanceof JsonRpcError) {
-                throw new ToolCallException(sprintf('Sampling request failed (%d): %s', $response->code, $response->message));
-            }
-
-            $result = $response->result;
             $content = $result->content instanceof TextContent ? trim((string) $result->content->text) : '';
 
             $client->log(LoggingLevel::Info, 'Briefing ready, returning to caller.');

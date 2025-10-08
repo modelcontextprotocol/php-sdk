@@ -13,6 +13,7 @@ namespace Mcp\Schema\Request;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\SamplingMessage;
+use Mcp\Schema\Enum\SamplingContext;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\ModelPreferences;
 
@@ -29,29 +30,33 @@ final class CreateSamplingMessageRequest extends Request
      * @param SamplingMessage[]     $messages       the messages to send to the model
      * @param int                   $maxTokens      The maximum number of tokens to sample, as requested by the server.
      *                                              The client MAY choose to sample fewer tokens than requested.
-     * @param ModelPreferences|null $preferences    The server's preferences for which model to select. The client MAY
+     * @param ?ModelPreferences     $preferences    The server's preferences for which model to select. The client MAY
      *                                              ignore these preferences.
-     * @param string|null           $systemPrompt   An optional system prompt the server wants to use for sampling. The
+     * @param ?string               $systemPrompt   An optional system prompt the server wants to use for sampling. The
      *                                              client MAY modify or omit this prompt.
-     * @param string|null           $includeContext A request to include context from one or more MCP servers (including
+     * @param ?SamplingContext      $includeContext A request to include context from one or more MCP servers (including
      *                                              the caller), to be attached to the prompt. The client MAY ignore this request.
-     *
-     * Allowed values: "none", "thisServer", "allServers"
-     * @param float|null            $temperature   The temperature to use for sampling. The client MAY ignore this request.
-     * @param string[]|null         $stopSequences A list of sequences to stop sampling at. The client MAY ignore this request.
-     * @param ?array<string, mixed> $metadata      Optional metadata to pass through to the LLM provider. The format of
-     *                                             this metadata is provider-specific.
+     *                                              Allowed values: "none", "thisServer", "allServers"
+     * @param ?float                $temperature    The temperature to use for sampling. The client MAY ignore this request.
+     * @param ?string[]             $stopSequences  A list of sequences to stop sampling at. The client MAY ignore this request.
+     * @param ?array<string, mixed> $metadata       Optional metadata to pass through to the LLM provider. The format of
+     *                                              this metadata is provider-specific.
      */
     public function __construct(
         public readonly array $messages,
         public readonly int $maxTokens,
         public readonly ?ModelPreferences $preferences = null,
         public readonly ?string $systemPrompt = null,
-        public readonly ?string $includeContext = null,
+        public readonly ?SamplingContext $includeContext = null,
         public readonly ?float $temperature = null,
         public readonly ?array $stopSequences = null,
         public readonly ?array $metadata = null,
     ) {
+        foreach ($this->messages as $message) {
+            if (!$message instanceof SamplingMessage) {
+                throw new InvalidArgumentException('Messages must be instance of SamplingMessage.');
+            }
+        }
     }
 
     public static function getMethod(): string
@@ -114,7 +119,7 @@ final class CreateSamplingMessageRequest extends Request
         }
 
         if (null !== $this->includeContext) {
-            $params['includeContext'] = $this->includeContext;
+            $params['includeContext'] = $this->includeContext->value;
         }
 
         if (null !== $this->temperature) {
