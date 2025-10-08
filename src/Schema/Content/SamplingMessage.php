@@ -18,7 +18,7 @@ use Mcp\Schema\Enum\Role;
  * Describes a message issued to or received from an LLM API during sampling.
  *
  * @phpstan-type SamplingMessageData = array{
- *     role: string,
+ *     role: 'user'|'assistant',
  *     content: TextContent|ImageContent|AudioContent
  * }
  *

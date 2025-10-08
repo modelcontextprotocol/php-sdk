@@ -12,6 +12,7 @@
 namespace Mcp;
 
 use Mcp\Server\Builder;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\JsonRpcHandler;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
@@ -26,6 +27,7 @@ final class Server
 {
     public function __construct(
         private readonly JsonRpcHandler $jsonRpcHandler,
+        private readonly ClientGateway $clientGateway,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -42,6 +44,8 @@ final class Server
         $this->logger->info('Transport initialized.', [
             'transport' => $transport::class,
         ]);
+
+        $this->clientGateway->connect($transport);
 
         $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
             foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {

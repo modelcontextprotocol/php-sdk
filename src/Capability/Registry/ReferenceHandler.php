@@ -13,6 +13,8 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Server\ClientAwareInterface;
+use Mcp\Server\ClientGateway;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -21,6 +23,7 @@ use Psr\Container\ContainerInterface;
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
     public function __construct(
+        private readonly ClientGateway $clientGateway,
         private readonly ?ContainerInterface $container = null,
     ) {
     }
@@ -35,6 +38,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $reflection = new \ReflectionMethod($reference->handler, '__invoke');
                 $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
+
+                if ($instance instanceof ClientAwareInterface) {
+                    $instance->setClientGateway($this->clientGateway);
+                }
 
                 return \call_user_func($instance, ...$arguments);
             }
@@ -58,6 +65,11 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             [$className, $methodName] = $reference->handler;
             $reflection = new \ReflectionMethod($className, $methodName);
             $instance = $this->getClassInstance($className);
+
+            if ($instance instanceof ClientAwareInterface) {
+                $instance->setClientGateway($this->clientGateway);
+            }
+
             $arguments = $this->prepareArguments($reflection, $arguments);
 
             return \call_user_func([$instance, $methodName], ...$arguments);
@@ -130,6 +142,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
         if (\is_array($handler) && 2 === \count($handler)) {
             [$class, $method] = $handler;
+
+            if ($class instanceof ClientAwareInterface) {
+                $class->setClientGateway($this->clientGateway);
+            }
 
             return new \ReflectionMethod($class, $method);
         }
