@@ -32,16 +32,15 @@ class ServerTest extends TestCase
 
         $transport = $this->getMockBuilder(InMemoryTransport::class)
             ->setConstructorArgs([['foo', 'bar']])
-            ->onlyMethods(['send'])
+            ->onlyMethods(['send', 'close'])
             ->getMock();
         $transport->expects($this->exactly(2))->method('send')->willReturnOnConsecutiveCalls(
             null,
             null
         );
+        $transport->expects($this->once())->method('close');
 
         $server = new Server($handler);
-        $server->connect($transport);
-
-        $transport->listen();
+        $server->run($transport);
     }
 }

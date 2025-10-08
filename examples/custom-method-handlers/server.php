@@ -137,8 +137,8 @@ $server = Server::builder()
 
 $transport = new StdioTransport(logger: logger());
 
-$server->connect($transport);
+$result = $server->run($transport);
 
-$transport->listen();
+logger()->info('Server listener stopped gracefully.', ['result' => $result]);
 
-logger()->info('Server listener stopped gracefully.');
+exit((int) $result);

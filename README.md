@@ -108,8 +108,8 @@ $server = Server::builder()
     ->build();
 
 $transport = new StdioTransport();
-$server->connect($transport);
-$transport->listen();
+
+$server->run($transport);
 ```
 
 ### 3. Configure Your MCP Client
@@ -175,15 +175,13 @@ $server = Server::builder()
 **STDIO Transport** (Command-line integration):
 ```php
 $transport = new StdioTransport();
-$server->connect($transport);
-$transport->listen();
+$server->run($transport);
 ```
 
 **HTTP Transport** (Web-based communication):
 ```php
 $transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
-$server->connect($transport);
-$response = $transport->listen();
+$response = $server->run($transport);
 // Handle $response in your web application
 ```
 

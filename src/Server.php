@@ -35,7 +35,7 @@ final class Server
         return new Builder();
     }
 
-    public function connect(TransportInterface $transport): void
+    public function run(TransportInterface $transport): mixed
     {
         $transport->initialize();
 
@@ -56,5 +56,11 @@ final class Server
         $transport->onSessionEnd(function (Uuid $sessionId) {
             $this->jsonRpcHandler->destroySession($sessionId);
         });
+
+        try {
+            return $transport->listen();
+        } finally {
+            $transport->close();
+        }
     }
 }

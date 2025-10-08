@@ -63,9 +63,14 @@ class StdioTransport implements TransportInterface
     {
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
 
+        $status = 0;
         while (!feof($this->input)) {
             $line = fgets($this->input);
             if (false === $line) {
+                if (!feof($this->input)) {
+                    $status = 1;
+                }
+
                 break;
             }
 
@@ -82,9 +87,10 @@ class StdioTransport implements TransportInterface
 
         if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
             \call_user_func($this->sessionEndListener, $this->sessionId);
+            $this->sessionId = null;
         }
 
-        return null;
+        return $status;
     }
 
     public function onSessionEnd(callable $listener): void
@@ -96,6 +102,7 @@ class StdioTransport implements TransportInterface
     {
         if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
             \call_user_func($this->sessionEndListener, $this->sessionId);
+            $this->sessionId = null;
         }
 
         if (\is_resource($this->input)) {

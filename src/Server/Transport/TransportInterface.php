@@ -63,6 +63,7 @@ interface TransportInterface
      *
      * This method should be called when the transport is no longer needed.
      * It should clean up any resources and close any connections.
+     * `Server::run()` calls this automatically after `listen()` exits.
      */
     public function close(): void;
 }

@@ -60,9 +60,10 @@ class InMemoryTransport implements TransportInterface
 
         if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
             \call_user_func($this->sessionDestroyListener, $this->sessionId);
+            $this->sessionId = null;
         }
 
-        return null;
+        return 0;
     }
 
     public function onSessionEnd(callable $listener): void
@@ -74,6 +75,7 @@ class InMemoryTransport implements TransportInterface
     {
         if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
             \call_user_func($this->sessionDestroyListener, $this->sessionId);
+            $this->sessionId = null;
         }
     }
 }
