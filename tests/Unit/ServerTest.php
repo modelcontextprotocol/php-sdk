@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit;
 
 use Mcp\Server;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\JsonRpcHandler;
 use Mcp\Server\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
@@ -39,7 +40,7 @@ class ServerTest extends TestCase
             null
         );
 
-        $server = new Server($handler);
+        $server = new Server($handler, new ClientGateway());
         $server->connect($transport);
 
         $transport->listen();

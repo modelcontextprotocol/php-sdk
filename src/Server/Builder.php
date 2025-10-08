@@ -360,7 +360,8 @@ final class Builder
 
         $capabilities = $this->explicitCapabilities ?? $registry->getCapabilities();
         $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
-        $referenceHandler = new ReferenceHandler($container);
+        $clientGateway = new ClientGateway($logger);
+        $referenceHandler = new ReferenceHandler($clientGateway, $container);
 
         $methodHandlers = array_merge($this->customMethodHandlers, [
             new Handler\Request\PingHandler(),
@@ -384,7 +385,7 @@ final class Builder
             logger: $logger,
         );
 
-        return new Server($jsonRpcHandler, $logger);
+        return new Server($jsonRpcHandler, $clientGateway, $logger);
     }
 
     private function performDiscovery(
