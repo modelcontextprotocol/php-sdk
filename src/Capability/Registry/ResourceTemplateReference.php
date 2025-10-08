@@ -17,7 +17,6 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\ResourceTemplate;
-use Psr\Container\ContainerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -30,11 +29,6 @@ class ResourceTemplateReference extends ElementReference
      * @var array<int, string>
      */
     private array $variableNames;
-
-    /**
-     * @var array<string, string>
-     */
-    private array $uriVariables;
 
     private string $uriTemplateRegex;
 
@@ -51,22 +45,6 @@ class ResourceTemplateReference extends ElementReference
         parent::__construct($handler, $isManual);
 
         $this->compileTemplate();
-    }
-
-    /**
-     * @deprecated
-     * Gets the resource template
-     *
-     * @return array<int, ResourceContents> array of ResourceContents objects
-     */
-    public function read(ContainerInterface $container, string $uri): array
-    {
-        $arguments = array_merge($this->uriVariables, ['uri' => $uri]);
-
-        $referenceHandler = new ReferenceHandler($container);
-        $result = $referenceHandler->handle($this, $arguments);
-
-        return $this->formatResult($result, $uri, $this->resourceTemplate->mimeType);
     }
 
     /**
@@ -87,32 +65,10 @@ class ResourceTemplateReference extends ElementReference
                 }
             }
 
-            $this->uriVariables = $variables;
-
             return true;
         }
 
         return false;
-    }
-
-    private function compileTemplate(): void
-    {
-        $this->variableNames = [];
-        $regexParts = [];
-
-        $segments = preg_split('/(\{\w+\})/', $this->resourceTemplate->uriTemplate, -1, \PREG_SPLIT_DELIM_CAPTURE | \PREG_SPLIT_NO_EMPTY);
-
-        foreach ($segments as $segment) {
-            if (preg_match('/^\{(\w+)\}$/', $segment, $matches)) {
-                $varName = $matches[1];
-                $this->variableNames[] = $varName;
-                $regexParts[] = '(?P<'.$varName.'>[^/]+)';
-            } else {
-                $regexParts[] = preg_quote($segment, '#');
-            }
-        }
-
-        $this->uriTemplateRegex = '#^'.implode('', $regexParts).'$#';
     }
 
     /**
@@ -254,6 +210,26 @@ class ResourceTemplateReference extends ElementReference
         }
 
         throw new RuntimeException("Cannot format resource read result for URI '{$uri}'. Handler method returned unhandled type: ".\gettype($readResult));
+    }
+
+    private function compileTemplate(): void
+    {
+        $this->variableNames = [];
+        $regexParts = [];
+
+        $segments = preg_split('/(\{\w+\})/', $this->resourceTemplate->uriTemplate, -1, \PREG_SPLIT_DELIM_CAPTURE | \PREG_SPLIT_NO_EMPTY);
+
+        foreach ($segments as $segment) {
+            if (preg_match('/^\{(\w+)\}$/', $segment, $matches)) {
+                $varName = $matches[1];
+                $this->variableNames[] = $varName;
+                $regexParts[] = '(?P<'.$varName.'>[^/]+)';
+            } else {
+                $regexParts[] = preg_quote($segment, '#');
+            }
+        }
+
+        $this->uriTemplateRegex = '#^'.implode('', $regexParts).'$#';
     }
 
     /** Guesses MIME type from string content (very basic) */
