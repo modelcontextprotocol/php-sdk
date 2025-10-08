@@ -143,16 +143,9 @@ class Discoverer
      */
     private function processFile(SplFileInfo $file, array &$discoveredCount, array &$tools, array &$resources, array &$prompts, array &$resourceTemplates): void
     {
-        $filePath = $file->getRealPath();
-        if (false === $filePath) {
-            $this->logger->warning('Could not get real path for file', ['path' => $file->getPathname()]);
-
-            return;
-        }
-
-        $className = $this->getClassFromFile($filePath);
+        $className = $this->getClassFromFile($file);
         if (!$className) {
-            $this->logger->warning('No valid class found in file', ['file' => $filePath]);
+            $this->logger->warning('No valid class found in file', ['file' => $file->getPathname()]);
 
             return;
         }
@@ -199,10 +192,10 @@ class Discoverer
                 }
             }
         } catch (\ReflectionException $e) {
-            $this->logger->error('Reflection error processing file for MCP discovery', ['file' => $filePath, 'class' => $className, 'exception' => $e->getMessage()]);
+            $this->logger->error('Reflection error processing file for MCP discovery', ['file' => $file->getPathname(), 'class' => $className, 'exception' => $e->getMessage()]);
         } catch (\Throwable $e) {
             $this->logger->error('Unexpected error processing file for MCP discovery', [
-                'file' => $filePath,
+                'file' => $file->getPathname(),
                 'class' => $className,
                 'exception' => $e->getMessage(),
                 'trace' => $e->getTraceAsString(),
@@ -329,34 +322,34 @@ class Discoverer
      * Attempt to determine the FQCN from a PHP file path.
      * Uses tokenization to extract namespace and class name.
      *
-     * @param string $filePath absolute path to the PHP file
-     *
      * @return class-string|null the FQCN or null if not found/determinable
      */
-    private function getClassFromFile(string $filePath): ?string
+    private function getClassFromFile(SplFileInfo $file): ?string
     {
-        if (!file_exists($filePath) || !is_readable($filePath)) {
-            $this->logger->warning('File does not exist or is not readable.', ['file' => $filePath]);
+        $this->logger->debug('Processing file', ['path' => $file->getPathname()]);
+
+        try {
+            $content = $file->getContents();
+        } catch (\Throwable $e) {
+            $this->logger->warning("Failed to read file content during class discovery: {$file->getPathname()}", [
+                'exception' => $e->getMessage(),
+            ]);
+
+            return null;
+        }
+
+        if (\strlen($content) > 500 * 1024) {
+            $this->logger->warning('Skipping large file during class discovery.', ['file' => $file->getPathname()]);
 
             return null;
         }
 
         try {
-            $content = file_get_contents($filePath);
-            if (false === $content) {
-                $this->logger->warning('Failed to read file content.', ['file' => $filePath]);
-
-                return null;
-            }
-            if (\strlen($content) > 500 * 1024) {
-                $this->logger->debug('Skipping large file during class discovery.', ['file' => $filePath]);
-
-                return null;
-            }
-
             $tokens = token_get_all($content);
         } catch (\Throwable $e) {
-            $this->logger->warning("Failed to read or tokenize file during class discovery: {$filePath}", ['exception' => $e->getMessage()]);
+            $this->logger->warning("Failed to tokenize file during class discovery: {$file->getPathname()}", [
+                'exception' => $e->getMessage(),
+            ]);
 
             return null;
         }
@@ -427,7 +420,7 @@ class Discoverer
 
         if (!empty($potentialClasses)) {
             if (!class_exists($potentialClasses[0], false)) {
-                $this->logger->debug('getClassFromFile returning potential non-class type. Are you sure this class has been autoloaded?', ['file' => $filePath, 'type' => $potentialClasses[0]]);
+                $this->logger->debug('getClassFromFile returning potential non-class type. Are you sure this class has been autoloaded?', ['file' => $file->getPathname(), 'type' => $potentialClasses[0]]);
             }
 
             return $potentialClasses[0];
