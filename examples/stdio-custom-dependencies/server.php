@@ -43,4 +43,4 @@ $result = $server->run($transport);
 
 logger()->info('Server listener stopped gracefully.', ['result' => $result]);
 
-exit((int) $result);
+exit($result);

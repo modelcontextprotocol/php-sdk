@@ -35,6 +35,13 @@ final class Server
         return new Builder();
     }
 
+    /**
+     * @template TResult
+     *
+     * @param TransportInterface<TResult> $transport
+     *
+     * @return TResult
+     */
     public function run(TransportInterface $transport): mixed
     {
         $transport->initialize();

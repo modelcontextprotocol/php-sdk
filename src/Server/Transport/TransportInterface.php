@@ -14,6 +14,8 @@ namespace Mcp\Server\Transport;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * @template TResult
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -38,7 +40,7 @@ interface TransportInterface
      * - For a single-request transport like HTTP, this will process the request
      *   and return a result (e.g., a PSR-7 Response) to be sent to the client.
      *
-     * @return mixed the result of the transport's execution, if any
+     * @return TResult the result of the transport's execution, if any
      */
     public function listen(): mixed;
 

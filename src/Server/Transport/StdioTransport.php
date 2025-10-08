@@ -16,6 +16,8 @@ use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * @implements TransportInterface<int>
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StdioTransport implements TransportInterface
@@ -59,7 +61,7 @@ class StdioTransport implements TransportInterface
         fwrite($this->output, $data.\PHP_EOL);
     }
 
-    public function listen(): mixed
+    public function listen(): int
     {
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
 

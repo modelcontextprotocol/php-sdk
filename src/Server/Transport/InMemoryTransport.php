@@ -14,6 +14,8 @@ namespace Mcp\Server\Transport;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * @implements TransportInterface<null>
+ *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 class InMemoryTransport implements TransportInterface
@@ -50,6 +52,9 @@ class InMemoryTransport implements TransportInterface
         }
     }
 
+    /**
+     * @return null
+     */
     public function listen(): mixed
     {
         foreach ($this->messages as $message) {
@@ -63,7 +68,7 @@ class InMemoryTransport implements TransportInterface
             $this->sessionId = null;
         }
 
-        return 0;
+        return null;
     }
 
     public function onSessionEnd(callable $listener): void
