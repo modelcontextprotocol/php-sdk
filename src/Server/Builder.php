@@ -269,6 +269,7 @@ final class Builder
      *
      * @param Handler                   $handler
      * @param array<string, mixed>|null $inputSchema
+     * @param array<string, mixed>|null $outputSchema
      */
     public function addTool(
         callable|array|string $handler,
@@ -276,8 +277,9 @@ final class Builder
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
+        ?array $outputSchema = null,
     ): self {
-        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema');
+        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema', 'outputSchema');
 
         return $this;
     }
@@ -433,8 +435,9 @@ final class Builder
                 }
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
+                $outputSchema = $data['outputSchema'] ?? $schemaGenerator->generateOutputSchema($reflection);
 
-                $tool = new Tool($name, $inputSchema, $description, $data['annotations']);
+                $tool = new Tool($name, $inputSchema, $description, $data['annotations'], $outputSchema);
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
