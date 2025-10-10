@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Page;
 
 /**
@@ -65,4 +66,34 @@ interface ReferenceProviderInterface
      * Checks if any elements (manual or discovered) are currently registered.
      */
     public function hasElements(): bool;
+
+    /**
+     * Enables logging message notifications for the MCP server.
+     *
+     * When enabled, the server will advertise logging capability to clients,
+     * indicating that it can emit structured log messages according to the MCP specification.
+     */
+    public function enableLoggingMessageNotification(): void;
+
+    /**
+     * Checks if logging message notification capability is enabled.
+     *
+     * @return bool True if logging message notification capability is enabled, false otherwise
+     */
+    public function isLoggingMessageNotificationEnabled(): bool;
+
+    /**
+     * Sets the current logging message notification level for the client.
+     *
+     * This determines which log messages should be sent to the client.
+     * Only messages at this level and higher (more severe) will be sent.
+     */
+    public function setLoggingMessageNotificationLevel(LoggingLevel $level): void;
+
+    /**
+     * Gets the current logging message notification level set by the client.
+     *
+     * @return LoggingLevel|null The current log level, or null if not set
+     */
+    public function getLoggingMessageNotificationLevel(): ?LoggingLevel;
 }

@@ -11,12 +11,17 @@
 
 namespace Mcp\Tests\Unit;
 
+use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\Protocol;
 use Mcp\Server\Transport\TransportInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
+use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\Handler\NotificationHandler;
+use Mcp\Server\NotificationSender;
+use Mcp\Server\Transport\InMemoryTransport;
 use PHPUnit\Framework\TestCase;
 
 final class ServerTest extends TestCase
@@ -153,5 +158,12 @@ final class ServerTest extends TestCase
 
         $server = new Server($this->protocol);
         $server->run($this->transport);
+        $referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $notificationHandler = NotificationHandler::make($referenceProvider);
+        $notificationSender = new NotificationSender($notificationHandler);
+        $server = new Server($handler, $notificationSender);
+        $server->run($transport);
+
+        $transport->listen();
     }
 }

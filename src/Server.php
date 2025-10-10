@@ -13,6 +13,7 @@ namespace Mcp;
 
 use Mcp\Server\Builder;
 use Mcp\Server\Protocol;
+use Mcp\Server\NotificationSender;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -25,6 +26,7 @@ final class Server
 {
     public function __construct(
         private readonly Protocol $protocol,
+        private readonly NotificationSender $notificationSender,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -48,6 +50,12 @@ final class Server
         $transport->initialize();
 
         $this->protocol->connect($transport);
+        $this->logger->info('Transport initialized.', [
+            'transport' => $transport::class,
+        ]);
+
+        // Configure the NotificationSender with the transport
+        $this->notificationSender->setTransport($transport);
 
         try {
             return $transport->listen();
