@@ -33,7 +33,7 @@ final class McpLogger extends AbstractLogger
     ) {
     }
 
-    public function log($level, \Stringable|string $message, array $context = []): void
+    public function log($level, string|\Stringable $message, array $context = []): void
     {
         // Always log to fallback logger if provided (for local debugging)
         $this->fallbackLogger?->log($level, $message, $context);
