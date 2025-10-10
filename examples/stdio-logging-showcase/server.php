@@ -33,6 +33,6 @@ $server->connect($transport);
 
 logger()->info('Logging Showcase Server is ready!');
 logger()->info('This example demonstrates auto-injection of McpLogger into capability handlers.');
-logger()->info('Available tools: analyze_data, process_batch, configure_system');
-logger()->info('Available resources: config://logging/settings, data://system/metrics');
-logger()->info('Available prompts: generate_report, create_summary');
+logger()->info('Available tools: log_message, process_data');
+logger()->info('Available resources: config://logging/settings');
+logger()->info('Available prompts: logging_examples');

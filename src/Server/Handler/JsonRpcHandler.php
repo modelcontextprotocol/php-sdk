@@ -44,7 +44,8 @@ class JsonRpcHandler
         private readonly SessionFactoryInterface $sessionFactory,
         private readonly SessionStoreInterface $sessionStore,
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+    }
 
     /**
      * @return iterable<array{string|null, array<string, mixed>}>
@@ -241,7 +242,7 @@ class JsonRpcHandler
         if (!empty($deletedSessions)) {
             $this->logger->debug('Garbage collected expired sessions.', [
                 'count' => \count($deletedSessions),
-                'session_ids' => array_map(fn(Uuid $id) => $id->toRfc4122(), $deletedSessions),
+                'session_ids' => array_map(fn (Uuid $id) => $id->toRfc4122(), $deletedSessions),
             ]);
         }
     }
