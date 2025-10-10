@@ -23,6 +23,7 @@ use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Logger\McpLogger;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
+use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\ConfigurationException;
 use Mcp\JsonRpc\MessageFactory;
@@ -451,7 +452,7 @@ final class Builder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_tool_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -484,7 +485,7 @@ final class Builder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_resource_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -520,7 +521,7 @@ final class Builder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_template_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -556,7 +557,7 @@ final class Builder
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_prompt_' . spl_object_id($data['handler']);
+                    $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
                     $description = $data['description'] ?? null;
                 } else {
                     $classShortName = $reflection->getDeclaringClass()->getShortName();
@@ -579,7 +580,7 @@ final class Builder
                         continue;
                     }
 
-                    $paramTag = $paramTags['$' . $param->getName()] ?? null;
+                    $paramTag = $paramTags['$'.$param->getName()] ?? null;
                     $arguments[] = new PromptArgument(
                         $param->getName(),
                         $paramTag ? trim((string) $paramTag->getDescription()) : null,
