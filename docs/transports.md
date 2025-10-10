@@ -181,7 +181,7 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 class McpController
 {
     #[Route('/mcp', name: 'mcp_endpoint']
-    public function handle(Request $request, Server $mcpServer): Response
+    public function handle(Request $request, Server $server): Response
     {
         // Create PSR-7 factories
         $psr17Factory = new Psr17Factory();
@@ -193,7 +193,7 @@ class McpController
         
         // Process with MCP
         $transport = new StreamableHttpTransport($psrRequest, $psr17Factory, $psr17Factory);
-        $psrResponse = $mcpServer->run($transport);
+        $psrResponse = $server->run($transport);
         
         // Convert PSR-7 response back to Symfony
         return $httpFoundationFactory->createResponse($psrResponse);
@@ -223,7 +223,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 
 class McpController
 {
-    public function handle(ServerRequestInterface $request, Server $mcpServer): ResponseInterface
+    public function handle(ServerRequestInterface $request, Server $server): ResponseInterface
     {
         $psr17Factory = new Psr17Factory();
         
@@ -232,7 +232,7 @@ class McpController
         
         // Process MCP request and return PSR-7 response
         // Laravel automatically handles PSR-7 responses
-        return $mcpServer->run($transport);
+        return $server->run($transport);
     }
 }
 
@@ -256,7 +256,7 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 $app = AppFactory::create();
 
 $app->any('/mcp', function ($request, $response) {
-    $mcpServer =Server::builder()
+    $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'])
         ->build();
@@ -266,7 +266,7 @@ $app->any('/mcp', function ($request, $response) {
     
     $transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
     
-    return $mcpServer->run($transport);
+    return $server->run($transport);
 });
 ```
 
