@@ -11,6 +11,7 @@ discovery and manual registration methods.
 - [Resources](#resources)
 - [Resource Templates](#resource-templates)
 - [Prompts](#prompts)
+- [Logging](#logging)
 - [Completion Providers](#completion-providers)
 - [Schema Generation and Validation](#schema-generation-and-validation)
 - [Discovery vs Manual Registration](#discovery-vs-manual-registration)
@@ -503,6 +504,55 @@ public function generatePrompt(string $topic, string $style): array
 ```
 
 **Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+
+## Logging
+
+The SDK provides automatic logging support, handlers can receive logger instances automatically to send structured log messages to clients.
+
+### Configuration
+
+Logging is **enabled by default**. Use `disableClientLogging()` to turn it off:
+
+```php
+// Logging enabled (default)
+$server = Server::builder()->build();
+
+// Disable logging
+$server = Server::builder()
+    ->disableClientLogging()
+    ->build();
+```
+
+### Auto-injection
+
+The SDK automatically injects logger instances into handlers:
+
+```php
+use Mcp\Capability\Logger\ClientLogger;
+use Psr\Log\LoggerInterface;
+
+#[McpTool]
+public function processData(string $input, ClientLogger $logger): array {
+    $logger->info('Processing started', ['input' => $input]);
+    $logger->warning('Deprecated API used');
+    
+    // ... processing logic ...
+    
+    $logger->info('Processing completed');
+    return ['result' => 'processed'];
+}
+
+// Also works with PSR-3 LoggerInterface
+#[McpResource(uri: 'data://config')]
+public function getConfig(LoggerInterface $logger): array {
+    $logger->info('Configuration accessed');
+    return ['setting' => 'value'];
+}
+```
+
+### Log Levels
+
+The SDK supports all standard PSR-3 log levels with **warning** as the default level:
 
 ## Completion Providers
 

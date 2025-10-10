@@ -577,6 +577,7 @@ $server = Server::builder()
 | `addRequestHandlers()` | handlers | Prepend multiple custom request handlers |
 | `addNotificationHandler()` | handler | Prepend a single custom notification handler |
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
+| `disableClientLogging()` | - | Disable MCP client logging (enabled by default) |
 | `addTool()` | handler, name?, description?, annotations?, inputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
