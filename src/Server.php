@@ -13,6 +13,7 @@ namespace Mcp;
 
 use Mcp\Server\Builder;
 use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\NotificationSender;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -26,6 +27,7 @@ final class Server
 {
     public function __construct(
         private readonly JsonRpcHandler $jsonRpcHandler,
+        private readonly NotificationSender $notificationSender,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -42,6 +44,9 @@ final class Server
         $this->logger->info('Transport initialized.', [
             'transport' => $transport::class,
         ]);
+
+        // Configure the NotificationSender with the transport
+        $this->notificationSender->setTransport($transport);
 
         $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
             foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
