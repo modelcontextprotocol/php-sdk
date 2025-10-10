@@ -21,6 +21,8 @@ use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * @implements TransportInterface<ResponseInterface>
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StreamableHttpTransport implements TransportInterface
@@ -78,7 +80,7 @@ class StreamableHttpTransport implements TransportInterface
         ]);
     }
 
-    public function listen(): mixed
+    public function listen(): ResponseInterface
     {
         return match ($this->request->getMethod()) {
             'OPTIONS' => $this->handleOptionsRequest(),

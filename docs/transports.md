@@ -22,9 +22,7 @@ $server = Server::builder()
 
 $transport = new SomeTransport();
 
-$server->connect($transport);
-
-$transport->listen(); // For STDIO, or handle response for HTTP
+$result = $server->run($transport); // Blocks for STDIO, returns a response for HTTP
 ```
 
 ## STDIO Transport
@@ -70,9 +68,9 @@ $server = Server::builder()
 
 $transport = new StdioTransport();
 
-$server->connect($transport);
+$status = $server->run($transport);
 
-$transport->listen();
+exit($status); // 0 on clean shutdown, non-zero if STDIN errored
 ```
 
 ### Client Configuration
@@ -138,24 +136,20 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7Server\ServerRequestCreator;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 
-// Create PSR-7 request from globals
 $psr17Factory = new Psr17Factory();
 $creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
 $request = $creator->fromGlobals();
 
-// Build server
 $server = Server::builder()
     ->setServerInfo('HTTP Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'])
     ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
     ->build();
 
-// Process request and get response
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
-$server->connect($transport);
-$response = $transport->listen();
 
-// Emit response
+$response = $server->run($transport);
+
 (new SapiEmitter())->emit($response);
 ```
 
@@ -187,7 +181,7 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 class McpController
 {
     #[Route('/mcp', name: 'mcp_endpoint']
-    public function handle(Request $request, Server $mcpServer): Response
+    public function handle(Request $request, Server $server): Response
     {
         // Create PSR-7 factories
         $psr17Factory = new Psr17Factory();
@@ -199,8 +193,7 @@ class McpController
         
         // Process with MCP
         $transport = new StreamableHttpTransport($psrRequest, $psr17Factory, $psr17Factory);
-        $mcpServer->connect($transport);
-        $psrResponse = $transport->listen();
+        $psrResponse = $server->run($transport);
         
         // Convert PSR-7 response back to Symfony
         return $httpFoundationFactory->createResponse($psrResponse);
@@ -230,17 +223,16 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 
 class McpController
 {
-    public function handle(ServerRequestInterface $request, Server $mcpServer): ResponseInterface
+    public function handle(ServerRequestInterface $request, Server $server): ResponseInterface
     {
         $psr17Factory = new Psr17Factory();
         
-        // Create and connect the MCP HTTP transport
+        // Create the MCP HTTP transport
         $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
-        $mcpServer->connect($transport);
         
         // Process MCP request and return PSR-7 response
         // Laravel automatically handles PSR-7 responses
-        return $transport->listen();
+        return $server->run($transport);
     }
 }
 
@@ -255,7 +247,6 @@ Slim Framework works natively with PSR-7.
 Create a route handler using Slim's built-in factories and container:
 
 ```php
-use Psr\Container\ContainerInterface;
 use Slim\Factory\AppFactory;
 use Slim\Psr7\Factory\ResponseFactory;
 use Slim\Psr7\Factory\StreamFactory;
@@ -263,25 +254,19 @@ use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 $app = AppFactory::create();
-$container = $app->getContainer();
 
-$container->set('mcpServer', function (ContainerInterface $container) {
-    return Server::builder()
+$app->any('/mcp', function ($request, $response) {
+    $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'])
         ->build();
-});
-
-$app->any('/mcp', function ($request, $response) {
-    $mcpServer = $this->get('mcpServer');
     
     $responseFactory = new ResponseFactory();
     $streamFactory = new StreamFactory();
     
     $transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
-    $mcpServer->connect($transport);
     
-    return $transport->listen();
+    return $server->run($transport);
 });
 ```
 
