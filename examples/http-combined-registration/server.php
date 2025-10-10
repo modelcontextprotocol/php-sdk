@@ -42,8 +42,6 @@ $server = Server::builder()
 
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
 
-$server->connect($transport);
-
-$response = $transport->listen();
+$response = $server->run($transport);
 
 (new SapiEmitter())->emit($response);

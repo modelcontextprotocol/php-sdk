@@ -75,7 +75,7 @@ class DocBlockTestFixture
      * @deprecated use newMethod() instead
      * @see DocBlockTestFixture::newMethod()
      */
-    public function methodWithMultipleTags(float $value): bool /* @phpstan-ignore throws.unusedType */
+    public function methodWithMultipleTags(float $value): bool
     {
         return true;
     }
