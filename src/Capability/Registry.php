@@ -25,6 +25,7 @@ use Mcp\Exception\InvalidCursorException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Page;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
@@ -60,6 +61,10 @@ final class Registry implements RegistryInterface
      * @var array<string, ResourceTemplateReference>
      */
     private array $resourceTemplates = [];
+
+    private bool $logging = true;
+
+    private LoggingLevel $loggingLevel = LoggingLevel::Warning;
 
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
@@ -389,6 +394,46 @@ final class Registry implements RegistryInterface
                 $this->eventDispatcher->dispatch(new PromptListChangedEvent());
             }
         }
+    }
+
+
+    /**
+     * Disable logging message notifications for this registry.
+     */
+    public function disableLogging(): void
+    {
+        $this->logging = false;
+    }
+
+    /**
+     * Checks if logging message notification capability is enabled.
+     *
+     * @return bool True if logging capability is enabled, false otherwise
+     */
+    public function isLoggingEnabled(): bool
+    {
+        return $this->logging;
+    }
+
+    /**
+     * Sets the current logging message notification level for the client.
+     *
+     * This determines which log messages should be sent to the client.
+     * Only messages at this level and higher (more severe) will be sent.
+     */
+    public function setLoggingLevel(LoggingLevel $level): void
+    {
+        $this->loggingLevel = $level;
+    }
+
+    /**
+     * Gets the current logging message notification level set by the client.
+     *
+     * @return LoggingLevel The current log level
+     */
+    public function getLoggingLevel(): LoggingLevel
+    {
+        return $this->loggingLevel;
     }
 
     /**

@@ -63,6 +63,7 @@
       "Mcp\\Example\\EnvVariables\\": "examples/env-variables/",
       "Mcp\\Example\\ExplicitRegistration\\": "examples/explicit-registration/",
       "Mcp\\Example\\SchemaShowcase\\": "examples/schema-showcase/",
+      "Mcp\\Example\\StdioLoggingShowcase\\": "examples/stdio-logging-showcase/",a
       "Mcp\\Tests\\": "tests/"
     }
   },
