@@ -233,7 +233,6 @@ $server = Server::builder()
 
 ## Documentation
 
-<<<<<<< HEAD
 **Core Concepts:**
 - [Server Builder](docs/server-builder.md) - Complete ServerBuilder reference and configuration
 - [Transports](docs/transports.md) - STDIO and HTTP transport setup and usage
@@ -242,8 +241,6 @@ $server = Server::builder()
 **Learning:**
 - [Examples](docs/examples.md) - Comprehensive example walkthroughs
 
-**External Resources:**
-=======
 ### MCP Logging
 
 The SDK provides comprehensive logging capabilities following the [MCP logging specification](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging):
@@ -269,10 +266,8 @@ $server = Server::builder()
 
 📖 **[Complete MCP Logging Guide](docs/mcp-logging.md)**
 
-### Additional Resources
-
+**External Resources:**
 - [SDK documentation](doc/index.rst)
->>>>>>> 34ae3c3 (Added doc)
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
 - [Officially supported servers](https://github.com/modelcontextprotocol/servers)
