@@ -28,14 +28,9 @@ use Symfony\Component\Uid\Uuid;
 
 final class ProtocolTest extends TestCase
 {
-    /** @var MockObject&SessionFactoryInterface */
-    protected $sessionFactory;
-
-    /** @var MockObject&SessionStoreInterface */
-    protected $sessionStore;
-
-    /** @var MockObject&TransportInterface<mixed> */
-    protected $transport;
+    private MockObject&SessionFactoryInterface $sessionFactory;
+    private MockObject&SessionStoreInterface $sessionStore;
+    private MockObject&TransportInterface $transport;
 
     protected function setUp(): void
     {
