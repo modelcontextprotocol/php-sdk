@@ -28,6 +28,9 @@ use Psr\Log\NullLogger;
  */
 final class NotificationSender
 {
+    /**
+     * @param TransportInterface<mixed>|null $transport
+     */
     public function __construct(
         private readonly NotificationHandler $notificationHandler,
         private ?TransportInterface $transport = null,
@@ -37,6 +40,8 @@ final class NotificationSender
 
     /**
      * Sets the transport interface for sending notifications.
+     *
+     * @param TransportInterface<mixed> $transport
      */
     public function setTransport(TransportInterface $transport): void
     {
