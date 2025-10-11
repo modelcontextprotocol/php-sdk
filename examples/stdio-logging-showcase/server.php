@@ -29,7 +29,7 @@ $server = Server::builder()
 
 $transport = new StdioTransport(logger: logger());
 
-$server->connect($transport);
+$server->run($transport);
 
 logger()->info('Logging Showcase Server is ready!');
 logger()->info('This example demonstrates auto-injection of McpLogger into capability handlers.');

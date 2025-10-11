@@ -27,6 +27,7 @@ use Psr\Log\LoggerInterface;
 final class NotificationSenderTest extends TestCase
 {
     private NotificationHandler $notificationHandler;
+    /** @var TransportInterface<mixed>&MockObject */
     private TransportInterface&MockObject $transport;
     private LoggerInterface&MockObject $logger;
     private ReferenceProviderInterface&MockObject $referenceProvider;

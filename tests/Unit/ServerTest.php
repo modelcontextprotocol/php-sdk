@@ -48,7 +48,5 @@ class ServerTest extends TestCase
         $notificationSender = new NotificationSender($notificationHandler);
         $server = new Server($handler, $notificationSender);
         $server->run($transport);
-
-        $transport->listen();
     }
 }
