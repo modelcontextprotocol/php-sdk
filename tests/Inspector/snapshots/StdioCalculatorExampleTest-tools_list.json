@@ -24,6 +24,18 @@
           "b",
           "operation"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "description": "the result of the calculation, or an error message string"
       }
     },
     {
@@ -44,6 +56,13 @@
           "setting",
           "value"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "mixed"
+        },
+        "description": "success message or error"
       }
     }
   ]
