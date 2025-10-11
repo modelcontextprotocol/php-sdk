@@ -35,11 +35,11 @@ use Mcp\Schema\JsonRpc\Response;
 final class MessageFactory
 {
     /**
-     * Registry of all known notification classes.
+     * Registry of all known message classes that have methods.
      *
-     * @var array<int, class-string<Notification>>
+     * @var array<int, class-string<Request|Notification>>
      */
-    private const REGISTERED_NOTIFICATIONS = [
+    private const REGISTERED_MESSAGES = [
         Schema\Notification\CancelledNotification::class,
         Schema\Notification\InitializedNotification::class,
         Schema\Notification\LoggingMessageNotification::class,
@@ -49,14 +49,7 @@ final class MessageFactory
         Schema\Notification\ResourceUpdatedNotification::class,
         Schema\Notification\RootsListChangedNotification::class,
         Schema\Notification\ToolListChangedNotification::class,
-    ];
 
-    /**
-     * Registry of all known request classes.
-     *
-     * @var array<int, class-string<Request>>
-     */
-    private const REGISTERED_REQUESTS = [
         Schema\Request\CallToolRequest::class,
         Schema\Request\CompletionCompleteRequest::class,
         Schema\Request\CreateSamplingMessageRequest::class,
@@ -75,32 +68,24 @@ final class MessageFactory
     ];
 
     /**
-     * @param array<int, class-string<Notification>> $registeredNotifications
-     * @param array<int, class-string<Request>>      $registeredRequests
+     * @param array<int, class-string<Request|Notification>> $registeredMessages
      */
     public function __construct(
-        private readonly array $registeredNotifications,
-        private readonly array $registeredRequests,
+        private readonly array $registeredMessages,
     ) {
-        foreach ($this->registeredNotifications as $notification) {
-            if (!is_subclass_of($notification, Notification::class)) {
-                throw new InvalidArgumentException(\sprintf('Notification classes must extend %s.', Notification::class));
-            }
-        }
-
-        foreach ($this->registeredRequests as $request) {
-            if (!is_subclass_of($request, Request::class)) {
-                throw new InvalidArgumentException(\sprintf('Request classes must extend %s.', Request::class));
+        foreach ($this->registeredMessages as $messageClass) {
+            if (!is_subclass_of($messageClass, Request::class) && !is_subclass_of($messageClass, Notification::class)) {
+                throw new InvalidArgumentException(\sprintf('Message classes must extend %s or %s.', Request::class, Notification::class));
             }
         }
     }
 
     /**
-     * Creates a new Factory instance with all the protocol's default notifications and requests.
+     * Creates a new Factory instance with all the protocol's default messages.
      */
     public static function make(): self
     {
-        return new self(self::REGISTERED_NOTIFICATIONS, self::REGISTERED_REQUESTS);
+        return new self(self::REGISTERED_MESSAGES);
     }
 
     /**
@@ -142,10 +127,6 @@ final class MessageFactory
      */
     private function createMessage(array $data): MessageInterface
     {
-        if (!isset($data['jsonrpc']) || MessageInterface::JSONRPC_VERSION !== $data['jsonrpc']) {
-            throw new InvalidInputMessageException('Invalid or missing "jsonrpc" version.');
-        }
-
         try {
             if (isset($data['error'])) {
                 return Error::fromArray($data);
@@ -159,81 +140,29 @@ final class MessageFactory
                 throw new InvalidInputMessageException('Invalid JSON-RPC message: missing "method", "result", or "error" field.');
             }
 
-            return isset($data['id']) ? $this->createRequest($data) : $this->createNotification($data);
+            $messageClass = $this->findMessageClassByMethod($data['method']);
+
+            return $messageClass::fromArray($data);
         } catch (InvalidArgumentException $e) {
             throw new InvalidInputMessageException($e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * Creates a Request object by looking up the appropriate class by method name.
+     * Finds the registered message class for a given method name.
      *
-     * @param array<string, mixed> $data
-     *
-     * @throws InvalidInputMessageException
-     */
-    private function createRequest(array $data): Request
-    {
-        if (!\is_string($data['method'])) {
-            throw new InvalidInputMessageException('Request "method" must be a string.');
-        }
-
-        $messageClass = $this->findRequestClassByMethod($data['method']);
-
-        return $messageClass::fromArray($data);
-    }
-
-    /**
-     * Creates a Notification object by looking up the appropriate class by method name.
-     *
-     * @param array<string, mixed> $data
+     * @return class-string<Request|Notification>
      *
      * @throws InvalidInputMessageException
      */
-    private function createNotification(array $data): Notification
+    private function findMessageClassByMethod(string $method): string
     {
-        if (!\is_string($data['method'])) {
-            throw new InvalidInputMessageException('Notification "method" must be a string.');
-        }
-
-        $messageClass = $this->findNotificationClassByMethod($data['method']);
-
-        return $messageClass::fromArray($data);
-    }
-
-    /**
-     * Finds the registered request class for a given method name.
-     *
-     * @return class-string<Request>
-     *
-     * @throws InvalidInputMessageException
-     */
-    private function findRequestClassByMethod(string $method): string
-    {
-        foreach ($this->registeredRequests as $requestClass) {
-            if ($requestClass::getMethod() === $method) {
-                return $requestClass;
+        foreach ($this->registeredMessages as $messageClass) {
+            if ($messageClass::getMethod() === $method) {
+                return $messageClass;
             }
         }
 
-        throw new InvalidInputMessageException(\sprintf('Unknown request method "%s".', $method));
-    }
-
-    /**
-     * Finds the registered notification class for a given method name.
-     *
-     * @return class-string<Notification>
-     *
-     * @throws InvalidInputMessageException
-     */
-    private function findNotificationClassByMethod(string $method): string
-    {
-        foreach ($this->registeredNotifications as $notificationClass) {
-            if ($notificationClass::getMethod() === $method) {
-                return $notificationClass;
-            }
-        }
-
-        throw new InvalidInputMessageException(\sprintf('Unknown notification method "%s".', $method));
+        throw new InvalidInputMessageException(\sprintf('Unknown method "%s".', $method));
     }
 }

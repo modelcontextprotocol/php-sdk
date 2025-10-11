@@ -30,6 +30,7 @@ final class ProtocolTest extends TestCase
 {
     private MockObject&SessionFactoryInterface $sessionFactory;
     private MockObject&SessionStoreInterface $sessionStore;
+    /** @var MockObject&TransportInterface<mixed> */
     private MockObject&TransportInterface $transport;
 
     protected function setUp(): void

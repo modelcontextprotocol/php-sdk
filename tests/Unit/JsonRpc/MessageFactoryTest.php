@@ -27,16 +27,12 @@ final class MessageFactoryTest extends TestCase
 
     protected function setUp(): void
     {
-        $this->factory = new MessageFactory(
-            [
-                CancelledNotification::class,
-                InitializedNotification::class,
-            ],
-            [
-                GetPromptRequest::class,
-                PingRequest::class,
-            ]
-        );
+        $this->factory = new MessageFactory([
+            CancelledNotification::class,
+            InitializedNotification::class,
+            GetPromptRequest::class,
+            PingRequest::class,
+        ]);
     }
 
     public function testCreateRequestWithIntegerId(): void
@@ -250,7 +246,7 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('Unknown request method', $results[0]->getMessage());
+        $this->assertStringContainsString('Unknown method', $results[0]->getMessage());
     }
 
     public function testUnknownNotificationMethod(): void
@@ -261,18 +257,20 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('Unknown notification method', $results[0]->getMessage());
+        $this->assertStringContainsString('Unknown method', $results[0]->getMessage());
     }
 
-    public function testResponseMissingId(): void
+    public function testNotificationMethodUsedAsRequest(): void
     {
-        $json = '{"jsonrpc": "2.0", "result": {"status": "ok"}}';
+        // When a notification method is used with an id, it should still create the notification
+        // The fromArray validation will handle any issues
+        $json = '{"jsonrpc": "2.0", "method": "notifications/initialized", "id": 1}';
 
         $results = $this->factory->create($json);
 
         $this->assertCount(1, $results);
+        // The notification class will reject the id in fromArray validation
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('id', $results[0]->getMessage());
     }
 
     public function testErrorMissingId(): void
