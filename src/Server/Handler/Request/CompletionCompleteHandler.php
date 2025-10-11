@@ -14,11 +14,10 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\Result\CompletionCompleteResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
 
@@ -27,7 +26,7 @@ use Psr\Container\ContainerInterface;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-final class CompletionCompleteHandler implements MethodHandlerInterface
+final class CompletionCompleteHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
@@ -35,43 +34,43 @@ final class CompletionCompleteHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof CompletionCompleteRequest;
+        return $request instanceof CompletionCompleteRequest;
     }
 
-    public function handle(CompletionCompleteRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
+    public function handle(Request $request, SessionInterface $session): Response|Error
     {
-        \assert($message instanceof CompletionCompleteRequest);
+        \assert($request instanceof CompletionCompleteRequest);
 
-        $name = $message->argument['name'] ?? '';
-        $value = $message->argument['value'] ?? '';
+        $name = $request->argument['name'] ?? '';
+        $value = $request->argument['value'] ?? '';
 
-        $reference = match ($message->ref->type) {
-            'ref/prompt' => $this->referenceProvider->getPrompt($message->ref->name),
-            'ref/resource' => $this->referenceProvider->getResourceTemplate($message->ref->uri),
+        $reference = match ($request->ref->type) {
+            'ref/prompt' => $this->referenceProvider->getPrompt($request->ref->name),
+            'ref/resource' => $this->referenceProvider->getResourceTemplate($request->ref->uri),
             default => null,
         };
 
         if (null === $reference) {
-            return new Response($message->getId(), new CompletionCompleteResult([]));
+            return new Response($request->getId(), new CompletionCompleteResult([]));
         }
 
         $providers = $reference->completionProviders;
         $provider = $providers[$name] ?? null;
         if (null === $provider) {
-            return new Response($message->getId(), new CompletionCompleteResult([]));
+            return new Response($request->getId(), new CompletionCompleteResult([]));
         }
 
         if (\is_string($provider)) {
             if (!class_exists($provider)) {
-                return Error::forInternalError('Invalid completion provider', $message->getId());
+                return Error::forInternalError('Invalid completion provider', $request->getId());
             }
             $provider = $this->container?->has($provider) ? $this->container->get($provider) : new $provider();
         }
 
         if (!$provider instanceof ProviderInterface) {
-            return Error::forInternalError('Invalid completion provider type', $message->getId());
+            return Error::forInternalError('Invalid completion provider type', $request->getId());
         }
 
         try {
@@ -80,9 +79,9 @@ final class CompletionCompleteHandler implements MethodHandlerInterface
             $hasMore = $total > 100;
             $paged = \array_slice($completions, 0, 100);
 
-            return new Response($message->getId(), new CompletionCompleteResult($paged, $total, $hasMore));
+            return new Response($request->getId(), new CompletionCompleteResult($paged, $total, $hasMore));
         } catch (\Throwable) {
-            return Error::forInternalError('Error while handling completion request', $message->getId());
+            return Error::forInternalError('Error while handling completion request', $request->getId());
         }
     }
 }

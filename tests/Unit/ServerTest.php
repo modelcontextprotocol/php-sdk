@@ -12,35 +12,146 @@
 namespace Mcp\Tests\Unit;
 
 use Mcp\Server;
-use Mcp\Server\Handler\JsonRpcHandler;
-use Mcp\Server\Transport\InMemoryTransport;
+use Mcp\Server\Builder;
+use Mcp\Server\Protocol;
+use Mcp\Server\Transport\TransportInterface;
+use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 
-class ServerTest extends TestCase
+final class ServerTest extends TestCase
 {
-    public function testJsonExceptions()
+    /** @var MockObject&Protocol */
+    private $protocol;
+
+    /** @var MockObject&TransportInterface<int> */
+    private $transport;
+
+    protected function setUp(): void
     {
-        $handler = $this->getMockBuilder(JsonRpcHandler::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['process'])
-            ->getMock();
+        $this->protocol = $this->createMock(Protocol::class);
+        $this->transport = $this->createMock(TransportInterface::class);
+    }
 
-        $handler->expects($this->exactly(2))->method('process')->willReturnOnConsecutiveCalls(
-            [['{"jsonrpc":"2.0","id":0,"error":{"code":-32700,"message":"Parse error"}}', []]],
-            [['success', []]]
-        );
+    #[TestDox('builder() returns a Builder instance')]
+    public function testBuilderReturnsBuilderInstance(): void
+    {
+        $builder = Server::builder();
 
-        $transport = $this->getMockBuilder(InMemoryTransport::class)
-            ->setConstructorArgs([['foo', 'bar']])
-            ->onlyMethods(['send', 'close'])
-            ->getMock();
-        $transport->expects($this->exactly(2))->method('send')->willReturnOnConsecutiveCalls(
-            null,
-            null
-        );
-        $transport->expects($this->once())->method('close');
+        $this->assertInstanceOf(Builder::class, $builder);
+    }
 
-        $server = new Server($handler);
-        $server->run($transport);
+    #[TestDox('run() orchestrates transport lifecycle and protocol connection')]
+    public function testRunOrchestatesTransportLifecycle(): void
+    {
+        $callOrder = [];
+
+        $this->transport->expects($this->once())
+            ->method('initialize')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'initialize';
+            });
+
+        $this->protocol->expects($this->once())
+            ->method('connect')
+            ->with($this->transport)
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'connect';
+            });
+
+        $this->transport->expects($this->once())
+            ->method('listen')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'listen';
+
+                return 0;
+            });
+
+        $this->transport->expects($this->once())
+            ->method('close')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'close';
+            });
+
+        $server = new Server($this->protocol);
+        $result = $server->run($this->transport);
+
+        $this->assertEquals([
+            'initialize',
+            'connect',
+            'listen',
+            'close',
+        ], $callOrder);
+
+        $this->assertEquals(0, $result);
+    }
+
+    #[TestDox('run() closes transport even if listen() throws exception')]
+    public function testRunClosesTransportEvenOnException(): void
+    {
+        $this->transport->method('initialize');
+        $this->protocol->method('connect');
+
+        $this->transport->expects($this->once())
+            ->method('listen')
+            ->willThrowException(new \RuntimeException('Transport error'));
+
+        // close() should still be called even though listen() threw
+        $this->transport->expects($this->once())->method('close');
+
+        $server = new Server($this->protocol);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Transport error');
+
+        $server->run($this->transport);
+    }
+
+    #[TestDox('run() propagates exception if initialize() throws')]
+    public function testRunPropagatesInitializeException(): void
+    {
+        $this->transport->expects($this->once())
+            ->method('initialize')
+            ->willThrowException(new \RuntimeException('Initialize error'));
+
+        $server = new Server($this->protocol);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('Initialize error');
+
+        $server->run($this->transport);
+    }
+
+    #[TestDox('run() returns value from transport.listen()')]
+    public function testRunReturnsTransportListenValue(): void
+    {
+        $this->transport->method('initialize');
+        $this->protocol->method('connect');
+        $this->transport->method('close');
+
+        $expectedReturn = 42;
+        $this->transport->expects($this->once())
+            ->method('listen')
+            ->willReturn($expectedReturn);
+
+        $server = new Server($this->protocol);
+        $result = $server->run($this->transport);
+
+        $this->assertEquals($expectedReturn, $result);
+    }
+
+    #[TestDox('run() connects protocol to transport')]
+    public function testRunConnectsProtocolToTransport(): void
+    {
+        $this->transport->method('initialize');
+        $this->transport->method('listen')->willReturn(0);
+        $this->transport->method('close');
+
+        $this->protocol->expects($this->once())
+            ->method('connect')
+            ->with($this->identicalTo($this->transport));
+
+        $server = new Server($this->protocol);
+        $server->run($this->transport);
     }
 }

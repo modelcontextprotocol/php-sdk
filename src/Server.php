@@ -12,11 +12,10 @@
 namespace Mcp;
 
 use Mcp\Server\Builder;
-use Mcp\Server\Handler\JsonRpcHandler;
+use Mcp\Server\Protocol;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -25,7 +24,7 @@ use Symfony\Component\Uid\Uuid;
 final class Server
 {
     public function __construct(
-        private readonly JsonRpcHandler $jsonRpcHandler,
+        private readonly Protocol $protocol,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -44,25 +43,11 @@ final class Server
      */
     public function run(TransportInterface $transport): mixed
     {
+        $this->logger->info('Running server...');
+
         $transport->initialize();
 
-        $this->logger->info('Transport initialized.', [
-            'transport' => $transport::class,
-        ]);
-
-        $transport->onMessage(function (string $message, ?Uuid $sessionId) use ($transport) {
-            foreach ($this->jsonRpcHandler->process($message, $sessionId) as [$response, $context]) {
-                if (null === $response) {
-                    continue;
-                }
-
-                $transport->send($response, $context);
-            }
-        });
-
-        $transport->onSessionEnd(function (Uuid $sessionId) {
-            $this->jsonRpcHandler->destroySession($sessionId);
-        });
+        $this->protocol->connect($transport);
 
         try {
             return $transport->listen();

@@ -17,11 +17,10 @@ use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -30,7 +29,7 @@ use Psr\Log\NullLogger;
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class CallToolHandler implements MethodHandlerInterface
+final class CallToolHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
@@ -39,24 +38,24 @@ final class CallToolHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof CallToolRequest;
+        return $request instanceof CallToolRequest;
     }
 
-    public function handle(CallToolRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
+    public function handle(Request $request, SessionInterface $session): Response|Error
     {
-        \assert($message instanceof CallToolRequest);
+        \assert($request instanceof CallToolRequest);
 
-        $toolName = $message->name;
-        $arguments = $message->arguments ?? [];
+        $toolName = $request->name;
+        $arguments = $request->arguments ?? [];
 
         $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         try {
             $reference = $this->referenceProvider->getTool($toolName);
             if (null === $reference) {
-                throw new ToolNotFoundException($message);
+                throw new ToolNotFoundException($request);
             }
 
             $result = $this->referenceHandler->handle($reference, $arguments);
@@ -67,25 +66,25 @@ final class CallToolHandler implements MethodHandlerInterface
                 'result_type' => \gettype($result),
             ]);
 
-            return new Response($message->getId(), new CallToolResult($formatted));
+            return new Response($request->getId(), new CallToolResult($formatted));
         } catch (ToolNotFoundException $e) {
             $this->logger->error('Tool not found', ['name' => $toolName]);
 
-            return new Error($message->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
+            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
         } catch (ToolCallException|ExceptionInterface $e) {
             $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
             ]);
 
-            return Error::forInternalError('Error while executing tool', $message->getId());
+            return Error::forInternalError('Error while executing tool', $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,
                 'exception' => $e->getMessage(),
             ]);
 
-            return Error::forInternalError('Error while executing tool', $message->getId());
+            return Error::forInternalError('Error while executing tool', $request->getId());
         }
     }
 }

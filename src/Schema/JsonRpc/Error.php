@@ -57,17 +57,23 @@ class Error implements MessageInterface
         if (!isset($data['jsonrpc']) || MessageInterface::JSONRPC_VERSION !== $data['jsonrpc']) {
             throw new InvalidArgumentException('Invalid or missing "jsonrpc" in Error data.');
         }
-        if (!isset($data['id']) || !\is_string($data['id'])) {
+        if (!isset($data['id'])) {
             throw new InvalidArgumentException('Invalid or missing "id" in Error data.');
         }
-        if (!isset($data['code']) || !\is_int($data['code'])) {
+        if (!\is_string($data['id']) && !\is_int($data['id'])) {
+            throw new InvalidArgumentException('Invalid "id" type in Error data.');
+        }
+        if (!isset($data['error']) || !\is_array($data['error'])) {
+            throw new InvalidArgumentException('Invalid or missing "error" field in Error data.');
+        }
+        if (!isset($data['error']['code']) || !\is_int($data['error']['code'])) {
             throw new InvalidArgumentException('Invalid or missing "code" in Error data.');
         }
-        if (!isset($data['message']) || !\is_string($data['message'])) {
+        if (!isset($data['error']['message']) || !\is_string($data['error']['message'])) {
             throw new InvalidArgumentException('Invalid or missing "message" in Error data.');
         }
 
-        return new self($data['id'], $data['code'], $data['message'], $data['data'] ?? null);
+        return new self($data['id'], $data['error']['code'], $data['error']['message'], $data['error']['data'] ?? null);
     }
 
     public static function forParseError(string $message, string|int $id = ''): self

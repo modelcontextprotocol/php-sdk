@@ -12,7 +12,7 @@ various aspects of the server behavior.
 - [Session Management](#session-management)
 - [Manual Capability Registration](#manual-capability-registration)
 - [Service Dependencies](#service-dependencies)
-- [Custom Method Handlers](#custom-method-handlers)
+- [Custom Message Handlers](#custom-message-handlers)
 - [Complete Example](#complete-example)
 - [Method Reference](#method-reference)
 
@@ -344,50 +344,101 @@ $server = Server::builder()
     ->setEventDispatcher($eventDispatcher);
 ```
 
-## Custom Method Handlers
+## Custom Message Handlers
 
-**Low-level escape hatch.** Custom method handlers run before the SDK’s built-in handlers and give you total control over
-individual JSON-RPC methods. They do not receive the builder’s registry, container, or discovery output unless you pass
+**Low-level escape hatch.** Custom message handlers run before the SDK's built-in handlers and give you total control over
+individual JSON-RPC messages. They do not receive the builder's registry, container, or discovery output unless you pass
 those dependencies in yourself.
 
-Attach handlers with `addMethodHandler()` (single) or `addMethodHandlers()` (multiple). You can call these methods as
-many times as needed; each call prepends the handlers so they execute before the defaults:
+> **Warning**: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless 
+> you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
+> loads and executes them manually. Reach for this API only when you need that level of control and are comfortable 
+> taking on the additional plumbing.
+
+### Request Handlers
+
+Handle JSON-RPC requests (messages with an `id` that expect a response). Request handlers **must** return either a 
+`Response` or an `Error` object.
+
+Attach request handlers with `addRequestHandler()` (single) or `addRequestHandlers()` (multiple). You can call these 
+methods as many times as needed; each call prepends the handlers so they execute before the defaults:
 
 ```php
 $server = Server::builder()
-    ->addMethodHandler(new AuditHandler())
-    ->addMethodHandlers([
-        new CustomListToolsHandler(),
+    ->addRequestHandler(new CustomListToolsHandler())
+    ->addRequestHandlers([
         new CustomCallToolHandler(),
+        new CustomGetPromptHandler(),
     ])
     ->build();
 ```
 
-Custom handlers implement `MethodHandlerInterface`:
+Request handlers implement `RequestHandlerInterface`:
 
 ```php
-use Mcp\Schema\JsonRpc\HasMethodInterface;
-use Mcp\Server\Handler\MethodHandlerInterface;
+use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
-interface MethodHandlerInterface
+interface RequestHandlerInterface
 {
-    public function supports(HasMethodInterface $message): bool;
+    public function supports(Request $request): bool;
 
-    public function handle(HasMethodInterface $message, SessionInterface $session);
+    public function handle(Request $request, SessionInterface $session): Response|Error;
 }
 ```
 
-- `supports()` decides if the handler should look at the incoming message.
-- `handle()` must return a JSON-RPC `Response`, an `Error`, or `null`.
+- `supports()` decides if the handler should process the incoming request
+- `handle()` **must** return a `Response` (on success) or an `Error` (on failure)
+
+### Notification Handlers
+
+Handle JSON-RPC notifications (messages without an `id` that don't expect a response). Notification handlers **do not**
+return anything - they perform side effects only.
+
+Attach notification handlers with `addNotificationHandler()` (single) or `addNotificationHandlers()` (multiple):
+
+```php
+$server = Server::builder()
+    ->addNotificationHandler(new LoggingNotificationHandler())
+    ->addNotificationHandlers([
+        new InitializedNotificationHandler(),
+        new ProgressNotificationHandler(),
+    ])
+    ->build();
+```
+
+Notification handlers implement `NotificationHandlerInterface`:
+
+```php
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
+
+interface NotificationHandlerInterface
+{
+    public function supports(Notification $notification): bool;
+
+    public function handle(Notification $notification, SessionInterface $session): void;
+}
+```
+
+- `supports()` decides if the handler should process the incoming notification
+- `handle()` performs side effects but **does not** return a value (notifications have no response)
+
+### Key Differences
+
+| Handler Type | Interface | Returns | Use Case |
+|-------------|-----------|---------|----------|
+| Request Handler | `RequestHandlerInterface` | `Response\|Error` | Handle requests that need responses (e.g., `tools/list`, `tools/call`) |
+| Notification Handler | `NotificationHandlerInterface` | `void` | Handle fire-and-forget notifications (e.g., `notifications/initialized`, `notifications/progress`) |
+
+### Example
 
 Check out `examples/custom-method-handlers/server.php` for a complete example showing how to implement 
-custom `tool/list` and `tool/call` methods independently of the registry.
-
-> **Warning**: Custom method handlers bypass discovery, manual capability registration, and container lookups (unlesss 
-> you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
-> loads and executes them manually.
-> Reach for this API only when you need that level of control and are comfortable taking on the additional plumbing.
+custom `tools/list` and `tools/call` request handlers independently of the registry.
 
 ## Complete Example
 
@@ -453,8 +504,10 @@ $server = Server::builder()
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher |
-| `addMethodHandler()` | handler | Prepend a single custom method handler |
-| `addMethodHandlers()` | handlers | Prepend multiple custom method handlers |
+| `addRequestHandler()` | handler | Prepend a single custom request handler |
+| `addRequestHandlers()` | handlers | Prepend multiple custom request handlers |
+| `addNotificationHandler()` | handler | Prepend a single custom notification handler |
+| `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
 | `addTool()` | handler, name?, description?, annotations?, inputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
