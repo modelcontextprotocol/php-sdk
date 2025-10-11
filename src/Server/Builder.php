@@ -36,8 +36,8 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
-use Mcp\Server\Handler\JsonRpcHandler;
-use Mcp\Server\Handler\MethodHandlerInterface;
+use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -78,9 +78,14 @@ final class Builder
     private ?ServerCapabilities $explicitCapabilities = null;
 
     /**
-     * @var array<int, MethodHandlerInterface>
+     * @var array<int, RequestHandlerInterface>
      */
-    private array $customMethodHandlers = [];
+    private array $requestHandlers = [];
+
+    /**
+     * @var array<int, NotificationHandlerInterface>
+     */
+    private array $notificationHandlers = [];
 
     /**
      * @var array{
@@ -185,9 +190,9 @@ final class Builder
     /**
      * Register a single custom method handler.
      */
-    public function addMethodHandler(MethodHandlerInterface $handler): self
+    public function addRequestHandler(RequestHandlerInterface $handler): self
     {
-        $this->customMethodHandlers[] = $handler;
+        $this->requestHandlers[] = $handler;
 
         return $this;
     }
@@ -195,12 +200,36 @@ final class Builder
     /**
      * Register multiple custom method handlers.
      *
-     * @param iterable<int, MethodHandlerInterface> $handlers
+     * @param iterable<int, RequestHandlerInterface> $handlers
      */
-    public function addMethodHandlers(iterable $handlers): self
+    public function addRequestHandlers(iterable $handlers): self
     {
         foreach ($handlers as $handler) {
-            $this->customMethodHandlers[] = $handler;
+            $this->requestHandlers[] = $handler;
+        }
+
+        return $this;
+    }
+
+    /**
+     * Register a single custom notification handler.
+     */
+    public function addNotificationHandler(NotificationHandlerInterface $handler): self
+    {
+        $this->notificationHandlers[] = $handler;
+
+        return $this;
+    }
+
+    /**
+     * Register multiple custom notification handlers.
+     *
+     * @param iterable<int, NotificationHandlerInterface> $handlers
+     */
+    public function addNotificationHandlers(iterable $handlers): self
+    {
+        foreach ($handlers as $handler) {
+            $this->notificationHandlers[] = $handler;
         }
 
         return $this;
@@ -362,7 +391,7 @@ final class Builder
         $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
         $referenceHandler = new ReferenceHandler($container);
 
-        $methodHandlers = array_merge($this->customMethodHandlers, [
+        $requestHandlers = array_merge($this->requestHandlers, [
             new Handler\Request\PingHandler(),
             new Handler\Request\InitializeHandler($configuration),
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
@@ -372,19 +401,22 @@ final class Builder
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
             new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
+        ]);
 
+        $notificationHandlers = array_merge($this->notificationHandlers, [
             new Handler\Notification\InitializedHandler(),
         ]);
 
-        $jsonRpcHandler = new JsonRpcHandler(
-            methodHandlers: $methodHandlers,
+        $protocol = new Protocol(
+            requestHandlers: $requestHandlers,
+            notificationHandlers: $notificationHandlers,
             messageFactory: $messageFactory,
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,
             logger: $logger,
         );
 
-        return new Server($jsonRpcHandler, $logger);
+        return new Server($protocol, $logger);
     }
 
     private function performDiscovery(

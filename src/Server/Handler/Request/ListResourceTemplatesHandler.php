@@ -13,17 +13,16 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourceTemplatesRequest;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ListResourceTemplatesHandler implements MethodHandlerInterface
+final class ListResourceTemplatesHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
@@ -31,22 +30,22 @@ final class ListResourceTemplatesHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof ListResourceTemplatesRequest;
+        return $request instanceof ListResourceTemplatesRequest;
     }
 
     /**
      * @throws InvalidCursorException
      */
-    public function handle(ListResourceTemplatesRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        \assert($message instanceof ListResourceTemplatesRequest);
+        \assert($request instanceof ListResourceTemplatesRequest);
 
-        $page = $this->registry->getResourceTemplates($this->pageSize, $message->cursor);
+        $page = $this->registry->getResourceTemplates($this->pageSize, $request->cursor);
 
         return new Response(
-            $message->getId(),
+            $request->getId(),
             new ListResourceTemplatesResult($page->references, $page->nextCursor),
         );
     }

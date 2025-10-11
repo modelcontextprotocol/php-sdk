@@ -13,17 +13,16 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Result\ListPromptsResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ListPromptsHandler implements MethodHandlerInterface
+final class ListPromptsHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
@@ -31,22 +30,22 @@ final class ListPromptsHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof ListPromptsRequest;
+        return $request instanceof ListPromptsRequest;
     }
 
     /**
      * @throws InvalidCursorException
      */
-    public function handle(ListPromptsRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        \assert($message instanceof ListPromptsRequest);
+        \assert($request instanceof ListPromptsRequest);
 
-        $page = $this->registry->getPrompts($this->pageSize, $message->cursor);
+        $page = $this->registry->getPrompts($this->pageSize, $request->cursor);
 
         return new Response(
-            $message->getId(),
+            $request->getId(),
             new ListPromptsResult($page->references, $page->nextCursor),
         );
     }

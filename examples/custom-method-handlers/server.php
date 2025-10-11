@@ -15,7 +15,7 @@ chdir(__DIR__);
 
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ListToolsRequest;
@@ -24,7 +24,7 @@ use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Server;
-use Mcp\Server\Handler\MethodHandlerInterface;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Transport\StdioTransport;
 
@@ -58,7 +58,7 @@ $toolDefinitions = [
     ),
 ];
 
-$listToolsHandler = new class($toolDefinitions) implements MethodHandlerInterface {
+$listToolsHandler = new class($toolDefinitions) implements RequestHandlerInterface {
     /**
      * @param array<string, Tool> $toolDefinitions
      */
@@ -66,20 +66,20 @@ $listToolsHandler = new class($toolDefinitions) implements MethodHandlerInterfac
     {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof ListToolsRequest;
+        return $request instanceof ListToolsRequest;
     }
 
-    public function handle(ListToolsRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        assert($message instanceof ListToolsRequest);
+        assert($request instanceof ListToolsRequest);
 
-        return new Response($message->getId(), new ListToolsResult(array_values($this->toolDefinitions), null));
+        return new Response($request->getId(), new ListToolsResult(array_values($this->toolDefinitions), null));
     }
 };
 
-$callToolHandler = new class($toolDefinitions) implements MethodHandlerInterface {
+$callToolHandler = new class($toolDefinitions) implements RequestHandlerInterface {
     /**
      * @param array<string, Tool> $toolDefinitions
      */
@@ -87,20 +87,20 @@ $callToolHandler = new class($toolDefinitions) implements MethodHandlerInterface
     {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof CallToolRequest;
+        return $request instanceof CallToolRequest;
     }
 
-    public function handle(CallToolRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
+    public function handle(Request $request, SessionInterface $session): Response|Error
     {
-        assert($message instanceof CallToolRequest);
+        assert($request instanceof CallToolRequest);
 
-        $name = $message->name;
-        $args = $message->arguments ?? [];
+        $name = $request->name;
+        $args = $request->arguments ?? [];
 
         if (!isset($this->toolDefinitions[$name])) {
-            return new Error($message->getId(), Error::METHOD_NOT_FOUND, sprintf('Tool not found: %s', $name));
+            return new Error($request->getId(), Error::METHOD_NOT_FOUND, sprintf('Tool not found: %s', $name));
         }
 
         try {
@@ -118,9 +118,9 @@ $callToolHandler = new class($toolDefinitions) implements MethodHandlerInterface
                     $result = [new TextContent('Unknown tool')];
             }
 
-            return new Response($message->getId(), new CallToolResult($result));
+            return new Response($request->getId(), new CallToolResult($result));
         } catch (Throwable $e) {
-            return new Response($message->getId(), new CallToolResult([new TextContent('Tool execution failed')], true));
+            return new Response($request->getId(), new CallToolResult([new TextContent('Tool execution failed')], true));
         }
     }
 };
@@ -132,7 +132,7 @@ $server = Server::builder()
     ->setLogger(logger())
     ->setContainer(container())
     ->setCapabilities($capabilities)
-    ->addMethodHandlers([$listToolsHandler, $callToolHandler])
+    ->addRequestHandlers([$listToolsHandler, $callToolHandler])
     ->build();
 
 $transport = new StdioTransport(logger: logger());
