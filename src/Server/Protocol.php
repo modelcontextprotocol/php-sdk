@@ -116,11 +116,11 @@ class Protocol
         $session->save();
     }
 
-    private function handleInvalidMessage(InvalidInputMessageException $message, SessionInterface $session): void
+    private function handleInvalidMessage(InvalidInputMessageException $exception, SessionInterface $session): void
     {
-        $this->logger->warning('Failed to create message.', ['exception' => $message]);
+        $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
-        $error = Error::forInvalidRequest($message->getMessage());
+        $error = Error::forInvalidRequest($exception->getMessage());
         $this->sendResponse($error, ['session_id' => $session->getId()]);
     }
 
