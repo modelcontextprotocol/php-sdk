@@ -80,6 +80,42 @@ class RegistryTest extends TestCase
         $this->assertFalse($capabilities->logging);
     }
 
+    public function testSetCustomCapabilities(): void
+    {
+        $serverCapabilities = new ServerCapabilities(
+            tools: false,
+            toolsListChanged: true,
+            resources: false,
+            resourcesSubscribe: false,
+            resourcesListChanged: false,
+            prompts: false,
+            promptsListChanged: false,
+            logging: true,
+            completions: true,
+        );
+        $tool = $this->createValidTool('test_tool');
+        $resource = $this->createValidResource('test://resource');
+        $prompt = $this->createValidPrompt('test_prompt');
+        $template = $this->createValidResourceTemplate('test://{id}');
+
+        $this->registry->registerTool($tool, fn () => 'result');
+        $this->registry->registerResource($resource, fn () => 'content');
+        $this->registry->registerPrompt($prompt, fn () => []);
+        $this->registry->registerResourceTemplate($template, fn () => 'template');
+
+        $this->registry->setServerCapabilities($serverCapabilities);
+
+        $capabilities = $this->registry->getCapabilities();
+
+        $this->assertFalse($capabilities->tools);
+        $this->assertFalse($capabilities->resources);
+        $this->assertFalse($capabilities->prompts);
+        $this->assertTrue($capabilities->completions);
+        $this->assertFalse($capabilities->resourcesSubscribe);
+        $this->assertTrue($capabilities->logging);
+        $this->assertTrue($capabilities->toolsListChanged);
+    }
+
     public function testRegisterToolWithManualFlag(): void
     {
         $tool = $this->createValidTool('test_tool');

@@ -14,6 +14,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Example\StdioExplicitRegistration\SimpleHandlers;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
@@ -27,6 +28,17 @@ $server = Server::builder()
     ->addResource([SimpleHandlers::class, 'getAppVersion'], 'app://version', 'application_version', mimeType: 'text/plain')
     ->addPrompt([SimpleHandlers::class, 'greetingPrompt'], 'personalized_greeting')
     ->addResourceTemplate([SimpleHandlers::class, 'getItemDetails'], 'item://{itemId}/details', 'get_item_details', mimeType: 'application/json')
+    ->setServerCapabilities(new ServerCapabilities(
+        tools: true,
+        toolsListChanged: false,
+        resources: true,
+        resourcesSubscribe: false,
+        resourcesListChanged: false,
+        prompts: true,
+        promptsListChanged: false,
+        logging: false,
+        completions: false,
+    ))
     ->build();
 
 $transport = new StdioTransport(logger: logger());
