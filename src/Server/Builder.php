@@ -138,6 +138,8 @@ final class Builder
      */
     private array $discoveryExcludeDirs = [];
 
+    private ?ServerCapabilities $serverCapabilities = null;
+
     /**
      * Sets the server's identity. Required.
      */
@@ -264,6 +266,13 @@ final class Builder
         return $this;
     }
 
+    public function setServerCapabilities(ServerCapabilities $serverCapabilities): self
+    {
+        $this->serverCapabilities = $serverCapabilities;
+
+        return $this;
+    }
+
     /**
      * Manually registers a tool handler.
      *
@@ -348,6 +357,9 @@ final class Builder
         $registry = new Registry($this->eventDispatcher, $logger);
 
         $this->registerCapabilities($registry, $logger);
+        if ($this->serverCapabilities) {
+            $registry->setServerCapabilities($this->serverCapabilities);
+        }
 
         if (null !== $this->discoveryBasePath) {
             $this->performDiscovery($registry, $logger);
