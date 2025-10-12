@@ -28,7 +28,7 @@ $server = Server::builder()
     ->addResource([SimpleHandlers::class, 'getAppVersion'], 'app://version', 'application_version', mimeType: 'text/plain')
     ->addPrompt([SimpleHandlers::class, 'greetingPrompt'], 'personalized_greeting')
     ->addResourceTemplate([SimpleHandlers::class, 'getItemDetails'], 'item://{itemId}/details', 'get_item_details', mimeType: 'application/json')
-    ->setServerCapabilities(new ServerCapabilities(
+    ->setCapabilities(new ServerCapabilities(
         tools: true,
         toolsListChanged: false,
         resources: true,
