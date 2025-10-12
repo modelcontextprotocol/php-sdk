@@ -16,11 +16,11 @@ chdir(__DIR__);
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 
-logger()->info('Starting MCP Stdio Calculator Server...');
+logger()->info('Starting MCP Stdio Logging Showcase Server...');
 
+// Create server with auto-discovery of MCP capabilities and ENABLE MCP LOGGING
 $server = Server::builder()
-    ->setServerInfo('Stdio Calculator', '1.1.0', 'Basic Calculator over STDIO transport.')
-    ->setInstructions('This server supports basic arithmetic operations: add, subtract, multiply, and divide. Send JSON-RPC requests to perform calculations.')
+    ->setServerInfo('Stdio Logging Showcase', '1.0.0', 'Demonstration of auto-injected MCP logging in capability handlers.')
     ->setContainer(container())
     ->setLogger(logger())
     ->enableMcpLogging()  // Enable MCP logging capability and auto-injection!
@@ -29,8 +29,10 @@ $server = Server::builder()
 
 $transport = new StdioTransport(logger: logger());
 
-$result = $server->run($transport);
+$server->run($transport);
 
-logger()->info('Server listener stopped gracefully.', ['result' => $result]);
-
-exit($result);
+logger()->info('Logging Showcase Server is ready!');
+logger()->info('This example demonstrates auto-injection of McpLogger into capability handlers.');
+logger()->info('Available tools: log_message, process_data');
+logger()->info('Available resources: config://logging/settings');
+logger()->info('Available prompts: logging_examples');

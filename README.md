@@ -239,7 +239,33 @@ $server = Server::builder()
 **Learning:**
 - [Examples](docs/examples.md) - Comprehensive example walkthroughs
 
+### MCP Logging
+
+The SDK provides comprehensive logging capabilities following the [MCP logging specification](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging):
+
+- **Auto-injection**: `McpLogger` automatically injected into capability handlers
+- **Client-controlled filtering**: Clients can set log levels to control verbosity  
+- **Centralized logging**: All server logs flow to client for unified debugging
+- **Fallback support**: Compatible with existing PSR-3 loggers
+
+**Quick example:**
+```php
+#[McpTool(name: 'my_tool')]
+public function myTool(string $input, McpLogger $logger): array {
+    $logger->info('Tool called', ['input' => $input]);
+    return ['result' => 'processed'];
+}
+
+// Enable in server
+$server = Server::builder()
+    ->enableMcpLogging()  // Enable centralized logging
+    ->build();
+```
+
+📖 **[Complete MCP Logging Guide](docs/mcp-logging.md)**
+
 **External Resources:**
+- [SDK documentation](doc/index.rst)
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
 - [Officially supported servers](https://github.com/modelcontextprotocol/servers)

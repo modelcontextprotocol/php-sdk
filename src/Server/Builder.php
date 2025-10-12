@@ -20,6 +20,7 @@ use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Logger\McpLogger;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -38,6 +39,8 @@ use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\Handler\JsonRpcHandler;
 use Mcp\Server\Handler\MethodHandlerInterface;
+use Mcp\Server\Handler\NotificationHandler;
+use Mcp\Server\Handler\Request\SetLogLevelHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -79,6 +82,8 @@ final class Builder
      * @var array<int, MethodHandlerInterface>
      */
     private array $customMethodHandlers = [];
+
+    private bool $loggingMessageNotificationEnabled = false;
 
     /**
      * @var array{
@@ -202,6 +207,20 @@ final class Builder
         foreach ($handlers as $handler) {
             $this->customMethodHandlers[] = $handler;
         }
+
+        return $this;
+    }
+
+    /**
+     * Enables MCP logging capability for the server.
+     *
+     * When enabled, the server will advertise logging capability to clients,
+     * indicating that it can emit structured log messages according to the MCP specification.
+     * This enables auto-injection of McpLogger into capability handlers.
+     */
+    public function enableMcpLogging(): self
+    {
+        $this->loggingMessageNotificationEnabled = true;
 
         return $this;
     }
@@ -347,6 +366,11 @@ final class Builder
         $container = $this->container ?? new Container();
         $registry = new Registry($this->eventDispatcher, $logger);
 
+        // Enable MCP logging capability if requested
+        if ($this->loggingMessageNotificationEnabled) {
+            $registry->enableLoggingMessageNotification();
+        }
+
         $this->registerCapabilities($registry, $logger);
         if ($this->serverCapabilities) {
             $registry->setServerCapabilities($this->serverCapabilities);
@@ -363,7 +387,14 @@ final class Builder
 
         $capabilities = $registry->getCapabilities();
         $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
-        $referenceHandler = new ReferenceHandler($container);
+
+        // Create notification infrastructure first
+        $notificationHandler = NotificationHandler::make($registry, $logger);
+        $notificationSender = new NotificationSender($notificationHandler, null, $logger);
+
+        // Create McpLogger for components that should send logs via MCP
+        $mcpLogger = new McpLogger($notificationSender, $logger);
+        $referenceHandler = new ReferenceHandler($container, $mcpLogger);
 
         $methodHandlers = array_merge($this->customMethodHandlers, [
             new Handler\Request\PingHandler(),
@@ -375,6 +406,7 @@ final class Builder
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
             new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
+            new SetLogLevelHandler($registry, $logger),
 
             new Handler\Notification\InitializedHandler(),
         ]);
@@ -384,10 +416,9 @@ final class Builder
             messageFactory: $messageFactory,
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,
-            logger: $logger,
         );
 
-        return new Server($jsonRpcHandler, $logger);
+        return new Server($jsonRpcHandler, notificationSender: $notificationSender, logger: $logger);
     }
 
     private function performDiscovery(
