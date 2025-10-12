@@ -75,8 +75,6 @@ final class Builder
 
     private ?string $instructions = null;
 
-    private ?ServerCapabilities $explicitCapabilities = null;
-
     /**
      * @var array<int, MethodHandlerInterface>
      */
@@ -177,9 +175,9 @@ final class Builder
     /**
      * Explicitly set server capabilities. If set, this overrides automatic detection.
      */
-    public function setCapabilities(ServerCapabilities $capabilities): self
+    public function setCapabilities(ServerCapabilities $serverCapabilities): self
     {
-        $this->explicitCapabilities = $capabilities;
+        $this->serverCapabilities = $serverCapabilities;
 
         return $this;
     }
@@ -262,13 +260,6 @@ final class Builder
         $this->discoveryScanDirs = $scanDirs;
         $this->discoveryExcludeDirs = $excludeDirs;
         $this->discoveryCache = $cache;
-
-        return $this;
-    }
-
-    public function setServerCapabilities(ServerCapabilities $serverCapabilities): self
-    {
-        $this->serverCapabilities = $serverCapabilities;
 
         return $this;
     }
@@ -370,7 +361,7 @@ final class Builder
         $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
         $messageFactory = MessageFactory::make();
 
-        $capabilities = $this->explicitCapabilities ?? $registry->getCapabilities();
+        $capabilities = $registry->getCapabilities();
         $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
         $referenceHandler = new ReferenceHandler($container);
 
@@ -597,7 +588,8 @@ final class Builder
         }
 
         if (\is_array($handler)) {
-            return \sprintf('%s::%s',
+            return \sprintf(
+                '%s::%s',
                 \is_object($handler[0]) ? $handler[0]::class : $handler[0],
                 $handler[1],
             );
