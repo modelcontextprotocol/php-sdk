@@ -13,62 +13,75 @@ namespace Mcp\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
-use Mcp\Schema\Notification;
-use Mcp\Schema\Request;
+use Mcp\Schema;
+use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\MessageInterface;
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 
 /**
+ * Factory for creating JSON-RPC message objects from raw input.
+ *
+ * Handles all types of JSON-RPC messages:
+ * - Requests (have method + id)
+ * - Notifications (have method, no id)
+ * - Responses (have result + id)
+ * - Errors (have error + id)
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class MessageFactory
 {
     /**
-     * Registry of all known messages.
+     * Registry of all known message classes that have methods.
      *
-     * @var array<int, class-string<HasMethodInterface>>
+     * @var array<int, class-string<Request|Notification>>
      */
     private const REGISTERED_MESSAGES = [
-        Notification\CancelledNotification::class,
-        Notification\InitializedNotification::class,
-        Notification\LoggingMessageNotification::class,
-        Notification\ProgressNotification::class,
-        Notification\PromptListChangedNotification::class,
-        Notification\ResourceListChangedNotification::class,
-        Notification\ResourceUpdatedNotification::class,
-        Notification\RootsListChangedNotification::class,
-        Notification\ToolListChangedNotification::class,
-        Request\CallToolRequest::class,
-        Request\CompletionCompleteRequest::class,
-        Request\CreateSamplingMessageRequest::class,
-        Request\GetPromptRequest::class,
-        Request\InitializeRequest::class,
-        Request\ListPromptsRequest::class,
-        Request\ListResourcesRequest::class,
-        Request\ListResourceTemplatesRequest::class,
-        Request\ListRootsRequest::class,
-        Request\ListToolsRequest::class,
-        Request\PingRequest::class,
-        Request\ReadResourceRequest::class,
-        Request\ResourceSubscribeRequest::class,
-        Request\ResourceUnsubscribeRequest::class,
-        Request\SetLogLevelRequest::class,
+        Schema\Notification\CancelledNotification::class,
+        Schema\Notification\InitializedNotification::class,
+        Schema\Notification\LoggingMessageNotification::class,
+        Schema\Notification\ProgressNotification::class,
+        Schema\Notification\PromptListChangedNotification::class,
+        Schema\Notification\ResourceListChangedNotification::class,
+        Schema\Notification\ResourceUpdatedNotification::class,
+        Schema\Notification\RootsListChangedNotification::class,
+        Schema\Notification\ToolListChangedNotification::class,
+
+        Schema\Request\CallToolRequest::class,
+        Schema\Request\CompletionCompleteRequest::class,
+        Schema\Request\CreateSamplingMessageRequest::class,
+        Schema\Request\GetPromptRequest::class,
+        Schema\Request\InitializeRequest::class,
+        Schema\Request\ListPromptsRequest::class,
+        Schema\Request\ListResourcesRequest::class,
+        Schema\Request\ListResourceTemplatesRequest::class,
+        Schema\Request\ListRootsRequest::class,
+        Schema\Request\ListToolsRequest::class,
+        Schema\Request\PingRequest::class,
+        Schema\Request\ReadResourceRequest::class,
+        Schema\Request\ResourceSubscribeRequest::class,
+        Schema\Request\ResourceUnsubscribeRequest::class,
+        Schema\Request\SetLogLevelRequest::class,
     ];
 
     /**
-     * @param array<int, class-string<HasMethodInterface>> $registeredMessages
+     * @param array<int, class-string<Request|Notification>> $registeredMessages
      */
     public function __construct(
         private readonly array $registeredMessages,
     ) {
-        foreach ($this->registeredMessages as $message) {
-            if (!is_subclass_of($message, HasMethodInterface::class)) {
-                throw new InvalidArgumentException(\sprintf('Message classes must implement %s.', HasMethodInterface::class));
+        foreach ($this->registeredMessages as $messageClass) {
+            if (!is_subclass_of($messageClass, Request::class) && !is_subclass_of($messageClass, Notification::class)) {
+                throw new InvalidArgumentException(\sprintf('Message classes must extend %s or %s.', Request::class, Notification::class));
             }
         }
     }
 
     /**
-     * Creates a new Factory instance with the all the protocol's default notifications and requests.
+     * Creates a new Factory instance with all the protocol's default messages.
      */
     public static function make(): self
     {
@@ -76,11 +89,16 @@ final class MessageFactory
     }
 
     /**
-     * @return iterable<HasMethodInterface|InvalidInputMessageException>
+     * Creates message objects from JSON input.
+     *
+     * Supports both single messages and batch requests. Returns an array containing
+     * MessageInterface objects or InvalidInputMessageException instances for invalid messages.
+     *
+     * @return array<MessageInterface|InvalidInputMessageException>
      *
      * @throws \JsonException When the input string is not valid JSON
      */
-    public function create(string $input): iterable
+    public function create(string $input): array
     {
         $data = json_decode($input, true, flags: \JSON_THROW_ON_ERROR);
 
@@ -88,32 +106,63 @@ final class MessageFactory
             $data = [$data];
         }
 
+        $messages = [];
         foreach ($data as $message) {
-            if (!isset($message['method']) || !\is_string($message['method'])) {
-                yield new InvalidInputMessageException('Invalid JSON-RPC request, missing valid "method".');
-                continue;
+            try {
+                $messages[] = $this->createMessage($message);
+            } catch (InvalidInputMessageException $e) {
+                $messages[] = $e;
+            }
+        }
+
+        return $messages;
+    }
+
+    /**
+     * Creates a single message object from parsed JSON data.
+     *
+     * @param array<string, mixed> $data
+     *
+     * @throws InvalidInputMessageException
+     */
+    private function createMessage(array $data): MessageInterface
+    {
+        try {
+            if (isset($data['error'])) {
+                return Error::fromArray($data);
             }
 
-            try {
-                yield $this->getType($message['method'])::fromArray($message);
-            } catch (InvalidInputMessageException $e) {
-                yield $e;
-                continue;
+            if (isset($data['result'])) {
+                return Response::fromArray($data);
             }
+
+            if (!isset($data['method'])) {
+                throw new InvalidInputMessageException('Invalid JSON-RPC message: missing "method", "result", or "error" field.');
+            }
+
+            $messageClass = $this->findMessageClassByMethod($data['method']);
+
+            return $messageClass::fromArray($data);
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidInputMessageException($e->getMessage(), 0, $e);
         }
     }
 
     /**
-     * @return class-string<HasMethodInterface>
+     * Finds the registered message class for a given method name.
+     *
+     * @return class-string<Request|Notification>
+     *
+     * @throws InvalidInputMessageException
      */
-    private function getType(string $method): string
+    private function findMessageClassByMethod(string $method): string
     {
-        foreach (self::REGISTERED_MESSAGES as $type) {
-            if ($type::getMethod() === $method) {
-                return $type;
+        foreach ($this->registeredMessages as $messageClass) {
+            if ($messageClass::getMethod() === $method) {
+                return $messageClass;
             }
         }
 
-        throw new InvalidInputMessageException(\sprintf('Invalid JSON-RPC request, unknown method "%s".', $method));
+        throw new InvalidInputMessageException(\sprintf('Unknown method "%s".', $method));
     }
 }

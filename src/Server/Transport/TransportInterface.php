@@ -27,9 +27,11 @@ interface TransportInterface
     public function initialize(): void;
 
     /**
-     * Registers a callback that will be invoked whenever the transport receives an incoming message.
+     * Register callback for ALL incoming messages.
      *
-     * @param callable(string $message, ?Uuid $sessionId): void $listener The callback function to execute when the message occurs
+     * The transport calls this whenever ANY message arrives, regardless of source.
+     *
+     * @param callable(string $message, ?Uuid $sessionId): void $listener
      */
     public function onMessage(callable $listener): void;
 
@@ -45,15 +47,21 @@ interface TransportInterface
     public function listen(): mixed;
 
     /**
-     * Sends a raw JSON-RPC message string back to the client.
+     * Send a message to the client.
      *
-     * @param string               $data    The JSON-RPC message string to send
-     * @param array<string, mixed> $context The context of the message
+     * The transport decides HOW to send based on context
+     *
+     * @param array<string, mixed> $context Context about this message:
+     *                                      - 'session_id': Uuid|null
+     *                                      - 'type': 'response'|'request'|'notification'
+     *                                      - 'in_reply_to': int|string|null (ID of request this responds to)
+     *                                      - 'expects_response': bool (if this is a request needing response)
      */
     public function send(string $data, array $context): void;
 
     /**
-     * Registers a callback that will be invoked when a session needs to be destroyed.
+     * Register callback for session termination.
+     *
      * This can happen when a client disconnects or explicitly ends their session.
      *
      * @param callable(Uuid $sessionId): void $listener The callback function to execute when destroying a session
@@ -65,7 +73,6 @@ interface TransportInterface
      *
      * This method should be called when the transport is no longer needed.
      * It should clean up any resources and close any connections.
-     * `Server::run()` calls this automatically after `listen()` exits.
      */
     public function close(): void;
 }

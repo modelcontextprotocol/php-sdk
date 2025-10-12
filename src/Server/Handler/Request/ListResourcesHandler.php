@@ -13,17 +13,16 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Exception\InvalidCursorException;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListResourcesRequest;
 use Mcp\Schema\Result\ListResourcesResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ListResourcesHandler implements MethodHandlerInterface
+final class ListResourcesHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $registry,
@@ -31,22 +30,22 @@ final class ListResourcesHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof ListResourcesRequest;
+        return $request instanceof ListResourcesRequest;
     }
 
     /**
      * @throws InvalidCursorException
      */
-    public function handle(ListResourcesRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        \assert($message instanceof ListResourcesRequest);
+        \assert($request instanceof ListResourcesRequest);
 
-        $page = $this->registry->getResources($this->pageSize, $message->cursor);
+        $page = $this->registry->getResources($this->pageSize, $request->cursor);
 
         return new Response(
-            $message->getId(),
+            $request->getId(),
             new ListResourcesResult($page->references, $page->nextCursor),
         );
     }
