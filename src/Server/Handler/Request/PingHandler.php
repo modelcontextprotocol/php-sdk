@@ -11,27 +11,26 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\EmptyResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class PingHandler implements MethodHandlerInterface
+final class PingHandler implements RequestHandlerInterface
 {
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof PingRequest;
+        return $request instanceof PingRequest;
     }
 
-    public function handle(PingRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        \assert($message instanceof PingRequest);
+        \assert($request instanceof PingRequest);
 
-        return new Response($message->getId(), new EmptyResult());
+        return new Response($request->getId(), new EmptyResult());
     }
 }

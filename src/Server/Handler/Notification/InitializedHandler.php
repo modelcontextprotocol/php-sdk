@@ -11,27 +11,24 @@
 
 namespace Mcp\Server\Handler\Notification;
 
-use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
-use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\InitializedNotification;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class InitializedHandler implements MethodHandlerInterface
+final class InitializedHandler implements NotificationHandlerInterface
 {
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Notification $notification): bool
     {
-        return $message instanceof InitializedNotification;
+        return $notification instanceof InitializedNotification;
     }
 
-    public function handle(InitializedNotification|HasMethodInterface $message, SessionInterface $session): Response|Error|null
+    public function handle(Notification $message, SessionInterface $session): void
     {
-        $session->set('initialized', true);
+        \assert($message instanceof InitializedNotification);
 
-        return null;
+        $session->set('initialized', true);
     }
 }

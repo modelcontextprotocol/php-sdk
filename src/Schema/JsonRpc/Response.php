@@ -56,6 +56,9 @@ class Response implements MessageInterface
         if (!isset($data['result'])) {
             throw new InvalidArgumentException('Response must contain "result" field.');
         }
+        if (!\is_array($data['result'])) {
+            throw new InvalidArgumentException('Response "result" must be an array.');
+        }
 
         return new self($data['id'], $data['result']);
     }

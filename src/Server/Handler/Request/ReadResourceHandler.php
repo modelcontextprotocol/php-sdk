@@ -16,11 +16,10 @@ use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -28,7 +27,7 @@ use Psr\Log\NullLogger;
 /**
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-final class ReadResourceHandler implements MethodHandlerInterface
+final class ReadResourceHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceProviderInterface $referenceProvider,
@@ -37,23 +36,23 @@ final class ReadResourceHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $request): bool
     {
-        return $message instanceof ReadResourceRequest;
+        return $request instanceof ReadResourceRequest;
     }
 
-    public function handle(ReadResourceRequest|HasMethodInterface $message, SessionInterface $session): Response|Error
+    public function handle(Request $request, SessionInterface $session): Response|Error
     {
-        \assert($message instanceof ReadResourceRequest);
+        \assert($request instanceof ReadResourceRequest);
 
-        $uri = $message->uri;
+        $uri = $request->uri;
 
         $this->logger->debug('Reading resource', ['uri' => $uri]);
 
         try {
             $reference = $this->referenceProvider->getResource($uri);
             if (null === $reference) {
-                throw new ResourceNotFoundException($message);
+                throw new ResourceNotFoundException($request);
             }
 
             $result = $this->referenceHandler->handle($reference, ['uri' => $uri]);
@@ -64,15 +63,15 @@ final class ReadResourceHandler implements MethodHandlerInterface
                 $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
             }
 
-            return new Response($message->getId(), new ReadResourceResult($formatted));
+            return new Response($request->getId(), new ReadResourceResult($formatted));
         } catch (ResourceNotFoundException $e) {
             $this->logger->error('Resource not found', ['uri' => $uri]);
 
-            return new Error($message->getId(), Error::RESOURCE_NOT_FOUND, $e->getMessage());
+            return new Error($request->getId(), Error::RESOURCE_NOT_FOUND, $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()));
 
-            return Error::forInternalError('Error while reading resource', $message->getId());
+            return Error::forInternalError('Error while reading resource', $request->getId());
         }
     }
 }
