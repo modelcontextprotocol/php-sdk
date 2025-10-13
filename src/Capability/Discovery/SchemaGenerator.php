@@ -409,6 +409,10 @@ class SchemaGenerator
         $parametersInfo = [];
 
         foreach ($reflection->getParameters() as $rp) {
+            if ($this->isAutoInjectedParameter($rp)) {
+                continue;
+            }
+
             $paramName = $rp->getName();
             $paramTag = $paramTags['$'.$paramName] ?? null;
 
@@ -783,5 +787,26 @@ class SchemaGenerator
             'object', 'stdclass' => 'object',
             default => \in_array(strtolower($type), ['datetime', 'datetimeinterface']) ? 'string' : 'object',
         };
+    }
+
+    /**
+     * Determines if a parameter was auto-injected and should be excluded from schema generation.
+     *
+     * Parameters that are auto-injected by the framework (like McpLogger) should not appear
+     * in the tool schema since they're not provided by the client.
+     */
+    private function isAutoInjectedParameter(\ReflectionParameter $parameter): bool
+    {
+        $type = $parameter->getType();
+
+        if (!$type instanceof \ReflectionNamedType) {
+            return false;
+        }
+
+        $typeName = $type->getName();
+
+        // Auto-inject for McpLogger or LoggerInterface types
+        return 'Mcp\\Capability\\Logger\\McpLogger' === $typeName 
+            || 'Psr\\Log\\LoggerInterface' === $typeName;
     }
 }

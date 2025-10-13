@@ -412,4 +412,15 @@ class SchemaGeneratorFixture
         $inferredParam,
     ): void {
     }
+
+    /**
+     * Method with McpLogger that should be excluded from schema.
+     *
+     * @param string $message The message to process
+     * @param \Mcp\Capability\Logger\McpLogger $logger Auto-injected logger
+     */
+    public function withMcpLogger(string $message, \Mcp\Capability\Logger\McpLogger $logger): string
+    {
+        return $message;
+    }
 }
