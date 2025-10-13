@@ -14,10 +14,6 @@
             "type": "number",
             "description": "the second operand"
           },
-          "logger": {
-            "type": "object",
-            "description": "Auto-injected MCP logger"
-          },
           "operation": {
             "type": "string",
             "description": "the operation ('add', 'subtract', 'multiply', 'divide')"
@@ -26,8 +22,7 @@
         "required": [
           "a",
           "b",
-          "operation",
-          "logger"
+          "operation"
         ]
       }
     },
@@ -37,10 +32,6 @@
       "inputSchema": {
         "type": "object",
         "properties": {
-          "logger": {
-            "type": "object",
-            "description": "Auto-injected MCP logger"
-          },
           "setting": {
             "type": "string",
             "description": "the setting key ('precision' or 'allow_negative')"
@@ -51,8 +42,7 @@
         },
         "required": [
           "setting",
-          "value",
-          "logger"
+          "value"
         ]
       }
     }
