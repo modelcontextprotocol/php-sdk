@@ -31,9 +31,9 @@ use PHPUnit\Framework\TestCase;
 class GetPromptHandlerTest extends TestCase
 {
     private GetPromptHandler $handler;
-    private ReferenceProviderInterface|MockObject $referenceProvider;
-    private ReferenceHandlerInterface|MockObject $referenceHandler;
-    private SessionInterface|MockObject $session;
+    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private ReferenceHandlerInterface&MockObject $referenceHandler;
+    private SessionInterface&MockObject $session;
 
     protected function setUp(): void
     {
@@ -70,7 +70,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, [])
+            ->with($promptReference, ['_session' => $this->session])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -112,7 +112,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, $arguments)
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -145,7 +145,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, [])
+            ->with($promptReference, ['_session' => $this->session])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -178,7 +178,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, [])
+            ->with($promptReference, ['_session' => $this->session])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -213,7 +213,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, [])
+            ->with($promptReference, ['_session' => $this->session])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -263,7 +263,7 @@ class GetPromptHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while handling prompt', $response->message);
+        $this->assertEquals('Error while handling prompt: Handling prompt "failing_prompt" failed with error: "Failed to get prompt".', $response->message);
     }
 
     public function testHandlePromptGetWithComplexArguments(): void
@@ -299,7 +299,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, $arguments)
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -337,7 +337,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, $arguments)
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -367,7 +367,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, [])
+            ->with($promptReference, ['_session' => $this->session])
             ->willReturn([]);
 
         $promptReference
@@ -405,7 +405,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, $arguments)
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn($expectedMessages);
 
         $promptReference

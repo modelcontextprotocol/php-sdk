@@ -11,6 +11,7 @@
 
 namespace Mcp\Schema\Result;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
@@ -38,6 +39,51 @@ class CreateSamplingMessageResult implements ResultInterface
         public readonly string $model,
         public readonly ?string $stopReason = null,
     ) {
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        if (!isset($data['role']) || !\is_string($data['role'])) {
+            throw new InvalidArgumentException('Missing or invalid "role" in CreateSamplingMessageResult data.');
+        }
+
+        if (!isset($data['content']) || !\is_array($data['content'])) {
+            throw new InvalidArgumentException('Missing or invalid "content" in CreateSamplingMessageResult data.');
+        }
+
+        if (!isset($data['model']) || !\is_string($data['model'])) {
+            throw new InvalidArgumentException('Missing or invalid "model" in CreateSamplingMessageResult data.');
+        }
+
+        $role = Role::from($data['role']);
+        $contentPayload = $data['content'];
+
+        $content = self::hydrateContent($contentPayload);
+        $stopReason = isset($data['stopReason']) && \is_string($data['stopReason']) ? $data['stopReason'] : null;
+
+        return new self($role, $content, $data['model'], $stopReason);
+    }
+
+    /**
+     * @param array<string, mixed> $contentData
+     */
+    private static function hydrateContent(array $contentData): TextContent|ImageContent|AudioContent
+    {
+        $type = $contentData['type'] ?? null;
+
+        if (!\is_string($type)) {
+            throw new InvalidArgumentException('Missing or invalid "type" in sampling content payload.');
+        }
+
+        return match ($type) {
+            'text' => TextContent::fromArray($contentData),
+            'image' => ImageContent::fromArray($contentData),
+            'audio' => AudioContent::fromArray($contentData),
+            default => throw new InvalidArgumentException(\sprintf('Unsupported sampling content type "%s".', $type)),
+        };
     }
 
     /**

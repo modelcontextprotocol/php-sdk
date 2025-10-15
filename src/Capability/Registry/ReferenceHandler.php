@@ -13,6 +13,7 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Server\ClientGateway;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -88,6 +89,17 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
+
+            // Check if parameter is a special injectable type
+            $type = $parameter->getType();
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+                $typeName = $type->getName();
+
+                if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
+                    $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                    continue;
+                }
+            }
 
             if (isset($arguments[$paramName])) {
                 $argument = $arguments[$paramName];

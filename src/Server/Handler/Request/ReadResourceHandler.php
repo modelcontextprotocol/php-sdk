@@ -25,6 +25,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
+ * @implements RequestHandlerInterface<ReadResourceResult>
+ *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 final class ReadResourceHandler implements RequestHandlerInterface
@@ -41,6 +43,9 @@ final class ReadResourceHandler implements RequestHandlerInterface
         return $request instanceof ReadResourceRequest;
     }
 
+    /**
+     * @return Response<ReadResourceResult>|Error
+     */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
         \assert($request instanceof ReadResourceRequest);
@@ -55,7 +60,12 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 throw new ResourceNotFoundException($request);
             }
 
-            $result = $this->referenceHandler->handle($reference, ['uri' => $uri]);
+            $arguments = [
+                'uri' => $uri,
+                '_session' => $session,
+            ];
+
+            $result = $this->referenceHandler->handle($reference, $arguments);
 
             if ($reference instanceof ResourceTemplateReference) {
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);

@@ -20,6 +20,8 @@ use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @implements RequestHandlerInterface<ListToolsResult>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -37,6 +39,8 @@ final class ListToolsHandler implements RequestHandlerInterface
     }
 
     /**
+     * @return Response<ListToolsResult>
+     *
      * @throws InvalidCursorException When the cursor is invalid
      */
     public function handle(Request $request, SessionInterface $session): Response

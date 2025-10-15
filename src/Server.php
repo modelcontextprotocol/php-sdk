@@ -43,11 +43,11 @@ final class Server
      */
     public function run(TransportInterface $transport): mixed
     {
-        $this->logger->info('Running server...');
-
         $transport->initialize();
 
         $this->protocol->connect($transport);
+
+        $this->logger->info('Running server...');
 
         try {
             return $transport->listen();
