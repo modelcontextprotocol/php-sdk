@@ -21,6 +21,8 @@ use Mcp\Server\Configuration;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @implements RequestHandlerInterface<InitializeResult>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class InitializeHandler implements RequestHandlerInterface
@@ -35,6 +37,9 @@ final class InitializeHandler implements RequestHandlerInterface
         return $request instanceof InitializeRequest;
     }
 
+    /**
+     * @return Response<InitializeResult>
+     */
     public function handle(Request $request, SessionInterface $session): Response
     {
         \assert($request instanceof InitializeRequest);

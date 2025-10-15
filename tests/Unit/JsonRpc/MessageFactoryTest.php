@@ -98,7 +98,7 @@ final class MessageFactoryTest extends TestCase
         $results = $this->factory->create($json);
 
         $this->assertCount(1, $results);
-        /** @var Response $result */
+        /** @var Response<array<string, mixed>> $result */
         $result = $results[0];
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame(456, $result->getId());
@@ -113,7 +113,7 @@ final class MessageFactoryTest extends TestCase
         $results = $this->factory->create($json);
 
         $this->assertCount(1, $results);
-        /** @var Response $result */
+        /** @var Response<array<string, mixed>> $result */
         $result = $results[0];
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame('response-1', $result->getId());

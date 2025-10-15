@@ -26,6 +26,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
+ * @implements RequestHandlerInterface<GetPromptResult>
+ *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 final class GetPromptHandler implements RequestHandlerInterface
@@ -42,6 +44,9 @@ final class GetPromptHandler implements RequestHandlerInterface
         return $request instanceof GetPromptRequest;
     }
 
+    /**
+     * @return Response<GetPromptResult>|Error
+     */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
         \assert($request instanceof GetPromptRequest);
@@ -55,6 +60,8 @@ final class GetPromptHandler implements RequestHandlerInterface
                 throw new PromptNotFoundException($request);
             }
 
+            $arguments['_session'] = $session;
+
             $result = $this->referenceHandler->handle($reference, $arguments);
 
             $formatted = $reference->formatResult($result);
@@ -67,11 +74,11 @@ final class GetPromptHandler implements RequestHandlerInterface
         } catch (PromptGetException|ExceptionInterface $e) {
             $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
 
-            return Error::forInternalError('Error while handling prompt', $request->getId());
+            return Error::forInternalError('Error while handling prompt: '.$e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
 
-            return Error::forInternalError('Error while handling prompt', $request->getId());
+            return Error::forInternalError('Error while handling prompt: '.$e->getMessage(), $request->getId());
         }
     }
 }

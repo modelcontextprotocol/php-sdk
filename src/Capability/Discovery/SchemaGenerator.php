@@ -12,6 +12,7 @@
 namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\ClientGateway;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
 /**
@@ -409,10 +410,19 @@ class SchemaGenerator
         $parametersInfo = [];
 
         foreach ($reflection->getParameters() as $rp) {
+            $reflectionType = $rp->getType();
+
+            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+                $typeName = $reflectionType->getName();
+
+                if (is_a($typeName, ClientGateway::class, true)) {
+                    continue;
+                }
+            }
+
             $paramName = $rp->getName();
             $paramTag = $paramTags['$'.$paramName] ?? null;
 
-            $reflectionType = $rp->getType();
             $typeString = $this->getParameterTypeString($rp, $paramTag);
             $description = $this->docBlockParser->getParamDescription($paramTag);
             $hasDefault = $rp->isDefaultValueAvailable();

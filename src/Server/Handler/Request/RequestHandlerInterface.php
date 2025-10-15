@@ -17,11 +17,16 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @template TResult
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 interface RequestHandlerInterface
 {
     public function supports(Request $request): bool;
 
+    /**
+     * @return Response<TResult>|Error
+     */
     public function handle(Request $request, SessionInterface $session): Response|Error;
 }
