@@ -543,7 +543,7 @@ class Protocol
 
             $session = $this->sessionFactory->create($this->sessionStore);
             $this->logger->debug('Created new session for initialize', [
-                'session_id' => $session->getId()->toString(),
+                'session_id' => $session->getId()->toRfc4122(),
             ]);
 
             $this->transport->setSessionId($session->getId());
