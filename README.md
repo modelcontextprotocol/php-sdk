@@ -236,12 +236,12 @@ Automatically inject PSR-3 compatible logger into your registered handlers:
 ```php
 // Enable logging in server
 $server = Server::builder()
-    ->enableMcpLogging()
+    ->enableClientLogging()
     ->build();
 
 // Use in any handler - logger is auto-injected
 #[McpTool]
-public function processData(string $input, McpLogger $logger): array {
+public function processData(string $input, ClientLogger $logger): array {
     $logger->info('Processing data', ['input' => $input]);
     return ['result' => 'processed'];
 }

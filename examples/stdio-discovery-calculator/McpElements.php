@@ -13,7 +13,9 @@ namespace Mcp\Example\StdioDiscoveryCalculator;
 
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Logger\McpLogger;
+use Mcp\Capability\Logger\ClientLogger;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * @phpstan-type Config array{precision: int, allow_negative: bool}
@@ -28,6 +30,11 @@ final class McpElements
         'allow_negative' => true,
     ];
 
+    public function __construct(
+        private readonly LoggerInterface $logger = new NullLogger(),
+    ) {
+    }
+
     /**
      * Performs a calculation based on the operation.
      *
@@ -37,19 +44,14 @@ final class McpElements
      * @param float     $a         the first operand
      * @param float     $b         the second operand
      * @param string    $operation the operation ('add', 'subtract', 'multiply', 'divide')
-     * @param McpLogger $logger    Auto-injected MCP logger
+     * @param ClientLogger $logger    Auto-injected MCP logger
      *
      * @return float|string the result of the calculation, or an error message string
      */
     #[McpTool(name: 'calculate')]
-    public function calculate(float $a, float $b, string $operation, McpLogger $logger): float|string
+    public function calculate(float $a, float $b, string $operation, ClientLogger $logger): float|string
     {
-        $logger->info('🧮 Calculate tool called', [
-            'operand_a' => $a,
-            'operand_b' => $b,
-            'operation' => $operation,
-            'auto_injection' => 'McpLogger auto-injected successfully',
-        ]);
+        $this->logger->info(\sprintf('Calculating: %f %s %f', $a, $operation, $b));
 
         $op = strtolower($operation);
 
@@ -105,7 +107,7 @@ final class McpElements
      * Provides the current calculator configuration.
      * Can be read by clients to understand precision etc.
      *
-     * @param McpLogger $logger Auto-injected MCP logger for demonstration
+     * @param ClientLogger $logger Auto-injected MCP logger for demonstration
      *
      * @return Config the configuration array
      */
@@ -115,11 +117,11 @@ final class McpElements
         description: 'Current settings for the calculator tool (precision, allow_negative).',
         mimeType: 'application/json',
     )]
-    public function getConfiguration(McpLogger $logger): array
+    public function getConfiguration(ClientLogger $logger): array
     {
         $logger->info('📊 Resource config://calculator/settings accessed via auto-injection!', [
             'current_config' => $this->config,
-            'auto_injection_demo' => 'McpLogger was automatically injected into this resource handler',
+            'auto_injection_demo' => 'ClientLogger was automatically injected into this resource handler',
         ]);
 
         return $this->config;
@@ -131,7 +133,7 @@ final class McpElements
      *
      * @param string    $setting the setting key ('precision' or 'allow_negative')
      * @param mixed     $value   the new value (int for precision, bool for allow_negative)
-     * @param McpLogger $logger  Auto-injected MCP logger
+     * @param ClientLogger $logger  Auto-injected MCP logger
      *
      * @return array{
      *     success: bool,
@@ -140,14 +142,9 @@ final class McpElements
      * } success message or error
      */
     #[McpTool(name: 'update_setting')]
-    public function updateSetting(string $setting, mixed $value, McpLogger $logger): array
+    public function updateSetting(string $setting, mixed $value, ClientLogger $logger): array
     {
-        $logger->info('🔧 Update setting tool called', [
-            'setting' => $setting,
-            'value' => $value,
-            'current_config' => $this->config,
-            'auto_injection' => 'McpLogger auto-injected successfully',
-        ]);
+        $this->logger->info(\sprintf('Setting tool called: setting=%s, value=%s', $setting, var_export($value, true)));
         if (!\array_key_exists($setting, $this->config)) {
             $logger->error('Unknown setting requested', [
                 'setting' => $setting,

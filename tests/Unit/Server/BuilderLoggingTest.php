@@ -36,17 +36,17 @@ class BuilderLoggingTest extends TestCase
         $this->assertInstanceOf(Server::class, $server);
     }
 
-    public function testEnableMcpLoggingConfiguresBuilder(): void
+    public function testEnableClientLoggingConfiguresBuilder(): void
     {
         $builder = new Builder();
 
-        $result = $builder->enableMcpLogging();
+        $result = $builder->enableClientLogging();
 
         // Test method chaining
-        $this->assertSame($builder, $result, 'enableMcpLogging should return builder for chaining');
+        $this->assertSame($builder, $result, 'enableClientLogging should return builder for chaining');
 
         // Test internal state
-        $this->assertTrue($this->getBuilderLoggingState($builder), 'enableMcpLogging should set internal flag');
+        $this->assertTrue($this->getBuilderLoggingState($builder), 'enableClientLogging should set internal flag');
 
         // Test server builds successfully
         $server = $builder->setServerInfo('Test Server', '1.0.0')->build();
@@ -57,9 +57,9 @@ class BuilderLoggingTest extends TestCase
     {
         $builder = new Builder();
 
-        $builder->enableMcpLogging()
-                ->enableMcpLogging()
-                ->enableMcpLogging();
+        $builder->enableClientLogging()
+                ->enableClientLogging()
+                ->enableClientLogging();
 
         $this->assertTrue($this->getBuilderLoggingState($builder), 'Multiple enable calls should maintain enabled state');
     }
@@ -67,7 +67,7 @@ class BuilderLoggingTest extends TestCase
     public function testLoggingStatePreservedAcrossBuilds(): void
     {
         $builder = new Builder();
-        $builder->setServerInfo('Test Server', '1.0.0')->enableMcpLogging();
+        $builder->setServerInfo('Test Server', '1.0.0')->enableClientLogging();
 
         $server1 = $builder->build();
         $server2 = $builder->build();
@@ -87,7 +87,7 @@ class BuilderLoggingTest extends TestCase
         $server = $builder
             ->setServerInfo('Test Server', '1.0.0', 'Test description')
             ->setLogger($logger)
-            ->enableMcpLogging()
+            ->enableClientLogging()
             ->setPaginationLimit(50)
             ->addTool(fn () => 'test', 'test_tool', 'Test tool')
             ->build();
@@ -101,7 +101,7 @@ class BuilderLoggingTest extends TestCase
         $builderWithLogging = new Builder();
         $builderWithoutLogging = new Builder();
 
-        $builderWithLogging->enableMcpLogging();
+        $builderWithLogging->enableClientLogging();
         // Don't enable on second builder
 
         $this->assertTrue($this->getBuilderLoggingState($builderWithLogging), 'First builder should have logging enabled');

@@ -792,7 +792,7 @@ class SchemaGenerator
     /**
      * Determines if a parameter was auto-injected and should be excluded from schema generation.
      *
-     * Parameters that are auto-injected by the framework (like McpLogger) should not appear
+     * Parameters that are auto-injected by the framework (like ClientLogger) should not appear
      * in the tool schema since they're not provided by the client.
      */
     private function isAutoInjectedParameter(\ReflectionParameter $parameter): bool
@@ -805,8 +805,8 @@ class SchemaGenerator
 
         $typeName = $type->getName();
 
-        // Auto-inject for McpLogger or LoggerInterface types
-        return 'Mcp\\Capability\\Logger\\McpLogger' === $typeName 
+        // Auto-inject for ClientLogger or LoggerInterface types
+        return 'Mcp\\Capability\\Logger\\ClientLogger' === $typeName 
             || 'Psr\\Log\\LoggerInterface' === $typeName;
     }
 }

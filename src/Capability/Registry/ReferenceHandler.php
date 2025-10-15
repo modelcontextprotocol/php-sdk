@@ -11,7 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
-use Mcp\Capability\Logger\McpLogger;
+use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Psr\Container\ContainerInterface;
@@ -23,7 +23,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 {
     public function __construct(
         private readonly ?ContainerInterface $container = null,
-        private readonly ?McpLogger $mcpLogger = null,
+        private readonly ?ClientLogger $clientLogger = null,
     ) {
     }
 
@@ -91,16 +91,16 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
 
-            // Auto-inject McpLogger if parameter expects it
-            if ($this->shouldInjectMcpLogger($parameter)) {
-                if (null !== $this->mcpLogger) {
-                    $finalArgs[$paramPosition] = $this->mcpLogger;
+            // Auto-inject ClientLogger if parameter expects it
+            if ($this->shouldInjectClientLogger($parameter)) {
+                if (null !== $this->clientLogger) {
+                    $finalArgs[$paramPosition] = $this->clientLogger;
                     continue;
                 } elseif ($parameter->allowsNull() || $parameter->isOptional()) {
                     $finalArgs[$paramPosition] = null;
                     continue;
                 }
-                // If McpLogger is required but not available, fall through to normal handling
+                // If ClientLogger is required but not available, fall through to normal handling
             }
 
             if (isset($arguments[$paramName])) {
@@ -130,9 +130,9 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     }
 
     /**
-     * Determines if the parameter should receive auto-injected McpLogger.
+     * Determines if the parameter should receive auto-injected ClientLogger.
      */
-    private function shouldInjectMcpLogger(\ReflectionParameter $parameter): bool
+    private function shouldInjectClientLogger(\ReflectionParameter $parameter): bool
     {
         $type = $parameter->getType();
 
@@ -142,8 +142,8 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
         $typeName = $type->getName();
 
-        // Auto-inject for McpLogger or LoggerInterface types
-        return McpLogger::class === $typeName || \Psr\Log\LoggerInterface::class === $typeName;
+        // Auto-inject for ClientLogger or LoggerInterface types
+        return ClientLogger::class === $typeName || \Psr\Log\LoggerInterface::class === $typeName;
     }
 
     /**

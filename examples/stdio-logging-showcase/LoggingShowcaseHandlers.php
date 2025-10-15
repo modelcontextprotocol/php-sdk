@@ -12,27 +12,27 @@
 namespace Mcp\Example\StdioLoggingShowcase;
 
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Logger\McpLogger;
+use Mcp\Capability\Logger\ClientLogger;
 
 /**
  * Example handlers showcasing auto-injected MCP logging capabilities.
  *
- * This demonstrates how handlers can receive McpLogger automatically
+ * This demonstrates how handlers can receive ClientLogger automatically
  * without any manual configuration - just declare it as a parameter!
  */
 final class LoggingShowcaseHandlers
 {
     /**
-     * Tool that demonstrates different logging levels with auto-injected McpLogger.
+     * Tool that demonstrates different logging levels with auto-injected ClientLogger.
      *
      * @param string    $message The message to log
      * @param string    $level   The logging level (debug, info, warning, error)
-     * @param McpLogger $logger  Auto-injected MCP logger
+     * @param ClientLogger $logger  Auto-injected MCP logger
      *
      * @return array<string, mixed>
      */
     #[McpTool(name: 'log_message', description: 'Demonstrates MCP logging with different levels')]
-    public function logMessage(string $message, string $level, McpLogger $logger): array
+    public function logMessage(string $message, string $level, ClientLogger $logger): array
     {
         $logger->info('🚀 Starting log_message tool', [
             'requested_level' => $level,
