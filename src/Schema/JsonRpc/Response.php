@@ -14,23 +14,26 @@ namespace Mcp\Schema\JsonRpc;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * @template TResult
  *
  * @phpstan-type ResponseData array{
  *     jsonrpc: string,
  *     id: string|int,
  *     result: array<string, mixed>,
  * }
+ *
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class Response implements MessageInterface
 {
     /**
-     * @param string|int                           $id     this MUST be the same as the value of the id member in the Request Object
-     * @param ResultInterface|array<string, mixed> $result the value of this member is determined by the method invoked on the Server
+     * @param string|int $id     this MUST be the same as the value of the id member in the Request Object
+     * @param TResult    $result the value of this member is determined by the method invoked on the Server
      */
     public function __construct(
         public readonly string|int $id,
-        public readonly ResultInterface|array $result,
+        /** @var TResult */
+        public readonly mixed $result,
     ) {
     }
 
@@ -41,6 +44,8 @@ class Response implements MessageInterface
 
     /**
      * @param ResponseData $data
+     *
+     * @return self<array<string, mixed>>
      */
     public static function fromArray(array $data): self
     {
@@ -67,7 +72,7 @@ class Response implements MessageInterface
      * @return array{
      *     jsonrpc: string,
      *     id: string|int,
-     *     result: ResultInterface,
+     *     result: mixed,
      * }
      */
     public function jsonSerialize(): array

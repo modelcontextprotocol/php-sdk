@@ -20,6 +20,8 @@ use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @implements RequestHandlerInterface<ListPromptsResult>
+ *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 final class ListPromptsHandler implements RequestHandlerInterface
@@ -36,6 +38,8 @@ final class ListPromptsHandler implements RequestHandlerInterface
     }
 
     /**
+     * @return Response<ListPromptsResult>
+     *
      * @throws InvalidCursorException
      */
     public function handle(Request $request, SessionInterface $session): Response

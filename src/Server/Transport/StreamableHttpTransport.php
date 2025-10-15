@@ -25,24 +25,14 @@ use Symfony\Component\Uid\Uuid;
  * @implements TransportInterface<ResponseInterface>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- */
-class StreamableHttpTransport implements TransportInterface
+ * */
+class StreamableHttpTransport extends BaseTransport implements TransportInterface
 {
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
-    /** @var callable(string, ?Uuid): void */
-    private $messageListener;
-
-    /** @var callable(Uuid): void */
-    private $sessionEndListener;
-
-    private ?Uuid $sessionId = null;
-
-    /** @var string[] */
-    private array $outgoingMessages = [];
-    private ?Uuid $outgoingSessionId = null;
-    private ?int $outgoingStatusCode = null;
+    private ?string $immediateResponse = null;
+    private ?int $immediateStatusCode = null;
 
     /** @var array<string, string> */
     private array $corsHeaders = [
@@ -57,6 +47,7 @@ class StreamableHttpTransport implements TransportInterface
         ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
+        parent::__construct($logger);
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
         $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
 
@@ -70,42 +61,18 @@ class StreamableHttpTransport implements TransportInterface
 
     public function send(string $data, array $context): void
     {
-        $this->outgoingMessages[] = $data;
-
-        if (isset($context['session_id'])) {
-            $this->outgoingSessionId = $context['session_id'];
-        }
-
-        if (isset($context['status_code']) && \is_int($context['status_code'])) {
-            $this->outgoingStatusCode = $context['status_code'];
-        }
-
-        $this->logger->debug('Sending data to client via StreamableHttpTransport.', [
-            'data' => $data,
-            'session_id' => $this->outgoingSessionId?->toRfc4122(),
-            'status_code' => $this->outgoingStatusCode,
-        ]);
+        $this->immediateResponse = $data;
+        $this->immediateStatusCode = $context['status_code'] ?? 200;
     }
 
     public function listen(): ResponseInterface
     {
         return match ($this->request->getMethod()) {
             'OPTIONS' => $this->handleOptionsRequest(),
-            'GET' => $this->handleGetRequest(),
             'POST' => $this->handlePostRequest(),
             'DELETE' => $this->handleDeleteRequest(),
-            default => $this->handleUnsupportedRequest(),
+            default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
-    }
-
-    public function onMessage(callable $listener): void
-    {
-        $this->messageListener = $listener;
-    }
-
-    public function onSessionEnd(callable $listener): void
-    {
-        $this->sessionEndListener = $listener;
     }
 
     protected function handleOptionsRequest(): ResponseInterface
@@ -115,89 +82,163 @@ class StreamableHttpTransport implements TransportInterface
 
     protected function handlePostRequest(): ResponseInterface
     {
-        $acceptHeader = $this->request->getHeaderLine('Accept');
-        if (!str_contains($acceptHeader, 'application/json') || !str_contains($acceptHeader, 'text/event-stream')) {
-            $error = Error::forInvalidRequest('Not Acceptable: Client must accept both application/json and text/event-stream.');
-            $this->logger->warning('Client does not accept required content types.', ['accept' => $acceptHeader]);
-
-            return $this->createErrorResponse($error, 406);
-        }
-
-        if (!str_contains($this->request->getHeaderLine('Content-Type'), 'application/json')) {
-            $error = Error::forInvalidRequest('Unsupported Media Type: Content-Type must be application/json.');
-            $this->logger->warning('Client sent unsupported content type.', ['content_type' => $this->request->getHeaderLine('Content-Type')]);
-
-            return $this->createErrorResponse($error, 415);
-        }
-
         $body = $this->request->getBody()->getContents();
-        if (empty($body)) {
-            $error = Error::forInvalidRequest('Bad Request: Empty request body.');
-            $this->logger->warning('Client sent empty request body.');
+        $this->handleMessage($body, $this->sessionId);
 
-            return $this->createErrorResponse($error, 400);
+        if (null !== $this->immediateResponse) {
+            $response = $this->responseFactory->createResponse($this->immediateStatusCode ?? 200)
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody($this->streamFactory->createStream($this->immediateResponse));
+
+            return $this->withCorsHeaders($response);
         }
 
-        $this->logger->debug('Received message on StreamableHttpTransport.', [
-            'body' => $body,
-            'session_id' => $this->sessionId?->toRfc4122(),
-        ]);
+        if (null !== $this->sessionFiber) {
+            $this->logger->info('Fiber suspended, handling via SSE.');
 
-        if (\is_callable($this->messageListener)) {
-            \call_user_func($this->messageListener, $body, $this->sessionId);
+            return $this->createStreamedResponse();
         }
 
-        if (empty($this->outgoingMessages)) {
-            return $this->withCorsHeaders($this->responseFactory->createResponse(202));
-        }
-
-        $responseBody = 1 === \count($this->outgoingMessages)
-            ? $this->outgoingMessages[0]
-            : '['.implode(',', $this->outgoingMessages).']';
-
-        $status = $this->outgoingStatusCode ?? 200;
-
-        $response = $this->responseFactory->createResponse($status)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($responseBody));
-
-        if ($this->outgoingSessionId) {
-            $response = $response->withHeader('Mcp-Session-Id', $this->outgoingSessionId->toRfc4122());
-        }
-
-        return $this->withCorsHeaders($response);
-    }
-
-    protected function handleGetRequest(): ResponseInterface
-    {
-        $response = $this->createErrorResponse(Error::forInvalidRequest('Not Yet Implemented'), 405);
-
-        return $this->withCorsHeaders($response);
+        return $this->createJsonResponse();
     }
 
     protected function handleDeleteRequest(): ResponseInterface
     {
         if (!$this->sessionId) {
-            $error = Error::forInvalidRequest('Bad Request: Mcp-Session-Id header is required for DELETE requests.');
-            $this->logger->warning('DELETE request received without session ID.');
-
-            return $this->createErrorResponse($error, 400);
+            return $this->createErrorResponse(Error::forInvalidRequest('Mcp-Session-Id header is required.'), 400);
         }
 
-        if (\is_callable($this->sessionEndListener)) {
-            \call_user_func($this->sessionEndListener, $this->sessionId);
-        }
+        $this->handleSessionEnd($this->sessionId);
 
         return $this->withCorsHeaders($this->responseFactory->createResponse(204));
     }
 
-    protected function handleUnsupportedRequest(): ResponseInterface
+    protected function createJsonResponse(): ResponseInterface
     {
-        $this->logger->warning('Unsupported HTTP method received.', [
-            'method' => $this->request->getMethod(),
-        ]);
+        $outgoingMessages = $this->getOutgoingMessages($this->sessionId);
 
-        $response = $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405);
+        if (empty($outgoingMessages)) {
+            return $this->withCorsHeaders($this->responseFactory->createResponse(202));
+        }
+
+        $messages = array_column($outgoingMessages, 'message');
+        $responseBody = 1 === \count($messages) ? $messages[0] : '['.implode(',', $messages).']';
+
+        $response = $this->responseFactory->createResponse(200)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody($this->streamFactory->createStream($responseBody));
+
+        if ($this->sessionId) {
+            $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
+        }
+
+        return $this->withCorsHeaders($response);
+    }
+
+    protected function createStreamedResponse(): ResponseInterface
+    {
+        $callback = function (): void {
+            try {
+                $this->logger->info('SSE: Starting request processing loop');
+
+                while ($this->sessionFiber->isSuspended()) {
+                    $this->flushOutgoingMessages($this->sessionId);
+
+                    $pendingRequests = $this->getPendingRequests($this->sessionId);
+
+                    if (empty($pendingRequests)) {
+                        $yielded = $this->sessionFiber->resume();
+                        $this->handleFiberYield($yielded, $this->sessionId);
+                        continue;
+                    }
+
+                    $resumed = false;
+                    foreach ($pendingRequests as $pending) {
+                        $requestId = $pending['request_id'];
+                        $timestamp = $pending['timestamp'];
+                        $timeout = $pending['timeout'] ?? 120;
+
+                        $response = $this->checkForResponse($requestId, $this->sessionId);
+
+                        if (null !== $response) {
+                            $yielded = $this->sessionFiber->resume($response);
+                            $this->handleFiberYield($yielded, $this->sessionId);
+                            $resumed = true;
+                            break;
+                        }
+
+                        if (time() - $timestamp >= $timeout) {
+                            $error = Error::forInternalError('Request timed out', $requestId);
+                            $yielded = $this->sessionFiber->resume($error);
+                            $this->handleFiberYield($yielded, $this->sessionId);
+                            $resumed = true;
+                            break;
+                        }
+                    }
+
+                    if (!$resumed) {
+                        usleep(100000);
+                    } // Prevent tight loop
+                }
+
+                $this->handleFiberTermination();
+            } finally {
+                $this->sessionFiber = null;
+            }
+        };
+
+        $stream = new CallbackStream($callback, $this->logger);
+        $response = $this->responseFactory->createResponse(200)
+            ->withHeader('Content-Type', 'text/event-stream')
+            ->withHeader('Cache-Control', 'no-cache')
+            ->withHeader('Connection', 'keep-alive')
+            ->withHeader('X-Accel-Buffering', 'no')
+            ->withBody($stream);
+
+        if ($this->sessionId) {
+            $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
+        }
+
+        return $this->withCorsHeaders($response);
+    }
+
+    private function handleFiberTermination(): void
+    {
+        $finalResult = $this->sessionFiber->getReturn();
+
+        if (null !== $finalResult) {
+            try {
+                $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
+                echo "event: message\n";
+                echo "data: {$encoded}\n\n";
+                @ob_flush();
+                flush();
+            } catch (\JsonException $e) {
+                $this->logger->error('SSE: Failed to encode final Fiber result.', ['exception' => $e]);
+            }
+        }
+
+        $this->sessionFiber = null;
+    }
+
+    private function flushOutgoingMessages(?Uuid $sessionId): void
+    {
+        $messages = $this->getOutgoingMessages($sessionId);
+
+        foreach ($messages as $message) {
+            echo "event: message\n";
+            echo "data: {$message['message']}\n\n";
+            @ob_flush();
+            flush();
+        }
+    }
+
+    protected function createErrorResponse(Error $jsonRpcError, int $statusCode): ResponseInterface
+    {
+        $payload = json_encode($jsonRpcError, \JSON_THROW_ON_ERROR);
+        $response = $this->responseFactory->createResponse($statusCode)
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody($this->streamFactory->createStream($payload));
 
         return $this->withCorsHeaders($response);
     }
@@ -209,18 +250,5 @@ class StreamableHttpTransport implements TransportInterface
         }
 
         return $response;
-    }
-
-    protected function createErrorResponse(Error $jsonRpcError, int $statusCode): ResponseInterface
-    {
-        $errorPayload = json_encode($jsonRpcError, \JSON_THROW_ON_ERROR);
-
-        return $this->responseFactory->createResponse($statusCode)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($errorPayload));
-    }
-
-    public function close(): void
-    {
     }
 }
