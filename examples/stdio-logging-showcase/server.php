@@ -23,7 +23,7 @@ $server = Server::builder()
     ->setServerInfo('Stdio Logging Showcase', '1.0.0', 'Demonstration of auto-injected MCP logging in capability handlers.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->enableMcpLogging()  // Enable MCP logging capability and auto-injection!
+    ->enableClientLogging()  // Enable MCP logging capability and auto-injection!
     ->setDiscovery(__DIR__, ['.'])
     ->build();
 
@@ -32,4 +32,4 @@ $transport = new StdioTransport(logger: logger());
 $server->run($transport);
 
 logger()->info('Logging Showcase Server is ready!');
-logger()->info('This example demonstrates auto-injection of McpLogger into capability handlers.');
+logger()->info('This example demonstrates auto-injection of ClientLogger into capability handlers.');

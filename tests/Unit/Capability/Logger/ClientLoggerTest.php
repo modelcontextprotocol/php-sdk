@@ -11,7 +11,7 @@
 
 namespace Tests\Unit\Capability\Logger;
 
-use Mcp\Capability\Logger\McpLogger;
+use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Server\Handler\NotificationHandler;
 use Mcp\Server\NotificationSender;
@@ -20,11 +20,11 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
 
 /**
- * Test for simplified McpLogger PSR-3 compliance.
+ * Test for simplified ClientLogger PSR-3 compliance.
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
-final class McpLoggerTest extends TestCase
+final class ClientLoggerTest extends TestCase
 {
     private LoggerInterface&MockObject $fallbackLogger;
 
@@ -35,7 +35,7 @@ final class McpLoggerTest extends TestCase
 
     public function testImplementsPsr3LoggerInterface(): void
     {
-        $logger = $this->createMcpLogger();
+        $logger = $this->createClientLogger();
         $this->assertInstanceOf(LoggerInterface::class, $logger);
     }
 
@@ -46,13 +46,13 @@ final class McpLoggerTest extends TestCase
             ->method('log')
             ->with('info', 'Test message', ['key' => 'value']);
 
-        $logger = $this->createMcpLogger();
+        $logger = $this->createClientLogger();
         $logger->info('Test message', ['key' => 'value']);
     }
 
     public function testBasicLoggingMethodsWork(): void
     {
-        $logger = $this->createMcpLogger();
+        $logger = $this->createClientLogger();
 
         // Test all PSR-3 methods exist and can be called
         $this->fallbackLogger->expects($this->exactly(8))->method('log');
@@ -80,11 +80,11 @@ final class McpLoggerTest extends TestCase
             ->expects($this->atMost(1))
             ->method('error');
 
-        $logger = $this->createMcpLogger();
+        $logger = $this->createClientLogger();
         $logger->info('Test message');
     }
 
-    private function createMcpLogger(): McpLogger
+    private function createClientLogger(): ClientLogger
     {
         // Create minimal working NotificationSender for testing
         // Using a minimal ReferenceProvider mock just to construct NotificationHandler
@@ -92,7 +92,7 @@ final class McpLoggerTest extends TestCase
         $notificationHandler = NotificationHandler::make($referenceProvider);
         $notificationSender = new NotificationSender($notificationHandler, null);
 
-        return new McpLogger(
+        return new ClientLogger(
             $notificationSender,
             $this->fallbackLogger
         );

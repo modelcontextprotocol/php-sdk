@@ -23,7 +23,7 @@ $server = Server::builder()
     ->setInstructions('This server supports basic arithmetic operations: add, subtract, multiply, and divide. Send JSON-RPC requests to perform calculations.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->enableMcpLogging()  // Enable MCP logging capability and auto-injection!
+    ->enableClientLogging()  // Enable Client logging capability and auto-injection!
     ->setDiscovery(__DIR__, ['.'])
     ->build();
 

@@ -25,7 +25,7 @@ use Psr\Log\LoggerInterface;
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
-final class McpLogger extends AbstractLogger
+final class ClientLogger extends AbstractLogger
 {
     public function __construct(
         private readonly NotificationSender $notificationSender,

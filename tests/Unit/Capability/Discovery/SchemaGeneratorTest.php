@@ -328,9 +328,9 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['inferredParam'], $schema['required']);
     }
 
-    public function testExcludesMcpLoggerFromSchema()
+    public function testExcludesClientLoggerFromSchema()
     {
-        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'withMcpLogger');
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'withClientLogger');
         $schema = $this->schemaGenerator->generate($method);
         
         // Should include the message parameter

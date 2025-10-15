@@ -20,7 +20,7 @@ use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
-use Mcp\Capability\Logger\McpLogger;
+use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -214,13 +214,13 @@ final class Builder
     }
 
     /**
-     * Enables MCP logging capability for the server.
+     * Enables Client logging capability for the server.
      *
      * When enabled, the server will advertise logging capability to clients,
      * indicating that it can emit structured log messages according to the MCP specification.
-     * This enables auto-injection of McpLogger into capability handlers.
+     * This enables auto-injection of ClientLogger into capability handlers.
      */
-    public function enableMcpLogging(): self
+    public function enableClientLogging(): self
     {
         $this->loggingMessageNotificationEnabled = true;
 
@@ -401,9 +401,9 @@ final class Builder
         $notificationHandler = NotificationHandler::make($registry, $logger);
         $notificationSender = new NotificationSender($notificationHandler, null, $logger);
 
-        // Create McpLogger for components that should send logs via MCP
-        $mcpLogger = new McpLogger($notificationSender, $logger);
-        $referenceHandler = new ReferenceHandler($container, $mcpLogger);
+        // Create ClientLogger for components that should send logs via MCP
+        $clientLogger = new ClientLogger($notificationSender, $logger);
+        $referenceHandler = new ReferenceHandler($container, $clientLogger);
 
         $methodHandlers = array_merge($this->customMethodHandlers, [
             new Handler\Request\PingHandler(),
@@ -425,6 +425,7 @@ final class Builder
             messageFactory: $messageFactory,
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,
+            logger: $logger,
         );
 
         return new Server($jsonRpcHandler, notificationSender: $notificationSender, logger: $logger);
