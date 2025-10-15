@@ -66,7 +66,7 @@ final class ClientGateway
         \Fiber::suspend([
             'type' => 'notification',
             'notification' => $notification,
-            'session_id' => $this->session->getId()->toString(),
+            'session_id' => $this->session->getId()->toRfc4122(),
         ]);
     }
 
@@ -112,7 +112,7 @@ final class ClientGateway
         $response = \Fiber::suspend([
             'type' => 'request',
             'request' => $request,
-            'session_id' => $this->session->getId()->toString(),
+            'session_id' => $this->session->getId()->toRfc4122(),
             'timeout' => $timeout,
         ]);
 
