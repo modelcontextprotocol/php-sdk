@@ -44,7 +44,7 @@ class StreamableHttpTransport implements TransportInterface
     private array $corsHeaders = [
         'Access-Control-Allow-Origin' => '*',
         'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Last-Event-ID, Authorization, Accept',
+        'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
     ];
 
     public function __construct(
