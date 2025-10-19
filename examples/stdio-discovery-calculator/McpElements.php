@@ -32,7 +32,8 @@ final class McpElements
 
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {}
+    ) {
+    }
 
     /**
      * Performs a calculation based on the operation.
@@ -40,9 +41,9 @@ final class McpElements
      * Supports 'add', 'subtract', 'multiply', 'divide'.
      * Obeys the 'precision' and 'allow_negative' settings from the config resource.
      *
-     * @param float     $a         the first operand
-     * @param float     $b         the second operand
-     * @param string    $operation the operation ('add', 'subtract', 'multiply', 'divide')
+     * @param float        $a         the first operand
+     * @param float        $b         the second operand
+     * @param string       $operation the operation ('add', 'subtract', 'multiply', 'divide')
      * @param ClientLogger $logger    Auto-injected MCP logger
      *
      * @return float|string the result of the calculation, or an error message string
@@ -130,8 +131,8 @@ final class McpElements
      * Updates a specific configuration setting.
      * Note: This requires more robust validation in a real app.
      *
-     * @param string    $setting the setting key ('precision' or 'allow_negative')
-     * @param mixed     $value   the new value (int for precision, bool for allow_negative)
+     * @param string       $setting the setting key ('precision' or 'allow_negative')
+     * @param mixed        $value   the new value (int for precision, bool for allow_negative)
      * @param ClientLogger $logger  Auto-injected MCP logger
      *
      * @return array{
@@ -195,6 +196,6 @@ final class McpElements
         ]);
 
         // $registry->notifyResourceChanged('config://calculator/settings');
-        return ['success' => true, 'message' => 'Allow negative results set to ' . ($value ? 'true' : 'false') . '.'];
+        return ['success' => true, 'message' => 'Allow negative results set to '.($value ? 'true' : 'false').'.'];
     }
 }

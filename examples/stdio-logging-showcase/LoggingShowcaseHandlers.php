@@ -25,8 +25,8 @@ final class LoggingShowcaseHandlers
     /**
      * Tool that demonstrates different logging levels with auto-injected ClientLogger.
      *
-     * @param string    $message The message to log
-     * @param string    $level   The logging level (debug, info, warning, error)
+     * @param string       $message The message to log
+     * @param string       $level   The logging level (debug, info, warning, error)
      * @param ClientLogger $logger  Auto-injected MCP logger
      *
      * @return array<string, mixed>

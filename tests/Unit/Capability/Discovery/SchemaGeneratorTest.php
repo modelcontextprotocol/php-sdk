@@ -332,14 +332,14 @@ final class SchemaGeneratorTest extends TestCase
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'withClientLogger');
         $schema = $this->schemaGenerator->generate($method);
-        
+
         // Should include the message parameter
         $this->assertArrayHasKey('message', $schema['properties']);
         $this->assertEquals(['type' => 'string', 'description' => 'The message to process'], $schema['properties']['message']);
-        
+
         // Should NOT include the logger parameter
         $this->assertArrayNotHasKey('logger', $schema['properties']);
-        
+
         // Required array should only contain client parameters
         $this->assertEquals(['message'], $schema['required']);
     }

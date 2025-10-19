@@ -12,11 +12,10 @@
 namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceRegistryInterface;
-use Mcp\Schema\JsonRpc\HasMethodInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\Result\EmptyResult;
-use Mcp\Server\Handler\MethodHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 
@@ -28,7 +27,7 @@ use Psr\Log\LoggerInterface;
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
-final class SetLogLevelHandler implements MethodHandlerInterface
+final class SetLogLevelHandler implements RequestHandlerInterface
 {
     public function __construct(
         private readonly ReferenceRegistryInterface $registry,
@@ -36,12 +35,12 @@ final class SetLogLevelHandler implements MethodHandlerInterface
     ) {
     }
 
-    public function supports(HasMethodInterface $message): bool
+    public function supports(Request $message): bool
     {
         return $message instanceof SetLogLevelRequest;
     }
 
-    public function handle(SetLogLevelRequest|HasMethodInterface $message, SessionInterface $session): Response
+    public function handle(Request $message, SessionInterface $session): Response
     {
         \assert($message instanceof SetLogLevelRequest);
 

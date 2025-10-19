@@ -106,7 +106,7 @@ class SetLogLevelHandlerTest extends TestCase
         return SetLogLevelRequest::fromArray([
             'jsonrpc' => '2.0',
             'method' => SetLogLevelRequest::getMethod(),
-            'id' => 'test-request-' . uniqid(),
+            'id' => 'test-request-'.uniqid(),
             'params' => [
                 'level' => $level->value,
             ],

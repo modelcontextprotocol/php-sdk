@@ -12,8 +12,8 @@
 namespace Mcp;
 
 use Mcp\Server\Builder;
-use Mcp\Server\Protocol;
 use Mcp\Server\NotificationSender;
+use Mcp\Server\Protocol;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
