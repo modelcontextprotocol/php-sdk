@@ -239,7 +239,6 @@ $server = Server::builder()
 **Learning:**
 - [Examples](docs/examples.md) - Comprehensive example walkthroughs
 
-
 **External Resources:**
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)

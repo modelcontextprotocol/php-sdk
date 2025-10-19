@@ -391,7 +391,6 @@ final class Builder
         $container = $this->container ?? new Container();
         $registry = new Registry($this->eventDispatcher, $logger);
 
-        // Enable Client logging capability if requested
         if (!$this->logging) {
             $registry->disableLogging();
         }
