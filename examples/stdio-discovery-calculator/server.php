@@ -10,7 +10,7 @@
  * file that was distributed with this source code.
  */
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Server;
@@ -23,7 +23,6 @@ $server = Server::builder()
     ->setInstructions('This server supports basic arithmetic operations: add, subtract, multiply, and divide. Send JSON-RPC requests to perform calculations.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->enableClientLogging()  // Enable Client logging capability and auto-injection!
     ->setDiscovery(__DIR__, ['.'])
     ->build();
 

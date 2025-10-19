@@ -66,9 +66,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
     private ServerCapabilities $serverCapabilities;
 
-    private bool $loggingMessageNotificationEnabled = false;
+    private bool $logging = true;
 
-    private ?LoggingLevel $currentLoggingMessageNotificationLevel = null;
+    private LoggingLevel $loggingLevel = LoggingLevel::Warning;
 
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
@@ -77,21 +77,21 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     }
 
     /**
-     * Enables logging message notifications for this registry.
+     * Disable logging message notifications for this registry.
      */
-    public function enableLoggingMessageNotification(): void
+    public function disableLogging(): void
     {
-        $this->loggingMessageNotificationEnabled = true;
+        $this->logging = false;
     }
 
     /**
      * Checks if logging message notification capability is enabled.
      *
-     * @return bool True if logging message notification capability is enabled, false otherwise
+     * @return bool True if logging capability is enabled, false otherwise
      */
-    public function isLoggingMessageNotificationEnabled(): bool
+    public function isLoggingEnabled(): bool
     {
-        return $this->loggingMessageNotificationEnabled;
+        return $this->logging;
     }
 
     /**
@@ -100,19 +100,19 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      * This determines which log messages should be sent to the client.
      * Only messages at this level and higher (more severe) will be sent.
      */
-    public function setLoggingMessageNotificationLevel(LoggingLevel $level): void
+    public function setLoggingLevel(LoggingLevel $level): void
     {
-        $this->currentLoggingMessageNotificationLevel = $level;
+        $this->loggingLevel = $level;
     }
 
     /**
      * Gets the current logging message notification level set by the client.
      *
-     * @return LoggingLevel|null The current log level, or null if not set
+     * @return LoggingLevel The current log level
      */
-    public function getLoggingMessageNotificationLevel(): ?LoggingLevel
+    public function getLoggingLevel(): LoggingLevel
     {
-        return $this->currentLoggingMessageNotificationLevel;
+        return $this->loggingLevel;
     }
 
     public function getCapabilities(): ServerCapabilities
@@ -129,7 +129,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: [] !== $this->prompts,
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: $this->loggingMessageNotificationEnabled,
+            logging: $this->logging,
             completions: true,
         );
     }

@@ -806,7 +806,7 @@ class SchemaGenerator
         $typeName = $type->getName();
 
         // Auto-inject for ClientLogger or LoggerInterface types
-        return 'Mcp\\Capability\\Logger\\ClientLogger' === $typeName 
+        return 'Mcp\\Capability\\Logger\\ClientLogger' === $typeName
             || 'Psr\\Log\\LoggerInterface' === $typeName;
     }
 }

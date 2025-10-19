@@ -33,37 +33,34 @@ class RegistryLoggingTest extends TestCase
         $this->registry = new Registry(null, $this->logger);
     }
 
-    public function testLoggingDisabledByDefault(): void
+    public function testLoggingDEnabledByDefault(): void
     {
-        $this->assertFalse($this->registry->isLoggingMessageNotificationEnabled());
+        $this->assertTrue($this->registry->isLoggingEnabled());
     }
 
     public function testLoggingStateEnablement(): void
     {
         // Logging starts disabled
-        $this->assertFalse($this->registry->isLoggingMessageNotificationEnabled());
+        $this->assertTrue($this->registry->isLoggingEnabled());
 
         // Test enabling logging
-        $this->registry->enableLoggingMessageNotification();
-        $this->assertTrue($this->registry->isLoggingMessageNotificationEnabled());
+        $this->registry->disableLogging();
+        $this->assertFalse($this->registry->isLoggingEnabled());
 
         // Enabling again should have no effect
-        $this->registry->enableLoggingMessageNotification();
-        $this->assertTrue($this->registry->isLoggingMessageNotificationEnabled());
+        $this->registry->disableLogging();
+        $this->assertFalse($this->registry->isLoggingEnabled());
+    }
 
-        // Create new instances to test disabled state
-        for ($i = 0; $i < 3; ++$i) {
-            $newRegistry = new Registry(null, $this->logger);
-            $this->assertFalse($newRegistry->isLoggingMessageNotificationEnabled());
-            $newRegistry->enableLoggingMessageNotification();
-            $this->assertTrue($newRegistry->isLoggingMessageNotificationEnabled());
-        }
+    public function testGetLogLevelReturnsWarningWhenNotSet(): void
+    {
+        $this->assertEquals(LoggingLevel::Warning->value, $this->registry->getLoggingLevel()->value);
     }
 
     public function testLogLevelManagement(): void
     {
         // Initially should be null
-        $this->assertNull($this->registry->getLoggingMessageNotificationLevel());
+        $this->assertEquals(LoggingLevel::Warning->value, $this->registry->getLoggingLevel()->value);
 
         // Test setting and getting each log level
         $levels = [
@@ -78,40 +75,17 @@ class RegistryLoggingTest extends TestCase
         ];
 
         foreach ($levels as $level) {
-            $this->registry->setLoggingMessageNotificationLevel($level);
-            $this->assertEquals($level, $this->registry->getLoggingMessageNotificationLevel());
+            $this->registry->setLoggingLevel($level);
+            $this->assertEquals($level, $this->registry->getLoggingLevel());
 
             // Verify enum properties are preserved
-            $retrievedLevel = $this->registry->getLoggingMessageNotificationLevel();
+            $retrievedLevel = $this->registry->getLoggingLevel();
             $this->assertEquals($level->value, $retrievedLevel->value);
             $this->assertEquals($level->getSeverityIndex(), $retrievedLevel->getSeverityIndex());
         }
 
         // Final state should be the last level
-        $this->assertEquals(LoggingLevel::Emergency, $this->registry->getLoggingMessageNotificationLevel());
-
-        // Test multiple level changes
-        $changeLevels = [
-            LoggingLevel::Debug,
-            LoggingLevel::Warning,
-            LoggingLevel::Critical,
-            LoggingLevel::Info,
-        ];
-
-        foreach ($changeLevels as $level) {
-            $this->registry->setLoggingMessageNotificationLevel($level);
-            $this->assertEquals($level, $this->registry->getLoggingMessageNotificationLevel());
-        }
-    }
-
-    public function testGetLogLevelReturnsNullWhenNotSet(): void
-    {
-        // Verify default state
-        $this->assertNull($this->registry->getLoggingMessageNotificationLevel());
-
-        // Enable logging but don't set level
-        $this->registry->enableLoggingMessageNotification();
-        $this->assertNull($this->registry->getLoggingMessageNotificationLevel());
+        $this->assertEquals(LoggingLevel::Emergency, $this->registry->getLoggingLevel());
     }
 
     public function testLoggingCapabilities(): void
@@ -124,21 +98,21 @@ class RegistryLoggingTest extends TestCase
 
         $capabilities = $this->registry->getCapabilities();
         $this->assertInstanceOf(ServerCapabilities::class, $capabilities);
-        $this->assertFalse($capabilities->logging);
+        $this->assertTrue($capabilities->logging);
 
         // Enable logging and test capabilities
-        $this->registry->enableLoggingMessageNotification();
+        $this->registry->disableLogging();
         $capabilities = $this->registry->getCapabilities();
-        $this->assertTrue($capabilities->logging);
+        $this->assertFalse($capabilities->logging);
 
         // Test with event dispatcher
         /** @var EventDispatcherInterface&MockObject $eventDispatcher */
         $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
         $registryWithDispatcher = new Registry($eventDispatcher, $this->logger);
-        $registryWithDispatcher->enableLoggingMessageNotification();
+        $registryWithDispatcher->disableLogging();
 
         $capabilities = $registryWithDispatcher->getCapabilities();
-        $this->assertTrue($capabilities->logging);
+        $this->assertFalse($capabilities->logging);
         $this->assertTrue($capabilities->toolsListChanged);
         $this->assertTrue($capabilities->resourcesListChanged);
         $this->assertTrue($capabilities->promptsListChanged);
@@ -146,55 +120,29 @@ class RegistryLoggingTest extends TestCase
 
     public function testLoggingStateIndependentOfLevel(): void
     {
-        // Logging can be enabled without setting a level
-        $this->registry->enableLoggingMessageNotification();
-        $this->assertTrue($this->registry->isLoggingMessageNotificationEnabled());
-        $this->assertNull($this->registry->getLoggingMessageNotificationLevel());
+        // Logging can be disabled - level should remain but logging should be disabled
+        $this->registry->disableLogging();
+        $this->assertFalse($this->registry->isLoggingEnabled());
+        $this->assertEquals(LoggingLevel::Warning, $this->registry->getLoggingLevel()); // Default level
 
-        // Level can be set after enabling logging
-        $this->registry->setLoggingMessageNotificationLevel(LoggingLevel::Info);
-        $this->assertTrue($this->registry->isLoggingMessageNotificationEnabled());
-        $this->assertEquals(LoggingLevel::Info, $this->registry->getLoggingMessageNotificationLevel());
+        // Level can be set after disabling logging
+        $this->registry->setLoggingLevel(LoggingLevel::Info);
+        $this->assertFalse($this->registry->isLoggingEnabled());
+        $this->assertEquals(LoggingLevel::Info, $this->registry->getLoggingLevel());
 
-        // Level can be set on a new registry without enabling logging
+        // Level can be set on a new registry without disabling logging
         $newRegistry = new Registry(null, $this->logger);
-        $newRegistry->setLoggingMessageNotificationLevel(LoggingLevel::Info);
-        $this->assertFalse($newRegistry->isLoggingMessageNotificationEnabled());
-        $this->assertEquals(LoggingLevel::Info, $newRegistry->getLoggingMessageNotificationLevel());
+        $newRegistry->setLoggingLevel(LoggingLevel::Info);
+        $this->assertTrue($newRegistry->isLoggingEnabled());
+        $this->assertEquals(LoggingLevel::Info, $newRegistry->getLoggingLevel());
 
-        // Test persistence: Set level then enable logging - level should persist
+        // Test persistence: Set level then disable logging - level should persist
         $persistRegistry = new Registry(null, $this->logger);
-        $persistRegistry->setLoggingMessageNotificationLevel(LoggingLevel::Critical);
-        $this->assertEquals(LoggingLevel::Critical, $persistRegistry->getLoggingMessageNotificationLevel());
+        $persistRegistry->setLoggingLevel(LoggingLevel::Critical);
+        $this->assertEquals(LoggingLevel::Critical, $persistRegistry->getLoggingLevel());
 
-        $persistRegistry->enableLoggingMessageNotification();
-        $this->assertTrue($persistRegistry->isLoggingMessageNotificationEnabled());
-        $this->assertEquals(LoggingLevel::Critical, $persistRegistry->getLoggingMessageNotificationLevel());
-    }
-
-    public function testRegistryIntegration(): void
-    {
-        // Test registry with default constructor
-        $defaultRegistry = new Registry();
-        $this->assertFalse($defaultRegistry->isLoggingMessageNotificationEnabled());
-        $this->assertNull($defaultRegistry->getLoggingMessageNotificationLevel());
-
-        // Test integration with other registry functionality
-        $this->registry->enableLoggingMessageNotification();
-        $this->registry->setLoggingMessageNotificationLevel(LoggingLevel::Error);
-
-        // Verify logging state doesn't interfere with other functionality
-        $this->assertTrue($this->registry->isLoggingMessageNotificationEnabled());
-        $this->assertEquals(LoggingLevel::Error, $this->registry->getLoggingMessageNotificationLevel());
-
-        // Basic capability check
-        $this->logger
-            ->expects($this->once())
-            ->method('info')
-            ->with('No capabilities registered on server.');
-
-        $capabilities = $this->registry->getCapabilities();
-        $this->assertTrue($capabilities->logging);
-        $this->assertTrue($capabilities->completions);
+        $persistRegistry->disableLogging();
+        $this->assertFalse($persistRegistry->isLoggingEnabled());
+        $this->assertEquals(LoggingLevel::Critical, $persistRegistry->getLoggingLevel());
     }
 }

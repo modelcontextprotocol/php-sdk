@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Handler\Notification;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Notification;
@@ -30,7 +30,7 @@ use Psr\Log\LoggerInterface;
 final class LoggingMessageNotificationHandler implements NotificationHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly ReferenceRegistryInterface $registry,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -45,7 +45,7 @@ final class LoggingMessageNotificationHandler implements NotificationHandlerInte
 
         $level = $this->getLoggingLevel($params);
 
-        if (!$this->referenceProvider->isLoggingMessageNotificationEnabled()) {
+        if (!$this->registry->isLoggingEnabled()) {
             $this->logger->debug('Logging is disabled, skipping log message');
             throw new InvalidArgumentException('Logging capability is not enabled');
         }
@@ -90,11 +90,9 @@ final class LoggingMessageNotificationHandler implements NotificationHandlerInte
 
     private function validateLogLevelThreshold(LoggingLevel $level): void
     {
-        $currentLogLevel = $this->referenceProvider->getLoggingMessageNotificationLevel();
+        $currentLogLevel = $this->registry->getLoggingLevel();
 
-        // Only filter by log level if client has explicitly set one
-        // If no log level is set (null), send all notifications
-        if (null === $currentLogLevel || $this->shouldSendLogLevel($level, $currentLogLevel)) {
+        if ($this->shouldSendLogLevel($level, $currentLogLevel)) {
             return;
         }
 
@@ -104,11 +102,6 @@ final class LoggingMessageNotificationHandler implements NotificationHandlerInte
         throw new InvalidArgumentException('Log level is below current threshold');
     }
 
-    /**
-     * Determines if a log message should be sent based on current log level threshold.
-     *
-     * Messages at the current level and higher (more severe) should be sent.
-     */
     private function shouldSendLogLevel(LoggingLevel $messageLevel, LoggingLevel $currentLevel): bool
     {
         return $messageLevel->getSeverityIndex() >= $currentLevel->getSeverityIndex();

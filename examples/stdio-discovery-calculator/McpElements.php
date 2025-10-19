@@ -32,8 +32,7 @@ final class McpElements
 
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
-    ) {
-    }
+    ) {}
 
     /**
      * Performs a calculation based on the operation.
@@ -95,7 +94,7 @@ final class McpElements
         }
 
         $finalResult = round($result, $this->config['precision']);
-        $logger->info('✅ Calculation completed successfully', [
+        $logger->info('Calculation completed successfully', [
             'result' => $finalResult,
             'precision' => $this->config['precision'],
         ]);
@@ -164,7 +163,7 @@ final class McpElements
                 return ['success' => false, 'error' => 'Invalid precision value. Must be integer between 0 and 10.'];
             }
             $this->config['precision'] = $value;
-            $logger->info('✅ Precision setting updated', [
+            $logger->info('Precision setting updated', [
                 'new_precision' => $value,
                 'previous_config' => $this->config,
             ]);
@@ -190,12 +189,12 @@ final class McpElements
             }
         }
         $this->config['allow_negative'] = $value;
-        $logger->info('✅ Allow negative setting updated', [
+        $logger->info('Allow negative setting updated', [
             'new_allow_negative' => $value,
             'updated_config' => $this->config,
         ]);
 
         // $registry->notifyResourceChanged('config://calculator/settings');
-        return ['success' => true, 'message' => 'Allow negative results set to '.($value ? 'true' : 'false').'.'];
+        return ['success' => true, 'message' => 'Allow negative results set to ' . ($value ? 'true' : 'false') . '.'];
     }
 }

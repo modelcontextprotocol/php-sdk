@@ -11,7 +11,7 @@
 
 namespace Tests\Unit\Server;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Server\Handler\NotificationHandler;
@@ -30,17 +30,17 @@ final class NotificationSenderTest extends TestCase
     /** @var TransportInterface<mixed>&MockObject */
     private TransportInterface&MockObject $transport;
     private LoggerInterface&MockObject $logger;
-    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private ReferenceRegistryInterface&MockObject $registry;
     private NotificationSender $sender;
 
     protected function setUp(): void
     {
-        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->registry = $this->createMock(ReferenceRegistryInterface::class);
         $this->transport = $this->createMock(TransportInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
         // Create real NotificationHandler with mocked dependencies
-        $this->notificationHandler = NotificationHandler::make($this->referenceProvider);
+        $this->notificationHandler = NotificationHandler::make($this->registry);
 
         $this->sender = new NotificationSender(
             $this->notificationHandler,
@@ -52,12 +52,12 @@ final class NotificationSenderTest extends TestCase
     public function testSetTransport(): void
     {
         // Configure logging to be enabled
-        $this->referenceProvider
-            ->method('isLoggingMessageNotificationEnabled')
+        $this->registry
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
-            ->method('getLoggingMessageNotificationLevel')
+        $this->registry
+            ->method('getLoggingLevel')
             ->willReturn(LoggingLevel::Info);
 
         // Setting transport should not throw any exceptions
@@ -83,12 +83,12 @@ final class NotificationSenderTest extends TestCase
     public function testSendSuccessfulNotification(): void
     {
         // Configure logging to be enabled
-        $this->referenceProvider
-            ->method('isLoggingMessageNotificationEnabled')
+        $this->registry
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
-            ->method('getLoggingMessageNotificationLevel')
+        $this->registry
+            ->method('getLoggingLevel')
             ->willReturn(LoggingLevel::Info);
 
         $this->sender->setTransport($this->transport);
@@ -102,31 +102,14 @@ final class NotificationSenderTest extends TestCase
         $this->sender->send('notifications/message', ['level' => 'info', 'data' => 'test']);
     }
 
-    public function testSendNullNotificationDoesNotCallTransport(): void
-    {
-        $this->sender->setTransport($this->transport);
-
-        // Configure to disable logging so handler returns null
-        $this->referenceProvider
-            ->expects($this->once())
-            ->method('isLoggingMessageNotificationEnabled')
-            ->willReturn(false);
-
-        $this->transport
-            ->expects($this->never())
-            ->method('send');
-
-        $this->sender->send('notifications/message', ['level' => 'info', 'data' => 'test']);
-    }
-
     public function testSendHandlerFailureGracefullyHandled(): void
     {
         $this->sender->setTransport($this->transport);
 
         // Make logging disabled so handler fails gracefully (returns null)
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('isLoggingMessageNotificationEnabled')
+            ->method('isLoggingEnabled')
             ->willReturn(false);
 
         // Transport should never be called when notification creation fails
@@ -151,14 +134,14 @@ final class NotificationSenderTest extends TestCase
         $this->sender->setTransport($this->transport);
 
         // Configure successful logging
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('isLoggingMessageNotificationEnabled')
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('getLoggingMessageNotificationLevel')
+            ->method('getLoggingLevel')
             ->willReturn(LoggingLevel::Info);
 
         $this->transport
@@ -179,12 +162,12 @@ final class NotificationSenderTest extends TestCase
     public function testConstructorWithTransport(): void
     {
         // Configure logging to be enabled
-        $this->referenceProvider
-            ->method('isLoggingMessageNotificationEnabled')
+        $this->registry
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
-            ->method('getLoggingMessageNotificationLevel')
+        $this->registry
+            ->method('getLoggingLevel')
             ->willReturn(LoggingLevel::Info);
 
         $sender = new NotificationSender(

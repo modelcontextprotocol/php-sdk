@@ -77,7 +77,7 @@ class RegistryTest extends TestCase
         $this->assertTrue($capabilities->prompts);
         $this->assertTrue($capabilities->completions);
         $this->assertFalse($capabilities->resourcesSubscribe);
-        $this->assertFalse($capabilities->logging);
+        $this->assertTrue($capabilities->logging); // Logging is enabled by default
     }
 
     public function testSetCustomCapabilities(): void

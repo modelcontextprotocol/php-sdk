@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Handler;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Exception\HandlerNotFoundException;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\LoggingMessageNotification;
@@ -48,12 +48,12 @@ final class NotificationHandler
      * Creates a NotificationHandler with default handlers.
      */
     public static function make(
-        ReferenceProviderInterface $referenceProvider,
+        ReferenceRegistryInterface $registry,
         LoggerInterface $logger = new NullLogger(),
     ): self {
         return new self(
             handlers: [
-                LoggingMessageNotification::getMethod() => new LoggingMessageNotificationHandler($referenceProvider, $logger),
+                LoggingMessageNotification::getMethod() => new LoggingMessageNotificationHandler($registry, $logger),
             ],
             logger: $logger,
         );

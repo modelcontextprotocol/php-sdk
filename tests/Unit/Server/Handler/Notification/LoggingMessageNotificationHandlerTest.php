@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Notification;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\LoggingMessageNotification;
@@ -26,31 +26,31 @@ use Psr\Log\LoggerInterface;
 class LoggingMessageNotificationHandlerTest extends TestCase
 {
     private LoggingMessageNotificationHandler $handler;
-    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private ReferenceRegistryInterface&MockObject $registry;
     private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
-        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->registry = $this->createMock(ReferenceRegistryInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
 
         $this->handler = new LoggingMessageNotificationHandler(
-            $this->referenceProvider,
+            $this->registry,
             $this->logger
         );
     }
 
     public function testHandleNotificationCreation(): void
     {
-        $this->referenceProvider
-            ->expects($this->exactly(3))
-            ->method('isLoggingMessageNotificationEnabled')
+        $this->registry
+            ->expects($this->exactly(2))
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
-            ->expects($this->exactly(3))
-            ->method('getLoggingMessageNotificationLevel')
-            ->willReturnOnConsecutiveCalls(LoggingLevel::Info, LoggingLevel::Debug, null);
+        $this->registry
+            ->expects($this->exactly(2))
+            ->method('getLoggingLevel')
+            ->willReturnOnConsecutiveCalls(LoggingLevel::Info, LoggingLevel::Debug);
 
         // Test with LoggingLevel enum
         $params1 = [
@@ -62,8 +62,8 @@ class LoggingMessageNotificationHandlerTest extends TestCase
         $this->assertInstanceOf(LoggingMessageNotification::class, $notification1);
         /* @var LoggingMessageNotification $notification1 */
         $this->assertEquals(LoggingLevel::Error, $notification1->level);
-        $this->assertEquals('Test error message', $notification1->data);
-        $this->assertEquals('TestLogger', $notification1->logger);
+        $this->assertEquals($params1['data'], $notification1->data);
+        $this->assertEquals($params1['logger'], $notification1->logger);
 
         // Test with string level conversion
         $params2 = [
@@ -74,26 +74,8 @@ class LoggingMessageNotificationHandlerTest extends TestCase
         $this->assertInstanceOf(LoggingMessageNotification::class, $notification2);
         /* @var LoggingMessageNotification $notification2 */
         $this->assertEquals(LoggingLevel::Warning, $notification2->level);
-        $this->assertEquals('String level test', $notification2->data);
+        $this->assertEquals($params2['data'], $notification2->data);
         $this->assertNull($notification2->logger);
-
-        // Test with complex data and no log level threshold
-        $complexData = [
-            'error' => 'Connection failed',
-            'details' => ['host' => 'localhost', 'port' => 5432, 'retry_count' => 3],
-            'timestamp' => time(),
-        ];
-        $params3 = [
-            'level' => LoggingLevel::Critical,
-            'data' => $complexData,
-            'logger' => 'DatabaseService',
-        ];
-        $notification3 = $this->handler->handle(LoggingMessageNotification::getMethod(), $params3);
-        $this->assertInstanceOf(LoggingMessageNotification::class, $notification3);
-        /* @var LoggingMessageNotification $notification3 */
-        $this->assertEquals(LoggingLevel::Critical, $notification3->level);
-        $this->assertEquals($complexData, $notification3->data);
-        $this->assertEquals('DatabaseService', $notification3->logger);
     }
 
     public function testValidationAndErrors(): void
@@ -113,9 +95,9 @@ class LoggingMessageNotificationHandlerTest extends TestCase
 
     public function testLoggingDisabledRejectsMessages(): void
     {
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('isLoggingMessageNotificationEnabled')
+            ->method('isLoggingEnabled')
             ->willReturn(false);
 
         $this->logger
@@ -137,14 +119,14 @@ class LoggingMessageNotificationHandlerTest extends TestCase
     public function testLogLevelFiltering(): void
     {
         // Test equal level is allowed
-        $this->referenceProvider
+        $this->registry
             ->expects($this->exactly(3))
-            ->method('isLoggingMessageNotificationEnabled')
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->exactly(3))
-            ->method('getLoggingMessageNotificationLevel')
+            ->method('getLoggingLevel')
             ->willReturnOnConsecutiveCalls(LoggingLevel::Warning, LoggingLevel::Warning, LoggingLevel::Error);
 
         // Equal level should be allowed
@@ -193,15 +175,15 @@ class LoggingMessageNotificationHandlerTest extends TestCase
 
     public function testNotificationSerialization(): void
     {
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('isLoggingMessageNotificationEnabled')
+            ->method('isLoggingEnabled')
             ->willReturn(true);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
-            ->method('getLoggingMessageNotificationLevel')
-            ->willReturn(null);
+            ->method('getLoggingLevel')
+            ->willReturn(LoggingLevel::Debug);
 
         $params = [
             'level' => LoggingLevel::Info,

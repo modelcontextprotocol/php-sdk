@@ -10,7 +10,7 @@
  * file that was distributed with this source code.
  */
 
-require_once dirname(__DIR__).'/bootstrap.php';
+require_once dirname(__DIR__) . '/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Server;
@@ -23,7 +23,6 @@ $server = Server::builder()
     ->setServerInfo('Stdio Logging Showcase', '1.0.0', 'Demonstration of auto-injected MCP logging in capability handlers.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->enableClientLogging()  // Enable MCP logging capability and auto-injection!
     ->setDiscovery(__DIR__, ['.'])
     ->build();
 

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\Protocol;
@@ -160,6 +160,8 @@ final class ServerTest extends TestCase
         $server->run($this->transport);
         $referenceProvider = $this->createMock(ReferenceProviderInterface::class);
         $notificationHandler = NotificationHandler::make($referenceProvider);
+        $registry = $this->createMock(ReferenceRegistryInterface::class);
+        $notificationHandler = NotificationHandler::make($registry);
         $notificationSender = new NotificationSender($notificationHandler);
         $server = new Server($handler, $notificationSender);
         $server->run($transport);

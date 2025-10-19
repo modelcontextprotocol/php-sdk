@@ -88,7 +88,7 @@ final class Builder
      */
     private array $notificationHandlers = [];
 
-    private bool $loggingMessageNotificationEnabled = false;
+    private bool $logging = true;
 
     /**
      * @var array{
@@ -241,15 +241,11 @@ final class Builder
     }
 
     /**
-     * Enables Client logging capability for the server.
-     *
-     * When enabled, the server will advertise logging capability to clients,
-     * indicating that it can emit structured log messages according to the MCP specification.
-     * This enables auto-injection of ClientLogger into capability handlers.
+     * Disables Client logging capability for the server.
      */
-    public function enableClientLogging(): self
+    public function disableClientLogging(): self
     {
-        $this->loggingMessageNotificationEnabled = true;
+        $this->logging = false;
 
         return $this;
     }
@@ -395,9 +391,9 @@ final class Builder
         $container = $this->container ?? new Container();
         $registry = new Registry($this->eventDispatcher, $logger);
 
-        // Enable MCP logging capability if requested
-        if ($this->loggingMessageNotificationEnabled) {
-            $registry->enableLoggingMessageNotification();
+        // Enable Client logging capability if requested
+        if (!$this->logging) {
+            $registry->disableLogging();
         }
 
         $this->registerCapabilities($registry, $logger);

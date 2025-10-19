@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Schema\JsonRpc\HasMethodInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\SetLogLevelRequest;
@@ -31,7 +31,7 @@ use Psr\Log\LoggerInterface;
 final class SetLogLevelHandler implements MethodHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly ReferenceRegistryInterface $registry,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -46,7 +46,7 @@ final class SetLogLevelHandler implements MethodHandlerInterface
         \assert($message instanceof SetLogLevelRequest);
 
         // Update the log level in the registry via the interface
-        $this->referenceProvider->setLoggingMessageNotificationLevel($message->level);
+        $this->registry->setLoggingLevel($message->level);
 
         $this->logger->debug("Log level set to: {$message->level->value}");
 

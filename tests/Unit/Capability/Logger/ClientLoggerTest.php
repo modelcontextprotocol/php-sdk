@@ -12,7 +12,7 @@
 namespace Tests\Unit\Capability\Logger;
 
 use Mcp\Capability\Logger\ClientLogger;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Server\Handler\NotificationHandler;
 use Mcp\Server\NotificationSender;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -87,9 +87,9 @@ final class ClientLoggerTest extends TestCase
     private function createClientLogger(): ClientLogger
     {
         // Create minimal working NotificationSender for testing
-        // Using a minimal ReferenceProvider mock just to construct NotificationHandler
-        $referenceProvider = $this->createMock(ReferenceProviderInterface::class);
-        $notificationHandler = NotificationHandler::make($referenceProvider);
+        // Using a minimal ReferenceRegistryInterface mock just to construct NotificationHandler
+        $registry = $this->createMock(ReferenceRegistryInterface::class);
+        $notificationHandler = NotificationHandler::make($registry);
         $notificationSender = new NotificationSender($notificationHandler, null);
 
         return new ClientLogger(
