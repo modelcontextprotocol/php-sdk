@@ -13,6 +13,7 @@ namespace Mcp\Capability\Discovery;
 
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
+use phpDocumentor\Reflection\DocBlock\Tags\TagWithType;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
@@ -142,24 +143,24 @@ class DocBlockParser
      */
     public function getReturnTypeString(?DocBlock $docBlock): ?string
     {
-        if (!$docBlock) {
+        if (null === $docBlock) {
             return null;
         }
 
         $returnTags = $docBlock->getTagsByName('return');
-        if (empty($returnTags)) {
+        if ([] === $returnTags) {
             return null;
         }
 
         $returnTag = $returnTags[0];
-        if (method_exists($returnTag, 'getType') && $returnTag->getType()) {
-            $typeFromTag = trim((string) $returnTag->getType());
-            if (!empty($typeFromTag)) {
-                return ltrim($typeFromTag, '\\');
-            }
+
+        if (!$returnTag instanceof TagWithType) {
+            return null;
         }
 
-        return null;
+        $typeFromTag = trim((string) $returnTag->getType());
+
+        return ltrim($typeFromTag, '\\');
     }
 
     /**
@@ -167,20 +168,21 @@ class DocBlockParser
      */
     public function getReturnDescription(?DocBlock $docBlock): ?string
     {
-        if (!$docBlock) {
+        if (null === $docBlock) {
             return null;
         }
 
         $returnTags = $docBlock->getTagsByName('return');
-        if (empty($returnTags)) {
+        if ([] === $returnTags) {
             return null;
         }
 
         $returnTag = $returnTags[0];
-        $description = method_exists($returnTag, 'getDescription')
-            ? trim((string) $returnTag->getDescription())
-            : '';
 
-        return $description ?: null;
+        if (!$returnTag instanceof TagWithType) {
+            return null;
+        }
+
+        return trim((string) $returnTag->getDescription()) ?: null;
     }
 }
