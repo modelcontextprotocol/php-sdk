@@ -18,7 +18,7 @@ use Symfony\Component\Uid\Uuid;
 
 /**
  * PSR-16 compliant cache-based session store.
- * 
+ *
  * This implementation uses any PSR-16 compliant cache as the storage backend
  * for session data. Each session is stored with a prefixed key using the session ID.
  */
