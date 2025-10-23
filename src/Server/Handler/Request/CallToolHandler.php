@@ -59,14 +59,17 @@ final class CallToolHandler implements RequestHandlerInterface
             }
 
             $result = $this->referenceHandler->handle($reference, $arguments);
-            $formatted = $reference->formatResult($result);
+
+            if (!$result instanceof CallToolResult) {
+                $result = new CallToolResult($reference->formatResult($result));
+            }
 
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
             ]);
 
-            return new Response($request->getId(), new CallToolResult($formatted));
+            return new Response($request->getId(), $result);
         } catch (ToolNotFoundException $e) {
             $this->logger->error('Tool not found', ['name' => $toolName]);
 

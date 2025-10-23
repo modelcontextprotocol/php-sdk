@@ -38,12 +38,14 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult.
      *
-     * @param Content[] $content The content of the tool result
-     * @param bool      $isError Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param Content[] $content           The content of the tool result
+     * @param bool      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param mixed[]   $structuredContent JSON content for `structuredContent`
      */
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
+        public readonly ?array $structuredContent = null,
     ) {
         foreach ($this->content as $item) {
             if (!$item instanceof Content) {
@@ -107,9 +109,15 @@ class CallToolResult implements ResultInterface
      */
     public function jsonSerialize(): array
     {
-        return [
+        $result = [
             'content' => $this->content,
             'isError' => $this->isError,
         ];
+
+        if ($this->structuredContent) {
+            $result['structuredContent'] = $this->structuredContent;
+        }
+
+        return $result;
     }
 }

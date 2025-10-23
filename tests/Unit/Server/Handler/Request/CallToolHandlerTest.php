@@ -342,6 +342,64 @@ class CallToolHandlerTest extends TestCase
         $this->assertEquals($expectedResult, $response->result);
     }
 
+    public function testHandleReturnsStructuredContentResult(): void
+    {
+        $request = $this->createCallToolRequest('structured_tool', ['query' => 'php']);
+        $toolReference = $this->createMock(ToolReference::class);
+        $structuredResult = new CallToolResult([new TextContent('Rendered results')], false, ['result' => 'Rendered results']);
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('structured_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['query' => 'php'])
+            ->willReturn($structuredResult);
+
+        $toolReference
+            ->expects($this->never())
+            ->method('formatResult');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($structuredResult, $response->result);
+        $this->assertEquals(['result' => 'Rendered results'], $response->result->jsonSerialize()['structuredContent'] ?? []);
+    }
+
+    public function testHandleReturnsCallToolResult(): void
+    {
+        $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
+        $toolReference = $this->createMock(ToolReference::class);
+        $callToolResult = new CallToolResult([new TextContent('Error result')], true);
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('result_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['query' => 'php'])
+            ->willReturn($callToolResult);
+
+        $toolReference
+            ->expects($this->never())
+            ->method('formatResult');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($callToolResult, $response->result);
+        $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
+    }
+
     /**
      * @param array<string, mixed> $arguments
      */
