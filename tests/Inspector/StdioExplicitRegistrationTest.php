@@ -13,7 +13,7 @@ namespace Inspector;
 
 use Mcp\Tests\Inspector\InspectorSnapshotTestCase;
 
-final class ManualStdioExampleTest extends InspectorSnapshotTestCase
+final class StdioExplicitRegistrationTest extends InspectorSnapshotTestCase
 {
     public static function provideMethods(): array
     {

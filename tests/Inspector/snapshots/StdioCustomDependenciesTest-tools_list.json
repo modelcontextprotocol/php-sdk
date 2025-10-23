@@ -1,0 +1,76 @@
+{
+  "tools": [
+    {
+      "name": "add_numbers",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "integer"
+          },
+          "b": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "multiply_numbers",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "integer"
+          },
+          "b": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "divide_numbers",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "integer"
+          },
+          "b": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "power",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "base": {
+            "type": "integer"
+          },
+          "exponent": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "base",
+          "exponent"
+        ]
+      }
+    }
+  ]
+}
