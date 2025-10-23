@@ -34,7 +34,7 @@ $server = Server::builder()
     ->setServerInfo('Task Manager Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer($container)
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__)
     ->build();
 
 $transport = new StdioTransport(logger: logger());

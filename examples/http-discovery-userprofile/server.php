@@ -30,7 +30,7 @@ $server = Server::builder()
     ->setLogger(logger())
     ->setContainer(container())
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__)
     ->addTool(
         function (float $a, float $b, string $operation = 'add'): array {
             $result = match ($operation) {

@@ -30,7 +30,7 @@ $server = Server::builder()
     ->setContainer(container())
     ->setLogger(logger())
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__)
     ->build();
 
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
