@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\DependenciesStdioExample\Service;
+namespace Mcp\Example\StdioCustomDependencies\Service;
 
 interface StatsServiceInterface
 {

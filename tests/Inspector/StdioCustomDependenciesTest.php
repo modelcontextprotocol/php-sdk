@@ -13,7 +13,7 @@ namespace Inspector;
 
 use Mcp\Tests\Inspector\InspectorSnapshotTestCase;
 
-final class ManualStdioExampleTest extends InspectorSnapshotTestCase
+final class StdioCustomDependenciesTest extends InspectorSnapshotTestCase
 {
     public static function provideMethods(): array
     {
@@ -24,6 +24,6 @@ final class ManualStdioExampleTest extends InspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 2).'/examples/stdio-explicit-registration/server.php';
+        return \dirname(__DIR__, 2).'/examples/stdio-custom-dependencies/server.php';
     }
 }

@@ -1,0 +1,57 @@
+{
+  "tools": [
+    {
+      "name": "add_task",
+      "description": "Adds a new task for a given user.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "the ID of the user"
+          },
+          "description": {
+            "type": "string",
+            "description": "the task description"
+          }
+        },
+        "required": [
+          "userId",
+          "description"
+        ]
+      }
+    },
+    {
+      "name": "list_user_tasks",
+      "description": "Lists pending tasks for a specific user.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "the ID of the user"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      }
+    },
+    {
+      "name": "complete_task",
+      "description": "Marks a task as complete.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "taskId": {
+            "type": "integer",
+            "description": "the ID of the task to complete"
+          }
+        },
+        "required": [
+          "taskId"
+        ]
+      }
+    }
+  ]
+}

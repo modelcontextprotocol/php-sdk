@@ -13,10 +13,10 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\Example\DependenciesStdioExample\Service\InMemoryTaskRepository;
-use Mcp\Example\DependenciesStdioExample\Service\StatsServiceInterface;
-use Mcp\Example\DependenciesStdioExample\Service\SystemStatsService;
-use Mcp\Example\DependenciesStdioExample\Service\TaskRepositoryInterface;
+use Mcp\Example\StdioCustomDependencies\Service\InMemoryTaskRepository;
+use Mcp\Example\StdioCustomDependencies\Service\StatsServiceInterface;
+use Mcp\Example\StdioCustomDependencies\Service\SystemStatsService;
+use Mcp\Example\StdioCustomDependencies\Service\TaskRepositoryInterface;
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
 

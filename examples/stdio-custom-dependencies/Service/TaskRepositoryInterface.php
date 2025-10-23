@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\DependenciesStdioExample\Service;
+namespace Mcp\Example\StdioCustomDependencies\Service;
 
 /**
  * @phpstan-type Task array{id: int, userId: string, description: string, completed: bool, createdAt: string}

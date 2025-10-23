@@ -1,0 +1,10 @@
+{
+  "resources": [
+    {
+      "name": "system_stats",
+      "uri": "stats://system/overview",
+      "description": "Provides current system statistics.",
+      "mimeType": "application/json"
+    }
+  ]
+}

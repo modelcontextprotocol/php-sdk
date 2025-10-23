@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Inspector;
 
-final class StdioCalculatorExampleTest extends InspectorSnapshotTestCase
+final class StdioDiscoveryCalculatorTest extends InspectorSnapshotTestCase
 {
     public static function provideMethods(): array
     {
