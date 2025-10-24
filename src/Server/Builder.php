@@ -441,7 +441,7 @@ final class Builder
      */
     private function registerCapabilities(
         Registry\ReferenceRegistryInterface $registry,
-        LoggerInterface $logger = new NullLogger(),
+        LoggerInterface $logger,
     ): void {
         if (empty($this->tools) && empty($this->resources) && empty($this->resourceTemplates) && empty($this->prompts)) {
             return;

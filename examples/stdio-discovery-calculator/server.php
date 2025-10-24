@@ -23,7 +23,7 @@ $server = Server::builder()
     ->setInstructions('This server supports basic arithmetic operations: add, subtract, multiply, and divide. Send JSON-RPC requests to perform calculations.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__)
     ->build();
 
 $transport = new StdioTransport(logger: logger());

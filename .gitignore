@@ -4,4 +4,5 @@ composer.lock
 coverage
 vendor
 examples/**/dev.log
+examples/**/cache
 examples/**/sessions
