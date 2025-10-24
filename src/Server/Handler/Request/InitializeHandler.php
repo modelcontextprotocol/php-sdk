@@ -47,6 +47,8 @@ final class InitializeHandler implements RequestHandlerInterface
                 $this->configuration->capabilities ?? new ServerCapabilities(),
                 $this->configuration->serverInfo ?? new Implementation(),
                 $this->configuration?->instructions,
+                null,
+                $this->configuration?->protocolVersion,
             ),
         );
     }

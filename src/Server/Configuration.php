@@ -11,6 +11,7 @@
 
 namespace Mcp\Server;
 
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\ServerCapabilities;
 
@@ -34,6 +35,7 @@ class Configuration
         public readonly ServerCapabilities $capabilities,
         public readonly int $paginationLimit = 50,
         public readonly ?string $instructions = null,
+        public readonly ?ProtocolVersion $protocolVersion = null,
     ) {
     }
 }
