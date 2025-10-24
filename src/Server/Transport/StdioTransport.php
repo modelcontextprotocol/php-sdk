@@ -11,25 +11,17 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Schema\JsonRpc\Error;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
-use Symfony\Component\Uid\Uuid;
 
 /**
  * @implements TransportInterface<int>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- */
-class StdioTransport implements TransportInterface
+ * */
+class StdioTransport extends BaseTransport implements TransportInterface
 {
-    /** @var callable(string, ?Uuid): void */
-    private $messageListener;
-
-    /** @var callable(Uuid): void */
-    private $sessionEndListener;
-
-    private ?Uuid $sessionId = null;
-
     /**
      * @param resource $input
      * @param resource $output
@@ -37,80 +29,137 @@ class StdioTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        LoggerInterface $logger = new NullLogger(),
     ) {
-    }
-
-    public function initialize(): void
-    {
-    }
-
-    public function onMessage(callable $listener): void
-    {
-        $this->messageListener = $listener;
+        parent::__construct($logger);
     }
 
     public function send(string $data, array $context): void
     {
-        $this->logger->debug('Sending data to client via StdioTransport.', ['data' => $data]);
-
         if (isset($context['session_id'])) {
             $this->sessionId = $context['session_id'];
         }
 
-        fwrite($this->output, $data.\PHP_EOL);
+        $this->writeLine($data);
     }
 
     public function listen(): int
     {
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
+        stream_set_blocking($this->input, false);
 
-        $status = 0;
         while (!feof($this->input)) {
-            $line = fgets($this->input);
-            if (false === $line) {
-                if (!feof($this->input)) {
-                    $status = 1;
-                }
-
-                break;
-            }
-
-            $trimmedLine = trim($line);
-            if (!empty($trimmedLine)) {
-                $this->logger->debug('Received message on StdioTransport.', ['line' => $trimmedLine]);
-                if (\is_callable($this->messageListener)) {
-                    \call_user_func($this->messageListener, $trimmedLine, $this->sessionId);
-                }
-            }
+            $this->processInput();
+            $this->processFiber();
+            $this->flushOutgoingMessages();
         }
 
         $this->logger->info('StdioTransport finished listening.');
+        $this->handleSessionEnd($this->sessionId);
 
-        if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
-            \call_user_func($this->sessionEndListener, $this->sessionId);
-            $this->sessionId = null;
-        }
-
-        return $status;
+        return 0;
     }
 
-    public function onSessionEnd(callable $listener): void
+    protected function processInput(): void
     {
-        $this->sessionEndListener = $listener;
+        $line = fgets($this->input);
+        if (false === $line) {
+            usleep(50000); // 50ms
+
+            return;
+        }
+
+        $trimmedLine = trim($line);
+        if (!empty($trimmedLine)) {
+            $this->handleMessage($trimmedLine, $this->sessionId);
+        }
+    }
+
+    private function processFiber(): void
+    {
+        if (null === $this->sessionFiber) {
+            return;
+        }
+
+        if ($this->sessionFiber->isTerminated()) {
+            $this->handleFiberTermination();
+
+            return;
+        }
+
+        if (!$this->sessionFiber->isSuspended()) {
+            return;
+        }
+
+        $pendingRequests = $this->getPendingRequests($this->sessionId);
+
+        if (empty($pendingRequests)) {
+            $yielded = $this->sessionFiber->resume();
+            $this->handleFiberYield($yielded, $this->sessionId);
+
+            return;
+        }
+
+        foreach ($pendingRequests as $pending) {
+            $requestId = $pending['request_id'];
+            $timestamp = $pending['timestamp'];
+            $timeout = $pending['timeout'] ?? 120;
+
+            $response = $this->checkForResponse($requestId, $this->sessionId);
+
+            if (null !== $response) {
+                $yielded = $this->sessionFiber->resume($response);
+                $this->handleFiberYield($yielded, $this->sessionId);
+
+                return;
+            }
+
+            if (time() - $timestamp >= $timeout) {
+                $error = Error::forInternalError('Request timed out', $requestId);
+                $yielded = $this->sessionFiber->resume($error);
+                $this->handleFiberYield($yielded, $this->sessionId);
+
+                return;
+            }
+        }
+    }
+
+    private function handleFiberTermination(): void
+    {
+        $finalResult = $this->sessionFiber->getReturn();
+
+        if (null !== $finalResult) {
+            try {
+                $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
+                $this->writeLine($encoded);
+            } catch (\JsonException $e) {
+                $this->logger->error('STDIO: Failed to encode final Fiber result.', ['exception' => $e]);
+            }
+        }
+
+        $this->sessionFiber = null;
+    }
+
+    private function flushOutgoingMessages(): void
+    {
+        $messages = $this->getOutgoingMessages($this->sessionId);
+
+        foreach ($messages as $message) {
+            $this->writeLine($message['message']);
+        }
+    }
+
+    private function writeLine(string $payload): void
+    {
+        fwrite($this->output, $payload.\PHP_EOL);
     }
 
     public function close(): void
     {
-        if (\is_callable($this->sessionEndListener) && null !== $this->sessionId) {
-            \call_user_func($this->sessionEndListener, $this->sessionId);
-            $this->sessionId = null;
-        }
-
+        $this->handleSessionEnd($this->sessionId);
         if (\is_resource($this->input)) {
             fclose($this->input);
         }
-
         if (\is_resource($this->output)) {
             fclose($this->output);
         }

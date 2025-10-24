@@ -26,6 +26,8 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
+ * @implements RequestHandlerInterface<CallToolResult>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -43,6 +45,9 @@ final class CallToolHandler implements RequestHandlerInterface
         return $request instanceof CallToolRequest;
     }
 
+    /**
+     * @return Response<CallToolResult>|Error
+     */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
         \assert($request instanceof CallToolRequest);
@@ -57,6 +62,8 @@ final class CallToolHandler implements RequestHandlerInterface
             if (null === $reference) {
                 throw new ToolNotFoundException($request);
             }
+
+            $arguments['_session'] = $session;
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 

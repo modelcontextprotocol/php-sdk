@@ -18,15 +18,9 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-class InMemoryTransport implements TransportInterface
+class InMemoryTransport extends BaseTransport implements TransportInterface
 {
-    /** @var callable(string, ?Uuid): void */
-    private $messageListener;
-
-    /** @var callable(Uuid): void */
-    private $sessionDestroyListener;
-
-    private ?Uuid $sessionId = null;
+    use ManagesTransportCallbacks;
 
     /**
      * @param list<string> $messages
@@ -58,29 +52,24 @@ class InMemoryTransport implements TransportInterface
     public function listen(): mixed
     {
         foreach ($this->messages as $message) {
-            if (\is_callable($this->messageListener)) {
-                \call_user_func($this->messageListener, $message, $this->sessionId);
-            }
+            $this->handleMessage($message, $this->sessionId);
         }
 
-        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
-            \call_user_func($this->sessionDestroyListener, $this->sessionId);
-            $this->sessionId = null;
-        }
+        $this->handleSessionEnd($this->sessionId);
+
+        $this->sessionId = null;
 
         return null;
     }
 
-    public function onSessionEnd(callable $listener): void
+    public function setSessionId(?Uuid $sessionId): void
     {
-        $this->sessionDestroyListener = $listener;
+        $this->sessionId = $sessionId;
     }
 
     public function close(): void
     {
-        if (\is_callable($this->sessionDestroyListener) && null !== $this->sessionId) {
-            \call_user_func($this->sessionDestroyListener, $this->sessionId);
-            $this->sessionId = null;
-        }
+        $this->handleSessionEnd($this->sessionId);
+        $this->sessionId = null;
     }
 }
