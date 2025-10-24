@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Psr\Container\ContainerInterface;
@@ -22,6 +23,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 {
     public function __construct(
         private readonly ?ContainerInterface $container = null,
+        private readonly ?ClientLogger $clientLogger = null,
     ) {
     }
 
@@ -89,6 +91,18 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
 
+            // Auto-inject ClientLogger if parameter expects it
+            if ($this->shouldInjectClientLogger($parameter)) {
+                if (null !== $this->clientLogger) {
+                    $finalArgs[$paramPosition] = $this->clientLogger;
+                    continue;
+                } elseif ($parameter->allowsNull() || $parameter->isOptional()) {
+                    $finalArgs[$paramPosition] = null;
+                    continue;
+                }
+                // If ClientLogger is required but not available, fall through to normal handling
+            }
+
             if (isset($arguments[$paramName])) {
                 $argument = $arguments[$paramName];
                 try {
@@ -113,6 +127,23 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         }
 
         return array_values($finalArgs);
+    }
+
+    /**
+     * Determines if the parameter should receive auto-injected ClientLogger.
+     */
+    private function shouldInjectClientLogger(\ReflectionParameter $parameter): bool
+    {
+        $type = $parameter->getType();
+
+        if (!$type instanceof \ReflectionNamedType) {
+            return false;
+        }
+
+        $typeName = $type->getName();
+
+        // Auto-inject for ClientLogger or LoggerInterface types
+        return ClientLogger::class === $typeName || \Psr\Log\LoggerInterface::class === $typeName;
     }
 
     /**

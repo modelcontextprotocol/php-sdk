@@ -12,6 +12,7 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Capability\Discovery\DiscoveryState;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -88,4 +89,31 @@ interface ReferenceRegistryInterface
      * Manual elements are preserved.
      */
     public function setDiscoveryState(DiscoveryState $state): void;
+
+    /**
+     * Disables logging for the server.
+     */
+    public function disableLogging(): void;
+
+    /**
+     * Checks if logging capability is enabled.
+     *
+     * @return bool True if logging capability is enabled, false otherwise
+     */
+    public function isLoggingEnabled(): bool;
+
+    /**
+     * Sets the current logging level for the client.
+     *
+     * This determines which log messages should be sent to the client.
+     * Only messages at this level and higher (more severe) will be sent.
+     */
+    public function setLoggingLevel(LoggingLevel $level): void;
+
+    /**
+     * Gets the current logging level set by the client.
+     *
+     * @return LoggingLevel The current log level
+     */
+    public function getLoggingLevel(): LoggingLevel;
 }
