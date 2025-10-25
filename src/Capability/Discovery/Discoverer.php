@@ -94,11 +94,7 @@ class Discoverer
                     'configured_paths' => $directories,
                     'base_path' => $basePath,
                 ]);
-
-                $emptyState = new DiscoveryState();
-                $this->registry->setDiscoveryState($emptyState);
-
-                return $emptyState;
+                return new DiscoveryState();
             }
 
             $finder->files()
@@ -125,11 +121,7 @@ class Discoverer
             'resourceTemplates' => $discoveredCount['resourceTemplates'],
         ]);
 
-        $discoveryState = new DiscoveryState($tools, $resources, $prompts, $resourceTemplates);
-
-        $this->registry->setDiscoveryState($discoveryState);
-
-        return $discoveryState;
+        return new DiscoveryState($tools, $resources, $prompts, $resourceTemplates);
     }
 
     /**
