@@ -139,6 +139,9 @@ Configure session storage and lifecycle. By default, the SDK uses `InMemorySessi
 ```php
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16StoreSession;
+use Symfony\Component\Cache\Psr16Cache;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
 
 // Use default in-memory sessions with custom TTL
 $server = Server::builder()
@@ -154,11 +157,26 @@ $server = Server::builder()
 $server = Server::builder()
     ->setSession(new InMemorySessionStore(3600))
     ->build();
+
+// Override with PSR-16 cache-based storage
+$redisAdapter = new RedisAdapter(
+    RedisAdapter::createConnection('redis://localhost:6379'),
+    'mcp_sessions'
+);
+
+$server = Server::builder()
+    ->setSession(new Psr16StoreSession(
+        cache: new Psr16Cache($redisAdapter),
+        prefix: 'mcp-',
+        ttl: 3600
+    ))
+    ->build();
 ```
 
 **Available Session Stores:**
 - `InMemorySessionStore`: Fast in-memory storage (default)
 - `FileSessionStore`: Persistent file-based storage
+- `Psr16StoreSession`: PSR-16 compliant cache-based storage
 
 **Custom Session Stores:**
 
