@@ -150,7 +150,7 @@ $server = Server::builder()
 
 // Override with file-based storage
 $server = Server::builder()
-    ->setSession(new FileSessionStore('/tmp/mcp-sessions'))
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
     ->build();
 
 // Override with in-memory storage and custom TTL
