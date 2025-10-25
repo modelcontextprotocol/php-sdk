@@ -41,20 +41,26 @@ class StreamableHttpTransport implements TransportInterface
     private ?int $outgoingStatusCode = null;
 
     /** @var array<string, string> */
-    private array $corsHeaders = [
-        'Access-Control-Allow-Origin' => '*',
-        'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
-    ];
+    private array $corsHeaders;
 
+    /**
+     * @param array<string, string> $corsHeaders
+     */
     public function __construct(
         private readonly ServerRequestInterface $request,
         private readonly ResponseFactoryInterface $responseFactory,
         private readonly StreamFactoryInterface $streamFactory,
+        array $corsHeaders = [],
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
         $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+
+        $this->corsHeaders = array_merge([
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+        ], $corsHeaders);
     }
 
     public function initialize(): void
