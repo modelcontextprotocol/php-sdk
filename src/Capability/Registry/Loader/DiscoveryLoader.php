@@ -38,12 +38,14 @@ final class DiscoveryLoader implements LoaderInterface
     public function load(ReferenceRegistryInterface $registry): void
     {
         // This now encapsulates the discovery process
-        $discoverer = new Discoverer($registry, $this->logger);
+        $discoverer = new Discoverer($this->logger);
 
         $cachedDiscoverer = $this->cache
             ? new CachedDiscoverer($discoverer, $this->cache, $this->logger)
             : $discoverer;
 
-        $cachedDiscoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+        $discoveryState = $cachedDiscoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+
+        $registry->setDiscoveryState($discoveryState);
     }
 }

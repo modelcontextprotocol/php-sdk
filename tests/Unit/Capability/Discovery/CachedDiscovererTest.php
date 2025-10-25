@@ -14,7 +14,6 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscoveryState;
-use Mcp\Capability\Registry;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
@@ -23,8 +22,7 @@ class CachedDiscovererTest extends TestCase
 {
     public function testCachedDiscovererUsesCacheOnSecondCall(): void
     {
-        $registry = new Registry(null, new NullLogger());
-        $discoverer = new Discoverer($registry, new NullLogger());
+        $discoverer = new Discoverer();
 
         $cache = $this->createMock(CacheInterface::class);
         $cache->expects($this->once())
@@ -47,8 +45,7 @@ class CachedDiscovererTest extends TestCase
 
     public function testCachedDiscovererReturnsCachedResults(): void
     {
-        $registry = new Registry(null, new NullLogger());
-        $discoverer = new Discoverer($registry, new NullLogger());
+        $discoverer = new Discoverer();
 
         $cache = $this->createMock(CacheInterface::class);
         $cachedState = new DiscoveryState();
@@ -71,8 +68,7 @@ class CachedDiscovererTest extends TestCase
 
     public function testCacheKeyGeneration(): void
     {
-        $registry = new Registry(null, new NullLogger());
-        $discoverer = new Discoverer($registry, new NullLogger());
+        $discoverer = new Discoverer();
 
         $cache = $this->createMock(CacheInterface::class);
 
