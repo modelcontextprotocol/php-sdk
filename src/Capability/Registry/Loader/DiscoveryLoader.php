@@ -44,6 +44,8 @@ final class DiscoveryLoader implements LoaderInterface
             ? new CachedDiscoverer($discoverer, $this->cache, $this->logger)
             : $discoverer;
 
-        $cachedDiscoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+        $discoveryState =$cachedDiscoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+
+        $registry->setDiscoveryState($discoveryState);
     }
 }
