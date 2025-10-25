@@ -17,6 +17,8 @@ use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * @author luoyue <1569097443@qq.com>
+ *
  * PSR-16 compliant cache-based session store.
  *
  * This implementation uses any PSR-16 compliant cache as the storage backend
