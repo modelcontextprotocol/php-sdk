@@ -190,22 +190,41 @@ $response = $server->run($transport);
 By default, the SDK uses in-memory sessions. You can configure different session stores:
 
 ```php
-use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16StoreSession;
+use Symfony\Component\Cache\Psr16Cache;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
 
-// Use default in-memory sessions (TTL only)
+// Use default in-memory sessions with custom TTL
 $server = Server::builder()
     ->setSession(ttl: 7200) // 2 hours
     ->build();
 
-// Use file-based sessions
+// Override with file-based storage
 $server = Server::builder()
     ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
     ->build();
 
-// Use in-memory with custom TTL
+// Override with in-memory storage and custom TTL
 $server = Server::builder()
     ->setSession(new InMemorySessionStore(3600))
+    ->build();
+
+// Override with PSR-16 cache-based storage
+// Requires psr/simple-cache and symfony/cache (or any other PSR-16 implementation)
+// composer require psr/simple-cache symfony/cache
+$redisAdapter = new RedisAdapter(
+    RedisAdapter::createConnection('redis://localhost:6379'),
+    'mcp_sessions'
+);
+
+$server = Server::builder()
+    ->setSession(new Psr16StoreSession(
+        cache: new Psr16Cache($redisAdapter),
+        prefix: 'mcp-',
+        ttl: 3600
+    ))
     ->build();
 ```
 
