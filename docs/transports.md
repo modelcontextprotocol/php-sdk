@@ -111,7 +111,50 @@ $transport = new StreamableHttpTransport(
 - **`request`** (required): `ServerRequestInterface` - The incoming PSR-7 HTTP request
 - **`responseFactory`** (required): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses
 - **`streamFactory`** (required): `StreamFactoryInterface` - PSR-17 factory for creating response body streams
+- **`corsHeaders`** (optional): `array` - Custom CORS headers to override defaults. Merges with secure defaults. Defaults to `[]`.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
+
+### CORS Configuration
+
+The transport sets secure CORS defaults that can be customized or disabled:
+
+```php
+// Default CORS headers (backward compatible)
+$transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
+
+// Restrict to specific origin
+$transport = new StreamableHttpTransport(
+    $request,
+    $responseFactory,
+    $streamFactory,
+    ['Access-Control-Allow-Origin' => 'https://myapp.com']
+);
+
+// Disable CORS for proxy scenarios
+$transport = new StreamableHttpTransport(
+    $request,
+    $responseFactory,
+    $streamFactory,
+    ['Access-Control-Allow-Origin' => '']
+);
+
+// Custom headers with logger
+$transport = new StreamableHttpTransport(
+    $request,
+    $responseFactory,
+    $streamFactory,
+    [
+        'Access-Control-Allow-Origin' => 'https://api.example.com',
+        'Access-Control-Max-Age' => '86400'
+    ],
+    $logger
+);
+```
+
+Default CORS headers:
+- `Access-Control-Allow-Origin: *`
+- `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
+- `Access-Control-Allow-Headers: Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept`
 
 ### Architecture
 
