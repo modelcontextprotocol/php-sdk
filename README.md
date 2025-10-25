@@ -212,6 +212,8 @@ $server = Server::builder()
     ->build();
 
 // Override with PSR-16 cache-based storage
+// Requires psr/simple-cache and symfony/cache (or any other PSR-16 implementation)
+// composer require psr/simple-cache symfony/cache
 $redisAdapter = new RedisAdapter(
     RedisAdapter::createConnection('redis://localhost:6379'),
     'mcp_sessions'
