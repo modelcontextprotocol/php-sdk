@@ -21,6 +21,7 @@
     "php": "^8.1",
     "ext-fileinfo": "*",
     "opis/json-schema": "^2.4",
+    "php-http/discovery": "^1.20",
     "phpdocumentor/reflection-docblock": "^5.6",
     "psr/clock": "^1.0",
     "psr/container": "^2.0",
@@ -64,6 +65,9 @@
     }
   },
   "config": {
-    "sort-packages": true
+    "sort-packages": true,
+    "allow-plugins": {
+      "php-http/discovery": false
+    }
   }
 }

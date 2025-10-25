@@ -13,18 +13,15 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Example\HttpCombinedRegistration\ManualHandlers;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7Server\ServerRequestCreator;
 
 $psr17Factory = new Psr17Factory();
-$creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
-
-$request = $creator->fromGlobals();
+$request = $psr17Factory->createServerRequestFromGlobals();
 
 $server = Server::builder()
     ->setServerInfo('Combined HTTP Server', '1.0.0')
@@ -40,7 +37,7 @@ $server = Server::builder()
     )
     ->build();
 
-$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
+$transport = new StreamableHttpTransport($request);
 
 $response = $server->run($transport);
 
