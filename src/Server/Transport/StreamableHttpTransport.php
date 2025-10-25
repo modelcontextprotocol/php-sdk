@@ -35,16 +35,16 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
     private ?int $immediateStatusCode = null;
 
     /** @var array<string, string> */
-    private array $corsHeaders = [
-        'Access-Control-Allow-Origin' => '*',
-        'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-        'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
-    ];
+    private array $corsHeaders;
 
+    /**
+     * @param array<string, string> $corsHeaders
+     */
     public function __construct(
         private readonly ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
+        array $corsHeaders = [],
         LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct($logger);
@@ -53,6 +53,12 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+
+        $this->corsHeaders = array_merge([
+            'Access-Control-Allow-Origin' => '*',
+            'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
+            'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+        ], $corsHeaders);
     }
 
     public function initialize(): void
