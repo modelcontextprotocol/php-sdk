@@ -358,7 +358,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['query' => 'php'])
+            ->with($toolReference, ['query' => 'php', '_session' => $this->session])
             ->willReturn($structuredResult);
 
         $toolReference
@@ -387,7 +387,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['query' => 'php'])
+            ->with($toolReference, ['query' => 'php', '_session' => $this->session])
             ->willReturn($callToolResult);
 
         $toolReference

@@ -45,7 +45,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
         private readonly ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
-        private readonly LoggerInterface $logger = new NullLogger(),
+        LoggerInterface $logger = new NullLogger(),
     ) {
         parent::__construct($logger);
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
