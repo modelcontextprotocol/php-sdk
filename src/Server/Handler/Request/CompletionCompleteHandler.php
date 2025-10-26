@@ -24,6 +24,8 @@ use Psr\Container\ContainerInterface;
 /**
  * Handles completion/complete requests.
  *
+ * @implements RequestHandlerInterface<CompletionCompleteResult>
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class CompletionCompleteHandler implements RequestHandlerInterface
@@ -39,6 +41,9 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
         return $request instanceof CompletionCompleteRequest;
     }
 
+    /**
+     * @return Response<CompletionCompleteResult>|Error
+     */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
         \assert($request instanceof CompletionCompleteRequest);

@@ -63,7 +63,7 @@ final class Builder
     private ?string $instructions = null;
 
     /**
-     * @var array<int, RequestHandlerInterface>
+     * @var array<int, RequestHandlerInterface<mixed>>
      */
     private array $requestHandlers = [];
 
@@ -176,6 +176,8 @@ final class Builder
 
     /**
      * Register a single custom method handler.
+     *
+     * @param RequestHandlerInterface<mixed> $handler
      */
     public function addRequestHandler(RequestHandlerInterface $handler): self
     {
@@ -187,7 +189,7 @@ final class Builder
     /**
      * Register multiple custom method handlers.
      *
-     * @param iterable<int, RequestHandlerInterface> $handlers
+     * @param iterable<RequestHandlerInterface<mixed>> $handlers
      */
     public function addRequestHandlers(iterable $handlers): self
     {

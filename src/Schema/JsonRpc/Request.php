@@ -59,7 +59,13 @@ abstract class Request implements HasMethodInterface, MessageInterface
         $request->id = $data['id'];
 
         if (isset($data['params']['_meta'])) {
-            $request->meta = $data['params']['_meta'];
+            $meta = $data['params']['_meta'];
+            if ($meta instanceof \stdClass) {
+                $meta = (array) $meta;
+            }
+            if (\is_array($meta)) {
+                $request->meta = $meta;
+            }
         }
 
         return $request;
@@ -73,6 +79,33 @@ abstract class Request implements HasMethodInterface, MessageInterface
     public function getId(): string|int
     {
         return $this->id;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function getMeta(): ?array
+    {
+        return $this->meta;
+    }
+
+    public function withId(string|int $id): static
+    {
+        $clone = clone $this;
+        $clone->id = $id;
+
+        return $clone;
+    }
+
+    /**
+     * @param array<string, mixed>|null $meta
+     */
+    public function withMeta(?array $meta): static
+    {
+        $clone = clone $this;
+        $clone->meta = $meta;
+
+        return $clone;
     }
 
     /**

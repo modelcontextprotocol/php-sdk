@@ -20,6 +20,8 @@ use Mcp\Schema\Result\ListResourceTemplatesResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @implements RequestHandlerInterface<ListResourceTemplatesResult>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class ListResourceTemplatesHandler implements RequestHandlerInterface
@@ -36,6 +38,8 @@ final class ListResourceTemplatesHandler implements RequestHandlerInterface
     }
 
     /**
+     * @return Response<ListResourceTemplatesResult>
+     *
      * @throws InvalidCursorException
      */
     public function handle(Request $request, SessionInterface $session): Response

@@ -18,6 +18,8 @@ use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @implements RequestHandlerInterface<EmptyResult>
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class PingHandler implements RequestHandlerInterface
@@ -27,6 +29,9 @@ final class PingHandler implements RequestHandlerInterface
         return $request instanceof PingRequest;
     }
 
+    /**
+     * @return Response<EmptyResult>
+     */
     public function handle(Request $request, SessionInterface $session): Response
     {
         \assert($request instanceof PingRequest);

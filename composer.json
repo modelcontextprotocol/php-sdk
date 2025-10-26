@@ -61,6 +61,7 @@
       "Mcp\\Example\\StdioDiscoveryCalculator\\": "examples/stdio-discovery-calculator/",
       "Mcp\\Example\\StdioEnvVariables\\": "examples/stdio-env-variables/",
       "Mcp\\Example\\StdioExplicitRegistration\\": "examples/stdio-explicit-registration/",
+      "Mcp\\Example\\CustomMethodHandlers\\": "examples/custom-method-handlers/",
       "Mcp\\Tests\\": "tests/"
     }
   },
