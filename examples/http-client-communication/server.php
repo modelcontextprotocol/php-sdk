@@ -12,6 +12,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
@@ -21,19 +22,16 @@ use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7Server\ServerRequestCreator;
 
-$psr17Factory = new Psr17Factory();
-$creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
-$request = $creator->fromGlobals();
+$request = (new Psr17Factory())->createServerRequestFromGlobals();
 
 $sessionDir = __DIR__.'/sessions';
 $capabilities = new ServerCapabilities(logging: true, tools: true);
+$logger = logger();
 
 $server = Server::builder()
     ->setServerInfo('HTTP Client Communication Demo', '1.0.0')
-    ->setLogger(logger())
+    ->setLogger($logger)
     ->setContainer(container())
     ->setSession(new FileSessionStore($sessionDir))
     ->setCapabilities($capabilities)
@@ -117,7 +115,7 @@ $server = Server::builder()
     )
     ->build();
 
-$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory, logger());
+$transport = new StreamableHttpTransport($request, logger: $logger);
 
 $response = $server->run($transport);
 
