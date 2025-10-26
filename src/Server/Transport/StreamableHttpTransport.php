@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Schema\JsonRpc\Error;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -27,6 +28,9 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport implements TransportInterface
 {
+    private ResponseFactoryInterface $responseFactory;
+    private StreamFactoryInterface $streamFactory;
+
     /** @var callable(string, ?Uuid): void */
     private $messageListener;
 
@@ -49,12 +53,15 @@ class StreamableHttpTransport implements TransportInterface
 
     public function __construct(
         private readonly ServerRequestInterface $request,
-        private readonly ResponseFactoryInterface $responseFactory,
-        private readonly StreamFactoryInterface $streamFactory,
+        ?ResponseFactoryInterface $responseFactory = null,
+        ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
         $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+
+        $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
     public function initialize(): void

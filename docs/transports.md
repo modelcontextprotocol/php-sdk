@@ -95,23 +95,46 @@ and process requests and send responses. It provides a flexible architecture tha
 
 ```php
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\StreamFactoryInterface;
 
+// PSR-17 factories are automatically discovered
 $transport = new StreamableHttpTransport(
-    request: $serverRequest,           // PSR-7 server request
-    responseFactory: $responseFactory, // PSR-17 response factory
-    streamFactory: $streamFactory,     // PSR-17 stream factory
-    logger: $logger                    // Optional PSR-3 logger
+    request: $serverRequest,    // PSR-7 server request
+    responseFactory: null,      // Optional: PSR-17 response factory (auto-discovered if null)
+    streamFactory: null,        // Optional: PSR-17 stream factory (auto-discovered if null)
+    logger: $logger             // Optional PSR-3 logger
 );
 ```
 
 ### Parameters
 
 - **`request`** (required): `ServerRequestInterface` - The incoming PSR-7 HTTP request
-- **`responseFactory`** (required): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses
-- **`streamFactory`** (required): `StreamFactoryInterface` - PSR-17 factory for creating response body streams
+- **`responseFactory`** (optional): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses. Auto-discovered if not provided.
+- **`streamFactory`** (optional): `StreamFactoryInterface` - PSR-17 factory for creating response body streams. Auto-discovered if not provided.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
+
+### PSR-17 Auto-Discovery
+
+The transport automatically discovers PSR-17 factory implementations from these popular packages:
+
+- `nyholm/psr7`
+- `guzzlehttp/psr7`
+- `slim/psr7`
+- `laminas/laminas-diactoros`
+- And other PSR-17 compatible implementations
+
+```bash
+# Install any PSR-17 package - discovery works automatically
+composer require nyholm/psr7
+```
+
+If auto-discovery fails or you want to use a specific implementation, you can pass factories explicitly:
+
+```php
+use Nyholm\Psr7\Factory\Psr17Factory;
+
+$psr17Factory = new Psr17Factory();
+$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
+```
 
 ### Architecture
 
@@ -126,19 +149,17 @@ This design allows integration with any PHP framework or application that suppor
 
 ### Basic Usage (Standalone)
 
-Here's an opinionated example using Nyholm PSR-7 and Laminas emitter:
+Here's a simplified example using PSR-17 discovery and Laminas emitter:
 
 ```php
+use Http\Discovery\Psr17Factory;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Session\FileSessionStore;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use Nyholm\Psr7Server\ServerRequestCreator;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 
 $psr17Factory = new Psr17Factory();
-$creator = new ServerRequestCreator($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
-$request = $creator->fromGlobals();
+$request = $psr17Factory->createServerRequestFromGlobals();
 
 $server = Server::builder()
     ->setServerInfo('HTTP Server', '1.0.0')
@@ -146,7 +167,7 @@ $server = Server::builder()
     ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
     ->build();
 
-$transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
+$transport = new StreamableHttpTransport($request);
 
 $response = $server->run($transport);
 
@@ -174,27 +195,23 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
-use Nyholm\Psr7\Factory\Psr17Factory;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 class McpController
 {
-    #[Route('/mcp', name: 'mcp_endpoint']
+    #[Route('/mcp', name: 'mcp_endpoint')]
     public function handle(Request $request, Server $server): Response
     {
-        // Create PSR-7 factories
-        $psr17Factory = new Psr17Factory();
-        $psrHttpFactory = new PsrHttpFactory($psr17Factory, $psr17Factory, $psr17Factory, $psr17Factory);
+        // Convert Symfony request to PSR-7 (PSR-17 factories auto-discovered)
+        $psrHttpFactory = new PsrHttpFactory();
         $httpFoundationFactory = new HttpFoundationFactory();
-        
-        // Convert Symfony request to PSR-7
         $psrRequest = $psrHttpFactory->createRequest($request);
-        
-        // Process with MCP
-        $transport = new StreamableHttpTransport($psrRequest, $psr17Factory, $psr17Factory);
+
+        // Process with MCP (factories auto-discovered)
+        $transport = new StreamableHttpTransport($psrRequest);
         $psrResponse = $server->run($transport);
-        
+
         // Convert PSR-7 response back to Symfony
         return $httpFoundationFactory->createResponse($psrResponse);
     }
@@ -219,17 +236,14 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Nyholm\Psr7\Factory\Psr17Factory;
 
 class McpController
 {
     public function handle(ServerRequestInterface $request, Server $server): ResponseInterface
     {
-        $psr17Factory = new Psr17Factory();
-        
         // Create the MCP HTTP transport
-        $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
-        
+        $transport = new StreamableHttpTransport($request);
+
         // Process MCP request and return PSR-7 response
         // Laravel automatically handles PSR-7 responses
         return $server->run($transport);
@@ -248,8 +262,6 @@ Create a route handler using Slim's built-in factories and container:
 
 ```php
 use Slim\Factory\AppFactory;
-use Slim\Psr7\Factory\ResponseFactory;
-use Slim\Psr7\Factory\StreamFactory;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
@@ -260,12 +272,9 @@ $app->any('/mcp', function ($request, $response) {
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'])
         ->build();
-    
-    $responseFactory = new ResponseFactory();
-    $streamFactory = new StreamFactory();
-    
-    $transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
-    
+
+    $transport = new StreamableHttpTransport($request);
+
     return $server->run($transport);
 });
 ```
@@ -330,6 +339,3 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 The choice between STDIO and HTTP transport depends on the client you want to integrate with.
 If you are integrating with a client that is running **locally** (like Claude Desktop), use STDIO.
 If you are building a server in a distributed environment and need to integrate with a **remote** client, use Streamable HTTP.
-
-One additiona difference to consider is that STDIO is process-based (one session per process) while HTTP is
-request-based (multiple sessions via headers).
