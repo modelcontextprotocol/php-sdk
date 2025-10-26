@@ -20,7 +20,6 @@ use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Registry\PromptReference;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
@@ -48,7 +47,6 @@ use Symfony\Component\Finder\SplFileInfo;
 class Discoverer
 {
     public function __construct(
-        private readonly ReferenceRegistryInterface $registry,
         private readonly LoggerInterface $logger = new NullLogger(),
         private ?DocBlockParser $docBlockParser = null,
         private ?SchemaGenerator $schemaGenerator = null,
@@ -95,10 +93,7 @@ class Discoverer
                     'base_path' => $basePath,
                 ]);
 
-                $emptyState = new DiscoveryState();
-                $this->registry->setDiscoveryState($emptyState);
-
-                return $emptyState;
+                return new DiscoveryState();
             }
 
             $finder->files()
@@ -125,11 +120,7 @@ class Discoverer
             'resourceTemplates' => $discoveredCount['resourceTemplates'],
         ]);
 
-        $discoveryState = new DiscoveryState($tools, $resources, $prompts, $resourceTemplates);
-
-        $this->registry->setDiscoveryState($discoveryState);
-
-        return $discoveryState;
+        return new DiscoveryState($tools, $resources, $prompts, $resourceTemplates);
     }
 
     /**
