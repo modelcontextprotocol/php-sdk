@@ -17,7 +17,7 @@ chdir(__DIR__);
 
 use Mcp\Server;
 use Mcp\Server\Transport\StdioTransport;
-use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Adapter\PhpFilesAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
 logger()->info('Starting MCP Cached Discovery Calculator Server...');
@@ -26,7 +26,7 @@ $server = Server::builder()
     ->setServerInfo('Cached Discovery Calculator', '1.0.0', 'Calculator with cached discovery for better performance.')
     ->setContainer(container())
     ->setLogger(logger())
-    ->setDiscovery(__DIR__, ['.'], [], new Psr16Cache(new ArrayAdapter()))
+    ->setDiscovery(__DIR__, cache: new Psr16Cache(new PhpFilesAdapter(directory: __DIR__.'/cache')))
     ->build();
 
 $transport = new StdioTransport(logger: logger());
