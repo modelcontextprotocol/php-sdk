@@ -154,7 +154,7 @@ public function getMultipleContent(): array
 
 #### Error Handling
 
-**Tools should ONLY throw `ToolCallException` for any error that occurs during tool execution.**
+**Tools SHOULD throw `ToolCallException` for errors that occur during tool execution to be communicated to the client.**
 
 ```php
 use Mcp\Exception\ToolCallException;
