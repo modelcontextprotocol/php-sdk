@@ -243,7 +243,7 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
+        $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Prompt not found for name: "nonexistent_prompt".', $response->message);
     }
 
@@ -263,7 +263,7 @@ class GetPromptHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Error while handling prompt: Handling prompt "failing_prompt" failed with error: "Failed to get prompt".', $response->message);
+        $this->assertEquals('Handling prompt "failing_prompt" failed with error: "Failed to get prompt".', $response->message);
     }
 
     public function testHandlePromptGetWithComplexArguments(): void

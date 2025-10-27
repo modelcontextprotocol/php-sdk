@@ -154,16 +154,18 @@ public function getMultipleContent(): array
 
 #### Error Handling
 
-Tools can throw exceptions which are automatically converted to proper JSON-RPC error responses:
+**Tools should ONLY throw `ToolCallException` for any error that occurs during tool execution.**
 
 ```php
+use Mcp\Exception\ToolCallException;
+
 #[McpTool]
 public function divideNumbers(float $a, float $b): float
 {
     if ($b === 0.0) {
-        throw new \InvalidArgumentException('Division by zero is not allowed');
+        throw new ToolCallException('Division by zero is not allowed');
     }
-    
+
     return $a / $b;
 }
 
@@ -171,14 +173,18 @@ public function divideNumbers(float $a, float $b): float
 public function processFile(string $filename): string
 {
     if (!file_exists($filename)) {
-        throw new \InvalidArgumentException("File not found: {$filename}");
+        throw new ToolCallException("File not found: {$filename}");
     }
-    
+
     return file_get_contents($filename);
 }
 ```
 
-The SDK will convert these exceptions into appropriate JSON-RPC error responses that MCP clients can understand.
+**Critical Rule:** For tool handlers, **ALWAYS** throw `ToolCallException` for any error condition - validation errors, file not found, processing errors, etc. Do not use generic PHP exceptions.
+
+**Error Handling Behavior:**
+- **`ToolCallException`**: Converted to `CallToolResult` with `isError: true`, allowing the LLM to see the error message and self-correct
+- **Any other exception**: Treated as internal server error and returns a generic error message to client
 
 ## Resources
 
@@ -298,23 +304,32 @@ public function getMultipleResources(): array
 
 #### Error Handling
 
-Resource handlers can throw exceptions for error cases:
+**Resource handlers should ONLY throw `ResourceReadException` for any error that occurs during resource reading.**
 
 ```php
+use Mcp\Exception\ResourceReadException;
+
 #[McpResource(uri: 'file://{path}')]
 public function getFile(string $path): string
 {
     if (!file_exists($path)) {
-        throw new \InvalidArgumentException("File not found: {$path}");
+        throw new ResourceReadException("File not found: {$path}");
     }
-    
+
     if (!is_readable($path)) {
-        throw new \RuntimeException("File not readable: {$path}");
+        throw new ResourceReadException("File not readable: {$path}");
     }
-    
+
     return file_get_contents($path);
 }
 ```
+
+**Critical Rule:** For resource handlers, **ALWAYS** throw `ResourceReadException` for any error condition - file not found, permission errors, data format issues, etc. Do not use generic PHP exceptions.
+
+**Error Handling Behavior:**
+- **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
+- **Any other exception**: Treated as internal server error and returns a generic error message to client
+
 
 ## Resource Templates
 
@@ -456,25 +471,33 @@ public function explicitMessages(): array
 
 #### Error Handling
 
-Prompt handlers can throw exceptions for invalid inputs:
+**Prompt handlers should ONLY throw `PromptGetException` for any error that occurs during prompt generation.**
 
 ```php
+use Mcp\Exception\PromptGetException;
+
 #[McpPrompt]
 public function generatePrompt(string $topic, string $style): array
 {
     $validStyles = ['casual', 'formal', 'technical'];
-    
+
     if (!in_array($style, $validStyles)) {
-        throw new \InvalidArgumentException(
+        throw new PromptGetException(
             "Invalid style '{$style}'. Must be one of: " . implode(', ', $validStyles)
         );
     }
-    
+
     return [
         ['role' => 'user', 'content' => "Write about {$topic} in a {$style} style"]
     ];
 }
 ```
+
+**Critical Rule:** For prompt handlers, **ALWAYS** throw `PromptGetException` for any error condition - invalid parameters, data validation errors, template processing issues, etc. Do not use generic PHP exceptions.
+
+**Error Handling Behavior:**
+- **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
+- **Any other exception**: Treated as internal server error and returns a generic error message to client
 
 The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP prompt message format.
 

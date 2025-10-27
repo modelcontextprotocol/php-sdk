@@ -194,7 +194,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
     }
 
-    public function testHandleResourceReadExceptionReturnsGenericError(): void
+    public function testHandleResourceReadExceptionReturnsActualErrorMessage(): void
     {
         $uri = 'file://corrupted/file.txt';
         $request = $this->createReadResourceRequest($uri);
@@ -202,6 +202,26 @@ class ReadResourceHandlerTest extends TestCase
             $request,
             new \RuntimeException('Failed to read resource: corrupted data'),
         );
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getResource')
+            ->with($uri)
+            ->willThrowException($exception);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Reading resource "file://corrupted/file.txt" failed with error: "Failed to read resource: corrupted data".', $response->message);
+    }
+
+    public function testHandleGenericExceptionReturnsGenericError(): void
+    {
+        $uri = 'file://problematic/file.txt';
+        $request = $this->createReadResourceRequest($uri);
+        $exception = new \RuntimeException('Internal database connection failed');
 
         $this->referenceProvider
             ->expects($this->once())
