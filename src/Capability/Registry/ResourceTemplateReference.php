@@ -57,18 +57,17 @@ class ResourceTemplateReference extends ElementReference
 
     public function matches(string $uri): bool
     {
-        if (preg_match($this->uriTemplateRegex, $uri, $matches)) {
-            $variables = [];
-            foreach ($this->variableNames as $varName) {
-                if (isset($matches[$varName])) {
-                    $variables[$varName] = $matches[$varName];
-                }
-            }
+        return 1 === preg_match($this->uriTemplateRegex, $uri);
+    }
 
-            return true;
-        }
+    /** @return array<string, mixed> */
+    public function extractVariables(string $uri): array
+    {
+        $matches = [];
 
-        return false;
+        preg_match($this->uriTemplateRegex, $uri, $matches);
+
+        return array_filter($matches, fn ($key) => \in_array($key, $this->variableNames), \ARRAY_FILTER_USE_KEY);
     }
 
     /**
