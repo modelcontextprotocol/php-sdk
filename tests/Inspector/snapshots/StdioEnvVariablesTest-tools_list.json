@@ -1,0 +1,20 @@
+{
+  "tools": [
+    {
+      "name": "process_data_by_mode",
+      "description": "Performs an action that can be modified by an environment variable.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "input": {
+            "type": "string",
+            "description": "some input data"
+          }
+        },
+        "required": [
+          "input"
+        ]
+      }
+    }
+  ]
+}

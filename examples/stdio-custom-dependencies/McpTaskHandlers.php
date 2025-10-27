@@ -13,8 +13,8 @@ namespace Mcp\Example\StdioCustomDependencies;
 
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Example\DependenciesStdioExample\Service\StatsServiceInterface;
-use Mcp\Example\DependenciesStdioExample\Service\TaskRepositoryInterface;
+use Mcp\Example\StdioCustomDependencies\Service\StatsServiceInterface;
+use Mcp\Example\StdioCustomDependencies\Service\TaskRepositoryInterface;
 use Psr\Log\LoggerInterface;
 
 /**
