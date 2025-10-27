@@ -75,7 +75,7 @@ class StdioTransport extends BaseTransport implements TransportInterface
         }
     }
 
-    private function processFiber(): void
+    protected function processFiber(): void
     {
         if (null === $this->sessionFiber) {
             return;
@@ -124,7 +124,7 @@ class StdioTransport extends BaseTransport implements TransportInterface
         }
     }
 
-    private function handleFiberTermination(): void
+    protected function handleFiberTermination(): void
     {
         $finalResult = $this->sessionFiber->getReturn();
 
@@ -140,7 +140,7 @@ class StdioTransport extends BaseTransport implements TransportInterface
         $this->sessionFiber = null;
     }
 
-    private function flushOutgoingMessages(): void
+    protected function flushOutgoingMessages(): void
     {
         $messages = $this->getOutgoingMessages($this->sessionId);
 
@@ -149,7 +149,7 @@ class StdioTransport extends BaseTransport implements TransportInterface
         }
     }
 
-    private function writeLine(string $payload): void
+    protected function writeLine(string $payload): void
     {
         fwrite($this->output, $payload.\PHP_EOL);
     }
