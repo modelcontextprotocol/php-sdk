@@ -65,11 +65,14 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 '_session' => $session,
             ];
 
-            $result = $this->referenceHandler->handle($reference, $arguments);
-
             if ($reference instanceof ResourceTemplateReference) {
+                $variables = $reference->extractVariables($uri);
+                $arguments = array_merge($arguments, $variables);
+
+                $result = $this->referenceHandler->handle($reference, $arguments);
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
+                $result = $this->referenceHandler->handle($reference, $arguments);
                 $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
             }
 
