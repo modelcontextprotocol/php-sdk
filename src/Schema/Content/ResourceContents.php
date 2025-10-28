@@ -30,6 +30,7 @@ abstract class ResourceContents implements \JsonSerializable
     public function __construct(
         public readonly string $uri,
         public readonly ?string $mimeType = null,
+        public readonly ?array $_meta = null,
     ) {
     }
 
@@ -41,6 +42,10 @@ abstract class ResourceContents implements \JsonSerializable
         $data = ['uri' => $this->uri];
         if (null !== $this->mimeType) {
             $data['mimeType'] = $this->mimeType;
+        }
+
+        if (null !== $this->_meta) {
+            $data['_meta'] = $this->_meta;
         }
 
         return $data;

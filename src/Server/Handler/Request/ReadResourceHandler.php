@@ -51,9 +51,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
         \assert($request instanceof ReadResourceRequest);
 
         $uri = $request->uri;
-
-        $this->logger->debug('Reading resource', ['uri' => $uri]);
-
+        
         try {
             $reference = $this->referenceProvider->getResource($uri);
             if (null === $reference) {
@@ -64,7 +62,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 'uri' => $uri,
                 '_session' => $session,
             ];
-
+            $this->logger->debug(var_export($reference, true));
             if ($reference instanceof ResourceTemplateReference) {
                 $variables = $reference->extractVariables($uri);
                 $arguments = array_merge($arguments, $variables);
@@ -73,7 +71,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
-                $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
+                $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType, $reference->schema->_meta);
             }
 
             return new Response($request->getId(), new ReadResourceResult($formatted));

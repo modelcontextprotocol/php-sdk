@@ -35,8 +35,9 @@ class TextResourceContents extends ResourceContents
         string $uri,
         ?string $mimeType,
         public readonly string $text,
+        ?array $_meta
     ) {
-        parent::__construct($uri, $mimeType);
+        parent::__construct($uri, $mimeType, $_meta);
     }
 
     /**
@@ -51,7 +52,7 @@ class TextResourceContents extends ResourceContents
             throw new InvalidArgumentException('Missing or invalid "text" for TextResourceContents.');
         }
 
-        return new self($data['uri'], $data['mimeType'] ?? null, $data['text']);
+        return new self($data['uri'], $data['mimeType'] ?? null, $data['text'], $data['_meta'] ?? null);
     }
 
     /**

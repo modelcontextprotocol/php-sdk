@@ -58,7 +58,7 @@ class ResourceReference extends ElementReference
      * - array: Converted to JSON if MIME type is application/json or contains 'json'
      *          For other MIME types, will try to convert to JSON with a warning
      */
-    public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null): array
+    public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null, ?array $_meta = null): array
     {
         if ($readResult instanceof ResourceContents) {
             return [$readResult];
@@ -118,7 +118,7 @@ class ResourceReference extends ElementReference
         if (\is_string($readResult)) {
             $mimeType = $mimeType ?? $this->guessMimeTypeFromString($readResult);
 
-            return [new TextResourceContents($uri, $mimeType, $readResult)];
+            return [new TextResourceContents($uri, $mimeType, $readResult, $_meta)];
         }
 
         if (\is_resource($readResult) && 'stream' === get_resource_type($readResult)) {
@@ -142,12 +142,12 @@ class ResourceReference extends ElementReference
         if (\is_array($readResult) && isset($readResult['text']) && \is_string($readResult['text'])) {
             $mimeType = $readResult['mimeType'] ?? $mimeType ?? 'text/plain';
 
-            return [new TextResourceContents($uri, $mimeType, $readResult['text'])];
+            return [new TextResourceContents($uri, $mimeType, $readResult['text'], $_meta)];
         }
 
         if ($readResult instanceof \SplFileInfo && $readResult->isFile() && $readResult->isReadable()) {
             if ($mimeType && str_contains(strtolower($mimeType), 'text')) {
-                return [new TextResourceContents($uri, $mimeType, file_get_contents($readResult->getPathname()))];
+                return [new TextResourceContents($uri, $mimeType, file_get_contents($readResult->getPathname()), $_meta)];
             }
 
             return [BlobResourceContents::fromSplFileInfo($uri, $readResult, $mimeType)];
@@ -159,7 +159,7 @@ class ResourceReference extends ElementReference
                 try {
                     $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
 
-                    return [new TextResourceContents($uri, $mimeType, $jsonString)];
+                    return [new TextResourceContents($uri, $mimeType, $jsonString,  $_meta)];
                 } catch (\JsonException $e) {
                     throw new RuntimeException(\sprintf('Failed to encode array as JSON for URI "%s": %s', $uri, $e->getMessage()));
                 }
@@ -169,7 +169,7 @@ class ResourceReference extends ElementReference
                 $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
                 $mimeType = $mimeType ?? 'application/json';
 
-                return [new TextResourceContents($uri, $mimeType, $jsonString)];
+                return [new TextResourceContents($uri, $mimeType, $jsonString,  $_meta)];
             } catch (\JsonException $e) {
                 throw new RuntimeException(\sprintf('Failed to encode array as JSON for URI "%s": %s', $uri, $e->getMessage()));
             }

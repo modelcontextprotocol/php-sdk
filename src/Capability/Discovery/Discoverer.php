@@ -234,8 +234,10 @@ class Discoverer
                     $mimeType = $instance->mimeType;
                     $size = $instance->size;
                     $annotations = $instance->annotations;
-                    $resource = new Resource($instance->uri, $name, $description, $mimeType, $annotations, $size);
+                    $_meta = $instance->_meta;
+                    $resource = new Resource($instance->uri, $name, $description, $mimeType, $annotations, $size, $_meta);
                     $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName], false);
+
                     ++$discoveredCount['resources'];
                     break;
 

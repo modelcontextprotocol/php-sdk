@@ -29,7 +29,9 @@ final class McpResource
      * @param ?string          $mimeType    the MIME type, if known and constant for this resource
      * @param ?int             $size        the size in bytes, if known and constant
      * @param Annotations|null $annotations optional annotations describing the resource
+     * @param ?array           $_meta       optional metadata
      */
+
     public function __construct(
         public string $uri,
         public ?string $name = null,
@@ -37,6 +39,7 @@ final class McpResource
         public ?string $mimeType = null,
         public ?int $size = null,
         public ?Annotations $annotations = null,
+        public ?array $_meta = null
     ) {
     }
 }

@@ -137,8 +137,9 @@ final class ArrayLoader implements LoaderInterface
                 $mimeType = $data['mimeType'];
                 $size = $data['size'];
                 $annotations = $data['annotations'];
+                $_meta = $data['_meta'];
 
-                $resource = new Resource($uri, $name, $description, $mimeType, $annotations, $size);
+                $resource = new Resource($uri, $name, $description, $mimeType, $annotations, $size, $_meta);
                 $registry->registerResource($resource, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);

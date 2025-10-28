@@ -49,6 +49,7 @@ class Resource implements \JsonSerializable
      * @param string|null      $mimeType    the MIME type of this resource, if known
      * @param Annotations|null $annotations optional annotations for the client
      * @param int|null         $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param array|null       $_meta       optional for additional metadata
      *
      * This can be used by Hosts to display file sizes and estimate context window usage.
      */
@@ -59,6 +60,7 @@ class Resource implements \JsonSerializable
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
         public readonly ?int $size = null,
+        public readonly ?array $_meta = null
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
             throw new InvalidArgumentException('Invalid resource name: must contain only alphanumeric characters, underscores, and hyphens.');
@@ -86,7 +88,8 @@ class Resource implements \JsonSerializable
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
-            size: isset($data['size']) ? (int) $data['size'] : null
+            size: isset($data['size']) ? (int) $data['size'] : null,
+            _meta: isset($data['_meta']) ? (int) $data['_meta'] : null
         );
     }
 
@@ -117,6 +120,9 @@ class Resource implements \JsonSerializable
         }
         if (null !== $this->size) {
             $data['size'] = $this->size;
+        }
+        if (null !== $this->_meta) {
+            $data['_meta'] = $this->_meta;
         }
 
         return $data;
