@@ -250,7 +250,7 @@ class GetPromptHandlerTest extends TestCase
     public function testHandlePromptGetExceptionReturnsError(): void
     {
         $request = $this->createGetPromptRequest('failing_prompt');
-        $exception = new PromptGetException($request, new \RuntimeException('Failed to get prompt'));
+        $exception = new PromptGetException('Failed to get prompt');
 
         $this->referenceProvider
             ->expects($this->once())
@@ -263,7 +263,7 @@ class GetPromptHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Handling prompt "failing_prompt" failed with error: "Failed to get prompt".', $response->message);
+        $this->assertEquals('Failed to get prompt', $response->message);
     }
 
     public function testHandlePromptGetWithComplexArguments(): void

@@ -198,10 +198,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $uri = 'file://corrupted/file.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceReadException(
-            $request,
-            new \RuntimeException('Failed to read resource: corrupted data'),
-        );
+        $exception = new ResourceReadException('Failed to read resource: corrupted data');
 
         $this->referenceProvider
             ->expects($this->once())
@@ -214,7 +211,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
-        $this->assertEquals('Reading resource "file://corrupted/file.txt" failed with error: "Failed to read resource: corrupted data".', $response->message);
+        $this->assertEquals('Failed to read resource: corrupted data', $response->message);
     }
 
     public function testHandleGenericExceptionReturnsGenericError(): void

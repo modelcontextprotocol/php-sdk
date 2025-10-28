@@ -180,7 +180,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolCallExceptionReturnsResponseWithErrorResult(): void
     {
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
-        $exception = new ToolCallException($request, new \RuntimeException('Tool execution failed'));
+        $exception = new ToolCallException('Tool execution failed');
 
         $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
@@ -209,7 +209,7 @@ class CallToolHandlerTest extends TestCase
         $this->assertTrue($result->isError);
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
-        $this->assertEquals('Tool call "failing_tool" failed with error: "Tool execution failed".', $result->content[0]->text);
+        $this->assertEquals('Tool execution failed', $result->content[0]->text);
     }
 
     public function testHandleWithNullResult(): void
@@ -252,7 +252,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleLogsErrorWithCorrectParameters(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
-        $exception = new ToolCallException($request, new \RuntimeException('Custom error message'));
+        $exception = new ToolCallException('Custom error message');
 
         $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
@@ -271,7 +271,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('error')
             ->with(
-                'Error while executing tool "test_tool": "Tool call "test_tool" failed with error: "Custom error message".".',
+                'Error while executing tool "test_tool": "Custom error message".',
                 [
                     'tool' => 'test_tool',
                     'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session],
@@ -289,7 +289,7 @@ class CallToolHandlerTest extends TestCase
         $this->assertTrue($result->isError);
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
-        $this->assertEquals('Tool call "test_tool" failed with error: "Custom error message".', $result->content[0]->text);
+        $this->assertEquals('Custom error message', $result->content[0]->text);
     }
 
     public function testHandleGenericExceptionReturnsError(): void
