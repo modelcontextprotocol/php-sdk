@@ -51,7 +51,9 @@ final class ReadResourceHandler implements RequestHandlerInterface
         \assert($request instanceof ReadResourceRequest);
 
         $uri = $request->uri;
-        
+
+        $this->logger->debug('Reading resource', ['uri' => $uri]);
+
         try {
             $reference = $this->referenceProvider->getResource($uri);
             if (null === $reference) {
@@ -62,7 +64,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 'uri' => $uri,
                 '_session' => $session,
             ];
-            $this->logger->debug(var_export($reference, true));
+
             if ($reference instanceof ResourceTemplateReference) {
                 $variables = $reference->extractVariables($uri);
                 $arguments = array_merge($arguments, $variables);
