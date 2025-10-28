@@ -329,7 +329,6 @@ public function getFile(string $path): string
 
 **Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
-
 ## Resource Templates
 
 Resource templates are **dynamic resources** that use parameterized URIs with variables. They follow all the same rules
@@ -462,7 +461,6 @@ public function explicitMessages(): array
     ];
 }
 ```
-
 
 The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP prompt message format.
 
