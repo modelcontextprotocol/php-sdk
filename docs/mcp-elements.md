@@ -154,7 +154,10 @@ public function getMultipleContent(): array
 
 #### Error Handling
 
-**Tools SHOULD throw `ToolCallException` for errors that occur during tool execution to be communicated to the client.**
+Tool handlers can throw any exception, but the type determines how it's handled:
+
+- **`ToolCallException`**: Converted to JSON-RPC response with `CallToolResult` where `isError: true`, allowing the LLM to see the error message and self-correct
+- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
 use Mcp\Exception\ToolCallException;
@@ -180,11 +183,8 @@ public function processFile(string $filename): string
 }
 ```
 
-**Critical Rule:** For tool handlers, **ALWAYS** throw `ToolCallException` for any error condition - validation errors, file not found, processing errors, etc. Do not use generic PHP exceptions.
+**Recommendation**: Use `ToolCallException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
-**Error Handling Behavior:**
-- **`ToolCallException`**: Converted to `CallToolResult` with `isError: true`, allowing the LLM to see the error message and self-correct
-- **Any other exception**: Treated as internal server error and returns a generic error message to client
 
 ## Resources
 
@@ -304,7 +304,10 @@ public function getMultipleResources(): array
 
 #### Error Handling
 
-**Resource handlers should ONLY throw `ResourceReadException` for any error that occurs during resource reading.**
+Resource handlers can throw any exception, but the type determines how it's handled:
+
+- **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
+- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
 use Mcp\Exception\ResourceReadException;
@@ -324,11 +327,7 @@ public function getFile(string $path): string
 }
 ```
 
-**Critical Rule:** For resource handlers, **ALWAYS** throw `ResourceReadException` for any error condition - file not found, permission errors, data format issues, etc. Do not use generic PHP exceptions.
-
-**Error Handling Behavior:**
-- **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
-- **Any other exception**: Treated as internal server error and returns a generic error message to client
+**Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 
 ## Resource Templates
@@ -464,6 +463,9 @@ public function explicitMessages(): array
 }
 ```
 
+
+The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP prompt message format.
+
 #### Valid Message Roles
 
 - **`user`**: User input or questions  
@@ -471,7 +473,9 @@ public function explicitMessages(): array
 
 #### Error Handling
 
-**Prompt handlers should ONLY throw `PromptGetException` for any error that occurs during prompt generation.**
+Prompt handlers can throw any exception, but the type determines how it's handled:
+- **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
+- **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
 use Mcp\Exception\PromptGetException;
@@ -493,19 +497,11 @@ public function generatePrompt(string $topic, string $style): array
 }
 ```
 
-**Critical Rule:** For prompt handlers, **ALWAYS** throw `PromptGetException` for any error condition - invalid parameters, data validation errors, template processing issues, etc. Do not use generic PHP exceptions.
-
-**Error Handling Behavior:**
-- **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
-- **Any other exception**: Treated as internal server error and returns a generic error message to client
-
-The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP prompt message format.
+**Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 ## Completion Providers
 
-Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools
-and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have
-dynamic parameters that benefit from completion hints.
+Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have dynamic parameters that benefit from completion hints.
 
 ### Completion Provider Types
 
