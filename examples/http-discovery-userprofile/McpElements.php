@@ -16,7 +16,8 @@ use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\PromptGetException;
+use Mcp\Exception\ResourceReadException;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -48,7 +49,7 @@ final class McpElements
      *
      * @return User user profile data
      *
-     * @throws InvalidArgumentException if the user is not found
+     * @throws ResourceReadException if the user is not found
      */
     #[McpResourceTemplate(
         uriTemplate: 'user://{userId}/profile',
@@ -62,7 +63,7 @@ final class McpElements
     ): array {
         $this->logger->info('Reading resource: user profile', ['userId' => $userId]);
         if (!isset($this->users[$userId])) {
-            throw new InvalidArgumentException("User profile not found for ID: {$userId}");
+            throw new ResourceReadException("User not found for ID: {$userId}");
         }
 
         return $this->users[$userId];
@@ -130,7 +131,7 @@ final class McpElements
      *
      * @return array<string, string>[] prompt messages
      *
-     * @throws InvalidArgumentException if user not found
+     * @throws PromptGetException if user not found
      */
     #[McpPrompt(name: 'generate_bio_prompt')]
     public function generateBio(
@@ -140,7 +141,7 @@ final class McpElements
     ): array {
         $this->logger->info('Executing prompt: generate_bio', ['userId' => $userId, 'tone' => $tone]);
         if (!isset($this->users[$userId])) {
-            throw new InvalidArgumentException("User not found for bio prompt: {$userId}");
+            throw new PromptGetException("User not found for bio prompt: {$userId}");
         }
         $user = $this->users[$userId];
 

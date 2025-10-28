@@ -14,6 +14,7 @@ chdir(__DIR__);
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
+use Mcp\Exception\ToolCallException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error as JsonRpcError;
@@ -64,7 +65,7 @@ $server = Server::builder()
             );
 
             if ($response instanceof JsonRpcError) {
-                throw new RuntimeException(sprintf('Sampling request failed (%d): %s', $response->code, $response->message));
+                throw new ToolCallException(sprintf('Sampling request failed (%d): %s', $response->code, $response->message));
             }
 
             $result = $response->result;
