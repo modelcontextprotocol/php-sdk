@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "item://123/details",
+      "mimeType": "application/json",
+      "text": "{\n    \"id\": \"123\",\n    \"name\": \"Item 123\",\n    \"description\": \"Details for item 123 from manual template.\"\n}"
+    }
+  ]
+}

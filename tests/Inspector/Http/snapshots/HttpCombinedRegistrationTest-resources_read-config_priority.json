@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "config://priority",
+      "mimeType": "text/plain",
+      "text": "Discovered Priority Config: Low"
+    }
+  ]
+}

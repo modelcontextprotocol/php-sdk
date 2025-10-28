@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"mode\": \"production\",\n    \"processed_input_length\": 15,\n    \"message\": \"Processed in PRODUCTION mode (summary only).\"\n}"
+    }
+  ],
+  "isError": false
+}

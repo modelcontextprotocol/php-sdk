@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "user://list/ids",
+      "mimeType": "application/json",
+      "text": "[\n    101,\n    102,\n    103\n]"
+    }
+  ]
+}

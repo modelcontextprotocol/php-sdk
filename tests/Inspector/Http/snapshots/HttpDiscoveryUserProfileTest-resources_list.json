@@ -1,0 +1,16 @@
+{
+  "resources": [
+    {
+      "name": "system_status",
+      "uri": "system://status",
+      "description": "Current system status and runtime information",
+      "mimeType": "application/json"
+    },
+    {
+      "name": "user_id_list",
+      "uri": "user://list/ids",
+      "description": "Provides a list of all available user IDs.",
+      "mimeType": "application/json"
+    }
+  ]
+}

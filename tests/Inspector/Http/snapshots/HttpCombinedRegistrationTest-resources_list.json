@@ -1,0 +1,9 @@
+{
+  "resources": [
+    {
+      "name": "priority_config_discovered",
+      "uri": "config://priority",
+      "description": "A resource discovered via attributes."
+    }
+  ]
+}

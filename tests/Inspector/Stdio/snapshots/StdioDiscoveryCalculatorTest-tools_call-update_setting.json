@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"success\": true,\n    \"message\": \"Precision updated to 3.\"\n}"
+    }
+  ],
+  "isError": false
+}

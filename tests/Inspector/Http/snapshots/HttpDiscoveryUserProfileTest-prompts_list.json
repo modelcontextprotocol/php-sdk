@@ -1,0 +1,20 @@
+{
+  "prompts": [
+    {
+      "name": "generate_bio_prompt",
+      "description": "Generates a prompt to write a bio for a user.",
+      "arguments": [
+        {
+          "name": "userId",
+          "description": "the user ID to generate the bio for",
+          "required": true
+        },
+        {
+          "name": "tone",
+          "description": "Desired tone (e.g., 'formal', 'casual').",
+          "required": false
+        }
+      ]
+    }
+  ]
+}

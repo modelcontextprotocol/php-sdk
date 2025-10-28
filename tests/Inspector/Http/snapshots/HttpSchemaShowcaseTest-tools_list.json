@@ -1,0 +1,284 @@
+{
+  "tools": [
+    {
+      "name": "format_text",
+      "description": "Formats text with validation constraints. Text must be 5-100 characters and contain only letters, numbers, spaces, and basic punctuation.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": "string",
+            "description": "The text to format",
+            "minLength": 5,
+            "maxLength": 100,
+            "pattern": "^[a-zA-Z0-9\\s\\.,!?\\-]+$"
+          },
+          "format": {
+            "type": "string",
+            "default": "sentence",
+            "description": "Format style",
+            "enum": [
+              "uppercase",
+              "lowercase",
+              "title",
+              "sentence"
+            ]
+          }
+        },
+        "required": [
+          "text"
+        ]
+      }
+    },
+    {
+      "name": "calculate_range",
+      "description": "Performs mathematical operations with numeric constraints.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "first": {
+            "type": "number",
+            "description": "First number (must be between 0 and 1000)",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "second": {
+            "type": "number",
+            "description": "Second number (must be between 0 and 1000)",
+            "minimum": 0,
+            "maximum": 1000
+          },
+          "operation": {
+            "type": "string",
+            "description": "Operation to perform",
+            "enum": [
+              "add",
+              "subtract",
+              "multiply",
+              "divide",
+              "power"
+            ]
+          },
+          "precision": {
+            "type": "integer",
+            "default": 2,
+            "description": "Decimal precision (must be multiple of 2, between 0-10)",
+            "minimum": 0,
+            "maximum": 10,
+            "multipleOf": 2
+          }
+        },
+        "required": [
+          "first",
+          "second",
+          "operation"
+        ]
+      }
+    },
+    {
+      "name": "validate_profile",
+      "description": "Validates and processes user profile data with strict schema requirements.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "profile": {
+            "type": "object",
+            "description": "User profile information",
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 2,
+                "maxLength": 50,
+                "description": "Full name"
+              },
+              "email": {
+                "type": "string",
+                "format": "email",
+                "description": "Valid email address"
+              },
+              "age": {
+                "type": "integer",
+                "minimum": 13,
+                "maximum": 120,
+                "description": "Age in years"
+              },
+              "role": {
+                "type": "string",
+                "enum": [
+                  "user",
+                  "admin",
+                  "moderator",
+                  "guest"
+                ],
+                "description": "User role"
+              },
+              "preferences": {
+                "type": "object",
+                "properties": {
+                  "notifications": {
+                    "type": "boolean"
+                  },
+                  "theme": {
+                    "type": "string",
+                    "enum": [
+                      "light",
+                      "dark",
+                      "auto"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "required": [
+              "name",
+              "email",
+              "age"
+            ],
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "profile"
+        ]
+      }
+    },
+    {
+      "name": "manage_list",
+      "description": "Manages a list of items with size and uniqueness constraints.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 30
+            },
+            "description": "List of items to manage (2-10 unique strings)",
+            "minItems": 2,
+            "maxItems": 10,
+            "uniqueItems": true
+          },
+          "action": {
+            "type": "string",
+            "default": "sort",
+            "description": "Action to perform on the list",
+            "enum": [
+              "sort",
+              "reverse",
+              "shuffle",
+              "deduplicate",
+              "filter_short",
+              "filter_long"
+            ]
+          }
+        },
+        "required": [
+          "items"
+        ]
+      }
+    },
+    {
+      "name": "generate_config",
+      "description": "Generates configuration with format-validated inputs.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "appName": {
+            "type": "string",
+            "description": "Application name (alphanumeric with hyphens)",
+            "minLength": 3,
+            "maxLength": 20,
+            "pattern": "^[a-zA-Z0-9\\-]+$"
+          },
+          "baseUrl": {
+            "type": "string",
+            "description": "Valid URL for the application",
+            "format": "uri"
+          },
+          "environment": {
+            "type": "string",
+            "default": "development",
+            "description": "Environment type",
+            "enum": [
+              "development",
+              "staging",
+              "production"
+            ]
+          },
+          "debug": {
+            "type": "boolean",
+            "default": true,
+            "description": "Enable debug mode"
+          },
+          "port": {
+            "type": "integer",
+            "default": 8080,
+            "description": "Port number (1024-65535)",
+            "minimum": 1024,
+            "maximum": 65535
+          }
+        },
+        "required": [
+          "appName",
+          "baseUrl"
+        ]
+      }
+    },
+    {
+      "name": "schedule_event",
+      "description": "Schedules an event with time validation and constraints.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string",
+            "description": "Event title (3-50 characters)",
+            "minLength": 3,
+            "maxLength": 50
+          },
+          "startTime": {
+            "type": "string",
+            "description": "Event start time in ISO 8601 format",
+            "format": "date-time"
+          },
+          "durationHours": {
+            "type": "number",
+            "description": "Duration in hours (minimum 0.5, maximum 24)",
+            "minimum": 0.5,
+            "maximum": 24,
+            "multipleOf": 0.5
+          },
+          "priority": {
+            "type": "string",
+            "default": "medium",
+            "description": "Event priority level",
+            "enum": [
+              "low",
+              "medium",
+              "high",
+              "urgent"
+            ]
+          },
+          "attendees": {
+            "type": "array",
+            "default": [],
+            "items": {
+              "type": "string",
+              "format": "email"
+            },
+            "description": "List of attendee email addresses",
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "title",
+          "startTime",
+          "durationHours"
+        ]
+      }
+    }
+  ]
+}

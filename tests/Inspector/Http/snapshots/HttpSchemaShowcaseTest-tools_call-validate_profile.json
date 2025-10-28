@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"valid\": true,\n    \"profile\": {\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"age\": 30,\n        \"role\": \"user\"\n    },\n    \"errors\": [],\n    \"warnings\": [],\n    \"processed_at\": \"2025-01-01 00:00:00\"\n}"
+        }
+    ],
+    "isError": false
+}

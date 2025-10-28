@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Project Deadline\\\" scheduled successfully for \\\"2024-12-15\\\".\",\n    \"event_details\": {\n        \"title\": \"Project Deadline\",\n        \"date\": \"2024-12-15\",\n        \"type\": \"reminder\",\n        \"time\": \"All day\",\n        \"priority\": \"Normal\",\n        \"attendees\": [],\n        \"invites_will_be_sent\": false\n    }\n}"
+    }
+  ],
+  "isError": false
+}

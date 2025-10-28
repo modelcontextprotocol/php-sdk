@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Team Standup\\\" scheduled successfully for \\\"2024-12-01\\\".\",\n    \"event_details\": {\n        \"title\": \"Team Standup\",\n        \"date\": \"2024-12-01\",\n        \"type\": \"meeting\",\n        \"time\": \"09:00\",\n        \"priority\": \"Normal\",\n        \"attendees\": [\n            \"alice@example.com\",\n            \"bob@example.com\"\n        ],\n        \"invites_will_be_sent\": true\n    }\n}"
+    }
+  ],
+  "isError": false
+}

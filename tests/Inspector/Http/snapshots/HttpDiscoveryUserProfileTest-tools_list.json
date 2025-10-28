@@ -1,0 +1,58 @@
+{
+  "tools": [
+    {
+      "name": "calculator",
+      "description": "Perform basic math operations (add, subtract, multiply, divide)",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "a": {
+            "type": "number"
+          },
+          "b": {
+            "type": "number"
+          },
+          "operation": {
+            "type": "string",
+            "default": "add"
+          }
+        },
+        "required": [
+          "a",
+          "b"
+        ]
+      }
+    },
+    {
+      "name": "send_welcome",
+      "description": "Sends a welcome message to a user.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "the ID of the user to message"
+          },
+          "customMessage": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "an optional custom message part",
+            "default": null
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      }
+    },
+    {
+      "name": "test_tool_without_params",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
