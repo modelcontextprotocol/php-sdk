@@ -22,8 +22,6 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
 
-$_SERVER['DEBUG'] = true;
-
 $server = Server::builder()
     ->setServerInfo('HTTP User Profiles', '1.0.0')
     ->setLogger(logger())
