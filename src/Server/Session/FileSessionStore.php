@@ -50,9 +50,9 @@ class FileSessionStore implements SessionStoreInterface
         return ($this->clock->now()->getTimestamp() - $mtime) <= $this->ttl;
     }
 
-    public function read(Uuid $sessionId): string|false
+    public function read(Uuid $id): string|false
     {
-        $path = $this->pathFor($sessionId);
+        $path = $this->pathFor($id);
 
         if (!is_file($path)) {
             return false;
@@ -73,9 +73,9 @@ class FileSessionStore implements SessionStoreInterface
         return $data;
     }
 
-    public function write(Uuid $sessionId, string $data): bool
+    public function write(Uuid $id, string $data): bool
     {
-        $path = $this->pathFor($sessionId);
+        $path = $this->pathFor($id);
 
         $tmp = $path.'.tmp';
         if (false === @file_put_contents($tmp, $data, \LOCK_EX)) {
@@ -98,9 +98,9 @@ class FileSessionStore implements SessionStoreInterface
         return true;
     }
 
-    public function destroy(Uuid $sessionId): bool
+    public function destroy(Uuid $id): bool
     {
-        $path = $this->pathFor($sessionId);
+        $path = $this->pathFor($id);
 
         if (is_file($path)) {
             @unlink($path);
