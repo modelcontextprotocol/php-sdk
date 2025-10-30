@@ -13,6 +13,9 @@ namespace Mcp\Tests\Unit\Capability\Registry;
 
 use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry;
+use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -264,23 +267,36 @@ class RegistryTest extends TestCase
         $this->registry->registerResourceTemplate($manualTemplate, fn () => 'manual', [], true);
         $this->registry->registerResourceTemplate($discoveredTemplate, fn () => 'discovered', [], false);
 
-        $this->logger
-            ->expects($this->once())
-            ->method('debug')
-            ->with('Removed 4 discovered elements from internal registry.');
+        // Test that all elements exist
+        $this->registry->getTool('manual_tool');
+        $this->registry->getResource('test://manual');
+        $this->registry->getPrompt('manual_prompt');
+        $this->registry->getResourceTemplate('manual://{id}');
+        $this->registry->getTool('discovered_tool');
+        $this->registry->getResource('test://discovered');
+        $this->registry->getPrompt('discovered_prompt');
+        $this->registry->getResourceTemplate('discovered://{id}');
 
         $this->registry->clear();
 
-        $this->assertNotNull($this->registry->getTool('manual_tool'));
-        $this->assertNull($this->registry->getTool('discovered_tool'));
-        $this->assertNotNull($this->registry->getResource('test://manual'));
-        $this->assertNull(
-            $this->registry->getResource('test://discovered', false),
-        ); // Don't include templates to avoid debug log
-        $this->assertNotNull($this->registry->getPrompt('manual_prompt'));
-        $this->assertNull($this->registry->getPrompt('discovered_prompt'));
-        $this->assertNotNull($this->registry->getResourceTemplate('manual://{id}'));
-        $this->assertNull($this->registry->getResourceTemplate('discovered://{id}'));
+        // Manual elements should still exist
+        $this->registry->getTool('manual_tool');
+        $this->registry->getResource('test://manual');
+        $this->registry->getPrompt('manual_prompt');
+        $this->registry->getResourceTemplate('manual://{id}');
+
+        // Test that all discovered elements throw exceptions
+        $this->expectException(ToolNotFoundException::class);
+        $this->registry->getTool('discovered_tool');
+
+        $this->expectException(ResourceNotFoundException::class);
+        $this->registry->getResource('test://discovered');
+
+        $this->expectException(PromptNotFoundException::class);
+        $this->registry->getPrompt('discovered_prompt');
+
+        $this->expectException(ResourceNotFoundException::class);
+        $this->registry->getResourceTemplate('discovered://{id}');
     }
 
     public function testClearLogsNothingWhenNoDiscoveredElements(): void
@@ -294,7 +310,7 @@ class RegistryTest extends TestCase
 
         $this->registry->clear();
 
-        $this->assertNotNull($this->registry->getTool('manual_tool'));
+        $this->registry->getTool('manual_tool');
     }
 
     public function testRegisterToolHandlesStringHandler(): void

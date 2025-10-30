@@ -231,7 +231,7 @@ class GetPromptHandlerTest extends TestCase
     public function testHandlePromptNotFoundExceptionReturnsError(): void
     {
         $request = $this->createGetPromptRequest('nonexistent_prompt');
-        $exception = new PromptNotFoundException($request);
+        $exception = new PromptNotFoundException('nonexistent_prompt');
 
         $this->referenceProvider
             ->expects($this->once())
@@ -244,7 +244,7 @@ class GetPromptHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
-        $this->assertEquals('Prompt not found for name: "nonexistent_prompt".', $response->message);
+        $this->assertEquals('Prompt not found: "nonexistent_prompt".', $response->message);
     }
 
     public function testHandlePromptGetExceptionReturnsError(): void

@@ -164,7 +164,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('getTool')
             ->with('nonexistent_tool')
-            ->willThrowException(new ToolNotFoundException($request));
+            ->willThrowException(new ToolNotFoundException('nonexistent_tool'));
 
         $this->logger
             ->expects($this->once())

@@ -16,6 +16,9 @@ use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
@@ -45,10 +48,12 @@ class RegistryProviderTest extends TestCase
         $this->assertFalse($toolRef->isManual);
     }
 
-    public function testGetToolReturnsNullForUnregisteredTool(): void
+    public function testGetToolThrowsExceptionForUnregisteredTool(): void
     {
-        $toolRef = $this->registry->getTool('non_existent_tool');
-        $this->assertNull($toolRef);
+        $this->expectException(ToolNotFoundException::class);
+        $this->expectExceptionMessage('Tool not found: "non_existent_tool".');
+
+        $this->registry->getTool('non_existent_tool');
     }
 
     public function testGetResourceReturnsRegisteredResource(): void
@@ -65,10 +70,12 @@ class RegistryProviderTest extends TestCase
         $this->assertFalse($resourceRef->isManual);
     }
 
-    public function testGetResourceReturnsNullForUnregisteredResource(): void
+    public function testGetResourceThrowsExceptionForUnregisteredResource(): void
     {
-        $resourceRef = $this->registry->getResource('test://non_existent');
-        $this->assertNull($resourceRef);
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage('Resource not found for uri: "test://non_existent".');
+
+        $this->registry->getResource('test://non_existent');
     }
 
     public function testGetResourceMatchesResourceTemplate(): void
@@ -84,15 +91,17 @@ class RegistryProviderTest extends TestCase
         $this->assertEquals($handler, $resourceRef->handler);
     }
 
-    public function testGetResourceWithIncludeTemplatesFalse(): void
+    public function testGetResourceWithIncludeTemplatesFalseThrowsException(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
         $handler = fn (string $id) => "content for {$id}";
 
         $this->registry->registerResourceTemplate($template, $handler);
 
-        $resourceRef = $this->registry->getResource('test://123', false);
-        $this->assertNull($resourceRef);
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage('Resource not found for uri: "test://123".');
+
+        $this->registry->getResource('test://123', false);
     }
 
     public function testGetResourcePrefersDirectResourceOverTemplate(): void
@@ -125,10 +134,12 @@ class RegistryProviderTest extends TestCase
         $this->assertFalse($templateRef->isManual);
     }
 
-    public function testGetResourceTemplateReturnsNullForUnregisteredTemplate(): void
+    public function testGetResourceTemplateThrowsExceptionForUnregisteredTemplate(): void
     {
-        $templateRef = $this->registry->getResourceTemplate('test://{non_existent}');
-        $this->assertNull($templateRef);
+        $this->expectException(ResourceNotFoundException::class);
+        $this->expectExceptionMessage('Resource not found for uri: "test://{non_existent}".');
+
+        $this->registry->getResourceTemplate('test://{non_existent}');
     }
 
     public function testGetPromptReturnsRegisteredPrompt(): void
@@ -145,10 +156,12 @@ class RegistryProviderTest extends TestCase
         $this->assertFalse($promptRef->isManual);
     }
 
-    public function testGetPromptReturnsNullForUnregisteredPrompt(): void
+    public function testGetPromptThrowsExceptionForUnregisteredPrompt(): void
     {
-        $promptRef = $this->registry->getPrompt('non_existent_prompt');
-        $this->assertNull($promptRef);
+        $this->expectException(PromptNotFoundException::class);
+        $this->expectExceptionMessage('Prompt not found: "non_existent_prompt".');
+
+        $this->registry->getPrompt('non_existent_prompt');
     }
 
     public function testGetToolsReturnsAllRegisteredTools(): void

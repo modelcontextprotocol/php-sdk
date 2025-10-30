@@ -57,9 +57,6 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getResource($uri);
-            if (null === $reference) {
-                throw new ResourceNotFoundException($request);
-            }
 
             $arguments = [
                 'uri' => $uri,

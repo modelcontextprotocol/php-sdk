@@ -55,9 +55,6 @@ final class GetPromptHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getPrompt($promptName);
-            if (null === $reference) {
-                throw new PromptNotFoundException($request);
-            }
 
             $arguments['_session'] = $session;
 

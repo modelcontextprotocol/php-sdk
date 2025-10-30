@@ -59,9 +59,6 @@ final class CallToolHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getTool($toolName);
-            if (null === $reference) {
-                throw new ToolNotFoundException($request);
-            }
 
             $arguments['_session'] = $session;
 

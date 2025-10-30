@@ -178,7 +178,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $uri = 'file://nonexistent/file.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceNotFoundException($request);
+        $exception = new ResourceNotFoundException($uri);
 
         $this->referenceProvider
             ->expects($this->once())
@@ -399,7 +399,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $uri = 'file://custom/missing.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceNotFoundException($request);
+        $exception = new ResourceNotFoundException($uri);
 
         $this->referenceProvider
             ->expects($this->once())
