@@ -47,6 +47,7 @@ class Tool implements \JsonSerializable
         public readonly array $inputSchema,
         public readonly ?string $description,
         public readonly ?ToolAnnotations $annotations,
+        public readonly ?array $_meta = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
@@ -75,7 +76,8 @@ class Tool implements \JsonSerializable
             $data['name'],
             $data['inputSchema'],
             isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
-            isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null
+            isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null
         );
     }
 
@@ -98,6 +100,9 @@ class Tool implements \JsonSerializable
         }
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
+        }
+        if (null !== $this->_meta) {
+            $data['_meta'] = $this->_meta;
         }
 
         return $data;

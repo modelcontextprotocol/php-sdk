@@ -102,7 +102,7 @@ final class ArrayLoader implements LoaderInterface
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
 
-                $tool = new Tool($name, $inputSchema, $description, $data['annotations']);
+                $tool = new Tool($name, $inputSchema, $description, $data['annotations'], $data['_meta'] ?? null);
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
