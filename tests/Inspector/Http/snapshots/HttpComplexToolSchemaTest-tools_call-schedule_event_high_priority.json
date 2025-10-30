@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Client Call\\\" scheduled successfully for \\\"2024-12-02\\\".\",\n    \"event_details\": {\n        \"title\": \"Client Call\",\n        \"date\": \"2024-12-02\",\n        \"type\": \"call\",\n        \"time\": \"14:30\",\n        \"priority\": \"Normal\",\n        \"attendees\": [\n            \"client@example.com\"\n        ],\n        \"invites_will_be_sent\": false\n    }\n}"
+    }
+  ],
+  "isError": false
+}

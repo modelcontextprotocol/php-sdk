@@ -1,0 +1,10 @@
+{
+  "resourceTemplates": [
+    {
+      "name": "user_profile",
+      "uriTemplate": "user://{userId}/profile",
+      "description": "Get profile information for a specific user ID.",
+      "mimeType": "application/json"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": {
+        "type": "text",
+        "text": "Craft a personalized greeting for Alice."
+      }
+    }
+  ]
+}

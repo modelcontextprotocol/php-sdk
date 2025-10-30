@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"success\": true,\n    \"config\": {\n        \"app\": {\n            \"name\": \"TestApp\",\n            \"env\": \"development\",\n            \"debug\": true,\n            \"url\": \"https://example.com\",\n            \"port\": 8080\n        },\n        \"generated_at\": \"2025-01-01T00:00:00+00:00\",\n        \"version\": \"1.0.0\",\n        \"features\": {\n            \"logging\": true,\n            \"caching\": false,\n            \"analytics\": false,\n            \"rate_limiting\": false\n        }\n    },\n    \"validation\": {\n        \"app_name_valid\": true,\n        \"url_valid\": true,\n        \"port_in_range\": true\n    }\n}"
+        }
+    ],
+    "isError": false
+}

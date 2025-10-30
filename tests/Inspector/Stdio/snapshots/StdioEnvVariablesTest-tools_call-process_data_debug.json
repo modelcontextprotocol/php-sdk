@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"mode\": \"debug\",\n    \"processed_input\": \"DEBUG TEST\",\n    \"message\": \"Processed in DEBUG mode.\"\n}"
+    }
+  ],
+  "isError": false
+}

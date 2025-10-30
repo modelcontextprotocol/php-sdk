@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Inspector;
 
+use Mcp\Schema\Enum\LoggingLevel;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -19,67 +20,105 @@ abstract class InspectorSnapshotTestCase extends TestCase
 {
     private const INSPECTOR_VERSION = '0.16.8';
 
-    /**
-     * @param array<string, mixed> $toolArgs
-     */
+    /** @param array<string, mixed> $options */
     #[DataProvider('provideMethods')]
-    public function testMethodOutputMatchesSnapshot(
+    public function testOutputMatchesSnapshot(
         string $method,
-        ?string $toolName = null,
-        array $toolArgs = [],
-        ?string $uri = null,
+        array $options = [],
+        ?string $testName = null,
     ): void {
         $inspector = \sprintf('@modelcontextprotocol/inspector@%s', self::INSPECTOR_VERSION);
+
         $args = [
-            'npx', $inspector, '--cli', 'php', $this->getServerScript(), '--method', $method,
+            'npx',
+            $inspector,
+            '--cli',
+            ...$this->getServerConnectionArgs(),
+            '--transport',
+            $this->getTransport(),
+            '--method',
+            $method,
         ];
 
         // Options for tools/call
-        if (null !== $toolName) {
+        if (isset($options['toolName'])) {
             $args[] = '--tool-name';
-            $args[] = $toolName;
+            $args[] = $options['toolName'];
 
-            foreach ($toolArgs as $key => $value) {
+            foreach ($options['toolArgs'] ?? [] as $key => $value) {
                 $args[] = '--tool-arg';
-                $args[] = \sprintf('%s=%s', $key, $value);
+                if (\is_array($value)) {
+                    $args[] = \sprintf('%s=%s', $key, json_encode($value));
+                } elseif (\is_bool($value)) {
+                    $args[] = \sprintf('%s=%s', $key, $value ? '1' : '0');
+                } else {
+                    $args[] = \sprintf('%s=%s', $key, $value);
+                }
             }
         }
 
         // Options for resources/read
-        if (null !== $uri) {
+        if (isset($options['uri'])) {
             $args[] = '--uri';
-            $args[] = $uri;
+            $args[] = $options['uri'];
         }
 
-        $output = (new Process($args))
+        // Options for prompts/get
+        if (isset($options['promptName'])) {
+            $args[] = '--prompt-name';
+            $args[] = $options['promptName'];
+
+            foreach ($options['promptArgs'] ?? [] as $key => $value) {
+                $args[] = '--prompt-args';
+                if (\is_array($value)) {
+                    $args[] = \sprintf('%s=%s', $key, json_encode($value));
+                } elseif (\is_bool($value)) {
+                    $args[] = \sprintf('%s=%s', $key, $value ? '1' : '0');
+                } else {
+                    $args[] = \sprintf('%s=%s', $key, $value);
+                }
+            }
+        }
+
+        // Options for logging/setLevel
+        if (isset($options['logLevel'])) {
+            $args[] = '--log-level';
+            $args[] = $options['logLevel'] instanceof LoggingLevel ? $options['logLevel']->value : $options['logLevel'];
+        }
+
+        // Options for env variables
+        if (isset($options['envVars'])) {
+            foreach ($options['envVars'] as $key => $value) {
+                $args[] = '-e';
+                $args[] = \sprintf('%s=%s', $key, $value);
+            }
+        }
+
+        $output = (new Process(command: $args))
             ->mustRun()
             ->getOutput();
 
-        $snapshotFile = $this->getSnapshotFilePath($method);
+        $snapshotFile = $this->getSnapshotFilePath($method, $testName);
+
+        $normalizedOutput = $this->normalizeTestOutput($output, $testName);
 
         if (!file_exists($snapshotFile)) {
-            file_put_contents($snapshotFile, $output.\PHP_EOL);
+            file_put_contents($snapshotFile, $normalizedOutput.\PHP_EOL);
             $this->markTestIncomplete("Snapshot created at $snapshotFile, please re-run tests.");
         }
 
         $expected = file_get_contents($snapshotFile);
 
-        $this->assertJsonStringEqualsJsonString($expected, $output);
+        $this->assertJsonStringEqualsJsonString($expected, $normalizedOutput);
     }
 
-    /**
-     * List of methods to test.
-     *
-     * @return array<string, array{method: string}>
-     */
-    abstract public static function provideMethods(): array;
+    protected function normalizeTestOutput(string $output, ?string $testName = null): string
+    {
+        return $output;
+    }
 
-    abstract protected function getServerScript(): string;
-
-    /**
-     * @return array<string, array{method: string}>
-     */
-    protected static function provideListMethods(): array
+    /** @return array<string, array<string, mixed>> */
+    public static function provideMethods(): array
     {
         return [
             'Prompt Listing' => ['method' => 'prompts/list'],
@@ -89,10 +128,10 @@ abstract class InspectorSnapshotTestCase extends TestCase
         ];
     }
 
-    private function getSnapshotFilePath(string $method): string
-    {
-        $className = substr(static::class, strrpos(static::class, '\\') + 1);
+    abstract protected function getSnapshotFilePath(string $method, ?string $testName = null): string;
 
-        return __DIR__.'/snapshots/'.$className.'-'.str_replace('/', '_', $method).'.json';
-    }
+    /** @return array<string> */
+    abstract protected function getServerConnectionArgs(): array;
+
+    abstract protected function getTransport(): string;
 }

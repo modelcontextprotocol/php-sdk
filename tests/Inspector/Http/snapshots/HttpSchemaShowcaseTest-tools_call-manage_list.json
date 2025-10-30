@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"original_count\": 4,\n    \"processed_count\": 4,\n    \"action\": \"sort\",\n    \"original\": [\n        \"apple\",\n        \"banana\",\n        \"cherry\",\n        \"date\"\n    ],\n    \"processed\": [\n        \"apple\",\n        \"banana\",\n        \"cherry\",\n        \"date\"\n    ],\n    \"stats\": {\n        \"average_length\": 5.25,\n        \"shortest\": 4,\n        \"longest\": 6\n    }\n}"
+        }
+    ],
+    "isError": false
+}

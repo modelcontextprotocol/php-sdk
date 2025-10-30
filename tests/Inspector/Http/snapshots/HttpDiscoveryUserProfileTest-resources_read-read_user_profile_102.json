@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "user://102/profile",
+      "mimeType": "application/json",
+      "text": "{\n    \"name\": \"Bob\",\n    \"email\": \"bob@example.com\",\n    \"role\": \"user\"\n}"
+    }
+  ]
+}

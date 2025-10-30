@@ -1,0 +1,11 @@
+{
+  "messages": [
+    {
+      "role": "user",
+      "content": {
+        "type": "text",
+        "text": "Write a short, formal biography for Alice (Role: admin, Email: alice@example.com). Highlight their role within the system."
+      }
+    }
+  ]
+}

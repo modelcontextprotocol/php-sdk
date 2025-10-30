@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"original\": \"Hello World Test\",\n    \"formatted\": \"HELLO WORLD TEST\",\n    \"length\": 16,\n    \"format_applied\": \"uppercase\"\n}"
+        }
+    ],
+    "isError": false
+}

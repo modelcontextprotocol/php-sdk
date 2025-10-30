@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"result\": 50,\n    \"operation\": \"10 multiply 5\",\n    \"precision\": 2,\n    \"within_bounds\": true\n}"
+        }
+    ],
+    "isError": false
+}

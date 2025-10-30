@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "name": "manualGreeter",
+      "description": "A manually registered tool.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "string",
+            "description": "the user to greet"
+          }
+        },
+        "required": [
+          "user"
+        ]
+      }
+    },
+    {
+      "name": "discovered_status_check",
+      "description": "A tool discovered via attributes.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}

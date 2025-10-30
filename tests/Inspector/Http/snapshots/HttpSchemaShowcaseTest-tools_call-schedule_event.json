@@ -1,0 +1,9 @@
+{
+    "content": [
+        {
+            "type": "text",
+            "text": "{\n    \"success\": true,\n    \"event\": {\n        \"id\": \"event_test123456789\",\n        \"title\": \"Team Meeting\",\n        \"start_time\": \"2025-01-01T00:00:00+00:00\",\n        \"end_time\": \"2025-01-01T00:00:00+00:00\",\n        \"duration_hours\": 1.5,\n        \"priority\": \"high\",\n        \"attendees\": [\n            \"alice@example.com\",\n            \"bob@example.com\"\n        ],\n        \"created_at\": \"2025-01-01T00:00:00+00:00\"\n    },\n    \"info\": {\n        \"attendee_count\": 2,\n        \"is_all_day\": false,\n        \"is_future\": false,\n        \"timezone_note\": \"Times are in UTC\"\n    }\n}"
+        }
+    ],
+    "isError": false
+}

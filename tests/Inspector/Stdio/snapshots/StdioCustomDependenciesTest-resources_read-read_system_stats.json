@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "stats://system/overview",
+      "mimeType": "application/json",
+      "text": "{\n    \"total_tasks\": 3,\n    \"completed_tasks\": 0,\n    \"pending_tasks\": 3,\n    \"server_uptime_seconds\": 12345\n}"
+    }
+  ]
+}
