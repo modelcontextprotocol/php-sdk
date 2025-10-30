@@ -178,7 +178,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $uri = 'file://nonexistent/file.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceNotFoundException($request);
+        $exception = new ResourceNotFoundException($uri);
 
         $this->referenceProvider
             ->expects($this->once())
@@ -194,14 +194,31 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
     }
 
-    public function testHandleResourceReadExceptionReturnsGenericError(): void
+    public function testHandleResourceReadExceptionReturnsActualErrorMessage(): void
     {
         $uri = 'file://corrupted/file.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceReadException(
-            $request,
-            new \RuntimeException('Failed to read resource: corrupted data'),
-        );
+        $exception = new ResourceReadException('Failed to read resource: corrupted data');
+
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getResource')
+            ->with($uri)
+            ->willThrowException($exception);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Failed to read resource: corrupted data', $response->message);
+    }
+
+    public function testHandleGenericExceptionReturnsGenericError(): void
+    {
+        $uri = 'file://problematic/file.txt';
+        $request = $this->createReadResourceRequest($uri);
+        $exception = new \RuntimeException('Internal database connection failed');
 
         $this->referenceProvider
             ->expects($this->once())
@@ -382,7 +399,7 @@ class ReadResourceHandlerTest extends TestCase
     {
         $uri = 'file://custom/missing.txt';
         $request = $this->createReadResourceRequest($uri);
-        $exception = new ResourceNotFoundException($request);
+        $exception = new ResourceNotFoundException($uri);
 
         $this->referenceProvider
             ->expects($this->once())

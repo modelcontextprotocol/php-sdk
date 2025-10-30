@@ -13,6 +13,7 @@ namespace Mcp\Example\StdioDiscoveryCalculator;
 
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Exception\ToolCallException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -44,10 +45,10 @@ final class McpElements
      * @param float  $b         the second operand
      * @param string $operation the operation ('add', 'subtract', 'multiply', 'divide')
      *
-     * @return float|string the result of the calculation, or an error message string
+     * @return float the result of the calculation
      */
     #[McpTool(name: 'calculate')]
-    public function calculate(float $a, float $b, string $operation): float|string
+    public function calculate(float $a, float $b, string $operation): float
     {
         $this->logger->info(\sprintf('Calculating: %f %s %f', $a, $operation, $b));
 
@@ -65,16 +66,16 @@ final class McpElements
                 break;
             case 'divide':
                 if (0 == $b) {
-                    return 'Error: Division by zero.';
+                    throw new ToolCallException('Division by zero is not allowed.');
                 }
                 $result = $a / $b;
                 break;
             default:
-                return "Error: Unknown operation '{$operation}'. Supported: add, subtract, multiply, divide.";
+                throw new ToolCallException("Unknown operation '{$operation}'. Supported: add, subtract, multiply, divide.");
         }
 
         if (!$this->config['allow_negative'] && $result < 0) {
-            return 'Error: Negative results are disabled.';
+            throw new ToolCallException('Negative results are disabled.');
         }
 
         return round($result, $this->config['precision']);

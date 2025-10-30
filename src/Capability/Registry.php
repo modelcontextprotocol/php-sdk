@@ -23,6 +23,9 @@ use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
 use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\InvalidCursorException;
+use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Page;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
@@ -209,43 +212,41 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
     }
 
-    public function getTool(string $name): ?ToolReference
+    public function getTool(string $name): ToolReference
     {
-        return $this->tools[$name] ?? null;
+        return $this->tools[$name] ?? throw new ToolNotFoundException($name);
     }
 
     public function getResource(
         string $uri,
         bool $includeTemplates = true,
-    ): ResourceReference|ResourceTemplateReference|null {
+    ): ResourceReference|ResourceTemplateReference {
         $registration = $this->resources[$uri] ?? null;
         if ($registration) {
             return $registration;
         }
 
-        if (!$includeTemplates) {
-            return null;
-        }
-
-        foreach ($this->resourceTemplates as $template) {
-            if ($template->matches($uri)) {
-                return $template;
+        if ($includeTemplates) {
+            foreach ($this->resourceTemplates as $template) {
+                if ($template->matches($uri)) {
+                    return $template;
+                }
             }
         }
 
         $this->logger->debug('No resource matched URI.', ['uri' => $uri]);
 
-        return null;
+        throw new ResourceNotFoundException($uri);
     }
 
-    public function getResourceTemplate(string $uriTemplate): ?ResourceTemplateReference
+    public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference
     {
-        return $this->resourceTemplates[$uriTemplate] ?? null;
+        return $this->resourceTemplates[$uriTemplate] ?? throw new ResourceNotFoundException($uriTemplate);
     }
 
-    public function getPrompt(string $name): ?PromptReference
+    public function getPrompt(string $name): PromptReference
     {
-        return $this->prompts[$name] ?? null;
+        return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
     }
 
     public function getTools(?int $limit = null, ?string $cursor = null): Page

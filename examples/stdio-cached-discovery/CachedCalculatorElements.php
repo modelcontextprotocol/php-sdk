@@ -14,6 +14,7 @@ declare(strict_types=1);
 namespace Mcp\Example\StdioCachedDiscovery;
 
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Exception\ToolCallException;
 
 /**
  * Example MCP elements for demonstrating cached discovery.
@@ -39,7 +40,7 @@ class CachedCalculatorElements
     public function divide(int $a, int $b): float
     {
         if (0 === $b) {
-            throw new \InvalidArgumentException('Division by zero is not allowed');
+            throw new ToolCallException('Division by zero is not allowed');
         }
 
         return $a / $b;

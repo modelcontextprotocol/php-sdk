@@ -13,9 +13,9 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -59,9 +59,6 @@ final class CallToolHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getTool($toolName);
-            if (null === $reference) {
-                throw new ToolNotFoundException($request);
-            }
 
             $arguments['_session'] = $session;
 
@@ -77,17 +74,19 @@ final class CallToolHandler implements RequestHandlerInterface
             ]);
 
             return new Response($request->getId(), $result);
-        } catch (ToolNotFoundException $e) {
-            $this->logger->error('Tool not found', ['name' => $toolName]);
-
-            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
-        } catch (ToolCallException|ExceptionInterface $e) {
+        } catch (ToolCallException $e) {
             $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
             ]);
 
-            return Error::forInternalError('Error while executing tool', $request->getId());
+            $errorContent = [new TextContent($e->getMessage())];
+
+            return new Response($request->getId(), CallToolResult::error($errorContent));
+        } catch (ToolNotFoundException $e) {
+            $this->logger->error('Tool not found', ['name' => $toolName]);
+
+            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,

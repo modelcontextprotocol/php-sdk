@@ -11,6 +11,9 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Page;
 
 /**
@@ -23,23 +26,31 @@ interface ReferenceProviderInterface
 {
     /**
      * Gets a tool reference by name.
+     *
+     * @throws ToolNotFoundException
      */
-    public function getTool(string $name): ?ToolReference;
+    public function getTool(string $name): ToolReference;
 
     /**
      * Gets a resource reference by URI (includes template matching if enabled).
+     *
+     * @throws ResourceNotFoundException
      */
-    public function getResource(string $uri, bool $includeTemplates = true): ResourceReference|ResourceTemplateReference|null;
+    public function getResource(string $uri, bool $includeTemplates = true): ResourceReference|ResourceTemplateReference;
 
     /**
      * Gets a resource template reference by URI template.
+     *
+     * @throws ResourceNotFoundException
      */
-    public function getResourceTemplate(string $uriTemplate): ?ResourceTemplateReference;
+    public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference;
 
     /**
      * Gets a prompt reference by name.
+     *
+     * @throws PromptNotFoundException
      */
-    public function getPrompt(string $name): ?PromptReference;
+    public function getPrompt(string $name): PromptReference;
 
     /**
      * Gets all registered tools.

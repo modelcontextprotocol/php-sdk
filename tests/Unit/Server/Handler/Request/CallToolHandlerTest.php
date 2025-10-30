@@ -164,7 +164,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('getTool')
             ->with('nonexistent_tool')
-            ->willThrowException(new ToolNotFoundException($request));
+            ->willThrowException(new ToolNotFoundException('nonexistent_tool'));
 
         $this->logger
             ->expects($this->once())
@@ -177,10 +177,10 @@ class CallToolHandlerTest extends TestCase
         $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
     }
 
-    public function testHandleToolExecutionExceptionReturnsError(): void
+    public function testHandleToolCallExceptionReturnsResponseWithErrorResult(): void
     {
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
-        $exception = new ToolCallException($request, new \RuntimeException('Tool execution failed'));
+        $exception = new ToolCallException('Tool execution failed');
 
         $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
@@ -201,9 +201,15 @@ class CallToolHandlerTest extends TestCase
 
         $response = $this->handler->handle($request, $this->session);
 
-        $this->assertInstanceOf(Error::class, $response);
+        $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+
+        $result = $response->result;
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertTrue($result->isError);
+        $this->assertCount(1, $result->content);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertEquals('Tool execution failed', $result->content[0]->text);
     }
 
     public function testHandleWithNullResult(): void
@@ -246,7 +252,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleLogsErrorWithCorrectParameters(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
-        $exception = new ToolCallException($request, new \RuntimeException('Custom error message'));
+        $exception = new ToolCallException('Custom error message');
 
         $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
@@ -265,7 +271,7 @@ class CallToolHandlerTest extends TestCase
             ->expects($this->once())
             ->method('error')
             ->with(
-                'Error while executing tool "test_tool": "Tool call "test_tool" failed with error: "Custom error message".".',
+                'Error while executing tool "test_tool": "Custom error message".',
                 [
                     'tool' => 'test_tool',
                     'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session],
@@ -274,8 +280,43 @@ class CallToolHandlerTest extends TestCase
 
         $response = $this->handler->handle($request, $this->session);
 
+        // ToolCallException should now return Response with CallToolResult having isError=true
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+
+        $result = $response->result;
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertTrue($result->isError);
+        $this->assertCount(1, $result->content);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertEquals('Custom error message', $result->content[0]->text);
+    }
+
+    public function testHandleGenericExceptionReturnsError(): void
+    {
+        $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
+        $exception = new \RuntimeException('Internal database connection failed');
+
+        $toolReference = $this->createMock(ToolReference::class);
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('failing_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['param' => 'value', '_session' => $this->session])
+            ->willThrowException($exception);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        // Generic exceptions should return Error, not Response
         $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Error while executing tool', $response->message);
     }
 
     public function testHandleWithSpecialCharactersInToolName(): void

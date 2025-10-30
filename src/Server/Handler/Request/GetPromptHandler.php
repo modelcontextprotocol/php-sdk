@@ -13,7 +13,6 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
@@ -56,9 +55,6 @@ final class GetPromptHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getPrompt($promptName);
-            if (null === $reference) {
-                throw new PromptNotFoundException($request);
-            }
 
             $arguments['_session'] = $session;
 
@@ -67,18 +63,18 @@ final class GetPromptHandler implements RequestHandlerInterface
             $formatted = $reference->formatResult($result);
 
             return new Response($request->getId(), new GetPromptResult($formatted));
+        } catch (PromptGetException $e) {
+            $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
+
+            return Error::forInternalError($e->getMessage(), $request->getId());
         } catch (PromptNotFoundException $e) {
             $this->logger->error('Prompt not found', ['prompt_name' => $promptName]);
 
-            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
-        } catch (PromptGetException|ExceptionInterface $e) {
-            $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
-
-            return Error::forInternalError('Error while handling prompt: '.$e->getMessage(), $request->getId());
+            return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
-            $this->logger->error('Error while handling prompt', ['prompt_name' => $promptName]);
+            $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
 
-            return Error::forInternalError('Error while handling prompt: '.$e->getMessage(), $request->getId());
+            return Error::forInternalError('Error while handling prompt', $request->getId());
         }
     }
 }

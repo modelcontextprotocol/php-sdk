@@ -15,6 +15,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -56,9 +57,6 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->referenceProvider->getResource($uri);
-            if (null === $reference) {
-                throw new ResourceNotFoundException($request);
-            }
 
             $arguments = [
                 'uri' => $uri,
@@ -77,12 +75,16 @@ final class ReadResourceHandler implements RequestHandlerInterface
             }
 
             return new Response($request->getId(), new ReadResourceResult($formatted));
+        } catch (ResourceReadException $e) {
+            $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()));
+
+            return Error::forInternalError($e->getMessage(), $request->getId());
         } catch (ResourceNotFoundException $e) {
             $this->logger->error('Resource not found', ['uri' => $uri]);
 
-            return new Error($request->getId(), Error::RESOURCE_NOT_FOUND, $e->getMessage());
+            return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
-            $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()));
+            $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()));
 
             return Error::forInternalError('Error while reading resource', $request->getId());
         }

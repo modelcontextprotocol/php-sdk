@@ -106,6 +106,11 @@ class Error implements MessageInterface
         return new self($id, self::SERVER_ERROR, $message);
     }
 
+    public static function forResourceNotFound(string $message, string|int $id = ''): self
+    {
+        return new self($id, self::RESOURCE_NOT_FOUND, $message);
+    }
+
     public function getId(): string|int
     {
         return $this->id;
