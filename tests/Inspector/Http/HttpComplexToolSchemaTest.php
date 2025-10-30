@@ -82,6 +82,6 @@ final class HttpComplexToolSchemaTest extends HttpInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/http-complex-tool-schema/server.php';
+        return \dirname(__DIR__, 3).'/examples/complex-tool-schema/server.php';
     }
 }

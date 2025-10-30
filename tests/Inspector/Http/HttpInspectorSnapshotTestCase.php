@@ -21,14 +21,12 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
 
     protected function setUp(): void
     {
-        parent::setUp();
         $this->startServer();
     }
 
     protected function tearDown(): void
     {
         $this->stopServer();
-        parent::tearDown();
     }
 
     abstract protected function getServerScript(): string;

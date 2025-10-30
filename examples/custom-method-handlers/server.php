@@ -18,9 +18,9 @@ use Mcp\Example\CustomMethodHandlers\ListToolsRequestHandler;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Server;
-use Mcp\Server\Transport\StdioTransport;
+use Mcp\Server\Session\FileSessionStore;
 
-logger()->info('Starting MCP Custom Method Handlers (Stdio) Server...');
+logger()->info('Starting MCP Custom Method Handlers Server...');
 
 $toolDefinitions = [
     'say_hello' => new Tool(
@@ -56,16 +56,15 @@ $capabilities = new ServerCapabilities(tools: true, resources: false, prompts: f
 
 $server = Server::builder()
     ->setServerInfo('Custom Handlers Server', '1.0.0')
-    ->setLogger(logger())
     ->setContainer(container())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
+    ->setLogger(logger())
     ->setCapabilities($capabilities)
     ->addRequestHandlers([$listToolsHandler, $callToolHandler])
     ->build();
 
-$transport = new StdioTransport(logger: logger());
-
-$result = $server->run($transport);
+$result = $server->run(transport());
 
 logger()->info('Server listener stopped gracefully.', ['result' => $result]);
 
-exit($result);
+shutdown($result);

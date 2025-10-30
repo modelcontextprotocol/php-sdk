@@ -45,6 +45,6 @@ final class HttpCombinedRegistrationTest extends HttpInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/http-combined-registration/server.php';
+        return \dirname(__DIR__, 3).'/examples/combined-registration/server.php';
     }
 }
