@@ -391,15 +391,16 @@ final class Builder
         $referenceHandler = new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
-            new Handler\Request\PingHandler(),
-            new Handler\Request\InitializeHandler($configuration),
-            new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\CompletionCompleteHandler($registry, $container),
+            new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\InitializeHandler($configuration),
+            new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
             new Handler\Request\ListResourcesHandler($registry, $this->paginationLimit),
             new Handler\Request\ListResourceTemplatesHandler($registry, $this->paginationLimit),
+            new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
+            new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
-            new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
-            new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
         ]);
 
         $notificationHandlers = array_merge($this->notificationHandlers, [
