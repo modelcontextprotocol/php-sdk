@@ -52,17 +52,17 @@
   },
   "autoload-dev": {
     "psr-4": {
-      "Mcp\\Example\\HttpCombinedRegistration\\": "examples/http-combined-registration/",
-      "Mcp\\Example\\HttpComplexToolSchema\\": "examples/http-complex-tool-schema/",
-      "Mcp\\Example\\HttpDiscoveryUserProfile\\": "examples/http-discovery-userprofile/",
-      "Mcp\\Example\\HttpSchemaShowcase\\": "examples/http-schema-showcase/",
-      "Mcp\\Example\\StdioCachedDiscovery\\": "examples/stdio-cached-discovery/",
-      "Mcp\\Example\\StdioClientCommunication\\": "examples/stdio-client-communication/",
-      "Mcp\\Example\\StdioCustomDependencies\\": "examples/stdio-custom-dependencies/",
-      "Mcp\\Example\\StdioDiscoveryCalculator\\": "examples/stdio-discovery-calculator/",
-      "Mcp\\Example\\StdioEnvVariables\\": "examples/stdio-env-variables/",
-      "Mcp\\Example\\StdioExplicitRegistration\\": "examples/stdio-explicit-registration/",
+      "Mcp\\Example\\CachedDiscovery\\": "examples/cached-discovery/",
+      "Mcp\\Example\\ClientCommunication\\": "examples/client-communication/",
+      "Mcp\\Example\\CombinedRegistration\\": "examples/combined-registration/",
+      "Mcp\\Example\\ComplexToolSchema\\": "examples/complex-tool-schema/",
+      "Mcp\\Example\\CustomDependencies\\": "examples/custom-dependencies/",
       "Mcp\\Example\\CustomMethodHandlers\\": "examples/custom-method-handlers/",
+      "Mcp\\Example\\DiscoveryCalculator\\": "examples/discovery-calculator/",
+      "Mcp\\Example\\DiscoveryUserProfile\\": "examples/discovery-userprofile/",
+      "Mcp\\Example\\EnvVariables\\": "examples/env-variables/",
+      "Mcp\\Example\\ExplicitRegistration\\": "examples/explicit-registration/",
+      "Mcp\\Example\\SchemaShowcase\\": "examples/schema-showcase/",
       "Mcp\\Tests\\": "tests/"
     }
   },

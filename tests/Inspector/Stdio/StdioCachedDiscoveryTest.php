@@ -88,6 +88,6 @@ final class StdioCachedDiscoveryTest extends StdioInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/stdio-cached-discovery/server.php';
+        return \dirname(__DIR__, 3).'/examples/cached-discovery/server.php';
     }
 }
