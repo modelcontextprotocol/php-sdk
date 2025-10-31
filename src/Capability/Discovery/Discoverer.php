@@ -256,7 +256,8 @@ class Discoverer
                         $paramTag = $paramTags['$'.$param->getName()] ?? null;
                         $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
                     }
-                    $prompt = new Prompt($name, $description, $arguments);
+                    $_meta = $instance->_meta ?? null;
+                    $prompt = new Prompt($name, $description, $arguments, $_meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $prompts[$name] = new PromptReference($prompt, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['prompts'];
@@ -268,7 +269,8 @@ class Discoverer
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
                     $mimeType = $instance->mimeType;
                     $annotations = $instance->annotations;
-                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations);
+                    $_meta = $instance->_meta ?? null;
+                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations, $_meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['resourceTemplates'];

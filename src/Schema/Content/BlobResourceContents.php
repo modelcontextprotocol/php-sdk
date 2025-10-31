@@ -30,13 +30,15 @@ class BlobResourceContents extends ResourceContents
      * @param string      $uri      the URI of the resource or sub-resource
      * @param string|null $mimeType the MIME type of the resource or sub-resource
      * @param string      $blob     a base64-encoded string representing the binary data of the item
+     * @param ?array      $_meta    Optional metadata
      */
     public function __construct(
         string $uri,
         ?string $mimeType,
         public readonly string $blob,
+        ?array $_meta
     ) {
-        parent::__construct($uri, $mimeType);
+        parent::__construct($uri, $mimeType, $_meta);
     }
 
     /**
@@ -51,25 +53,25 @@ class BlobResourceContents extends ResourceContents
             throw new InvalidArgumentException('Missing or invalid "blob" for BlobResourceContents.');
         }
 
-        return new self($data['uri'], $data['mimeType'] ?? null, $data['blob']);
+        return new self($data['uri'], $data['mimeType'] ?? null, $data['blob'], $data['_meta'] ?? null);
     }
 
     /**
      * @param resource $stream
      */
-    public static function fromStream(string $uri, $stream, string $mimeType): self
+    public static function fromStream(string $uri, $stream, string $mimeType, ?array $_meta = null): self
     {
         $blob = stream_get_contents($stream);
 
-        return new self($uri, $mimeType, base64_encode($blob));
+        return new self($uri, $mimeType, base64_encode($blob), $_meta);
     }
 
-    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null): self
+    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?array $_meta = null): self
     {
         $mimeType = $explicitMimeType ?? mime_content_type($file->getPathname());
         $blob = file_get_contents($file->getPathname());
 
-        return new self($uri, $mimeType, base64_encode($blob));
+        return new self($uri, $mimeType, base64_encode($blob), $_meta);
     }
 
     /**

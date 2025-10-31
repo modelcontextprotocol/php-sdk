@@ -58,7 +58,7 @@ class ResourceReference extends ElementReference
      * - array: Converted to JSON if MIME type is application/json or contains 'json'
      *          For other MIME types, will try to convert to JSON with a warning
      */
-    public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null, ?array $_meta = null): array
+    public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null): array
     {
         if ($readResult instanceof ResourceContents) {
             return [$readResult];
@@ -68,9 +68,11 @@ class ResourceReference extends ElementReference
             return [$readResult->resource];
         }
 
+        $_meta = $this->schema->_meta;
+
         if (\is_array($readResult)) {
             if (empty($readResult)) {
-                return [new TextResourceContents($uri, 'application/json', '[]')];
+                return [new TextResourceContents($uri, 'application/json', '[]', $_meta)];
             }
 
             $allAreResourceContents = true;
@@ -125,7 +127,8 @@ class ResourceReference extends ElementReference
             $result = BlobResourceContents::fromStream(
                 $uri,
                 $readResult,
-                $mimeType ?? 'application/octet-stream'
+                $mimeType ?? 'application/octet-stream',
+                $_meta
             );
 
             @fclose($readResult);
@@ -136,7 +139,7 @@ class ResourceReference extends ElementReference
         if (\is_array($readResult) && isset($readResult['blob']) && \is_string($readResult['blob'])) {
             $mimeType = $readResult['mimeType'] ?? $mimeType ?? 'application/octet-stream';
 
-            return [new BlobResourceContents($uri, $mimeType, $readResult['blob'])];
+            return [new BlobResourceContents($uri, $mimeType, $readResult['blob'], $_meta)];
         }
 
         if (\is_array($readResult) && isset($readResult['text']) && \is_string($readResult['text'])) {
@@ -150,7 +153,7 @@ class ResourceReference extends ElementReference
                 return [new TextResourceContents($uri, $mimeType, file_get_contents($readResult->getPathname()), $_meta)];
             }
 
-            return [BlobResourceContents::fromSplFileInfo($uri, $readResult, $mimeType)];
+            return [BlobResourceContents::fromSplFileInfo($uri, $readResult, $mimeType, $_meta)];
         }
 
         if (\is_array($readResult)) {

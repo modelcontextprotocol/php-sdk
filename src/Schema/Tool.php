@@ -41,7 +41,8 @@ class Tool implements \JsonSerializable
      *                                          available tools. It can be thought of like a "hint" to the model.
      * @param ToolInputSchema      $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
      * @param ToolAnnotations|null $annotations optional additional tool information
-     */
+     * @param array|null           $_meta       optional for additional metadata
+    */
     public function __construct(
         public readonly string $name,
         public readonly array $inputSchema,

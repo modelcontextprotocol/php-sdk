@@ -73,7 +73,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
-                $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType, $reference->schema->_meta);
+                $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
             }
 
             return new Response($request->getId(), new ReadResourceResult($formatted));

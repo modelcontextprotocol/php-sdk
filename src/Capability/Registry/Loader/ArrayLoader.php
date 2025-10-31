@@ -173,8 +173,9 @@ final class ArrayLoader implements LoaderInterface
                 $uriTemplate = $data['uriTemplate'];
                 $mimeType = $data['mimeType'];
                 $annotations = $data['annotations'];
+                $_meta = $data['_meta'];
 
-                $template = new ResourceTemplate($uriTemplate, $name, $description, $mimeType, $annotations);
+                $template = new ResourceTemplate($uriTemplate, $name, $description, $mimeType, $annotations, $_meta);
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
 
@@ -225,8 +226,8 @@ final class ArrayLoader implements LoaderInterface
                         !$param->isOptional() && !$param->isDefaultValueAvailable(),
                     );
                 }
-
-                $prompt = new Prompt($name, $description, $arguments);
+                $_meta = $data['_meta'];
+                $prompt = new Prompt($name, $description, $arguments, $_meta);
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
 
