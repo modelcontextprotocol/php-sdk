@@ -35,9 +35,9 @@ class InMemorySessionStore implements SessionStoreInterface
         return isset($this->store[$id->toRfc4122()]);
     }
 
-    public function read(Uuid $sessionId): string|false
+    public function read(Uuid $id): string|false
     {
-        $session = $this->store[$sessionId->toRfc4122()] ?? '';
+        $session = $this->store[$id->toRfc4122()] ?? '';
         if ('' === $session) {
             return false;
         }
@@ -45,7 +45,7 @@ class InMemorySessionStore implements SessionStoreInterface
         $currentTimestamp = $this->clock->now()->getTimestamp();
 
         if ($currentTimestamp - $session['timestamp'] > $this->ttl) {
-            unset($this->store[$sessionId->toRfc4122()]);
+            unset($this->store[$id->toRfc4122()]);
 
             return false;
         }
@@ -53,9 +53,9 @@ class InMemorySessionStore implements SessionStoreInterface
         return $session['data'];
     }
 
-    public function write(Uuid $sessionId, string $data): bool
+    public function write(Uuid $id, string $data): bool
     {
-        $this->store[$sessionId->toRfc4122()] = [
+        $this->store[$id->toRfc4122()] = [
             'data' => $data,
             'timestamp' => $this->clock->now()->getTimestamp(),
         ];
@@ -63,10 +63,10 @@ class InMemorySessionStore implements SessionStoreInterface
         return true;
     }
 
-    public function destroy(Uuid $sessionId): bool
+    public function destroy(Uuid $id): bool
     {
-        if (isset($this->store[$sessionId->toRfc4122()])) {
-            unset($this->store[$sessionId->toRfc4122()]);
+        if (isset($this->store[$id->toRfc4122()])) {
+            unset($this->store[$id->toRfc4122()]);
         }
 
         return true;
