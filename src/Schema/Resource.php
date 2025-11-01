@@ -43,14 +43,15 @@ class Resource implements \JsonSerializable
     private const URI_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s]*$/';
 
     /**
-     * @param string           $uri         the URI of this resource
-     * @param string           $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
-     * @param string|null      $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
-     * @param string|null      $mimeType    the MIME type of this resource, if known
-     * @param Annotations|null $annotations optional annotations for the client
-     * @param int|null         $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param string                $uri         the URI of this resource
+     * @param string                $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
+     * @param string|null           $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * @param string|null           $mimeType    the MIME type of this resource, if known
+     * @param Annotations|null      $annotations optional annotations for the client
+     * @param int|null              $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param ?array<string, mixed> $_meta       Optional metadata
      *
-     * This can be used by Hosts to display file sizes and estimate context window usage.
+     * This can be used by Hosts to display file sizes and estimate context window usage
      */
     public function __construct(
         public readonly string $uri,
@@ -59,6 +60,7 @@ class Resource implements \JsonSerializable
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
         public readonly ?int $size = null,
+        public readonly ?array $_meta = null,
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
             throw new InvalidArgumentException('Invalid resource name: must contain only alphanumeric characters, underscores, and hyphens.');
@@ -86,7 +88,8 @@ class Resource implements \JsonSerializable
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
-            size: isset($data['size']) ? (int) $data['size'] : null
+            size: isset($data['size']) ? (int) $data['size'] : null,
+            _meta: isset($data['_meta']) ? (int) $data['_meta'] : null
         );
     }
 
@@ -117,6 +120,9 @@ class Resource implements \JsonSerializable
         }
         if (null !== $this->size) {
             $data['size'] = $this->size;
+        }
+        if (null !== $this->_meta) {
+            $data['_meta'] = $this->_meta;
         }
 
         return $data;

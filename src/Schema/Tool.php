@@ -35,18 +35,20 @@ use Mcp\Exception\InvalidArgumentException;
 class Tool implements \JsonSerializable
 {
     /**
-     * @param string               $name        the name of the tool
-     * @param string|null          $description A human-readable description of the tool.
-     *                                          This can be used by clients to improve the LLM's understanding of
-     *                                          available tools. It can be thought of like a "hint" to the model.
-     * @param ToolInputSchema      $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ToolAnnotations|null $annotations optional additional tool information
+     * @param string                $name        the name of the tool
+     * @param string|null           $description A human-readable description of the tool.
+     *                                           This can be used by clients to improve the LLM's understanding of
+     *                                           available tools. It can be thought of like a "hint" to the model.
+     * @param ToolInputSchema       $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
+     * @param ToolAnnotations|null  $annotations optional additional tool information
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public readonly string $name,
         public readonly array $inputSchema,
         public readonly ?string $description,
         public readonly ?ToolAnnotations $annotations,
+        public readonly ?array $_meta = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
@@ -75,7 +77,8 @@ class Tool implements \JsonSerializable
             $data['name'],
             $data['inputSchema'],
             isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
-            isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null
+            isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null
         );
     }
 
@@ -98,6 +101,9 @@ class Tool implements \JsonSerializable
         }
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
+        }
+        if (null !== $this->_meta) {
+            $data['_meta'] = $this->_meta;
         }
 
         return $data;
