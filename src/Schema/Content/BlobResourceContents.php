@@ -36,7 +36,7 @@ class BlobResourceContents extends ResourceContents
         string $uri,
         ?string $mimeType,
         public readonly string $blob,
-        ?array $_meta
+        ?array $_meta,
     ) {
         parent::__construct($uri, $mimeType, $_meta);
     }

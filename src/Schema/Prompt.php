@@ -33,12 +33,12 @@ class Prompt implements \JsonSerializable
      * @param string|null           $description an optional description of what this prompt provides
      * @param PromptArgument[]|null $arguments   A list of arguments for templating. Null if not a template.
      * @param array|null            $_meta       optional for additional metadata
-    */
+     */
     public function __construct(
         public readonly string $name,
         public readonly ?string $description = null,
         public readonly ?array $arguments = null,
-        public readonly ?array $_meta = null
+        public readonly ?array $_meta = null,
     ) {
         if (null !== $this->arguments) {
             foreach ($this->arguments as $arg) {
@@ -66,7 +66,7 @@ class Prompt implements \JsonSerializable
             name: $data['name'],
             description: $data['description'] ?? null,
             arguments: $arguments,
-           _meta: isset($data['_meta']) ? (int) $data['_meta'] : null
+            _meta: isset($data['_meta']) ? (int) $data['_meta'] : null
         );
     }
 

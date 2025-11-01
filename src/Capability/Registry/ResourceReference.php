@@ -162,7 +162,7 @@ class ResourceReference extends ElementReference
                 try {
                     $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
 
-                    return [new TextResourceContents($uri, $mimeType, $jsonString,  $_meta)];
+                    return [new TextResourceContents($uri, $mimeType, $jsonString, $_meta)];
                 } catch (\JsonException $e) {
                     throw new RuntimeException(\sprintf('Failed to encode array as JSON for URI "%s": %s', $uri, $e->getMessage()));
                 }
@@ -172,7 +172,7 @@ class ResourceReference extends ElementReference
                 $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
                 $mimeType = $mimeType ?? 'application/json';
 
-                return [new TextResourceContents($uri, $mimeType, $jsonString,  $_meta)];
+                return [new TextResourceContents($uri, $mimeType, $jsonString, $_meta)];
             } catch (\JsonException $e) {
                 throw new RuntimeException(\sprintf('Failed to encode array as JSON for URI "%s": %s', $uri, $e->getMessage()));
             }

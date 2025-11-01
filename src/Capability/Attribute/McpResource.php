@@ -31,7 +31,6 @@ final class McpResource
      * @param Annotations|null $annotations optional annotations describing the resource
      * @param ?array           $_meta       optional metadata
      */
-
     public function __construct(
         public string $uri,
         public ?string $name = null,
@@ -39,7 +38,7 @@ final class McpResource
         public ?string $mimeType = null,
         public ?int $size = null,
         public ?Annotations $annotations = null,
-        public ?array $_meta = null
+        public ?array $_meta = null,
     ) {
     }
 }

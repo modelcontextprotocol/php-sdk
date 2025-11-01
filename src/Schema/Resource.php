@@ -51,7 +51,7 @@ class Resource implements \JsonSerializable
      * @param int|null         $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
      * @param array|null       $_meta       optional for additional metadata
      *
-     * This can be used by Hosts to display file sizes and estimate context window usage.
+     * This can be used by Hosts to display file sizes and estimate context window usage
      */
     public function __construct(
         public readonly string $uri,
@@ -60,7 +60,7 @@ class Resource implements \JsonSerializable
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
         public readonly ?int $size = null,
-        public readonly ?array $_meta = null
+        public readonly ?array $_meta = null,
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
             throw new InvalidArgumentException('Invalid resource name: must contain only alphanumeric characters, underscores, and hyphens.');

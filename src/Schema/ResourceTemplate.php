@@ -47,15 +47,15 @@ class ResourceTemplate implements \JsonSerializable
      * @param string|null      $description This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
      * @param string|null      $mimeType    The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
      * @param Annotations|null $annotations optional annotations for the client
-     * @param array|null $_meta optional for additional metadata
- */
+     * @param array|null       $_meta       optional for additional metadata
+     */
     public function __construct(
         public readonly string $uriTemplate,
         public readonly string $name,
         public readonly ?string $description = null,
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
-        public readonly ?array $_meta = null
+        public readonly ?array $_meta = null,
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
             throw new InvalidArgumentException('Invalid resource name: must contain only alphanumeric characters, underscores, and hyphens.');
