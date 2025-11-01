@@ -11,10 +11,17 @@
 
 namespace Mcp\Server;
 
+use Mcp\Exception\ClientException;
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RuntimeException;
+use Mcp\Schema\Content\AudioContent;
+use Mcp\Schema\Content\Content;
+use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Enum\SamplingContext;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
@@ -45,6 +52,15 @@ use Mcp\Server\Session\SessionInterface;
  *     return $response->content->text;
  * }
  * ```
+ *
+ * @phpstan-type SampleOptions array{
+ *     preferences?: ModelPreferences,
+ *     systemPrompt?: string,
+ *     temperature?: float,
+ *     includeContext?: SamplingContext,
+ *     stopSequences?: string[],
+ *     metadata?: array<string, mixed>,
+ * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -95,6 +111,52 @@ final class ClientGateway
     }
 
     /**
+     * Convenience method for LLM sampling requests.
+     *
+     * @param SamplingMessage[]|TextContent|AudioContent|ImageContent|string $message   The message for the LLM
+     * @param int                                                            $maxTokens Maximum tokens to generate
+     * @param int                                                            $timeout   The timeout in seconds
+     * @param SampleOptions                                                  $options   Additional sampling options (temperature, etc.)
+     *
+     * @return CreateSamplingMessageResult The sampling response
+     *
+     * @throws ClientException if the client request results in an error message
+     */
+    public function sample(array|Content|string $message, int $maxTokens = 1000, int $timeout = 120, array $options = []): CreateSamplingMessageResult
+    {
+        $preferences = $options['preferences'] ?? null;
+        if (null !== $preferences && !$preferences instanceof ModelPreferences) {
+            throw new InvalidArgumentException('The "preferences" option must be an array or an instance of ModelPreferences.');
+        }
+
+        if (\is_string($message)) {
+            $message = new TextContent($message);
+        }
+        if (\is_object($message) && \in_array($message::class, [TextContent::class, AudioContent::class, ImageContent::class], true)) {
+            $message = [new SamplingMessage(Role::User, $message)];
+        }
+
+        $request = new CreateSamplingMessageRequest(
+            messages: $message,
+            maxTokens: $maxTokens,
+            preferences: $preferences,
+            systemPrompt: $options['systemPrompt'] ?? null,
+            includeContext: $options['includeContext'] ?? null,
+            temperature: $options['temperature'] ?? null,
+            stopSequences: $options['stopSequences'] ?? null,
+            metadata: $options['metadata'] ?? null,
+        );
+
+        $response = $this->request($request, $timeout);
+
+        if ($response instanceof Error) {
+            throw new ClientException($response);
+        }
+
+        return CreateSamplingMessageResult::fromArray($response->result);
+    }
+
+    /**
      * Send a request to the client and wait for a response (blocking).
      *
      * This suspends the Fiber and waits for the client to respond. The transport
@@ -105,9 +167,9 @@ final class ClientGateway
      *
      * @return Response<array<string, mixed>>|Error The client's response message
      *
-     * @throws \RuntimeException If Fiber support is not available
+     * @throws RuntimeException If Fiber support is not available
      */
-    public function request(Request $request, int $timeout = 120): Response|Error
+    private function request(Request $request, int $timeout = 120): Response|Error
     {
         $response = \Fiber::suspend([
             'type' => 'request',
@@ -117,67 +179,9 @@ final class ClientGateway
         ]);
 
         if (!$response instanceof Response && !$response instanceof Error) {
-            throw new \RuntimeException('Transport returned an unexpected payload; expected a Response or Error message.');
+            throw new RuntimeException('Transport returned an unexpected payload; expected a Response or Error message.');
         }
 
         return $response;
-    }
-
-    /**
-     * Create and send an LLM sampling requests.
-     *
-     * @param CreateSamplingMessageRequest $request The request to send
-     * @param int                          $timeout The timeout in seconds
-     *
-     * @return Response<CreateSamplingMessageResult>|Error The sampling response
-     */
-    public function createMessage(CreateSamplingMessageRequest $request, int $timeout = 120): Response|Error
-    {
-        $response = $this->request($request, $timeout);
-
-        if ($response instanceof Error) {
-            return $response;
-        }
-
-        $result = CreateSamplingMessageResult::fromArray($response->result);
-
-        return new Response($response->getId(), $result);
-    }
-
-    /**
-     * Convenience method for LLM sampling requests.
-     *
-     * @param string               $prompt    The prompt for the LLM
-     * @param int                  $maxTokens Maximum tokens to generate
-     * @param int                  $timeout   The timeout in seconds
-     * @param array<string, mixed> $options   Additional sampling options (temperature, etc.)
-     *
-     * @return Response<CreateSamplingMessageResult>|Error The sampling response
-     */
-    public function sample(string $prompt, int $maxTokens = 1000, int $timeout = 120, array $options = []): Response|Error
-    {
-        $preferences = $options['preferences'] ?? null;
-        if (\is_array($preferences)) {
-            $preferences = ModelPreferences::fromArray($preferences);
-        }
-
-        if (null !== $preferences && !$preferences instanceof ModelPreferences) {
-            throw new \InvalidArgumentException('The "preferences" option must be an array or an instance of ModelPreferences.');
-        }
-
-        $samplingRequest = new CreateSamplingMessageRequest(
-            messages: [
-                new SamplingMessage(Role::User, new TextContent(text: $prompt)),
-            ],
-            maxTokens: $maxTokens,
-            preferences: $preferences,
-            systemPrompt: $options['systemPrompt'] ?? null,
-            includeContext: $options['includeContext'] ?? null,
-            temperature: $options['temperature'] ?? null,
-            stopSequences: $options['stopSequences'] ?? null,
-            metadata: $options['metadata'] ?? null,
-        );
-
-        return $this->createMessage($samplingRequest, $timeout);
     }
 }

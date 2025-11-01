@@ -57,6 +57,7 @@
       "Mcp\\Example\\HttpDiscoveryUserProfile\\": "examples/http-discovery-userprofile/",
       "Mcp\\Example\\HttpSchemaShowcase\\": "examples/http-schema-showcase/",
       "Mcp\\Example\\StdioCachedDiscovery\\": "examples/stdio-cached-discovery/",
+      "Mcp\\Example\\StdioClientCommunication\\": "examples/stdio-client-communication/",
       "Mcp\\Example\\StdioCustomDependencies\\": "examples/stdio-custom-dependencies/",
       "Mcp\\Example\\StdioDiscoveryCalculator\\": "examples/stdio-discovery-calculator/",
       "Mcp\\Example\\StdioEnvVariables\\": "examples/stdio-env-variables/",

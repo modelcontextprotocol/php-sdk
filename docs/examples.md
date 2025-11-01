@@ -163,6 +163,16 @@ $server = Server::builder()
     ->setDiscovery(__DIR__, ['.'], [], $cache)
 ```
 
+### Client Communication
+
+**File**: `examples/stdio-client-communication/`
+
+**What it demostrates:**
+- Server initiated communcation back to the client
+- Logging, sampling, progress and notifications
+- Using `ClientGateway` in service class via `ClientAwareInterface` and corresponding trait
+- Using `ClientGateway` in tool method via method argument injection
+
 ## HTTP Examples
 
 ### Discovery User Profile
