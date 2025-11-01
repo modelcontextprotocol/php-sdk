@@ -19,6 +19,7 @@ use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\ToolAnnotations;
@@ -61,6 +62,8 @@ final class Builder
     private int $paginationLimit = 50;
 
     private ?string $instructions = null;
+
+    private ?ProtocolVersion $protocolVersion = null;
 
     /**
      * @var array<int, RequestHandlerInterface<mixed>>
@@ -282,6 +285,13 @@ final class Builder
         return $this;
     }
 
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): self
+    {
+        $this->protocolVersion = $protocolVersion;
+
+        return $this;
+    }
+
     /**
      * Manually registers a tool handler.
      *
@@ -387,7 +397,7 @@ final class Builder
         $messageFactory = MessageFactory::make();
 
         $capabilities = $registry->getCapabilities();
-        $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions);
+        $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
