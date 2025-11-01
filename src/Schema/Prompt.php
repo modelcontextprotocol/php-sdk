@@ -32,7 +32,7 @@ class Prompt implements \JsonSerializable
      * @param string                $name        the name of the prompt or prompt template
      * @param string|null           $description an optional description of what this prompt provides
      * @param PromptArgument[]|null $arguments   A list of arguments for templating. Null if not a template.
-     * @param array|null            $_meta       optional for additional metadata
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public readonly string $name,

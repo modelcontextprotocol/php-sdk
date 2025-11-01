@@ -27,16 +27,16 @@ use Mcp\Exception\InvalidArgumentException;
 class TextResourceContents extends ResourceContents
 {
     /**
-     * @param string      $uri      the URI of the resource or sub-resource
-     * @param string|null $mimeType the MIME type of the resource or sub-resource
-     * @param string      $text     The text of the item. This must only be set if the item can actually be represented as text (not binary data).
-     * @param ?array      $_meta    Optional metadata
+     * @param string                $uri      the URI of the resource or sub-resource
+     * @param string|null           $mimeType the MIME type of the resource or sub-resource
+     * @param string                $text     The text of the item. This must only be set if the item can actually be represented as text (not binary data).
+     * @param ?array<string, mixed> $_meta    Optional metadata
      */
     public function __construct(
         string $uri,
         ?string $mimeType,
         public readonly string $text,
-        ?array $_meta,
+        ?array $_meta = null,
     ) {
         parent::__construct($uri, $mimeType, $_meta);
     }

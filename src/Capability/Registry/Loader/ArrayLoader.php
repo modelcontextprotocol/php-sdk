@@ -45,6 +45,7 @@ final class ArrayLoader implements LoaderInterface
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     _meta: ?array<string, mixed>
      * }[] $tools
      * @param array{
      *     handler: Handler,
@@ -54,6 +55,7 @@ final class ArrayLoader implements LoaderInterface
      *     mimeType: ?string,
      *     size: int|null,
      *     annotations: ?Annotations,
+     *     _meta: ?array<string, mixed>
      * }[] $resources
      * @param array{
      *     handler: Handler,
@@ -62,11 +64,13 @@ final class ArrayLoader implements LoaderInterface
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
+     *     _meta: ?array<string, mixed>
      * }[] $resourceTemplates
      * @param array{
      *     handler: Handler,
      *     name: ?string,
      *     description: ?string,
+     *     _meta: ?array<string, mixed>
      * }[] $prompts
      */
     public function __construct(

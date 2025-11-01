@@ -43,13 +43,13 @@ class Resource implements \JsonSerializable
     private const URI_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s]*$/';
 
     /**
-     * @param string           $uri         the URI of this resource
-     * @param string           $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
-     * @param string|null      $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
-     * @param string|null      $mimeType    the MIME type of this resource, if known
-     * @param Annotations|null $annotations optional annotations for the client
-     * @param int|null         $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
-     * @param array|null       $_meta       optional for additional metadata
+     * @param string                $uri         the URI of this resource
+     * @param string                $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
+     * @param string|null           $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * @param string|null           $mimeType    the MIME type of this resource, if known
+     * @param Annotations|null      $annotations optional annotations for the client
+     * @param int|null              $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param ?array<string, mixed> $_meta       Optional metadata
      *
      * This can be used by Hosts to display file sizes and estimate context window usage
      */

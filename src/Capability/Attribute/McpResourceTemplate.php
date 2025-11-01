@@ -23,12 +23,12 @@ use Mcp\Schema\Annotations;
 final class McpResourceTemplate
 {
     /**
-     * @param string       $uriTemplate the URI template string (RFC 6570)
-     * @param ?string      $name        A human-readable name for the template type.  If null, a default might be generated from the method name.
-     * @param ?string      $description Optional description. Defaults to class DocBlock summary.
-     * @param ?string      $mimeType    optional default MIME type for matching resources
-     * @param ?Annotations $annotations optional annotations describing the resource template
-     * @param ?array       $_meta       optional metadata
+     * @param string                $uriTemplate the URI template string (RFC 6570)
+     * @param ?string               $name        A human-readable name for the template type.  If null, a default might be generated from the method name.
+     * @param ?string               $description Optional description. Defaults to class DocBlock summary.
+     * @param ?string               $mimeType    optional default MIME type for matching resources
+     * @param ?Annotations          $annotations optional annotations describing the resource template
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public string $uriTemplate,

@@ -42,12 +42,12 @@ class ResourceTemplate implements \JsonSerializable
     private const URI_TEMPLATE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/';
 
     /**
-     * @param string           $uriTemplate a URI template (according to RFC 6570) that can be used to construct resource URIs
-     * @param string           $name        A human-readable name for the type of resource this template refers to. This can be used by clients to populate UI elements.
-     * @param string|null      $description This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
-     * @param string|null      $mimeType    The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
-     * @param Annotations|null $annotations optional annotations for the client
-     * @param array|null       $_meta       optional for additional metadata
+     * @param string                $uriTemplate a URI template (according to RFC 6570) that can be used to construct resource URIs
+     * @param string                $name        A human-readable name for the type of resource this template refers to. This can be used by clients to populate UI elements.
+     * @param string|null           $description This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * @param string|null           $mimeType    The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
+     * @param Annotations|null      $annotations optional annotations for the client
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public readonly string $uriTemplate,

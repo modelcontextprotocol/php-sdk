@@ -24,9 +24,9 @@ namespace Mcp\Schema\Content;
 abstract class ResourceContents implements \JsonSerializable
 {
     /**
-     * @param string      $uri      the URI of the resource or sub-resource
-     * @param string|null $mimeType the MIME type of the resource or sub-resource
-     * @param ?array      $_meta    Optional metadata
+     * @param string                $uri      the URI of the resource or sub-resource
+     * @param string|null           $mimeType the MIME type of the resource or sub-resource
+     * @param ?array<string, mixed> $_meta    Optional metadata
      */
     public function __construct(
         public readonly string $uri,

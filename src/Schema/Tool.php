@@ -35,13 +35,13 @@ use Mcp\Exception\InvalidArgumentException;
 class Tool implements \JsonSerializable
 {
     /**
-     * @param string               $name        the name of the tool
-     * @param string|null          $description A human-readable description of the tool.
-     *                                          This can be used by clients to improve the LLM's understanding of
-     *                                          available tools. It can be thought of like a "hint" to the model.
-     * @param ToolInputSchema      $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ToolAnnotations|null $annotations optional additional tool information
-     * @param array|null           $_meta       optional for additional metadata
+     * @param string                $name        the name of the tool
+     * @param string|null           $description A human-readable description of the tool.
+     *                                           This can be used by clients to improve the LLM's understanding of
+     *                                           available tools. It can be thought of like a "hint" to the model.
+     * @param ToolInputSchema       $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
+     * @param ToolAnnotations|null  $annotations optional additional tool information
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public readonly string $name,

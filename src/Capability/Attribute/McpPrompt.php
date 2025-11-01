@@ -21,9 +21,9 @@ namespace Mcp\Capability\Attribute;
 final class McpPrompt
 {
     /**
-     * @param ?string $name        overrides the prompt name (defaults to method name)
-     * @param ?string $description Optional description of the prompt. Defaults to method DocBlock summary.
-     * @param ?array  $_meta       Optional metadata
+     * @param ?string               $name        overrides the prompt name (defaults to method name)
+     * @param ?string               $description Optional description of the prompt. Defaults to method DocBlock summary.
+     * @param ?array<string, mixed> $_meta       Optional metadata
      */
     public function __construct(
         public ?string $name = null,

@@ -27,16 +27,16 @@ use Mcp\Exception\InvalidArgumentException;
 class BlobResourceContents extends ResourceContents
 {
     /**
-     * @param string      $uri      the URI of the resource or sub-resource
-     * @param string|null $mimeType the MIME type of the resource or sub-resource
-     * @param string      $blob     a base64-encoded string representing the binary data of the item
-     * @param ?array      $_meta    Optional metadata
+     * @param string                $uri      the URI of the resource or sub-resource
+     * @param string|null           $mimeType the MIME type of the resource or sub-resource
+     * @param string                $blob     a base64-encoded string representing the binary data of the item
+     * @param ?array<string, mixed> $_meta    Optional metadata
      */
     public function __construct(
         string $uri,
         ?string $mimeType,
         public readonly string $blob,
-        ?array $_meta,
+        ?array $_meta = null,
     ) {
         parent::__construct($uri, $mimeType, $_meta);
     }
@@ -57,8 +57,9 @@ class BlobResourceContents extends ResourceContents
     }
 
     /**
-     * @param resource $stream
-     */
+     * @param resource              $stream
+     * @param ?array<string, mixed> $_meta  Optional metadata
+     * */
     public static function fromStream(string $uri, $stream, string $mimeType, ?array $_meta = null): self
     {
         $blob = stream_get_contents($stream);
@@ -66,6 +67,9 @@ class BlobResourceContents extends ResourceContents
         return new self($uri, $mimeType, base64_encode($blob), $_meta);
     }
 
+    /**
+     * @param ?array<string, mixed> $_meta Optional metadata
+     * */
     public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?array $_meta = null): self
     {
         $mimeType = $explicitMimeType ?? mime_content_type($file->getPathname());

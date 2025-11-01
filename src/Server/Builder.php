@@ -78,6 +78,7 @@ final class Builder
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     _meta: ?array<string, mixed>
      * }[]
      */
     private array $tools = [];
@@ -91,6 +92,7 @@ final class Builder
      *     mimeType: ?string,
      *     size: int|null,
      *     annotations: ?Annotations,
+     *     _meta: ?array<string, mixed>
      * }[]
      */
     private array $resources = [];
@@ -103,6 +105,7 @@ final class Builder
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
+     *     _meta: ?array<string, mixed>
      * }[]
      */
     private array $resourceTemplates = [];
@@ -112,6 +115,7 @@ final class Builder
      *     handler: Handler,
      *     name: ?string,
      *     description: ?string,
+     *     _meta: ?array<string, mixed>
      * }[]
      */
     private array $prompts = [];
