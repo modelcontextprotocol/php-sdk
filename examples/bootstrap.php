@@ -9,7 +9,13 @@
  * file that was distributed with this source code.
  */
 
+use Http\Discovery\Psr17Factory;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Capability\Registry\Container;
+use Mcp\Server\Transport\StdioTransport;
+use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Server\Transport\TransportInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
@@ -20,6 +26,31 @@ set_exception_handler(function (Throwable $t): never {
 
     exit(1);
 });
+
+/**
+ * @return TransportInterface<int>|TransportInterface<ResponseInterface>
+ */
+function transport(): TransportInterface
+{
+    if ('cli' === \PHP_SAPI) {
+        return new StdioTransport(logger: logger());
+    }
+
+    return new StreamableHttpTransport(
+        (new Psr17Factory())->createServerRequestFromGlobals(),
+        logger: logger(),
+    );
+}
+
+function shutdown(ResponseInterface|int $result): never
+{
+    if ('cli' === \PHP_SAPI) {
+        exit($result);
+    }
+
+    (new SapiEmitter())->emit($result);
+    exit(0);
+}
 
 function logger(): LoggerInterface
 {

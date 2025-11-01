@@ -7,10 +7,7 @@ specific features and can be run independently to understand how the SDK works.
 
 - [Getting Started](#getting-started)
 - [Running Examples](#running-examples)
-- [STDIO Examples](#stdio-examples)
-- [HTTP Examples](#http-examples)
-- [Advanced Patterns](#advanced-patterns)
-- [Testing and Debugging](#testing-and-debugging)
+- [Examples](#examples)
 
 ## Getting Started
 
@@ -26,28 +23,30 @@ composer install
 
 ## Running Examples
 
-### STDIO Examples
+The bootstrapping of the example will choose the used transport based on the SAPI you use.
 
-STDIO examples use standard input/output for communication:
+### STDIO Transport
+
+The STDIO transport will use standard input/output for communication:
 
 ```bash
 # Interactive testing with MCP Inspector
-npx @modelcontextprotocol/inspector php examples/stdio-discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 
 # Run with debugging enabled
-npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/stdio-discovery-calculator/server.php
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discovery-calculator/server.php
 
 # Or configure the script path in your MCP client
-# Path: php examples/stdio-discovery-calculator/server.php
+# Path: php examples/discovery-calculator/server.php
 ```
 
-### HTTP Examples
+### HTTP Transport
 
-HTTP examples run as web servers:
+The Streamable HTTP transport will be chosen if running examples with a web servers:
 
 ```bash
 # Start the server
-php -S localhost:8000 examples/http-discovery-userprofile/server.php
+php -S localhost:8000 examples/discovery-userprofile/server.php
 
 # Test with MCP Inspector
 npx @modelcontextprotocol/inspector http://localhost:8000
@@ -59,11 +58,11 @@ curl -X POST http://localhost:8000 \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","clientInfo":{"name":"test","version":"1.0.0"},"capabilities":{}}}'
 ```
 
-## STDIO Examples
+## Examples
 
 ### Discovery Calculator
 
-**File**: `examples/stdio-discovery-calculator/`
+**File**: `examples/discovery-calculator/`
 
 **What it demonstrates:**
 - Attribute-based discovery using `#[McpTool]` and `#[McpResource]`
@@ -87,14 +86,14 @@ public function getConfiguration(): array
 **Usage:**
 ```bash
 # Interactive testing
-npx @modelcontextprotocol/inspector php examples/stdio-discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 
-# Or configure in MCP client: php examples/stdio-discovery-calculator/server.php
+# Or configure in MCP client: php examples/discovery-calculator/server.php
 ```
 
 ### Explicit Registration
 
-**File**: `examples/stdio-explicit-registration/`
+**File**: `examples/explicit-registration/`
 
 **What it demonstrates:**
 - Manual registration of tools, resources, and prompts
@@ -111,7 +110,7 @@ $server = Server::builder()
 
 ### Environment Variables
 
-**File**: `examples/stdio-env-variables/`
+**File**: `examples/env-variables/`
 
 **What it demonstrates:**
 - Environment variable integration
@@ -125,7 +124,7 @@ $server = Server::builder()
 
 ### Custom Dependencies
 
-**File**: `examples/stdio-custom-dependencies/`
+**File**: `examples/custom-dependencies/`
 
 **What it demonstrates:**
 - Dependency injection with PSR-11 containers
@@ -145,7 +144,7 @@ $server = Server::builder()
 
 ### Cached Discovery
 
-**File**: `examples/stdio-cached-discovery/`
+**File**: `examples/cached-discovery/`
 
 **What it demonstrates:**
 - Discovery caching for improved performance
@@ -165,7 +164,7 @@ $server = Server::builder()
 
 ### Client Communication
 
-**File**: `examples/stdio-client-communication/`
+**File**: `examples/client-communication/`
 
 **What it demostrates:**
 - Server initiated communcation back to the client
@@ -173,11 +172,9 @@ $server = Server::builder()
 - Using `ClientGateway` in service class via `ClientAwareInterface` and corresponding trait
 - Using `ClientGateway` in tool method via method argument injection
 
-## HTTP Examples
-
 ### Discovery User Profile
 
-**File**: `examples/http-discovery-userprofile/`
+**File**: `examples/discovery-userprofile/`
 
 **What it demonstrates:**
 - HTTP transport with StreamableHttpTransport
@@ -205,7 +202,7 @@ public function generateBio(string $userId, string $tone = 'professional'): arra
 **Usage:**
 ```bash
 # Start the HTTP server
-php -S localhost:8000 examples/http-discovery-userprofile/server.php
+php -S localhost:8000 examples/discovery-userprofile/server.php
 
 # Test with MCP Inspector
 npx @modelcontextprotocol/inspector http://localhost:8000
@@ -215,7 +212,7 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 
 ### Combined Registration
 
-**File**: `examples/http-combined-registration/`
+**File**: `examples/combined-registration/`
 
 **What it demonstrates:**
 - Mixing attribute discovery with manual registration
@@ -232,7 +229,7 @@ $server = Server::builder()
 
 ### Complex Tool Schema
 
-**File**: `examples/http-complex-tool-schema/`
+**File**: `examples/complex-tool-schema/`
 
 **What it demonstrates:**
 - Advanced JSON schema definitions
@@ -255,7 +252,7 @@ public function scheduleEvent(array $eventData): array
 
 ### Schema Showcase
 
-**File**: `examples/http-schema-showcase/`
+**File**: `examples/schema-showcase/`
 
 **What it demonstrates:**
 - Comprehensive JSON schema features
