@@ -3,14 +3,15 @@
 This directory contains various examples of how to use the PHP MCP SDK.
 
 You can run the examples with the dependencies already installed in the root directory of the SDK.
+The bootstrapping of the example will choose the used transport based on the SAPI you use.
 
 For running an example, you execute the `server.php` like this:
 ```bash
-# For examples using STDIO transport
-php examples/stdio-discovery-calculator/server.php
+# For using the STDIO transport:
+php examples/discovery-calculator/server.php
 
-# For examples using Streamable HTTP transport
-php -S localhost:8000 examples/http-discovery-userprofile/server.php
+# For using the Streamable HTTP transport:
+php -S localhost:8000 examples/discovery-userprofile/server.php
 ```
 
 You will see debug outputs to help you understand what is happening.
@@ -18,7 +19,7 @@ You will see debug outputs to help you understand what is happening.
 Run with Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector php examples/stdio-discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 ```
 
 ## Debugging
@@ -29,5 +30,5 @@ directory.
 
 With the Inspector you can set the environment variables like this:
 ```bash
-npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/stdio-discovery-calculator/server.php
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discovery-calculator/server.php
 ```

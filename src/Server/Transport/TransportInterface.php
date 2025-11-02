@@ -16,7 +16,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @template TResult
+ * @template-covariant TResult
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (FiberReturn|null)
