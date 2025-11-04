@@ -16,6 +16,7 @@ use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
+use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
@@ -129,6 +130,11 @@ final class Builder
     private array $discoveryExcludeDirs = [];
 
     private ?ServerCapabilities $serverCapabilities = null;
+
+    /**
+     * @var LoaderInterface[]
+     */
+    private array $loaders = [];
 
     /**
      * Sets the server's identity. Required.
@@ -357,6 +363,16 @@ final class Builder
     }
 
     /**
+     * @param LoaderInterface[] $loaders
+     */
+    public function addLoaders(...$loaders): self
+    {
+        $this->loaders = [...$this->loaders, ...$loaders];
+
+        return $this;
+    }
+
+    /**
      * Builds the fully configured Server instance.
      */
     public function build(): Server
@@ -366,6 +382,7 @@ final class Builder
         $registry = new Registry($this->eventDispatcher, $logger);
 
         $loaders = [
+            ...$this->loaders,
             new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger),
         ];
 
