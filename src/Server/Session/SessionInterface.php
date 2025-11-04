@@ -26,7 +26,7 @@ interface SessionInterface extends \JsonSerializable
     /**
      * Save the session.
      */
-    public function save(): void;
+    public function save(): bool;
 
     /**
      * Get a specific attribute from the session.
