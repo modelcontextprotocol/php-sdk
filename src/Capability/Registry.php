@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Capability\Tool\NameValidator;
 use Mcp\Event\PromptListChangedEvent;
 use Mcp\Event\ResourceListChangedEvent;
 use Mcp\Event\ResourceTemplateListChangedEvent;
@@ -71,6 +72,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly NameValidator $nameValidator = new NameValidator(),
     ) {
     }
 
@@ -100,10 +102,16 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         if ($existing && !$isManual && $existing->isManual) {
             $this->logger->debug(
-                "Ignoring discovered tool '{$toolName}' as it conflicts with a manually registered one.",
+                \sprintf('Ignoring discovered tool "%s" as it conflicts with a manually registered one.', $toolName),
             );
 
             return;
+        }
+
+        if (!$this->nameValidator->isValid($toolName)) {
+            $this->logger->warning(
+                \sprintf('Tool name "%s" is invalid. Tool names should only contain letters (a-z, A-Z), numbers, dots, hyphens, underscores, and forward slashes.', $toolName),
+            );
         }
 
         $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
@@ -118,7 +126,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         if ($existing && !$isManual && $existing->isManual) {
             $this->logger->debug(
-                "Ignoring discovered resource '{$uri}' as it conflicts with a manually registered one.",
+                \sprintf('Ignoring discovered resource "%s" as it conflicts with a manually registered one.', $uri),
             );
 
             return;
@@ -140,7 +148,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         if ($existing && !$isManual && $existing->isManual) {
             $this->logger->debug(
-                "Ignoring discovered template '{$uriTemplate}' as it conflicts with a manually registered one.",
+                \sprintf('Ignoring discovered template "%s" as it conflicts with a manually registered one.', $uriTemplate),
             );
 
             return;
@@ -167,7 +175,7 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
 
         if ($existing && !$isManual && $existing->isManual) {
             $this->logger->debug(
-                "Ignoring discovered prompt '{$promptName}' as it conflicts with a manually registered one.",
+                \sprintf('Ignoring discovered prompt "%s" as it conflicts with a manually registered one.', $promptName),
             );
 
             return;

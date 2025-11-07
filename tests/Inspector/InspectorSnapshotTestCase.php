@@ -117,7 +117,6 @@ abstract class InspectorSnapshotTestCase extends TestCase
         return $output;
     }
 
-    /** @return array<string, array<string, mixed>> */
     public static function provideMethods(): array
     {
         return [
