@@ -13,11 +13,18 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
+use Mcp\Schema\Icon;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 $server = Server::builder()
-    ->setServerInfo('Schema Showcase', '1.0.0')
+    ->setServerInfo(
+        'Schema Showcase',
+        '1.0.0',
+        'A showcase server demonstrating MCP schema capabilities.',
+        [new Icon('https://www.php.net/images/logos/php-logo-white.svg', 'image/svg+xml', ['any'])],
+        'https://github.com/modelcontextprotocol/php-sdk',
+    )
     ->setContainer(container())
     ->setLogger(logger())
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))

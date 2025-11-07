@@ -17,15 +17,17 @@ use Mcp\Exception\InvalidArgumentException;
  * A known resource that the server is capable of reading.
  *
  * @phpstan-import-type AnnotationsData from Annotations
+ * @phpstan-import-type IconData from Icon
  *
  * @phpstan-type ResourceData array{
  *     uri: string,
  *     name: string,
- *     description?: string|null,
- *     mimeType?: string|null,
- *     annotations?: AnnotationsData|null,
- *     size?: int|null,
- *     _meta?: array<string, mixed>
+ *     description?: string,
+ *     mimeType?: string,
+ *     annotations?: AnnotationsData,
+ *     size?: int,
+ *     icons?: IconData[],
+ *     _meta?: array<string, mixed>,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -46,10 +48,11 @@ class Resource implements \JsonSerializable
     /**
      * @param string                $uri         the URI of this resource
      * @param string                $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
-     * @param string|null           $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
-     * @param string|null           $mimeType    the MIME type of this resource, if known
-     * @param Annotations|null      $annotations optional annotations for the client
-     * @param int|null              $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param ?string               $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * @param ?string               $mimeType    the MIME type of this resource, if known
+     * @param ?Annotations          $annotations optional annotations for the client
+     * @param ?int                  $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param ?Icon[]               $icons       optional icons representing the resource
      * @param ?array<string, mixed> $meta        Optional metadata
      *
      * This can be used by Hosts to display file sizes and estimate context window usage
@@ -61,6 +64,7 @@ class Resource implements \JsonSerializable
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
         public readonly ?int $size = null,
+        public readonly ?array $icons = null,
         public readonly ?array $meta = null,
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
@@ -94,6 +98,7 @@ class Resource implements \JsonSerializable
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
             size: isset($data['size']) ? (int) $data['size'] : null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }
@@ -106,6 +111,7 @@ class Resource implements \JsonSerializable
      *     mimeType?: string,
      *     annotations?: Annotations,
      *     size?: int,
+     *     icons?: Icon[],
      *     _meta?: array<string, mixed>
      * }
      */
@@ -126,6 +132,9 @@ class Resource implements \JsonSerializable
         }
         if (null !== $this->size) {
             $data['size'] = $this->size;
+        }
+        if (null !== $this->icons) {
+            $data['icons'] = $this->icons;
         }
         if (null !== $this->meta) {
             $data['_meta'] = $this->meta;
