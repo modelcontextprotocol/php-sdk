@@ -12,6 +12,7 @@
 namespace Mcp\Schema\Result;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
@@ -38,6 +39,7 @@ class InitializeResult implements ResultInterface
         public readonly Implementation $serverInfo,
         public readonly ?string $instructions = null,
         public readonly ?array $_meta = null,
+        public readonly ?ProtocolVersion $protocolVersion = null,
     ) {
     }
 
@@ -66,7 +68,8 @@ class InitializeResult implements ResultInterface
             ServerCapabilities::fromArray($data['capabilities']),
             Implementation::fromArray($data['serverInfo']),
             $data['instructions'] ?? null,
-            $data['_meta'] ?? null
+            $data['_meta'] ?? null,
+            ProtocolVersion::tryFrom($data['protocolVersion']),
         );
     }
 
@@ -81,8 +84,9 @@ class InitializeResult implements ResultInterface
      */
     public function jsonSerialize(): array
     {
+        $protocolVersion = $this->protocolVersion ?? MessageInterface::PROTOCOL_VERSION;
         $data = [
-            'protocolVersion' => MessageInterface::PROTOCOL_VERSION,
+            'protocolVersion' => $protocolVersion->value,
             'capabilities' => $this->capabilities,
             'serverInfo' => $this->serverInfo,
         ];

@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema\JsonRpc;
 
+use Mcp\Schema\Enum\ProtocolVersion;
+
 /**
  * Refers to any valid JSON-RPC object that can be decoded off the wire, or encoded to be sent.
  *
@@ -19,5 +21,5 @@ namespace Mcp\Schema\JsonRpc;
 interface MessageInterface extends \JsonSerializable
 {
     public const JSONRPC_VERSION = '2.0';
-    public const PROTOCOL_VERSION = '2025-06-18';
+    public const PROTOCOL_VERSION = ProtocolVersion::V2025_06_18;
 }
