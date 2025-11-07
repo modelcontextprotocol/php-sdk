@@ -79,7 +79,7 @@ class BlobResourceContents extends ResourceContents
     {
         return [
             'blob' => $this->blob,
-            ...$this->jsonSerialize(),
+            ...parent::jsonSerialize(),
         ];
     }
 }
