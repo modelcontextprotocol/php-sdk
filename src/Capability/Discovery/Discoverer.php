@@ -222,7 +222,8 @@ class Discoverer
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
                     $inputSchema = $this->schemaGenerator->generate($method);
-                    $tool = new Tool($name, $inputSchema, $description, $instance->annotations);
+                    $meta = $instance->meta ?? null;
+                    $tool = new Tool($name, $inputSchema, $description, $instance->annotations, $meta);
                     $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
                     ++$discoveredCount['tools'];
                     break;
@@ -234,8 +235,10 @@ class Discoverer
                     $mimeType = $instance->mimeType;
                     $size = $instance->size;
                     $annotations = $instance->annotations;
-                    $resource = new Resource($instance->uri, $name, $description, $mimeType, $annotations, $size);
+                    $meta = $instance->meta;
+                    $resource = new Resource($instance->uri, $name, $description, $mimeType, $annotations, $size, $meta);
                     $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName], false);
+
                     ++$discoveredCount['resources'];
                     break;
 
@@ -253,7 +256,8 @@ class Discoverer
                         $paramTag = $paramTags['$'.$param->getName()] ?? null;
                         $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
                     }
-                    $prompt = new Prompt($name, $description, $arguments);
+                    $meta = $instance->meta ?? null;
+                    $prompt = new Prompt($name, $description, $arguments, $meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $prompts[$name] = new PromptReference($prompt, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['prompts'];
@@ -265,7 +269,8 @@ class Discoverer
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
                     $mimeType = $instance->mimeType;
                     $annotations = $instance->annotations;
-                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations);
+                    $meta = $instance->meta ?? null;
+                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations, $meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['resourceTemplates'];
