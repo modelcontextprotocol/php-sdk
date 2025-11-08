@@ -23,12 +23,13 @@ use Mcp\Schema\Annotations;
 final class McpResource
 {
     /**
-     * @param string           $uri         The specific URI identifying this resource instance. Must be unique within the server.
-     * @param ?string          $name        A human-readable name for this resource. If null, a default might be generated from the method name.
-     * @param ?string          $description An optional description of the resource. Defaults to class DocBlock summary.
-     * @param ?string          $mimeType    the MIME type, if known and constant for this resource
-     * @param ?int             $size        the size in bytes, if known and constant
-     * @param Annotations|null $annotations optional annotations describing the resource
+     * @param string                $uri         The specific URI identifying this resource instance. Must be unique within the server.
+     * @param ?string               $name        A human-readable name for this resource. If null, a default might be generated from the method name.
+     * @param ?string               $description An optional description of the resource. Defaults to class DocBlock summary.
+     * @param ?string               $mimeType    the MIME type, if known and constant for this resource
+     * @param ?int                  $size        the size in bytes, if known and constant
+     * @param Annotations|null      $annotations optional annotations describing the resource
+     * @param ?array<string, mixed> $meta        Optional metadata
      */
     public function __construct(
         public string $uri,
@@ -37,6 +38,7 @@ final class McpResource
         public ?string $mimeType = null,
         public ?int $size = null,
         public ?Annotations $annotations = null,
+        public ?array $meta = null,
     ) {
     }
 }
