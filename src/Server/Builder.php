@@ -21,6 +21,7 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\ToolAnnotations;
@@ -145,10 +146,17 @@ final class Builder
 
     /**
      * Sets the server's identity. Required.
+     *
+     * @param ?Icon[] $icons
      */
-    public function setServerInfo(string $name, string $version, ?string $description = null): self
-    {
-        $this->serverInfo = new Implementation(trim($name), trim($version), $description);
+    public function setServerInfo(
+        string $name,
+        string $version,
+        ?string $description = null,
+        ?array $icons = null,
+        ?string $websiteUrl = null,
+    ): self {
+        $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl);
 
         return $this;
     }
@@ -295,7 +303,7 @@ final class Builder
         return $this;
     }
 
-    public function setProtocolVersion(?ProtocolVersion $protocolVersion): self
+    public function setProtocolVersion(ProtocolVersion $protocolVersion): self
     {
         $this->protocolVersion = $protocolVersion;
 

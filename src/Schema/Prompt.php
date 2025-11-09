@@ -17,11 +17,13 @@ use Mcp\Exception\InvalidArgumentException;
  * A prompt or prompt template that the server offers.
  *
  * @phpstan-import-type PromptArgumentData from PromptArgument
+ * @phpstan-import-type IconData from Icon
  *
  * @phpstan-type PromptData array{
  *     name: string,
  *     description?: string,
  *     arguments?: PromptArgumentData[],
+ *     icons?: IconData[],
  *     _meta?: array<string, mixed>
  * }
  *
@@ -31,14 +33,16 @@ class Prompt implements \JsonSerializable
 {
     /**
      * @param string                $name        the name of the prompt or prompt template
-     * @param string|null           $description an optional description of what this prompt provides
-     * @param PromptArgument[]|null $arguments   A list of arguments for templating. Null if not a template.
+     * @param ?string               $description an optional description of what this prompt provides
+     * @param ?PromptArgument[]     $arguments   A list of arguments for templating. Null if not a template.
+     * @param ?Icon[]               $icons       optional icons representing the prompt
      * @param ?array<string, mixed> $meta        Optional metadata
      */
     public function __construct(
         public readonly string $name,
         public readonly ?string $description = null,
         public readonly ?array $arguments = null,
+        public readonly ?array $icons = null,
         public readonly ?array $meta = null,
     ) {
         if (null !== $this->arguments) {
@@ -71,6 +75,7 @@ class Prompt implements \JsonSerializable
             name: $data['name'],
             description: $data['description'] ?? null,
             arguments: $arguments,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }
@@ -80,6 +85,7 @@ class Prompt implements \JsonSerializable
      *     name: string,
      *     description?: string,
      *     arguments?: array<PromptArgument>,
+     *     icons?: Icon[],
      *     _meta?: array<string, mixed>
      * }
      */
@@ -91,6 +97,9 @@ class Prompt implements \JsonSerializable
         }
         if (null !== $this->arguments) {
             $data['arguments'] = $this->arguments;
+        }
+        if (null !== $this->icons) {
+            $data['icons'] = $this->icons;
         }
         if (null !== $this->meta) {
             $data['_meta'] = $this->meta;
