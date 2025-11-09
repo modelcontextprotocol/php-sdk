@@ -72,6 +72,8 @@ class Calculator
 - **`name`** (optional): Tool identifier. Defaults to method name if not provided.
 - **`description`** (optional): Tool description. Defaults to docblock summary if not provided, otherwise uses method name.
 - **`annotations`** (optional): `ToolAnnotations` object for additional metadata.
+- **`icons`** (optional): Array of `Icon` objects for visual representation.
+- **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
 **Priority for name/description**: Attribute parameters → DocBlock content → Method name
 
@@ -217,6 +219,9 @@ class ConfigProvider
 - **`description`** (optional): Resource description. Defaults to docblock summary if not provided.
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`size`** (optional): Size in bytes if known.
+- **`annotations`** (optional): Additional metadata.
+- **`icons`** (optional): Array of `Icon` objects for visual representation.
+- **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
 **Standard Protocol URI Schemes**: `https://` (web resources), `file://` (filesystem), `git://` (version control).
 **Custom schemes**: `config://`, `data://`, `db://`, `api://` or any RFC 3986 compliant scheme.
@@ -399,6 +404,8 @@ class PromptGenerator
 
 - **`name`** (optional): Prompt identifier. Defaults to method name if not provided.
 - **`description`** (optional): Prompt description. Defaults to docblock summary if not provided.
+- **`icons`** (optional): Array of `Icon` objects for visual representation.
+- **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
 ### Prompt Return Values
 

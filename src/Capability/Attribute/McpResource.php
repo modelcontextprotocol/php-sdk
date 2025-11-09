@@ -12,6 +12,7 @@
 namespace Mcp\Capability\Attribute;
 
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Icon;
 
 /**
  * Marks a PHP class as representing or handling a specific MCP Resource instance.
@@ -29,6 +30,7 @@ final class McpResource
      * @param ?string               $mimeType    the MIME type, if known and constant for this resource
      * @param ?int                  $size        the size in bytes, if known and constant
      * @param Annotations|null      $annotations optional annotations describing the resource
+     * @param ?Icon[]               $icons       Optional list of icon URLs representing the resource
      * @param ?array<string, mixed> $meta        Optional metadata
      */
     public function __construct(
@@ -38,6 +40,7 @@ final class McpResource
         public ?string $mimeType = null,
         public ?int $size = null,
         public ?Annotations $annotations = null,
+        public ?array $icons = null,
         public ?array $meta = null,
     ) {
     }

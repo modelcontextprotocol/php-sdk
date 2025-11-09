@@ -14,6 +14,7 @@ namespace Mcp\Example\DiscoveryCalculator;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\ToolCallException;
+use Mcp\Schema\Icon;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -47,7 +48,10 @@ final class McpElements
      *
      * @return float the result of the calculation
      */
-    #[McpTool(name: 'calculate')]
+    #[McpTool(
+        name: 'calculate',
+        icons: [new Icon('https://www.svgrepo.com/show/530644/calculator.svg', 'image/svg+xml', ['any'])],
+    )]
     public function calculate(float $a, float $b, string $operation): float
     {
         $this->logger->info(\sprintf('Calculating: %f %s %f', $a, $operation, $b));
@@ -92,6 +96,7 @@ final class McpElements
         name: 'calculator_config',
         description: 'Current settings for the calculator tool (precision, allow_negative).',
         mimeType: 'application/json',
+        icons: [new Icon('https://www.svgrepo.com/show/529867/settings.svg', 'image/svg+xml', ['any'])],
     )]
     public function getConfiguration(): array
     {

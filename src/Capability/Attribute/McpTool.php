@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Attribute;
 
+use Mcp\Schema\Icon;
 use Mcp\Schema\ToolAnnotations;
 
 /**
@@ -23,12 +24,14 @@ class McpTool
      * @param string|null           $name        The name of the tool (defaults to the method name)
      * @param string|null           $description The description of the tool (defaults to the DocBlock/inferred)
      * @param ToolAnnotations|null  $annotations Optional annotations describing tool behavior
+     * @param ?Icon[]               $icons       Optional list of icon URLs representing the tool
      * @param ?array<string, mixed> $meta        Optional metadata
      */
     public function __construct(
         public ?string $name = null,
         public ?string $description = null,
         public ?ToolAnnotations $annotations = null,
+        public ?array $icons = null,
         public ?array $meta = null,
     ) {
     }
