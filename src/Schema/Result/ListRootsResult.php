@@ -25,11 +25,11 @@ class ListRootsResult implements ResultInterface
 {
     /**
      * @param Root[]                $roots an array of root URIs
-     * @param ?array<string, mixed> $_meta optional metadata about the result
+     * @param ?array<string, mixed> $meta  optional metadata about the result
      */
     public function __construct(
         public readonly array $roots,
-        public readonly ?array $_meta = null,
+        public readonly ?array $meta = null,
     ) {
     }
 
@@ -45,8 +45,8 @@ class ListRootsResult implements ResultInterface
             'roots' => array_values($this->roots),
         ];
 
-        if (null !== $this->_meta) {
-            $result['_meta'] = $this->_meta;
+        if (null !== $this->meta) {
+            $result['_meta'] = $this->meta;
         }
 
         return $result;

@@ -32,13 +32,13 @@ class InitializeResult implements ResultInterface
      * @param ServerCapabilities       $capabilities the capabilities of the server
      * @param Implementation           $serverInfo   information about the server
      * @param string|null              $instructions Instructions describing how to use the server and its features. This can be used by clients to improve the LLM's understanding of available tools, resources, etc. It can be thought of like a "hint" to the model. For example, this information MAY be added to the system prompt.
-     * @param array<string,mixed>|null $_meta        optional _meta field
+     * @param array<string,mixed>|null $meta         optional _meta field
      */
     public function __construct(
         public readonly ServerCapabilities $capabilities,
         public readonly Implementation $serverInfo,
         public readonly ?string $instructions = null,
-        public readonly ?array $_meta = null,
+        public readonly ?array $meta = null,
         public readonly ?ProtocolVersion $protocolVersion = null,
     ) {
     }
@@ -93,8 +93,8 @@ class InitializeResult implements ResultInterface
         if (null !== $this->instructions) {
             $data['instructions'] = $this->instructions;
         }
-        if (null !== $this->_meta) {
-            $data['_meta'] = $this->_meta;
+        if (null !== $this->meta) {
+            $data['_meta'] = $this->meta;
         }
 
         return $data;
