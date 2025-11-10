@@ -68,9 +68,15 @@ final class CallToolHandler implements RequestHandlerInterface
                 $result = new CallToolResult($reference->formatResult($result));
             }
 
+            $structuredContent = null;
+            if (null !== $reference->tool->outputSchema) {
+                $structuredContent = $reference->extractStructuredContent($result);
+            }
+
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
+                'structured_content' => $structuredContent,
             ]);
 
             return new Response($request->getId(), $result);

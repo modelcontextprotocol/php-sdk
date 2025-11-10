@@ -5,3 +5,9 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php
+
+		-
+			message: '#^Method Mcp\\Tests\\Unit\\Capability\\Discovery\\DocBlockTestFixture\:\:methodWithMultipleTags\(\) has RuntimeException in PHPDoc @throws tag but it''s not thrown\.$#'
+			identifier: throws.unusedType
+			count: 1
+			path: tests/Unit/Capability/Discovery/DocBlockTestFixture.php

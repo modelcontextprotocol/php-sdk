@@ -412,4 +412,53 @@ class SchemaGeneratorFixture
         $inferredParam,
     ): void {
     }
+
+    // ===== OUTPUT SCHEMA FIXTURES =====
+    public function stringReturn(): string
+    {
+        return 'test';
+    }
+
+    public function integerReturn(): int
+    {
+        return 42;
+    }
+
+    public function floatReturn(): float
+    {
+        return 3.14;
+    }
+
+    public function booleanReturn(): bool
+    {
+        return true;
+    }
+
+    public function nullableReturn(): ?string
+    {
+        return null;
+    }
+
+    public function objectReturn(): \stdClass
+    {
+        return new \stdClass();
+    }
+
+    public function docBlockReturnType(): string
+    {
+        return '42';
+    }
+
+    public function unionReturn(): float|string
+    {
+        return 'test';
+    }
+
+    /**
+     * @return string The result of the operation
+     */
+    public function returnWithDescription(): string
+    {
+        return 'result';
+    }
 }

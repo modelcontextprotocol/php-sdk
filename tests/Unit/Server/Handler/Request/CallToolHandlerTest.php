@@ -21,6 +21,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Tool;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -59,7 +60,10 @@ class CallToolHandlerTest extends TestCase
     public function testHandleSuccessfulToolCall(): void
     {
         $request = $this->createCallToolRequest('greet_user', ['name' => 'John']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $tool = new Tool('greet_user', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return 'Hello, John!';
+        });
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
 
         $this->referenceProvider
@@ -92,7 +96,10 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolCallWithEmptyArguments(): void
     {
         $request = $this->createCallToolRequest('simple_tool', []);
-        $toolReference = $this->createMock(ToolReference::class);
+        $tool = new Tool('simple_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return 'Simple result';
+        });
         $expectedResult = new CallToolResult([new TextContent('Simple result')]);
 
         $this->referenceProvider
@@ -106,12 +113,6 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['_session' => $this->session])
             ->willReturn('Simple result');
-
-        $toolReference
-            ->expects($this->once())
-            ->method('formatResult')
-            ->with('Simple result')
-            ->willReturn([new TextContent('Simple result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -129,7 +130,10 @@ class CallToolHandlerTest extends TestCase
             'null_param' => null,
         ];
         $request = $this->createCallToolRequest('complex_tool', $arguments);
-        $toolReference = $this->createMock(ToolReference::class);
+        $tool = new Tool('complex_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return 'Complex result';
+        });
         $expectedResult = new CallToolResult([new TextContent('Complex result')]);
 
         $this->referenceProvider
@@ -143,12 +147,6 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn('Complex result');
-
-        $toolReference
-            ->expects($this->once())
-            ->method('formatResult')
-            ->with('Complex result')
-            ->willReturn([new TextContent('Complex result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -215,9 +213,12 @@ class CallToolHandlerTest extends TestCase
     public function testHandleWithNullResult(): void
     {
         $request = $this->createCallToolRequest('null_tool', []);
-        $expectedResult = new CallToolResult([]);
+        $tool = new Tool('null_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return null;
+        });
+        $expectedResult = new CallToolResult([new TextContent('(null)')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
             ->expects($this->once())
             ->method('getTool')
@@ -229,12 +230,6 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['_session' => $this->session])
             ->willReturn(null);
-
-        $toolReference
-            ->expects($this->once())
-            ->method('formatResult')
-            ->with(null)
-            ->willReturn([]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -322,9 +317,12 @@ class CallToolHandlerTest extends TestCase
     public function testHandleWithSpecialCharactersInToolName(): void
     {
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
+        $tool = new Tool('tool-with_special.chars', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return 'Special tool result';
+        });
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
             ->expects($this->once())
             ->method('getTool')
@@ -336,12 +334,6 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['_session' => $this->session])
             ->willReturn('Special tool result');
-
-        $toolReference
-            ->expects($this->once())
-            ->method('formatResult')
-            ->with('Special tool result')
-            ->willReturn([new TextContent('Special tool result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -357,9 +349,12 @@ class CallToolHandlerTest extends TestCase
             'quotes' => 'text with "quotes" and \'single quotes\'',
         ];
         $request = $this->createCallToolRequest('unicode_tool', $arguments);
+        $tool = new Tool('unicode_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $toolReference = new ToolReference($tool, function () {
+            return 'Unicode handled';
+        });
         $expectedResult = new CallToolResult([new TextContent('Unicode handled')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
             ->expects($this->once())
             ->method('getTool')
@@ -371,12 +366,6 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, array_merge($arguments, ['_session' => $this->session]))
             ->willReturn('Unicode handled');
-
-        $toolReference
-            ->expects($this->once())
-            ->method('formatResult')
-            ->with('Unicode handled')
-            ->willReturn([new TextContent('Unicode handled')]);
 
         $response = $this->handler->handle($request, $this->session);
 

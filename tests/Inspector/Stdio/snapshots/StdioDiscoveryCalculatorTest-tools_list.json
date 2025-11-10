@@ -29,7 +29,10 @@
         "type": "object",
         "properties": {
           "result": {
-            "type": "object"
+            "type": [
+              "string",
+              "number"
+            ]
           }
         },
         "required": [
