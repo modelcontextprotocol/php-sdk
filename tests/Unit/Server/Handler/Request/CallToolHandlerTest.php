@@ -60,10 +60,13 @@ class CallToolHandlerTest extends TestCase
     public function testHandleSuccessfulToolCall(): void
     {
         $request = $this->createCallToolRequest('greet_user', ['name' => 'John']);
-        $tool = new Tool('greet_user', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
-        $toolReference = new ToolReference($tool, function () {
-            return 'Hello, John!';
-        });
+        $tool = new Tool('greet_user', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([$tool, function () {
+                return 'Hello, John!';
+            }])
+            ->onlyMethods(['formatResult'])
+            ->getMock();
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
 
         $this->referenceProvider
@@ -96,7 +99,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolCallWithEmptyArguments(): void
     {
         $request = $this->createCallToolRequest('simple_tool', []);
-        $tool = new Tool('simple_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $tool = new Tool('simple_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
         $toolReference = new ToolReference($tool, function () {
             return 'Simple result';
         });
@@ -130,7 +133,7 @@ class CallToolHandlerTest extends TestCase
             'null_param' => null,
         ];
         $request = $this->createCallToolRequest('complex_tool', $arguments);
-        $tool = new Tool('complex_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $tool = new Tool('complex_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
         $toolReference = new ToolReference($tool, function () {
             return 'Complex result';
         });
@@ -213,7 +216,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleWithNullResult(): void
     {
         $request = $this->createCallToolRequest('null_tool', []);
-        $tool = new Tool('null_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $tool = new Tool('null_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
         $toolReference = new ToolReference($tool, function () {
             return null;
         });
@@ -317,7 +320,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleWithSpecialCharactersInToolName(): void
     {
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
-        $tool = new Tool('tool-with_special.chars', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $tool = new Tool('tool-with_special.chars', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
         $toolReference = new ToolReference($tool, function () {
             return 'Special tool result';
         });
@@ -349,7 +352,7 @@ class CallToolHandlerTest extends TestCase
             'quotes' => 'text with "quotes" and \'single quotes\'',
         ];
         $request = $this->createCallToolRequest('unicode_tool', $arguments);
-        $tool = new Tool('unicode_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null);
+        $tool = new Tool('unicode_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
         $toolReference = new ToolReference($tool, function () {
             return 'Unicode handled';
         });
@@ -376,7 +379,13 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsStructuredContentResult(): void
     {
         $request = $this->createCallToolRequest('structured_tool', ['query' => 'php']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $tool = new Tool('structured_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([$tool, function () {
+                return 'Rendered results';
+            }])
+            ->onlyMethods(['formatResult'])
+            ->getMock();
         $structuredResult = new CallToolResult([new TextContent('Rendered results')], false, ['result' => 'Rendered results']);
 
         $this->referenceProvider
@@ -405,7 +414,13 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsCallToolResult(): void
     {
         $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $tool = new Tool('result_tool', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([$tool, function () {
+                return 'Error result';
+            }])
+            ->onlyMethods(['formatResult'])
+            ->getMock();
         $callToolResult = new CallToolResult([new TextContent('Error result')], true);
 
         $this->referenceProvider

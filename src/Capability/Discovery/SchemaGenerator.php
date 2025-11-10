@@ -81,7 +81,7 @@ class SchemaGenerator
     }
 
     /**
-     * Generates a JSON Schema object (as a PHP array) for a method's or function's return type.
+     * Generates a JSON Schema object.
      *
      * @return array<string, mixed>|null
      */
@@ -98,8 +98,9 @@ class SchemaGenerator
             ? $this->getTypeStringFromReflection($reflectionReturnType, $reflectionReturnType->allowsNull())
             : null;
 
-        // Use DocBlock with generics, otherwise reflection, otherwise DocBlock
-        $returnTypeString = ($docBlockReturnType && str_contains($docBlockReturnType, '<'))
+        $docBlockHasGenerics = $docBlockReturnType && str_contains($docBlockReturnType, '<');
+        $docBlockHasArrayNotation = $docBlockReturnType && str_ends_with(trim($docBlockReturnType), '[]');
+        $returnTypeString = ($docBlockReturnType && ($docBlockHasGenerics || $docBlockHasArrayNotation))
             ? $docBlockReturnType
             : ($reflectionReturnTypeString ?: $docBlockReturnType);
 
@@ -832,11 +833,31 @@ class SchemaGenerator
      */
     private function buildOutputSchemaFromType(string $returnTypeString, ?string $description): array
     {
-        // Handle array types - treat as object with additionalProperties
-        if (str_contains($returnTypeString, 'array')) {
+        $trimmed = trim($returnTypeString);
+
+        $isListArray = str_ends_with($trimmed, '[]');
+        if (!$isListArray && str_starts_with($trimmed, 'array<') && str_ends_with($trimmed, '>')) {
+            // Extract generic parameters
+            $genericParams = substr($trimmed, 6, -1); // Remove 'array<' and '>'
+            $params = array_map('trim', explode(',', $genericParams));
+            $isListArray = 1 === \count($params);
+        }
+
+        if ($isListArray) {
             $schema = [
                 'type' => 'object',
-                'additionalProperties' => ['type' => 'mixed'],
+                'properties' => [
+                    'result' => [
+                        'type' => 'array',
+                        'items' => [],
+                    ],
+                ],
+                'required' => ['result'],
+            ];
+        } elseif (str_contains($trimmed, 'array')) {
+            $schema = [
+                'type' => 'object',
+                'additionalProperties' => true,
             ];
         } else {
             // Handle union types (e.g., "float|string")
@@ -844,10 +865,10 @@ class SchemaGenerator
                 array_map('trim', explode('|', $returnTypeString)),
                 fn ($t) => 'null' !== strtolower($t)
             );
-            
+
             $mappedTypes = array_unique(array_map([$this, 'mapSimpleTypeToJsonSchema'], $types));
-            $typeValue = \count($mappedTypes) === 1 ? $mappedTypes[0] : array_values($mappedTypes);
-            
+            $typeValue = 1 === \count($mappedTypes) ? $mappedTypes[0] : array_values($mappedTypes);
+
             // Handle other types - wrap in object for MCP compatibility
             $schema = [
                 'type' => 'object',

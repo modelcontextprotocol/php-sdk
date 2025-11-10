@@ -114,7 +114,7 @@ class CallToolResult implements ResultInterface
             'isError' => $this->isError,
         ];
 
-        if ($this->structuredContent) {
+        if (null !== $this->structuredContent) {
             $result['structuredContent'] = $this->structuredContent;
         }
 

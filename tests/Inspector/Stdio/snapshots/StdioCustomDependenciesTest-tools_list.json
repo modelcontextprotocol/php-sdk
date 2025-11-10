@@ -19,6 +19,11 @@
           "userId",
           "description"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "the created task details"
       }
     },
     {
@@ -35,6 +40,19 @@
         "required": [
           "userId"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "array",
+            "items": []
+          }
+        },
+        "required": [
+          "result"
+        ],
+        "description": "a list of tasks"
       }
     },
     {
@@ -51,6 +69,11 @@
         "required": [
           "taskId"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "status of the operation"
       }
     }
   ]

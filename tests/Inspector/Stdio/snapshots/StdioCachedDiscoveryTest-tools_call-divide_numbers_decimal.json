@@ -5,5 +5,8 @@
       "text": "3.5"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": 3.5
+  }
 }

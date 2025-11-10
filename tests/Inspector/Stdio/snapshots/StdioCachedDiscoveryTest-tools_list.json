@@ -16,6 +16,17 @@
           "a",
           "b"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "result"
+        ]
       }
     },
     {
@@ -33,6 +44,17 @@
         "required": [
           "a",
           "b"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "result"
         ]
       }
     },
@@ -52,6 +74,17 @@
           "a",
           "b"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "result"
+        ]
       }
     },
     {
@@ -69,6 +102,17 @@
         "required": [
           "base",
           "exponent"
+        ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "result"
         ]
       }
     }

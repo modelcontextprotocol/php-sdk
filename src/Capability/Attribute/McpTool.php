@@ -20,10 +20,10 @@ use Mcp\Schema\ToolAnnotations;
 class McpTool
 {
     /**
-     * @param string|null           $name        The name of the tool (defaults to the method name)
-     * @param string|null           $description The description of the tool (defaults to the DocBlock/inferred)
-     * @param ToolAnnotations|null  $annotations Optional annotations describing tool behavior
-     * @param ?array<string, mixed> $meta        Optional metadata
+     * @param string|null               $name         The name of the tool (defaults to the method name)
+     * @param string|null               $description  The description of the tool (defaults to the DocBlock/inferred)
+     * @param ToolAnnotations|null      $annotations  Optional annotations describing tool behavior
+     * @param ?array<string, mixed>     $meta         Optional metadata
      * @param array<string, mixed>|null $outputSchema Optional JSON Schema object
      */
     public function __construct(

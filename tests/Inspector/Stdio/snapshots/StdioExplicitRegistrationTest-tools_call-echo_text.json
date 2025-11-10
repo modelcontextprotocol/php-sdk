@@ -5,5 +5,8 @@
       "text": "Echo: Hello World!"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": "Echo: Hello World!"
+  }
 }

@@ -29,16 +29,13 @@
         "type": "object",
         "properties": {
           "result": {
-            "type": [
-              "string",
-              "number"
-            ]
+            "type": "number"
           }
         },
         "required": [
           "result"
         ],
-        "description": "the result of the calculation, or an error message string"
+        "description": "the result of the calculation"
       }
     },
     {
@@ -62,9 +59,7 @@
       },
       "outputSchema": {
         "type": "object",
-        "additionalProperties": {
-          "type": "mixed"
-        },
+        "additionalProperties": true,
         "description": "success message or error"
       }
     }

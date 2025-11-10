@@ -371,7 +371,7 @@ final class SchemaGeneratorTest extends TestCase
         $schema = $this->schemaGenerator->generateOutputSchema($method);
         $this->assertEquals([
             'type' => 'object',
-            'additionalProperties' => ['type' => 'mixed'],
+            'additionalProperties' => true,
         ], $schema);
     }
 
@@ -407,7 +407,7 @@ final class SchemaGeneratorTest extends TestCase
         $schema = $this->schemaGenerator->generateOutputSchema($method);
         $this->assertEquals([
             'type' => 'object',
-            'additionalProperties' => ['type' => 'mixed'],
+            'additionalProperties' => true,
         ], $schema);
     }
 

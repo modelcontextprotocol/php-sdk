@@ -26,8 +26,10 @@ use Mcp\Exception\InvalidArgumentException;
  * }
  * @phpstan-type ToolOutputSchema array{
  *     type: 'object',
- *     properties: array<string, mixed>,
- *     required: string[]|null
+ *     properties?: array<string, mixed>,
+ *     required?: string[],
+ *     additionalProperties?: bool,
+ *     description?: string
  * }
  * @phpstan-type ToolData array{
  *     name: string,
@@ -35,8 +37,8 @@ use Mcp\Exception\InvalidArgumentException;
  *     description?: string|null,
  *     annotations?: ToolAnnotationsData,
  *     icons?: IconData[],
- *     _meta?: array<string, mixed>
- *     outputSchema?: ToolOutputSchema,
+ *     _meta?: array<string, mixed>,
+ *     outputSchema?: ToolOutputSchema|null
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -44,14 +46,14 @@ use Mcp\Exception\InvalidArgumentException;
 class Tool implements \JsonSerializable
 {
     /**
-     * @param string                $name        the name of the tool
-     * @param ?string               $description A human-readable description of the tool.
-     *                                           This can be used by clients to improve the LLM's understanding of
-     *                                           available tools. It can be thought of like a "hint" to the model.
-     * @param ToolInputSchema       $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ?ToolAnnotations      $annotations optional additional tool information
-     * @param ?Icon[]               $icons       optional icons representing the tool
-     * @param ?array<string, mixed> $meta        Optional metadata
+     * @param string                $name         the name of the tool
+     * @param ?string               $description  A human-readable description of the tool.
+     *                                            This can be used by clients to improve the LLM's understanding of
+     *                                            available tools. It can be thought of like a "hint" to the model.
+     * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
+     * @param ?ToolAnnotations      $annotations  optional additional tool information
+     * @param ?Icon[]               $icons        optional icons representing the tool
+     * @param ?array<string, mixed> $meta         Optional metadata
      * @param ToolOutputSchema|null $outputSchema optional JSON Schema object
      */
     public function __construct(
@@ -73,7 +75,7 @@ class Tool implements \JsonSerializable
     }
 
     /**
-     * @param ToolData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -117,8 +119,8 @@ class Tool implements \JsonSerializable
      *     description?: string,
      *     annotations?: ToolAnnotations,
      *     icons?: Icon[],
-     *     _meta?: array<string, mixed>
-     *     outputSchema?: ToolOutputSchema,
+     *     _meta?: array<string, mixed>,
+     *     outputSchema?: ToolOutputSchema
      * }
      */
     public function jsonSerialize(): array

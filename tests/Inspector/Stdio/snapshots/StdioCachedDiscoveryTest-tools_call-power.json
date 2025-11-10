@@ -5,5 +5,8 @@
       "text": "256"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": 256
+  }
 }

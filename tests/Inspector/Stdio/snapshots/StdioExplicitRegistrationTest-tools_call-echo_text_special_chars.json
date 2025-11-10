@@ -5,5 +5,8 @@
       "text": "Echo: Test with emoji 🎉 and symbols @#$%"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": "Echo: Test with emoji 🎉 and symbols @#$%"
+  }
 }
