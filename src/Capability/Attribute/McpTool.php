@@ -24,12 +24,14 @@ class McpTool
      * @param string|null           $description The description of the tool (defaults to the DocBlock/inferred)
      * @param ToolAnnotations|null  $annotations Optional annotations describing tool behavior
      * @param ?array<string, mixed> $meta        Optional metadata
+     * @param array<string, mixed>|null $outputSchema Optional JSON Schema object
      */
     public function __construct(
         public ?string $name = null,
         public ?string $description = null,
         public ?ToolAnnotations $annotations = null,
         public ?array $meta = null,
+        public ?array $outputSchema = null,
     ) {
     }
 }

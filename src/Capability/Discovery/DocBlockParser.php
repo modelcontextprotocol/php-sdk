@@ -136,4 +136,51 @@ class DocBlockParser
 
         return null;
     }
+
+    /**
+     * Gets the return type string from a Return tag.
+     */
+    public function getReturnTypeString(?DocBlock $docBlock): ?string
+    {
+        if (!$docBlock) {
+            return null;
+        }
+
+        $returnTags = $docBlock->getTagsByName('return');
+        if (empty($returnTags)) {
+            return null;
+        }
+
+        $returnTag = $returnTags[0];
+        if (method_exists($returnTag, 'getType') && $returnTag->getType()) {
+            $typeFromTag = trim((string) $returnTag->getType());
+            if (!empty($typeFromTag)) {
+                return ltrim($typeFromTag, '\\');
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Gets the return type description from a Return tag.
+     */
+    public function getReturnDescription(?DocBlock $docBlock): ?string
+    {
+        if (!$docBlock) {
+            return null;
+        }
+
+        $returnTags = $docBlock->getTagsByName('return');
+        if (empty($returnTags)) {
+            return null;
+        }
+
+        $returnTag = $returnTags[0];
+        $description = method_exists($returnTag, 'getDescription')
+            ? trim((string) $returnTag->getDescription())
+            : '';
+
+        return $description ?: null;
+    }
 }

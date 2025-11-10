@@ -33,11 +33,12 @@ class McpToolTest extends TestCase
     public function testInstantiatesWithNullValuesForNameAndDescription(): void
     {
         // Arrange & Act
-        $attribute = new McpTool(name: null, description: null);
+        $attribute = new McpTool(name: null, description: null, outputSchema: null);
 
         // Assert
         $this->assertNull($attribute->name);
         $this->assertNull($attribute->description);
+        $this->assertNull($attribute->outputSchema);
     }
 
     public function testInstantiatesWithMissingOptionalArguments(): void
@@ -48,5 +49,31 @@ class McpToolTest extends TestCase
         // Assert
         $this->assertNull($attribute->name);
         $this->assertNull($attribute->description);
+        $this->assertNull($attribute->outputSchema);
+    }
+
+    public function testInstantiatesWithOutputSchema(): void
+    {
+        // Arrange
+        $name = 'test-tool-name';
+        $description = 'This is a test description.';
+        $outputSchema = [
+            'type' => 'object',
+            'properties' => [
+                'result' => [
+                    'type' => 'string',
+                    'description' => 'The result of the operation',
+                ],
+            ],
+            'required' => ['result'],
+        ];
+
+        // Act
+        $attribute = new McpTool(name: $name, description: $description, outputSchema: $outputSchema);
+
+        // Assert
+        $this->assertSame($name, $attribute->name);
+        $this->assertSame($description, $attribute->description);
+        $this->assertSame($outputSchema, $attribute->outputSchema);
     }
 }

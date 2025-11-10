@@ -45,7 +45,10 @@ final class ArrayLoader implements LoaderInterface
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
-     *     meta: ?array<string, mixed>
+     *     icons: ?array<string, mixed>[],
+     *     meta: ?array<string, mixed>,
+     *     inputSchema: ?array<string, mixed>,
+     *     outputSchema: ?array<string, mixed>
      * }[] $tools
      * @param array{
      *     handler: Handler,
@@ -105,8 +108,9 @@ final class ArrayLoader implements LoaderInterface
                 }
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
+                $outputSchema = $data['outputSchema'] ?? $schemaGenerator->generateOutputSchema($reflection);
 
-                $tool = new Tool($name, $inputSchema, $description, $data['annotations'], $data['meta'] ?? null);
+                $tool = new Tool($name, $inputSchema, $description, $data['annotations'] ?? null, $data['icons'] ?? null, $data['meta'] ?? null, $outputSchema);
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);

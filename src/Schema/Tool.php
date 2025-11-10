@@ -24,6 +24,11 @@ use Mcp\Exception\InvalidArgumentException;
  *     properties: array<string, mixed>,
  *     required: string[]|null
  * }
+ * @phpstan-type ToolOutputSchema array{
+ *     type: 'object',
+ *     properties: array<string, mixed>,
+ *     required: string[]|null
+ * }
  * @phpstan-type ToolData array{
  *     name: string,
  *     inputSchema: ToolInputSchema,
@@ -31,6 +36,7 @@ use Mcp\Exception\InvalidArgumentException;
  *     annotations?: ToolAnnotationsData,
  *     icons?: IconData[],
  *     _meta?: array<string, mixed>
+ *     outputSchema?: ToolOutputSchema,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -46,6 +52,7 @@ class Tool implements \JsonSerializable
      * @param ?ToolAnnotations      $annotations optional additional tool information
      * @param ?Icon[]               $icons       optional icons representing the tool
      * @param ?array<string, mixed> $meta        Optional metadata
+     * @param ToolOutputSchema|null $outputSchema optional JSON Schema object
      */
     public function __construct(
         public readonly string $name,
@@ -54,9 +61,14 @@ class Tool implements \JsonSerializable
         public readonly ?ToolAnnotations $annotations,
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
+        public readonly ?array $outputSchema = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
+        }
+
+        if (null !== $outputSchema && (!isset($outputSchema['type']) || 'object' !== $outputSchema['type'])) {
+            throw new InvalidArgumentException('Tool outputSchema must be a JSON Schema of type "object" or null.');
         }
     }
 
@@ -78,13 +90,23 @@ class Tool implements \JsonSerializable
             $data['inputSchema']['properties'] = new \stdClass();
         }
 
+        if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
+            if (!isset($data['outputSchema']['type']) || 'object' !== $data['outputSchema']['type']) {
+                throw new InvalidArgumentException('Tool outputSchema must be of type "object".');
+            }
+            if (isset($data['outputSchema']['properties']) && \is_array($data['outputSchema']['properties']) && empty($data['outputSchema']['properties'])) {
+                $data['outputSchema']['properties'] = new \stdClass();
+            }
+        }
+
         return new self(
             $data['name'],
             $data['inputSchema'],
             isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
             isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
-            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+            $data['outputSchema']
         );
     }
 
@@ -96,6 +118,7 @@ class Tool implements \JsonSerializable
      *     annotations?: ToolAnnotations,
      *     icons?: Icon[],
      *     _meta?: array<string, mixed>
+     *     outputSchema?: ToolOutputSchema,
      * }
      */
     public function jsonSerialize(): array
@@ -115,6 +138,9 @@ class Tool implements \JsonSerializable
         }
         if (null !== $this->meta) {
             $data['_meta'] = $this->meta;
+        }
+        if (null !== $this->outputSchema) {
+            $data['outputSchema'] = $this->outputSchema;
         }
 
         return $data;

@@ -83,7 +83,10 @@ final class Builder
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
-     *     meta: ?array<string, mixed>
+     *     icons: ?array<string, mixed>[],
+     *     meta: ?array<string, mixed>,
+     *     inputSchema: ?array<string, mixed>,
+     *     outputSchema: ?array<string, mixed>
      * }[]
      */
     private array $tools = [];
@@ -315,6 +318,7 @@ final class Builder
      *
      * @param Handler                   $handler
      * @param array<string, mixed>|null $inputSchema
+     * @param array<string, mixed>|null $outputSchema
      */
     public function addTool(
         callable|array|string $handler,
@@ -322,8 +326,9 @@ final class Builder
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
+        ?array $outputSchema = null,
     ): self {
-        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema');
+        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema', 'outputSchema');
 
         return $this;
     }

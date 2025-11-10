@@ -81,6 +81,36 @@ class SchemaGenerator
     }
 
     /**
+     * Generates a JSON Schema object (as a PHP array) for a method's or function's return type.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function generateOutputSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    {
+        $docComment = $reflection->getDocComment() ?: null;
+        $docBlock = $this->docBlockParser->parseDocBlock($docComment);
+
+        $docBlockReturnType = $this->docBlockParser->getReturnTypeString($docBlock);
+        $returnDescription = $this->docBlockParser->getReturnDescription($docBlock);
+
+        $reflectionReturnType = $reflection->getReturnType();
+        $reflectionReturnTypeString = $reflectionReturnType
+            ? $this->getTypeStringFromReflection($reflectionReturnType, $reflectionReturnType->allowsNull())
+            : null;
+
+        // Use DocBlock with generics, otherwise reflection, otherwise DocBlock
+        $returnTypeString = ($docBlockReturnType && str_contains($docBlockReturnType, '<'))
+            ? $docBlockReturnType
+            : ($reflectionReturnTypeString ?: $docBlockReturnType);
+
+        if (!$returnTypeString || 'void' === strtolower($returnTypeString)) {
+            return null;
+        }
+
+        return $this->buildOutputSchemaFromType($returnTypeString, $returnDescription);
+    }
+
+    /**
      * Extracts method-level or function-level Schema attribute.
      *
      * @return SchemaAttributeData
@@ -793,5 +823,37 @@ class SchemaGenerator
             'object', 'stdclass' => 'object',
             default => \in_array(strtolower($type), ['datetime', 'datetimeinterface']) ? 'string' : 'object',
         };
+    }
+
+    /**
+     * Builds an output schema from a return type string.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildOutputSchemaFromType(string $returnTypeString, ?string $description): array
+    {
+        // Handle array types - treat as object with additionalProperties
+        if (str_contains($returnTypeString, 'array')) {
+            $schema = [
+                'type' => 'object',
+                'additionalProperties' => ['type' => 'mixed'],
+            ];
+        } else {
+            // Handle other types - wrap in object for MCP compatibility
+            $mappedType = $this->mapSimpleTypeToJsonSchema($returnTypeString);
+            $schema = [
+                'type' => 'object',
+                'properties' => [
+                    'result' => ['type' => $mappedType],
+                ],
+                'required' => ['result'],
+            ];
+        }
+
+        if ($description) {
+            $schema['description'] = $description;
+        }
+
+        return $schema;
     }
 }
