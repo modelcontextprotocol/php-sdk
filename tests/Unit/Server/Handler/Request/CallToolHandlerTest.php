@@ -321,12 +321,15 @@ class CallToolHandlerTest extends TestCase
     {
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
         $tool = new Tool('tool-with_special.chars', ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null);
-        $toolReference = new ToolReference($tool, function () {
-            return 'Special tool result';
-        });
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([$tool, function () {
+                return 'Special tool result';
+            }])
+            ->onlyMethods(['formatResult'])
+            ->getMock();
+
         $this->referenceProvider
             ->expects($this->once())
             ->method('getTool')
