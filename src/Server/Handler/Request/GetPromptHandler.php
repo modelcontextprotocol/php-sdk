@@ -74,7 +74,7 @@ final class GetPromptHandler implements RequestHandlerInterface
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
 
-            return Error::forInternalError('Error while handling prompt', $request->getId());
+            return Error::forInternalError('Error while handling prompt', $message->getId());
         }
     }
 }

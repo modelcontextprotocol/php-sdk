@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "config://calculator/settings",
+      "mimeType": "application/json",
+      "text": "{\n    \"precision\": 2,\n    \"allow_negative\": true\n}"
+    }
+  ]
+}

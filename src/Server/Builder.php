@@ -451,9 +451,8 @@ final class Builder
             new Handler\Notification\InitializedHandler(),
         ]);
 
-        $protocol = new Protocol(
-            requestHandlers: $requestHandlers,
-            notificationHandlers: $notificationHandlers,
+        $jsonRpcHandler = new JsonRpcHandler(
+            methodHandlers: $methodHandlers,
             messageFactory: $messageFactory,
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,

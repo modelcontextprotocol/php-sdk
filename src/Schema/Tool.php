@@ -68,14 +68,10 @@ class Tool implements \JsonSerializable
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
         }
-
-        if (null !== $outputSchema && (!isset($outputSchema['type']) || 'object' !== $outputSchema['type'])) {
-            throw new InvalidArgumentException('Tool outputSchema must be a JSON Schema of type "object" or null.');
-        }
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param ToolData $data
      */
     public static function fromArray(array $data): self
     {

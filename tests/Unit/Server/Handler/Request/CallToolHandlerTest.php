@@ -326,6 +326,7 @@ class CallToolHandlerTest extends TestCase
         });
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
+        $toolReference = $this->createMock(ToolReference::class);
         $this->referenceProvider
             ->expects($this->once())
             ->method('getTool')
@@ -337,6 +338,12 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['_session' => $this->session])
             ->willReturn('Special tool result');
+
+        $toolReference
+            ->expects($this->once())
+            ->method('formatResult')
+            ->with('Special tool result')
+            ->willReturn([new TextContent('Special tool result')]);
 
         $response = $this->handler->handle($request, $this->session);
 
