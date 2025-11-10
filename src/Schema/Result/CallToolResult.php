@@ -38,12 +38,14 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult.
      *
-     * @param Content[] $content The content of the tool result
-     * @param bool      $isError Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param Content[]              $content           The content of the tool result
+     * @param bool                   $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param array<string, mixed>|null $structuredContent Optional structured content that conforms to the tool's outputSchema
      */
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
+        public readonly ?array $structuredContent = null,
     ) {
         foreach ($this->content as $item) {
             if (!$item instanceof Content) {
@@ -55,11 +57,12 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult with success status.
      *
-     * @param Content[] $content The content of the tool result
+     * @param Content[]              $content           The content of the tool result
+     * @param array<string, mixed>|null $structuredContent Optional structured content of the tool result
      */
-    public static function success(array $content): self
+    public static function success(array $content, ?array $structuredContent = null): self
     {
-        return new self($content, false);
+        return new self($content, false, $structuredContent);
     }
 
     /**
@@ -76,6 +79,7 @@ class CallToolResult implements ResultInterface
      * @param array{
      *     content: array<mixed>,
      *     isError?: bool,
+     *     structuredContent?: array<string, mixed>|null,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -96,20 +100,31 @@ class CallToolResult implements ResultInterface
             };
         }
 
-        return new self($contents, $data['isError'] ?? false);
+        return new self(
+            $contents,
+            $data['isError'] ?? false,
+            $data['structuredContent'] ?? null
+        );
     }
 
     /**
      * @return array{
      *     content: array<mixed>,
      *     isError: bool,
+     *     structuredContent?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
     {
-        return [
+        $data = [
             'content' => $this->content,
             'isError' => $this->isError,
         ];
+
+        if (null !== $this->structuredContent) {
+            $data['structuredContent'] = $this->structuredContent;
+        }
+
+        return $data;
     }
 }

@@ -829,12 +829,20 @@ class SchemaGenerator
                 'additionalProperties' => ['type' => 'mixed'],
             ];
         } else {
+            // Handle union types (e.g., "float|string")
+            $types = array_filter(
+                array_map('trim', explode('|', $returnTypeString)),
+                fn ($t) => 'null' !== strtolower($t)
+            );
+            
+            $mappedTypes = array_unique(array_map([$this, 'mapSimpleTypeToJsonSchema'], $types));
+            $typeValue = \count($mappedTypes) === 1 ? $mappedTypes[0] : array_values($mappedTypes);
+            
             // Handle other types - wrap in object for MCP compatibility
-            $mappedType = $this->mapSimpleTypeToJsonSchema($returnTypeString);
             $schema = [
                 'type' => 'object',
                 'properties' => [
-                    'result' => ['type' => $mappedType],
+                    'result' => ['type' => $typeValue],
                 ],
                 'required' => ['result'],
             ];
