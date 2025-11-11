@@ -13,8 +13,6 @@ namespace Mcp\Capability;
 
 use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry\PromptReference;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
@@ -44,7 +42,7 @@ use Psr\Log\NullLogger;
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  * @author Pavel Buchnev   <butschster@gmail.com>
  */
-final class Registry implements ReferenceProviderInterface, ReferenceRegistryInterface
+final class Registry implements RegistryInterface
 {
     /**
      * @var array<string, ToolReference>
@@ -91,6 +89,11 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
             logging: false,
             completions: true,
         );
+    }
+
+    public function setServerCapabilities(ServerCapabilities $serverCapabilities): void
+    {
+        $this->serverCapabilities = $serverCapabilities;
     }
 
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void
@@ -455,10 +458,5 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         return array_values(\array_slice($items, $offset, $limit));
-    }
-
-    public function setServerCapabilities(ServerCapabilities $serverCapabilities): void
-    {
-        $this->serverCapabilities = $serverCapabilities;
     }
 }

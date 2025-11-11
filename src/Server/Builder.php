@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\RegistryInterface;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -46,6 +47,8 @@ use Psr\SimpleCache\CacheInterface;
 final class Builder
 {
     private ?Implementation $serverInfo = null;
+
+    private RegistryInterface $registry;
 
     private ?LoggerInterface $logger = null;
 
@@ -245,6 +248,13 @@ final class Builder
         return $this;
     }
 
+    public function setRegistry(RegistryInterface $registry): self
+    {
+        $this->registry = $registry;
+
+        return $this;
+    }
+
     /**
      * Provides a PSR-3 logger instance. Defaults to NullLogger.
      */
@@ -401,7 +411,7 @@ final class Builder
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
-        $registry = new Registry($this->eventDispatcher, $logger);
+        $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
 
         $loaders = [
             ...$this->loaders,
