@@ -208,7 +208,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
         return $this->withCorsHeaders($response);
     }
 
-    private function handleFiberTermination(): void
+    protected function handleFiberTermination(): void
     {
         $finalResult = $this->sessionFiber->getReturn();
 
@@ -227,7 +227,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
         $this->sessionFiber = null;
     }
 
-    private function flushOutgoingMessages(?Uuid $sessionId): void
+    protected function flushOutgoingMessages(?Uuid $sessionId): void
     {
         $messages = $this->getOutgoingMessages($sessionId);
 
