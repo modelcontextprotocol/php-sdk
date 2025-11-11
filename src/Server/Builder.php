@@ -315,6 +315,7 @@ final class Builder
      *
      * @param Handler                   $handler
      * @param array<string, mixed>|null $inputSchema
+     * @param array<string, mixed>|null $meta
      */
     public function addTool(
         callable|array|string $handler,
@@ -322,8 +323,9 @@ final class Builder
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
+        ?array $meta = null,
     ): self {
-        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema');
+        $this->tools[] = compact('handler', 'name', 'description', 'annotations', 'inputSchema', 'meta');
 
         return $this;
     }
@@ -331,7 +333,8 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param Handler $handler
+     * @param Handler                   $handler
+     * @param array<string, mixed>|null $meta
      */
     public function addResource(
         \Closure|array|string $handler,
@@ -341,8 +344,9 @@ final class Builder
         ?string $mimeType = null,
         ?int $size = null,
         ?Annotations $annotations = null,
+        ?array $meta = null,
     ): self {
-        $this->resources[] = compact('handler', 'uri', 'name', 'description', 'mimeType', 'size', 'annotations');
+        $this->resources[] = compact('handler', 'uri', 'name', 'description', 'mimeType', 'size', 'annotations', 'meta');
 
         return $this;
     }
