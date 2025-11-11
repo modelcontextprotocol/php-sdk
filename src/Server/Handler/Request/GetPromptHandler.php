@@ -12,7 +12,7 @@
 namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
@@ -32,7 +32,7 @@ use Psr\Log\NullLogger;
 final class GetPromptHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
@@ -54,7 +54,7 @@ final class GetPromptHandler implements RequestHandlerInterface
         $arguments = $request->arguments ?? [];
 
         try {
-            $reference = $this->referenceProvider->getPrompt($promptName);
+            $reference = $this->registry->getPrompt($promptName);
 
             $arguments['_session'] = $session;
 

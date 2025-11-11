@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\RegistryInterface;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -46,6 +47,8 @@ use Psr\SimpleCache\CacheInterface;
 final class Builder
 {
     private ?Implementation $serverInfo = null;
+
+    private RegistryInterface $registry;
 
     private ?LoggerInterface $logger = null;
 
@@ -248,6 +251,13 @@ final class Builder
         return $this;
     }
 
+    public function setRegistry(RegistryInterface $registry): self
+    {
+        $this->registry = $registry;
+
+        return $this;
+    }
+
     /**
      * Provides a PSR-3 logger instance. Defaults to NullLogger.
      */
@@ -440,7 +450,7 @@ final class Builder
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
-        $registry = new Registry($this->eventDispatcher, $logger);
+        $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
 
         $loaders = [
             ...$this->loaders,
@@ -455,16 +465,22 @@ final class Builder
             $loader->load($registry);
         }
 
-        if ($this->serverCapabilities) {
-            $registry->setServerCapabilities($this->serverCapabilities);
-        }
-
         $sessionTtl = $this->sessionTtl ?? 3600;
         $sessionFactory = $this->sessionFactory ?? new SessionFactory();
         $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
         $messageFactory = MessageFactory::make();
 
-        $capabilities = $registry->getCapabilities();
+        $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
+            tools: $registry->hasTools(),
+            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            resources: $registry->hasResources() || $registry->hasResourceTemplates(),
+            resourcesSubscribe: false,
+            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            prompts: $registry->hasPrompts(),
+            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            logging: false,
+            completions: true,
+        );
         $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = new ReferenceHandler($container);
 
