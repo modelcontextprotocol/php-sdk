@@ -45,6 +45,7 @@ final class ArrayLoader implements LoaderInterface
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     icons: ?array<int, \Mcp\Schema\Icon>,
      *     meta: ?array<string, mixed>
      * }[] $tools
      * @param array{
@@ -106,7 +107,14 @@ final class ArrayLoader implements LoaderInterface
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
 
-                $tool = new Tool($name, $inputSchema, $description, $data['annotations'], $data['meta'] ?? null);
+                $tool = new Tool(
+                    name: $name,
+                    inputSchema: $inputSchema,
+                    description: $description,
+                    annotations: $data['annotations'] ?? null,
+                    icons: $data['icons'] ?? null,
+                    meta: $data['meta'] ?? null,
+                );
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
