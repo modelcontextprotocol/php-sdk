@@ -61,7 +61,7 @@ $server = Server::builder()
         version: '1.2.0',
         description: 'Advanced mathematical calculations',
         icons: [new Icon('https://example.com/icon.png', 'image/png', ['64x64'])],
-        websiteUrl: 'https://example.com
+        websiteUrl: 'https://example.com'
     ');
 ```
 
