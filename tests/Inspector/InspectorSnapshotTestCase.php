@@ -109,7 +109,8 @@ abstract class InspectorSnapshotTestCase extends TestCase
 
         $expected = file_get_contents($snapshotFile);
 
-        $this->assertJsonStringEqualsJsonString($expected, $normalizedOutput);
+        $message = \sprintf('Output does not match snapshot "%s".', $snapshotFile);
+        $this->assertJsonStringEqualsJsonString($expected, $normalizedOutput, $message);
     }
 
     protected function normalizeTestOutput(string $output, ?string $testName = null): string

@@ -3,6 +3,15 @@
     {
       "name": "calculate",
       "description": "Performs a calculation based on the operation.",
+        "icons": [
+          {
+            "mimeType": "image/svg+xml",
+             "sizes": [
+               "any"
+             ],
+             "src": "https://www.svgrepo.com/show/530644/calculator.svg"
+          }
+        ],
       "inputSchema": {
         "type": "object",
         "properties": {

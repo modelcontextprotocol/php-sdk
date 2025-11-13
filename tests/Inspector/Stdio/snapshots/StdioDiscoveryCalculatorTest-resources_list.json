@@ -4,6 +4,15 @@
       "name": "calculator_config",
       "uri": "config://calculator/settings",
       "description": "Current settings for the calculator tool (precision, allow_negative).",
+      "icons": [
+        {
+          "mimeType": "image/svg+xml",
+          "sizes": [
+            "any"
+          ],
+          "src": "https://www.svgrepo.com/show/529867/settings.svg"
+        }
+      ],
       "mimeType": "application/json"
     }
   ]

@@ -52,14 +52,25 @@ final `Server` instance ready for use.
 Set the server's identity with name, version, and optional description:
 
 ```php
+use Mcp\Schema\Icon;
+use Mcp\Server;
+
 $server = Server::builder()
-    ->setServerInfo('Calculator Server', '1.2.0', 'Advanced mathematical calculations');
+    ->setServerInfo(
+        name: 'Calculator Server',
+        version: '1.2.0',
+        description: 'Advanced mathematical calculations',
+        icons: [new Icon('https://example.com/icon.png', 'image/png', ['64x64'])],
+        websiteUrl: 'https://example.com'
+    ');
 ```
 
 **Parameters:**
 - `$name` (string): The server name
 - `$version` (string): Version string (semantic versioning recommended)
 - `$description` (string|null): Optional description
+- `$icons` (Icon[]|null): Optional array of server icons
+- `$websiteUrl` (string|null): Optional server website URL
 
 ### Pagination Limit
 
@@ -263,6 +274,16 @@ $server = Server::builder()
     );
 ```
 
+#### Parameters
+
+- `handler` (callable|string): The tool handler
+- `name` (string|null): Optional tool name
+- `description` (string|null): Optional tool description
+- `annotations` (ToolAnnotations|null): Optional annotations for the tool
+- `inputSchema` (array|null): Optional input schema for the tool
+- `icons` (Icon[]|null): Optional array of icons for the tool
+- `meta` (array|null): Optional metadata for the tool
+
 ### Manual Resource Registration
 
 Register static resources:
@@ -277,6 +298,18 @@ $server = Server::builder()
         mimeType: 'application/json'
     );
 ```
+
+#### Parameters
+
+- `handler` (callable|string): The resource handler
+- `uri` (string): The resource URI
+- `name` (string|null): Optional resource name
+- `description` (string|null): Optional resource description
+- `mimeType` (string|null): Optional MIME type of the resource
+- `size` (int|null): Optional size of the resource in bytes
+- `annotations` (Annotations|null): Optional annotations for the resource
+- `icons` (Icon[]|null): Optional array of icons for the resource
+- `meta` (array|null): Optional metadata for the resource
 
 ### Manual Resource Template Registration
 
@@ -293,6 +326,15 @@ $server = Server::builder()
     );
 ```
 
+#### Parameters
+
+- `handler` (callable|string): The resource template handler
+- `uriTemplate` (string): The resource URI template
+- `name` (string|null): Optional resource template name
+- `description` (string|null): Optional resource template description
+- `mimeType` (string|null): Optional MIME type of the resource
+- `annotations` (Annotations|null): Optional annotations for the resource template
+
 ### Manual Prompt Registration
 
 Register prompt generators:
@@ -305,6 +347,13 @@ $server = Server::builder()
         description: 'A custom prompt generator'
     );
 ```
+
+#### Parameters
+
+- `handler` (callable|string): The prompt handler
+- `name` (string|null): Optional prompt name
+- `description` (string|null): Optional prompt description
+- `icons` (Icon[]|null): Optional array of icons for the prompt
 
 **Note:** `name` and `description` are optional for all manual registrations. If not provided, they will be derived from
 the handler's method name and docblock.
