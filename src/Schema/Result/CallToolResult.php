@@ -38,14 +38,16 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult.
      *
-     * @param Content[] $content           The content of the tool result
-     * @param bool      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
-     * @param mixed[]   $structuredContent JSON content for `structuredContent`
+     * @param Content[]                 $content           The content of the tool result
+     * @param bool                      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
+     * @param mixed[]                   $structuredContent JSON content for `structuredContent`
+     * @param array<string, mixed>|null $meta              Optional metadata
      */
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
         public readonly ?array $structuredContent = null,
+        public readonly ?array $meta = null,
     ) {
         foreach ($this->content as $item) {
             if (!$item instanceof Content) {
@@ -57,27 +59,30 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult with success status.
      *
-     * @param Content[] $content The content of the tool result
+     * @param Content[]                 $content The content of the tool result
+     * @param array<string, mixed>|null $meta    Optional metadata
      */
-    public static function success(array $content): self
+    public static function success(array $content, ?array $meta = null): self
     {
-        return new self($content, false);
+        return new self($content, false, null, $meta);
     }
 
     /**
      * Create a new CallToolResult with error status.
      *
-     * @param Content[] $content The content of the tool result
+     * @param Content[]                 $content The content of the tool result
+     * @param array<string, mixed>|null $meta    Optional metadata
      */
-    public static function error(array $content): self
+    public static function error(array $content, ?array $meta = null): self
     {
-        return new self($content, true);
+        return new self($content, true, null, $meta);
     }
 
     /**
      * @param array{
      *     content: array<mixed>,
      *     isError?: bool,
+     *     _meta?: array<string, mixed>,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -98,13 +103,20 @@ class CallToolResult implements ResultInterface
             };
         }
 
-        return new self($contents, $data['isError'] ?? false);
+        return new self(
+            $contents,
+            $data['isError'] ?? false,
+            $data['structuredContent'] ?? null,
+            $data['_meta'] ?? null
+        );
     }
 
     /**
      * @return array{
      *     content: array<mixed>,
      *     isError: bool,
+     *     structuredContent?: array<mixed>,
+     *     _meta?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
@@ -116,6 +128,10 @@ class CallToolResult implements ResultInterface
 
         if ($this->structuredContent) {
             $result['structuredContent'] = $this->structuredContent;
+        }
+
+        if ($this->meta) {
+            $result['_meta'] = $this->meta;
         }
 
         return $result;
