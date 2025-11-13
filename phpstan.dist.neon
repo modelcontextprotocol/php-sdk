@@ -15,6 +15,10 @@ parameters:
     ignoreErrors:
         -
             message: "#^Method .*::test.*\\(\\) has no return type specified\\.$#"
+        -
+            identifier: missingType.iterableValue
+            path: tests/
+
         # These errors should actually be fixed, but are ignored for now
         -
             identifier: missingType.iterableValue

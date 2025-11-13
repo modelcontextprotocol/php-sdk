@@ -140,7 +140,7 @@ class RegistryTest extends TestCase
         $this->logger
             ->expects($this->once())
             ->method('debug')
-            ->with("Ignoring discovered tool 'test_tool' as it conflicts with a manually registered one.");
+            ->with('Ignoring discovered tool "test_tool" as it conflicts with a manually registered one.');
 
         $this->registry->registerTool($discoveredTool, fn () => 'discovered', false);
 
@@ -181,7 +181,7 @@ class RegistryTest extends TestCase
         $this->logger
             ->expects($this->once())
             ->method('debug')
-            ->with("Ignoring discovered resource 'test://resource' as it conflicts with a manually registered one.");
+            ->with('Ignoring discovered resource "test://resource" as it conflicts with a manually registered one.');
 
         $this->registry->registerResource($discoveredResource, fn () => 'discovered', false);
 
@@ -210,7 +210,7 @@ class RegistryTest extends TestCase
         $this->logger
             ->expects($this->once())
             ->method('debug')
-            ->with("Ignoring discovered template 'test://{id}' as it conflicts with a manually registered one.");
+            ->with('Ignoring discovered template "test://{id}" as it conflicts with a manually registered one.');
 
         $this->registry->registerResourceTemplate($discoveredTemplate, fn () => 'discovered', [], false);
 
@@ -239,7 +239,7 @@ class RegistryTest extends TestCase
         $this->logger
             ->expects($this->once())
             ->method('debug')
-            ->with("Ignoring discovered prompt 'test_prompt' as it conflicts with a manually registered one.");
+            ->with('Ignoring discovered prompt "test_prompt" as it conflicts with a manually registered one.');
 
         $this->registry->registerPrompt($discoveredPrompt, fn () => 'discovered', [], false);
 
