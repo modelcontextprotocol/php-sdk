@@ -12,7 +12,7 @@
 namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Completion\ProviderInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
@@ -35,7 +35,7 @@ use Psr\Container\ContainerInterface;
 final class CompletionCompleteHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly RegistryInterface $registry,
         private readonly ?ContainerInterface $container = null,
     ) {
     }
@@ -57,8 +57,8 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
 
         try {
             $reference = match (true) {
-                $request->ref instanceof PromptReference => $this->referenceProvider->getPrompt($request->ref->name),
-                $request->ref instanceof ResourceReference => $this->referenceProvider->getResource($request->ref->uri),
+                $request->ref instanceof PromptReference => $this->registry->getPrompt($request->ref->name),
+                $request->ref instanceof ResourceReference => $this->registry->getResource($request->ref->uri),
             };
 
             $providers = $reference->completionProviders;

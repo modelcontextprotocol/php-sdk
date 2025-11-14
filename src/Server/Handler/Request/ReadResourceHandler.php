@@ -12,8 +12,8 @@
 namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
@@ -33,7 +33,7 @@ use Psr\Log\NullLogger;
 final class ReadResourceHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly RegistryInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {

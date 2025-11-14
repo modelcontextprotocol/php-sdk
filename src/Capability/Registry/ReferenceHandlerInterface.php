@@ -11,6 +11,9 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RegistryException;
+
 /**
  * Interface for handling execution of MCP elements.
  * Allows custom implementations of element execution logic.
@@ -27,8 +30,8 @@ interface ReferenceHandlerInterface
      *
      * @return mixed the result of the element execution
      *
-     * @throws \Mcp\Exception\InvalidArgumentException if the handler is invalid
-     * @throws \Mcp\Exception\RegistryException        if execution fails
+     * @throws InvalidArgumentException if the handler is invalid
+     * @throws RegistryException        if execution fails
      */
     public function handle(ElementReference $reference, array $arguments): mixed;
 }

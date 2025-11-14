@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -27,7 +27,7 @@ use Mcp\Server\Session\SessionInterface;
 final class ListPromptsHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $registry,
+        private readonly RegistryInterface $registry,
         private readonly int $pageSize = 20,
     ) {
     }

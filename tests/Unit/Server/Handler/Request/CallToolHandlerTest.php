@@ -12,8 +12,8 @@
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -30,20 +30,20 @@ use Psr\Log\LoggerInterface;
 class CallToolHandlerTest extends TestCase
 {
     private CallToolHandler $handler;
-    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private LoggerInterface&MockObject $logger;
     private SessionInterface&MockObject $session;
 
     protected function setUp(): void
     {
-        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->registry = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
         $this->handler = new CallToolHandler(
-            $this->referenceProvider,
+            $this->registry,
             $this->referenceHandler,
             $this->logger,
         );
@@ -62,7 +62,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('greet_user')
@@ -95,7 +95,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Simple result')]);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('simple_tool')
@@ -132,7 +132,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createMock(ToolReference::class);
         $expectedResult = new CallToolResult([new TextContent('Complex result')]);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('complex_tool')
@@ -160,7 +160,7 @@ class CallToolHandlerTest extends TestCase
     {
         $request = $this->createCallToolRequest('nonexistent_tool', ['param' => 'value']);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('nonexistent_tool')
@@ -183,7 +183,7 @@ class CallToolHandlerTest extends TestCase
         $exception = new ToolCallException('Tool execution failed');
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('failing_tool')
@@ -218,7 +218,7 @@ class CallToolHandlerTest extends TestCase
         $expectedResult = new CallToolResult([]);
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('null_tool')
@@ -244,7 +244,7 @@ class CallToolHandlerTest extends TestCase
 
     public function testConstructorWithDefaultLogger(): void
     {
-        $handler = new CallToolHandler($this->referenceProvider, $this->referenceHandler);
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler);
 
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
@@ -255,7 +255,7 @@ class CallToolHandlerTest extends TestCase
         $exception = new ToolCallException('Custom error message');
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('test_tool')
@@ -298,7 +298,7 @@ class CallToolHandlerTest extends TestCase
         $exception = new \RuntimeException('Internal database connection failed');
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('failing_tool')
@@ -325,7 +325,7 @@ class CallToolHandlerTest extends TestCase
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('tool-with_special.chars')
@@ -360,7 +360,7 @@ class CallToolHandlerTest extends TestCase
         $expectedResult = new CallToolResult([new TextContent('Unicode handled')]);
 
         $toolReference = $this->createMock(ToolReference::class);
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('unicode_tool')
@@ -390,7 +390,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createMock(ToolReference::class);
         $structuredResult = new CallToolResult([new TextContent('Rendered results')], false, ['result' => 'Rendered results']);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('structured_tool')
@@ -419,7 +419,7 @@ class CallToolHandlerTest extends TestCase
         $toolReference = $this->createMock(ToolReference::class);
         $callToolResult = new CallToolResult([new TextContent('Error result')], true);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getTool')
             ->with('result_tool')

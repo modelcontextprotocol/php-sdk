@@ -11,12 +11,12 @@
 
 namespace Mcp\Capability\Registry\Loader;
 
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
+use Mcp\Capability\RegistryInterface;
 
 /**
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
 interface LoaderInterface
 {
-    public function load(ReferenceRegistryInterface $registry): void;
+    public function load(RegistryInterface $registry): void;
 }

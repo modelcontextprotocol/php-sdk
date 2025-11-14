@@ -19,7 +19,7 @@ use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ConfigurationException;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Icon;
@@ -86,7 +86,7 @@ final class ArrayLoader implements LoaderInterface
     ) {
     }
 
-    public function load(ReferenceRegistryInterface $registry): void
+    public function load(RegistryInterface $registry): void
     {
         $docBlockParser = new DocBlockParser(logger: $this->logger);
         $schemaGenerator = new SchemaGenerator($docBlockParser);

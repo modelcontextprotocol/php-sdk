@@ -12,7 +12,7 @@
 namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -34,7 +34,7 @@ use Psr\Log\NullLogger;
 final class CallToolHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly ReferenceProviderInterface $referenceProvider,
+        private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
@@ -58,7 +58,7 @@ final class CallToolHandler implements RequestHandlerInterface
         $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         try {
-            $reference = $this->referenceProvider->getTool($toolName);
+            $reference = $this->registry->getTool($toolName);
 
             $arguments['_session'] = $session;
 
