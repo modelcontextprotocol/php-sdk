@@ -149,14 +149,14 @@ final class ArrayLoader implements LoaderInterface
                 }
 
                 $resource = new Resource(
-                    $data['uri'],
-                    $name,
-                    $description,
-                    $data['mimeType'],
-                    $data['annotations'],
-                    $data['size'],
-                    $data['icons'],
-                    $data['meta'],
+                    uri: $data['uri'],
+                    name: $name,
+                    description: $description,
+                    mimeType: $data['mimeType'] ?? null,
+                    annotations: $data['annotations'] ?? null,
+                    size: $data['size'] ?? null,
+                    icons: $data['icons'] ?? null,
+                    meta: $data['meta'] ?? null,
                 );
                 $registry->registerResource($resource, $data['handler'], true);
 
@@ -189,12 +189,12 @@ final class ArrayLoader implements LoaderInterface
                 }
 
                 $template = new ResourceTemplate(
-                    $data['uriTemplate'],
-                    $name,
-                    $description,
-                    $data['mimeType'],
-                    $data['annotations'],
-                    $data['meta'],
+                    uriTemplate: $data['uriTemplate'],
+                    name: $name,
+                    description: $description,
+                    mimeType: $data['mimeType'] ?? null,
+                    annotations: $data['annotations'] ?? null,
+                    meta: $data['meta'] ?? null,
                 );
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
@@ -246,7 +246,13 @@ final class ArrayLoader implements LoaderInterface
                         !$param->isOptional() && !$param->isDefaultValueAvailable(),
                     );
                 }
-                $prompt = new Prompt($name, $description, $arguments, $data['icons'], $data['meta']);
+                $prompt = new Prompt(
+                    name: $name,
+                    description: $description,
+                    arguments: $arguments,
+                    icons: $data['icons'] ?? null,
+                    meta: $data['meta'] ?? null
+                );
                 $completionProviders = $this->getCompletionProviders($reflection);
                 $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
 

@@ -379,7 +379,8 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param Handler $handler
+     * @param Handler                   $handler
+     * @param array<string, mixed>|null $meta
      */
     public function addResourceTemplate(
         \Closure|array|string $handler,
@@ -388,6 +389,7 @@ final class Builder
         ?string $description = null,
         ?string $mimeType = null,
         ?Annotations $annotations = null,
+        ?array $meta = null,
     ): self {
         $this->resourceTemplates[] = compact(
             'handler',
@@ -396,6 +398,7 @@ final class Builder
             'description',
             'mimeType',
             'annotations',
+            'meta',
         );
 
         return $this;
@@ -404,16 +407,18 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param Handler $handler
-     * @param ?Icon[] $icons
+     * @param Handler                   $handler
+     * @param ?Icon[]                   $icons
+     * @param array<string, mixed>|null $meta
      */
     public function addPrompt(
         \Closure|array|string $handler,
         ?string $name = null,
         ?string $description = null,
         ?array $icons = null,
+        ?array $meta = null,
     ): self {
-        $this->prompts[] = compact('handler', 'name', 'description', 'icons');
+        $this->prompts[] = compact('handler', 'name', 'description', 'icons', 'meta');
 
         return $this;
     }
