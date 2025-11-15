@@ -13,7 +13,6 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 
 /**
  * @implements TransportInterface<int>
@@ -29,7 +28,7 @@ class StdioTransport extends BaseTransport implements TransportInterface
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
-        LoggerInterface $logger = new NullLogger(),
+        ?LoggerInterface $logger = null,
     ) {
         parent::__construct($logger);
     }
