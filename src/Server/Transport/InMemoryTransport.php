@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -27,7 +28,9 @@ class InMemoryTransport extends BaseTransport implements TransportInterface
      */
     public function __construct(
         private readonly array $messages = [],
+        ?LoggerInterface $logger = null,
     ) {
+        parent::__construct($logger);
     }
 
     public function initialize(): void
@@ -51,10 +54,13 @@ class InMemoryTransport extends BaseTransport implements TransportInterface
      */
     public function listen(): mixed
     {
+        $this->logger->info('InMemoryTransport is processing messages...');
+
         foreach ($this->messages as $message) {
             $this->handleMessage($message, $this->sessionId);
         }
 
+        $this->logger->info('InMemoryTransport finished processing.');
         $this->handleSessionEnd($this->sessionId);
 
         $this->sessionId = null;
