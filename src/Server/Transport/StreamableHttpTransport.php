@@ -18,7 +18,6 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Log\LoggerInterface;
-use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -45,7 +44,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         array $corsHeaders = [],
-        LoggerInterface $logger = new NullLogger(),
+        ?LoggerInterface $logger = null,
     ) {
         parent::__construct($logger);
         $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
