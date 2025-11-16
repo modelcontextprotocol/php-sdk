@@ -33,6 +33,17 @@
           "b",
           "operation"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "result": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "result"
+        ]
       }
     },
     {
@@ -53,6 +64,10 @@
           "setting",
           "value"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   ]
