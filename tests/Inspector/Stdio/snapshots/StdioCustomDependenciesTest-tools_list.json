@@ -19,6 +19,10 @@
           "userId",
           "description"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -35,6 +39,10 @@
         "required": [
           "userId"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -51,6 +59,10 @@
         "required": [
           "taskId"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   ]

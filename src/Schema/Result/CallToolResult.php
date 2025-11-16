@@ -59,12 +59,13 @@ class CallToolResult implements ResultInterface
     /**
      * Create a new CallToolResult with success status.
      *
-     * @param Content[]                 $content The content of the tool result
-     * @param array<string, mixed>|null $meta    Optional metadata
+     * @param Content[]                 $content           The content of the tool result
+     * @param array<string, mixed>|null $meta              Optional metadata
+     * @param array<string, mixed>|null $structuredContent Optional structured content matching the tool's outputSchema
      */
-    public static function success(array $content, ?array $meta = null): self
+    public static function success(array $content, ?array $meta = null, ?array $structuredContent = null): self
     {
-        return new self($content, false, null, $meta);
+        return new self($content, false, $meta, $structuredContent);
     }
 
     /**
@@ -83,6 +84,7 @@ class CallToolResult implements ResultInterface
      *     content: array<mixed>,
      *     isError?: bool,
      *     _meta?: array<string, mixed>,
+     *     structuredContent?: array<string, mixed>
      * } $data
      */
     public static function fromArray(array $data): self

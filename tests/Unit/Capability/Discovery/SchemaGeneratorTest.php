@@ -327,4 +327,102 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['description' => 'Some parameter', 'minLength' => 3], $schema['properties']['inferredParam']);
         $this->assertEquals(['inferredParam'], $schema['required']);
     }
+
+    public function testGenerateOutputSchemaReturnsNullForVoidReturnType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParams');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertNull($schema);
+    }
+
+    /**
+     * @dataProvider providesAllOutputSchemaResultReturnTypes
+     */
+    public function testGenerateOutputSchemaForBasicReturnTypes(string $methodName, string $expectedType): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, $methodName);
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => $expectedType],
+            ],
+            'required' => ['result'],
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaWithReturnDescription(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnWithDescription');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => 'string'],
+            ],
+            'required' => ['result'],
+            'description' => 'The result of the operation',
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaForArrayReturnType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParamsWithSchema');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'additionalProperties' => true,
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaForUnionReturnType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'unionReturn');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => ['string', 'number']],
+            ],
+            'required' => ['result'],
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaUsesPhpTypeHintOverDocBlock(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'docBlockReturnType');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => 'string'],
+            ],
+            'required' => ['result'],
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaForComplexNestedSchema(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'complexNestedSchema');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'additionalProperties' => true,
+        ], $schema);
+    }
+
+    /**
+     * @return array<string, array{string, string}>
+     */
+    public static function providesAllOutputSchemaResultReturnTypes(): array
+    {
+        return [
+            'string' => ['stringReturn', 'string'],
+            'integer' => ['integerReturn', 'integer'],
+            'float' => ['floatReturn', 'number'],
+            'boolean' => ['booleanReturn', 'boolean'],
+            'nullable string' => ['nullableReturn', 'string'],
+            'object' => ['objectReturn', 'object'],
+        ];
+    }
 }

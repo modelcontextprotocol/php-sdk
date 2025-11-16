@@ -45,6 +45,10 @@
         "required": [
           "userId"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -52,6 +56,10 @@
       "inputSchema": {
         "type": "object",
         "properties": {}
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   ]

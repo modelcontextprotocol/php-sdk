@@ -61,6 +61,10 @@
           "date",
           "type"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   ]

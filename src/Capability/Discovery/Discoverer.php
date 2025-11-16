@@ -222,6 +222,7 @@ class Discoverer
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
                     $inputSchema = $this->schemaGenerator->generate($method);
+                    $outputSchema = $this->schemaGenerator->generateOutputSchema($method);
                     $tool = new Tool(
                         $name,
                         $inputSchema,
@@ -229,6 +230,7 @@ class Discoverer
                         $instance->annotations,
                         $instance->icons,
                         $instance->meta,
+                        $outputSchema,
                     );
                     $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
                     ++$discoveredCount['tools'];
