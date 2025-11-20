@@ -13,8 +13,6 @@ namespace Mcp\Capability;
 
 use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry\PromptReference;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
@@ -31,7 +29,6 @@ use Mcp\Schema\Page;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
-use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -39,13 +36,10 @@ use Psr\Log\NullLogger;
 
 /**
  * Registry implementation that manages MCP element registration and access.
- * Implements both ReferenceProvider (for access) and ReferenceRegistry (for registration)
- * following the Interface Segregation Principle.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- * @author Pavel Buchnev   <butschster@gmail.com>
  */
-final class Registry implements ReferenceProviderInterface, ReferenceRegistryInterface
+final class Registry implements RegistryInterface
 {
     /**
      * @var array<string, ToolReference>
@@ -67,32 +61,11 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
      */
     private array $resourceTemplates = [];
 
-    private ServerCapabilities $serverCapabilities;
-
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly NameValidator $nameValidator = new NameValidator(),
     ) {
-    }
-
-    public function getCapabilities(): ServerCapabilities
-    {
-        if (!$this->hasElements()) {
-            $this->logger->info('No capabilities registered on server.');
-        }
-
-        return $this->serverCapabilities ?? new ServerCapabilities(
-            tools: [] !== $this->tools,
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            resources: [] !== $this->resources || [] !== $this->resourceTemplates,
-            resourcesSubscribe: false,
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            prompts: [] !== $this->prompts,
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: false,
-            completions: true,
-        );
     }
 
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void
@@ -220,41 +193,9 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
     }
 
-    public function getTool(string $name): ToolReference
+    public function hasTools(): bool
     {
-        return $this->tools[$name] ?? throw new ToolNotFoundException($name);
-    }
-
-    public function getResource(
-        string $uri,
-        bool $includeTemplates = true,
-    ): ResourceReference|ResourceTemplateReference {
-        $registration = $this->resources[$uri] ?? null;
-        if ($registration) {
-            return $registration;
-        }
-
-        if ($includeTemplates) {
-            foreach ($this->resourceTemplates as $template) {
-                if ($template->matches($uri)) {
-                    return $template;
-                }
-            }
-        }
-
-        $this->logger->debug('No resource matched URI.', ['uri' => $uri]);
-
-        throw new ResourceNotFoundException($uri);
-    }
-
-    public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference
-    {
-        return $this->resourceTemplates[$uriTemplate] ?? throw new ResourceNotFoundException($uriTemplate);
-    }
-
-    public function getPrompt(string $name): PromptReference
-    {
-        return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
+        return [] !== $this->tools;
     }
 
     public function getTools(?int $limit = null, ?string $cursor = null): Page
@@ -279,6 +220,16 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return new Page($paginatedTools, $nextCursor);
     }
 
+    public function getTool(string $name): ToolReference
+    {
+        return $this->tools[$name] ?? throw new ToolNotFoundException($name);
+    }
+
+    public function hasResources(): bool
+    {
+        return [] !== $this->resources;
+    }
+
     public function getResources(?int $limit = null, ?string $cursor = null): Page
     {
         $resources = [];
@@ -301,26 +252,31 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return new Page($paginatedResources, $nextCursor);
     }
 
-    public function getPrompts(?int $limit = null, ?string $cursor = null): Page
+    public function getResource(
+        string $uri,
+        bool $includeTemplates = true,
+    ): ResourceReference|ResourceTemplateReference {
+        $registration = $this->resources[$uri] ?? null;
+        if ($registration) {
+            return $registration;
+        }
+
+        if ($includeTemplates) {
+            foreach ($this->resourceTemplates as $template) {
+                if ($template->matches($uri)) {
+                    return $template;
+                }
+            }
+        }
+
+        $this->logger->debug('No resource matched URI.', ['uri' => $uri]);
+
+        throw new ResourceNotFoundException($uri);
+    }
+
+    public function hasResourceTemplates(): bool
     {
-        $prompts = [];
-        foreach ($this->prompts as $promptReference) {
-            $prompts[$promptReference->prompt->name] = $promptReference->prompt;
-        }
-
-        if (null === $limit) {
-            return new Page($prompts, null);
-        }
-
-        $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
-
-        $nextCursor = $this->calculateNextCursor(
-            \count($prompts),
-            $cursor,
-            $limit
-        );
-
-        return new Page($paginatedPrompts, $nextCursor);
+        return [] !== $this->resourceTemplates;
     }
 
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
@@ -345,12 +301,41 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         return new Page($paginatedTemplates, $nextCursor);
     }
 
-    public function hasElements(): bool
+    public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference
     {
-        return !empty($this->tools)
-            || !empty($this->resources)
-            || !empty($this->prompts)
-            || !empty($this->resourceTemplates);
+        return $this->resourceTemplates[$uriTemplate] ?? throw new ResourceNotFoundException($uriTemplate);
+    }
+
+    public function hasPrompts(): bool
+    {
+        return [] !== $this->prompts;
+    }
+
+    public function getPrompts(?int $limit = null, ?string $cursor = null): Page
+    {
+        $prompts = [];
+        foreach ($this->prompts as $promptReference) {
+            $prompts[$promptReference->prompt->name] = $promptReference->prompt;
+        }
+
+        if (null === $limit) {
+            return new Page($prompts, null);
+        }
+
+        $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
+
+        $nextCursor = $this->calculateNextCursor(
+            \count($prompts),
+            $cursor,
+            $limit
+        );
+
+        return new Page($paginatedPrompts, $nextCursor);
+    }
+
+    public function getPrompt(string $name): PromptReference
+    {
+        return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
     }
 
     /**
@@ -463,10 +448,5 @@ final class Registry implements ReferenceProviderInterface, ReferenceRegistryInt
         }
 
         return array_values(\array_slice($items, $offset, $limit));
-    }
-
-    public function setServerCapabilities(ServerCapabilities $serverCapabilities): void
-    {
-        $this->serverCapabilities = $serverCapabilities;
     }
 }

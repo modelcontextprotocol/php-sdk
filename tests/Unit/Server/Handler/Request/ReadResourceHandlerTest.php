@@ -12,8 +12,8 @@
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
 use Mcp\Capability\Registry\ResourceReference;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
@@ -31,17 +31,17 @@ use PHPUnit\Framework\TestCase;
 class ReadResourceHandlerTest extends TestCase
 {
     private ReadResourceHandler $handler;
-    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
 
     protected function setUp(): void
     {
-        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->registry = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
-        $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
+        $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler);
     }
 
     public function testSupportsReadResourceRequest(): void
@@ -66,7 +66,7 @@ class ReadResourceHandlerTest extends TestCase
             ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -106,7 +106,7 @@ class ReadResourceHandlerTest extends TestCase
             ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'image/png'), []])
             ->getMock();
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -150,7 +150,7 @@ class ReadResourceHandlerTest extends TestCase
             ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'application/octet-stream'), []])
             ->getMock();
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -180,7 +180,7 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new ResourceNotFoundException($uri);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -200,7 +200,7 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new ResourceReadException('Failed to read resource: corrupted data');
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -220,7 +220,7 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new \RuntimeException('Internal database connection failed');
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -258,7 +258,7 @@ class ReadResourceHandlerTest extends TestCase
                 ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
                 ->getMock();
 
-            $this->referenceProvider
+            $this->registry
                 ->expects($this->once())
                 ->method('getResource')
                 ->with($uri)
@@ -282,9 +282,9 @@ class ReadResourceHandlerTest extends TestCase
             $this->assertEquals($expectedResult, $response->result);
 
             // Reset the mock for next iteration
-            $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+            $this->registry = $this->createMock(RegistryInterface::class);
             $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
-            $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
+            $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler);
         }
     }
 
@@ -303,7 +303,7 @@ class ReadResourceHandlerTest extends TestCase
             ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)
@@ -365,7 +365,7 @@ class ReadResourceHandlerTest extends TestCase
                 ->setConstructorArgs([new Resource($uri, 'test', mimeType: $mimeType), []])
                 ->getMock();
 
-            $this->referenceProvider
+            $this->registry
                 ->expects($this->once())
                 ->method('getResource')
                 ->with($uri)
@@ -389,9 +389,9 @@ class ReadResourceHandlerTest extends TestCase
             $this->assertEquals($expectedResult, $response->result);
 
             // Reset the mock for next iteration
-            $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+            $this->registry = $this->createMock(RegistryInterface::class);
             $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
-            $this->handler = new ReadResourceHandler($this->referenceProvider, $this->referenceHandler);
+            $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler);
         }
     }
 
@@ -401,7 +401,7 @@ class ReadResourceHandlerTest extends TestCase
         $request = $this->createReadResourceRequest($uri);
         $exception = new ResourceNotFoundException($uri);
 
-        $this->referenceProvider
+        $this->registry
             ->expects($this->once())
             ->method('getResource')
             ->with($uri)

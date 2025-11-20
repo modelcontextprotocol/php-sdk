@@ -13,7 +13,7 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ReferenceProviderInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\Content\PromptMessage;
@@ -31,13 +31,13 @@ use PHPUnit\Framework\TestCase;
 class GetPromptHandlerTest extends TestCase
 {
     private GetPromptHandler $handler;
-    private ReferenceProviderInterface&MockObject $referenceProvider;
+    private RegistryInterface&MockObject $referenceProvider;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
 
     protected function setUp(): void
     {
-        $this->referenceProvider = $this->createMock(ReferenceProviderInterface::class);
+        $this->referenceProvider = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
 
