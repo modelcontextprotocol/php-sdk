@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -38,9 +39,11 @@ abstract class BaseTransport
      */
     protected ?\Fiber $sessionFiber = null;
 
-    public function __construct(
-        protected readonly LoggerInterface $logger,
-    ) {
+    protected LoggerInterface $logger;
+
+    public function __construct(?LoggerInterface $logger = null)
+    {
+        $this->logger = $logger ?? new NullLogger();
     }
 
     public function initialize(): void
