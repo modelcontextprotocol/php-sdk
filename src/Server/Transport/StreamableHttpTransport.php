@@ -115,7 +115,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
 
         $this->handleSessionEnd($this->sessionId);
 
-        return $this->withCorsHeaders($this->responseFactory->createResponse(204));
+        return $this->withCorsHeaders($this->responseFactory->createResponse(200));
     }
 
     protected function createJsonResponse(): ResponseInterface
