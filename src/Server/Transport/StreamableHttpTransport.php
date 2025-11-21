@@ -21,11 +21,11 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @implements TransportInterface<ResponseInterface>
+ * @extends BaseTransport<ResponseInterface>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- * */
-class StreamableHttpTransport extends BaseTransport implements TransportInterface
+ */
+class StreamableHttpTransport extends BaseTransport
 {
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;

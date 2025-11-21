@@ -15,11 +15,11 @@ use Mcp\Schema\JsonRpc\Error;
 use Psr\Log\LoggerInterface;
 
 /**
- * @implements TransportInterface<int>
+ * @extends BaseTransport<int>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- * */
-class StdioTransport extends BaseTransport implements TransportInterface
+ */
+class StdioTransport extends BaseTransport
 {
     /**
      * @param resource $input
