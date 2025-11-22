@@ -16,6 +16,7 @@ use Mcp\Exception\RegistryException;
 use Mcp\Server\ClientAwareInterface;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Schema\Metadata;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -110,6 +111,21 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
                 if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
                     $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                    continue;
+                }
+
+                // Inject request metadata if requested
+                if (Metadata::class === $typeName) {
+                    if (isset($arguments['_meta']) && \is_array($arguments['_meta'])) {
+                        $finalArgs[$paramPosition] = new Metadata($arguments['_meta']);
+                    } elseif ($parameter->allowsNull()) {
+                        $finalArgs[$paramPosition] = null;
+                    } else {
+                        $reflectionName = $reflection instanceof \ReflectionMethod
+                            ? $reflection->class.'::'.$reflection->name
+                            : 'Closure';
+                        throw RegistryException::internalError("Missing required request metadata for parameter `{$paramName}` in {$reflectionName}. Provide `_meta` in request params or make the parameter nullable.");
+                    }
                     continue;
                 }
             }

@@ -248,6 +248,63 @@ $server = Server::builder()
     ->build();
 ```
 
+### Request Metadata Injection
+
+You can access request-scoped metadata inside tool handlers by type-hinting the `Mcp\Schema\Metadata` value object. The SDK will inject it automatically when present on the request.
+
+How it works:
+- Clients may send arbitrary metadata in `params._meta` of the JSON-RPC request.
+- The server forwards this metadata for tool calls and the `ReferenceHandler` injects it into parameters typed as `Metadata` or `?Metadata`.
+- If your handler declares a non-nullable `Metadata` parameter but the request contains no `params._meta`, the SDK returns an internal error. Use `?Metadata` if it is optional.
+
+Example handler usage:
+
+```php
+<?php
+
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\Metadata;
+
+final class ExampleTools
+{
+    #[McpTool(name: 'example_action')]
+    public function exampleAction(string $input, Metadata $meta): array
+    {
+        $schema = $meta->get('securitySchema');
+
+        return [
+            'result' => 'ok',
+            'securitySchema' => $schema,
+        ];
+    }
+
+    #[McpTool(name: 'example_optional')]
+    public function exampleOptional(string $input, ?Metadata $meta = null): string
+    {
+        return $meta?->get('traceId') ?? 'no-meta';
+    }
+}
+```
+
+Calling a tool with metadata (JSON-RPC example):
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "1",
+  "method": "tools/call",
+  "params": {
+    "name": "example_action",
+    "arguments": { "input": "hello" },
+    "_meta": { "securitySchema": "secure-123", "traceId": "abc-xyz" }
+  }
+}
+```
+
+Notes:
+- For non-nullable `Metadata` parameters, the client must provide `params._meta`; otherwise an internal error is returned.
+- For nullable `?Metadata` parameters, `null` will be injected when `params._meta` is absent.
+
 ## Documentation
 
 **Core Concepts:**
