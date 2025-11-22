@@ -26,7 +26,7 @@ use Symfony\Component\Uid\Uuid;
  * */
 trait ManagesTransportCallbacks
 {
-    /** @var callable(string, ?Uuid): void */
+    /** @var callable(TransportInterface<mixed>, string, ?Uuid): void */
     protected $messageListener;
 
     /** @var callable(Uuid): void */

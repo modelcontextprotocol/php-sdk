@@ -26,9 +26,13 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-import-type FiberSuspend from TransportInterface
  * @phpstan-import-type McpFiber from TransportInterface
  *
+ * @template TResult
+ *
+ * @implements TransportInterface<TResult>
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-abstract class BaseTransport
+abstract class BaseTransport implements TransportInterface
 {
     use ManagesTransportCallbacks;
 
@@ -126,7 +130,7 @@ abstract class BaseTransport
     protected function handleMessage(string $payload, ?Uuid $sessionId): void
     {
         if (\is_callable($this->messageListener)) {
-            ($this->messageListener)($payload, $sessionId);
+            ($this->messageListener)($this, $payload, $sessionId);
         }
     }
 

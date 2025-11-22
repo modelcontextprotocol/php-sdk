@@ -70,7 +70,7 @@ interface TransportInterface
      *
      * The transport calls this whenever ANY message arrives, regardless of source.
      *
-     * @param callable(string $message, ?Uuid $sessionId): void $listener
+     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId): void $listener
      */
     public function onMessage(callable $listener): void;
 

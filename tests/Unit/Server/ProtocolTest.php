@@ -68,10 +68,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             $sessionId
         );
@@ -127,10 +126,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
@@ -166,10 +164,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}}',
             $sessionId
         );
@@ -198,9 +195,8 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $protocol->processInput(
+            $this->transport,
             '[{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}}, {"jsonrpc": "2.0", "method": "ping", "id": 2}]',
             null
         );
@@ -231,9 +227,8 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             null
         );
@@ -266,10 +261,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
@@ -298,9 +292,8 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $protocol->processInput(
+            $this->transport,
             'invalid json',
             null
         );
@@ -343,10 +336,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "params": {}}',
             $sessionId
         );
@@ -397,10 +389,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
             $sessionId
         );
@@ -456,10 +447,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test"}}',
             $sessionId
         );
@@ -515,10 +505,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test"}}',
             $sessionId
         );
@@ -553,10 +542,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             $sessionId
         );
@@ -607,9 +595,8 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
@@ -670,10 +657,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '[{"jsonrpc": "2.0", "method": "tools/list", "id": 1}, {"jsonrpc": "2.0", "method": "prompts/list", "id": 2}]',
             $sessionId
         );
@@ -706,10 +692,9 @@ final class ProtocolTest extends TestCase
             sessionStore: $this->sessionStore,
         );
 
-        $protocol->connect($this->transport);
-
         $sessionId = Uuid::v4();
         $protocol->processInput(
+            $this->transport,
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             $sessionId
         );
