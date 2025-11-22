@@ -60,10 +60,6 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
         ], $corsHeaders);
     }
 
-    public function initialize(): void
-    {
-    }
-
     public function send(string $data, array $context): void
     {
         $this->immediateResponse = $data;
