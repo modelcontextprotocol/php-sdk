@@ -21,8 +21,6 @@ use Symfony\Component\Uid\Uuid;
  */
 class InMemoryTransport extends BaseTransport implements TransportInterface
 {
-    use ManagesTransportCallbacks;
-
     /**
      * @param list<string> $messages
      */
@@ -31,10 +29,6 @@ class InMemoryTransport extends BaseTransport implements TransportInterface
         ?LoggerInterface $logger = null,
     ) {
         parent::__construct($logger);
-    }
-
-    public function initialize(): void
-    {
     }
 
     public function onMessage(callable $listener): void
