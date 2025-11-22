@@ -481,7 +481,9 @@ final class Builder
             logging: false,
             completions: true,
         );
-        $configuration = new Configuration($this->serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
+
+        $serverInfo = $this->serverInfo ?? new Implementation('MCP SDK for PHP');
+        $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
