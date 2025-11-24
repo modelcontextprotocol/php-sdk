@@ -61,6 +61,11 @@ final class CallToolHandler implements RequestHandlerInterface
             $reference = $this->registry->getTool($toolName);
 
             $arguments['_session'] = $session;
+            // Pass request metadata through to the handler so it can be injected
+            // into method parameters when requested by type-hint.
+            if (null !== $request->getMeta()) {
+                $arguments['_meta'] = $request->getMeta();
+            }
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 
