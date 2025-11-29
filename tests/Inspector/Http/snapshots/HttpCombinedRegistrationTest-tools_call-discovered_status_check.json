@@ -5,5 +5,8 @@
       "text": "System status: OK (discovered)"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": "System status: OK (discovered)"
+  }
 }

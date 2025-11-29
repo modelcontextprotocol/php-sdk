@@ -13,6 +13,7 @@ namespace Mcp\Capability\Discovery;
 
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
+use phpDocumentor\Reflection\DocBlock\Tags\TagWithType;
 use phpDocumentor\Reflection\DocBlockFactory;
 use phpDocumentor\Reflection\DocBlockFactoryInterface;
 use Psr\Log\LoggerInterface;
@@ -135,5 +136,54 @@ class DocBlockParser
         }
 
         return null;
+    }
+
+    /**
+     * Gets the return type string from a Return tag.
+     */
+    public function getReturnTypeString(?DocBlock $docBlock): ?string
+    {
+        if (null === $docBlock) {
+            return null;
+        }
+
+        $returnTags = $docBlock->getTagsByName('return');
+        if ([] === $returnTags) {
+            return null;
+        }
+
+        $returnTag = $returnTags[0];
+        if (!$returnTag instanceof TagWithType) {
+            return null;
+        }
+
+        $typeFromTag = trim((string) $returnTag->getType());
+        if (!empty($typeFromTag)) {
+            return ltrim($typeFromTag, '\\');
+        }
+
+        return null;
+    }
+
+    /**
+     * Gets the return type description from a Return tag.
+     */
+    public function getReturnDescription(?DocBlock $docBlock): ?string
+    {
+        if (null === $docBlock) {
+            return null;
+        }
+
+        $returnTags = $docBlock->getTagsByName('return');
+        if ([] === $returnTags) {
+            return null;
+        }
+
+        $returnTag = $returnTags[0];
+        if (!$returnTag instanceof TagWithType) {
+            return null;
+        }
+
+        return trim((string) $returnTag->getDescription()) ?: null;
     }
 }
