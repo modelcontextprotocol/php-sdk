@@ -111,4 +111,48 @@ class ToolReference extends ElementReference
 
         return [new TextContent($jsonResult)];
     }
+
+    /**
+     * Extracts structured content from a tool result using the output schema.
+     *
+     * @param mixed $toolExecutionResult the raw value returned by the tool's PHP method
+     *
+     * @return array<string, mixed>|null the structured content, or null if not extractable
+     */
+    public function extractStructuredContent(mixed $toolExecutionResult): ?array
+    {
+        $outputSchema = $this->tool->outputSchema;
+        if (null === $outputSchema) {
+            return null;
+        }
+
+        if (\is_array($toolExecutionResult)) {
+            if (array_is_list($toolExecutionResult) && isset($outputSchema['additionalProperties'])) {
+                // Wrap list in "object" schema for additionalProperties
+                return ['items' => $toolExecutionResult];
+            }
+
+            return $toolExecutionResult;
+        }
+
+        if (\is_object($toolExecutionResult) && !($toolExecutionResult instanceof Content)) {
+            return $this->normalizeValue($toolExecutionResult);
+        }
+
+        return null;
+    }
+
+    /**
+     * Convert objects to arrays for a normalized structured content.
+     *
+     * @throws \JsonException if JSON encoding fails for non-Content array/object results
+     */
+    private function normalizeValue(mixed $value): mixed
+    {
+        if (\is_object($value) && !($value instanceof Content)) {
+            return json_decode(json_encode($value, \JSON_THROW_ON_ERROR), true, 512, \JSON_THROW_ON_ERROR);
+        }
+
+        return $value;
+    }
 }
