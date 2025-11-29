@@ -268,6 +268,7 @@ $server = Server::builder()
 
 * [pronskiy/mcp](https://github.com/pronskiy/mcp) - Additional DX layer
 * [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) - Symfony integration bundle
+* [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) - CakePHP integration plugin
 
 ## Contributing
 
