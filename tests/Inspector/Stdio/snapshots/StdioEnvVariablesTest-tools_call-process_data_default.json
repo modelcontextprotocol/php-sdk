@@ -5,5 +5,10 @@
       "text": "{\n    \"mode\": \"default\",\n    \"original_input\": \"test data\",\n    \"message\": \"Processed in default mode (APP_MODE not recognized or not set).\"\n}"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "mode": "default",
+    "original_input": "test data",
+    "message": "Processed in default mode (APP_MODE not recognized or not set)."
+  }
 }

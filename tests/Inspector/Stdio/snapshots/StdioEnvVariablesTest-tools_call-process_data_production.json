@@ -5,5 +5,10 @@
       "text": "{\n    \"mode\": \"production\",\n    \"processed_input_length\": 15,\n    \"message\": \"Processed in PRODUCTION mode (summary only).\"\n}"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "mode": "production",
+    "processed_input_length": 15,
+    "message": "Processed in PRODUCTION mode (summary only)."
+  }
 }
