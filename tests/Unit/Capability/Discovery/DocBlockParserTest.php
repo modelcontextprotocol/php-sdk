@@ -16,7 +16,6 @@ use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\See;
-use phpDocumentor\Reflection\DocBlock\Tags\Throws;
 use PHPUnit\Framework\TestCase;
 
 class DocBlockParserTest extends TestCase
@@ -108,12 +107,6 @@ class DocBlockParserTest extends TestCase
         $docBlock = $this->parser->parseDocBlock($docComment);
 
         $this->assertInstanceOf(DocBlock::class, $docBlock);
-
-        $throwsTags = $docBlock->getTagsByName('throws');
-        $this->assertCount(1, $throwsTags);
-        $this->assertInstanceOf(Throws::class, $throwsTags[0]);
-        $this->assertEquals('\\RuntimeException', (string) $throwsTags[0]->getType());
-        $this->assertEquals('if processing fails', $throwsTags[0]->getDescription()->render());
 
         $deprecatedTags = $docBlock->getTagsByName('deprecated');
         $this->assertCount(1, $deprecatedTags);

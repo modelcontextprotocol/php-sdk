@@ -47,7 +47,8 @@ final class ArrayLoader implements LoaderInterface
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     icons: ?Icon[],
-     *     meta: ?array<string, mixed>
+     *     meta: ?array<string, mixed>,
+     *     outputSchema: ?array<string, mixed>
      * }[] $tools
      * @param array{
      *     handler: Handler,
@@ -117,6 +118,7 @@ final class ArrayLoader implements LoaderInterface
                     annotations: $data['annotations'] ?? null,
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null,
+                    outputSchema: $data['outputSchema'] ?? null,
                 );
                 $registry->registerTool($tool, $data['handler'], true);
 

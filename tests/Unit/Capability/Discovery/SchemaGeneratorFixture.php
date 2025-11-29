@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedStringEnum;
@@ -337,6 +338,12 @@ class SchemaGeneratorFixture
     /**
      * Complex nested Schema constraints.
      */
+    #[McpTool(
+        outputSchema: [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ]
+    )]
     public function complexNestedSchema(
         #[Schema(
             type: 'object',
@@ -399,6 +406,12 @@ class SchemaGeneratorFixture
      * Method with no parameters but Schema description.
      */
     #[Schema(description: 'Gets server status. Takes no arguments.', properties: [])]
+    #[McpTool(
+        outputSchema: [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ]
+    )]
     public function noParamsWithSchema(): array
     {
         return ['status' => 'OK'];
@@ -423,5 +436,21 @@ class SchemaGeneratorFixture
 
     public function withParameterNamedRequest(string $_request): void
     {
+    }
+
+    // ===== OUTPUT SCHEMA FIXTURES =====
+    #[McpTool(
+        outputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'message' => ['type' => 'string'],
+            ],
+            'required' => ['message'],
+            'description' => 'The result of the operation',
+        ]
+    )]
+    public function returnWithExplicitOutputSchema(): array
+    {
+        return ['message' => 'result'];
     }
 }

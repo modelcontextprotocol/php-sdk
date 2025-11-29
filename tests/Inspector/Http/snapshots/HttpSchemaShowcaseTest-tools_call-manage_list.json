@@ -5,5 +5,27 @@
             "text": "{\n    \"original_count\": 4,\n    \"processed_count\": 4,\n    \"action\": \"sort\",\n    \"original\": [\n        \"apple\",\n        \"banana\",\n        \"cherry\",\n        \"date\"\n    ],\n    \"processed\": [\n        \"apple\",\n        \"banana\",\n        \"cherry\",\n        \"date\"\n    ],\n    \"stats\": {\n        \"average_length\": 5.25,\n        \"shortest\": 4,\n        \"longest\": 6\n    }\n}"
         }
     ],
+    "structuredContent": {
+        "original_count": 4,
+        "processed_count": 4,
+        "action": "sort",
+        "original": [
+            "apple",
+            "banana",
+            "cherry",
+            "date"
+        ],
+        "processed": [
+            "apple",
+            "banana",
+            "cherry",
+            "date"
+        ],
+        "stats": {
+        "average_length": 5.25,
+        "shortest": 4,
+        "longest": 6
+        }
+    },
     "isError": false
 }

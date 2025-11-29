@@ -83,6 +83,7 @@ class CallToolResult implements ResultInterface
      *     content: array<mixed>,
      *     isError?: bool,
      *     _meta?: array<string, mixed>,
+     *     structuredContent?: array<string, mixed>
      * } $data
      */
     public static function fromArray(array $data): self

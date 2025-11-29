@@ -5,5 +5,18 @@
       "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Project Deadline\\\" scheduled successfully for \\\"2024-12-15\\\".\",\n    \"event_details\": {\n        \"title\": \"Project Deadline\",\n        \"date\": \"2024-12-15\",\n        \"type\": \"reminder\",\n        \"time\": \"All day\",\n        \"priority\": \"Normal\",\n        \"attendees\": [],\n        \"invites_will_be_sent\": false\n    }\n}"
     }
   ],
+  "structuredContent": {
+    "success": true,
+    "message": "Event \"Project Deadline\" scheduled successfully for \"2024-12-15\".",
+    "event_details": {
+      "title": "Project Deadline",
+      "date": "2024-12-15",
+      "type": "reminder",
+      "time": "All day",
+      "priority": "Normal",
+      "attendees": [],
+      "invites_will_be_sent": false
+    }
+  },
   "isError": false
 }

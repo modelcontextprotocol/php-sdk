@@ -5,5 +5,17 @@
             "text": "{\n    \"valid\": true,\n    \"profile\": {\n        \"name\": \"John Doe\",\n        \"email\": \"john@example.com\",\n        \"age\": 30,\n        \"role\": \"user\"\n    },\n    \"errors\": [],\n    \"warnings\": [],\n    \"processed_at\": \"2025-01-01 00:00:00\"\n}"
         }
     ],
+    "structuredContent": {
+        "valid": true,
+        "profile": {
+            "name": "John Doe",
+            "email": "john@example.com",
+            "age": 30,
+            "role": "user"
+        },
+        "errors": [],
+        "warnings": [],
+        "processed_at": "2025-01-01 00:00:00"
+    },
     "isError": false
 }

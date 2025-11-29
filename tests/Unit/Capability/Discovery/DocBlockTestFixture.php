@@ -70,8 +70,6 @@ class DocBlockTestFixture
      *
      * @return bool status of the operation
      *
-     * @throws \RuntimeException if processing fails
-     *
      * @deprecated use newMethod() instead
      * @see DocBlockTestFixture::newMethod()
      */

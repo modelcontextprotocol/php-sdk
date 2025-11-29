@@ -5,5 +5,12 @@
       "text": "{\n    \"id\": 4,\n    \"userId\": \"alice\",\n    \"description\": \"Complete the project documentation\",\n    \"completed\": false,\n    \"createdAt\": \"2025-01-01T00:00:00+00:00\"\n}"
     }
   ],
+  "structuredContent": {
+    "id": 4,
+    "userId": "alice",
+    "description": "Complete the project documentation",
+    "completed": false,
+    "createdAt": "2025-01-01T00:00:00+00:00"
+  },
   "isError": false
 }
