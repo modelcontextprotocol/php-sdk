@@ -53,6 +53,7 @@ final class Server
             return $transport->listen();
         } finally {
             $transport->close();
+            $this->protocol->disconnect();
         }
     }
 }

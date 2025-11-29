@@ -73,6 +73,12 @@ final class ServerTest extends TestCase
                 $callOrder[] = 'close';
             });
 
+        $this->protocol->expects($this->once())
+            ->method('disconnect')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'disconnect';
+            });
+
         $server = new Server($this->protocol);
         $result = $server->run($this->transport);
 
@@ -81,6 +87,7 @@ final class ServerTest extends TestCase
             'connect',
             'listen',
             'close',
+            'disconnect',
         ], $callOrder);
 
         $this->assertEquals(0, $result);
@@ -153,5 +160,75 @@ final class ServerTest extends TestCase
 
         $server = new Server($this->protocol);
         $server->run($this->transport);
+    }
+
+    #[TestDox('run() disconnects protocol after completion (worker mode support)')]
+    public function testRunDisconnectsProtocolAfterCompletion(): void
+    {
+        $this->transport->method('initialize');
+        $this->transport->method('listen')->willReturn(0);
+        $this->transport->method('close');
+
+        $this->protocol->expects($this->once())->method('connect');
+        $this->protocol->expects($this->once())->method('disconnect');
+
+        $server = new Server($this->protocol);
+        $server->run($this->transport);
+    }
+
+    #[TestDox('run() disconnects protocol even if listen() throws (worker mode support)')]
+    public function testRunDisconnectsProtocolEvenOnException(): void
+    {
+        $this->transport->method('initialize');
+        $this->protocol->method('connect');
+
+        $this->transport->expects($this->once())
+            ->method('listen')
+            ->willThrowException(new \RuntimeException('Transport error'));
+
+        $this->transport->expects($this->once())->method('close');
+        $this->protocol->expects($this->once())->method('disconnect');
+
+        $server = new Server($this->protocol);
+
+        $this->expectException(\RuntimeException::class);
+        $server->run($this->transport);
+    }
+
+    #[TestDox('run() can be called multiple times with different transports (worker mode)')]
+    public function testRunCanBeCalledMultipleTimes(): void
+    {
+        $callOrder = [];
+
+        $transport1 = $this->createMock(TransportInterface::class);
+        $transport2 = $this->createMock(TransportInterface::class);
+
+        $transport1->method('initialize');
+        $transport1->method('listen')->willReturn(1);
+        $transport1->method('close');
+
+        $transport2->method('initialize');
+        $transport2->method('listen')->willReturn(2);
+        $transport2->method('close');
+
+        // Use a real-ish protocol behavior simulation
+        $this->protocol->expects($this->exactly(2))
+            ->method('connect')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'connect';
+            });
+
+        $this->protocol->expects($this->exactly(2))
+            ->method('disconnect')
+            ->willReturnCallback(function () use (&$callOrder) {
+                $callOrder[] = 'disconnect';
+            });
+
+        $server = new Server($this->protocol);
+
+        $this->assertEquals(1, $server->run($transport1));
+        $this->assertEquals(2, $server->run($transport2));
+
+        $this->assertEquals(['connect', 'disconnect', 'connect', 'disconnect'], $callOrder);
     }
 }

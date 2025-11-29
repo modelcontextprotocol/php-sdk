@@ -111,6 +111,18 @@ class Protocol
     }
 
     /**
+     * Disconnect the protocol from the current transport.
+     *
+     * This resets the transport reference, allowing the protocol to be reused
+     * with a new transport (e.g., in FrankenPHP worker mode where the same
+     * Protocol instance handles multiple requests).
+     */
+    public function disconnect(): void
+    {
+        $this->transport = null;
+    }
+
+    /**
      * Handle an incoming message from the transport.
      *
      * This is called by the transport whenever ANY message arrives.
