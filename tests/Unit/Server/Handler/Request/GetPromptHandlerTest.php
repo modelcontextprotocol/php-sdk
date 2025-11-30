@@ -14,6 +14,10 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Prompt\AbstractGetPromptEvent;
+use Mcp\Event\Prompt\GetPromptExceptionEvent;
+use Mcp\Event\Prompt\GetPromptRequestEvent;
+use Mcp\Event\Prompt\GetPromptResultEvent;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\Content\PromptMessage;
@@ -27,6 +31,7 @@ use Mcp\Server\Handler\Request\GetPromptHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class GetPromptHandlerTest extends TestCase
 {
@@ -34,14 +39,31 @@ class GetPromptHandlerTest extends TestCase
     private RegistryInterface&MockObject $referenceProvider;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
+    private EventDispatcherInterface&MockObject $eventDispatcher;
+
+    /** @var AbstractGetPromptEvent[] */
+    private array $dispatchedEvents = [];
 
     protected function setUp(): void
     {
         $this->referenceProvider = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
 
-        $this->handler = new GetPromptHandler($this->referenceProvider, $this->referenceHandler);
+        $this->eventDispatcher
+            ->method('dispatch')
+            ->with($this->callback(function (AbstractGetPromptEvent $event) {
+                $this->dispatchedEvents[] = $event;
+
+                return true;
+            }));
+
+        $this->handler = new GetPromptHandler(
+            $this->referenceProvider,
+            $this->referenceHandler,
+            eventDispatcher: $this->eventDispatcher,
+        );
     }
 
     public function testSupportsGetPromptRequest(): void
@@ -84,6 +106,17 @@ class GetPromptHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithArguments(): void
@@ -125,6 +158,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithNullArguments(): void
@@ -158,6 +202,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithEmptyArguments(): void
@@ -191,6 +246,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithMultipleMessages(): void
@@ -226,6 +292,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptNotFoundExceptionReturnsError(): void
@@ -245,6 +322,12 @@ class GetPromptHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Prompt not found: "nonexistent_prompt".', $response->message);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
     }
 
     public function testHandlePromptGetExceptionReturnsError(): void
@@ -264,6 +347,12 @@ class GetPromptHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Failed to get prompt', $response->message);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
     }
 
     public function testHandlePromptGetWithComplexArguments(): void
@@ -312,6 +401,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithSpecialCharacters(): void
@@ -350,6 +450,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetReturnsEmptyMessages(): void
@@ -380,6 +491,17 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
     }
 
     public function testHandlePromptGetWithLargeNumberOfArguments(): void
@@ -418,6 +540,54 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptResultEvent::class, $getPromptResultEvent);
+        $this->assertSame($request, $getPromptResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $getPromptResultEvent->getResult());
+    }
+
+    public function testHandleGenericExceptionReturnsError(): void
+    {
+        $request = $this->createGetPromptRequest('failing_prompt');
+        $exception = new \RuntimeException('Internal database connection failed');
+
+        $promptReference = $this->createMock(PromptReference::class);
+        $this->referenceProvider
+            ->expects($this->once())
+            ->method('getPrompt')
+            ->with('failing_prompt')
+            ->willReturn($promptReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($promptReference, ['_session' => $this->session])
+            ->willThrowException($exception);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Error while handling prompt', $response->message);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $getPromptRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(GetPromptRequestEvent::class, $getPromptRequestEvent);
+        $this->assertSame($request, $getPromptRequestEvent->getRequest());
+
+        $getPromptExceptionEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(GetPromptExceptionEvent::class, $getPromptExceptionEvent);
+        $this->assertSame($request, $getPromptExceptionEvent->getRequest());
+        $this->assertSame($exception, $getPromptExceptionEvent->getThrowable());
     }
 
     /**
