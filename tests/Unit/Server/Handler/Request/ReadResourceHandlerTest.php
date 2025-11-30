@@ -14,6 +14,10 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Resource\AbstractReadResourceEvent;
+use Mcp\Event\Resource\ReadResourceExceptionEvent;
+use Mcp\Event\Resource\ReadResourceRequestEvent;
+use Mcp\Event\Resource\ReadResourceResultEvent;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
@@ -27,6 +31,7 @@ use Mcp\Server\Handler\Request\ReadResourceHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class ReadResourceHandlerTest extends TestCase
 {
@@ -34,14 +39,31 @@ class ReadResourceHandlerTest extends TestCase
     private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
+    private EventDispatcherInterface&MockObject $eventDispatcher;
+
+    /** @var AbstractReadResourceEvent[] */
+    private array $dispatchedEvents = [];
 
     protected function setUp(): void
     {
         $this->registry = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
 
-        $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler);
+        $this->eventDispatcher
+            ->method('dispatch')
+            ->with($this->callback(function (AbstractReadResourceEvent $event) {
+                $this->dispatchedEvents[] = $event;
+
+                return true;
+            }));
+
+        $this->handler = new ReadResourceHandler(
+            $this->registry,
+            $this->referenceHandler,
+            eventDispatcher: $this->eventDispatcher,
+        );
     }
 
     public function testSupportsReadResourceRequest(): void
@@ -89,6 +111,17 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
+
+        $readResourceResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(ReadResourceResultEvent::class, $readResourceResultEvent);
+        $this->assertSame($request, $readResourceResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $readResourceResultEvent->getResult());
     }
 
     public function testHandleResourceReadWithBlobContent(): void
@@ -128,6 +161,17 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
+
+        $readResourceResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(ReadResourceResultEvent::class, $readResourceResultEvent);
+        $this->assertSame($request, $readResourceResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $readResourceResultEvent->getResult());
     }
 
     public function testHandleResourceReadWithMultipleContents(): void
@@ -172,6 +216,17 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
+
+        $readResourceResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(ReadResourceResultEvent::class, $readResourceResultEvent);
+        $this->assertSame($request, $readResourceResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $readResourceResultEvent->getResult());
     }
 
     public function testHandleResourceNotFoundExceptionReturnsSpecificError(): void
@@ -192,6 +247,12 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
     }
 
     public function testHandleResourceReadExceptionReturnsActualErrorMessage(): void
@@ -212,6 +273,12 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Failed to read resource: corrupted data', $response->message);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
     }
 
     public function testHandleGenericExceptionReturnsGenericError(): void
@@ -232,6 +299,17 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Error while reading resource', $response->message);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
+
+        $readResourceExceptionEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(ReadResourceExceptionEvent::class, $readResourceExceptionEvent);
+        $this->assertSame($request, $readResourceExceptionEvent->getRequest());
+        $this->assertSame($exception, $readResourceExceptionEvent->getThrowable());
     }
 
     public function testHandleResourceReadWithDifferentUriSchemes(): void
@@ -325,6 +403,17 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
+
+        $readResourceResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(ReadResourceResultEvent::class, $readResourceResultEvent);
+        $this->assertSame($request, $readResourceResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $readResourceResultEvent->getResult());
     }
 
     public function testHandleResourceReadWithDifferentMimeTypes(): void
@@ -412,6 +501,12 @@ class ReadResourceHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
         $this->assertEquals('Resource not found for uri: "'.$uri.'".', $response->message);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $readResourceRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(ReadResourceRequestEvent::class, $readResourceRequestEvent);
+        $this->assertSame($request, $readResourceRequestEvent->getRequest());
     }
 
     private function createReadResourceRequest(string $uri): ReadResourceRequest

@@ -13,6 +13,9 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Tool\CallToolExceptionEvent;
+use Mcp\Event\Tool\CallToolRequestEvent;
+use Mcp\Event\Tool\CallToolResultEvent;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -22,6 +25,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\Session\SessionInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -37,6 +41,7 @@ final class CallToolHandler implements RequestHandlerInterface
         private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -57,6 +62,9 @@ final class CallToolHandler implements RequestHandlerInterface
 
         $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
+        $toolCallRequestEvent = new CallToolRequestEvent($request);
+        $this->eventDispatcher?->dispatch($toolCallRequestEvent);
+
         try {
             $reference = $this->registry->getTool($toolName);
 
@@ -72,6 +80,9 @@ final class CallToolHandler implements RequestHandlerInterface
                 'name' => $toolName,
                 'result_type' => \gettype($result),
             ]);
+
+            $toolCallResultEvent = new CallToolResultEvent($request, $result);
+            $this->eventDispatcher?->dispatch($toolCallResultEvent);
 
             return new Response($request->getId(), $result);
         } catch (ToolCallException $e) {
@@ -92,6 +103,9 @@ final class CallToolHandler implements RequestHandlerInterface
                 'name' => $toolName,
                 'exception' => $e->getMessage(),
             ]);
+
+            $toolCallExceptionEvent = new CallToolExceptionEvent($request, $e);
+            $this->eventDispatcher?->dispatch($toolCallExceptionEvent);
 
             return Error::forInternalError('Error while executing tool', $request->getId());
         }

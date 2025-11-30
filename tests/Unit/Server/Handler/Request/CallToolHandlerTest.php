@@ -14,6 +14,10 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Tool\AbstractCallToolEvent;
+use Mcp\Event\Tool\CallToolExceptionEvent;
+use Mcp\Event\Tool\CallToolRequestEvent;
+use Mcp\Event\Tool\CallToolResultEvent;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -25,6 +29,7 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
@@ -34,6 +39,10 @@ class CallToolHandlerTest extends TestCase
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private LoggerInterface&MockObject $logger;
     private SessionInterface&MockObject $session;
+    private EventDispatcherInterface&MockObject $eventDispatcher;
+
+    /** @var AbstractCallToolEvent[] */
+    private array $dispatchedEvents = [];
 
     protected function setUp(): void
     {
@@ -41,11 +50,22 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+
+        // Store all dispatched events for further assertion
+        $this->eventDispatcher
+            ->method('dispatch')
+            ->with($this->callback(function (AbstractCallToolEvent $event) {
+                $this->dispatchedEvents[] = $event;
+
+                return true;
+            }));
 
         $this->handler = new CallToolHandler(
             $this->registry,
             $this->referenceHandler,
             $this->logger,
+            $this->eventDispatcher,
         );
     }
 
@@ -74,11 +94,13 @@ class CallToolHandlerTest extends TestCase
             ->with($toolReference, ['name' => 'John', '_session' => $this->session])
             ->willReturn('Hello, John!');
 
+        $resultContent = [new TextContent('Hello, John!')];
+
         $toolReference
             ->expects($this->once())
             ->method('formatResult')
             ->with('Hello, John!')
-            ->willReturn([new TextContent('Hello, John!')]);
+            ->willReturn($resultContent);
 
         // Logger may be called for debugging, so we don't assert never()
 
@@ -87,6 +109,17 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertSame($resultContent, $callToolResultEvent->getResult()->content);
     }
 
     public function testHandleToolCallWithEmptyArguments(): void
@@ -117,6 +150,17 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $callToolResultEvent->getResult());
     }
 
     public function testHandleToolCallWithComplexArguments(): void
@@ -154,6 +198,17 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $callToolResultEvent->getResult());
     }
 
     public function testHandleToolNotFoundExceptionReturnsError(): void
@@ -175,6 +230,12 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
     }
 
     public function testHandleToolCallExceptionReturnsResponseWithErrorResult(): void
@@ -210,6 +271,12 @@ class CallToolHandlerTest extends TestCase
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertEquals('Tool execution failed', $result->content[0]->text);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
     }
 
     public function testHandleWithNullResult(): void
@@ -240,11 +307,29 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertSame([], $callToolResultEvent->getResult()->content);
     }
 
     public function testConstructorWithDefaultLogger(): void
     {
-        $handler = new CallToolHandler($this->registry, $this->referenceHandler);
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, eventDispatcher: $this->createMock(EventDispatcherInterface::class));
+
+        $this->assertInstanceOf(CallToolHandler::class, $handler);
+    }
+
+    public function testConstructorWithoutEventDispatched(): void
+    {
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, eventDispatcher: null);
 
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
@@ -290,6 +375,12 @@ class CallToolHandlerTest extends TestCase
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertEquals('Custom error message', $result->content[0]->text);
+
+        $this->assertCount(1, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
     }
 
     public function testHandleGenericExceptionReturnsError(): void
@@ -317,6 +408,17 @@ class CallToolHandlerTest extends TestCase
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Error while executing tool', $response->message);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolExceptionEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertSame($exception, $callToolResultEvent->getThrowable());
     }
 
     public function testHandleWithSpecialCharactersInToolName(): void
@@ -337,16 +439,29 @@ class CallToolHandlerTest extends TestCase
             ->with($toolReference, ['_session' => $this->session])
             ->willReturn('Special tool result');
 
+        $content = [new TextContent('Special tool result')];
+
         $toolReference
             ->expects($this->once())
             ->method('formatResult')
             ->with('Special tool result')
-            ->willReturn([new TextContent('Special tool result')]);
+            ->willReturn($content);
 
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertSame($content, $callToolResultEvent->getResult()->content);
     }
 
     public function testHandleWithSpecialCharactersInArguments(): void
@@ -382,6 +497,17 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($expectedResult, $response->result);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertEquals($expectedResult, $callToolResultEvent->getResult());
     }
 
     public function testHandleReturnsStructuredContentResult(): void
@@ -411,6 +537,17 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($structuredResult, $response->result);
         $this->assertEquals(['result' => 'Rendered results'], $response->result->jsonSerialize()['structuredContent'] ?? []);
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertEquals($structuredResult, $callToolResultEvent->getResult());
     }
 
     public function testHandleReturnsCallToolResult(): void
@@ -440,6 +577,17 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($callToolResult, $response->result);
         $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
+
+        $this->assertCount(2, $this->dispatchedEvents);
+
+        $callToolRequestEvent = $this->dispatchedEvents[0];
+        $this->assertInstanceOf(CallToolRequestEvent::class, $callToolRequestEvent);
+        $this->assertSame($request, $callToolRequestEvent->getRequest());
+
+        $callToolResultEvent = $this->dispatchedEvents[1];
+        $this->assertInstanceOf(CallToolResultEvent::class, $callToolResultEvent);
+        $this->assertSame($request, $callToolResultEvent->getRequest());
+        $this->assertEquals($callToolResult, $callToolResultEvent->getResult());
     }
 
     /**

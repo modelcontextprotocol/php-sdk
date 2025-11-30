@@ -11,11 +11,13 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Event\PingRequestEvent;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\Session\SessionInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @implements RequestHandlerInterface<EmptyResult>
@@ -24,6 +26,11 @@ use Mcp\Server\Session\SessionInterface;
  */
 final class PingHandler implements RequestHandlerInterface
 {
+    public function __construct(
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
+    ) {
+    }
+
     public function supports(Request $request): bool
     {
         return $request instanceof PingRequest;
@@ -35,6 +42,8 @@ final class PingHandler implements RequestHandlerInterface
     public function handle(Request $request, SessionInterface $session): Response
     {
         \assert($request instanceof PingRequest);
+
+        $this->eventDispatcher?->dispatch(new PingRequestEvent($request));
 
         return new Response($request->getId(), new EmptyResult());
     }
