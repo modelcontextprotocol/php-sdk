@@ -57,6 +57,7 @@ class StreamableHttpTransport extends BaseTransport implements TransportInterfac
             'Access-Control-Allow-Origin' => '*',
             'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
             'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Access-Control-Expose-Headers' => 'Mcp-Session-Id',
         ], $corsHeaders);
     }
 
