@@ -482,7 +482,7 @@ final class Builder
             completions: true,
         );
 
-        $serverInfo = $this->serverInfo ?? new Implementation('MCP SDK for PHP');
+        $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = new ReferenceHandler($container);
 
