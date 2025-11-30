@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Event\InitializeRequestEvent;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -19,6 +20,7 @@ use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Configuration;
 use Mcp\Server\Session\SessionInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * @implements RequestHandlerInterface<InitializeResult>
@@ -29,6 +31,7 @@ final class InitializeHandler implements RequestHandlerInterface
 {
     public function __construct(
         public readonly ?Configuration $configuration = null,
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -45,6 +48,8 @@ final class InitializeHandler implements RequestHandlerInterface
         \assert($request instanceof InitializeRequest);
 
         $session->set('client_info', $request->clientInfo->jsonSerialize());
+
+        $this->eventDispatcher?->dispatch(new InitializeRequestEvent($request));
 
         return new Response(
             $request->getId(),

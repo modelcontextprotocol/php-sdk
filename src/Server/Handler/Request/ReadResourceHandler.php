@@ -14,6 +14,9 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Resource\ReadResourceExceptionEvent;
+use Mcp\Event\Resource\ReadResourceRequestEvent;
+use Mcp\Event\Resource\ReadResourceResultEvent;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
@@ -22,6 +25,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\Session\SessionInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -36,6 +40,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
         private readonly RegistryInterface $referenceProvider,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -54,6 +59,8 @@ final class ReadResourceHandler implements RequestHandlerInterface
         $uri = $request->uri;
 
         $this->logger->debug('Reading resource', ['uri' => $uri]);
+
+        $this->eventDispatcher?->dispatch(new ReadResourceRequestEvent($request));
 
         try {
             $reference = $this->referenceProvider->getResource($uri);
@@ -75,7 +82,11 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
             }
 
-            return new Response($request->getId(), new ReadResourceResult($formatted));
+            $result = new ReadResourceResult($formatted);
+
+            $this->eventDispatcher?->dispatch(new ReadResourceResultEvent($request, $result));
+
+            return new Response($request->getId(), $result);
         } catch (ResourceReadException $e) {
             $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()));
 
@@ -86,6 +97,8 @@ final class ReadResourceHandler implements RequestHandlerInterface
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()));
+
+            $this->eventDispatcher?->dispatch(new ReadResourceExceptionEvent($request, $e));
 
             return Error::forInternalError('Error while reading resource', $request->getId());
         }

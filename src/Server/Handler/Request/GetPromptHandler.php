@@ -13,6 +13,9 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Prompt\GetPromptExceptionEvent;
+use Mcp\Event\Prompt\GetPromptRequestEvent;
+use Mcp\Event\Prompt\GetPromptResultEvent;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
@@ -21,6 +24,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Server\Session\SessionInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -35,6 +39,7 @@ final class GetPromptHandler implements RequestHandlerInterface
         private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
     }
 
@@ -53,6 +58,8 @@ final class GetPromptHandler implements RequestHandlerInterface
         $promptName = $request->name;
         $arguments = $request->arguments ?? [];
 
+        $this->eventDispatcher?->dispatch(new GetPromptRequestEvent($request));
+
         try {
             $reference = $this->registry->getPrompt($promptName);
 
@@ -62,8 +69,11 @@ final class GetPromptHandler implements RequestHandlerInterface
             $result = $this->referenceHandler->handle($reference, $arguments);
 
             $formatted = $reference->formatResult($result);
+            $result = new GetPromptResult($formatted);
 
-            return new Response($request->getId(), new GetPromptResult($formatted));
+            $this->eventDispatcher?->dispatch(new GetPromptResultEvent($request, $result));
+
+            return new Response($request->getId(), $result);
         } catch (PromptGetException $e) {
             $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
 
@@ -74,6 +84,8 @@ final class GetPromptHandler implements RequestHandlerInterface
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
+
+            $this->eventDispatcher?->dispatch(new GetPromptExceptionEvent($request, $e));
 
             return Error::forInternalError('Error while handling prompt', $request->getId());
         }

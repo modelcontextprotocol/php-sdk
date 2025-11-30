@@ -255,6 +255,7 @@ $server = Server::builder()
 - [Transports](docs/transports.md) - STDIO and HTTP transport setup and usage
 - [MCP Elements](docs/mcp-elements.md) - Creating tools, resources, and prompts
 - [Client Communication](docs/client-communication.md) - Communicating back to the client from server-side
+- [Events](docs/events.md) - Hooking into server lifecycle with events
 
 **Learning:**
 - [Examples](docs/examples.md) - Comprehensive example walkthroughs
