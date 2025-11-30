@@ -15,11 +15,11 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * @implements TransportInterface<null>
+ * @extends BaseTransport<null>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
-class InMemoryTransport extends BaseTransport implements TransportInterface
+class InMemoryTransport extends BaseTransport
 {
     /**
      * @param list<string> $messages
