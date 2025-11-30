@@ -9,92 +9,84 @@
  * file that was distributed with this source code.
  */
 
-namespace Tests\Unit\Capability\Logger;
+namespace Mcp\Tests\Unit\Capability\Logger;
 
 use Mcp\Capability\Logger\ClientLogger;
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
-use Mcp\Server\Handler\NotificationHandler;
-use Mcp\Server\NotificationSender;
-use PHPUnit\Framework\MockObject\MockObject;
+use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\Session\Session;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 /**
  * Test for simplified ClientLogger PSR-3 compliance.
- *
- * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
 final class ClientLoggerTest extends TestCase
 {
-    private LoggerInterface&MockObject $fallbackLogger;
-
-    protected function setUp(): void
+    public function testLog()
     {
-        $this->fallbackLogger = $this->createMock(LoggerInterface::class);
+        $session = $this->getMockBuilder(Session::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['get'])
+            ->getMock();
+        $session->expects($this->once())->method('get')->willReturn('info');
+        $clientGateway = $this->getMockBuilder(ClientGateway::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['log'])
+            ->getMock();
+        $clientGateway->expects($this->once())->method('log')->with(LoggingLevel::Notice, 'test');
+
+        $logger = new ClientLogger($clientGateway, $session);
+        $logger->notice('test');
     }
 
-    public function testImplementsPsr3LoggerInterface(): void
+    public function testLogFilter()
     {
-        $logger = $this->createClientLogger();
-        $this->assertInstanceOf(LoggerInterface::class, $logger);
+        $session = $this->getMockBuilder(Session::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['get'])
+            ->getMock();
+        $session->expects($this->once())->method('get')->willReturn('info');
+        $clientGateway = $this->getMockBuilder(ClientGateway::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['log'])
+            ->getMock();
+        $clientGateway->expects($this->never())->method('log');
+
+        $logger = new ClientLogger($clientGateway, $session);
+        $logger->debug('test');
     }
 
-    public function testAlwaysLogsToFallbackLogger(): void
+    public function testLogFilterSameLevel()
     {
-        $this->fallbackLogger
-            ->expects($this->once())
-            ->method('log')
-            ->with('info', 'Test message', ['key' => 'value']);
+        $session = $this->getMockBuilder(Session::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['get'])
+            ->getMock();
+        $session->expects($this->once())->method('get')->willReturn('info');
+        $clientGateway = $this->getMockBuilder(ClientGateway::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['log'])
+            ->getMock();
+        $clientGateway->expects($this->once())->method('log');
 
-        $logger = $this->createClientLogger();
-        $logger->info('Test message', ['key' => 'value']);
+        $logger = new ClientLogger($clientGateway, $session);
+        $logger->info('test');
     }
 
-    public function testBasicLoggingMethodsWork(): void
+    public function testLogWithInvalidLevel()
     {
-        $logger = $this->createClientLogger();
+        $session = $this->getMockBuilder(Session::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['get'])
+            ->getMock();
+        $session->expects($this->any())->method('get')->willReturn('info');
+        $clientGateway = $this->getMockBuilder(ClientGateway::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['log'])
+            ->getMock();
+        $clientGateway->expects($this->never())->method('log');
 
-        // Test all PSR-3 methods exist and can be called
-        $this->fallbackLogger->expects($this->exactly(8))->method('log');
-
-        $logger->emergency('emergency');
-        $logger->alert('alert');
-        $logger->critical('critical');
-        $logger->error('error');
-        $logger->warning('warning');
-        $logger->notice('notice');
-        $logger->info('info');
-        $logger->debug('debug');
-    }
-
-    public function testHandlesMcpSendGracefully(): void
-    {
-        // Expect fallback logger to be called for original message
-        $this->fallbackLogger
-            ->expects($this->once())
-            ->method('log')
-            ->with('info', 'Test message', []);
-
-        // May also get error log if MCP send fails (which it likely will without transport)
-        $this->fallbackLogger
-            ->expects($this->atMost(1))
-            ->method('error');
-
-        $logger = $this->createClientLogger();
-        $logger->info('Test message');
-    }
-
-    private function createClientLogger(): ClientLogger
-    {
-        // Create minimal working NotificationSender for testing
-        // Using a minimal ReferenceRegistryInterface mock just to construct NotificationHandler
-        $registry = $this->createMock(ReferenceRegistryInterface::class);
-        $notificationHandler = NotificationHandler::make($registry);
-        $notificationSender = new NotificationSender($notificationHandler, null);
-
-        return new ClientLogger(
-            $notificationSender,
-            $this->fallbackLogger
-        );
+        $logger = new ClientLogger($clientGateway, $session);
+        $logger->log('foo', 'test');
     }
 }

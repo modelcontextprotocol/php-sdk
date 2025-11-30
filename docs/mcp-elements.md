@@ -507,32 +507,21 @@ public function generatePrompt(string $topic, string $style): array
 
 ## Logging
 
-The SDK provides automatic logging support, handlers can receive logger instances automatically to send structured log messages to clients.
+The SDK provides support to send structured log messages to clients. All standard PSR-3 log levels are supported.
+Level **warning** as the default level.
 
-### Configuration
+### Usage
 
-Logging is **enabled by default**. Use `disableClientLogging()` to turn it off:
-
-```php
-// Logging enabled (default)
-$server = Server::builder()->build();
-
-// Disable logging
-$server = Server::builder()
-    ->disableClientLogging()
-    ->build();
-```
-
-### Auto-injection
-
-The SDK automatically injects logger instances into handlers:
+The SDK automatically injects a `RequestContext` instance into handlers. This can be used to create a `ClientLogger`.
 
 ```php
 use Mcp\Capability\Logger\ClientLogger;
 use Psr\Log\LoggerInterface;
 
 #[McpTool]
-public function processData(string $input, ClientLogger $logger): array {
+public function processData(string $input, RequestContext $context): array {
+    $logger = $context->getClientLogger();
+
     $logger->info('Processing started', ['input' => $input]);
     $logger->warning('Deprecated API used');
     
@@ -541,18 +530,7 @@ public function processData(string $input, ClientLogger $logger): array {
     $logger->info('Processing completed');
     return ['result' => 'processed'];
 }
-
-// Also works with PSR-3 LoggerInterface
-#[McpResource(uri: 'data://config')]
-public function getConfig(LoggerInterface $logger): array {
-    $logger->info('Configuration accessed');
-    return ['setting' => 'value'];
-}
 ```
-
-### Log Levels
-
-The SDK supports all standard PSR-3 log levels with **warning** as the default level:
 
 ## Completion Providers
 

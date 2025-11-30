@@ -11,93 +11,52 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Request;
-use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\Handler\Request\SetLogLevelHandler;
-use Mcp\Server\Session\SessionInterface;
-use PHPUnit\Framework\MockObject\MockObject;
+use Mcp\Server\Protocol;
+use Mcp\Server\Session\Session;
 use PHPUnit\Framework\TestCase;
-use Psr\Log\LoggerInterface;
 
 /**
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
 class SetLogLevelHandlerTest extends TestCase
 {
-    private SetLogLevelHandler $handler;
-    private ReferenceRegistryInterface&MockObject $registry;
-    private LoggerInterface&MockObject $logger;
-    private SessionInterface&MockObject $session;
-
-    protected function setUp(): void
-    {
-        $this->registry = $this->createMock(ReferenceRegistryInterface::class);
-        $this->logger = $this->createMock(LoggerInterface::class);
-        $this->session = $this->createMock(SessionInterface::class);
-
-        $this->handler = new SetLogLevelHandler(
-            $this->registry,
-            $this->logger
-        );
-    }
-
-    public function testSupportsSetLogLevelRequest(): void
+    public function testSupports(): void
     {
         $request = $this->createSetLogLevelRequest(LoggingLevel::Info);
-
-        $this->assertTrue($this->handler->supports($request));
+        $handler = new SetLogLevelHandler();
+        $this->assertTrue($handler->supports($request));
     }
 
     public function testDoesNotSupportOtherRequests(): void
     {
         $otherRequest = $this->createMock(Request::class);
-
-        $this->assertFalse($this->handler->supports($otherRequest));
+        $handler = new SetLogLevelHandler();
+        $this->assertFalse($handler->supports($otherRequest));
     }
 
     public function testHandleAllLogLevelsAndSupport(): void
     {
-        $logLevels = [
-            LoggingLevel::Debug,
-            LoggingLevel::Info,
-            LoggingLevel::Notice,
-            LoggingLevel::Warning,
-            LoggingLevel::Error,
-            LoggingLevel::Critical,
-            LoggingLevel::Alert,
-            LoggingLevel::Emergency,
-        ];
+        $handler = new SetLogLevelHandler();
 
-        // Test handling all log levels
-        foreach ($logLevels as $level) {
+        foreach (LoggingLevel::cases() as $level) {
             $request = $this->createSetLogLevelRequest($level);
 
-            $this->registry
-                ->expects($this->once())
-                ->method('setLoggingLevel')
-                ->with($level);
+            $session = $this->getMockBuilder(Session::class)
+                ->disableOriginalConstructor()
+                ->onlyMethods(['set'])
+                ->getMock();
+            $session->expects($this->once())
+                ->method('set')
+                ->with(Protocol::SESSION_LOGGING_LEVEL, $level->value);
 
-            $this->logger
-                ->expects($this->once())
-                ->method('debug')
-                ->with("Log level set to: {$level->value}");
-
-            $response = $this->handler->handle($request, $this->session);
-
-            $this->assertInstanceOf(Response::class, $response);
+            $response = $handler->handle($request, $session);
             $this->assertEquals($request->getId(), $response->id);
             $this->assertInstanceOf(EmptyResult::class, $response->result);
-
-            // Verify EmptyResult serializes correctly
-            $serialized = json_encode($response->result);
-            $this->assertEquals('{}', $serialized);
-
-            // Reset mocks for next iteration
-            $this->setUp();
         }
     }
 

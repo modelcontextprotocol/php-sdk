@@ -412,15 +412,4 @@ class SchemaGeneratorFixture
         $inferredParam,
     ): void {
     }
-
-    /**
-     * Method with ClientLogger that should be excluded from schema.
-     *
-     * @param string                              $message The message to process
-     * @param \Mcp\Capability\Logger\ClientLogger $logger  Auto-injected logger
-     */
-    public function withClientLogger(string $message, \Mcp\Capability\Logger\ClientLogger $logger): string
-    {
-        return $message;
-    }
 }

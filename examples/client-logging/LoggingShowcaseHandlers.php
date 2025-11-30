@@ -9,10 +9,11 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\StdioLoggingShowcase;
+namespace Mcp\Example\ClientLogging;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Logger\ClientLogger;
+use Mcp\Server\RequestContext;
 
 /**
  * Example handlers showcasing auto-injected MCP logging capabilities.
@@ -23,17 +24,17 @@ use Mcp\Capability\Logger\ClientLogger;
 final class LoggingShowcaseHandlers
 {
     /**
-     * Tool that demonstrates different logging levels with auto-injected ClientLogger.
+     * Tool that demonstrates different logging levels.
      *
-     * @param string       $message The message to log
-     * @param string       $level   The logging level (debug, info, warning, error)
-     * @param ClientLogger $logger  Auto-injected MCP logger
+     * @param string $message The message to log
+     * @param string $level   The logging level (debug, info, warning, error)
      *
      * @return array<string, mixed>
      */
     #[McpTool(name: 'log_message', description: 'Demonstrates MCP logging with different levels')]
-    public function logMessage(string $message, string $level, ClientLogger $logger): array
+    public function logMessage(RequestContext $context, string $message, string $level): array
     {
+        $logger = $context->getClientLogger();
         $logger->info('🚀 Starting log_message tool', [
             'requested_level' => $level,
             'message_length' => \strlen($message),

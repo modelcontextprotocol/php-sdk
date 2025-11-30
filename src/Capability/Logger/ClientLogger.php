@@ -12,24 +12,22 @@
 namespace Mcp\Capability\Logger;
 
 use Mcp\Schema\Enum\LoggingLevel;
-use Mcp\Server\NotificationSender;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\Protocol;
+use Mcp\Server\Session\SessionInterface;
 use Psr\Log\AbstractLogger;
-use Psr\Log\LoggerInterface;
 
 /**
  * MCP-aware PSR-3 logger that sends log messages as MCP notifications.
  *
- * This logger implements the standard PSR-3 LoggerInterface and forwards
- * log messages to the NotificationSender. The NotificationHandler will
- * decide whether to actually send the notification based on capabilities.
- *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
+ * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 final class ClientLogger extends AbstractLogger
 {
     public function __construct(
-        private readonly NotificationSender $notificationSender,
-        private readonly ?LoggerInterface $fallbackLogger = null,
+        private ClientGateway $client,
+        private SessionInterface $session,
     ) {
     }
 
@@ -41,30 +39,20 @@ final class ClientLogger extends AbstractLogger
      */
     public function log($level, $message, array $context = []): void
     {
-        // Always log to fallback logger if provided (for local debugging)
-        $this->fallbackLogger?->log($level, $message, $context);
-
         // Convert PSR-3 level to MCP LoggingLevel
         $mcpLevel = $this->convertToMcpLevel($level);
         if (null === $mcpLevel) {
             return; // Unknown level, skip MCP notification
         }
 
-        // Send MCP logging notification - let NotificationHandler decide if it should be sent
-        try {
-            $this->notificationSender->send('notifications/message', [
-                'level' => $mcpLevel->value,
-                'data' => (string) $message,
-                'logger' => $context['logger'] ?? null,
-            ]);
-        } catch (\Throwable $e) {
-            // If MCP notification fails, at least log to fallback
-            $this->fallbackLogger?->error('Failed to send MCP log notification', [
-                'original_level' => $level,
-                'original_message' => $message,
-                'error' => $e->getMessage(),
-            ]);
+        $minimumLevel = $this->session->get(Protocol::SESSION_LOGGING_LEVEL, '');
+        $minimumLevel = LoggingLevel::tryFrom($minimumLevel) ?? LoggingLevel::Warning;
+
+        if ($this->getSeverityIndex($minimumLevel) > $this->getSeverityIndex($mcpLevel)) {
+            return;
         }
+
+        $this->client->log($mcpLevel, $message);
     }
 
     /**
@@ -86,6 +74,26 @@ final class ClientLogger extends AbstractLogger
             'info' => LoggingLevel::Info,
             'debug' => LoggingLevel::Debug,
             default => null,
+        };
+    }
+
+    /**
+     * Gets the severity index for this log level.
+     * Higher values indicate more severe log levels.
+     *
+     * @return int Severity index (0-7, where 7 is most severe)
+     */
+    private function getSeverityIndex(LoggingLevel $level): int
+    {
+        return match ($level) {
+            LoggingLevel::Debug => 0,
+            LoggingLevel::Info => 1,
+            LoggingLevel::Notice => 2,
+            LoggingLevel::Warning => 3,
+            LoggingLevel::Error => 4,
+            LoggingLevel::Critical => 5,
+            LoggingLevel::Alert => 6,
+            LoggingLevel::Emergency => 7,
         };
     }
 }

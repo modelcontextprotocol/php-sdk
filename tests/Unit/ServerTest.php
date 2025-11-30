@@ -11,11 +11,8 @@
 
 namespace Mcp\Tests\Unit;
 
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Server;
 use Mcp\Server\Builder;
-use Mcp\Server\Handler\NotificationHandler;
-use Mcp\Server\NotificationSender;
 use Mcp\Server\Protocol;
 use Mcp\Server\Transport\TransportInterface;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -30,18 +27,10 @@ final class ServerTest extends TestCase
     /** @var MockObject&TransportInterface<int> */
     private $transport;
 
-    private NotificationSender $notificationSender;
-
     protected function setUp(): void
     {
         $this->protocol = $this->createMock(Protocol::class);
         $this->transport = $this->createMock(TransportInterface::class);
-
-        // Create real NotificationSender with mocked dependencies
-        /** @var ReferenceRegistryInterface&MockObject $registry */
-        $registry = $this->createMock(ReferenceRegistryInterface::class);
-        $notificationHandler = NotificationHandler::make($registry);
-        $this->notificationSender = new NotificationSender($notificationHandler, null);
     }
 
     #[TestDox('builder() returns a Builder instance')]
@@ -84,7 +73,7 @@ final class ServerTest extends TestCase
                 $callOrder[] = 'close';
             });
 
-        $server = new Server($this->protocol, $this->notificationSender);
+        $server = new Server($this->protocol);
         $result = $server->run($this->transport);
 
         $this->assertEquals([
@@ -110,7 +99,7 @@ final class ServerTest extends TestCase
         // close() should still be called even though listen() threw
         $this->transport->expects($this->once())->method('close');
 
-        $server = new Server($this->protocol, $this->notificationSender);
+        $server = new Server($this->protocol);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Transport error');
@@ -125,7 +114,7 @@ final class ServerTest extends TestCase
             ->method('initialize')
             ->willThrowException(new \RuntimeException('Initialize error'));
 
-        $server = new Server($this->protocol, $this->notificationSender);
+        $server = new Server($this->protocol);
 
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Initialize error');
@@ -145,7 +134,7 @@ final class ServerTest extends TestCase
             ->method('listen')
             ->willReturn($expectedReturn);
 
-        $server = new Server($this->protocol, $this->notificationSender);
+        $server = new Server($this->protocol);
         $result = $server->run($this->transport);
 
         $this->assertEquals($expectedReturn, $result);
@@ -162,7 +151,7 @@ final class ServerTest extends TestCase
             ->method('connect')
             ->with($this->identicalTo($this->transport));
 
-        $server = new Server($this->protocol, $this->notificationSender);
+        $server = new Server($this->protocol);
         $server->run($this->transport);
     }
 }

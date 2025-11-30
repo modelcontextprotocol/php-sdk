@@ -18,7 +18,6 @@ namespace Mcp\Schema\Enum;
  * https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
- * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
 enum LoggingLevel: string
 {
@@ -30,24 +29,4 @@ enum LoggingLevel: string
     case Critical = 'critical';
     case Alert = 'alert';
     case Emergency = 'emergency';
-
-    /**
-     * Gets the severity index for this log level.
-     * Higher values indicate more severe log levels.
-     *
-     * @return int Severity index (0-7, where 7 is most severe)
-     */
-    public function getSeverityIndex(): int
-    {
-        return match ($this) {
-            self::Debug => 0,
-            self::Info => 1,
-            self::Notice => 2,
-            self::Warning => 3,
-            self::Error => 4,
-            self::Critical => 5,
-            self::Alert => 6,
-            self::Emergency => 7,
-        };
-    }
 }

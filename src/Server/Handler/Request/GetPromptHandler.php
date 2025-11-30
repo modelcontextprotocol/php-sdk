@@ -57,6 +57,7 @@ final class GetPromptHandler implements RequestHandlerInterface
             $reference = $this->registry->getPrompt($promptName);
 
             $arguments['_session'] = $session;
+            $arguments['_request'] = $request;
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 

@@ -11,13 +11,12 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceRegistryInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
-use Psr\Log\LoggerInterface;
 
 /**
  * Handler for the logging/setLevel request.
@@ -29,26 +28,17 @@ use Psr\Log\LoggerInterface;
  */
 final class SetLogLevelHandler implements RequestHandlerInterface
 {
-    public function __construct(
-        private readonly ReferenceRegistryInterface $registry,
-        private readonly LoggerInterface $logger,
-    ) {
+    public function supports(Request $request): bool
+    {
+        return $request instanceof SetLogLevelRequest;
     }
 
-    public function supports(Request $message): bool
+    public function handle(Request $request, SessionInterface $session): Response
     {
-        return $message instanceof SetLogLevelRequest;
-    }
+        \assert($request instanceof SetLogLevelRequest);
 
-    public function handle(Request $message, SessionInterface $session): Response
-    {
-        \assert($message instanceof SetLogLevelRequest);
+        $session->set(Protocol::SESSION_LOGGING_LEVEL, $request->level->value);
 
-        // Update the log level in the registry via the interface
-        $this->registry->setLoggingLevel($message->level);
-
-        $this->logger->debug("Log level set to: {$message->level->value}");
-
-        return new Response($message->getId(), new EmptyResult());
+        return new Response($request->getId(), new EmptyResult());
     }
 }

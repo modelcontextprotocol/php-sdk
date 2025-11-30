@@ -39,7 +39,7 @@ final class SetLogLevelRequest extends Request
 
     protected static function fromParams(?array $params): static
     {
-        if (!isset($params['level']) || !\is_string($params['level']) || empty($params['level'])) {
+        if (!isset($params['level']) || !\is_string($params['level']) || '' === $params['level']) {
             throw new InvalidArgumentException('Missing or invalid "level" parameter for "logging/setLevel".');
         }
 
