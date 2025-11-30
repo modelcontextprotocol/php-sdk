@@ -11,6 +11,9 @@
 
 namespace Mcp\Server;
 
+/**
+ * @deprecated We dont need this. Use RequestContext as argument injection instead.
+ */
 interface ClientAwareInterface
 {
     public function setClient(ClientGateway $clientGateway): void;

@@ -15,6 +15,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Mcp\Server\ClientAwareInterface;
 use Mcp\Server\ClientGateway;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
 
@@ -109,7 +110,13 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $typeName = $type->getName();
 
                 if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
+                    // Deprecated, use RequestContext instead
                     $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                    continue;
+                }
+
+                if (RequestContext::class === $typeName && isset($arguments['_session'], $arguments['_request'])) {
+                    $finalArgs[$paramPosition] = new RequestContext($arguments['_session'], $arguments['_request']);
                     continue;
                 }
             }

@@ -28,9 +28,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
-use Mcp\Server\Handler\NotificationHandler;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
-use Mcp\Server\Handler\Request\SetLogLevelHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -81,8 +79,6 @@ final class Builder
      * @var array<int, NotificationHandlerInterface>
      */
     private array $notificationHandlers = [];
-
-    private bool $logging = true;
 
     /**
      * @var array{
@@ -258,16 +254,6 @@ final class Builder
     public function setRegistry(RegistryInterface $registry): self
     {
         $this->registry = $registry;
-
-        return $this;
-    }
-
-    /**
-     * Disables Client logging capability for the server.
-     */
-    public function disableClientLogging(): self
-    {
-        $this->logging = false;
 
         return $this;
     }
@@ -466,10 +452,6 @@ final class Builder
         $container = $this->container ?? new Container();
         $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
 
-        if (!$this->logging) {
-            $registry->disableLogging();
-        }
-
         $loaders = [
             ...$this->loaders,
             new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger),
@@ -496,17 +478,9 @@ final class Builder
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: $registry->hasPrompts(),
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: false,
+            logging: true,
             completions: true,
         );
-
-        // Create notification infrastructure first
-        $notificationHandler = NotificationHandler::make($registry, $logger);
-        $notificationSender = new NotificationSender($notificationHandler, null, $logger);
-
-        // Create ClientLogger for components that should send logs via MCP
-        $clientLogger = new ClientLogger($notificationSender, $logger);
-        $referenceHandler = new ReferenceHandler($container, $clientLogger);
 
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
@@ -523,7 +497,7 @@ final class Builder
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
-            new SetLogLevelHandler($registry, $logger),
+            new Handler\Request\SetLogLevelHandler($logger),
         ]);
 
         $notificationHandlers = array_merge($this->notificationHandlers, [
@@ -539,6 +513,6 @@ final class Builder
             logger: $logger,
         );
 
-        return new Server($protocol, $notificationSender, $logger);
+        return new Server($protocol, $logger);
     }
 }
