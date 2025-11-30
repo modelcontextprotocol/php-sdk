@@ -33,7 +33,7 @@ use Psr\Log\NullLogger;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-final class CallbackStream implements StreamInterface
+final class CallbackStream implements \Stringable, StreamInterface
 {
     private bool $called = false;
 
