@@ -70,7 +70,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, ['_session' => $this->session])
+            ->with($promptReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -112,7 +112,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -145,7 +145,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, ['_session' => $this->session])
+            ->with($promptReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -178,7 +178,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, ['_session' => $this->session])
+            ->with($promptReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -213,7 +213,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, ['_session' => $this->session])
+            ->with($promptReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -299,7 +299,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -337,7 +337,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn($expectedMessages);
 
         $promptReference
@@ -367,7 +367,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, ['_session' => $this->session])
+            ->with($promptReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn([]);
 
         $promptReference
@@ -405,7 +405,7 @@ class GetPromptHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($promptReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($promptReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn($expectedMessages);
 
         $promptReference
