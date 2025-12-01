@@ -77,10 +77,6 @@ class DocBlockTestFixture
      */
     public function methodWithMultipleTags(float $value): bool
     {
-        if ($value < 0) {
-            throw new \RuntimeException('Processing failed for negative values');
-        }
-
         return true;
     }
 
