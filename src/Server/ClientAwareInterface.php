@@ -12,7 +12,7 @@
 namespace Mcp\Server;
 
 /**
- * @deprecated We dont need this. Use RequestContext as argument injection instead.
+ * @deprecated This is deprecated since 0.2.0 and will be removed in 0.3.0. Use RequestContext with argument injection instead.
  */
 interface ClientAwareInterface
 {
