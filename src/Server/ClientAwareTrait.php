@@ -17,6 +17,8 @@ use Mcp\Schema\Result\CreateSamplingMessageResult;
 
 /**
  * @phpstan-import-type SampleOptions from ClientGateway
+ *
+ * @deprecated since 0.2.0, to be removed in 0.3.0. Use the RequestContext->getClientGateway() directly instead.
  */
 trait ClientAwareTrait
 {
