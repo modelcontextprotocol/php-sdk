@@ -497,7 +497,7 @@ final class Builder
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
-            new Handler\Request\SetLogLevelHandler($logger),
+            new Handler\Request\SetLogLevelHandler(),
         ]);
 
         $notificationHandlers = array_merge($this->notificationHandlers, [

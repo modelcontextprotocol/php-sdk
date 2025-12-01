@@ -24,6 +24,8 @@ use Mcp\Server\Session\SessionInterface;
  * Handles client requests to set the logging level for the server.
  * The server should send all logs at this level and higher (more severe) to the client.
  *
+ * @implements RequestHandlerInterface<EmptyResult>
+ *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  */
 final class SetLogLevelHandler implements RequestHandlerInterface
@@ -33,6 +35,9 @@ final class SetLogLevelHandler implements RequestHandlerInterface
         return $request instanceof SetLogLevelRequest;
     }
 
+    /**
+     * @return Response<EmptyResult>
+     */
     public function handle(Request $request, SessionInterface $session): Response
     {
         \assert($request instanceof SetLogLevelRequest);
