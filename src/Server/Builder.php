@@ -11,6 +11,10 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Provider\DynamicPromptProviderInterface;
+use Mcp\Capability\Provider\DynamicResourceProviderInterface;
+use Mcp\Capability\Provider\DynamicResourceTemplateProviderInterface;
+use Mcp\Capability\Provider\DynamicToolProviderInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -149,6 +153,26 @@ final class Builder
      * @var LoaderInterface[]
      */
     private array $loaders = [];
+
+    /**
+     * @var array<DynamicToolProviderInterface>
+     */
+    private array $dynamicToolProviders = [];
+
+    /**
+     * @var array<DynamicPromptProviderInterface>
+     */
+    private array $dynamicPromptProviders = [];
+
+    /**
+     * @var array<DynamicResourceProviderInterface>
+     */
+    private array $dynamicResourceProviders = [];
+
+    /**
+     * @var array<DynamicResourceTemplateProviderInterface>
+     */
+    private array $dynamicResourceTemplateProviders = [];
 
     /**
      * Sets the server's identity. Required.
@@ -444,6 +468,59 @@ final class Builder
     }
 
     /**
+     * Registers a dynamic tool provider.
+     *
+     * Dynamic providers allow tools to be registered or updated at runtime based on
+     * application state or external conditions.
+     */
+    public function addDynamicToolProvider(DynamicToolProviderInterface $provider): self
+    {
+        $this->dynamicToolProviders[] = $provider;
+
+        return $this;
+    }
+
+    /**
+     * Registers a dynamic prompt provider.
+     *
+     * Dynamic providers allow prompts to be registered or updated at runtime based on
+     * application state or external conditions.
+     */
+    public function addDynamicPromptProvider(DynamicPromptProviderInterface $provider): self
+    {
+        $this->dynamicPromptProviders[] = $provider;
+
+        return $this;
+    }
+
+    /**
+     * Registers a dynamic resource provider.
+     *
+     * Dynamic providers allow resources to be registered or updated at runtime based on
+     * application state or external conditions.
+     */
+    public function addDynamicResourceProvider(DynamicResourceProviderInterface $provider): self
+    {
+        $this->dynamicResourceProviders[] = $provider;
+
+        return $this;
+    }
+
+    /**
+     * Registers a dynamic resource template provider.
+     *
+     * Dynamic providers allow resource templates to be registered or updated at runtime
+     * based on application state or external conditions. Resource templates describe
+     * URI patterns that clients can use to construct valid resource URIs.
+     */
+    public function addDynamicResourceTemplateProvider(DynamicResourceTemplateProviderInterface $provider): self
+    {
+        $this->dynamicResourceTemplateProviders[] = $provider;
+
+        return $this;
+    }
+
+    /**
      * Builds the fully configured Server instance.
      */
     public function build(): Server
@@ -465,18 +542,24 @@ final class Builder
             $loader->load($registry);
         }
 
+        // Dynamic providers are registered after static loaders for proper collision detection
+        array_map($registry->registerDynamicToolProvider(...), $this->dynamicToolProviders);
+        array_map($registry->registerDynamicPromptProvider(...), $this->dynamicPromptProviders);
+        array_map($registry->registerDynamicResourceProvider(...), $this->dynamicResourceProviders);
+        array_map($registry->registerDynamicResourceTemplateProvider(...), $this->dynamicResourceTemplateProviders);
+
         $sessionTtl = $this->sessionTtl ?? 3600;
         $sessionFactory = $this->sessionFactory ?? new SessionFactory();
         $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
         $messageFactory = MessageFactory::make();
 
         $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
-            tools: $registry->hasTools(),
+            tools: $registry->hasTools() || [] !== $this->dynamicToolProviders,
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            resources: $registry->hasResources() || $registry->hasResourceTemplates(),
+            resources: $registry->hasResources() || $registry->hasResourceTemplates() || [] !== $this->dynamicResourceProviders || [] !== $this->dynamicResourceTemplateProviders,
             resourcesSubscribe: false,
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            prompts: $registry->hasPrompts(),
+            prompts: $registry->hasPrompts() || [] !== $this->dynamicPromptProviders,
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             logging: false,
             completions: true,

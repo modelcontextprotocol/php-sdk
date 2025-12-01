@@ -11,7 +11,10 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Capability\Registry\DynamicResourceReference;
+use Mcp\Capability\Registry\DynamicResourceTemplateReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ResourceNotFoundException;
@@ -33,7 +36,7 @@ use Psr\Log\NullLogger;
 final class ReadResourceHandler implements RequestHandlerInterface
 {
     public function __construct(
-        private readonly RegistryInterface $referenceProvider,
+        private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
@@ -56,23 +59,32 @@ final class ReadResourceHandler implements RequestHandlerInterface
         $this->logger->debug('Reading resource', ['uri' => $uri]);
 
         try {
-            $reference = $this->referenceProvider->getResource($uri);
+            // Try dynamic resource first, then dynamic template, fall back to static
+            $reference = $this->registry->getDynamicResource($uri)
+                ?? $this->registry->getDynamicResourceTemplate($uri)
+                ?? $this->registry->getResource($uri);
 
             $arguments = [
                 'uri' => $uri,
                 '_session' => $session,
             ];
 
-            if ($reference instanceof ResourceTemplateReference) {
+            // For template references, extract variables from URI
+            if ($reference instanceof ResourceTemplateReference || $reference instanceof DynamicResourceTemplateReference) {
                 $variables = $reference->extractVariables($uri);
                 $arguments = array_merge($arguments, $variables);
-
-                $result = $this->referenceHandler->handle($reference, $arguments);
-                $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
-            } else {
-                $result = $this->referenceHandler->handle($reference, $arguments);
-                $formatted = $reference->formatResult($result, $uri, $reference->schema->mimeType);
             }
+
+            $result = $this->referenceHandler->handle($reference, $arguments);
+
+            // Format result based on reference type
+            $mimeType = $this->getMimeType($reference);
+            $formatted = $reference->formatResult($result, $uri, $mimeType);
+
+            $this->logger->debug('Resource read successfully', [
+                'uri' => $uri,
+                'dynamic' => $reference instanceof DynamicResourceReference || $reference instanceof DynamicResourceTemplateReference,
+            ]);
 
             return new Response($request->getId(), new ReadResourceResult($formatted));
         } catch (ResourceReadException $e) {
@@ -88,5 +100,19 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while reading resource', $request->getId());
         }
+    }
+
+    /**
+     * Gets the MIME type from a resource reference.
+     */
+    private function getMimeType(
+        ResourceReference|ResourceTemplateReference|DynamicResourceReference|DynamicResourceTemplateReference $reference,
+    ): ?string {
+        return match (true) {
+            $reference instanceof ResourceReference => $reference->schema->mimeType,
+            $reference instanceof DynamicResourceReference => $reference->schema->mimeType,
+            $reference instanceof ResourceTemplateReference => $reference->resourceTemplate->mimeType,
+            $reference instanceof DynamicResourceTemplateReference => $reference->resourceTemplate->mimeType,
+        };
     }
 }
