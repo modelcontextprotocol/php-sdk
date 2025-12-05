@@ -12,7 +12,7 @@
 namespace Mcp\Capability\Registry;
 
 /**
- * @author Mateu Aguilo Bosch <mateu@mateuaguilo.com>
+ * @author Mateu Aguiló Bosch <mateu@mateuaguilo.com>
  */
 interface ArgumentPreparationInterface
 {

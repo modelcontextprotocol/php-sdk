@@ -17,7 +17,7 @@ use Mcp\Exception\RegistryException;
 /**
  * Uses reflection to match named parameters and perform type casting.
  *
- * @author Mateu Aguilo Bosch <mateu@mateuaguilo.com>
+ * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 trait ReflectionArgumentPreparationTrait
 {

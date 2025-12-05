@@ -14,7 +14,7 @@ namespace Mcp\Capability\Registry;
 /**
  * Passes raw arguments array directly to the handler.
  *
- * @author Mateu Aguilo Bosch <mateu@mateuaguilo.com>
+ * @author Mateu Aguiló Bosch <mateu@mateuaguilo.com>
  */
 trait DynamicArgumentPreparationTrait
 {

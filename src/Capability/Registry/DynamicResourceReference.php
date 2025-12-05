@@ -19,7 +19,7 @@ use Mcp\Server\ClientAwareInterface;
 use Mcp\Server\ClientGateway;
 
 /**
- * @author Mateu Aguilo Bosch <mateu@mateuaguilo.com>
+ * @author Mateu Aguiló Bosch <mateu@mateuaguilo.com>
  */
 class DynamicResourceReference extends ElementReference implements ClientAwareInterface
 {
