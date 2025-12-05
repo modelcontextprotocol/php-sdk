@@ -16,8 +16,6 @@ use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Resource;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class ResourceReference extends ElementReference
@@ -25,7 +23,7 @@ class ResourceReference extends ElementReference
     use ReflectionArgumentPreparationTrait;
 
     /**
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function __construct(
         public readonly Resource $schema,

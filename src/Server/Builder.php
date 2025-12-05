@@ -17,7 +17,6 @@ use Mcp\Capability\Provider\DynamicResourceTemplateProviderInterface;
 use Mcp\Capability\Provider\DynamicToolProviderInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
-use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
@@ -44,8 +43,6 @@ use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Builder
@@ -86,7 +83,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: callable|array{0: class-string|object, 1: string}|string,
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
@@ -98,7 +95,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     uri: string,
      *     name: ?string,
      *     description: ?string,
@@ -113,7 +110,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     uriTemplate: string,
      *     name: ?string,
      *     description: ?string,
@@ -126,7 +123,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     name: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
@@ -350,10 +347,10 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param Handler                   $handler
-     * @param array<string, mixed>|null $inputSchema
-     * @param ?Icon[]                   $icons
-     * @param array<string, mixed>|null $meta
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, mixed>|null                                $inputSchema
+     * @param ?Icon[]                                                  $icons
+     * @param array<string, mixed>|null                                $meta
      */
     public function addTool(
         callable|array|string $handler,
@@ -380,9 +377,9 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param Handler                   $handler
-     * @param ?Icon[]                   $icons
-     * @param array<string, mixed>|null $meta
+     * @param \Closure|array{0: class-string|object, 1: string}|string $handler
+     * @param ?Icon[]                                                  $icons
+     * @param array<string, mixed>|null                                $meta
      */
     public function addResource(
         \Closure|array|string $handler,
@@ -413,8 +410,8 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param Handler                   $handler
-     * @param array<string, mixed>|null $meta
+     * @param \Closure|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, mixed>|null                                $meta
      */
     public function addResourceTemplate(
         \Closure|array|string $handler,
@@ -441,9 +438,9 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param Handler                   $handler
-     * @param ?Icon[]                   $icons
-     * @param array<string, mixed>|null $meta
+     * @param \Closure|array{0: class-string|object, 1: string}|string $handler
+     * @param ?Icon[]                                                  $icons
+     * @param array<string, mixed>|null                                $meta
      */
     public function addPrompt(
         \Closure|array|string $handler,

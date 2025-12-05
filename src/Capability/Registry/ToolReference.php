@@ -17,8 +17,6 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Tool;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class ToolReference extends ElementReference
@@ -26,7 +24,7 @@ class ToolReference extends ElementReference
     use ReflectionArgumentPreparationTrait;
 
     /**
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function __construct(
         public readonly Tool $tool,

@@ -16,8 +16,6 @@ use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Prompt;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class PromptReference extends ElementReference
@@ -25,8 +23,8 @@ class PromptReference extends ElementReference
     use ReflectionArgumentPreparationTrait;
 
     /**
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param \Closure|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function __construct(
         public readonly Prompt $prompt,

@@ -20,7 +20,6 @@ use Mcp\Capability\Registry\DynamicPromptReference;
 use Mcp\Capability\Registry\DynamicResourceReference;
 use Mcp\Capability\Registry\DynamicResourceTemplateReference;
 use Mcp\Capability\Registry\DynamicToolReference;
-use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
@@ -35,8 +34,6 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -45,22 +42,22 @@ interface RegistryInterface
     /**
      * Registers a tool with its handler.
      *
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource with its handler.
      *
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource template with its handler and completion providers.
      *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function registerResourceTemplate(
         ResourceTemplate $template,
@@ -72,8 +69,8 @@ interface RegistryInterface
     /**
      * Registers a prompt with its handler and completion providers.
      *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function registerPrompt(
         Prompt $prompt,

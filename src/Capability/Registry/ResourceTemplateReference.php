@@ -16,8 +16,6 @@ use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\ResourceTemplate;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class ResourceTemplateReference extends ElementReference
@@ -27,8 +25,8 @@ class ResourceTemplateReference extends ElementReference
     private readonly UriTemplateMatcher $uriTemplateMatcher;
 
     /**
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function __construct(
         public readonly ResourceTemplate $resourceTemplate,

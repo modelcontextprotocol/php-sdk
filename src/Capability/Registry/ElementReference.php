@@ -14,15 +14,13 @@ namespace Mcp\Capability\Registry;
 /**
  * Base class for element references with default passthrough argument preparation.
  *
- * @phpstan-type Handler \Closure|array{0: object|string, 1: string}|string|object
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class ElementReference implements ArgumentPreparationInterface
 {
     /**
-     * @param Handler $handler The handler can be a Closure, array method reference,
-     *                         string function/class name, or a callable object (implementing __invoke)
+     * @param object|array{0: class-string|object, 1: string}|string $handler The handler can be a Closure, array method reference,
+     *                                                                        string function/class name, or a callable object (implementing __invoke)
      */
     public function __construct(
         public readonly object|array|string $handler,
