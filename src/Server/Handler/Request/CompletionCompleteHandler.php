@@ -20,7 +20,6 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CompletionCompleteRequest;
-use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;

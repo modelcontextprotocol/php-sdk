@@ -270,7 +270,7 @@ final class Registry implements RegistryInterface
 
         array_map(
             fn ($item) => $this->assertCapabilityNotRegistered($item->{$config['keyProperty']}, $capability),
-            iterator_to_array($provider->{$config['itemsGetter']}()),
+            $this->iterableToArray($provider->{$config['itemsGetter']}()),
         );
 
         $this->{$config['dynamicProviders']}[] = $provider;
@@ -283,23 +283,12 @@ final class Registry implements RegistryInterface
         $label = $config['label'];
 
         if (isset($this->{$config['staticRegistry']}[$key])) {
-            throw RegistryException::invalidParams(\sprintf(
-                'Dynamic %s provider conflict: %s "%s" is already registered as a static %s.',
-                $capability,
-                $label,
-                $key,
-                $capability,
-            ));
+            throw RegistryException::invalidParams(\sprintf('Dynamic %s provider conflict: %s "%s" is already registered as a static %s.', $capability, $label, $key, $capability));
         }
 
         $conflictingProvider = $this->findDynamicProviderByKey($key, $capability);
         if (null !== $conflictingProvider) {
-            throw RegistryException::invalidParams(\sprintf(
-                'Dynamic %s provider conflict: %s "%s" is already supported by another provider.',
-                $capability,
-                $label,
-                $key,
-            ));
+            throw RegistryException::invalidParams(\sprintf('Dynamic %s provider conflict: %s "%s" is already supported by another provider.', $capability, $label, $key));
         }
     }
 
@@ -370,9 +359,9 @@ final class Registry implements RegistryInterface
                 fn (array $acc, DynamicToolProviderInterface $provider) => array_merge(
                     $acc,
                     array_column(
-                      iterator_to_array($provider->getTools()),
-                      null,
-                      'name',
+                        $this->iterableToArray($provider->getTools()),
+                        null,
+                        'name',
                     ),
                 ),
                 [],
@@ -416,7 +405,7 @@ final class Registry implements RegistryInterface
                 $this->dynamicResourceProviders,
                 fn (array $acc, DynamicResourceProviderInterface $provider) => array_merge(
                     $acc,
-                    array_column(iterator_to_array($provider->getResources()), null, 'uri'),
+                    array_column($this->iterableToArray($provider->getResources()), null, 'uri'),
                 ),
                 [],
             ),
@@ -516,7 +505,7 @@ final class Registry implements RegistryInterface
                 $this->dynamicPromptProviders,
                 fn (array $acc, DynamicPromptProviderInterface $provider) => array_merge(
                     $acc,
-                    array_column(iterator_to_array($provider->getPrompts()), null, 'name'),
+                    array_column($this->iterableToArray($provider->getPrompts()), null, 'name'),
                 ),
                 [],
             ),
@@ -802,5 +791,22 @@ final class Registry implements RegistryInterface
         }
 
         return array_values(\array_slice($items, $offset, $limit));
+    }
+
+    /**
+     * Convert an iterable to an array.
+     *
+     * PHP 8.1 compatibility: iterator_to_array() only accepts Traversable in PHP 8.1,
+     * but interfaces return iterable which can be an array.
+     *
+     * @template T
+     *
+     * @param iterable<T> $items
+     *
+     * @return array<T>
+     */
+    private function iterableToArray(iterable $items): array
+    {
+        return \is_array($items) ? $items : iterator_to_array($items);
     }
 }

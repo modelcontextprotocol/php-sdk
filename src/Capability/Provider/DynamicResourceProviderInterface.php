@@ -23,7 +23,7 @@ use Mcp\Schema\Resource;
 interface DynamicResourceProviderInterface
 {
     /**
-     * @return iterable<Resource>
+     * @return iterable<resource>
      */
     public function getResources(): iterable;
 

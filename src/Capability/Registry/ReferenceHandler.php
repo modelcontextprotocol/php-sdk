@@ -61,8 +61,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     /**
      * Resolves a handler to a callable, optionally returning an instance.
      *
-     * @param \Closure|array|string $handler
-     *
      * @return array{0: callable, 1: ?object}
      */
     private function resolveHandler(\Closure|array|string $handler): array
