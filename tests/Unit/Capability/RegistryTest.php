@@ -527,7 +527,72 @@ class RegistryTest extends TestCase
         $this->assertEquals('second', ($toolRef->handler)());
     }
 
-    private function createValidTool(string $name): Tool
+    public function testExtractStructuredContentReturnsNullWhenOutputSchemaIsNull(): void
+    {
+        $tool = $this->createValidTool('test_tool', null);
+        $this->registry->registerTool($tool, fn () => 'result');
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertNull($toolRef->extractStructuredContent('result'));
+    }
+
+    public function testExtractStructuredContentWrapsScalarInResultKey(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => 'string'],
+            ],
+        ]);
+        $this->registry->registerTool($tool, fn () => 'hello');
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertEquals(['result' => 'hello'], $toolRef->extractStructuredContent('hello'));
+    }
+
+    public function testExtractStructuredContentWrapsArrayInResultKey(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'properties' => [
+                'result' => ['type' => 'object'],
+            ],
+        ]);
+        $this->registry->registerTool($tool, fn () => ['key' => 'value']);
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertEquals(['result' => ['key' => 'value']], $toolRef->extractStructuredContent(['key' => 'value']));
+    }
+
+    public function testExtractStructuredContentReturnsArrayDirectlyForAdditionalProperties(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ]);
+        $this->registry->registerTool($tool, fn () => ['success' => true, 'message' => 'done']);
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
+    }
+
+    public function testExtractStructuredContentNormalizesObjectsToArrays(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ]);
+        $object = new \stdClass();
+        $object->key = 'value';
+        $this->registry->registerTool($tool, fn () => $object);
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $result = $toolRef->extractStructuredContent($object);
+        $this->assertIsArray($result);
+        $this->assertEquals(['key' => 'value'], $result);
+    }
+
+    private function createValidTool(string $name, ?array $outputSchema = null): Tool
     {
         return new Tool(
             name: $name,
@@ -540,6 +605,9 @@ class RegistryTest extends TestCase
             ],
             description: "Test tool: {$name}",
             annotations: null,
+            icons: null,
+            meta: null,
+            outputSchema: $outputSchema
         );
     }
 

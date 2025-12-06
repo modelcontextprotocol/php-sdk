@@ -5,5 +5,8 @@
       "text": "1"
     }
   ],
-  "isError": false
+  "isError": false,
+  "structuredContent": {
+    "result": 1
+  }
 }

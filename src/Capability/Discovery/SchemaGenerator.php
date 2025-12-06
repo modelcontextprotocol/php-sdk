@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Discovery;
 
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Server\ClientGateway;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
@@ -78,6 +79,47 @@ class SchemaGenerator
         $parametersInfo = $this->parseParametersInfo($reflection);
 
         return $this->buildSchemaFromParameters($parametersInfo, $methodSchema);
+    }
+
+    /**
+     * Generates a JSON Schema object (as a PHP array) for a method's or function's return type.
+     *
+     * Checks for explicit outputSchema in McpTool attribute first, then auto-generates from return type.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function generateOutputSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    {
+        // Check if McpTool attribute has explicit outputSchema
+        $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
+        if (!empty($mcpToolAttrs)) {
+            $mcpToolInstance = $mcpToolAttrs[0]->newInstance();
+            if (null !== $mcpToolInstance->outputSchema) {
+                return $mcpToolInstance->outputSchema;
+            }
+        }
+
+        $docComment = $reflection->getDocComment() ?: null;
+        $docBlock = $this->docBlockParser->parseDocBlock($docComment);
+
+        $docBlockReturnType = $this->docBlockParser->getReturnTypeString($docBlock);
+        $returnDescription = $this->docBlockParser->getReturnDescription($docBlock);
+
+        $reflectionReturnType = $reflection->getReturnType();
+        $reflectionReturnTypeString = $reflectionReturnType
+            ? $this->getTypeStringFromReflection($reflectionReturnType, $reflectionReturnType->allowsNull())
+            : null;
+
+        // Use DocBlock with generics, otherwise reflection, otherwise DocBlock
+        $returnTypeString = ($docBlockReturnType && str_contains($docBlockReturnType, '<'))
+            ? $docBlockReturnType
+            : ($reflectionReturnTypeString ?: $docBlockReturnType);
+
+        if (!$returnTypeString || 'void' === strtolower($returnTypeString)) {
+            return null;
+        }
+
+        return $this->buildOutputSchemaFromType($returnTypeString, $returnDescription);
     }
 
     /**
@@ -793,5 +835,43 @@ class SchemaGenerator
             'object', 'stdclass' => 'object',
             default => \in_array(strtolower($type), ['datetime', 'datetimeinterface']) ? 'string' : 'object',
         };
+    }
+
+    /**
+     * Builds an output schema from a return type string.
+     *
+     * @return array<string, mixed>
+     */
+    private function buildOutputSchemaFromType(string $returnTypeString, ?string $description): array
+    {
+        // Handle array types - treat as object with additionalProperties
+        if (str_contains($returnTypeString, 'array')) {
+            $schema = [
+                'type' => 'object',
+                'additionalProperties' => true,
+            ];
+        } else {
+            // Use mapPhpTypeToJsonSchemaType to handle union types and nullable types
+            $mappedTypes = $this->mapPhpTypeToJsonSchemaType($returnTypeString);
+
+            $nonNullTypes = array_filter($mappedTypes, fn ($type) => 'null' !== $type);
+
+            // If it's a union type use the array directly, or use the first (and only) type
+            $typeSchema = \count($nonNullTypes) > 1 ? array_values($nonNullTypes) : ($nonNullTypes[0] ?? 'object');
+
+            $schema = [
+                'type' => 'object',
+                'properties' => [
+                    'result' => ['type' => $typeSchema],
+                ],
+                'required' => ['result'],
+            ];
+        }
+
+        if ($description) {
+            $schema['description'] = $description;
+        }
+
+        return $schema;
     }
 }

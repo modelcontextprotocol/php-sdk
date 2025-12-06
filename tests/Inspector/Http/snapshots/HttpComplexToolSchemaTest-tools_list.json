@@ -61,6 +61,11 @@
           "date",
           "type"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true,
+        "description": "confirmation of the scheduled event"
       }
     }
   ]

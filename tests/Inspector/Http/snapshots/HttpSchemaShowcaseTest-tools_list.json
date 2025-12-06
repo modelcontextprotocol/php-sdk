@@ -28,6 +28,10 @@
         "required": [
           "text"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -73,6 +77,10 @@
           "second",
           "operation"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -141,6 +149,10 @@
         "required": [
           "profile"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -178,6 +190,10 @@
         "required": [
           "items"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -225,6 +241,10 @@
           "appName",
           "baseUrl"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     },
     {
@@ -278,6 +298,10 @@
           "startTime",
           "durationHours"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "additionalProperties": true
       }
     }
   ]
