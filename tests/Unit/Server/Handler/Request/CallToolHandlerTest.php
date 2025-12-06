@@ -71,7 +71,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['name' => 'John', '_session' => $this->session])
+            ->with($toolReference, ['name' => 'John', '_session' => $this->session, '_request' => $request])
             ->willReturn('Hello, John!');
 
         $toolReference
@@ -104,7 +104,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['_session' => $this->session])
+            ->with($toolReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn('Simple result');
 
         $toolReference
@@ -141,7 +141,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($toolReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn('Complex result');
 
         $toolReference
@@ -192,7 +192,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['param' => 'value', '_session' => $this->session])
+            ->with($toolReference, ['param' => 'value', '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
 
         $this->logger
@@ -227,7 +227,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['_session' => $this->session])
+            ->with($toolReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn(null);
 
         $toolReference
@@ -264,7 +264,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['key1' => 'value1', 'key2' => 42, '_session' => $this->session])
+            ->with($toolReference, ['key1' => 'value1', 'key2' => 42, '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
 
         $this->logger
@@ -274,7 +274,7 @@ class CallToolHandlerTest extends TestCase
                 'Error while executing tool "test_tool": "Custom error message".',
                 [
                     'tool' => 'test_tool',
-                    'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session],
+                    'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session, '_request' => $request],
                 ],
             );
 
@@ -307,7 +307,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['param' => 'value', '_session' => $this->session])
+            ->with($toolReference, ['param' => 'value', '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
 
         $response = $this->handler->handle($request, $this->session);
@@ -334,7 +334,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['_session' => $this->session])
+            ->with($toolReference, ['_session' => $this->session, '_request' => $request])
             ->willReturn('Special tool result');
 
         $toolReference
@@ -369,7 +369,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, array_merge($arguments, ['_session' => $this->session]))
+            ->with($toolReference, array_merge($arguments, ['_session' => $this->session, '_request' => $request]))
             ->willReturn('Unicode handled');
 
         $toolReference
@@ -399,7 +399,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['query' => 'php', '_session' => $this->session])
+            ->with($toolReference, ['query' => 'php', '_session' => $this->session, '_request' => $request])
             ->willReturn($structuredResult);
 
         $toolReference
@@ -428,7 +428,7 @@ class CallToolHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($toolReference, ['query' => 'php', '_session' => $this->session])
+            ->with($toolReference, ['query' => 'php', '_session' => $this->session, '_request' => $request])
             ->willReturn($callToolResult);
 
         $toolReference

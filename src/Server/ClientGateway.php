@@ -34,6 +34,7 @@ use Mcp\Schema\Result\CreateSamplingMessageResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
+ * @final
  * Helper class for tools to communicate with the client.
  *
  * This class provides a clean API for element handlers to send requests and notifications
@@ -64,7 +65,7 @@ use Mcp\Server\Session\SessionInterface;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-final class ClientGateway
+class ClientGateway
 {
     public function __construct(
         private readonly SessionInterface $session,
