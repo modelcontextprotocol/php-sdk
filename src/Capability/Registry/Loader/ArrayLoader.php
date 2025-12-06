@@ -18,7 +18,6 @@ use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
-use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ConfigurationException;
 use Mcp\Schema\Annotations;
@@ -35,14 +34,12 @@ use Psr\Log\NullLogger;
 
 /**
  * @author Antoine Bluchet <soyuka@gmail.com>
- *
- * @phpstan-import-type Handler from ElementReference
  */
 final class ArrayLoader implements LoaderInterface
 {
     /**
      * @param array{
-     *     handler: Handler,
+     *     handler: callable|array{0: class-string|object, 1: string}|string,
      *     name: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
@@ -50,7 +47,7 @@ final class ArrayLoader implements LoaderInterface
      *     meta: ?array<string, mixed>
      * }[] $tools
      * @param array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     uri: string,
      *     name: ?string,
      *     description: ?string,
@@ -61,7 +58,7 @@ final class ArrayLoader implements LoaderInterface
      *     meta: ?array<string, mixed>
      * }[] $resources
      * @param array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     uriTemplate: string,
      *     name: ?string,
      *     description: ?string,
@@ -70,7 +67,7 @@ final class ArrayLoader implements LoaderInterface
      *     meta: ?array<string, mixed>
      * }[] $resourceTemplates
      * @param array{
-     *     handler: Handler,
+     *     handler: \Closure|array{0: class-string|object, 1: string}|string,
      *     name: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
@@ -271,7 +268,7 @@ final class ArrayLoader implements LoaderInterface
     }
 
     /**
-     * @param Handler $handler
+     * @param \Closure|array{0: class-string|object, 1: string}|string $handler
      */
     private function getHandlerDescription(\Closure|array|string $handler): string
     {

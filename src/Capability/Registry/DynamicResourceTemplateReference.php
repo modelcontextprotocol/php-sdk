@@ -12,32 +12,49 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Capability\Formatter\ResourceResultFormatter;
+use Mcp\Capability\Provider\DynamicResourceTemplateProviderInterface;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\ResourceTemplate;
+use Mcp\Server\ClientAwareInterface;
+use Mcp\Server\ClientGateway;
 
 /**
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * @author Mateu Aguiló Bosch <mateu@mateuaguilo.com>
  */
-class ResourceTemplateReference extends ElementReference
+class DynamicResourceTemplateReference extends ElementReference implements ClientAwareInterface
 {
-    use ReflectionArgumentPreparationTrait;
+    use DynamicArgumentPreparationTrait;
 
     private readonly UriTemplateMatcher $uriTemplateMatcher;
 
     /**
-     * @param callable|array{0: class-string|object, 1: string}|string $handler
-     * @param array<string, class-string|object>                       $completionProviders
+     * @param array<string, class-string|object> $completionProviders
      */
     public function __construct(
         public readonly ResourceTemplate $resourceTemplate,
-        callable|array|string $handler,
-        bool $isManual = false,
+        public readonly DynamicResourceTemplateProviderInterface $provider,
+        public readonly string $uriTemplate,
         public readonly array $completionProviders = [],
         ?UriTemplateMatcher $uriTemplateMatcher = null,
     ) {
-        parent::__construct($handler, $isManual);
+        parent::__construct($this, false);
 
         $this->uriTemplateMatcher = $uriTemplateMatcher ?? new UriTemplateMatcher();
+    }
+
+    public function setClient(ClientGateway $clientGateway): void
+    {
+        if ($this->provider instanceof ClientAwareInterface) {
+            $this->provider->setClient($clientGateway);
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    public function __invoke(array $arguments): mixed
+    {
+        return $this->provider->readResource($this->uriTemplate, $arguments['uri'] ?? '');
     }
 
     /**
@@ -62,25 +79,7 @@ class ResourceTemplateReference extends ElementReference
     }
 
     /**
-     * Formats the raw result of a resource read operation into MCP ResourceContent items.
-     *
-     * @param mixed  $readResult the raw result from the resource handler method
-     * @param string $uri        the URI of the resource that was read
-     *
-     * @return array<int, ResourceContents> array of ResourceContents objects
-     *
-     * @throws \RuntimeException If the result cannot be formatted.
-     *
-     * Supported result types:
-     * - ResourceContents: Used as-is
-     * - EmbeddedResource: Resource is extracted from the EmbeddedResource
-     * - string: Converted to text content with guessed or provided MIME type
-     * - stream resource: Read and converted to blob with provided MIME type
-     * - array with 'blob' key: Used as blob content
-     * - array with 'text' key: Used as text content
-     * - SplFileInfo: Read and converted to blob
-     * - array: Converted to JSON if MIME type is application/json or contains 'json'
-     *          For other MIME types, will try to convert to JSON with a warning
+     * @return ResourceContents[]
      */
     public function formatResult(mixed $readResult, string $uri, ?string $mimeType = null): array
     {
