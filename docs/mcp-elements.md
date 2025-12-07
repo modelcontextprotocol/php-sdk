@@ -516,7 +516,7 @@ The SDK automatically injects a `RequestContext` instance into handlers. This ca
 
 ```php
 use Mcp\Capability\Logger\ClientLogger;
-use Psr\Log\LoggerInterface;
+use Mcp\Server\RequestContext;
 
 #[McpTool]
 public function processData(string $input, RequestContext $context): array {
