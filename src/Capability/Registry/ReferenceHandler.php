@@ -13,7 +13,6 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
-use Mcp\Server\ClientGateway;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
