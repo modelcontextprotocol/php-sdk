@@ -434,11 +434,23 @@ final class Builder
     }
 
     /**
-     * @param LoaderInterface[] $loaders
+     * Register a single custom loader.
      */
-    public function addLoaders(...$loaders): self
+    public function addLoader(LoaderInterface $loader): self
     {
-        $this->loaders = [...$this->loaders, ...$loaders];
+        $this->loaders[] = $loader;
+
+        return $this;
+    }
+
+    /**
+     * @param iterable<LoaderInterface> $loaders
+     */
+    public function addLoaders(iterable $loaders): self
+    {
+        foreach ($loaders as $loader) {
+            $this->loaders = [$loader];
+        }
 
         return $this;
     }
