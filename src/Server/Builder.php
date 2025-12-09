@@ -490,7 +490,7 @@ final class Builder
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: $registry->hasPrompts(),
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: false,
+            logging: true,
             completions: true,
         );
 
@@ -509,6 +509,7 @@ final class Builder
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\SetLogLevelHandler(),
         ]);
 
         $notificationHandlers = array_merge($this->notificationHandlers, [

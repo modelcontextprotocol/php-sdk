@@ -13,8 +13,7 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
-use Mcp\Server\ClientAwareInterface;
-use Mcp\Server\ClientGateway;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
 
@@ -41,10 +40,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
-                if ($instance instanceof ClientAwareInterface) {
-                    $instance->setClient(new ClientGateway($session));
-                }
-
                 return \call_user_func($instance, ...$arguments);
             }
 
@@ -67,11 +62,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             [$className, $methodName] = $reference->handler;
             $reflection = new \ReflectionMethod($className, $methodName);
             $instance = $this->getClassInstance($className);
-
-            if ($instance instanceof ClientAwareInterface) {
-                $instance->setClient(new ClientGateway($session));
-            }
-
             $arguments = $this->prepareArguments($reflection, $arguments);
 
             return \call_user_func([$instance, $methodName], ...$arguments);
@@ -108,8 +98,8 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
                 $typeName = $type->getName();
 
-                if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
-                    $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                if (RequestContext::class === $typeName && isset($arguments['_session'], $arguments['_request'])) {
+                    $finalArgs[$paramPosition] = new RequestContext($arguments['_session'], $arguments['_request']);
                     continue;
                 }
             }
@@ -155,10 +145,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
         if (\is_array($handler) && 2 === \count($handler)) {
             [$class, $method] = $handler;
-
-            if ($class instanceof ClientAwareInterface) {
-                $class->setClient(new ClientGateway($session));
-            }
 
             return new \ReflectionMethod($class, $method);
         }

@@ -11,6 +11,7 @@ discovery and manual registration methods.
 - [Resources](#resources)
 - [Resource Templates](#resource-templates)
 - [Prompts](#prompts)
+- [Logging](#logging)
 - [Completion Providers](#completion-providers)
 - [Schema Generation and Validation](#schema-generation-and-validation)
 - [Discovery vs Manual Registration](#discovery-vs-manual-registration)
@@ -503,6 +504,33 @@ public function generatePrompt(string $topic, string $style): array
 ```
 
 **Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+
+## Logging
+
+The SDK provides support to send structured log messages to clients. All standard PSR-3 log levels are supported.
+Level **warning** as the default level.
+
+### Usage
+
+The SDK automatically injects a `RequestContext` instance into handlers. This can be used to create a `ClientLogger`.
+
+```php
+use Mcp\Capability\Logger\ClientLogger;
+use Mcp\Server\RequestContext;
+
+#[McpTool]
+public function processData(string $input, RequestContext $context): array {
+    $logger = $context->getClientLogger();
+
+    $logger->info('Processing started', ['input' => $input]);
+    $logger->warning('Deprecated API used');
+    
+    // ... processing logic ...
+    
+    $logger->info('Processing completed');
+    return ['result' => 'processed'];
+}
+```
 
 ## Completion Providers
 

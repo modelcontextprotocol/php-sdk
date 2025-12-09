@@ -13,44 +13,21 @@ MCP supports various ways a server can communicate back to a server on top of th
 ## ClientGateway
 
 Every communication back to client is handled using the `Mcp\Server\ClientGateway` and its dedicated methods per
-operation. To use the `ClientGateway` in your code, there are two ways to do so:
+operation. To use the `ClientGateway` in your code, you need to use method argument injection for `RequestContext`.
 
-### 1. Method Argument Injection
-
-Every refernce of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the
-`ClientGateway` and the SDK will take care to include the gateway in the arguments of the method call:
+Every reference of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the
+`RequestContext` and the SDK will take care to include the gateway in the arguments of the method call:
 
 ```php
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Server\ClientGateway;
+use Mcp\Server\RequestContext;
 
 class MyService
 {
     #[McpTool('my_tool', 'My Tool Description')]
-    public function myTool(ClientGateway $client): string
+    public function myTool(RequestContext $context): string
     {
-        $client->log(...);
-```
-
-### 2. Implementing `ClientAwareInterface`
-
-Whenever a service class of an MCP element implements the interface `Mcp\Server\ClientAwareInterface` the `setClient`
-method of that class will get called while handling the reference, and in combination with `Mcp\Server\ClientAwareTrait`
-this ends up with code like this:
-
-```php
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Server\ClientAwareInterface;
-use Mcp\Server\ClientAwareTrait;
-
-class MyService implements ClientAwareInterface
-{
-    use ClientAwareTrait;
-
-    #[McpTool('my_tool', 'My Tool Description')]
-    public function myTool(): string
-    {
-        $this->log(...);
+        $context->getClientGateway()->log(...);
 ```
 
 ## Sampling

@@ -25,9 +25,9 @@ final class InitializedHandler implements NotificationHandlerInterface
         return $notification instanceof InitializedNotification;
     }
 
-    public function handle(Notification $message, SessionInterface $session): void
+    public function handle(Notification $notification, SessionInterface $session): void
     {
-        \assert($message instanceof InitializedNotification);
+        \assert($notification instanceof InitializedNotification);
 
         $session->set('initialized', true);
     }

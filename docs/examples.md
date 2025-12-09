@@ -166,11 +166,10 @@ $server = Server::builder()
 
 **File**: `examples/client-communication/`
 
-**What it demostrates:**
-- Server initiated communcation back to the client
+**What it demonstrates:**
+- Server initiated communication back to the client
 - Logging, sampling, progress and notifications
-- Using `ClientGateway` in service class via `ClientAwareInterface` and corresponding trait
-- Using `ClientGateway` in tool method via method argument injection
+- Using `ClientGateway` in tool method via method argument injection of `RequestContext`
 
 ### Discovery User Profile
 

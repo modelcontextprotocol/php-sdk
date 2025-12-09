@@ -55,6 +55,8 @@ class Protocol
     /** Session key for active request meta */
     public const SESSION_ACTIVE_REQUEST_META = '_mcp.active_request_meta';
 
+    public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
+
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
