@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Make `Protocol` stateless by decouple if from `TransportInterface`. Removed `Protocol::getTransport()`.
+* Change signature of `Builder::addLoaders(...$loaders)` to `Builder::addLoaders(iterable $loaders)`.
 
 0.1.0
 -----
