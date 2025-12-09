@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Capability\Registry\DynamicToolReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
@@ -58,7 +59,9 @@ final class CallToolHandler implements RequestHandlerInterface
         $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         try {
-            $reference = $this->registry->getTool($toolName);
+            // Try dynamic tool first, fall back to static
+            $reference = $this->registry->getDynamicTool($toolName)
+                ?? $this->registry->getTool($toolName);
 
             $arguments['_session'] = $session;
 
@@ -71,6 +74,7 @@ final class CallToolHandler implements RequestHandlerInterface
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
+                'dynamic' => $reference instanceof DynamicToolReference,
             ]);
 
             return new Response($request->getId(), $result);

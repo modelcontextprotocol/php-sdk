@@ -12,7 +12,14 @@
 namespace Mcp\Capability;
 
 use Mcp\Capability\Discovery\DiscoveryState;
-use Mcp\Capability\Registry\ElementReference;
+use Mcp\Capability\Provider\DynamicPromptProviderInterface;
+use Mcp\Capability\Provider\DynamicResourceProviderInterface;
+use Mcp\Capability\Provider\DynamicResourceTemplateProviderInterface;
+use Mcp\Capability\Provider\DynamicToolProviderInterface;
+use Mcp\Capability\Registry\DynamicPromptReference;
+use Mcp\Capability\Registry\DynamicResourceReference;
+use Mcp\Capability\Registry\DynamicResourceTemplateReference;
+use Mcp\Capability\Registry\DynamicToolReference;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
@@ -27,8 +34,6 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 
 /**
- * @phpstan-import-type Handler from ElementReference
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -37,22 +42,22 @@ interface RegistryInterface
     /**
      * Registers a tool with its handler.
      *
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource with its handler.
      *
-     * @param Handler $handler
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
      */
     public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource template with its handler and completion providers.
      *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function registerResourceTemplate(
         ResourceTemplate $template,
@@ -64,8 +69,8 @@ interface RegistryInterface
     /**
      * Registers a prompt with its handler and completion providers.
      *
-     * @param Handler                            $handler
-     * @param array<string, class-string|object> $completionProviders
+     * @param callable|array{0: class-string|object, 1: string}|string $handler
+     * @param array<string, class-string|object>                       $completionProviders
      */
     public function registerPrompt(
         Prompt $prompt,
@@ -157,4 +162,98 @@ interface RegistryInterface
      * @throws PromptNotFoundException
      */
     public function getPrompt(string $name): PromptReference;
+
+    /**
+     * Registers a dynamic tool provider.
+     */
+    public function registerDynamicToolProvider(DynamicToolProviderInterface $provider): void;
+
+    /**
+     * Registers a dynamic prompt provider.
+     */
+    public function registerDynamicPromptProvider(DynamicPromptProviderInterface $provider): void;
+
+    /**
+     * Registers a dynamic resource provider.
+     */
+    public function registerDynamicResourceProvider(DynamicResourceProviderInterface $provider): void;
+
+    /**
+     * Gets all registered dynamic tool providers.
+     *
+     * @return array<DynamicToolProviderInterface>
+     */
+    public function getDynamicToolProviders(): array;
+
+    /**
+     * Gets all registered dynamic prompt providers.
+     *
+     * @return array<DynamicPromptProviderInterface>
+     */
+    public function getDynamicPromptProviders(): array;
+
+    /**
+     * Gets all registered dynamic resource providers.
+     *
+     * @return array<DynamicResourceProviderInterface>
+     */
+    public function getDynamicResourceProviders(): array;
+
+    /**
+     * Registers a dynamic resource template provider.
+     */
+    public function registerDynamicResourceTemplateProvider(DynamicResourceTemplateProviderInterface $provider): void;
+
+    /**
+     * Gets all registered dynamic resource template providers.
+     *
+     * @return array<DynamicResourceTemplateProviderInterface>
+     */
+    public function getDynamicResourceTemplateProviders(): array;
+
+    /**
+     * Gets completion providers from a dynamic prompt provider.
+     *
+     * @return array<string, class-string|object>|null Completion providers, or null if no dynamic provider found
+     */
+    public function getDynamicPromptCompletionProviders(string $name): ?array;
+
+    /**
+     * Gets completion providers from a dynamic resource template provider.
+     *
+     * @return array<string, class-string|object>|null Completion providers, or null if no dynamic provider found
+     */
+    public function getDynamicResourceTemplateCompletionProviders(string $uri): ?array;
+
+    /**
+     * Gets a dynamic tool reference by name.
+     *
+     * Returns a reference that wraps the dynamic tool provider for uniform handling
+     * with static tool references. Returns null if no dynamic provider supports the tool.
+     */
+    public function getDynamicTool(string $name): ?DynamicToolReference;
+
+    /**
+     * Gets a dynamic prompt reference by name.
+     *
+     * Returns a reference that wraps the dynamic prompt provider for uniform handling
+     * with static prompt references. Returns null if no dynamic provider supports the prompt.
+     */
+    public function getDynamicPrompt(string $name): ?DynamicPromptReference;
+
+    /**
+     * Gets a dynamic resource reference by URI.
+     *
+     * Returns a reference that wraps the dynamic resource provider for uniform handling
+     * with static resource references. Returns null if no dynamic provider supports the URI.
+     */
+    public function getDynamicResource(string $uri): ?DynamicResourceReference;
+
+    /**
+     * Gets a dynamic resource template reference by URI.
+     *
+     * Returns a reference that wraps the dynamic resource template provider for uniform handling
+     * with static resource template references. Returns null if no dynamic provider supports the URI.
+     */
+    public function getDynamicResourceTemplate(string $uri): ?DynamicResourceTemplateReference;
 }

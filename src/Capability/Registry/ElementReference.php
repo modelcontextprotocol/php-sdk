@@ -12,18 +12,39 @@
 namespace Mcp\Capability\Registry;
 
 /**
- * @phpstan-type Handler \Closure|array{0: object|string, 1: string}|string
+ * Base class for element references with default passthrough argument preparation.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ElementReference
+class ElementReference implements ArgumentPreparationInterface
 {
     /**
-     * @param Handler $handler
+     * @param object|array{0: class-string|object, 1: string}|string $handler The handler can be a Closure, array method reference,
+     *                                                                        string function/class name, or a callable object (implementing __invoke)
      */
     public function __construct(
-        public readonly \Closure|array|string $handler,
+        public readonly object|array|string $handler,
         public readonly bool $isManual = false,
     ) {
+    }
+
+    /**
+     * Default passthrough implementation - returns arguments as-is.
+     *
+     * Subclasses can override via traits or direct implementation to provide
+     * custom argument preparation (e.g., reflection-based mapping).
+     *
+     * @param array<string, mixed> $arguments       Raw arguments from MCP request
+     * @param callable             $resolvedHandler The resolved handler callable (unused in passthrough)
+     *
+     * @return array<int, mixed> The arguments as a list, ready to be spread
+     */
+    public function prepareArguments(
+        array $arguments,
+        callable $resolvedHandler,
+    ): array {
+        unset($arguments['_session']);
+
+        return array_values($arguments);
     }
 }

@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Capability\Registry\DynamicPromptReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptGetException;
@@ -54,13 +55,20 @@ final class GetPromptHandler implements RequestHandlerInterface
         $arguments = $request->arguments ?? [];
 
         try {
-            $reference = $this->registry->getPrompt($promptName);
+            // Try dynamic prompt first, fall back to static
+            $reference = $this->registry->getDynamicPrompt($promptName)
+                ?? $this->registry->getPrompt($promptName);
 
             $arguments['_session'] = $session;
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 
             $formatted = $reference->formatResult($result);
+
+            $this->logger->debug('Prompt handled successfully', [
+                'name' => $promptName,
+                'dynamic' => $reference instanceof DynamicPromptReference,
+            ]);
 
             return new Response($request->getId(), new GetPromptResult($formatted));
         } catch (PromptGetException $e) {

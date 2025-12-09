@@ -20,7 +20,6 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CompletionCompleteRequest;
-use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
@@ -56,12 +55,27 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
         $value = $request->argument['value'] ?? '';
 
         try {
-            $reference = match (true) {
-                $request->ref instanceof PromptReference => $this->registry->getPrompt($request->ref->name),
-                $request->ref instanceof ResourceReference => $this->registry->getResource($request->ref->uri),
-            };
+            $providers = [];
 
-            $providers = $reference->completionProviders;
+            if ($request->ref instanceof PromptReference) {
+                $providers = $this->registry->getDynamicPromptCompletionProviders($request->ref->name);
+                if (null === $providers) {
+                    $reference = $this->registry->getPrompt($request->ref->name);
+                    $providers = $reference->completionProviders;
+                }
+            } elseif (str_contains($request->ref->uri, '{')) {
+                // URI template - check dynamic resource template providers first
+                $providers = $this->registry->getDynamicResourceTemplateCompletionProviders($request->ref->uri);
+                if (null === $providers) {
+                    $reference = $this->registry->getResourceTemplate($request->ref->uri);
+                    $providers = $reference->completionProviders;
+                }
+            } else {
+                // Concrete URI - use existing static resource logic
+                $reference = $this->registry->getResource($request->ref->uri);
+                $providers = $reference->completionProviders;
+            }
+
             $provider = $providers[$name] ?? null;
             if (null === $provider) {
                 return new Response($request->getId(), new CompletionCompleteResult([]));
