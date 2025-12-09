@@ -21,6 +21,12 @@ unit-tests:
 inspector-tests:
 	vendor/bin/phpunit --testsuite=inspector
 
+conformance-server:
+	php -S localhost:8000 tests/Conformance/Server/server.php
+
+conformance-tests:
+	npx @modelcontextprotocol/conformance server --url http://localhost:8000/
+
 coverage:
 	XDEBUG_MODE=coverage vendor/bin/phpunit --testsuite=unit --coverage-html=coverage
 
