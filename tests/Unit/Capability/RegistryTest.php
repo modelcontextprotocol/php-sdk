@@ -527,7 +527,49 @@ class RegistryTest extends TestCase
         $this->assertEquals('second', ($toolRef->handler)());
     }
 
-    private function createValidTool(string $name): Tool
+    public function testExtractStructuredContentReturnsNullWhenOutputSchemaIsNull(): void
+    {
+        $tool = $this->createValidTool('test_tool', null);
+        $this->registry->registerTool($tool, fn () => 'result');
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertNull($toolRef->extractStructuredContent('result'));
+    }
+
+    public function testExtractStructuredContentReturnsArrayMatchingSchema(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'properties' => [
+                'param' => ['type' => 'string'],
+            ],
+            'required' => ['param'],
+        ]);
+        $this->registry->registerTool($tool, fn () => [
+            'param' => 'test',
+        ]);
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertEquals([
+            'param' => 'test',
+        ], $toolRef->extractStructuredContent([
+            'param' => 'test',
+        ]));
+    }
+
+    public function testExtractStructuredContentReturnsArrayDirectlyForAdditionalProperties(): void
+    {
+        $tool = $this->createValidTool('test_tool', [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ]);
+        $this->registry->registerTool($tool, fn () => ['success' => true, 'message' => 'done']);
+
+        $toolRef = $this->registry->getTool('test_tool');
+        $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
+    }
+
+    private function createValidTool(string $name, ?array $outputSchema = null): Tool
     {
         return new Tool(
             name: $name,
@@ -540,6 +582,9 @@ class RegistryTest extends TestCase
             ],
             description: "Test tool: {$name}",
             annotations: null,
+            icons: null,
+            meta: null,
+            outputSchema: $outputSchema
         );
     }
 
