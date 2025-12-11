@@ -9,3 +9,8 @@ examples/**/sessions
 tests/Conformance/results
 tests/Conformance/sessions
 tests/Conformance/logs/*.log
+
+# phpDocumentor
+build/
+.phpdoc/
+phpDocumentor.phar
