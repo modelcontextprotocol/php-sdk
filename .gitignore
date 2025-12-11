@@ -6,3 +6,8 @@ vendor
 examples/**/dev.log
 examples/**/cache
 examples/**/sessions
+
+# phpDocumentor
+build/
+.phpdoc/
+phpDocumentor.phar
