@@ -132,3 +132,6 @@ jobs:
 
       - name: PHPStan
         run: vendor/bin/phpstan analyse
+
+      - name: Documentation
+        run: make docs
