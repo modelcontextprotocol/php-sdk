@@ -61,6 +61,7 @@ final class CallToolHandler implements RequestHandlerInterface
             $reference = $this->registry->getTool($toolName);
 
             $arguments['_session'] = $session;
+            $arguments['_request'] = $request;
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 

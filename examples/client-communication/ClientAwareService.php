@@ -14,14 +14,11 @@ namespace Mcp\Example\ClientCommunication;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
-use Mcp\Server\ClientAwareInterface;
-use Mcp\Server\ClientAwareTrait;
+use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 
-final class ClientAwareService implements ClientAwareInterface
+final class ClientAwareService
 {
-    use ClientAwareTrait;
-
     public function __construct(
         private readonly LoggerInterface $logger,
     ) {
@@ -32,9 +29,10 @@ final class ClientAwareService implements ClientAwareInterface
      * @return array{incident: string, recommended_actions: string, model: string}
      */
     #[McpTool('coordinate_incident_response', 'Coordinate an incident response with logging, progress, and sampling.')]
-    public function coordinateIncident(string $incidentTitle): array
+    public function coordinateIncident(RequestContext $context, string $incidentTitle): array
     {
-        $this->log(LoggingLevel::Warning, \sprintf('Incident triage started: %s', $incidentTitle));
+        $clientGateway = $context->getClientGateway();
+        $clientGateway->log(LoggingLevel::Warning, \sprintf('Incident triage started: %s', $incidentTitle));
 
         $steps = [
             'Collecting telemetry',
@@ -45,7 +43,7 @@ final class ClientAwareService implements ClientAwareInterface
         foreach ($steps as $index => $step) {
             $progress = ($index + 1) / \count($steps);
 
-            $this->progress($progress, 1, $step);
+            $clientGateway->progress($progress, 1, $step);
 
             usleep(180_000); // Simulate work being done
         }
@@ -56,11 +54,11 @@ final class ClientAwareService implements ClientAwareInterface
             implode(', ', $steps)
         );
 
-        $result = $this->sample($prompt, 350, 90, ['temperature' => 0.5]);
+        $result = $clientGateway->sample($prompt, 350, 90, ['temperature' => 0.5]);
 
         $recommendation = $result->content instanceof TextContent ? trim((string) $result->content->text) : '';
 
-        $this->log(LoggingLevel::Info, \sprintf('Incident triage completed for %s', $incidentTitle));
+        $clientGateway->log(LoggingLevel::Info, \sprintf('Incident triage completed for %s', $incidentTitle));
 
         return [
             'incident' => $incidentTitle,

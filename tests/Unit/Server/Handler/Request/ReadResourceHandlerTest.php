@@ -75,7 +75,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
             ->willReturn('test');
 
         $resourceReference
@@ -115,7 +115,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
             ->willReturn('fake-image-data');
 
         $resourceReference
@@ -159,7 +159,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
             ->willReturn('binary-data');
 
         $resourceReference
@@ -267,7 +267,7 @@ class ReadResourceHandlerTest extends TestCase
             $this->referenceHandler
                 ->expects($this->once())
                 ->method('handle')
-                ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+                ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
                 ->willReturn('test');
 
             $resourceReference
@@ -312,7 +312,7 @@ class ReadResourceHandlerTest extends TestCase
         $this->referenceHandler
             ->expects($this->once())
             ->method('handle')
-            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+            ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
             ->willReturn('');
 
         $resourceReference
@@ -374,7 +374,7 @@ class ReadResourceHandlerTest extends TestCase
             $this->referenceHandler
                 ->expects($this->once())
                 ->method('handle')
-                ->with($resourceReference, ['uri' => $uri, '_session' => $this->session])
+                ->with($resourceReference, ['uri' => $uri, '_session' => $this->session, '_request' => $request])
                 ->willReturn($expectedContent);
 
             $resourceReference

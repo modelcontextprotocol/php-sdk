@@ -61,6 +61,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
             $arguments = [
                 'uri' => $uri,
                 '_session' => $session,
+                '_request' => $request,
             ];
 
             if ($reference instanceof ResourceTemplateReference) {
