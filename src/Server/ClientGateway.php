@@ -43,7 +43,8 @@ use Mcp\Server\Session\SessionInterface;
  *
  * Example usage in a tool:
  * ```php
- * public function analyze(string $text, ClientGateway $client): string {
+ * public function analyze(string $text, RequestContext $context): string {
+ *     $client = $context->getClientGateway();
  *     // Send progress notification
  *     $client->notify(new ProgressNotification("Starting analysis..."));
  *
