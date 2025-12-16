@@ -6,7 +6,7 @@ and clients in PHP.
 > [!IMPORTANT]
 > This SDK is currently in active development with ongoing refinement of its architecture and features. While
 > functional, the API may experience changes as we work toward stabilization.
-> 
+>
 > If you want to help us stabilize the SDK, please see the [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
 
 This project represents a collaboration between [the PHP Foundation](https://thephp.foundation/) and the [Symfony project](https://symfony.com/). It adopts
@@ -18,6 +18,7 @@ Until the first major release, this SDK is considered [experimental](https://sym
 ## Roadmap
 
 **Features**
+
 - [ ] Stabilize server component with all needed handlers and functional tests
 - [ ] Extend documentation, including integration guides for popular frameworks
 - [ ] Implement Client component
@@ -47,6 +48,11 @@ use Mcp\Capability\Attribute\McpResource;
 
 class CalculatorElements
 {
+    /**
+     * Class must be constructable through the container 
+     */
+    public function __construct() {}
+
     /**
      * Adds two numbers together.
      * 
@@ -173,12 +179,14 @@ $server = Server::builder()
 ### Multiple Transport Options
 
 **STDIO Transport** (Command-line integration):
+
 ```php
 $transport = new StdioTransport();
 $server->run($transport);
 ```
 
 **HTTP Transport** (Web-based communication):
+
 ```php
 $transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
 $response = $server->run($transport);
@@ -251,24 +259,27 @@ $server = Server::builder()
 ## Documentation
 
 **Core Concepts:**
+
 - [Server Builder](docs/server-builder.md) - Complete ServerBuilder reference and configuration
 - [Transports](docs/transports.md) - STDIO and HTTP transport setup and usage
 - [MCP Elements](docs/mcp-elements.md) - Creating tools, resources, and prompts
 - [Client Communication](docs/client-communication.md) - Communicating back to the client from server-side
 
 **Learning:**
+
 - [Examples](docs/examples.md) - Comprehensive example walkthroughs
 
 **External Resources:**
+
 - [Model Context Protocol documentation](https://modelcontextprotocol.io)
 - [Model Context Protocol specification](https://spec.modelcontextprotocol.io)
 - [Officially supported servers](https://github.com/modelcontextprotocol/servers)
 
 ## PHP Libraries Using the MCP SDK
 
-* [pronskiy/mcp](https://github.com/pronskiy/mcp) - Additional DX layer
-* [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) - Symfony integration bundle
-* [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) - CakePHP integration plugin
+- [pronskiy/mcp](https://github.com/pronskiy/mcp) - Additional DX layer
+- [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) - Symfony integration bundle
+- [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) - CakePHP integration plugin
 
 ## Contributing
 
