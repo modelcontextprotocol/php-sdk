@@ -449,7 +449,7 @@ final class Builder
     public function addLoaders(iterable $loaders): self
     {
         foreach ($loaders as $loader) {
-            $this->loaders = [$loader];
+            $this->loaders[] = $loader;
         }
 
         return $this;
