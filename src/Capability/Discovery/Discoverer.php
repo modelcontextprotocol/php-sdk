@@ -220,7 +220,7 @@ class Discoverer
                 case McpTool::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $inputSchema = $this->schemaGenerator->generate($method);
                     $tool = new Tool(
                         $name,
@@ -237,7 +237,7 @@ class Discoverer
                 case McpResource::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $resource = new Resource(
                         $instance->uri,
                         $name,
@@ -256,7 +256,7 @@ class Discoverer
                 case McpPrompt::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $arguments = [];
                     $paramTags = $this->docBlockParser->getParamTags($docBlock);
                     foreach ($method->getParameters() as $param) {
@@ -276,7 +276,7 @@ class Discoverer
                 case McpResourceTemplate::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $mimeType = $instance->mimeType;
                     $annotations = $instance->annotations;
                     $meta = $instance->meta ?? null;
