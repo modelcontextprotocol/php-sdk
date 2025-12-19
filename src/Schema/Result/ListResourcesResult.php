@@ -26,7 +26,7 @@ use Mcp\Schema\Resource;
 class ListResourcesResult implements ResultInterface
 {
     /**
-     * @param array<ResourceData> $resources  the list of resource definitions
+     * @param array<Resource> $resources  the list of resource definitions
      * @param string|null         $nextCursor An opaque token representing the pagination position after the last returned result.
      *
      * If present, there may be more results available.
@@ -57,7 +57,7 @@ class ListResourcesResult implements ResultInterface
 
     /**
      * @return array{
-     *     resources: array<ResourceData>,
+     *     resources: array<Resource>,
      *     nextCursor?: string,
      * }
      */
