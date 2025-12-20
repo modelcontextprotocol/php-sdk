@@ -7,7 +7,7 @@ These examples demonstrate how to use the MCP PHP Client SDK.
 Connects to an MCP server running as a child process:
 
 ```bash
-php examples/client/stdio_example.php
+php examples/client/stdio_discovery_calculator.php
 ```
 
 ## HTTP Client
@@ -19,9 +19,9 @@ Connects to an MCP server over HTTP:
 php -S localhost:8080 examples/http-discovery-userprofile/server.php
 
 # Then run the client
-php examples/client/http_example.php
+php examples/client/http_discovery_userprofile.php
 ```
 
 ## Requirements
 
-Both examples require the server examples to be available. The STDIO example spawns the discovery-calculator server, while the HTTP example connects to a running HTTP server.
+All examples require the server examples to be available. The STDIO examples spawn the server process, while the HTTP examples connect to a running HTTP server.
