@@ -54,7 +54,6 @@ class Client
     private Protocol $protocol;
     private ClientSessionInterface $session;
     private ?ClientTransportInterface $transport = null;
-    private int $progressTokenCounter = 0;
 
     /**
      * @param NotificationHandlerInterface[] $notificationHandlers
@@ -143,11 +142,8 @@ class Client
      *        Optional callback for progress updates. If provided, a progress token
      *        is automatically generated and attached to the request.
      */
-    public function callTool(
-        string $name,
-        array $arguments = [],
-        ?callable $onProgress = null,
-    ): CallToolResult {
+    public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
+    {
         $this->ensureConnected();
 
         $request = new CallToolRequest($name, $arguments);
@@ -209,11 +205,8 @@ class Client
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *        Optional callback for progress updates.
      */
-    public function getPrompt(
-        string $name,
-        array $arguments = [],
-        ?callable $onProgress = null,
-    ): GetPromptResult {
+    public function getPrompt(string $name, array $arguments = [], ?callable $onProgress = null): GetPromptResult
+    {
         $this->ensureConnected();
 
         $request = new GetPromptRequest($name, $arguments);
@@ -261,10 +254,13 @@ class Client
      *
      * @throws RequestException
      */
-    private function doRequest(object $request, ?string $resultClass = null, ?callable $onProgress = null): mixed
+    private function doRequest(Request $request, ?string $resultClass = null, ?callable $onProgress = null): mixed
     {
-        if (null !== $onProgress && $request instanceof Request) {
-            $progressToken = $this->generateProgressToken();
+        $requestId = $this->session->nextRequestId();
+        $request = $request->withId($requestId);
+
+        if (null !== $onProgress) {
+            $progressToken = 'prog-' . $requestId;
             $request = $request->withMeta(['progressToken' => $progressToken]);
         }
 
@@ -281,14 +277,6 @@ class Client
         }
 
         return $resultClass::fromArray($response->result);
-    }
-
-    /**
-     * Generate a unique progress token for a request.
-     */
-    private function generateProgressToken(): string
-    {
-        return 'prog-' . (++$this->progressTokenCounter);
     }
 
     private function ensureConnected(): void

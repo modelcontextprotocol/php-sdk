@@ -66,7 +66,7 @@ class Protocol
     {
         $this->transport = $transport;
         $transport->setSession($this->session);
-        $transport->onInitialize(fn() => $this->performInitialize());
+        $transport->onInitialize($this->initialize(...));
         $transport->onMessage($this->processMessage(...));
         $transport->onError(fn(\Throwable $e) => $this->logger->error('Transport error', ['exception' => $e]));
 
@@ -80,13 +80,16 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    public function performInitialize(): Response|Error
+    public function initialize(): Response|Error
     {
         $request = new InitializeRequest(
             $this->config->protocolVersion,
             $this->config->capabilities,
             $this->config->clientInfo,
         );
+
+        $requestId = $this->session->nextRequestId();
+        $request = $request->withId($requestId);
 
         $response = $this->request($request, $this->config->initTimeout);
 
@@ -114,15 +117,14 @@ class Protocol
      */
     public function request(Request $request, int $timeout): Response|Error
     {
-        $requestId = $this->session->nextRequestId();
-        $requestWithId = $request->withId($requestId);
+        $requestId = $request->getId();
 
         $this->logger->debug('Sending request', [
             'id' => $requestId,
             'method' => $request::getMethod(),
         ]);
 
-        $encoded = json_encode($requestWithId, \JSON_THROW_ON_ERROR);
+        $encoded = json_encode($request, \JSON_THROW_ON_ERROR);
         $this->session->queueOutgoing($encoded, ['type' => 'request']);
         $this->session->addPendingRequest($requestId, $timeout);
 
