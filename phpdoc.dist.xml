@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<phpdocumentor
+    configVersion="3"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://www.phpdoc.org"
+    xsi:noNamespaceSchemaLocation="https://docs.phpdoc.org/latest/phpdoc.xsd"
+>
+    <title>MCP PHP SDK</title>
+    <paths>
+        <output>build/docs</output>
+    </paths>
+    <version number="latest">
+        <api>
+            <source dsn=".">
+                <path>src</path>
+            </source>
+            <output>api</output>
+            <ignore>
+                <path>vendor/**/*</path>
+                <path>tests/**/*</path>
+            </ignore>
+        </api>
+    </version>
+    <setting name="graphs.enabled" value="true"/>
+</phpdocumentor>
