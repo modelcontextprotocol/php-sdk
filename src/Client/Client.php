@@ -23,7 +23,9 @@ use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Request\ListResourcesRequest;
@@ -32,7 +34,9 @@ use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Request\SetLogLevelRequest;
+use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Schema\Result\ListResourcesResult;
@@ -221,6 +225,22 @@ class Client
     {
         $this->ensureConnected();
         $this->doRequest(new SetLogLevelRequest($level));
+    }
+
+    /**
+     * Request completion suggestions for a prompt or resource argument.
+     *
+     * @param PromptReference|ResourceReference $ref      The prompt or resource reference
+     * @param array{name: string, value: string} $argument The argument to complete
+     */
+    public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
+    {
+        $this->ensureConnected();
+
+        return $this->doRequest(
+            new CompletionCompleteRequest($ref, $argument),
+            CompletionCompleteResult::class,
+        );
     }
 
     /**
