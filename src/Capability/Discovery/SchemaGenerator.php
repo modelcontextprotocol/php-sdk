@@ -12,7 +12,6 @@
 namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\Schema;
-use Mcp\Server\ClientGateway;
 use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
@@ -416,7 +415,7 @@ class SchemaGenerator
             if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
                 $typeName = $reflectionType->getName();
 
-                if (is_a($typeName, ClientGateway::class, true) || is_a($typeName, RequestContext::class, true)) {
+                if (is_a($typeName, RequestContext::class, true)) {
                     continue;
                 }
             }
