@@ -73,36 +73,6 @@ class Builder
     }
 
     /**
-     * Enable roots capability.
-     */
-    public function withRoots(bool $listChanged = false): self
-    {
-        $this->capabilities = new ClientCapabilities(
-            roots: true,
-            rootsListChanged: $listChanged,
-            sampling: $this->capabilities?->sampling,
-            experimental: $this->capabilities?->experimental,
-        );
-
-        return $this;
-    }
-
-    /**
-     * Enable sampling capability.
-     */
-    public function withSampling(): self
-    {
-        $this->capabilities = new ClientCapabilities(
-            roots: $this->capabilities?->roots,
-            rootsListChanged: $this->capabilities?->rootsListChanged,
-            sampling: true,
-            experimental: $this->capabilities?->experimental,
-        );
-
-        return $this;
-    }
-
-    /**
      * Set initialization timeout in seconds.
      */
     public function setInitTimeout(int $seconds): self
