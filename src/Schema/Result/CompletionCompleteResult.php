@@ -60,4 +60,18 @@ class CompletionCompleteResult implements ResultInterface
 
         return ['completion' => $completion];
     }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $completion = $data['completion'] ?? [];
+
+        return new self(
+            $completion['values'] ?? [],
+            $completion['total'] ?? null,
+            $completion['hasMore'] ?? null,
+        );
+    }
 }
