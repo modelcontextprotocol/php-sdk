@@ -11,7 +11,7 @@
 
 namespace Mcp\Client;
 
-use Mcp\Client\Handler\InternalProgressHandler;
+use Mcp\Client\Handler\ProgressNotificationHandler;
 use Mcp\Client\Session\ClientSession;
 use Mcp\Client\Session\ClientSessionInterface;
 use Mcp\Client\Transport\ClientTransportInterface;
@@ -66,9 +66,8 @@ class Client
     ) {
         $this->session = new ClientSession();
 
-        // Auto-register internal progress handler to dispatch per-request callbacks
         $allNotificationHandlers = [
-            new InternalProgressHandler($this->session),
+            new ProgressNotificationHandler($this->session),
             ...$notificationHandlers,
         ];
 
