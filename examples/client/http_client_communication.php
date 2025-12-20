@@ -7,7 +7,7 @@
  * (logging and progress notifications) via HTTP transport.
  *
  * Usage:
- *   1. Start the server: php -S localhost:8000 examples/client-communication/server.php
+ *   1. Start the server: php -S localhost:8000 examples/server/client-communication/server.php
  *   2. Run this script: php examples/client/http_client_communication.php
  */
 
