@@ -9,8 +9,15 @@
  * - Sampling requests (mocked LLM response)
  *
  * Usage:
- *   1. Start the server: php -S localhost:8000 examples/server/client-communication/server.php
+ *   1. Start the server: php -S 127.0.0.1:8000 examples/server/client-communication/server.php
  *   2. Run this script: php examples/client/http_client_communication.php
+ *
+ * Note: PHP's built-in server works for listing tools, calling tools, and receiving
+ * progress/logging notifications. However, sampling requires a concurrent-capable server
+ * (e.g., Symfony CLI, PHP-FPM) since the server must process the client's sampling
+ * response while the original tool request is still pending. 
+ * 
+ * Eg. symfony serve --passthru=examples/server/client-communication/server.php --no-tls
  */
 
 declare(strict_types=1);
