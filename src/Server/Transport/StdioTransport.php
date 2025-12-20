@@ -105,8 +105,14 @@ class StdioTransport extends BaseTransport
         $pendingRequests = $this->getPendingRequests($this->sessionId);
 
         if (empty($pendingRequests)) {
+            // Flush any queued messages before resuming (e.g., notifications from previous yield)
+            $this->flushOutgoingMessages();
+
             $yielded = $this->sessionFiber->resume();
             $this->handleFiberYield($yielded, $this->sessionId);
+
+            // Flush newly queued messages (like notifications) before returning
+            $this->flushOutgoingMessages();
 
             return;
         }
@@ -121,6 +127,7 @@ class StdioTransport extends BaseTransport
             if (null !== $response) {
                 $yielded = $this->sessionFiber->resume($response);
                 $this->handleFiberYield($yielded, $this->sessionId);
+                $this->flushOutgoingMessages();
 
                 return;
             }
@@ -129,6 +136,7 @@ class StdioTransport extends BaseTransport
                 $error = Error::forInternalError('Request timed out', $requestId);
                 $yielded = $this->sessionFiber->resume($error);
                 $this->handleFiberYield($yielded, $this->sessionId);
+                $this->flushOutgoingMessages();
 
                 return;
             }
@@ -162,7 +170,8 @@ class StdioTransport extends BaseTransport
 
     private function writeLine(string $payload): void
     {
-        fwrite($this->output, $payload.\PHP_EOL);
+        fwrite($this->output, $payload . \PHP_EOL);
+        fflush($this->output);
     }
 
     public function close(): void
