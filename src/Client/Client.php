@@ -19,6 +19,7 @@ use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
 use Mcp\Handler\NotificationHandlerInterface;
 use Mcp\Handler\RequestHandlerInterface;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -30,6 +31,7 @@ use Mcp\Schema\Request\ListResourceTemplatesRequest;
 use Mcp\Schema\Request\ListToolsRequest;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Request\ReadResourceRequest;
+use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\ListPromptsResult;
@@ -217,6 +219,15 @@ class Client
         $request = new GetPromptRequest($name, $arguments);
 
         return $this->doRequest($request, GetPromptResult::class, $onProgress);
+    }
+
+    /**
+     * Set the minimum logging level for server notifications.
+     */
+    public function setLoggingLevel(LoggingLevel $level): void
+    {
+        $this->ensureConnected();
+        $this->doRequest(new SetLogLevelRequest($level));
     }
 
     /**
