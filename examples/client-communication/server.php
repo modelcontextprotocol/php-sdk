@@ -16,7 +16,7 @@ chdir(__DIR__);
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
-use Mcp\Server\ClientGateway;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionStore;
 
 $server = Server::builder()
@@ -27,7 +27,8 @@ $server = Server::builder()
     ->setCapabilities(new ServerCapabilities(logging: true, tools: true))
     ->setDiscovery(__DIR__)
     ->addTool(
-        function (string $dataset, ClientGateway $client): array {
+        function (RequestContext $context, string $dataset): array {
+            $client = $context->getClientGateway();
             $client->log(LoggingLevel::Info, sprintf('Running quality checks on dataset "%s"', $dataset));
 
             $tasks = [
