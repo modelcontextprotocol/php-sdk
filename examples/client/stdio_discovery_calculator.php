@@ -26,7 +26,7 @@ $client = Client::builder()
 
 $transport = new StdioClientTransport(
     command: 'php',
-    args: [__DIR__ . '/../discovery-calculator/server.php'],
+    args: [__DIR__ . '/../server/discovery-calculator/server.php'],
 );
 
 try {

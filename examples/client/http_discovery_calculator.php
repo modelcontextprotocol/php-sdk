@@ -9,7 +9,7 @@
  * Usage: php examples/client/http_discovery_calculator.php
  *
  * Before running, start an HTTP MCP server:
- *   php -S localhost:8080 examples/http-discovery-calculator/server.php
+ *   php -S localhost:8080 examples/server/http-discovery-calculator/server.php
  */
 
 declare(strict_types=1);

@@ -30,7 +30,7 @@ $client = Client::builder()
 
 $transport = new StdioClientTransport(
     command: 'php',
-    args: [__DIR__ . '/../client-communication/server.php'],
+    args: [__DIR__ . '/../server/client-communication/server.php'],
 );
 
 try {
