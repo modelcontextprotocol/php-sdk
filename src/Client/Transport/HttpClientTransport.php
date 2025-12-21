@@ -199,7 +199,8 @@ class HttpClientTransport extends BaseClientTransport
     {
         $this->processSSEStream();
         $this->processProgress();
-        $this->tryResumeFiber();
+        $this->processFiber();
+        
         usleep(1000); // 1ms
     }
 
@@ -275,7 +276,7 @@ class HttpClientTransport extends BaseClientTransport
         }
     }
 
-    private function tryResumeFiber(): void
+    private function processFiber(): void
     {
         if (null === $this->activeFiber || !$this->activeFiber->isSuspended()) {
             return;
