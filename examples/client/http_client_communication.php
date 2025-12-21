@@ -71,7 +71,7 @@ try {
     $client->connect($transport);
 
     $serverInfo = $client->getServerInfo();
-    echo "Connected to: " . ($serverInfo['serverInfo']['name'] ?? 'unknown') . "\n\n";
+    echo "Connected to: " . ($serverInfo?->name ?? 'unknown') . "\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();

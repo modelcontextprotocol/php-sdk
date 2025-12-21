@@ -35,8 +35,8 @@ try {
 
     echo "Connected! Server info:\n";
     $serverInfo = $client->getServerInfo();
-    echo "  Name: " . ($serverInfo['serverInfo']['name'] ?? 'unknown') . "\n";
-    echo "  Version: " . ($serverInfo['serverInfo']['version'] ?? 'unknown') . "\n\n";
+    echo "  Name: " . ($serverInfo?->name ?? 'unknown') . "\n";
+    echo "  Version: " . ($serverInfo?->version ?? 'unknown') . "\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();

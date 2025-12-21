@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Session;
 
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Symfony\Component\Uid\Uuid;
@@ -25,9 +26,8 @@ class ClientSession implements ClientSessionInterface
     private Uuid $id;
     private int $requestIdCounter = 1;
     private bool $initialized = false;
-
-    /** @var array<string, mixed>|null */
-    private ?array $serverInfo = null;
+    private ?Implementation $serverInfo = null;
+    private ?string $instructions = null;
 
     /** @var array<int, array{request_id: int, timestamp: int, timeout: int}> */
     private array $pendingRequests = [];
@@ -123,14 +123,24 @@ class ClientSession implements ClientSessionInterface
         return $this->initialized;
     }
 
-    public function setServerInfo(array $serverInfo): void
+    public function setServerInfo(Implementation $serverInfo): void
     {
         $this->serverInfo = $serverInfo;
     }
 
-    public function getServerInfo(): ?array
+    public function getServerInfo(): ?Implementation
     {
         return $this->serverInfo;
+    }
+
+    public function setInstructions(?string $instructions): void
+    {
+        $this->instructions = $instructions;
+    }
+
+    public function getInstructions(): ?string
+    {
+        return $this->instructions;
     }
 
     public function storeProgress(string $token, float $progress, ?float $total, ?string $message): void
