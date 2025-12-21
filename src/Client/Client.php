@@ -20,6 +20,7 @@ use Mcp\Exception\RequestException;
 use Mcp\Handler\NotificationHandlerInterface;
 use Mcp\Handler\RequestHandlerInterface;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -245,12 +246,21 @@ class Client
 
     /**
      * Get the server info received during initialization.
-     *
-     * @return array<string, mixed>|null
      */
-    public function getServerInfo(): ?array
+    public function getServerInfo(): ?Implementation
     {
         return $this->protocol->getSession()->getServerInfo();
+    }
+
+    /**
+     * Get the server instructions received during initialization.
+     *
+     * Instructions describe how to use the server and its features.
+     * This can be used to improve the LLM's understanding of available tools and resources.
+     */
+    public function getInstructions(): ?string
+    {
+        return $this->protocol->getSession()->getInstructions();
     }
 
     /**
