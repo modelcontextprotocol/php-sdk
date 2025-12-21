@@ -22,6 +22,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\Result\InitializeResult;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -94,13 +95,15 @@ class Protocol
         $response = $this->request($request, $this->config->initTimeout);
 
         if ($response instanceof Response) {
-            $this->session->setServerInfo($response->result);
+            $initResult = InitializeResult::fromArray($response->result);
+            $this->session->setServerInfo($initResult->serverInfo);
+            $this->session->setInstructions($initResult->instructions);
             $this->session->setInitialized(true);
 
             $this->sendNotification(new InitializedNotification());
 
             $this->logger->info('Initialization complete', [
-                'server' => $response->result['serverInfo'] ?? null,
+                'server' => $initResult->serverInfo->name,
             ]);
         }
 
