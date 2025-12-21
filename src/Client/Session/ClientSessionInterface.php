@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Session;
 
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Symfony\Component\Uid\Uuid;
@@ -95,18 +96,24 @@ interface ClientSessionInterface
     public function isInitialized(): bool;
 
     /**
-     * Store server capabilities and info from initialization.
-     *
-     * @param array<string, mixed> $serverInfo
+     * Store the server info from initialization.
      */
-    public function setServerInfo(array $serverInfo): void;
+    public function setServerInfo(Implementation $serverInfo): void;
 
     /**
-     * Get stored server info.
-     *
-     * @return array<string, mixed>|null
+     * Get the server info from initialization.
      */
-    public function getServerInfo(): ?array;
+    public function getServerInfo(): ?Implementation;
+
+    /**
+     * Store the server instructions from initialization.
+     */
+    public function setInstructions(?string $instructions): void;
+
+    /**
+     * Get the server instructions from initialization.
+     */
+    public function getInstructions(): ?string;
 
     /**
      * Store progress data received from a notification.
