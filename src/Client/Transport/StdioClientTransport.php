@@ -192,11 +192,8 @@ class StdioClientTransport extends BaseClientTransport
     private function tick(): void
     {
         $this->processInput();
-
         $this->processProgress();
-
-        $this->tryResumeFiber();
-
+        $this->processFiber();
         $this->processStderr();
 
         usleep(1000); // 1ms
@@ -248,7 +245,7 @@ class StdioClientTransport extends BaseClientTransport
         }
     }
 
-    private function tryResumeFiber(): void
+    private function processFiber(): void
     {
         if (null === $this->activeFiber || !$this->activeFiber->isSuspended()) {
             return;
