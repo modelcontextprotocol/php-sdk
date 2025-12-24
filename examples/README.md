@@ -22,6 +22,33 @@ Run with Inspector:
 npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 ```
 
+## OAuth 2.0 Examples
+
+The SDK supports OAuth 2.0 authentication following the [MCP Authorization Specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+
+### Microsoft Entra ID (Azure AD)
+
+```bash
+export MICROSOFT_TENANT_ID=your-tenant-id
+export MICROSOFT_CLIENT_ID=your-client-id
+export MCP_SERVER_URL=http://localhost:8080
+
+php -S localhost:8080 examples/microsoft-oauth2/server.php
+```
+
+### Generic OAuth 2.0 (Auth0, Okta, Keycloak, etc.)
+
+```bash
+export OAUTH_JWKS_URI=https://your-provider/.well-known/jwks.json
+export OAUTH_ISSUER=https://your-provider
+export OAUTH_AUDIENCE=your-api-identifier
+export MCP_SERVER_URL=http://localhost:8080
+
+php -S localhost:8080 examples/oauth2-generic/server.php
+```
+
+See [docs/oauth2-authentication.md](../docs/oauth2-authentication.md) for full documentation.
+
 ## Debugging
 
 You can enable debug output by setting the `DEBUG` environment variable to `1`, and additionally log to a file by

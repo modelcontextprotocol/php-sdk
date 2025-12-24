@@ -27,20 +27,20 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport extends BaseTransport
 {
-    private ResponseFactoryInterface $responseFactory;
-    private StreamFactoryInterface $streamFactory;
+    protected ResponseFactoryInterface $responseFactory;
+    protected StreamFactoryInterface $streamFactory;
 
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
     /** @var array<string, string> */
-    private array $corsHeaders;
+    protected array $corsHeaders;
 
     /**
      * @param array<string, string> $corsHeaders
      */
     public function __construct(
-        private readonly ServerRequestInterface $request,
+        protected readonly ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         array $corsHeaders = [],

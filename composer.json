@@ -62,6 +62,8 @@
       "Mcp\\Example\\DiscoveryUserProfile\\": "examples/discovery-userprofile/",
       "Mcp\\Example\\EnvVariables\\": "examples/env-variables/",
       "Mcp\\Example\\ExplicitRegistration\\": "examples/explicit-registration/",
+      "Mcp\\Example\\MicrosoftOAuth2\\": "examples/microsoft-oauth2/",
+      "Mcp\\Example\\OAuth2Generic\\": "examples/oauth2-generic/",
       "Mcp\\Example\\SchemaShowcase\\": "examples/schema-showcase/",
       "Mcp\\Example\\ClientLogging\\": "examples/client-logging/",
       "Mcp\\Tests\\": "tests/"
