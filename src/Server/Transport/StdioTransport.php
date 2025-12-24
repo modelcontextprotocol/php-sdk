@@ -21,6 +21,8 @@ use Psr\Log\LoggerInterface;
  */
 class StdioTransport extends BaseTransport
 {
+    private RunnerControlInterface $runnerControl;
+
     /**
      * @param resource $input
      * @param resource $output
@@ -29,7 +31,9 @@ class StdioTransport extends BaseTransport
         private $input = \STDIN,
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
+        ?RunnerControlInterface $runnerControl = null,
     ) {
+        $this->runnerControl = $runnerControl ?? new RunnerControl();
         parent::__construct($logger);
     }
 
@@ -51,10 +55,17 @@ class StdioTransport extends BaseTransport
             $this->processInput();
             $this->processFiber();
             $this->flushOutgoingMessages();
+            if (RunnerState::RUNNING !== $this->runnerControl->getState()) {
+                $this->logger->info('StdioTransport received stop signal.');
+                break;
+            }
         }
 
         $this->logger->info('StdioTransport finished listening.');
-        $this->handleSessionEnd($this->sessionId);
+        if (\in_array($this->runnerControl->getState(), [RunnerState::RUNNING, RunnerState::KILL_SESSION_AND_STOP], true)) {
+            $this->logger->info('StdioTransport end session.');
+            $this->handleSessionEnd($this->sessionId);
+        }
 
         return 0;
     }
