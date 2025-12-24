@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs rector phpstan tests coverage run-examples ci ci-stable ci-lowest
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest
 
 deps-stable:
 	composer update --prefer-stable
