@@ -62,7 +62,7 @@ class StdioTransport extends BaseTransport
         }
 
         $this->logger->info('StdioTransport finished listening.');
-        if (\in_array($this->runnerControl->getState(), [RunnerState::RUNNING, RunnerState::KILL_SESSION_AND_STOP], true)) {
+        if (\in_array($this->runnerControl->getState(), [RunnerState::RUNNING, RunnerState::STOP_AND_DESTROY_SESSION], true)) {
             $this->logger->info('StdioTransport end session.');
             $this->handleSessionEnd($this->sessionId);
         }

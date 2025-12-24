@@ -13,6 +13,8 @@ namespace Mcp\Server\Transport;
 
 /**
  * Used by the transport to control the runner state.
+ *
+ * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 interface RunnerControlInterface
 {

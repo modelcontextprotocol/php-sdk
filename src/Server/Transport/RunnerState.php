@@ -13,10 +13,12 @@ namespace Mcp\Server\Transport;
 
 /**
  * State for the transport.
+ *
+ * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
 enum RunnerState
 {
     case RUNNING;
-    case KILL_SESSION_AND_STOP;
+    case STOP_AND_DESTROY_SESSION;
     case STOP;
 }

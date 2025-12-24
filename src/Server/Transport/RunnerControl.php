@@ -11,6 +11,12 @@
 
 namespace Mcp\Server\Transport;
 
+/**
+ * Default implementation of RunnerControlInterface. This will allow
+ * anyone to change the state of the runner.
+ *
+ * @author Tobias Nyholm <tobias.nyholm@gmail.com>
+ */
 class RunnerControl implements RunnerControlInterface
 {
     public static RunnerState $state = RunnerState::RUNNING;
