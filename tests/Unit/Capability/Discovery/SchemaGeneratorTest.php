@@ -327,4 +327,45 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['description' => 'Some parameter', 'minLength' => 3], $schema['properties']['inferredParam']);
         $this->assertEquals(['inferredParam'], $schema['required']);
     }
+
+    public function testGenerateOutputSchemaReturnsNullForVoidReturnType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParams');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertNull($schema);
+    }
+
+    public function testGenerateOutputSchemaWithReturnDescription(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnWithExplicitOutputSchema');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'properties' => [
+                'message' => ['type' => 'string'],
+            ],
+            'required' => ['message'],
+            'description' => 'The result of the operation',
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaForArrayReturnType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'noParamsWithSchema');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'additionalProperties' => true,
+        ], $schema);
+    }
+
+    public function testGenerateOutputSchemaForComplexNestedSchema(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'complexNestedSchema');
+        $schema = $this->schemaGenerator->generateOutputSchema($method);
+        $this->assertEquals([
+            'type' => 'object',
+            'additionalProperties' => true,
+        ], $schema);
+    }
 }

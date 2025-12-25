@@ -63,15 +63,22 @@ final class CallToolHandler implements RequestHandlerInterface
             $arguments['_session'] = $session;
             $arguments['_request'] = $request;
 
-            $result = $this->referenceHandler->handle($reference, $arguments);
+            $rawResult = $this->referenceHandler->handle($reference, $arguments);
 
-            if (!$result instanceof CallToolResult) {
-                $result = new CallToolResult($reference->formatResult($result));
+            $structuredContent = null;
+            if (null !== $reference->tool->outputSchema && !$rawResult instanceof CallToolResult) {
+                $structuredContent = $reference->extractStructuredContent($rawResult);
+            }
+
+            $result = $rawResult;
+            if (!$rawResult instanceof CallToolResult) {
+                $result = new CallToolResult($reference->formatResult($rawResult), structuredContent: $structuredContent);
             }
 
             $this->logger->debug('Tool executed successfully', [
                 'name' => $toolName,
                 'result_type' => \gettype($result),
+                'structured_content' => $structuredContent,
             ]);
 
             return new Response($request->getId(), $result);
