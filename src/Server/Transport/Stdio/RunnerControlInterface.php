@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport;
+namespace Mcp\Server\Transport\Stdio;
 
 /**
  * Used by the transport to control the runner state.

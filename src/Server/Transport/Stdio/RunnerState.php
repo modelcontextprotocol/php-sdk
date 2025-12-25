@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport;
+namespace Mcp\Server\Transport\Stdio;
 
 /**
  * State for the transport.
@@ -19,6 +19,6 @@ namespace Mcp\Server\Transport;
 enum RunnerState
 {
     case RUNNING;
-    case STOP_AND_DESTROY_SESSION;
+    case STOP_AND_END_SESSION;
     case STOP;
 }
