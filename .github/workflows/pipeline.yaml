@@ -12,6 +12,21 @@ jobs:
       matrix:
         php: ['8.1', '8.2', '8.3', '8.4', '8.5']
         dependencies: ['lowest', 'highest']
+        symfony-version: ['']
+        include:
+          - symfony-version: '5.4'
+            dependencies: 'highest'
+            php: '8.2'
+          - symfony-version: '6.4'
+            dependencies: 'highest'
+            php: '8.2'
+          - symfony-version: '7.4'
+            dependencies: 'highest'
+            php: '8.4'
+
+    env:
+      SYMFONY_REQUIRE: ${{ matrix.symfony-version || '>=6.4' }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -20,6 +35,7 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ matrix.php }}
+          tools: flex
           coverage: "none"
 
       - name: Install Composer
