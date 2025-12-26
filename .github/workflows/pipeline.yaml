@@ -14,13 +14,13 @@ jobs:
         dependencies: ['lowest', 'highest']
         symfony-version: ['']
         include:
-          - symfony-version: '5.4'
+          - symfony-version: '5.4.*'
             dependencies: 'highest'
             php: '8.2'
-          - symfony-version: '6.4'
+          - symfony-version: '6.4.*'
             dependencies: 'highest'
             php: '8.2'
-          - symfony-version: '7.4'
+          - symfony-version: '7.4.*'
             dependencies: 'highest'
             php: '8.4'
 
