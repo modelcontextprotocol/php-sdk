@@ -19,7 +19,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
-require_once dirname(__DIR__).'/vendor/autoload.php';
+require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 set_exception_handler(function (Throwable $t): never {
     logger()->critical('Uncaught exception: '.$t->getMessage(), ['exception' => $t]);
