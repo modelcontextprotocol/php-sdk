@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.2.2
+-----
+
+* Throw exception when trying to inject parameter with the unsupported names `$_session` or `$_request`.
+
 0.2.1
 -----
 
