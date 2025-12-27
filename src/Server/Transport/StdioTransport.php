@@ -25,8 +25,8 @@ use Psr\Log\LoggerInterface;
 class StdioTransport extends BaseTransport
 {
     /**
-     * @param resource                $input
-     * @param resource                $output
+     * @param resource $input
+     * @param resource $output
      */
     public function __construct(
         private $input = \STDIN,
