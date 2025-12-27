@@ -21,7 +21,7 @@ final class HttpDiscoveryUserProfileTest extends HttpInspectorSnapshotTestCase
                 'method' => 'tools/call',
                 'options' => [
                     'toolName' => 'send_welcome',
-                    'toolArgs' => ['userId' => '101', 'customMessage' => 'Welcome to our platform!'],
+                    'toolArgs' => ['userId' => '"101"', 'customMessage' => 'Welcome to our platform!'],
                 ],
                 'testName' => 'send_welcome',
             ],

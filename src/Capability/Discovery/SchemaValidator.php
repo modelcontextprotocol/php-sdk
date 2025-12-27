@@ -220,7 +220,7 @@ class SchemaValidator
                 break;
             case 'type':
                 $expected = implode('|', (array) ($args['expected'] ?? []));
-                $used = $args['used'] ?? 'unknown';
+                $used = $error->data()->type() ?? 'unknown';
                 $message = "Invalid type. Expected `{$expected}`, but received `{$used}`.";
                 break;
             case 'enum':
