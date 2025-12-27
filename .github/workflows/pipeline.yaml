@@ -96,7 +96,12 @@ jobs:
         run: sleep 5
 
       - name: Tests
-        run: npx @modelcontextprotocol/conformance server --url http://localhost:8000/
+        run: |
+          OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/)
+          exit_code=$?
+          echo "$OUTPUT"
+          passedTests=$(echo "$OUTPUT" | grep -oP '(?<=Total: )\d+ passed')
+          [ "$passedTests" -lt 8 ] && exit $exit_code
 
   qa:
     runs-on: ubuntu-latest
