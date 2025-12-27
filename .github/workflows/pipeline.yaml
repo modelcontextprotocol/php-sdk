@@ -100,7 +100,10 @@ jobs:
           OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/)
           exit_code=$?
           echo "$OUTPUT"
-          passedTests=$(echo "$OUTPUT" | grep -oP '(?<=Total: )\d+ passed')
+          
+          # Example: "Total: 3 passed, 16 failed"
+          passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
+          passedTests=${passedTests:-0}
           [ "$passedTests" -lt 8 ] && exit $exit_code
 
   qa:
