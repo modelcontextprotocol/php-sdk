@@ -3,7 +3,7 @@
     {
       "name": "priority_config_discovered",
       "uri": "config://priority",
-      "description": "A resource discovered via attributes."
+      "description": "A resource discovered via attributes.\n\nThis will be overridden by a manual registration with the same URI."
     }
   ]
 }
