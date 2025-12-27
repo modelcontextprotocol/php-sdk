@@ -157,7 +157,7 @@ class StdioTransport extends BaseTransport
 
     private function writeLine(string $payload): void
     {
-        fwrite($this->output, $payload . \PHP_EOL);
+        fwrite($this->output, $payload.\PHP_EOL);
     }
 
     public function close(): void
