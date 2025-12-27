@@ -525,7 +525,17 @@ class CallToolHandlerTest extends TestCase
         ?array $outputSchema = null,
         array $methodsToMock = ['formatResult'],
     ): ToolReference&MockObject {
-        $tool = new Tool($name, ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null, $outputSchema);
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'example' => [
+                    'type' => 'string',
+                    'description' => 'This is just a dummy',
+                ],
+            ],
+            'required' => [],
+        ];
+        $tool = new Tool($name, $schema, null, null, null, null, $outputSchema);
 
         $builder = $this->getMockBuilder(ToolReference::class)
             ->setConstructorArgs([$tool, $handler]);
