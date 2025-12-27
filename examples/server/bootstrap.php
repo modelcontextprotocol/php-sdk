@@ -70,6 +70,10 @@ function logger(): LoggerInterface
                 ([] === $context || !$debug) ? '' : json_encode($context),
             );
 
+            if (isset($context['exception']) && $context['exception'] instanceof Throwable) {
+                $logMessage .= sprintf('> %s', $context['exception']->getMessage())."\n";
+            }
+
             if (($_SERVER['FILE_LOG'] ?? false) || !defined('STDERR')) {
                 file_put_contents('dev.log', $logMessage, \FILE_APPEND);
             } else {

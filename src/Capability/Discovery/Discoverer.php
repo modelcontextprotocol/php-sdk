@@ -106,7 +106,7 @@ class Discoverer
             }
         } catch (\Throwable $e) {
             $this->logger->error('Error during file finding process for MCP discovery'.json_encode($e->getTrace(), \JSON_PRETTY_PRINT), [
-                'exception' => $e->getMessage(),
+                'exception' => $e,
                 'trace' => $e->getTraceAsString(),
             ]);
         }
@@ -183,12 +183,12 @@ class Discoverer
                 }
             }
         } catch (\ReflectionException $e) {
-            $this->logger->error('Reflection error processing file for MCP discovery', ['file' => $file->getPathname(), 'class' => $className, 'exception' => $e->getMessage()]);
+            $this->logger->error('Reflection error processing file for MCP discovery', ['file' => $file->getPathname(), 'class' => $className, 'exception' => $e]);
         } catch (\Throwable $e) {
             $this->logger->error('Unexpected error processing file for MCP discovery', [
                 'file' => $file->getPathname(),
                 'class' => $className,
-                'exception' => $e->getMessage(),
+                'exception' => $e,
                 'trace' => $e->getTraceAsString(),
             ]);
         }
@@ -287,9 +287,9 @@ class Discoverer
                     break;
             }
         } catch (ExceptionInterface $e) {
-            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e->getMessage(), 'trace' => $e->getPrevious() ? $e->getPrevious()->getTraceAsString() : $e->getTraceAsString()]);
+            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e, 'trace' => $e->getPrevious() ? $e->getPrevious()->getTraceAsString() : $e->getTraceAsString()]);
         } catch (\Throwable $e) {
-            $this->logger->error("Unexpected error processing attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e->getMessage(), 'trace' => $e->getTraceAsString()]);
+            $this->logger->error("Unexpected error processing attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e, 'trace' => $e->getTraceAsString()]);
         }
     }
 
@@ -338,7 +338,7 @@ class Discoverer
             $content = $file->getContents();
         } catch (\Throwable $e) {
             $this->logger->warning("Failed to read file content during class discovery: {$file->getPathname()}", [
-                'exception' => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
@@ -354,7 +354,7 @@ class Discoverer
             $tokens = token_get_all($content);
         } catch (\Throwable $e) {
             $this->logger->warning("Failed to tokenize file during class discovery: {$file->getPathname()}", [
-                'exception' => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return null;
