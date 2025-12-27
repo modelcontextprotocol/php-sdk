@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Throw exception when trying to inject parameter with the unsupported names `$_session` or `$_request`.
+* `Throwable` objects are passed to log context instead of the exception message.
 
 0.2.1
 -----
