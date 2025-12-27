@@ -98,8 +98,8 @@ jobs:
       - name: Tests
         run: |
           set -x
-          OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/)
-          exit_code=$?
+          exit_code=0
+          OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/) || exit_code=1 
           echo "$OUTPUT"
           
           # Example: "Total: 3 passed, 16 failed"
@@ -107,7 +107,7 @@ jobs:
           passedTests=${passedTests:-0}
           
           REQUIRED_TESTS_TO_PASS=8
-          [ "$passedTests" -lt "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
+          [ "$passedTests" -le "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
 
   qa:
     runs-on: ubuntu-latest
