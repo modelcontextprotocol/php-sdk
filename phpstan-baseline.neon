@@ -1,12 +1,6 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^PHPDoc tag @param references unknown parameter\: \$data$#'
-			identifier: parameter.notFound
-			count: 1
-			path: src/Schema/JsonRpc/Error.php
-
-		-
 			message: '#^Method Mcp\\Schema\\Result\\ReadResourceResult\:\:jsonSerialize\(\) should return array\{contents\: array\<Mcp\\Schema\\Content\\BlobResourceContents\|Mcp\\Schema\\Content\\TextResourceContents\>\} but returns array\{contents\: array\<Mcp\\Schema\\Content\\ResourceContents\>\}\.$#'
 			identifier: return.type
 			count: 1
