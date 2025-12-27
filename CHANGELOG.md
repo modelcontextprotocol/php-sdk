@@ -2,7 +2,7 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
-0.2.1
+0.3.0
 -----
 
 * Add `RunnerControl` for `StdioTransport` to allow break out from continuously listening for new input.
