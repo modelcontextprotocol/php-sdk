@@ -50,6 +50,6 @@ final class StdioEnvVariablesTest extends StdioInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/env-variables/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/env-variables/server.php';
     }
 }

@@ -87,7 +87,7 @@ final class HttpSchemaShowcaseTest extends HttpInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/schema-showcase/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/schema-showcase/server.php';
     }
 
     protected function normalizeTestOutput(string $output, ?string $testName = null): string

@@ -67,6 +67,6 @@ final class HttpDiscoveryUserProfileTest extends HttpInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/discovery-userprofile/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/discovery-userprofile/server.php';
     }
 }

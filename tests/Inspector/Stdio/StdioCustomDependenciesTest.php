@@ -55,7 +55,7 @@ final class StdioCustomDependenciesTest extends StdioInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/custom-dependencies/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/custom-dependencies/server.php';
     }
 
     protected function normalizeTestOutput(string $output, ?string $testName = null): string
