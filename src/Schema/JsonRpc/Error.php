@@ -91,9 +91,15 @@ class Error implements MessageInterface
         return new self($id, self::METHOD_NOT_FOUND, $message);
     }
 
-    public static function forInvalidParams(string $message, string|int $id = ''): self
+    /**
+     * @param mixed $data
+     */
+    public static function forInvalidParams(string $message, string|int $id = '', /* mixed $data = null */): self
     {
-        return new self($id, self::INVALID_PARAMS, $message);
+        // $data parameter was added in 0.2.2 and will be default in 0.3.0
+        $data = func_get_args()[2] ?? null;
+
+        return new self($id, self::INVALID_PARAMS, $message, data: $data);
     }
 
     public static function forInternalError(string $message, string|int $id = ''): self
