@@ -422,7 +422,7 @@ class SchemaGenerator
             }
 
             $paramName = $rp->getName();
-            if (in_array(strtolower($paramName), ['_session', '_request'], true)) {
+            if (\in_array(strtolower($paramName), ['_session', '_request'], true)) {
                 throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" has parameter named "%s" which is not allowed. Please change the name of that parameter.', $reflection->class, $reflection->name, $paramName));
             }
             $paramTag = $paramTags['$'.$paramName] ?? null;
