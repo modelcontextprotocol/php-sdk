@@ -59,6 +59,6 @@ final class HttpClientCommunicationTest extends HttpInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/client-communication/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/client-communication/server.php';
     }
 }

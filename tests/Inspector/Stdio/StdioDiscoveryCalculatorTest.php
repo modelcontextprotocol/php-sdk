@@ -45,6 +45,6 @@ final class StdioDiscoveryCalculatorTest extends StdioInspectorSnapshotTestCase
 
     protected function getServerScript(): string
     {
-        return \dirname(__DIR__, 3).'/examples/discovery-calculator/server.php';
+        return \dirname(__DIR__, 3).'/examples/server/discovery-calculator/server.php';
     }
 }
