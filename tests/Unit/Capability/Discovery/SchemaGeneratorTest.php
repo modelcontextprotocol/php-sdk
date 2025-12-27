@@ -13,6 +13,8 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Exception\InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class SchemaGeneratorTest extends TestCase
@@ -326,5 +328,22 @@ final class SchemaGeneratorTest extends TestCase
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['description' => 'Some parameter', 'minLength' => 3], $schema['properties']['inferredParam']);
         $this->assertEquals(['inferredParam'], $schema['required']);
+    }
+
+    public static function methodsWithForbiddenParameter(): array
+    {
+        return [
+            ['withParameterNamedSession'],
+            ['withParameterNamedSessionWithWeirdCase'],
+            ['withParameterNamedRequest'],
+        ];
+    }
+
+    #[DataProvider('methodsWithForbiddenParameter')]
+    public function testGenerateWithForbiddenParameterNames(string $methodName)
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, $methodName);
+        $this->expectException(InvalidArgumentException::class);
+        $this->schemaGenerator->generate($method);
     }
 }

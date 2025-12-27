@@ -412,4 +412,16 @@ class SchemaGeneratorFixture
         $inferredParam,
     ): void {
     }
+
+    public function withParameterNamedSession(string $_session): void
+    {
+    }
+
+    public function withParameterNamedSessionWithWeirdCase(string $_sesSion): void
+    {
+    }
+
+    public function withParameterNamedRequest(string $_request): void
+    {
+    }
 }
