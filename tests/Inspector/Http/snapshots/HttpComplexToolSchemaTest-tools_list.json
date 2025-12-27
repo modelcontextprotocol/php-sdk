@@ -33,13 +33,13 @@
             "default": null
           },
           "priority": {
-            "type": "integer",
+            "type": "string",
             "description": "The priority of the event. Defaults to Normal.",
-            "default": 1,
+            "default": "normal",
             "enum": [
-              0,
-              1,
-              2
+              "low",
+              "normal",
+              "high"
             ]
           },
           "attendees": {
