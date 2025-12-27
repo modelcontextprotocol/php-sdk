@@ -12,6 +12,7 @@
 namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
@@ -421,6 +422,9 @@ class SchemaGenerator
             }
 
             $paramName = $rp->getName();
+            if (in_array(strtolower($paramName), ['_session', '_request'], true)) {
+                throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" has parameter named "%s" which is not allowed. Please change the name of that parameter.', $reflection->class, $reflection->name, $paramName));
+            }
             $paramTag = $paramTags['$'.$paramName] ?? null;
 
             $typeString = $this->getParameterTypeString($rp, $paramTag);
