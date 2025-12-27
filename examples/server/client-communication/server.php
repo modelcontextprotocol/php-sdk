@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-require_once dirname(__DIR__) . '/bootstrap.php';
+require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Schema\Enum\LoggingLevel;
@@ -22,7 +22,7 @@ $server = Server::builder()
     ->setServerInfo('Client Communication Demo', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setCapabilities(new ServerCapabilities(logging: true, tools: true))
     ->setDiscovery(__DIR__)
     ->addTool(
