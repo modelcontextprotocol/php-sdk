@@ -69,6 +69,35 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --testsuite=inspector
 
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: "none"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+
+      - name: Install Composer
+        uses: "ramsey/composer-install@v3"
+
+      - name: Run server
+        run: php -S localhost:8000 tests/Conformance/Server/server.php &
+
+      - name: Wait for server to start
+        run: sleep 5
+
+      - name: Tests
+        run: npx @modelcontextprotocol/conformance server --url http://localhost:8000/
+
   qa:
     runs-on: ubuntu-latest
     steps:
