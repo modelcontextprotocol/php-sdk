@@ -12,6 +12,9 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Transport\Stdio\RunnerControl;
+use Mcp\Server\Transport\Stdio\RunnerControlInterface;
+use Mcp\Server\Transport\Stdio\RunnerState;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -21,6 +24,8 @@ use Psr\Log\LoggerInterface;
  */
 class StdioTransport extends BaseTransport
 {
+    private RunnerControlInterface $runnerControl;
+
     /**
      * @param resource $input
      * @param resource $output
@@ -29,7 +34,9 @@ class StdioTransport extends BaseTransport
         private $input = \STDIN,
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
+        ?RunnerControlInterface $runnerControl = null,
     ) {
+        $this->runnerControl = $runnerControl ?? new RunnerControl();
         parent::__construct($logger);
     }
 
@@ -47,14 +54,17 @@ class StdioTransport extends BaseTransport
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
         stream_set_blocking($this->input, false);
 
-        while (!feof($this->input)) {
+        while (!feof($this->input) && RunnerState::RUNNING === $this->runnerControl->getState()) {
             $this->processInput();
             $this->processFiber();
             $this->flushOutgoingMessages();
         }
 
         $this->logger->info('StdioTransport finished listening.');
-        $this->handleSessionEnd($this->sessionId);
+        if (\in_array($this->runnerControl->getState(), [RunnerState::RUNNING, RunnerState::STOP_AND_END_SESSION], true)) {
+            $this->logger->info('StdioTransport end session.');
+            $this->handleSessionEnd($this->sessionId);
+        }
 
         return 0;
     }

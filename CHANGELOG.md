@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.2.1
+-----
+
+* Add `RunnerControl` for `StdioTransport` to allow break out from continuously listening for new input.
+
 0.2.0
 -----
 
@@ -12,7 +17,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Removed `ClientAwareTrait`
 * Removed `Protocol::getTransport()`
 * Added parameter for `TransportInterface` to `Protocol::processInput()`
-
 
 0.1.0
 -----
