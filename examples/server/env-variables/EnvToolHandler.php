@@ -24,7 +24,7 @@ final class EnvToolHandler
      * @return array<string, string|int> the result, varying by APP_MODE
      */
     #[McpTool(name: 'process_data_by_mode')]
-    public function processData(string $input, $_session): array
+    public function processData(string $input): array
     {
         $appMode = getenv('APP_MODE'); // Read from environment
 
