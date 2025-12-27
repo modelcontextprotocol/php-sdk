@@ -1,8 +1,8 @@
 {
   "name": "mcp/sdk",
-  "type": "library",
   "description": "Model Context Protocol SDK for Client and Server applications in PHP",
   "license": "MIT",
+  "type": "library",
   "authors": [
     {
       "name": "Christopher Hertel",
@@ -33,16 +33,16 @@
     "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "require-dev": {
+    "laminas/laminas-httphandlerrunner": "^2.12",
+    "nyholm/psr7": "^1.8",
+    "nyholm/psr7-server": "^1.1",
     "php-cs-fixer/shim": "^3.91",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^10.5",
     "psr/simple-cache": "^2.0 || ^3.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
-    "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0",
-    "nyholm/psr7": "^1.8",
-    "nyholm/psr7-server": "^1.1",
-    "laminas/laminas-httphandlerrunner": "^2.12"
+    "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "autoload": {
     "psr-4": {
@@ -53,6 +53,7 @@
     "psr-4": {
       "Mcp\\Example\\Server\\CachedDiscovery\\": "examples/server/cached-discovery/",
       "Mcp\\Example\\Server\\ClientCommunication\\": "examples/server/client-communication/",
+      "Mcp\\Example\\Server\\ClientLogging\\": "examples/server/client-logging/",
       "Mcp\\Example\\Server\\CombinedRegistration\\": "examples/server/combined-registration/",
       "Mcp\\Example\\Server\\ComplexToolSchema\\": "examples/server/complex-tool-schema/",
       "Mcp\\Example\\Server\\CustomDependencies\\": "examples/server/custom-dependencies/",
@@ -62,14 +63,13 @@
       "Mcp\\Example\\Server\\EnvVariables\\": "examples/server/env-variables/",
       "Mcp\\Example\\Server\\ExplicitRegistration\\": "examples/server/explicit-registration/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
-      "Mcp\\Example\\Server\\ClientLogging\\": "examples/server/client-logging/",
       "Mcp\\Tests\\": "tests/"
     }
   },
   "config": {
-    "sort-packages": true,
     "allow-plugins": {
       "php-http/discovery": false
-    }
+    },
+    "sort-packages": true
   }
 }
