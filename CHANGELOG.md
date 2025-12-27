@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Add `RunnerControl` for `StdioTransport` to allow break out from continuously listening for new input.
+* Open range of supported Symfony versions to include v5.4
 
 0.2.0
 -----
