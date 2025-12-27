@@ -24,21 +24,16 @@ use Psr\Log\LoggerInterface;
  */
 class StdioTransport extends BaseTransport
 {
-    private RunnerControlInterface $runnerControl;
-
     /**
      * @param resource                $input
      * @param resource                $output
-     * @param ?RunnerControlInterface $runnerControl
      */
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
-        /* ?RunnerControlInterface $runnerControl = null, */
+        private readonly RunnerControlInterface $runnerControl = new RunnerControl(),
     ) {
-        // $runnerControl parameter was added in 0.2.1 and will be default in 0.3.0
-        $this->runnerControl = \func_get_args()[3] ?? new RunnerControl();
         parent::__construct($logger);
     }
 
