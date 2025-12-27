@@ -91,7 +91,7 @@ final class CallToolHandler implements RequestHandlerInterface
         } catch (\Throwable $e) {
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,
-                'exception' => $e->getMessage(),
+                'exception' => $e,
             ]);
 
             return Error::forInternalError('Error while executing tool', $request->getId());

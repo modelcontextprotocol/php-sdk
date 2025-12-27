@@ -63,12 +63,19 @@ function logger(): LoggerInterface
                 return;
             }
 
+            $exception = $context['exception'] ?? null;
+            unset($context['exception']);
+
             $logMessage = sprintf(
                 "[%s] %s %s\n",
                 strtoupper($level),
                 $message,
                 ([] === $context || !$debug) ? '' : json_encode($context),
             );
+
+            if ($exception instanceof Throwable) {
+                $logMessage .= sprintf('> %s', $exception->getMessage())."\n";
+            }
 
             if (($_SERVER['FILE_LOG'] ?? false) || !defined('STDERR')) {
                 file_put_contents('dev.log', $logMessage, \FILE_APPEND);
