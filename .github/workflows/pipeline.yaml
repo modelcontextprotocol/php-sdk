@@ -107,7 +107,7 @@ jobs:
           
           REQUIRED_TESTS_TO_PASS=8
           echo "Required tests to pass: $REQUIRED_TESTS_TO_PASS"
-          [ "$passedTests" -le "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
+          [ "$passedTests" -ge "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
 
   qa:
     runs-on: ubuntu-latest
