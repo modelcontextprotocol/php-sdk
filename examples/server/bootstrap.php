@@ -55,7 +55,7 @@ function shutdown(ResponseInterface|int $result): never
 function logger(): LoggerInterface
 {
     return new class extends AbstractLogger {
-        public function log($level, Stringable|string $message, array $context = []): void
+        public function log($level, $message, array $context = []): void
         {
             $debug = $_SERVER['DEBUG'] ?? false;
 

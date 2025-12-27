@@ -26,6 +26,7 @@
     "psr/clock": "^1.0",
     "psr/container": "^2.0",
     "psr/event-dispatcher": "^1.0",
+    "psr/http-client": "^1.0",
     "psr/http-factory": "^1.1",
     "psr/http-message": "^2.0",
     "psr/log": "^1.0 || ^2.0 || ^3.0",
@@ -33,16 +34,17 @@
     "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "require-dev": {
+    "laminas/laminas-httphandlerrunner": "^2.12",
+    "nyholm/psr7": "^1.8",
+    "nyholm/psr7-server": "^1.1",
     "php-cs-fixer/shim": "^3.91",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^10.5",
     "psr/simple-cache": "^2.0 || ^3.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
-    "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0",
-    "nyholm/psr7": "^1.8",
-    "nyholm/psr7-server": "^1.1",
-    "laminas/laminas-httphandlerrunner": "^2.12"
+    "symfony/http-client": "^7.4",
+    "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "autoload": {
     "psr-4": {
