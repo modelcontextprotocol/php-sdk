@@ -5,3 +5,9 @@ parameters:
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php
+
+		-
+			message: '#^PHPDoc tag @param references unknown parameter\: \$runnerControl$#'
+			identifier: parameter.notFound
+			count: 1
+			path: src/Server/Transport/StdioTransport.php
