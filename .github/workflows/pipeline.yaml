@@ -97,6 +97,7 @@ jobs:
 
       - name: Tests
         run: |
+          set -x
           OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/)
           exit_code=$?
           echo "$OUTPUT"
@@ -104,7 +105,9 @@ jobs:
           # Example: "Total: 3 passed, 16 failed"
           passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
           passedTests=${passedTests:-0}
-          [ "$passedTests" -lt 8 ] && exit $exit_code
+          
+          REQUIRED_TESTS_TO_PASS=8
+          [ "$passedTests" -lt "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
 
   qa:
     runs-on: ubuntu-latest
