@@ -63,6 +63,9 @@ function logger(): LoggerInterface
                 return;
             }
 
+            $exception = $context['exception'] ?? null;
+            unset($context['exception']);
+
             $logMessage = sprintf(
                 "[%s] %s %s\n",
                 strtoupper($level),
@@ -70,8 +73,8 @@ function logger(): LoggerInterface
                 ([] === $context || !$debug) ? '' : json_encode($context),
             );
 
-            if (isset($context['exception']) && $context['exception'] instanceof Throwable) {
-                $logMessage .= sprintf('> %s', $context['exception']->getMessage())."\n";
+            if ($exception instanceof Throwable) {
+                $logMessage .= sprintf('> %s', $exception->getMessage())."\n";
             }
 
             if (($_SERVER['FILE_LOG'] ?? false) || !defined('STDERR')) {
