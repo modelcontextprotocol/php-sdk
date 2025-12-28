@@ -31,16 +31,16 @@ use Psr\Log\LoggerInterface;
 class StdioTransport extends BaseTransport
 {
     /** @var resource|null */
-    private $process = null;
+    private $process;
 
     /** @var resource|null */
-    private $stdin = null;
+    private $stdin;
 
     /** @var resource|null */
-    private $stdout = null;
+    private $stdout;
 
     /** @var resource|null */
-    private $stderr = null;
+    private $stderr;
 
     private string $inputBuffer = '';
     private bool $running = false;
@@ -48,13 +48,13 @@ class StdioTransport extends BaseTransport
     private ?\Fiber $activeFiber = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
-    private $activeProgressCallback = null;
+    private $activeProgressCallback;
 
     /**
-     * @param string               $command The command to run
-     * @param array<int, string>   $args    Command arguments
-     * @param string|null          $cwd     Working directory
-     * @param array<string, string>|null $env  Environment variables
+     * @param string                     $command The command to run
+     * @param array<int, string>         $args    Command arguments
+     * @param string|null                $cwd     Working directory
+     * @param array<string, string>|null $env     Environment variables
      */
     public function __construct(
         private readonly string $command,
@@ -70,7 +70,7 @@ class StdioTransport extends BaseTransport
     {
         $this->spawnProcess();
 
-        $this->activeFiber = new \Fiber(fn() => $this->handleInitialize());
+        $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 
         $deadline = time() + $timeout;
         $this->activeFiber->start();
@@ -78,7 +78,7 @@ class StdioTransport extends BaseTransport
         while (!$this->activeFiber->isTerminated()) {
             if (time() >= $deadline) {
                 $this->close();
-                throw new TimeoutException('Initialization timed out after ' . $timeout . ' seconds');
+                throw new TimeoutException('Initialization timed out after '.$timeout.' seconds');
             }
             $this->tick();
         }
@@ -88,7 +88,7 @@ class StdioTransport extends BaseTransport
 
         if ($result instanceof Error) {
             $this->close();
-            throw new ConnectionException('Initialization failed: ' . $result->message);
+            throw new ConnectionException('Initialization failed: '.$result->message);
         }
 
         $this->logger->info('Client connected and initialized');
@@ -100,7 +100,7 @@ class StdioTransport extends BaseTransport
             throw new ConnectionException('Process stdin not available');
         }
 
-        fwrite($this->stdin, $data . "\n");
+        fwrite($this->stdin, $data."\n");
         fflush($this->stdin);
 
         $this->logger->debug('Sent message to server', ['data' => $data]);
@@ -160,7 +160,7 @@ class StdioTransport extends BaseTransport
 
         $cmd = escapeshellcmd($this->command);
         foreach ($this->args as $arg) {
-            $cmd .= ' ' . escapeshellarg($arg);
+            $cmd .= ' '.escapeshellarg($arg);
         }
 
         $this->process = proc_open(
@@ -172,7 +172,7 @@ class StdioTransport extends BaseTransport
         );
 
         if (!\is_resource($this->process)) {
-            throw new ConnectionException('Failed to start process: ' . $cmd);
+            throw new ConnectionException('Failed to start process: '.$cmd);
         }
 
         $this->stdin = $pipes[0];
