@@ -244,24 +244,24 @@ class Protocol
         foreach ($this->requestHandlers as $handler) {
             if ($handler->supports($request)) {
                 try {
-                    $result = $handler->handle($request);
-
-                    $response = new Response($request->getId(), $result);
-                    $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
-                    $this->session->queueOutgoing($encoded, ['type' => 'response']);
-                    $this->flushOutgoing();
-
-                    return;
+                    $response = $handler->handle($request);
                 } catch (\Throwable $e) {
-                    $this->logger->warning('Request handler failed', ['exception' => $e]);
+                    $this->logger->error('Unexpected error while handling request', [
+                        'method' => $method,
+                        'exception' => $e,
+                    ]);
 
-                    $error = Error::forInternalError($e->getMessage(), $request->getId());
-                    $encoded = json_encode($error, \JSON_THROW_ON_ERROR);
-                    $this->session->queueOutgoing($encoded, ['type' => 'error']);
-                    $this->flushOutgoing();
-
-                    return;
+                    $response = Error::forInternalError(
+                        \sprintf('Unexpected error while handling "%s" request', $method),
+                        $request->getId()
+                    );
                 }
+
+                $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+                $this->session->queueOutgoing($encoded, ['type' => $response instanceof Response ? 'response' : 'error']);
+                $this->flushOutgoing();
+
+                return;
             }
         }
 
