@@ -19,7 +19,7 @@ Connects to an MCP server over HTTP:
 php -S localhost:8000 examples/server/discovery-calculator/server.php
 
 # Then run the client
-php examples/client/http_discovery_userprofile.php
+php examples/client/http_discovery_calculator.php
 ```
 
 ## Requirements
