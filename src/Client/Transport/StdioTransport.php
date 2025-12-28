@@ -90,7 +90,7 @@ class StdioTransport extends BaseTransport
         $this->logger->info('Client connected and initialized');
     }
 
-    public function send(string $data, array $context): void
+    public function send(string $data): void
     {
         if (null === $this->stdin || !\is_resource($this->stdin)) {
             throw new ConnectionException('Process stdin not available');

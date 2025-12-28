@@ -44,10 +44,9 @@ interface TransportInterface
     /**
      * Send a message to the server immediately.
      *
-     * @param string               $data    JSON-encoded message
-     * @param array<string, mixed> $context Message context (type, etc.)
+     * @param string $data JSON-encoded message
      */
-    public function send(string $data, array $context): void;
+    public function send(string $data): void;
 
     /**
      * Run a request fiber to completion.
