@@ -14,7 +14,6 @@ namespace Mcp\Client\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\ConnectionException;
-use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Http\Client\ClientInterface;
@@ -74,17 +73,13 @@ class HttpTransport extends BaseTransport
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
-    public function connectAndInitialize(int $timeout): void
+    public function connectAndInitialize(): void
     {
         $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 
-        $deadline = time() + $timeout;
         $this->activeFiber->start();
 
         while (!$this->activeFiber->isTerminated()) {
-            if (time() >= $deadline) {
-                throw new TimeoutException('Initialization timed out after '.$timeout.' seconds');
-            }
             $this->tick();
         }
 

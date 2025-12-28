@@ -35,15 +35,11 @@ interface TransportInterface
      *
      * This method blocks until:
      * - Initialization completes successfully
-     * - Timeout is reached (throws TimeoutException)
      * - Connection fails (throws ConnectionException)
      *
-     * @param int $timeout Maximum time to wait for initialization (seconds)
-     *
-     * @throws \Mcp\Exception\TimeoutException
      * @throws \Mcp\Exception\ConnectionException
      */
-    public function connectAndInitialize(int $timeout): void;
+    public function connectAndInitialize(): void;
 
     /**
      * Send a message to the server immediately.
