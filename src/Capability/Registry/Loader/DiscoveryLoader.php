@@ -13,7 +13,7 @@ namespace Mcp\Capability\Registry\Loader;
 
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
-use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\RegistryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -33,7 +33,7 @@ final class DiscoveryLoader implements LoaderInterface
         private array $excludeDirs,
         private LoggerInterface $logger,
         private ?CacheInterface $cache = null,
-        private ?SchemaGenerator $schemaGenerator = null,
+        private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
     }
 

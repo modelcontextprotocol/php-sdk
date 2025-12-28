@@ -11,7 +11,7 @@
 
 namespace Mcp\Server;
 
-use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -59,7 +59,7 @@ final class Builder
 
     private ?ContainerInterface $container = null;
 
-    private ?SchemaGenerator $schemaGenerator = null;
+    private ?SchemaGeneratorInterface $schemaGenerator = null;
 
     private ?SessionFactoryInterface $sessionFactory = null;
 
@@ -290,7 +290,7 @@ final class Builder
         return $this;
     }
 
-    public function setSchemaGenerator(SchemaGenerator $schemaGenerator): self
+    public function setSchemaGenerator(SchemaGeneratorInterface $schemaGenerator): self
     {
         $this->schemaGenerator = $schemaGenerator;
 

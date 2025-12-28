@@ -57,7 +57,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class SchemaGenerator
+class SchemaGenerator implements SchemaGeneratorInterface
 {
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
@@ -65,12 +65,20 @@ class SchemaGenerator
     }
 
     /**
-     * Generates a JSON Schema object (as a PHP array) for a method's or function's parameters.
+     * Generates a JSON Schema object (as a PHP array) for parameters.
      *
      * @return array<string, mixed>
      */
-    public function generate(\ReflectionMethod|\ReflectionFunction $reflection): array
+    public function generate(\Reflector $reflection): array
     {
+        if ($reflection instanceof \ReflectionClass) {
+            throw new \BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
+        }
+
+        if (!$reflection instanceof \ReflectionFunctionAbstract) {
+            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported.', $reflection::class));
+        }
+
         $methodSchema = $this->extractMethodLevelSchema($reflection);
 
         if ($methodSchema && isset($methodSchema['definition'])) {
@@ -106,9 +114,11 @@ class SchemaGenerator
     /**
      * Extracts method-level or function-level Schema attribute.
      *
+     * @param \ReflectionFunctionAbstract $reflection
+     *
      * @return SchemaAttributeData
      */
-    private function extractMethodLevelSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    private function extractMethodLevelSchema(\ReflectionFunctionAbstract $reflection): ?array
     {
         $schemaAttrs = $reflection->getAttributes(Schema::class, \ReflectionAttribute::IS_INSTANCEOF);
         if (empty($schemaAttrs)) {
@@ -423,9 +433,11 @@ class SchemaGenerator
     /**
      * Parses detailed information about a method's parameters.
      *
+     * @param \ReflectionFunctionAbstract $reflection
+     *
      * @return ParameterInfo[]
      */
-    private function parseParametersInfo(\ReflectionMethod|\ReflectionFunction $reflection): array
+    private function parseParametersInfo(\ReflectionFunctionAbstract $reflection): array
     {
         $docComment = $reflection->getDocComment() ?: null;
         $docBlock = $this->docBlockParser->parseDocBlock($docComment);

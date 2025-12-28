@@ -49,7 +49,7 @@ class Discoverer
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
         private ?DocBlockParser $docBlockParser = null,
-        private ?SchemaGenerator $schemaGenerator = null,
+        private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
         $this->docBlockParser = $docBlockParser ?? new DocBlockParser(logger: $this->logger);
         $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator($this->docBlockParser);
