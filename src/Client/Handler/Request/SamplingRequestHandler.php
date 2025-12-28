@@ -45,7 +45,7 @@ class SamplingRequestHandler implements RequestHandlerInterface
      */
     public function handle(Request $request): array
     {
-        assert($request instanceof CreateSamplingMessageRequest);
+        \assert($request instanceof CreateSamplingMessageRequest);
 
         $result = ($this->callback)($request);
 

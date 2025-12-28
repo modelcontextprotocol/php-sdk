@@ -74,15 +74,15 @@ class Protocol
      * Sets up message handling callbacks.
      *
      * @param ClientTransportInterface $transport The transport to connect
-     * @param Configuration $config The client configuration for initialization
+     * @param Configuration            $config    The client configuration for initialization
      */
     public function connect(ClientTransportInterface $transport, Configuration $config): void
     {
         $this->transport = $transport;
         $transport->setSession($this->session);
-        $transport->onInitialize(fn() => $this->initialize($config));
+        $transport->onInitialize(fn () => $this->initialize($config));
         $transport->onMessage($this->processMessage(...));
-        $transport->onError(fn(\Throwable $e) => $this->logger->error('Transport error', ['exception' => $e]));
+        $transport->onError(fn (\Throwable $e) => $this->logger->error('Transport error', ['exception' => $e]));
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
     }
@@ -128,9 +128,9 @@ class Protocol
      * If a response is immediately available (sync HTTP), returns it.
      * Otherwise, suspends the Fiber and waits for the transport to resume it.
      *
-     * @param Request $request The request to send
-     * @param int $timeout The timeout in seconds
-     * @param bool $withProgress Whether to attach a progress token to the request
+     * @param Request $request      The request to send
+     * @param int     $timeout      The timeout in seconds
+     * @param bool    $withProgress Whether to attach a progress token to the request
      *
      * @return Response<array<string, mixed>>|Error
      */
@@ -213,7 +213,7 @@ class Protocol
 
     /**
      * Handle a response from the server.
-     * 
+     *
      * This stores it in session. The transport will pick it up and resume the Fiber.
      */
     private function handleResponse(Response|Error $response): void

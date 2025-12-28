@@ -42,7 +42,7 @@ class HttpTransport extends BaseTransport
     private ?\Fiber $activeFiber = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
-    private $activeProgressCallback = null;
+    private $activeProgressCallback;
 
     /** @var StreamInterface|null Active SSE stream being read */
     private ?StreamInterface $activeStream = null;
@@ -51,11 +51,11 @@ class HttpTransport extends BaseTransport
     private string $sseBuffer = '';
 
     /**
-     * @param string                        $endpoint       The MCP server endpoint URL
-     * @param array<string, string>         $headers        Additional headers to send
-     * @param ClientInterface|null          $httpClient     PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null  $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null   $streamFactory  PSR-17 stream factory (auto-discovered if null)
+     * @param string                       $endpoint       The MCP server endpoint URL
+     * @param array<string, string>        $headers        Additional headers to send
+     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
+     * @param StreamFactoryInterface|null  $streamFactory  PSR-17 stream factory (auto-discovered if null)
      */
     public function __construct(
         private readonly string $endpoint,
@@ -76,7 +76,7 @@ class HttpTransport extends BaseTransport
     {
         $this->running = true;
 
-        $this->activeFiber = new \Fiber(fn() => $this->handleInitialize());
+        $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 
         $deadline = time() + $timeout;
         $this->activeFiber->start();
@@ -84,7 +84,7 @@ class HttpTransport extends BaseTransport
         while (!$this->activeFiber->isTerminated()) {
             if (time() >= $deadline) {
                 $this->running = false;
-                throw new TimeoutException('Initialization timed out after ' . $timeout . ' seconds');
+                throw new TimeoutException('Initialization timed out after '.$timeout.' seconds');
             }
             $this->tick();
         }
@@ -94,7 +94,7 @@ class HttpTransport extends BaseTransport
 
         if ($result instanceof Error) {
             $this->running = false;
-            throw new ConnectionException('Initialization failed: ' . $result->message);
+            throw new ConnectionException('Initialization failed: '.$result->message);
         }
 
         $this->logger->info('HTTP client connected and initialized', ['endpoint' => $this->endpoint]);
@@ -121,7 +121,7 @@ class HttpTransport extends BaseTransport
             $response = $this->httpClient->sendRequest($request);
         } catch (\Throwable $e) {
             $this->handleError($e);
-            throw new ConnectionException('HTTP request failed: ' . $e->getMessage(), 0, $e);
+            throw new ConnectionException('HTTP request failed: '.$e->getMessage(), 0, $e);
         }
 
         if ($response->hasHeader('Mcp-Session-Id')) {

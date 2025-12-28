@@ -1,7 +1,7 @@
 <?php
 
 /**
- * HTTP Client Example
+ * HTTP Client Example.
  *
  * This example demonstrates how to use the MCP client with an HTTP transport
  * to communicate with a remote MCP server over HTTP.
@@ -14,7 +14,16 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+require_once __DIR__.'/../../vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Transport\HttpTransport;
@@ -35,8 +44,8 @@ try {
 
     echo "Connected! Server info:\n";
     $serverInfo = $client->getServerInfo();
-    echo "  Name: " . ($serverInfo?->name ?? 'unknown') . "\n";
-    echo "  Version: " . ($serverInfo?->version ?? 'unknown') . "\n\n";
+    echo '  Name: '.($serverInfo->name ?? 'unknown')."\n";
+    echo '  Version: '.($serverInfo->version ?? 'unknown')."\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();
@@ -58,10 +67,9 @@ try {
         echo "  - {$prompt->name}: {$prompt->description}\n";
     }
     echo "\n";
-
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
-    echo $e->getTraceAsString() . "\n";
+    echo $e->getTraceAsString()."\n";
 } finally {
     echo "Disconnecting...\n";
     $client->disconnect();
