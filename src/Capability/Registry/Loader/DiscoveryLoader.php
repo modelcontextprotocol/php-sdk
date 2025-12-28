@@ -13,6 +13,7 @@ namespace Mcp\Capability\Registry\Loader;
 
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
+use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\RegistryInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -32,13 +33,14 @@ final class DiscoveryLoader implements LoaderInterface
         private array $excludeDirs,
         private LoggerInterface $logger,
         private ?CacheInterface $cache = null,
+        private ?SchemaGenerator $schemaGenerator = null,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
         // This now encapsulates the discovery process
-        $discoverer = new Discoverer($this->logger);
+        $discoverer = new Discoverer($this->logger, null, $this->schemaGenerator);
 
         $cachedDiscoverer = $this->cache
             ? new CachedDiscoverer($discoverer, $this->cache, $this->logger)

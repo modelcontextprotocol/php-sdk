@@ -11,6 +11,7 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -57,6 +58,8 @@ final class Builder
     private ?EventDispatcherInterface $eventDispatcher = null;
 
     private ?ContainerInterface $container = null;
+
+    private ?SchemaGenerator $schemaGenerator = null;
 
     private ?SessionFactoryInterface $sessionFactory = null;
 
@@ -287,6 +290,13 @@ final class Builder
         return $this;
     }
 
+    public function setSchemaGenerator(SchemaGenerator $schemaGenerator): self
+    {
+        $this->schemaGenerator = $schemaGenerator;
+
+        return $this;
+    }
+
     public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
@@ -470,11 +480,11 @@ final class Builder
 
         $loaders = [
             ...$this->loaders,
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger),
+            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 
         if (null !== $this->discoveryBasePath) {
-            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $logger, $this->discoveryCache);
+            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $logger, $this->discoveryCache, $this->schemaGenerator);
         }
 
         foreach ($loaders as $loader) {

@@ -84,13 +84,14 @@ final class ArrayLoader implements LoaderInterface
         private readonly array $resourceTemplates = [],
         private readonly array $prompts = [],
         private LoggerInterface $logger = new NullLogger(),
+        private ?SchemaGenerator $schemaGenerator = null,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
         $docBlockParser = new DocBlockParser(logger: $this->logger);
-        $schemaGenerator = new SchemaGenerator($docBlockParser);
+        $schemaGenerator = $this->schemaGenerator ?? new SchemaGenerator($docBlockParser);
 
         // Register Tools
         foreach ($this->tools as $data) {
