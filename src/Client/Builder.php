@@ -11,11 +11,14 @@
 
 namespace Mcp\Client;
 
-use Mcp\Handler\NotificationHandlerInterface;
-use Mcp\Handler\RequestHandlerInterface;
+use Mcp\Client;
+use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Fluent builder for creating Client instances.
@@ -27,7 +30,7 @@ class Builder
     private string $name = 'mcp-php-client';
     private string $version = '1.0.0';
     private ?string $description = null;
-    private ?string $protocolVersion = null;
+    private ?ProtocolVersion $protocolVersion = null;
     private ?ClientCapabilities $capabilities = null;
     private int $initTimeout = 30;
     private int $requestTimeout = 120;
@@ -55,9 +58,9 @@ class Builder
     /**
      * Set the protocol version to use.
      */
-    public function setProtocolVersion(string $version): self
+    public function setProtocolVersion(ProtocolVersion $protocolVersion): self
     {
-        $this->protocolVersion = $version;
+        $this->protocolVersion = $protocolVersion;
 
         return $this;
     }
@@ -137,6 +140,8 @@ class Builder
      */
     public function build(): Client
     {
+        $logger = $this->logger ?? new NullLogger();
+
         $clientInfo = new Implementation(
             $this->name,
             $this->version,
@@ -146,12 +151,18 @@ class Builder
         $config = new Configuration(
             clientInfo: $clientInfo,
             capabilities: $this->capabilities ?? new ClientCapabilities(),
-            protocolVersion: $this->protocolVersion ?? '2025-06-18',
+            protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_06_18,
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,
             maxRetries: $this->maxRetries,
         );
 
-        return new Client($config, $this->notificationHandlers, $this->requestHandlers, $this->logger);
+        $protocol = new Protocol(
+            requestHandlers: $this->requestHandlers,
+            notificationHandlers: $this->notificationHandlers,
+            logger: $logger,
+        );
+
+        return new Client($protocol, $config, $logger);
     }
 }

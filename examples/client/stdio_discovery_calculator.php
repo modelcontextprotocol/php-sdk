@@ -13,8 +13,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Mcp\Client\Client;
-use Mcp\Client\Transport\StdioClientTransport;
+use Mcp\Client;
+use Mcp\Client\Transport\StdioTransport;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 
@@ -24,7 +24,7 @@ $client = Client::builder()
     ->setRequestTimeout(60)
     ->build();
 
-$transport = new StdioClientTransport(
+$transport = new StdioTransport(
     command: 'php',
     args: [__DIR__ . '/../server/discovery-calculator/server.php'],
 );

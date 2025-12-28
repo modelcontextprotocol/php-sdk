@@ -24,10 +24,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Mcp\Client\Client;
-use Mcp\Client\Handler\LoggingNotificationHandler;
-use Mcp\Client\Handler\SamplingRequestHandler;
-use Mcp\Client\Transport\HttpClientTransport;
+use Mcp\Client;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
@@ -64,7 +64,7 @@ $client = Client::builder()
     ->addRequestHandler($samplingRequestHandler)
     ->build();
 
-$transport = new HttpClientTransport(endpoint: $endpoint);
+$transport = new HttpTransport(endpoint: $endpoint);
 
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";

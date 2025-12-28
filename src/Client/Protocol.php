@@ -11,10 +11,12 @@
 
 namespace Mcp\Client;
 
+use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Client\Handler\Notification\ProgressNotificationHandler;
+use Mcp\Client\Handler\Request\RequestHandlerInterface;
+use Mcp\Client\Session\ClientSession;
 use Mcp\Client\Session\ClientSessionInterface;
 use Mcp\Client\Transport\ClientTransportInterface;
-use Mcp\Handler\NotificationHandlerInterface;
-use Mcp\Handler\RequestHandlerInterface;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -39,35 +41,46 @@ use Psr\Log\NullLogger;
 class Protocol
 {
     private ?ClientTransportInterface $transport = null;
+    private ClientSessionInterface $session;
     private MessageFactory $messageFactory;
     private LoggerInterface $logger;
+
+    /** @var NotificationHandlerInterface[] */
+    private array $notificationHandlers;
 
     /**
      * @param NotificationHandlerInterface[] $notificationHandlers
      * @param RequestHandlerInterface[]      $requestHandlers
      */
     public function __construct(
-        private readonly ClientSessionInterface $session,
-        private readonly Configuration $config,
-        private readonly array $notificationHandlers = [],
         private readonly array $requestHandlers = [],
+        array $notificationHandlers = [],
         ?MessageFactory $messageFactory = null,
         ?LoggerInterface $logger = null,
     ) {
+        $this->session = new ClientSession();
         $this->messageFactory = $messageFactory ?? MessageFactory::make();
         $this->logger = $logger ?? new NullLogger();
+
+        $this->notificationHandlers = [
+            new ProgressNotificationHandler($this->session),
+            ...$notificationHandlers,
+        ];
     }
 
     /**
      * Connect this protocol to a transport.
      *
      * Sets up message handling callbacks.
+     *
+     * @param ClientTransportInterface $transport The transport to connect
+     * @param Configuration $config The client configuration for initialization
      */
-    public function connect(ClientTransportInterface $transport): void
+    public function connect(ClientTransportInterface $transport, Configuration $config): void
     {
         $this->transport = $transport;
         $transport->setSession($this->session);
-        $transport->onInitialize($this->initialize(...));
+        $transport->onInitialize(fn() => $this->initialize($config));
         $transport->onMessage($this->processMessage(...));
         $transport->onError(fn(\Throwable $e) => $this->logger->error('Transport error', ['exception' => $e]));
 
@@ -79,20 +92,19 @@ class Protocol
      *
      * Sends InitializeRequest and waits for response, then sends InitializedNotification.
      *
+     * @param Configuration $config The client configuration
+     *
      * @return Response<array<string, mixed>>|Error
      */
-    public function initialize(): Response|Error
+    public function initialize(Configuration $config): Response|Error
     {
         $request = new InitializeRequest(
-            $this->config->protocolVersion,
-            $this->config->capabilities,
-            $this->config->clientInfo,
+            $config->protocolVersion->value,
+            $config->capabilities,
+            $config->clientInfo,
         );
 
-        $requestId = $this->session->nextRequestId();
-        $request = $request->withId($requestId);
-
-        $response = $this->request($request, $this->config->initTimeout);
+        $response = $this->request($request, $config->initTimeout);
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
@@ -116,11 +128,21 @@ class Protocol
      * If a response is immediately available (sync HTTP), returns it.
      * Otherwise, suspends the Fiber and waits for the transport to resume it.
      *
+     * @param Request $request The request to send
+     * @param int $timeout The timeout in seconds
+     * @param bool $withProgress Whether to attach a progress token to the request
+     *
      * @return Response<array<string, mixed>>|Error
      */
-    public function request(Request $request, int $timeout): Response|Error
+    public function request(Request $request, int $timeout, bool $withProgress = false): Response|Error
     {
-        $requestId = $request->getId();
+        $requestId = $this->session->nextRequestId();
+        $request = $request->withId($requestId);
+
+        if ($withProgress) {
+            $progressToken = "prog-{$requestId}";
+            $request = $request->withMeta(['progressToken' => $progressToken]);
+        }
 
         $this->logger->debug('Sending request', [
             'id' => $requestId,

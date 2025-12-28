@@ -16,8 +16,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Mcp\Client\Client;
-use Mcp\Client\Transport\HttpClientTransport;
+use Mcp\Client;
+use Mcp\Client\Transport\HttpTransport;
 
 $endpoint = 'http://localhost:8000';
 
@@ -27,7 +27,7 @@ $client = Client::builder()
     ->setRequestTimeout(60)
     ->build();
 
-$transport = new HttpClientTransport($endpoint);
+$transport = new HttpTransport($endpoint);
 
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";
