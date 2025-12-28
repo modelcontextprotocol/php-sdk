@@ -28,6 +28,8 @@ use Psr\Log\LoggerInterface;
  *
  * PSR-18 HTTP clients are auto-discovered if not provided.
  *
+ * @phpstan-import-type McpFiber from TransportInterface
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class HttpTransport extends BaseTransport
@@ -37,8 +39,8 @@ class HttpTransport extends BaseTransport
     private StreamFactoryInterface $streamFactory;
 
     private ?string $sessionId = null;
-    private bool $running = false;
 
+    /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
@@ -74,8 +76,6 @@ class HttpTransport extends BaseTransport
 
     public function connectAndInitialize(int $timeout): void
     {
-        $this->running = true;
-
         $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 
         $deadline = time() + $timeout;
@@ -83,7 +83,6 @@ class HttpTransport extends BaseTransport
 
         while (!$this->activeFiber->isTerminated()) {
             if (time() >= $deadline) {
-                $this->running = false;
                 throw new TimeoutException('Initialization timed out after '.$timeout.' seconds');
             }
             $this->tick();
@@ -93,7 +92,6 @@ class HttpTransport extends BaseTransport
         $this->activeFiber = null;
 
         if ($result instanceof Error) {
-            $this->running = false;
             throw new ConnectionException('Initialization failed: '.$result->message);
         }
 
@@ -143,6 +141,7 @@ class HttpTransport extends BaseTransport
     }
 
     /**
+     * @param McpFiber                                                                $fiber
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      */
     public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
@@ -150,14 +149,6 @@ class HttpTransport extends BaseTransport
         $this->activeFiber = $fiber;
         $this->activeProgressCallback = $onProgress;
         $fiber->start();
-
-        if ($fiber->isTerminated()) {
-            $this->activeFiber = null;
-            $this->activeProgressCallback = null;
-            $this->activeStream = null;
-
-            return $fiber->getReturn();
-        }
 
         while (!$fiber->isTerminated()) {
             $this->tick();
@@ -172,8 +163,6 @@ class HttpTransport extends BaseTransport
 
     public function close(): void
     {
-        $this->running = false;
-
         if (null !== $this->sessionId) {
             try {
                 $request = $this->requestFactory->createRequest('DELETE', $this->endpoint)
