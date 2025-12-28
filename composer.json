@@ -56,6 +56,7 @@
       "Mcp\\Example\\Server\\ClientLogging\\": "examples/server/client-logging/",
       "Mcp\\Example\\Server\\CombinedRegistration\\": "examples/server/combined-registration/",
       "Mcp\\Example\\Server\\ComplexToolSchema\\": "examples/server/complex-tool-schema/",
+      "Mcp\\Example\\Server\\Conformance\\": "examples/server/conformance/",
       "Mcp\\Example\\Server\\CustomDependencies\\": "examples/server/custom-dependencies/",
       "Mcp\\Example\\Server\\CustomMethodHandlers\\": "examples/server/custom-method-handlers/",
       "Mcp\\Example\\Server\\DiscoveryCalculator\\": "examples/server/discovery-calculator/",
