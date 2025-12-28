@@ -22,7 +22,7 @@ inspector-tests:
 	vendor/bin/phpunit --testsuite=inspector
 
 conformance-server:
-	php -S localhost:8000 tests/Conformance/Server/server.php
+	php -S localhost:8000 examples/server/conformance/server.php
 
 conformance-tests:
 	npx @modelcontextprotocol/conformance server --url http://localhost:8000/

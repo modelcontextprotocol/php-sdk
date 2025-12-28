@@ -90,7 +90,7 @@ jobs:
         uses: "ramsey/composer-install@v3"
 
       - name: Run server
-        run: php -S localhost:8000 tests/Conformance/Server/server.php &
+        run: php -S localhost:8000 examples/server/conformance/server.php &
 
       - name: Wait for server to start
         run: sleep 5
@@ -105,7 +105,7 @@ jobs:
           passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
           passedTests=${passedTests:-0}
           
-          REQUIRED_TESTS_TO_PASS=8
+          REQUIRED_TESTS_TO_PASS=20
           echo "Required tests to pass: $REQUIRED_TESTS_TO_PASS"
           [ "$passedTests" -ge "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
 

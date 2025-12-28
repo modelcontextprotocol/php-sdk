@@ -7,4 +7,3 @@ examples/**/dev.log
 examples/**/cache
 examples/**/sessions
 results
-tests/Conformance/**/sessions
