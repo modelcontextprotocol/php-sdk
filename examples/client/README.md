@@ -16,7 +16,7 @@ Connects to an MCP server over HTTP:
 
 ```bash
 # First, start an HTTP server
-php -S localhost:8080 examples/http-discovery-userprofile/server.php
+php -S localhost:8000 examples/server/discovery-calculator/server.php
 
 # Then run the client
 php examples/client/http_discovery_userprofile.php
