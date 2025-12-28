@@ -15,10 +15,10 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
-use Mcp\Client\Client;
-use Mcp\Client\Handler\LoggingNotificationHandler;
-use Mcp\Client\Handler\SamplingRequestHandler;
-use Mcp\Client\Transport\StdioClientTransport;
+use Mcp\Client;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Transport\StdioTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
@@ -53,7 +53,7 @@ $client = Client::builder()
     ->addRequestHandler($samplingRequestHandler)
     ->build();
 
-$transport = new StdioClientTransport(
+$transport = new StdioTransport(
     command: 'php',
     args: [__DIR__ . '/../server/client-communication/server.php'],
 );

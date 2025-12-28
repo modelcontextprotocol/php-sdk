@@ -9,9 +9,8 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client\Handler;
+namespace Mcp\Client\Handler\Request;
 
-use Mcp\Handler\RequestHandlerInterface;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
