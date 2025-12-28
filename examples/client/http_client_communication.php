@@ -1,7 +1,7 @@
 <?php
 
 /**
- * HTTP Client Communication Example
+ * HTTP Client Communication Example.
  *
  * This example demonstrates server-to-client communication over HTTP:
  * - Logging notifications
@@ -15,14 +15,23 @@
  * Note: PHP's built-in server works for listing tools, calling tools, and receiving
  * progress/logging notifications. However, sampling requires a concurrent-capable server
  * (e.g., Symfony CLI, PHP-FPM) since the server must process the client's sampling
- * response while the original tool request is still pending. 
- * 
+ * response while the original tool request is still pending.
+ *
  * Eg. symfony serve --passthru=examples/server/client-communication/server.php --no-tls
  */
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+require_once __DIR__.'/../../vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
@@ -44,8 +53,8 @@ $loggingNotificationHandler = new LoggingNotificationHandler(function (LoggingMe
 $samplingRequestHandler = new SamplingRequestHandler(function (CreateSamplingMessageRequest $request): CreateSamplingMessageResult {
     echo "[SAMPLING] Server requested LLM sampling (max {$request->maxTokens} tokens)\n";
 
-    $mockResponse = "Based on the incident analysis, I recommend: 1) Activate the on-call team, " .
-        "2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.";
+    $mockResponse = 'Based on the incident analysis, I recommend: 1) Activate the on-call team, '.
+        '2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.';
 
     return new CreateSamplingMessageResult(
         role: Role::Assistant,
@@ -71,7 +80,7 @@ try {
     $client->connect($transport);
 
     $serverInfo = $client->getServerInfo();
-    echo "Connected to: " . ($serverInfo?->name ?? 'unknown') . "\n\n";
+    echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();
@@ -93,7 +102,7 @@ try {
     echo "\nResult:\n";
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
-            echo $content->text . "\n";
+            echo $content->text."\n";
         }
     }
 
@@ -110,13 +119,12 @@ try {
     echo "\nResult:\n";
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
-            echo $content->text . "\n";
+            echo $content->text."\n";
         }
     }
-
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
-    echo $e->getTraceAsString() . "\n";
+    echo $e->getTraceAsString()."\n";
 } finally {
     $client->disconnect();
 }

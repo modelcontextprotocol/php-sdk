@@ -37,6 +37,7 @@ use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Schema\Result\EmptyResult;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Schema\Result\ListResourcesResult;
@@ -119,7 +120,7 @@ class Client
     {
         $request = new PingRequest();
 
-        $this->sendRequest($request);
+        $this->sendRequest($request, EmptyResult::class);
     }
 
     /**
@@ -135,10 +136,10 @@ class Client
     /**
      * Call a tool on the server.
      *
-     * @param string               $name       Tool name
-     * @param array<string, mixed> $arguments  Tool arguments
+     * @param string                                                                  $name       Tool name
+     * @param array<string, mixed>                                                    $arguments  Tool arguments
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *        Optional callback for progress updates.
+     *                                                                                            Optional callback for progress updates
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
     {
@@ -170,9 +171,9 @@ class Client
     /**
      * Read a resource by URI.
      *
-     * @param string $uri The resource URI
+     * @param string                                                                  $uri        The resource URI
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *        Optional callback for progress updates.
+     *                                                                                            Optional callback for progress updates
      */
     public function readResource(string $uri, ?callable $onProgress = null): ReadResourceResult
     {
@@ -194,10 +195,10 @@ class Client
     /**
      * Get a prompt from the server.
      *
-     * @param string                $name      Prompt name
-     * @param array<string, string> $arguments Prompt arguments
+     * @param string                                                                  $name       Prompt name
+     * @param array<string, string>                                                   $arguments  Prompt arguments
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *        Optional callback for progress updates.
+     *                                                                                            Optional callback for progress updates
      */
     public function getPrompt(string $name, array $arguments = [], ?callable $onProgress = null): GetPromptResult
     {
@@ -209,10 +210,10 @@ class Client
     /**
      * Request completion suggestions for a prompt or resource argument.
      *
-     * @param PromptReference|ResourceReference $ref      The prompt or resource reference
+     * @param PromptReference|ResourceReference  $ref      The prompt or resource reference
      * @param array{name: string, value: string} $argument The argument to complete
      */
-    public function complete(PromptReference|ResourceReference $ref, array $argument = []): CompletionCompleteResult
+    public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
     {
         $request = new CompletionCompleteRequest($ref, $argument);
 
@@ -228,7 +229,7 @@ class Client
     {
         $request = new SetLogLevelRequest($level);
 
-        return $this->sendRequest($request);
+        return $this->sendRequest($request, EmptyResult::class);
     }
 
     /**
@@ -236,7 +237,7 @@ class Client
      *
      * @template T of ResultInterface
      *
-     * @param class-string<T>|null                                               $resultClass
+     * @param class-string<T>|null                                                    $resultClass
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *
      * @return T|array<string, mixed>
@@ -250,15 +251,11 @@ class Client
         }
 
         $withProgress = null !== $onProgress;
-        $fiber = new \Fiber(fn() => $this->protocol->request($request, $this->config->requestTimeout, $withProgress));
+        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress));
         $response = $this->transport->runRequest($fiber, $onProgress);
 
         if ($response instanceof Error) {
             throw RequestException::fromError($response);
-        }
-
-        if (!$response instanceof Response) {
-            throw new RequestException('Unexpected response type');
         }
 
         if (null === $resultClass) {

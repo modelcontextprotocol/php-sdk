@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Simple STDIO Client Example
+ * Simple STDIO Client Example.
  *
  * This example demonstrates how to use the MCP client with a STDIO transport
  * to communicate with an MCP server running as a child process.
@@ -11,7 +11,16 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+require_once __DIR__.'/../../vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Transport\StdioTransport;
@@ -26,7 +35,7 @@ $client = Client::builder()
 
 $transport = new StdioTransport(
     command: 'php',
-    args: [__DIR__ . '/../server/discovery-calculator/server.php'],
+    args: [__DIR__.'/../server/discovery-calculator/server.php'],
 );
 
 try {
@@ -35,8 +44,8 @@ try {
 
     echo "Connected! Server info:\n";
     $serverInfo = $client->getServerInfo();
-    echo "  Name: " . ($serverInfo?->name ?? 'unknown') . "\n";
-    echo "  Version: " . ($serverInfo?->version ?? 'unknown') . "\n\n";
+    echo '  Name: '.($serverInfo->name ?? 'unknown')."\n";
+    echo '  Version: '.($serverInfo->version ?? 'unknown')."\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();
@@ -47,7 +56,7 @@ try {
 
     echo "Calling 'calculate' tool with a=5, b=3, operation='add'...\n";
     $result = $client->callTool('calculate', ['a' => 5, 'b' => 3, 'operation' => 'add']);
-    echo "Result: ";
+    echo 'Result: ';
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
             echo $content->text;
@@ -66,13 +75,13 @@ try {
     $resourceContent = $client->readResource('config://calculator/settings');
     foreach ($resourceContent->contents as $content) {
         if ($content instanceof TextResourceContents) {
-            echo "  Content: " . $content->text . "\n";
-            echo "  Mimetype: " . $content->mimeType . "\n";
+            echo '  Content: '.$content->text."\n";
+            echo '  Mimetype: '.$content->mimeType."\n";
         }
     }
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
-    echo $e->getTraceAsString() . "\n";
+    echo $e->getTraceAsString()."\n";
 } finally {
     echo "Disconnecting...\n";
     $client->disconnect();

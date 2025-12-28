@@ -21,8 +21,6 @@ use Mcp\Schema\JsonRpc\Response;
  * The transport owns its execution loop and manages all blocking operations.
  * The client delegates completely to the transport for I/O.
  *
- * @template-covariant TResult
- *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (FiberReturn|null)
  * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int}
@@ -64,9 +62,9 @@ interface ClientTransportInterface
      * During the loop, the transport checks session for progress data and
      * executes the callback if provided.
      *
-     * @param McpFiber $fiber The fiber to execute
+     * @param McpFiber                                                                $fiber      The fiber to execute
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *        Optional callback for progress updates
+     *                                                                                            Optional callback for progress updates
      *
      * @return Response<array<string, mixed>>|Error The response or error
      */
@@ -111,5 +109,4 @@ interface ClientTransportInterface
      * Set the client session for state management.
      */
     public function setSession(ClientSessionInterface $session): void;
-
 }

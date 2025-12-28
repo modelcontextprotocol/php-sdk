@@ -25,17 +25,16 @@ use Psr\Log\NullLogger;
 abstract class BaseTransport implements ClientTransportInterface
 {
     /** @var callable(): mixed|null */
-    protected $initializeCallback = null;
+    protected $initializeCallback;
 
     /** @var callable(string): void|null */
-    protected $messageCallback = null;
+    protected $messageCallback;
 
     /** @var callable(\Throwable): void|null */
-    protected $errorCallback = null;
+    protected $errorCallback;
 
     /** @var callable(string): void|null */
-    protected $closeCallback = null;
-
+    protected $closeCallback;
 
     protected ?ClientSessionInterface $session = null;
     protected LoggerInterface $logger;

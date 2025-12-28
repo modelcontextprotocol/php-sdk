@@ -36,6 +36,8 @@ class LoggingNotificationHandler implements NotificationHandlerInterface
 
     public function handle(Notification $notification): void
     {
+        \assert($notification instanceof LoggingMessageNotification);
+
         ($this->callback)($notification);
     }
 }

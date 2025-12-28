@@ -1,7 +1,7 @@
 <?php
 
 /**
- * STDIO Client Communication Example
+ * STDIO Client Communication Example.
  *
  * This example demonstrates server-to-client communication:
  * - Logging notifications
@@ -13,7 +13,16 @@
 
 declare(strict_types=1);
 
-require_once __DIR__ . '/../../vendor/autoload.php';
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+require_once __DIR__.'/../../vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
@@ -33,8 +42,8 @@ $loggingNotificationHandler = new LoggingNotificationHandler(function (LoggingMe
 $samplingRequestHandler = new SamplingRequestHandler(function (CreateSamplingMessageRequest $request): CreateSamplingMessageResult {
     echo "[SAMPLING] Server requested LLM sampling (max {$request->maxTokens} tokens)\n";
 
-    $mockResponse = "Based on the incident analysis, I recommend: 1) Activate the on-call team, " .
-        "2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.";
+    $mockResponse = 'Based on the incident analysis, I recommend: 1) Activate the on-call team, '.
+        '2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.';
 
     return new CreateSamplingMessageResult(
         role: Role::Assistant,
@@ -55,7 +64,7 @@ $client = Client::builder()
 
 $transport = new StdioTransport(
     command: 'php',
-    args: [__DIR__ . '/../server/client-communication/server.php'],
+    args: [__DIR__.'/../server/client-communication/server.php'],
 );
 
 try {
@@ -63,7 +72,7 @@ try {
     $client->connect($transport);
 
     $serverInfo = $client->getServerInfo();
-    echo "Connected to: " . ($serverInfo?->name ?? 'unknown') . "\n\n";
+    echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
 
     echo "Available tools:\n";
     $toolsResult = $client->listTools();
@@ -85,7 +94,7 @@ try {
     echo "\nResult:\n";
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
-            echo $content->text . "\n";
+            echo $content->text."\n";
         }
     }
 
@@ -102,13 +111,12 @@ try {
     echo "\nResult:\n";
     foreach ($result->content as $content) {
         if ($content instanceof TextContent) {
-            echo $content->text . "\n";
+            echo $content->text."\n";
         }
     }
-
-} catch (\Throwable $e) {
+} catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
-    echo $e->getTraceAsString() . "\n";
+    echo $e->getTraceAsString()."\n";
 } finally {
     $client->disconnect();
 }
