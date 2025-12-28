@@ -14,7 +14,7 @@ namespace Mcp;
 use Mcp\Client\Builder;
 use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
-use Mcp\Client\Transport\ClientTransportInterface;
+use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
 use Mcp\Schema\Enum\LoggingLevel;
@@ -22,7 +22,6 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
@@ -37,7 +36,6 @@ use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\CompletionCompleteResult;
-use Mcp\Schema\Result\EmptyResult;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\ListPromptsResult;
 use Mcp\Schema\Result\ListResourcesResult;
@@ -57,7 +55,7 @@ use Psr\Log\NullLogger;
  */
 class Client
 {
-    private ?ClientTransportInterface $transport = null;
+    private ?TransportInterface $transport = null;
 
     public function __construct(
         private readonly Protocol $protocol,
@@ -79,7 +77,7 @@ class Client
      *
      * @throws ConnectionException If connection or initialization fails
      */
-    public function connect(ClientTransportInterface $transport): void
+    public function connect(TransportInterface $transport): void
     {
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
@@ -120,7 +118,7 @@ class Client
     {
         $request = new PingRequest();
 
-        $this->sendRequest($request, EmptyResult::class);
+        $this->sendRequest($request);
     }
 
     /**
@@ -130,7 +128,9 @@ class Client
     {
         $request = new ListToolsRequest($cursor);
 
-        return $this->sendRequest($request, ListToolsResult::class);
+        $response = $this->sendRequest($request);
+
+        return ListToolsResult::fromArray($response->result);
     }
 
     /**
@@ -145,7 +145,9 @@ class Client
     {
         $request = new CallToolRequest($name, $arguments);
 
-        return $this->sendRequest($request, CallToolResult::class, $onProgress);
+        $response = $this->sendRequest($request, $onProgress);
+
+        return CallToolResult::fromArray($response->result);
     }
 
     /**
@@ -155,7 +157,9 @@ class Client
     {
         $request = new ListResourcesRequest($cursor);
 
-        return $this->sendRequest($request, ListResourcesResult::class);
+        $response = $this->sendRequest($request);
+
+        return ListResourcesResult::fromArray($response->result);
     }
 
     /**
@@ -165,7 +169,9 @@ class Client
     {
         $request = new ListResourceTemplatesRequest($cursor);
 
-        return $this->sendRequest($request, ListResourceTemplatesResult::class);
+        $response = $this->sendRequest($request);
+
+        return ListResourceTemplatesResult::fromArray($response->result);
     }
 
     /**
@@ -179,7 +185,9 @@ class Client
     {
         $request = new ReadResourceRequest($uri);
 
-        return $this->sendRequest($request, ReadResourceResult::class, $onProgress);
+        $response = $this->sendRequest($request, $onProgress);
+
+        return ReadResourceResult::fromArray($response->result);
     }
 
     /**
@@ -189,7 +197,9 @@ class Client
     {
         $request = new ListPromptsRequest($cursor);
 
-        return $this->sendRequest($request, ListPromptsResult::class);
+        $response = $this->sendRequest($request);
+
+        return ListPromptsResult::fromArray($response->result);
     }
 
     /**
@@ -204,7 +214,9 @@ class Client
     {
         $request = new GetPromptRequest($name, $arguments);
 
-        return $this->sendRequest($request, GetPromptResult::class, $onProgress);
+        $response = $this->sendRequest($request, $onProgress);
+
+        return GetPromptResult::fromArray($response->result);
     }
 
     /**
@@ -217,34 +229,31 @@ class Client
     {
         $request = new CompletionCompleteRequest($ref, $argument);
 
-        return $this->sendRequest($request, CompletionCompleteResult::class);
+        $response = $this->sendRequest($request);
+
+        return CompletionCompleteResult::fromArray($response->result);
     }
 
     /**
      * Set the minimum logging level for server log messages.
-     *
-     * @return array<string, mixed>
      */
-    public function setLoggingLevel(LoggingLevel $level): array
+    public function setLoggingLevel(LoggingLevel $level): void
     {
         $request = new SetLogLevelRequest($level);
 
-        return $this->sendRequest($request, EmptyResult::class);
+        $this->sendRequest($request);
     }
 
     /**
      * Send a request to the server and wait for response.
      *
-     * @template T of ResultInterface
-     *
-     * @param class-string<T>|null                                                    $resultClass
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *
-     * @return T|array<string, mixed>
+     * @return Response<mixed>
      *
      * @throws RequestException|ConnectionException
      */
-    private function sendRequest(Request $request, ?string $resultClass = null, ?callable $onProgress = null): mixed
+    private function sendRequest(Request $request, ?callable $onProgress = null): Response
     {
         if (!$this->isConnected()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');
@@ -258,11 +267,7 @@ class Client
             throw RequestException::fromError($response);
         }
 
-        if (null === $resultClass) {
-            return $response->result;
-        }
-
-        return $resultClass::fromArray($response->result);
+        return $response;
     }
 
     /**

@@ -22,13 +22,13 @@ use Mcp\Schema\JsonRpc\Response;
  * The client delegates completely to the transport for I/O.
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
- * @phpstan-type FiberResume (FiberReturn|null)
+ * @phpstan-type FiberResume (Response<mixed>|Error)
  * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int}
  * @phpstan-type McpFiber \Fiber<null, FiberResume, FiberReturn, FiberSuspend>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-interface ClientTransportInterface
+interface TransportInterface
 {
     /**
      * Connect to the MCP server and perform initialization handshake.

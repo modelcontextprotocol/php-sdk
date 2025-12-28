@@ -26,6 +26,8 @@ use Psr\Log\LoggerInterface;
  * - Writing to stdin
  * - Managing Fibers waiting for responses
  *
+ * @phpstan-import-type McpFiber from TransportInterface
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StdioTransport extends BaseTransport
@@ -43,8 +45,8 @@ class StdioTransport extends BaseTransport
     private $stderr;
 
     private string $inputBuffer = '';
-    private bool $running = false;
 
+    /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
@@ -107,6 +109,7 @@ class StdioTransport extends BaseTransport
     }
 
     /**
+     * @param McpFiber                                                                $fiber
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      */
     public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
@@ -127,8 +130,6 @@ class StdioTransport extends BaseTransport
 
     public function close(): void
     {
-        $this->running = false;
-
         if (\is_resource($this->stdin)) {
             fclose($this->stdin);
             $this->stdin = null;
@@ -183,7 +184,6 @@ class StdioTransport extends BaseTransport
         stream_set_blocking($this->stdout, false);
         stream_set_blocking($this->stderr, false);
 
-        $this->running = true;
         $this->logger->info('Started MCP server process', ['command' => $cmd]);
     }
 

@@ -16,7 +16,7 @@ use Mcp\Client\Handler\Notification\ProgressNotificationHandler;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Session\ClientSession;
 use Mcp\Client\Session\ClientSessionInterface;
-use Mcp\Client\Transport\ClientTransportInterface;
+use Mcp\Client\Transport\TransportInterface;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -34,13 +34,13 @@ use Psr\Log\NullLogger;
  * Handles message routing, request/response correlation, and the initialization handshake.
  * All blocking operations are delegated to the transport.
  *
- * @phpstan-import-type FiberSuspend from ClientTransportInterface
+ * @phpstan-import-type FiberSuspend from TransportInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class Protocol
 {
-    private ?ClientTransportInterface $transport = null;
+    private ?TransportInterface $transport = null;
     private ClientSessionInterface $session;
     private MessageFactory $messageFactory;
     private LoggerInterface $logger;
@@ -49,8 +49,8 @@ class Protocol
     private array $notificationHandlers;
 
     /**
-     * @param NotificationHandlerInterface[] $notificationHandlers
-     * @param RequestHandlerInterface[]      $requestHandlers
+     * @param RequestHandlerInterface<mixed>[] $requestHandlers
+     * @param NotificationHandlerInterface[]   $notificationHandlers
      */
     public function __construct(
         private readonly array $requestHandlers = [],
@@ -73,10 +73,10 @@ class Protocol
      *
      * Sets up message handling callbacks.
      *
-     * @param ClientTransportInterface $transport The transport to connect
-     * @param Configuration            $config    The client configuration for initialization
+     * @param TransportInterface $transport The transport to connect
+     * @param Configuration      $config    The client configuration for initialization
      */
-    public function connect(ClientTransportInterface $transport, Configuration $config): void
+    public function connect(TransportInterface $transport, Configuration $config): void
     {
         $this->transport = $transport;
         $transport->setSession($this->session);
@@ -215,6 +215,8 @@ class Protocol
      * Handle a response from the server.
      *
      * This stores it in session. The transport will pick it up and resume the Fiber.
+     *
+     * @param Response<mixed>|Error $response
      */
     private function handleResponse(Response|Error $response): void
     {

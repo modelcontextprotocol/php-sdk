@@ -22,7 +22,7 @@ use Psr\Log\NullLogger;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-abstract class BaseTransport implements ClientTransportInterface
+abstract class BaseTransport implements TransportInterface
 {
     /** @var callable(): mixed|null */
     protected $initializeCallback;
