@@ -35,9 +35,6 @@ class ClientSession implements ClientSessionInterface
     /** @var array<int, array<string, mixed>> */
     private array $responses = [];
 
-    /** @var array<int, array{message: string, context: array<string, mixed>}> */
-    private array $outgoingQueue = [];
-
     /** @var array<int, array{token: string, progress: float, total: ?float, message: ?string}> */
     private array $progressUpdates = [];
 
@@ -95,22 +92,6 @@ class ClientSession implements ClientSessionInterface
         }
 
         return Response::fromArray($data);
-    }
-
-    public function queueOutgoing(string $message, array $context): void
-    {
-        $this->outgoingQueue[] = [
-            'message' => $message,
-            'context' => $context,
-        ];
-    }
-
-    public function consumeOutgoingMessages(): array
-    {
-        $messages = $this->outgoingQueue;
-        $this->outgoingQueue = [];
-
-        return $messages;
     }
 
     public function setInitialized(bool $initialized): void
