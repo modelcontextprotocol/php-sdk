@@ -42,9 +42,12 @@ use Symfony\Component\Finder\SplFileInfo;
  *     resourceTemplates: int,
  * }
  *
+ * @internal
+ * @final
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Discoverer
+class Discoverer implements DiscovererInterface
 {
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),

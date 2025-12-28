@@ -11,12 +11,8 @@
 
 namespace Mcp\Capability\Registry\Loader;
 
-use Mcp\Capability\Discovery\CachedDiscoverer;
-use Mcp\Capability\Discovery\Discoverer;
-use Mcp\Capability\Discovery\SchemaGeneratorInterface;
+use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\RegistryInterface;
-use Psr\Log\LoggerInterface;
-use Psr\SimpleCache\CacheInterface;
 
 /**
  * @author Antoine Bluchet <soyuka@gmail.com>
@@ -31,22 +27,13 @@ final class DiscoveryLoader implements LoaderInterface
         private string $basePath,
         private array $scanDirs,
         private array $excludeDirs,
-        private LoggerInterface $logger,
-        private ?CacheInterface $cache = null,
-        private ?SchemaGeneratorInterface $schemaGenerator = null,
+        private DiscovererInterface $discoverer,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
-        // This now encapsulates the discovery process
-        $discoverer = new Discoverer($this->logger, null, $this->schemaGenerator);
-
-        $cachedDiscoverer = $this->cache
-            ? new CachedDiscoverer($discoverer, $this->cache, $this->logger)
-            : $discoverer;
-
-        $discoveryState = $cachedDiscoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+        $discoveryState = $this->discoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
 
         $registry->setDiscoveryState($discoveryState);
     }

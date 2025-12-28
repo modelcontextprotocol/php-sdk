@@ -11,6 +11,7 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
@@ -60,6 +61,8 @@ final class Builder
     private ?ContainerInterface $container = null;
 
     private ?SchemaGeneratorInterface $schemaGenerator = null;
+
+    private ?DiscovererInterface $discoverer = null;
 
     private ?SessionFactoryInterface $sessionFactory = null;
 
@@ -297,6 +300,13 @@ final class Builder
         return $this;
     }
 
+    public function setDiscoverer(DiscovererInterface $discoverer): self
+    {
+        $this->discoverer = $discoverer;
+
+        return $this;
+    }
+
     public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
@@ -484,7 +494,8 @@ final class Builder
         ];
 
         if (null !== $this->discoveryBasePath) {
-            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $logger, $this->discoveryCache, $this->schemaGenerator);
+            $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
+            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer);
         }
 
         foreach ($loaders as $loader) {
@@ -540,5 +551,16 @@ final class Builder
         );
 
         return new Server($protocol, $logger);
+    }
+
+    private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
+    {
+        $discoverer = new \Mcp\Capability\Discovery\Discoverer($logger, null, $this->schemaGenerator);
+
+        if (null !== $this->discoveryCache) {
+            return new \Mcp\Capability\Discovery\CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
+        }
+
+        return $discoverer;
     }
 }
