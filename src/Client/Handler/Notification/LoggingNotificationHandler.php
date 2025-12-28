@@ -9,9 +9,8 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client\Handler;
+namespace Mcp\Client\Handler\Notification;
 
-use Mcp\Handler\NotificationHandlerInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 

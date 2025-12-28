@@ -30,7 +30,7 @@ use Psr\Log\LoggerInterface;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class HttpClientTransport extends BaseClientTransport
+class HttpTransport extends BaseTransport
 {
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
@@ -200,7 +200,7 @@ class HttpClientTransport extends BaseClientTransport
         $this->processSSEStream();
         $this->processProgress();
         $this->processFiber();
-        
+
         usleep(1000); // 1ms
     }
 

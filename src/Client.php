@@ -9,21 +9,20 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client;
+namespace Mcp;
 
-use Mcp\Client\Handler\ProgressNotificationHandler;
-use Mcp\Client\Session\ClientSession;
-use Mcp\Client\Session\ClientSessionInterface;
+use Mcp\Client\Builder;
+use Mcp\Client\Configuration;
+use Mcp\Client\Protocol;
 use Mcp\Client\Transport\ClientTransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
-use Mcp\Handler\NotificationHandlerInterface;
-use Mcp\Handler\RequestHandlerInterface;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
@@ -45,6 +44,7 @@ use Mcp\Schema\Result\ListResourceTemplatesResult;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Main MCP Client facade.
@@ -56,35 +56,13 @@ use Psr\Log\LoggerInterface;
  */
 class Client
 {
-    private Protocol $protocol;
-    private ClientSessionInterface $session;
     private ?ClientTransportInterface $transport = null;
 
-    /**
-     * @param NotificationHandlerInterface[] $notificationHandlers
-     * @param RequestHandlerInterface[]      $requestHandlers
-     */
     public function __construct(
+        private readonly Protocol $protocol,
         private readonly Configuration $config,
-        array $notificationHandlers = [],
-        array $requestHandlers = [],
-        ?LoggerInterface $logger = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->session = new ClientSession();
-
-        $allNotificationHandlers = [
-            new ProgressNotificationHandler($this->session),
-            ...$notificationHandlers,
-        ];
-
-        $this->protocol = new Protocol(
-            $this->session,
-            $config,
-            $allNotificationHandlers,
-            $requestHandlers,
-            null,
-            $logger
-        );
     }
 
     /**
@@ -98,17 +76,16 @@ class Client
     /**
      * Connect to an MCP server using the provided transport.
      *
-     * This method blocks until initialization completes or times out.
-     * The transport handles all blocking operations internally.
-     *
      * @throws ConnectionException If connection or initialization fails
      */
     public function connect(ClientTransportInterface $transport): void
     {
         $this->transport = $transport;
-        $this->protocol->connect($transport);
+        $this->protocol->connect($transport, $this->config);
 
         $transport->connectAndInitialize($this->config->initTimeout);
+
+        $this->logger->info('Client connected and initialized');
     }
 
     /**
@@ -120,12 +97,29 @@ class Client
     }
 
     /**
-     * Ping the server.
+     * Get server information from initialization.
+     */
+    public function getServerInfo(): ?Implementation
+    {
+        return $this->protocol->getSession()->getServerInfo();
+    }
+
+    /**
+     * Get server instructions.
+     */
+    public function getInstructions(): ?string
+    {
+        return $this->protocol->getSession()->getInstructions();
+    }
+
+    /**
+     * Send a ping request to the server.
      */
     public function ping(): void
     {
-        $this->ensureConnected();
-        $this->doRequest(new PingRequest());
+        $request = new PingRequest();
+
+        $this->sendRequest($request);
     }
 
     /**
@@ -133,9 +127,9 @@ class Client
      */
     public function listTools(?string $cursor = null): ListToolsResult
     {
-        $this->ensureConnected();
+        $request = new ListToolsRequest($cursor);
 
-        return $this->doRequest(new ListToolsRequest($cursor), ListToolsResult::class);
+        return $this->sendRequest($request, ListToolsResult::class);
     }
 
     /**
@@ -144,36 +138,33 @@ class Client
      * @param string               $name       Tool name
      * @param array<string, mixed> $arguments  Tool arguments
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *        Optional callback for progress updates. If provided, a progress token
-     *        is automatically generated and attached to the request.
+     *        Optional callback for progress updates.
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
     {
-        $this->ensureConnected();
-
         $request = new CallToolRequest($name, $arguments);
 
-        return $this->doRequest($request, CallToolResult::class, $onProgress);
+        return $this->sendRequest($request, CallToolResult::class, $onProgress);
     }
 
     /**
-     * List available resources.
+     * List available resources from the server.
      */
     public function listResources(?string $cursor = null): ListResourcesResult
     {
-        $this->ensureConnected();
+        $request = new ListResourcesRequest($cursor);
 
-        return $this->doRequest(new ListResourcesRequest($cursor), ListResourcesResult::class);
+        return $this->sendRequest($request, ListResourcesResult::class);
     }
 
     /**
-     * List available resource templates.
+     * List available resource templates from the server.
      */
     public function listResourceTemplates(?string $cursor = null): ListResourceTemplatesResult
     {
-        $this->ensureConnected();
+        $request = new ListResourceTemplatesRequest($cursor);
 
-        return $this->doRequest(new ListResourceTemplatesRequest($cursor), ListResourceTemplatesResult::class);
+        return $this->sendRequest($request, ListResourceTemplatesResult::class);
     }
 
     /**
@@ -185,25 +176,23 @@ class Client
      */
     public function readResource(string $uri, ?callable $onProgress = null): ReadResourceResult
     {
-        $this->ensureConnected();
-
         $request = new ReadResourceRequest($uri);
 
-        return $this->doRequest($request, ReadResourceResult::class, $onProgress);
+        return $this->sendRequest($request, ReadResourceResult::class, $onProgress);
     }
 
     /**
-     * List available prompts.
+     * List available prompts from the server.
      */
     public function listPrompts(?string $cursor = null): ListPromptsResult
     {
-        $this->ensureConnected();
+        $request = new ListPromptsRequest($cursor);
 
-        return $this->doRequest(new ListPromptsRequest($cursor), ListPromptsResult::class);
+        return $this->sendRequest($request, ListPromptsResult::class);
     }
 
     /**
-     * Get a prompt by name.
+     * Get a prompt from the server.
      *
      * @param string                $name      Prompt name
      * @param array<string, string> $arguments Prompt arguments
@@ -212,20 +201,9 @@ class Client
      */
     public function getPrompt(string $name, array $arguments = [], ?callable $onProgress = null): GetPromptResult
     {
-        $this->ensureConnected();
-
         $request = new GetPromptRequest($name, $arguments);
 
-        return $this->doRequest($request, GetPromptResult::class, $onProgress);
-    }
-
-    /**
-     * Set the minimum logging level for server notifications.
-     */
-    public function setLoggingLevel(LoggingLevel $level): void
-    {
-        $this->ensureConnected();
-        $this->doRequest(new SetLogLevelRequest($level));
+        return $this->sendRequest($request, GetPromptResult::class, $onProgress);
     }
 
     /**
@@ -234,33 +212,60 @@ class Client
      * @param PromptReference|ResourceReference $ref      The prompt or resource reference
      * @param array{name: string, value: string} $argument The argument to complete
      */
-    public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
+    public function complete(PromptReference|ResourceReference $ref, array $argument = []): CompletionCompleteResult
     {
-        $this->ensureConnected();
+        $request = new CompletionCompleteRequest($ref, $argument);
 
-        return $this->doRequest(
-            new CompletionCompleteRequest($ref, $argument),
-            CompletionCompleteResult::class,
-        );
+        return $this->sendRequest($request, CompletionCompleteResult::class);
     }
 
     /**
-     * Get the server info received during initialization.
-     */
-    public function getServerInfo(): ?Implementation
-    {
-        return $this->protocol->getSession()->getServerInfo();
-    }
-
-    /**
-     * Get the server instructions received during initialization.
+     * Set the minimum logging level for server log messages.
      *
-     * Instructions describe how to use the server and its features.
-     * This can be used to improve the LLM's understanding of available tools and resources.
+     * @return array<string, mixed>
      */
-    public function getInstructions(): ?string
+    public function setLoggingLevel(LoggingLevel $level): array
     {
-        return $this->protocol->getSession()->getInstructions();
+        $request = new SetLogLevelRequest($level);
+
+        return $this->sendRequest($request);
+    }
+
+    /**
+     * Send a request to the server and wait for response.
+     *
+     * @template T of ResultInterface
+     *
+     * @param class-string<T>|null                                               $resultClass
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     *
+     * @return T|array<string, mixed>
+     *
+     * @throws RequestException|ConnectionException
+     */
+    private function sendRequest(Request $request, ?string $resultClass = null, ?callable $onProgress = null): mixed
+    {
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        $withProgress = null !== $onProgress;
+        $fiber = new \Fiber(fn() => $this->protocol->request($request, $this->config->requestTimeout, $withProgress));
+        $response = $this->transport->runRequest($fiber, $onProgress);
+
+        if ($response instanceof Error) {
+            throw RequestException::fromError($response);
+        }
+
+        if (!$response instanceof Response) {
+            throw new RequestException('Unexpected response type');
+        }
+
+        if (null === $resultClass) {
+            return $response->result;
+        }
+
+        return $resultClass::fromArray($response->result);
     }
 
     /**
@@ -268,51 +273,10 @@ class Client
      */
     public function disconnect(): void
     {
-        $this->transport?->close();
-        $this->transport = null;
-    }
-
-    /**
-     * Execute a request and return the typed result.
-     *
-     * @template T
-     *
-     * @param class-string<T>|null $resultClass
-     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *
-     * @return T|Response<array<string, mixed>>
-     *
-     * @throws RequestException
-     */
-    private function doRequest(Request $request, ?string $resultClass = null, ?callable $onProgress = null): mixed
-    {
-        $requestId = $this->session->nextRequestId();
-        $request = $request->withId($requestId);
-
-        if (null !== $onProgress) {
-            $progressToken = 'prog-' . $requestId;
-            $request = $request->withMeta(['progressToken' => $progressToken]);
-        }
-
-        $fiber = new \Fiber(fn() => $this->protocol->request($request, $this->config->requestTimeout));
-
-        $response = $this->transport->runRequest($fiber, $onProgress);
-
-        if ($response instanceof Error) {
-            throw RequestException::fromError($response);
-        }
-
-        if (null === $resultClass) {
-            return $response;
-        }
-
-        return $resultClass::fromArray($response->result);
-    }
-
-    private function ensureConnected(): void
-    {
-        if (!$this->isConnected()) {
-            throw new ConnectionException('Client is not connected. Call connect() first.');
+        if (null !== $this->transport) {
+            $this->transport->close();
+            $this->transport = null;
+            $this->logger->info('Client disconnected');
         }
     }
 }

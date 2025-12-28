@@ -9,15 +9,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Handler;
+namespace Mcp\Client\Handler\Request;
 
 use Mcp\Schema\JsonRpc\Request;
 
 /**
- * Interface for handling requests from the other party.
- *
- * Used by both client (for server requests like sampling)
- * and server (for client requests like tools/call).
+ * Interface for handling requests from the server.
  *
  * @template TResult
  *

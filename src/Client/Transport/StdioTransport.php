@@ -26,11 +26,9 @@ use Psr\Log\LoggerInterface;
  * - Writing to stdin
  * - Managing Fibers waiting for responses
  *
- * @extends BaseClientTransport
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class StdioClientTransport extends BaseClientTransport
+class StdioTransport extends BaseTransport
 {
     /** @var resource|null */
     private $process = null;

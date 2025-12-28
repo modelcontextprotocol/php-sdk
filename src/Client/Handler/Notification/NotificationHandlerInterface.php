@@ -9,15 +9,12 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Handler;
+namespace Mcp\Client\Handler\Notification;
 
 use Mcp\Schema\JsonRpc\Notification;
 
 /**
- * Interface for handling notifications from the other party.
- *
- * Used by both client (for server notifications like logging/progress)
- * and server (for client notifications like initialized/cancelled).
+ * Interface for handling notifications from the server.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */

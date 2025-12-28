@@ -9,15 +9,14 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client\Handler;
+namespace Mcp\Client\Handler\Notification;
 
 use Mcp\Client\Session\ClientSessionInterface;
-use Mcp\Handler\NotificationHandlerInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\ProgressNotification;
 
 /**
- * Internal handlerc for progress notifications.
+ * Internal handler for progress notifications.
  *
  * Writes progress data to session for transport to consume and execute callbacks.
  *
