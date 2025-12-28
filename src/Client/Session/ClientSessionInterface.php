@@ -71,21 +71,6 @@ interface ClientSessionInterface
     public function consumeResponse(int $requestId): Response|Error|null;
 
     /**
-     * Queue an outgoing message.
-     *
-     * @param string               $message JSON-encoded message
-     * @param array<string, mixed> $context Message context
-     */
-    public function queueOutgoing(string $message, array $context): void;
-
-    /**
-     * Get and clear all queued outgoing messages.
-     *
-     * @return array<int, array{message: string, context: array<string, mixed>}>
-     */
-    public function consumeOutgoingMessages(): array;
-
-    /**
      * Set initialization state.
      */
     public function setInitialized(bool $initialized): void;

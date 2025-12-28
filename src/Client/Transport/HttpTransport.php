@@ -93,7 +93,7 @@ class HttpTransport extends BaseTransport
         $this->logger->info('HTTP client connected and initialized', ['endpoint' => $this->endpoint]);
     }
 
-    public function send(string $data, array $context): void
+    public function send(string $data): void
     {
         $request = $this->requestFactory->createRequest('POST', $this->endpoint)
             ->withHeader('Content-Type', 'application/json')

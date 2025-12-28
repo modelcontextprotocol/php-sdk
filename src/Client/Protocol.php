@@ -123,7 +123,7 @@ class Protocol
     }
 
     /**
-     * Send a request to the server.
+     * Send a request to the server and wait for response.
      *
      * If a response is immediately available (sync HTTP), returns it.
      * Otherwise, suspends the Fiber and waits for the transport to resume it.
@@ -144,16 +144,8 @@ class Protocol
             $request = $request->withMeta(['progressToken' => $progressToken]);
         }
 
-        $this->logger->debug('Sending request', [
-            'id' => $requestId,
-            'method' => $request::getMethod(),
-        ]);
-
-        $encoded = json_encode($request, \JSON_THROW_ON_ERROR);
-        $this->session->queueOutgoing($encoded, ['type' => 'request']);
         $this->session->addPendingRequest($requestId, $timeout);
-
-        $this->flushOutgoing();
+        $this->sendRequest($request);
 
         $immediate = $this->session->consumeResponse($requestId);
         if (null !== $immediate) {
@@ -172,6 +164,20 @@ class Protocol
     }
 
     /**
+     * Send a request to the server.
+     */
+    private function sendRequest(Request $request): void
+    {
+        $this->logger->debug('Sending request', [
+            'id' => $request->getId(),
+            'method' => $request::getMethod(),
+        ]);
+
+        $encoded = json_encode($request, \JSON_THROW_ON_ERROR);
+        $this->transport?->send($encoded);
+    }
+
+    /**
      * Send a notification to the server (fire and forget).
      */
     public function sendNotification(Notification $notification): void
@@ -179,8 +185,20 @@ class Protocol
         $this->logger->debug('Sending notification', ['method' => $notification::getMethod()]);
 
         $encoded = json_encode($notification, \JSON_THROW_ON_ERROR);
-        $this->session->queueOutgoing($encoded, ['type' => 'notification']);
-        $this->flushOutgoing();
+        $this->transport?->send($encoded);
+    }
+
+    /**
+     * Send a response back to the server (for server-initiated requests).
+     *
+     * @param Response<mixed>|Error $response
+     */
+    private function sendResponse(Response|Error $response): void
+    {
+        $this->logger->debug('Sending response', ['id' => $response->getId()]);
+
+        $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        $this->transport?->send($encoded);
     }
 
     /**
@@ -204,9 +222,9 @@ class Protocol
             if ($message instanceof Response || $message instanceof Error) {
                 $this->handleResponse($message);
             } elseif ($message instanceof Request) {
-                $this->handleServerRequest($message);
+                $this->handleRequest($message);
             } elseif ($message instanceof Notification) {
-                $this->handleServerNotification($message);
+                $this->handleNotification($message);
             }
         }
     }
@@ -224,17 +242,13 @@ class Protocol
 
         $this->logger->debug('Handling response', ['id' => $requestId]);
 
-        if ($response instanceof Response) {
-            $this->session->storeResponse($requestId, $response->jsonSerialize());
-        } else {
-            $this->session->storeResponse($requestId, $response->jsonSerialize());
-        }
+        $this->session->storeResponse($requestId, $response->jsonSerialize());
     }
 
     /**
      * Handle a request from the server (e.g., sampling request).
      */
-    private function handleServerRequest(Request $request): void
+    private function handleRequest(Request $request): void
     {
         $method = $request::getMethod();
 
@@ -259,9 +273,7 @@ class Protocol
                     );
                 }
 
-                $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
-                $this->session->queueOutgoing($encoded, ['type' => $response instanceof Response ? 'response' : 'error']);
-                $this->flushOutgoing();
+                $this->sendResponse($response);
 
                 return;
             }
@@ -272,15 +284,13 @@ class Protocol
             $request->getId()
         );
 
-        $encoded = json_encode($error, \JSON_THROW_ON_ERROR);
-        $this->session->queueOutgoing($encoded, ['type' => 'error']);
-        $this->flushOutgoing();
+        $this->sendResponse($error);
     }
 
     /**
      * Handle a notification from the server.
      */
-    private function handleServerNotification(Notification $notification): void
+    private function handleNotification(Notification $notification): void
     {
         $method = $notification::getMethod();
 
@@ -298,21 +308,6 @@ class Protocol
 
                 return;
             }
-        }
-    }
-
-    /**
-     * Flush any queued outgoing messages.
-     */
-    private function flushOutgoing(): void
-    {
-        if (null === $this->transport) {
-            return;
-        }
-
-        $messages = $this->session->consumeOutgoingMessages();
-        foreach ($messages as $item) {
-            $this->transport->send($item['message'], $item['context']);
         }
     }
 
