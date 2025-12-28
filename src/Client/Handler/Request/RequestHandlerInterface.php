@@ -11,7 +11,9 @@
 
 namespace Mcp\Client\Handler\Request;
 
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 
 /**
  * Interface for handling requests from the server.
@@ -28,9 +30,9 @@ interface RequestHandlerInterface
     public function supports(Request $request): bool;
 
     /**
-     * Handle the request and return the result.
+     * Handle the request and return a response or error.
      *
-     * @return TResult
+     * @return Response<TResult>|Error
      */
-    public function handle(Request $request): mixed;
+    public function handle(Request $request): Response|Error;
 }
