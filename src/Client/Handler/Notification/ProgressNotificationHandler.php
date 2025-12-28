@@ -11,14 +11,14 @@
 
 namespace Mcp\Client\Handler\Notification;
 
-use Mcp\Client\Session\ClientSessionInterface;
+use Mcp\Client\State\ClientStateInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\ProgressNotification;
 
 /**
  * Internal handler for progress notifications.
  *
- * Writes progress data to session for transport to consume and execute callbacks.
+ * Writes progress data to state for transport to consume and execute callbacks.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  *
@@ -27,7 +27,7 @@ use Mcp\Schema\Notification\ProgressNotification;
 class ProgressNotificationHandler implements NotificationHandlerInterface
 {
     public function __construct(
-        private readonly ClientSessionInterface $session,
+        private readonly ClientStateInterface $state,
     ) {
     }
 
@@ -42,7 +42,7 @@ class ProgressNotificationHandler implements NotificationHandlerInterface
             return;
         }
 
-        $this->session->storeProgress(
+        $this->state->storeProgress(
             (string) $notification->progressToken,
             $notification->progress,
             $notification->total,

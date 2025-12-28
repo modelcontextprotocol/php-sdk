@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Transport;
 
-use Mcp\Client\Session\ClientSessionInterface;
+use Mcp\Client\State\ClientStateInterface;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 
@@ -101,7 +101,7 @@ interface TransportInterface
     public function onClose(callable $callback): void;
 
     /**
-     * Set the client session for state management.
+     * Set the client state for runtime state management.
      */
-    public function setSession(ClientSessionInterface $session): void;
+    public function setState(ClientStateInterface $state): void;
 }

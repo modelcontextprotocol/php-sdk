@@ -241,11 +241,11 @@ class HttpTransport extends BaseTransport
      */
     private function processProgress(): void
     {
-        if (null === $this->activeProgressCallback || null === $this->session) {
+        if (null === $this->activeProgressCallback || null === $this->state) {
             return;
         }
 
-        $updates = $this->session->consumeProgressUpdates();
+        $updates = $this->state->consumeProgressUpdates();
 
         foreach ($updates as $update) {
             try {
@@ -266,18 +266,18 @@ class HttpTransport extends BaseTransport
             return;
         }
 
-        if (null === $this->session) {
+        if (null === $this->state) {
             return;
         }
 
-        $pendingRequests = $this->session->getPendingRequests();
+        $pendingRequests = $this->state->getPendingRequests();
 
         foreach ($pendingRequests as $pending) {
             $requestId = $pending['request_id'];
             $timestamp = $pending['timestamp'];
             $timeout = $pending['timeout'];
 
-            $response = $this->session->consumeResponse($requestId);
+            $response = $this->state->consumeResponse($requestId);
 
             if (null !== $response) {
                 $this->logger->debug('Resuming fiber with response', ['request_id' => $requestId]);
