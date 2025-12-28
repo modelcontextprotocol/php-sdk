@@ -14,8 +14,8 @@ namespace Mcp\Client;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Notification\ProgressNotificationHandler;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
-use Mcp\Client\Session\ClientSession;
-use Mcp\Client\Session\ClientSessionInterface;
+use Mcp\Client\State\ClientState;
+use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -41,7 +41,7 @@ use Psr\Log\NullLogger;
 class Protocol
 {
     private ?TransportInterface $transport = null;
-    private ClientSessionInterface $session;
+    private ClientStateInterface $state;
     private MessageFactory $messageFactory;
     private LoggerInterface $logger;
 
@@ -58,12 +58,12 @@ class Protocol
         ?MessageFactory $messageFactory = null,
         ?LoggerInterface $logger = null,
     ) {
-        $this->session = new ClientSession();
+        $this->state = new ClientState();
         $this->messageFactory = $messageFactory ?? MessageFactory::make();
         $this->logger = $logger ?? new NullLogger();
 
         $this->notificationHandlers = [
-            new ProgressNotificationHandler($this->session),
+            new ProgressNotificationHandler($this->state),
             ...$notificationHandlers,
         ];
     }
@@ -79,7 +79,7 @@ class Protocol
     public function connect(TransportInterface $transport, Configuration $config): void
     {
         $this->transport = $transport;
-        $transport->setSession($this->session);
+        $transport->setState($this->state);
         $transport->onInitialize(fn () => $this->initialize($config));
         $transport->onMessage($this->processMessage(...));
         $transport->onError(fn (\Throwable $e) => $this->logger->error('Transport error', ['exception' => $e]));
@@ -108,9 +108,9 @@ class Protocol
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
-            $this->session->setServerInfo($initResult->serverInfo);
-            $this->session->setInstructions($initResult->instructions);
-            $this->session->setInitialized(true);
+            $this->state->setServerInfo($initResult->serverInfo);
+            $this->state->setInstructions($initResult->instructions);
+            $this->state->setInitialized(true);
 
             $this->sendNotification(new InitializedNotification());
 
@@ -136,7 +136,7 @@ class Protocol
      */
     public function request(Request $request, int $timeout, bool $withProgress = false): Response|Error
     {
-        $requestId = $this->session->nextRequestId();
+        $requestId = $this->state->nextRequestId();
         $request = $request->withId($requestId);
 
         if ($withProgress) {
@@ -144,10 +144,10 @@ class Protocol
             $request = $request->withMeta(['progressToken' => $progressToken]);
         }
 
-        $this->session->addPendingRequest($requestId, $timeout);
+        $this->state->addPendingRequest($requestId, $timeout);
         $this->sendRequest($request);
 
-        $immediate = $this->session->consumeResponse($requestId);
+        $immediate = $this->state->consumeResponse($requestId);
         if (null !== $immediate) {
             $this->logger->debug('Received immediate response', ['id' => $requestId]);
 
@@ -242,7 +242,7 @@ class Protocol
 
         $this->logger->debug('Handling response', ['id' => $requestId]);
 
-        $this->session->storeResponse($requestId, $response->jsonSerialize());
+        $this->state->storeResponse($requestId, $response->jsonSerialize());
     }
 
     /**
@@ -311,8 +311,8 @@ class Protocol
         }
     }
 
-    public function getSession(): ClientSessionInterface
+    public function getState(): ClientStateInterface
     {
-        return $this->session;
+        return $this->state;
     }
 }

@@ -92,7 +92,7 @@ class Client
      */
     public function isConnected(): bool
     {
-        return null !== $this->transport && $this->protocol->getSession()->isInitialized();
+        return null !== $this->transport && $this->protocol->getState()->isInitialized();
     }
 
     /**
@@ -100,7 +100,7 @@ class Client
      */
     public function getServerInfo(): ?Implementation
     {
-        return $this->protocol->getSession()->getServerInfo();
+        return $this->protocol->getState()->getServerInfo();
     }
 
     /**
@@ -108,7 +108,7 @@ class Client
      */
     public function getInstructions(): ?string
     {
-        return $this->protocol->getSession()->getInstructions();
+        return $this->protocol->getState()->getInstructions();
     }
 
     /**

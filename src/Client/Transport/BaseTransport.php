@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Transport;
 
-use Mcp\Client\Session\ClientSessionInterface;
+use Mcp\Client\State\ClientStateInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -36,7 +36,7 @@ abstract class BaseTransport implements TransportInterface
     /** @var callable(string): void|null */
     protected $closeCallback;
 
-    protected ?ClientSessionInterface $session = null;
+    protected ?ClientStateInterface $state = null;
     protected LoggerInterface $logger;
 
     public function __construct(?LoggerInterface $logger = null)
@@ -64,9 +64,9 @@ abstract class BaseTransport implements TransportInterface
         $this->closeCallback = $listener;
     }
 
-    public function setSession(ClientSessionInterface $session): void
+    public function setState(ClientStateInterface $state): void
     {
-        $this->session = $session;
+        $this->state = $state;
     }
 
     /**
