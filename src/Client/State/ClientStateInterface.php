@@ -9,27 +9,23 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client\Session;
+namespace Mcp\Client\State;
 
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
-use Symfony\Component\Uid\Uuid;
 
 /**
- * Interface for client session state management.
+ * Interface for client state management.
  *
- * Tracks pending requests, stores responses, and manages message queues.
+ * Tracks pending requests, stores responses, and manages runtime state
+ * for the client's connection to a server. This is ephemeral state that
+ * exists only for the lifetime of the connection.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-interface ClientSessionInterface
+interface ClientStateInterface
 {
-    /**
-     * Get the session ID.
-     */
-    public function getId(): Uuid;
-
     /**
      * Get the next request ID for outgoing requests.
      */
@@ -76,7 +72,7 @@ interface ClientSessionInterface
     public function setInitialized(bool $initialized): void;
 
     /**
-     * Check if session is initialized.
+     * Check if connection is initialized.
      */
     public function isInitialized(): bool;
 

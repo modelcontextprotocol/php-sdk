@@ -9,21 +9,23 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Client\Session;
+namespace Mcp\Client\State;
 
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
-use Symfony\Component\Uid\Uuid;
 
 /**
- * In-memory client session implementation.
+ * In-memory client state implementation.
+ *
+ * Stores ephemeral runtime state for the client's connection to a server.
+ * This includes pending requests, responses, progress updates, and
+ * negotiated parameters from initialization.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class ClientSession implements ClientSessionInterface
+class ClientState implements ClientStateInterface
 {
-    private Uuid $id;
     private int $requestIdCounter = 1;
     private bool $initialized = false;
     private ?Implementation $serverInfo = null;
@@ -37,16 +39,6 @@ class ClientSession implements ClientSessionInterface
 
     /** @var array<int, array{token: string, progress: float, total: ?float, message: ?string}> */
     private array $progressUpdates = [];
-
-    public function __construct(?Uuid $id = null)
-    {
-        $this->id = $id ?? Uuid::v4();
-    }
-
-    public function getId(): Uuid
-    {
-        return $this->id;
-    }
 
     public function nextRequestId(): int
     {
