@@ -43,7 +43,7 @@
     "psr/simple-cache": "^2.0 || ^3.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
-    "symfony/http-client": "^7.4",
+    "symfony/http-client": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "autoload": {
