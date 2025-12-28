@@ -82,7 +82,7 @@ class Client
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        $transport->connectAndInitialize($this->config->initTimeout);
+        $transport->connectAndInitialize();
 
         $this->logger->info('Client connected and initialized');
     }

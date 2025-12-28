@@ -12,7 +12,6 @@
 namespace Mcp\Client\Transport;
 
 use Mcp\Exception\ConnectionException;
-use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Log\LoggerInterface;
@@ -68,20 +67,15 @@ class StdioTransport extends BaseTransport
         parent::__construct($logger);
     }
 
-    public function connectAndInitialize(int $timeout): void
+    public function connectAndInitialize(): void
     {
         $this->spawnProcess();
 
         $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 
-        $deadline = time() + $timeout;
         $this->activeFiber->start();
 
         while (!$this->activeFiber->isTerminated()) {
-            if (time() >= $deadline) {
-                $this->close();
-                throw new TimeoutException('Initialization timed out after '.$timeout.' seconds');
-            }
             $this->tick();
         }
 
