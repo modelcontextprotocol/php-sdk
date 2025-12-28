@@ -40,7 +40,7 @@ class Builder
     /** @var NotificationHandlerInterface[] */
     private array $notificationHandlers = [];
 
-    /** @var RequestHandlerInterface[] */
+    /** @var RequestHandlerInterface<mixed>[] */
     private array $requestHandlers = [];
 
     /**
@@ -127,6 +127,8 @@ class Builder
 
     /**
      * Add a request handler for server requests (e.g., sampling).
+     *
+     * @param RequestHandlerInterface<mixed> $handler
      */
     public function addRequestHandler(RequestHandlerInterface $handler): self
     {
