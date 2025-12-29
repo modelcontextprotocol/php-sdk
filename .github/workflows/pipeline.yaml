@@ -105,7 +105,7 @@ jobs:
           passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
           passedTests=${passedTests:-0}
           
-          REQUIRED_TESTS_TO_PASS=20
+          REQUIRED_TESTS_TO_PASS=21
           echo "Required tests to pass: $REQUIRED_TESTS_TO_PASS"
           [ "$passedTests" -ge "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
 
