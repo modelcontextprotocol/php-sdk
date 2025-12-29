@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "schedule_event",
-      "description": "Schedules a new event.",
+      "description": "Schedules a new event.\n\nThe inputSchema for this tool will reflect all parameter types and defaults.",
       "inputSchema": {
         "type": "object",
         "properties": {

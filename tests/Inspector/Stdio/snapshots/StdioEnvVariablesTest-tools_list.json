@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "process_data_by_mode",
-      "description": "Performs an action that can be modified by an environment variable.",
+      "description": "Performs an action that can be modified by an environment variable.\n\nThe MCP client should set 'APP_MODE' in its 'env' config for this server.",
       "inputSchema": {
         "type": "object",
         "properties": {

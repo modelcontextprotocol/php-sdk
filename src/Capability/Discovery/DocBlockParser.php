@@ -56,19 +56,6 @@ class DocBlockParser
     }
 
     /**
-     * Gets the summary line from a DocBlock.
-     */
-    public function getSummary(?DocBlock $docBlock): ?string
-    {
-        if (!$docBlock) {
-            return null;
-        }
-        $summary = trim($docBlock->getSummary());
-
-        return $summary ?: null; // Return null if empty after trimming
-    }
-
-    /**
      * Gets the description from a DocBlock (summary + description body).
      */
     public function getDescription(?DocBlock $docBlock): ?string

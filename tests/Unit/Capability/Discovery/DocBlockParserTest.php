@@ -27,19 +27,6 @@ class DocBlockParserTest extends TestCase
         $this->parser = new DocBlockParser();
     }
 
-    public function testGetSummaryReturnsCorrectSummary()
-    {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
-        $docComment = $method->getDocComment() ?: null;
-        $docBlock = $this->parser->parseDocBlock($docComment);
-        $this->assertEquals('Simple summary line.', $this->parser->getSummary($docBlock));
-
-        $method2 = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
-        $docComment2 = $method2->getDocComment() ?: null;
-        $docBlock2 = $this->parser->parseDocBlock($docComment2);
-        $this->assertEquals('Summary line here.', $this->parser->getSummary($docBlock2));
-    }
-
     public function testGetDescriptionReturnsCorrectDescription()
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
@@ -129,7 +116,6 @@ class DocBlockParserTest extends TestCase
         $docBlock = $this->parser->parseDocBlock($docComment);
 
         $this->assertNull($docBlock);
-        $this->assertNull($this->parser->getSummary($docBlock));
         $this->assertNull($this->parser->getDescription($docBlock));
         $this->assertEmpty($this->parser->getParamTags($docBlock));
     }
