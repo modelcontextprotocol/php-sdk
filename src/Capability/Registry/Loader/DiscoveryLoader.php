@@ -15,6 +15,8 @@ use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\RegistryInterface;
 
 /**
+ * @internal
+ *
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
 final class DiscoveryLoader implements LoaderInterface

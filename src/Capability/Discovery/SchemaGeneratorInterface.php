@@ -14,12 +14,6 @@ namespace Mcp\Capability\Discovery;
 /**
  * Provides JSON Schema generation for reflected elements.
  *
- * Implementations can use different strategies to generate schemas:
- * - Reflection-based (types and docblocks)
- * - Attribute-based (Schema attributes)
- * - External libraries (API Platform, etc.)
- * - Class-based metadata
- *
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
 interface SchemaGeneratorInterface
@@ -28,11 +22,7 @@ interface SchemaGeneratorInterface
      * Generates a JSON Schema for input parameters.
      *
      * The returned schema must be a valid JSON Schema object (type: 'object')
-     * with properties corresponding to parameters.
-     *
-     * - For ReflectionMethod/ReflectionFunction: schema based on method parameters
-     * - For ReflectionClass: schema based on __construct, __invoke parameters,
-     *   or class properties/metadata
+     * with properties corresponding to a tool's parameters.
      *
      * @return array{
      *     type: 'object',

@@ -17,6 +17,7 @@ use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
+use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\RegistryInterface;

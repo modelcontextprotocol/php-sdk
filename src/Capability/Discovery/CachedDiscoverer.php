@@ -21,6 +21,7 @@ use Psr\SimpleCache\CacheInterface;
  * to improve performance when discovery is called multiple times.
  *
  * @internal
+ *
  * @final
  *
  * @author Xentixar <xentixar@gmail.com>

@@ -14,11 +14,6 @@ namespace Mcp\Capability\Discovery;
 /**
  * Discovers MCP elements (tools, resources, prompts, resource templates) in directories.
  *
- * Implementations can use different strategies:
- * - File system scanning with reflection
- * - Cached discovery
- * - Pre-configured discovery
- *
  * @internal
  *
  * @author Antoine Bluchet <soyuka@gmail.com>

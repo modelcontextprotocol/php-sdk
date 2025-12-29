@@ -79,6 +79,10 @@ class SchemaGenerator implements SchemaGeneratorInterface
             throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported.', $reflection::class));
         }
 
+        if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
+            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported.', $reflection::class));
+        }
+
         $methodSchema = $this->extractMethodLevelSchema($reflection);
 
         if ($methodSchema && isset($methodSchema['definition'])) {
@@ -113,8 +117,6 @@ class SchemaGenerator implements SchemaGeneratorInterface
 
     /**
      * Extracts method-level or function-level Schema attribute.
-     *
-     * @param \ReflectionFunctionAbstract $reflection
      *
      * @return SchemaAttributeData
      */
@@ -433,11 +435,9 @@ class SchemaGenerator implements SchemaGeneratorInterface
     /**
      * Parses detailed information about a method's parameters.
      *
-     * @param \ReflectionFunctionAbstract $reflection
-     *
      * @return ParameterInfo[]
      */
-    private function parseParametersInfo(\ReflectionFunctionAbstract $reflection): array
+    private function parseParametersInfo(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
         $docComment = $reflection->getDocComment() ?: null;
         $docBlock = $this->docBlockParser->parseDocBlock($docComment);

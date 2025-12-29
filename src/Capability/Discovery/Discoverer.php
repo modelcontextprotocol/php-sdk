@@ -43,6 +43,7 @@ use Symfony\Component\Finder\SplFileInfo;
  * }
  *
  * @internal
+ *
  * @final
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
