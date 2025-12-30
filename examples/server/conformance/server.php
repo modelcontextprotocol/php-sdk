@@ -40,7 +40,7 @@ $server = Server::builder()
     // ->addTool([Elements::class, 'toolWithSampling'], 'test_sampling', 'Tests server-initiated sampling (LLM completion request)')
     // Resources
     ->addResource(fn () => 'This is the content of the static text resource.', 'test://static-text', 'static-text', 'A static text resource for testing')
-    ->addResource(fn () => ''/* TODO: Missing Support for Binary? */, 'test://static-binary', 'static-binary', 'A static binary resource (image) for testing')
+    ->addResource(fn () => fopen('data://image/png;base64,'.Elements::TEST_IMAGE_BASE64, 'r'), 'test://static-binary', 'static-binary', 'A static binary resource (image) for testing')
     ->addResourceTemplate([Elements::class, 'resourceTemplate'], 'test://template/{id}/data', 'template', 'A resource template with parameter substitution', 'application/json')
     // TODO: Handler for resources/subscribe and resources/unsubscribe
     ->addResource(fn () => 'Watched resource content', 'test://watched-resource', 'watched-resource', 'A resource that auto-updates every 3 seconds')
