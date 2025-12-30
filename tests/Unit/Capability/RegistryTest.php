@@ -167,7 +167,7 @@ class RegistryTest extends TestCase
 
         $resourceRef = $this->registry->getResource('test://resource');
         $this->assertInstanceOf(ResourceReference::class, $resourceRef);
-        $this->assertEquals($resource->uri, $resourceRef->schema->uri);
+        $this->assertEquals($resource->uri, $resourceRef->resource->uri);
         $this->assertEquals($handler, $resourceRef->handler);
         $this->assertFalse($resourceRef->isManual);
     }
@@ -260,7 +260,7 @@ class RegistryTest extends TestCase
 
         $resourceRef = $this->registry->getResource('test://123');
         $this->assertInstanceOf(ResourceReference::class, $resourceRef);
-        $this->assertEquals($resource->uri, $resourceRef->schema->uri);
+        $this->assertEquals($resource->uri, $resourceRef->resource->uri);
     }
 
     public function testGetResourceMatchesResourceTemplate(): void

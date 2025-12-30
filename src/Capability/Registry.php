@@ -234,7 +234,7 @@ final class Registry implements RegistryInterface
     {
         $resources = [];
         foreach ($this->resources as $resourceReference) {
-            $resources[$resourceReference->schema->uri] = $resourceReference->schema;
+            $resources[$resourceReference->resource->uri] = $resourceReference->resource;
         }
 
         if (null === $limit) {

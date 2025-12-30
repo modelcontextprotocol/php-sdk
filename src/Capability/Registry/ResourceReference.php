@@ -29,7 +29,7 @@ class ResourceReference extends ElementReference
      * @param Handler $handler
      */
     public function __construct(
-        public readonly Resource $schema,
+        public readonly Resource $resource,
         callable|array|string $handler,
         bool $isManual = false,
     ) {
@@ -68,7 +68,7 @@ class ResourceReference extends ElementReference
             return [$readResult->resource];
         }
 
-        $meta = $this->schema->meta;
+        $meta = $this->resource->meta;
 
         if (\is_array($readResult)) {
             if (empty($readResult)) {
