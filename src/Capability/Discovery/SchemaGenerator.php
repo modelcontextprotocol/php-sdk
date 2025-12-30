@@ -75,12 +75,8 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             throw new \BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
         }
 
-        if (!$reflection instanceof \ReflectionFunctionAbstract) {
-            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported.', $reflection::class));
-        }
-
         if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
-            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported.', $reflection::class));
+            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
         }
 
         $methodSchema = $this->extractMethodLevelSchema($reflection);
