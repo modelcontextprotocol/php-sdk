@@ -22,11 +22,9 @@ use Psr\SimpleCache\CacheInterface;
  *
  * @internal
  *
- * @final
- *
  * @author Xentixar <xentixar@gmail.com>
  */
-class CachedDiscoverer implements DiscovererInterface
+final class CachedDiscoverer implements DiscovererInterface
 {
     private const CACHE_PREFIX = 'mcp_discovery_';
 

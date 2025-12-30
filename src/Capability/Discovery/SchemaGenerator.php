@@ -57,7 +57,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class SchemaGenerator implements SchemaGeneratorInterface
+final class SchemaGenerator implements SchemaGeneratorInterface
 {
     public function __construct(
         private readonly DocBlockParser $docBlockParser,

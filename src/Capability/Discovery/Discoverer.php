@@ -44,11 +44,9 @@ use Symfony\Component\Finder\SplFileInfo;
  *
  * @internal
  *
- * @final
- *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Discoverer implements DiscovererInterface
+final class Discoverer implements DiscovererInterface
 {
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
