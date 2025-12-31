@@ -24,15 +24,12 @@ jobs:
       - name: Install Composer
         uses: "ramsey/composer-install@v3"
 
-      - name: Generate API Documentation
+      - name: Generate Documentation
         run: make docs
-
-      - name: Copy API docs into docs directory
-        run: cp -r build/docs docs/api
 
       - name: Deploy to gh-pages branch
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./docs
-          enable_jekyll: true
+          publish_dir: ./build/docs
+          enable_jekyll: false
