@@ -10,5 +10,5 @@ results
 
 # phpDocumentor
 build/
-.phpdoc/
+.phpdoc/cache/
 phpDocumentor.phar
