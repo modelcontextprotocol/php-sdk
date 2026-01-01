@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests
 
 deps-stable:
 	composer update --prefer-stable
@@ -21,11 +21,12 @@ unit-tests:
 inspector-tests:
 	vendor/bin/phpunit --testsuite=inspector
 
-conformance-server:
-	php -S localhost:8000 examples/server/conformance/server.php
-
 conformance-tests:
-	npx @modelcontextprotocol/conformance server --url http://localhost:8000/
+	docker compose -f tests/Conformance/Fixtures/docker-compose.yml up -d
+	@echo "Waiting for server to start..."
+	@sleep 5
+	cd tests/Conformance && npx @modelcontextprotocol/conformance server --url http://localhost:8000/ || true
+	docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
 
 coverage:
 	XDEBUG_MODE=coverage vendor/bin/phpunit --testsuite=unit --coverage-html=coverage

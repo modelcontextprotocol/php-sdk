@@ -6,4 +6,6 @@ vendor
 examples/**/dev.log
 examples/**/cache
 examples/**/sessions
-results
+tests/Conformance/results
+tests/Conformance/sessions
+tests/Conformance/logs/*.log
