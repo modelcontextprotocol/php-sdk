@@ -1,0 +1,25 @@
+services:
+  nginx:
+    image: nginx:1.26-alpine
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../..:/app:ro
+    depends_on:
+      - php-fpm
+    networks:
+      - mcp-net
+
+  php-fpm:
+    image: php:8.4-fpm-alpine
+    volumes:
+      - ../../..:/app:ro
+      - ../sessions:/app/tests/Conformance/sessions
+      - ../logs:/app/tests/Conformance/logs
+    working_dir: /app
+    networks:
+      - mcp-net
+
+networks:
+  mcp-net:

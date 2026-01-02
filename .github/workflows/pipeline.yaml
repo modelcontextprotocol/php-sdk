@@ -75,12 +75,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Setup PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: "none"
-
       - name: Setup Node
         uses: actions/setup-node@v5
         with:
@@ -89,25 +83,51 @@ jobs:
       - name: Install Composer
         uses: "ramsey/composer-install@v3"
 
-      - name: Run server
-        run: php -S localhost:8000 examples/server/conformance/server.php &
+      - name: Start conformance server
+        run: |
+          mkdir -p tests/Conformance/sessions tests/Conformance/logs
+          chmod -R 777 tests/Conformance/sessions tests/Conformance/logs
+          docker compose -f tests/Conformance/Fixtures/docker-compose.yml up -d
+          sleep 5
 
-      - name: Wait for server to start
-        run: sleep 5
-
-      - name: Tests
+      - name: Run conformance tests
+        working-directory: ./tests/Conformance
         run: |
           exit_code=0
           OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/) || exit_code=1 
           echo "$OUTPUT"
           
-          # Example: "Total: 3 passed, 16 failed"
           passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
           passedTests=${passedTests:-0}
           
-          REQUIRED_TESTS_TO_PASS=21
+          REQUIRED_TESTS_TO_PASS=22
           echo "Required tests to pass: $REQUIRED_TESTS_TO_PASS"
           [ "$passedTests" -ge "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Docker Compose Logs ==="
+          docker compose -f tests/Conformance/Fixtures/docker-compose.yml logs
+          echo ""
+          echo "=== Conformance Log ==="
+          cat tests/Conformance/logs/conformance.log 2>/dev/null || echo "No conformance log found"
+          echo ""
+          echo "=== Test Results (first failed test) ==="
+          find tests/Conformance/results -name "checks.json" 2>/dev/null | head -3 | while read f; do
+            echo "--- $f ---"
+            cat "$f"
+            echo ""
+          done || echo "No results found"
+          echo ""
+          echo "=== Directory permissions ==="
+          ls -la tests/Conformance/
+          ls -la tests/Conformance/logs/ 2>/dev/null || echo "logs dir issue"
+          ls -la tests/Conformance/sessions/ 2>/dev/null || echo "sessions dir issue"
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
 
   qa:
     runs-on: ubuntu-latest

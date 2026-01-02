@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Example\Server\Conformance;
+namespace Mcp\Tests\Conformance;
 
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
@@ -23,9 +23,7 @@ use Mcp\Server\RequestContext;
 
 final class Elements
 {
-    // Sample base64 encoded 1x1 red PNG pixel for testing
     public const TEST_IMAGE_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
-    // Sample base64 encoded minimal WAV file for testing
     public const TEST_AUDIO_BASE64 = 'UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAA=';
 
     /**
@@ -60,8 +58,8 @@ final class Elements
         $client = $context->getClientGateway();
 
         $client->progress(0, 100, 'Completed step 0 of 100');
-        $client->progress(50, 100, 'Completed step 0 of 100');
-        $client->progress(100, 100, 'Completed step 0 of 100');
+        $client->progress(50, 100, 'Completed step 50 of 100');
+        $client->progress(100, 100, 'Completed step 100 of 100');
 
         $meta = $context->getSession()->get(Protocol::SESSION_ACTIVE_REQUEST_META, []);
 
@@ -75,7 +73,10 @@ final class Elements
     {
         $result = $context->getClientGateway()->sample($prompt, 100);
 
-        return \sprintf('LLM response: %s', $result->content instanceof TextContent ? trim((string) $result->content->text) : '');
+        return \sprintf(
+            'LLM response: %s',
+            $result->content instanceof TextContent ? trim((string) $result->content->text) : ''
+        );
     }
 
     public function resourceTemplate(string $id): TextResourceContents
