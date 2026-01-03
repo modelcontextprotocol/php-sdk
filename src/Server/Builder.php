@@ -486,7 +486,7 @@ final class Builder
             tools: $registry->hasTools(),
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             resources: $registry->hasResources() || $registry->hasResourceTemplates(),
-            resourcesSubscribe: false,
+            resourcesSubscribe: $registry->hasResources() || $registry->hasResourceTemplates(),
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: $registry->hasPrompts(),
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
@@ -509,6 +509,8 @@ final class Builder
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\ResourceSubscribeHandler($registry, $logger),
+            new Handler\Request\ResourceUnsubscribeHandler($registry, $logger),
             new Handler\Request\SetLogLevelHandler(),
         ]);
 
