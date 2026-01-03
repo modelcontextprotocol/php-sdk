@@ -13,6 +13,7 @@ namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Exception\BadMethodCallException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
@@ -72,11 +73,11 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     public function generate(\Reflector $reflection): array
     {
         if ($reflection instanceof \ReflectionClass) {
-            throw new \BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
+            throw new BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
         }
 
         if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
-            throw new \BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
+            throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
         }
 
         $methodSchema = $this->extractMethodLevelSchema($reflection);

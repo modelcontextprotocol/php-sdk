@@ -11,6 +11,8 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Discovery\CachedDiscoverer;
+use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
@@ -555,10 +557,10 @@ final class Builder
 
     private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
     {
-        $discoverer = new \Mcp\Capability\Discovery\Discoverer($logger, null, $this->schemaGenerator);
+        $discoverer = new Discoverer($logger, null, $this->schemaGenerator);
 
         if (null !== $this->discoveryCache) {
-            return new \Mcp\Capability\Discovery\CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
+            return new CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
         }
 
         return $discoverer;
