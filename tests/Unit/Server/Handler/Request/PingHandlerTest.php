@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
+use Mcp\Event\PingRequestEvent;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
@@ -18,6 +19,7 @@ use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\Handler\Request\PingHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class PingHandlerTest extends TestCase
 {
@@ -137,6 +139,22 @@ class PingHandlerTest extends TestCase
             $this->assertEquals($requests[$i]->getId(), $response->id);
             $this->assertInstanceOf(EmptyResult::class, $response->result);
         }
+    }
+
+    public function testDispatchesPingRequestEvent(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $handler = new PingHandler($eventDispatcher);
+
+        $request = $this->createPingRequest();
+
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->callback(function (PingRequestEvent $event) use ($request) {
+                return $event->getRequest() === $request;
+            }));
+
+        $handler->handle($request, $this->session);
     }
 
     private function createPingRequest(): Request
