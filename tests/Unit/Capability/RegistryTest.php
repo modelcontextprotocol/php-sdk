@@ -20,23 +20,29 @@ use Mcp\Capability\Registry\ToolReference;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Protocol;
+use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 class RegistryTest extends TestCase
 {
     private Registry $registry;
+    private Protocol|MockObject $protocol;
     private LoggerInterface|MockObject $logger;
 
     protected function setUp(): void
     {
         $this->logger = $this->createMock(LoggerInterface::class);
         $this->registry = new Registry(null, $this->logger);
+        $this->protocol = $this->createMock(Protocol::class);
     }
 
     public function testHasserReturnFalseForEmptyRegistry(): void
@@ -525,6 +531,89 @@ class RegistryTest extends TestCase
         // Second registration should override the first
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertEquals('second', ($toolRef->handler)());
+    }
+
+    public function testSubscribeAndSendsNotification(): void
+    {
+        $session1 = $this->createMock(SessionInterface::class);
+        $session2 = $this->createMock(SessionInterface::class);
+
+        $uuid1 = Uuid::v4();
+        $uuid2 = Uuid::v4();
+
+        $session1->method('getId')->willReturn($uuid1);
+        $session2->method('getId')->willReturn($uuid2);
+
+        $uri = 'test://resource1';
+
+        // Expect notification to be sent for each subscriber
+        $this->protocol->expects($this->exactly(2))
+            ->method('sendNotification')
+            ->with($this->callback(function ($notification) use ($uri) {
+                return $notification instanceof ResourceUpdatedNotification
+                    && $notification->uri === $uri;
+            }));
+
+        // Subscribe both sessions
+        $this->registry->subscribe($session1, $uri);
+        $this->registry->subscribe($session2, $uri);
+
+        $this->registry->notifyResourceChanged($this->protocol, $uri);
+    }
+
+    public function testUnsubscribeRemovesOnlyTargetSession(): void
+    {
+        $session1 = $this->createMock(SessionInterface::class);
+        $uuid1 = Uuid::v4();
+        $session1->method('getId')->willReturn($uuid1);
+
+        $uri = 'test://resource';
+
+        // Subscribe both sessions
+        $this->registry->subscribe($session1, $uri);
+
+        $this->protocol->expects($this->exactly(1))
+            ->method('sendNotification')
+            ->with($this->callback(fn ($notification) => $notification instanceof ResourceUpdatedNotification && $notification->uri === $uri
+            ));
+
+        $this->registry->notifyResourceChanged($this->protocol, $uri);
+
+        // Unsubscribe only session1
+        $this->registry->unsubscribe($session1, $uri);
+    }
+
+    public function testUnsubscribeStopsNotifications(): void
+    {
+        $protocol = $this->createMock(Protocol::class);
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $uri = 'test://resource';
+
+        $this->registry->subscribe($session, $uri);
+        $this->registry->unsubscribe($session, $uri);
+
+        $protocol->expects($this->never())->method('sendNotification');
+
+        $this->registry->notifyResourceChanged($protocol, $uri);
+    }
+
+    public function testDuplicateSubscribeDoesNotTriggerDuplicateNotifications(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $uuid = Uuid::v4();
+        $session->method('getId')->willReturn($uuid);
+
+        $uri = 'test://resource';
+        $this->registry->subscribe($session, $uri);
+        $this->registry->subscribe($session, $uri);
+
+        $this->protocol->expects($this->once())
+            ->method('sendNotification')
+            ->with($this->callback(fn ($notification) => $notification instanceof ResourceUpdatedNotification && $notification->uri === $uri
+            ));
+
+        $this->registry->notifyResourceChanged($this->protocol, $uri);
     }
 
     private function createValidTool(string $name): Tool
