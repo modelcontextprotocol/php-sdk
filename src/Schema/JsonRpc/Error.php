@@ -52,7 +52,7 @@ class Error implements MessageInterface
     /**
      * @param ErrorData $data
      */
-    public static function fromArray(array $data): self
+    final public static function fromArray(array $data): self
     {
         if (!isset($data['jsonrpc']) || MessageInterface::JSONRPC_VERSION !== $data['jsonrpc']) {
             throw new InvalidArgumentException('Invalid or missing "jsonrpc" in Error data.');
@@ -76,37 +76,37 @@ class Error implements MessageInterface
         return new self($data['id'], $data['error']['code'], $data['error']['message'], $data['error']['data'] ?? null);
     }
 
-    public static function forParseError(string $message, string|int $id = ''): self
+    final public static function forParseError(string $message, string|int $id = ''): self
     {
         return new self($id, self::PARSE_ERROR, $message);
     }
 
-    public static function forInvalidRequest(string $message, string|int $id = ''): self
+    final public static function forInvalidRequest(string $message, string|int $id = ''): self
     {
         return new self($id, self::INVALID_REQUEST, $message);
     }
 
-    public static function forMethodNotFound(string $message, string|int $id = ''): self
+    final public static function forMethodNotFound(string $message, string|int $id = ''): self
     {
         return new self($id, self::METHOD_NOT_FOUND, $message);
     }
 
-    public static function forInvalidParams(string $message, string|int $id = '', mixed $data = null): self
+    final public static function forInvalidParams(string $message, string|int $id = '', mixed $data = null): self
     {
         return new self($id, self::INVALID_PARAMS, $message, $data);
     }
 
-    public static function forInternalError(string $message, string|int $id = ''): self
+    final public static function forInternalError(string $message, string|int $id = ''): self
     {
         return new self($id, self::INTERNAL_ERROR, $message);
     }
 
-    public static function forServerError(string $message, string|int $id = ''): self
+    final public static function forServerError(string $message, string|int $id = ''): self
     {
         return new self($id, self::SERVER_ERROR, $message);
     }
 
-    public static function forResourceNotFound(string $message, string|int $id = ''): self
+    final public static function forResourceNotFound(string $message, string|int $id = ''): self
     {
         return new self($id, self::RESOURCE_NOT_FOUND, $message);
     }
