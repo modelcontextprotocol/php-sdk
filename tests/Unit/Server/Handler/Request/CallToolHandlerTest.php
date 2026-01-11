@@ -466,6 +466,43 @@ class CallToolHandlerTest extends TestCase
         $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
     }
 
+    public function testValidationError(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'favorite_number' => [
+                    'type' => 'number',
+                    'description' => 'Your favorite number',
+                ],
+            ],
+            'required' => [
+                'favorite_number',
+            ],
+        ];
+
+        $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([new Tool('simple_tool', $schema, null, null), function () {}])
+            ->getMock();
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('result_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->never())
+            ->method('handle');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+    }
+
     /**
      * @param array<string, mixed> $arguments
      */
@@ -488,7 +525,17 @@ class CallToolHandlerTest extends TestCase
         ?array $outputSchema = null,
         array $methodsToMock = ['formatResult'],
     ): ToolReference&MockObject {
-        $tool = new Tool($name, ['type' => 'object', 'properties' => [], 'required' => null], null, null, null, null, $outputSchema);
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'example' => [
+                    'type' => 'string',
+                    'description' => 'This is just a dummy',
+                ],
+            ],
+            'required' => [],
+        ];
+        $tool = new Tool($name, $schema, null, null, null, null, $outputSchema);
 
         $builder = $this->getMockBuilder(ToolReference::class)
             ->setConstructorArgs([$tool, $handler]);

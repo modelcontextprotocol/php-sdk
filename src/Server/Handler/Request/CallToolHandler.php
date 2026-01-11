@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
@@ -33,11 +34,15 @@ use Psr\Log\NullLogger;
  */
 final class CallToolHandler implements RequestHandlerInterface
 {
+    private SchemaValidator $schemaValidator;
+
     public function __construct(
         private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
+        ?SchemaValidator $schemaValidator = null,
     ) {
+        $this->schemaValidator = $schemaValidator ?? new SchemaValidator($logger);
     }
 
     public function supports(Request $request): bool
@@ -59,10 +64,35 @@ final class CallToolHandler implements RequestHandlerInterface
 
         try {
             $reference = $this->registry->getTool($toolName);
+        } catch (ToolNotFoundException $e) {
+            $this->logger->error('Tool not found', ['name' => $toolName]);
 
-            $arguments['_session'] = $session;
-            $arguments['_request'] = $request;
+            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
+        }
 
+        $inputSchema = $reference->tool->inputSchema;
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($arguments, $inputSchema);
+        if (!empty($validationErrors)) {
+            $errorMessages = [];
+
+            foreach ($validationErrors as $errorDetail) {
+                $pointer = $errorDetail['pointer'] ?? '';
+                $message = $errorDetail['message'] ?? 'Unknown validation error';
+                $errorMessages[] = ('/' !== $pointer && '' !== $pointer ? "Property '{$pointer}': " : '').$message;
+            }
+
+            $summaryMessage = "Invalid parameters for tool '{$toolName}': ".implode('; ', \array_slice($errorMessages, 0, 3));
+            if (\count($errorMessages) > 3) {
+                $summaryMessage .= '; ...and more errors.';
+            }
+
+            return Error::forInvalidParams($summaryMessage, $request->getId(), ['validation_errors' => $validationErrors]);
+        }
+
+        $arguments['_session'] = $session;
+        $arguments['_request'] = $request;
+
+        try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
             $structuredContent = null;
@@ -87,10 +117,6 @@ final class CallToolHandler implements RequestHandlerInterface
             $errorContent = [new TextContent($e->getMessage())];
 
             return new Response($request->getId(), CallToolResult::error($errorContent));
-        } catch (ToolNotFoundException $e) {
-            $this->logger->error('Tool not found', ['name' => $toolName]);
-
-            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
         } catch (\Throwable $e) {
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,
