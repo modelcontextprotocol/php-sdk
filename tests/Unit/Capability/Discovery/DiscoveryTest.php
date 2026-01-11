@@ -65,8 +65,8 @@ class DiscoveryTest extends TestCase
 
         $this->assertArrayHasKey('app://info/version', $resources);
         $this->assertFalse($resources['app://info/version']->isManual);
-        $this->assertEquals('app_version', $resources['app://info/version']->schema->name);
-        $this->assertEquals('text/plain', $resources['app://info/version']->schema->mimeType);
+        $this->assertEquals('app_version', $resources['app://info/version']->resource->name);
+        $this->assertEquals('text/plain', $resources['app://info/version']->resource->mimeType);
 
         $this->assertArrayHasKey('invokable://config/status', $resources);
         $this->assertFalse($resources['invokable://config/status']->isManual);
