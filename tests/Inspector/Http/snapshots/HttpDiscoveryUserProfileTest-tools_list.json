@@ -25,7 +25,7 @@
     },
     {
       "name": "send_welcome",
-      "description": "Sends a welcome message to a user.",
+      "description": "Sends a welcome message to a user.\n\n(This is a placeholder - in a real app, it might queue an email).",
       "inputSchema": {
         "type": "object",
         "properties": {

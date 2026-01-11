@@ -9,6 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add validation of the input parameters given to a Tool.
 * Rename `Mcp\Capability\Registry\ResourceReference::$schema` to `Mcp\Capability\Registry\ResourceReference::$resource`.
 * Introduce `SchemaGeneratorInterface` and `DiscovererInterface` to allow custom schema generation and discovery implementations.
+* Remove `DocBlockParser::getSummary()` method, use `DocBlockParser::getDescription()` instead.
 
 0.2.2
 -----

@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "calculate",
-      "description": "Performs a calculation based on the operation.",
+      "description": "Performs a calculation based on the operation.\n\nSupports 'add', 'subtract', 'multiply', 'divide'.\nObeys the 'precision' and 'allow_negative' settings from the config resource.",
         "icons": [
           {
             "mimeType": "image/svg+xml",
@@ -37,7 +37,7 @@
     },
     {
       "name": "update_setting",
-      "description": "Updates a specific configuration setting.",
+      "description": "Updates a specific configuration setting.\n\nNote: This requires more robust validation in a real app.",
       "inputSchema": {
         "type": "object",
         "properties": {
