@@ -40,10 +40,9 @@ final class CallToolHandler implements RequestHandlerInterface
         private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
-        /* ?SchemaValidator $schemaValidator = null */
+        ?SchemaValidator $schemaValidator = null,
     ) {
-        // $schemaValidator parameter was added in 0.2.2 and will be default in 0.3.0
-        $this->schemaValidator = \func_get_args()[3] ?? new SchemaValidator($logger);
+        $this->schemaValidator = $schemaValidator ?? new SchemaValidator($logger);
     }
 
     public function supports(Request $request): bool
