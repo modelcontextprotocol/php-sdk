@@ -97,10 +97,18 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      * Only returns an outputSchema if explicitly provided in the McpTool attribute.
      * Per MCP spec, outputSchema should only be present when explicitly provided.
      *
-     * @return array<string, mixed>|null
+     * @return ?array<string, mixed>
      */
-    public function generateOutputSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    public function generateOutputSchema(\Reflector $reflection): ?array
     {
+        if ($reflection instanceof \ReflectionClass) {
+            throw new BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
+        }
+
+        if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
+            throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
+        }
+
         // Only return outputSchema if explicitly provided in McpTool attribute
         $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
         if ($mcpToolAttrs) {

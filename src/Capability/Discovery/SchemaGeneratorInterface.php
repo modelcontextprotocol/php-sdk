@@ -31,4 +31,11 @@ interface SchemaGeneratorInterface
      * }
      */
     public function generate(\Reflector $reflection): array;
+
+    /**
+     * Generates a JSON Schema for output/result.
+     *
+     * @return ?array<string, mixed>
+     */
+    public function generateOutputSchema(\Reflector $reflection): ?array;
 }
