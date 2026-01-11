@@ -8,6 +8,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add output schema support to MCP tools
 * Add validation of the input parameters given to a Tool.
 * Rename `Mcp\Capability\Registry\ResourceReference::$schema` to `Mcp\Capability\Registry\ResourceReference::$resource`.
+* Introduce `SchemaGeneratorInterface` and `DiscovererInterface` to allow custom schema generation and discovery implementations.
 
 0.2.2
 -----
