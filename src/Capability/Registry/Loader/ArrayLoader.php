@@ -18,6 +18,7 @@ use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ConfigurationException;
@@ -84,13 +85,14 @@ final class ArrayLoader implements LoaderInterface
         private readonly array $resourceTemplates = [],
         private readonly array $prompts = [],
         private LoggerInterface $logger = new NullLogger(),
+        private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
         $docBlockParser = new DocBlockParser(logger: $this->logger);
-        $schemaGenerator = new SchemaGenerator($docBlockParser);
+        $schemaGenerator = $this->schemaGenerator ?? new SchemaGenerator($docBlockParser);
 
         // Register Tools
         foreach ($this->tools as $data) {
