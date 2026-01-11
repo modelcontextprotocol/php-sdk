@@ -5,5 +5,9 @@
       "text": "{\n    \"success\": true,\n    \"message\": \"Test tool without params\"\n}"
     }
   ],
+  "structuredContent": {
+    "success": true,
+    "message": "Test tool without params"
+  },
   "isError": false
 }

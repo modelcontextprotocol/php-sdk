@@ -24,13 +24,21 @@ use Mcp\Exception\InvalidArgumentException;
  *     properties: array<string, mixed>,
  *     required: string[]|null
  * }
+ * @phpstan-type ToolOutputSchema array{
+ *     type: 'object',
+ *     properties?: array<string, mixed>,
+ *     required?: string[]|null,
+ *     additionalProperties?: bool|array<string, mixed>,
+ *     description?: string
+ * }
  * @phpstan-type ToolData array{
  *     name: string,
  *     inputSchema: ToolInputSchema,
  *     description?: string|null,
  *     annotations?: ToolAnnotationsData,
  *     icons?: IconData[],
- *     _meta?: array<string, mixed>
+ *     _meta?: array<string, mixed>,
+ *     outputSchema?: ToolOutputSchema
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -38,14 +46,15 @@ use Mcp\Exception\InvalidArgumentException;
 class Tool implements \JsonSerializable
 {
     /**
-     * @param string                $name        the name of the tool
-     * @param ?string               $description A human-readable description of the tool.
-     *                                           This can be used by clients to improve the LLM's understanding of
-     *                                           available tools. It can be thought of like a "hint" to the model.
-     * @param ToolInputSchema       $inputSchema a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ?ToolAnnotations      $annotations optional additional tool information
-     * @param ?Icon[]               $icons       optional icons representing the tool
-     * @param ?array<string, mixed> $meta        Optional metadata
+     * @param string                $name         the name of the tool
+     * @param ?string               $description  A human-readable description of the tool.
+     *                                            This can be used by clients to improve the LLM's understanding of
+     *                                            available tools. It can be thought of like a "hint" to the model.
+     * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
+     * @param ?ToolAnnotations      $annotations  optional additional tool information
+     * @param ?Icon[]               $icons        optional icons representing the tool
+     * @param ?array<string, mixed> $meta         Optional metadata
+     * @param ToolOutputSchema|null $outputSchema optional JSON Schema object (as a PHP array) defining the expected output structure
      */
     public function __construct(
         public readonly string $name,
@@ -54,6 +63,7 @@ class Tool implements \JsonSerializable
         public readonly ?ToolAnnotations $annotations,
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
+        public readonly ?array $outputSchema = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
@@ -78,13 +88,23 @@ class Tool implements \JsonSerializable
             $data['inputSchema']['properties'] = new \stdClass();
         }
 
+        if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
+            if (!isset($data['outputSchema']['type']) || 'object' !== $data['outputSchema']['type']) {
+                throw new InvalidArgumentException('Tool outputSchema must be of type "object".');
+            }
+            if (isset($data['outputSchema']['properties']) && \is_array($data['outputSchema']['properties']) && empty($data['outputSchema']['properties'])) {
+                $data['outputSchema']['properties'] = new \stdClass();
+            }
+        }
+
         return new self(
             $data['name'],
             $data['inputSchema'],
             isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
             isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
-            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+            isset($data['outputSchema']) && \is_array($data['outputSchema']) ? $data['outputSchema'] : null,
         );
     }
 
@@ -95,7 +115,8 @@ class Tool implements \JsonSerializable
      *     description?: string,
      *     annotations?: ToolAnnotations,
      *     icons?: Icon[],
-     *     _meta?: array<string, mixed>
+     *     _meta?: array<string, mixed>,
+     *     outputSchema?: ToolOutputSchema
      * }
      */
     public function jsonSerialize(): array
@@ -115,6 +136,9 @@ class Tool implements \JsonSerializable
         }
         if (null !== $this->meta) {
             $data['_meta'] = $this->meta;
+        }
+        if (null !== $this->outputSchema) {
+            $data['outputSchema'] = $this->outputSchema;
         }
 
         return $data;

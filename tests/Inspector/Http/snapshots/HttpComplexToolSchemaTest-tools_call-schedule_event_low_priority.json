@@ -5,5 +5,20 @@
       "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Office Party\\\" scheduled successfully for \\\"2024-12-20\\\".\",\n    \"event_details\": {\n        \"title\": \"Office Party\",\n        \"date\": \"2024-12-20\",\n        \"type\": \"other\",\n        \"time\": \"18:00\",\n        \"priority\": \"Normal\",\n        \"attendees\": [\n            \"team@company.com\"\n        ],\n        \"invites_will_be_sent\": true\n    }\n}"
     }
   ],
+  "structuredContent": {
+  "success": true,
+  "message": "Event \"Office Party\" scheduled successfully for \"2024-12-20\".",
+  "event_details": {
+    "title": "Office Party",
+    "date": "2024-12-20",
+    "type": "other",
+    "time": "18:00",
+    "priority": "Normal",
+    "attendees": [
+      "team@company.com"
+    ],
+    "invites_will_be_sent": true
+    }
+  },
   "isError": false
 }

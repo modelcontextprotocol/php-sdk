@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Discovery;
 
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\RequestContext;
@@ -79,6 +80,27 @@ class SchemaGenerator
         $parametersInfo = $this->parseParametersInfo($reflection);
 
         return $this->buildSchemaFromParameters($parametersInfo, $methodSchema);
+    }
+
+    /**
+     * Generates a JSON Schema object (as a PHP array) for a method's or function's return type.
+     *
+     * Only returns an outputSchema if explicitly provided in the McpTool attribute.
+     * Per MCP spec, outputSchema should only be present when explicitly provided.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function generateOutputSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    {
+        // Only return outputSchema if explicitly provided in McpTool attribute
+        $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
+        if ($mcpToolAttrs) {
+            $mcpToolInstance = $mcpToolAttrs[0]->newInstance();
+
+            return $mcpToolInstance->outputSchema;
+        }
+
+        return null;
     }
 
     /**

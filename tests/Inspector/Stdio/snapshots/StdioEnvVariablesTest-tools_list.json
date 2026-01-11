@@ -14,6 +14,31 @@
         "required": [
           "input"
         ]
+      },
+      "outputSchema": {
+        "type": "object",
+        "properties": {
+          "mode": {
+            "type": "string",
+            "description": "The processing mode used"
+          },
+          "processed_input": {
+            "type": "string",
+            "description": "The processed input data"
+          },
+          "original_input": {
+            "type": "string",
+            "description": "The original input data (only in default mode)"
+          },
+          "message": {
+            "type": "string",
+            "description": "A descriptive message about the processing"
+          }
+        },
+        "required": [
+          "mode",
+          "message"
+        ]
       }
     }
   ]

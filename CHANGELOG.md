@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.3
+-----
+
+* Add output schema support to MCP tools
+
 0.2.2
 -----
 

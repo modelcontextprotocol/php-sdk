@@ -23,7 +23,31 @@ final class EnvToolHandler
      *
      * @return array<string, string|int> the result, varying by APP_MODE
      */
-    #[McpTool(name: 'process_data_by_mode')]
+    #[McpTool(
+        name: 'process_data_by_mode',
+        outputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'mode' => [
+                    'type' => 'string',
+                    'description' => 'The processing mode used',
+                ],
+                'processed_input' => [
+                    'type' => 'string',
+                    'description' => 'The processed input data',
+                ],
+                'original_input' => [
+                    'type' => 'string',
+                    'description' => 'The original input data (only in default mode)',
+                ],
+                'message' => [
+                    'type' => 'string',
+                    'description' => 'A descriptive message about the processing',
+                ],
+            ],
+            'required' => ['mode', 'message'],
+        ]
+    )]
     public function processData(string $input): array
     {
         $appMode = getenv('APP_MODE'); // Read from environment
