@@ -179,6 +179,46 @@ Default CORS headers:
 - `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
 - `Access-Control-Allow-Headers: Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept`
 
+### PSR-15 Middleware
+
+`StreamableHttpTransport` can run a PSR-15 middleware chain before it processes the request. Middleware can log,
+enforce auth, or short-circuit with a response for any HTTP method.
+
+```php
+use Mcp\Server\Transport\StreamableHttpTransport;
+use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+final class AuthMiddleware implements MiddlewareInterface
+{
+    public function __construct(private ResponseFactoryInterface $responses)
+    {
+    }
+
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler)
+    {
+        if (!$request->hasHeader('Authorization')) {
+            return $this->responses->createResponse(401);
+        }
+
+        return $handler->handle($request);
+    }
+}
+
+$transport = new StreamableHttpTransport(
+    $request,
+    $responseFactory,
+    $streamFactory,
+    [],
+    $logger,
+    [new AuthMiddleware($responseFactory)],
+);
+```
+
+If middleware returns a response, the transport will still ensure CORS headers are present unless you set them yourself.
+
 ### Architecture
 
 The HTTP transport doesn't run its own web server. Instead, it processes PSR-7 requests and returns PSR-7 responses that
