@@ -8,10 +8,10 @@ The bootstrapping of the example will choose the used transport based on the SAP
 For running an example, you execute the `server.php` like this:
 ```bash
 # For using the STDIO transport:
-php examples/discovery-calculator/server.php
+php examples/server/discovery-calculator/server.php
 
 # For using the Streamable HTTP transport:
-php -S localhost:8000 examples/discovery-userprofile/server.php
+php -S localhost:8000 examples/server/discovery-userprofile/server.php
 ```
 
 You will see debug outputs to help you understand what is happening.
@@ -19,7 +19,7 @@ You will see debug outputs to help you understand what is happening.
 Run with Inspector:
 
 ```bash
-npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 ```
 
 ## Debugging
@@ -30,5 +30,5 @@ directory.
 
 With the Inspector you can set the environment variables like this:
 ```bash
-npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discovery-calculator/server.php
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/server/discovery-calculator/server.php
 ```
