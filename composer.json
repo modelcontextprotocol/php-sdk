@@ -1,7 +1,7 @@
 {
   "name": "mcp/sdk",
   "description": "Model Context Protocol SDK for Client and Server applications in PHP",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "library",
   "authors": [
     {
