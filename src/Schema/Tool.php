@@ -84,27 +84,24 @@ class Tool implements \JsonSerializable
         if (!isset($data['inputSchema']['type']) || 'object' !== $data['inputSchema']['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
         }
-        if (isset($data['inputSchema']['properties']) && \is_array($data['inputSchema']['properties']) && empty($data['inputSchema']['properties'])) {
-            $data['inputSchema']['properties'] = new \stdClass();
-        }
+        $inputSchema = self::normalizeSchemaProperties($data['inputSchema']);
 
+        $outputSchema = null;
         if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
             if (!isset($data['outputSchema']['type']) || 'object' !== $data['outputSchema']['type']) {
                 throw new InvalidArgumentException('Tool outputSchema must be of type "object".');
             }
-            if (isset($data['outputSchema']['properties']) && \is_array($data['outputSchema']['properties']) && empty($data['outputSchema']['properties'])) {
-                $data['outputSchema']['properties'] = new \stdClass();
-            }
+            $outputSchema = self::normalizeSchemaProperties($data['outputSchema']);
         }
 
         return new self(
             $data['name'],
-            $data['inputSchema'],
+            $inputSchema,
             isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
             isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
             isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
-            isset($data['outputSchema']) && \is_array($data['outputSchema']) ? $data['outputSchema'] : null,
+            $outputSchema,
         );
     }
 
@@ -142,5 +139,21 @@ class Tool implements \JsonSerializable
         }
 
         return $data;
+    }
+
+    /**
+     * Normalize schema properties: convert an empty properties array to stdClass.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private static function normalizeSchemaProperties(array $schema): array
+    {
+        if (isset($schema['properties']) && \is_array($schema['properties']) && empty($schema['properties'])) {
+            $schema['properties'] = new \stdClass();
+        }
+
+        return $schema;
     }
 }
