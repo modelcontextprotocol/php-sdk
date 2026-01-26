@@ -267,10 +267,10 @@ final class SchemaShowcaseElements
                 $processed = array_unique($processed);
                 break;
             case 'filter_short':
-                $processed = array_filter($processed, fn ($item) => \strlen($item) <= 10);
+                $processed = array_filter($processed, static fn ($item) => \strlen($item) <= 10);
                 break;
             case 'filter_long':
-                $processed = array_filter($processed, fn ($item) => \strlen($item) > 10);
+                $processed = array_filter($processed, static fn ($item) => \strlen($item) > 10);
                 break;
         }
 

@@ -19,6 +19,6 @@ final class UserIdCompletionProvider implements ProviderInterface
 
     public function getCompletions(string $currentValue): array
     {
-        return array_filter(self::AVAILABLE_USER_IDS, fn (string $userId) => str_contains($userId, $currentValue));
+        return array_filter(self::AVAILABLE_USER_IDS, static fn (string $userId) => str_contains($userId, $currentValue));
     }
 }

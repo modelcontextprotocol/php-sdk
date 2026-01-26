@@ -86,7 +86,7 @@ final class ResourceResultFormatter
             }
 
             if ($allAreEmbeddedResource && $hasEmbeddedResource) {
-                return array_map(fn ($item) => $item->resource, $readResult);
+                return array_map(static fn ($item) => $item->resource, $readResult);
             }
 
             if ($hasResourceContents || $hasEmbeddedResource) {

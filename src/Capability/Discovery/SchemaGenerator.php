@@ -311,7 +311,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // If no items specified by Schema attribute, infer from type
         if (!isset($paramSchema['items'])) {
             $itemJsonTypes = $this->mapPhpTypeToJsonSchemaType($paramInfo['type_string']);
-            $nonNullItemTypes = array_filter($itemJsonTypes, fn ($t) => 'null' !== $t);
+            $nonNullItemTypes = array_filter($itemJsonTypes, static fn ($t) => 'null' !== $t);
 
             if (1 === \count($nonNullItemTypes)) {
                 $paramSchema['items'] = ['type' => $nonNullItemTypes[0]];
@@ -574,7 +574,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                 $types[] = $this->getTypeStringFromReflection($innerType, $innerType->allowsNull());
             }
             if ($nativeAllowsNull) {
-                $types = array_filter($types, fn ($t) => 'null' !== strtolower($t));
+                $types = array_filter($types, static fn ($t) => 'null' !== strtolower($t));
             }
             $typeString = implode('|', array_unique(array_filter($types)));
         } elseif ($type instanceof \ReflectionIntersectionType) {
@@ -619,7 +619,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Remove leading backslash from class names, but handle built-ins like 'int' or unions like 'int|string'
         if (str_contains($typeString, '\\')) {
             $parts = preg_split('/([|&])/', $typeString, -1, \PREG_SPLIT_DELIM_CAPTURE);
-            $processedParts = array_map(fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
+            $processedParts = array_map(static fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
             $typeString = implode('', $processedParts);
         }
 

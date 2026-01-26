@@ -60,7 +60,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleSuccessfulToolCall(): void
     {
         $request = $this->createCallToolRequest('greet_user', ['name' => 'John']);
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
@@ -95,7 +95,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolCallWithEmptyArguments(): void
     {
         $request = $this->createCallToolRequest('simple_tool', []);
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $expectedResult = new CallToolResult([new TextContent('Simple result')]);
@@ -134,7 +134,7 @@ class CallToolHandlerTest extends TestCase
             'null_param' => null,
         ];
         $request = $this->createCallToolRequest('complex_tool', $arguments);
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $expectedResult = new CallToolResult([new TextContent('Complex result')]);
@@ -189,7 +189,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
         $exception = new ToolCallException('Tool execution failed');
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $this->registry
@@ -226,7 +226,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('null_tool', []);
         $expectedResult = new CallToolResult([]);
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $this->registry
@@ -265,7 +265,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException('Custom error message');
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $this->registry
@@ -310,7 +310,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
         $exception = new \RuntimeException('Internal database connection failed');
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $this->registry
@@ -339,7 +339,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
 
@@ -377,7 +377,7 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('unicode_tool', $arguments);
         $expectedResult = new CallToolResult([new TextContent('Unicode handled')]);
 
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $this->registry
@@ -407,7 +407,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsStructuredContentResult(): void
     {
         $request = $this->createCallToolRequest('structured_tool', ['query' => 'php']);
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $structuredResult = new CallToolResult([new TextContent('Rendered results')], false, ['result' => 'Rendered results']);
@@ -438,7 +438,7 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsCallToolResult(): void
     {
         $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
-        $toolReference = $this->createToolReference('greet_user', function () {
+        $toolReference = $this->createToolReference('greet_user', static function () {
             return 'Hello, John!';
         });
         $callToolResult = new CallToolResult([new TextContent('Error result')], true);
@@ -483,7 +483,7 @@ class CallToolHandlerTest extends TestCase
 
         $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
         $toolReference = $this->getMockBuilder(ToolReference::class)
-            ->setConstructorArgs([new Tool('simple_tool', $schema, null, null), function () {}])
+            ->setConstructorArgs([new Tool('simple_tool', $schema, null, null), static function () {}])
             ->getMock();
 
         $this->registry

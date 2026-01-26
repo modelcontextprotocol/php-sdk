@@ -227,7 +227,7 @@ class ListResourcesHandlerTest extends TestCase
                 description: "Test resource $i"
             );
             // Use a simple callable as handler
-            $this->registry->registerResource($resource, fn () => null);
+            $this->registry->registerResource($resource, static fn () => null);
         }
     }
 

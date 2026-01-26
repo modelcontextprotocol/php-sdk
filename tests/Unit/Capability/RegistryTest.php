@@ -50,7 +50,7 @@ class RegistryTest extends TestCase
     public function testHasToolsReturnsTrueWhenToolIsRegistered(): void
     {
         $tool = $this->createValidTool('test_tool');
-        $this->registry->registerTool($tool, fn () => 'result');
+        $this->registry->registerTool($tool, static fn () => 'result');
 
         $this->assertTrue($this->registry->hasTools());
     }
@@ -60,8 +60,8 @@ class RegistryTest extends TestCase
         $tool1 = $this->createValidTool('tool1');
         $tool2 = $this->createValidTool('tool2');
 
-        $this->registry->registerTool($tool1, fn () => 'result1');
-        $this->registry->registerTool($tool2, fn () => 'result2');
+        $this->registry->registerTool($tool1, static fn () => 'result1');
+        $this->registry->registerTool($tool2, static fn () => 'result2');
 
         $tools = $this->registry->getTools();
         $this->assertCount(2, $tools);
@@ -74,7 +74,7 @@ class RegistryTest extends TestCase
     public function testGetToolReturnsRegisteredTool(): void
     {
         $tool = $this->createValidTool('test_tool');
-        $handler = fn () => 'result';
+        $handler = static fn () => 'result';
 
         $this->registry->registerTool($tool, $handler);
 
@@ -88,7 +88,7 @@ class RegistryTest extends TestCase
     public function testRegisterToolWithManualFlag(): void
     {
         $tool = $this->createValidTool('test_tool');
-        $handler = fn () => 'result';
+        $handler = static fn () => 'result';
 
         $this->registry->registerTool($tool, $handler, true);
 
@@ -101,14 +101,14 @@ class RegistryTest extends TestCase
         $manualTool = $this->createValidTool('test_tool');
         $discoveredTool = $this->createValidTool('test_tool');
 
-        $this->registry->registerTool($manualTool, fn () => 'manual', true);
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
 
         $this->logger
             ->expects($this->once())
             ->method('debug')
             ->with('Ignoring discovered tool "test_tool" as it conflicts with a manually registered one.');
 
-        $this->registry->registerTool($discoveredTool, fn () => 'discovered');
+        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertTrue($toolRef->isManual);
@@ -119,8 +119,8 @@ class RegistryTest extends TestCase
         $discoveredTool = $this->createValidTool('test_tool');
         $manualTool = $this->createValidTool('test_tool');
 
-        $this->registry->registerTool($discoveredTool, fn () => 'discovered');
-        $this->registry->registerTool($manualTool, fn () => 'manual', true);
+        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertTrue($toolRef->isManual);
@@ -137,7 +137,7 @@ class RegistryTest extends TestCase
     public function testHasResourceReturnsTrueWhenResourceIsRegistered(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $this->registry->registerResource($resource, fn () => 'content');
+        $this->registry->registerResource($resource, static fn () => 'content');
 
         $this->assertTrue($this->registry->hasResources());
     }
@@ -147,8 +147,8 @@ class RegistryTest extends TestCase
         $resource1 = $this->createValidResource('test://resource1');
         $resource2 = $this->createValidResource('test://resource2');
 
-        $this->registry->registerResource($resource1, fn () => 'content1');
-        $this->registry->registerResource($resource2, fn () => 'content2');
+        $this->registry->registerResource($resource1, static fn () => 'content1');
+        $this->registry->registerResource($resource2, static fn () => 'content2');
 
         $resources = $this->registry->getResources();
         $this->assertCount(2, $resources);
@@ -161,7 +161,7 @@ class RegistryTest extends TestCase
     public function testGetResourceReturnsRegisteredResource(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn () => 'content';
+        $handler = static fn () => 'content';
 
         $this->registry->registerResource($resource, $handler);
 
@@ -175,7 +175,7 @@ class RegistryTest extends TestCase
     public function testRegisterResourceWithManualFlag(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn () => 'content';
+        $handler = static fn () => 'content';
 
         $this->registry->registerResource($resource, $handler, true);
 
@@ -188,14 +188,14 @@ class RegistryTest extends TestCase
         $manualResource = $this->createValidResource('test://resource');
         $discoveredResource = $this->createValidResource('test://resource');
 
-        $this->registry->registerResource($manualResource, fn () => 'manual', true);
+        $this->registry->registerResource($manualResource, static fn () => 'manual', true);
 
         $this->logger
             ->expects($this->once())
             ->method('debug')
             ->with('Ignoring discovered resource "test://resource" as it conflicts with a manually registered one.');
 
-        $this->registry->registerResource($discoveredResource, fn () => 'discovered');
+        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
 
         $resourceRef = $this->registry->getResource('test://resource');
         $this->assertTrue($resourceRef->isManual);
@@ -212,7 +212,7 @@ class RegistryTest extends TestCase
     public function testHasResourceTemplatesReturnsTrueWhenResourceTemplateIsRegistered(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $this->registry->registerResourceTemplate($template, fn () => 'content');
+        $this->registry->registerResourceTemplate($template, static fn () => 'content');
 
         $this->assertTrue($this->registry->hasResourceTemplates());
     }
@@ -222,8 +222,8 @@ class RegistryTest extends TestCase
         $template1 = $this->createValidResourceTemplate('test1://{id}');
         $template2 = $this->createValidResourceTemplate('test2://{category}');
 
-        $this->registry->registerResourceTemplate($template1, fn () => 'content1');
-        $this->registry->registerResourceTemplate($template2, fn () => 'content2');
+        $this->registry->registerResourceTemplate($template1, static fn () => 'content1');
+        $this->registry->registerResourceTemplate($template2, static fn () => 'content2');
 
         $templates = $this->registry->getResourceTemplates();
         $this->assertCount(2, $templates);
@@ -236,7 +236,7 @@ class RegistryTest extends TestCase
     public function testGetResourceTemplateReturnsRegisteredTemplate(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn (string $id) => "content for {$id}";
+        $handler = static fn (string $id) => "content for {$id}";
 
         $this->registry->registerResourceTemplate($template, $handler);
 
@@ -250,10 +250,10 @@ class RegistryTest extends TestCase
     public function testGetResourcePrefersDirectResourceOverTemplate(): void
     {
         $resource = $this->createValidResource('test://123');
-        $resourceHandler = fn () => 'direct resource';
+        $resourceHandler = static fn () => 'direct resource';
 
         $template = $this->createValidResourceTemplate('test://{id}');
-        $templateHandler = fn (string $id) => "template for {$id}";
+        $templateHandler = static fn (string $id) => "template for {$id}";
 
         $this->registry->registerResource($resource, $resourceHandler);
         $this->registry->registerResourceTemplate($template, $templateHandler);
@@ -266,7 +266,7 @@ class RegistryTest extends TestCase
     public function testGetResourceMatchesResourceTemplate(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn (string $id) => "content for {$id}";
+        $handler = static fn (string $id) => "content for {$id}";
 
         $this->registry->registerResourceTemplate($template, $handler);
 
@@ -279,7 +279,7 @@ class RegistryTest extends TestCase
     public function testGetResourceWithIncludeTemplatesFalseThrowsException(): void
     {
         $template = $this->createValidResourceTemplate('test://{id}');
-        $handler = fn (string $id) => "content for {$id}";
+        $handler = static fn (string $id) => "content for {$id}";
 
         $this->registry->registerResourceTemplate($template, $handler);
 
@@ -294,7 +294,7 @@ class RegistryTest extends TestCase
         $template = $this->createValidResourceTemplate('test://{id}');
         $completionProviders = ['id' => EnumCompletionProvider::class];
 
-        $this->registry->registerResourceTemplate($template, fn () => 'content', $completionProviders);
+        $this->registry->registerResourceTemplate($template, static fn () => 'content', $completionProviders);
 
         $templateRef = $this->registry->getResourceTemplate('test://{id}');
         $this->assertEquals($completionProviders, $templateRef->completionProviders);
@@ -305,14 +305,14 @@ class RegistryTest extends TestCase
         $manualTemplate = $this->createValidResourceTemplate('test://{id}');
         $discoveredTemplate = $this->createValidResourceTemplate('test://{id}');
 
-        $this->registry->registerResourceTemplate($manualTemplate, fn () => 'manual', [], true);
+        $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
 
         $this->logger
             ->expects($this->once())
             ->method('debug')
             ->with('Ignoring discovered template "test://{id}" as it conflicts with a manually registered one.');
 
-        $this->registry->registerResourceTemplate($discoveredTemplate, fn () => 'discovered');
+        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
 
         $templateRef = $this->registry->getResourceTemplate('test://{id}');
         $this->assertTrue($templateRef->isManual);
@@ -323,8 +323,8 @@ class RegistryTest extends TestCase
         $specificTemplate = $this->createValidResourceTemplate('test://users/{userId}/profile');
         $genericTemplate = $this->createValidResourceTemplate('test://users/{userId}');
 
-        $this->registry->registerResourceTemplate($genericTemplate, fn () => 'generic');
-        $this->registry->registerResourceTemplate($specificTemplate, fn () => 'specific');
+        $this->registry->registerResourceTemplate($genericTemplate, static fn () => 'generic');
+        $this->registry->registerResourceTemplate($specificTemplate, static fn () => 'specific');
 
         // Should match the more specific template first
         $resourceRef = $this->registry->getResource('test://users/123/profile');
@@ -343,7 +343,7 @@ class RegistryTest extends TestCase
     public function testHasPromptsReturnsTrueWhenPromptIsRegistered(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $this->registry->registerPrompt($prompt, fn () => []);
+        $this->registry->registerPrompt($prompt, static fn () => []);
 
         $this->assertTrue($this->registry->hasPrompts());
     }
@@ -353,8 +353,8 @@ class RegistryTest extends TestCase
         $prompt1 = $this->createValidPrompt('prompt1');
         $prompt2 = $this->createValidPrompt('prompt2');
 
-        $this->registry->registerPrompt($prompt1, fn () => []);
-        $this->registry->registerPrompt($prompt2, fn () => []);
+        $this->registry->registerPrompt($prompt1, static fn () => []);
+        $this->registry->registerPrompt($prompt2, static fn () => []);
 
         $prompts = $this->registry->getPrompts();
         $this->assertCount(2, $prompts);
@@ -367,7 +367,7 @@ class RegistryTest extends TestCase
     public function testGetPromptReturnsRegisteredPrompt(): void
     {
         $prompt = $this->createValidPrompt('test_prompt');
-        $handler = fn () => ['role' => 'user', 'content' => 'test message'];
+        $handler = static fn () => ['role' => 'user', 'content' => 'test message'];
 
         $this->registry->registerPrompt($prompt, $handler);
 
@@ -383,7 +383,7 @@ class RegistryTest extends TestCase
         $prompt = $this->createValidPrompt('test_prompt');
         $completionProviders = ['param' => EnumCompletionProvider::class];
 
-        $this->registry->registerPrompt($prompt, fn () => [], $completionProviders);
+        $this->registry->registerPrompt($prompt, static fn () => [], $completionProviders);
 
         $promptRef = $this->registry->getPrompt('test_prompt');
         $this->assertEquals($completionProviders, $promptRef->completionProviders);
@@ -394,14 +394,14 @@ class RegistryTest extends TestCase
         $manualPrompt = $this->createValidPrompt('test_prompt');
         $discoveredPrompt = $this->createValidPrompt('test_prompt');
 
-        $this->registry->registerPrompt($manualPrompt, fn () => 'manual', [], true);
+        $this->registry->registerPrompt($manualPrompt, static fn () => 'manual', [], true);
 
         $this->logger
             ->expects($this->once())
             ->method('debug')
             ->with('Ignoring discovered prompt "test_prompt" as it conflicts with a manually registered one.');
 
-        $this->registry->registerPrompt($discoveredPrompt, fn () => 'discovered');
+        $this->registry->registerPrompt($discoveredPrompt, static fn () => 'discovered');
 
         $promptRef = $this->registry->getPrompt('test_prompt');
         $this->assertTrue($promptRef->isManual);
@@ -426,14 +426,14 @@ class RegistryTest extends TestCase
         $manualTemplate = $this->createValidResourceTemplate('manual://{id}');
         $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
 
-        $this->registry->registerTool($manualTool, fn () => 'manual', true);
-        $this->registry->registerTool($discoveredTool, fn () => 'discovered');
-        $this->registry->registerResource($manualResource, fn () => 'manual', true);
-        $this->registry->registerResource($discoveredResource, fn () => 'discovered');
-        $this->registry->registerPrompt($manualPrompt, fn () => [], [], true);
-        $this->registry->registerPrompt($discoveredPrompt, fn () => []);
-        $this->registry->registerResourceTemplate($manualTemplate, fn () => 'manual', [], true);
-        $this->registry->registerResourceTemplate($discoveredTemplate, fn () => 'discovered');
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
+        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
+        $this->registry->registerResource($manualResource, static fn () => 'manual', true);
+        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
+        $this->registry->registerPrompt($manualPrompt, static fn () => [], [], true);
+        $this->registry->registerPrompt($discoveredPrompt, static fn () => []);
+        $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
+        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
 
         // Test that all elements exist
         $this->registry->getTool('manual_tool');
@@ -470,7 +470,7 @@ class RegistryTest extends TestCase
     public function testClearLogsNothingWhenNoDiscoveredElements(): void
     {
         $manualTool = $this->createValidTool('manual_tool');
-        $this->registry->registerTool($manualTool, fn () => 'manual', true);
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
 
         $this->logger
             ->expects($this->never())
@@ -506,7 +506,7 @@ class RegistryTest extends TestCase
     public function testRegisterResourceHandlesCallableHandler(): void
     {
         $resource = $this->createValidResource('test://resource');
-        $handler = fn () => 'content';
+        $handler = static fn () => 'content';
 
         $this->registry->registerResource($resource, $handler);
 
@@ -519,8 +519,8 @@ class RegistryTest extends TestCase
         $tool1 = $this->createValidTool('test_tool');
         $tool2 = $this->createValidTool('test_tool');
 
-        $this->registry->registerTool($tool1, fn () => 'first');
-        $this->registry->registerTool($tool2, fn () => 'second');
+        $this->registry->registerTool($tool1, static fn () => 'first');
+        $this->registry->registerTool($tool2, static fn () => 'second');
 
         // Second registration should override the first
         $toolRef = $this->registry->getTool('test_tool');
@@ -530,7 +530,7 @@ class RegistryTest extends TestCase
     public function testExtractStructuredContentReturnsNullWhenOutputSchemaIsNull(): void
     {
         $tool = $this->createValidTool('test_tool', null);
-        $this->registry->registerTool($tool, fn () => 'result');
+        $this->registry->registerTool($tool, static fn () => 'result');
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertNull($toolRef->extractStructuredContent('result'));
@@ -545,7 +545,7 @@ class RegistryTest extends TestCase
             ],
             'required' => ['param'],
         ]);
-        $this->registry->registerTool($tool, fn () => [
+        $this->registry->registerTool($tool, static fn () => [
             'param' => 'test',
         ]);
 
@@ -563,7 +563,7 @@ class RegistryTest extends TestCase
             'type' => 'object',
             'additionalProperties' => true,
         ]);
-        $this->registry->registerTool($tool, fn () => ['success' => true, 'message' => 'done']);
+        $this->registry->registerTool($tool, static fn () => ['success' => true, 'message' => 'done']);
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
@@ -594,7 +594,7 @@ class RegistryTest extends TestCase
             ['foo' => 'bar'],
         ];
 
-        $this->registry->registerTool($tool, fn () => $toolReturnValue);
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         // Act
         $toolRef = $this->registry->getTool('list_static_data');
