@@ -70,18 +70,15 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        // Serve metadata at well-known paths
         if ($this->isMetadataRequest($request)) {
             return $this->createMetadataResponse();
         }
 
-        // Extract Authorization header
         $authorization = $request->getHeaderLine('Authorization');
         if ('' === $authorization) {
             return $this->buildErrorResponse($request, AuthorizationResult::unauthorized());
         }
 
-        // Parse Bearer token
         $accessToken = $this->parseBearerToken($authorization);
         if (null === $accessToken) {
             return $this->buildErrorResponse(
@@ -90,7 +87,6 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             );
         }
 
-        // Validate the token
         $result = $this->validator->validate($request, $accessToken);
         if ($result->isAllowed()) {
             return $handler->handle($this->applyAttributes($request, $result->getAttributes()));
@@ -101,33 +97,19 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     private function createMetadataResponse(): ResponseInterface
     {
-        $payload = $this->metadata->toJson();
-
         return $this->responseFactory
             ->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($payload));
+            ->withBody($this->streamFactory->createStream($this->metadata->toJson()));
     }
 
     private function isMetadataRequest(ServerRequestInterface $request): bool
     {
-        if (empty($this->metadataPaths)) {
+        if (empty($this->metadataPaths) || 'GET' !== $request->getMethod()) {
             return false;
         }
 
-        if ('GET' !== $request->getMethod()) {
-            return false;
-        }
-
-        $path = $request->getUri()->getPath();
-
-        foreach ($this->metadataPaths as $metadataPath) {
-            if ($path === $metadataPath) {
-                return true;
-            }
-        }
-
-        return false;
+        return in_array($request->getUri()->getPath(), $this->metadataPaths, true);
     }
 
     private function buildErrorResponse(ServerRequestInterface $request, AuthorizationResult $result): ResponseInterface
