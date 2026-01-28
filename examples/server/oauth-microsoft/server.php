@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__, 3).'/vendor/autoload.php';
+require_once dirname(__DIR__).'/bootstrap.php';
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -23,7 +23,6 @@ use Mcp\Server\Transport\Middleware\OAuthProxyMiddleware;
 use Mcp\Server\Transport\Middleware\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Log\AbstractLogger;
-use Psr\Log\LoggerInterface;
 
 // Configuration from environment
 $tenantId = getenv('AZURE_TENANT_ID') ?: throw new RuntimeException('AZURE_TENANT_ID environment variable is required');
@@ -35,15 +34,6 @@ $clientId = getenv('AZURE_CLIENT_ID') ?: throw new RuntimeException('AZURE_CLIEN
 $issuerV2 = "https://login.microsoftonline.com/{$tenantId}/v2.0";
 $issuerV1 = "https://sts.windows.net/{$tenantId}/";
 $issuers = [$issuerV2, $issuerV1];
-
-// Create logger
-$logger = new class extends AbstractLogger {
-    public function log($level, \Stringable|string $message, array $context = []): void
-    {
-        $logMessage = sprintf("[%s] %s\n", strtoupper($level), $message);
-        error_log($logMessage);
-    }
-};
 
 // Create PSR-17 factory
 $psr17Factory = new Psr17Factory();
@@ -90,8 +80,8 @@ $authMiddleware = new AuthorizationMiddleware(
 // Build MCP server
 $server = Server::builder()
     ->setServerInfo('OAuth Microsoft Example', '1.0.0')
-    ->setLogger($logger)
-    ->setSession(new FileSessionStore('/tmp/mcp-sessions'))
+    ->setLogger(logger())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__)
     ->build();
 
@@ -99,7 +89,7 @@ $server = Server::builder()
 // Middlewares are reversed internally, so put OAuth proxy FIRST to execute FIRST
 $transport = new StreamableHttpTransport(
     $request,
-    logger: $logger,
+    logger: logger(),
     middlewares: [$oauthProxyMiddleware, $authMiddleware],
 );
 

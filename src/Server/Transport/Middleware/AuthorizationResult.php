@@ -22,7 +22,7 @@ namespace Mcp\Server\Transport\Middleware;
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
-class AuthorizationResult
+final class AuthorizationResult
 {
     /**
      * @param list<string>|null $scopes Scopes to include in WWW-Authenticate challenge

@@ -11,7 +11,7 @@
 
 declare(strict_types=1);
 
-require_once dirname(__DIR__, 3).'/vendor/autoload.php';
+require_once dirname(__DIR__).'/bootstrap.php';
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -21,29 +21,19 @@ use Mcp\Server\Transport\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Middleware\JwtTokenValidator;
 use Mcp\Server\Transport\Middleware\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Psr\Log\AbstractLogger;
 
-// Configuration from environment
+// Configuration
 // External URL is what clients use and what appears in tokens
-$keycloakExternalUrl = getenv('KEYCLOAK_EXTERNAL_URL') ?: 'http://localhost:8180';
+$keycloakExternalUrl = 'http://localhost:8180';
 // Internal URL is how this server reaches Keycloak (Docker network)
-$keycloakInternalUrl = getenv('KEYCLOAK_INTERNAL_URL') ?: 'http://keycloak:8080';
-$keycloakRealm = getenv('KEYCLOAK_REALM') ?: 'mcp';
-$mcpAudience = getenv('MCP_AUDIENCE') ?: 'mcp-server';
+$keycloakInternalUrl = 'http://keycloak:8080';
+$keycloakRealm = 'mcp';
+$mcpAudience = 'mcp-server';
 
 // Issuer is what appears in the token (external URL)
 $issuer = rtrim($keycloakExternalUrl, '/').'/realms/'.$keycloakRealm;
 // JWKS URI uses internal URL to reach Keycloak within Docker network
 $jwksUri = rtrim($keycloakInternalUrl, '/').'/realms/'.$keycloakRealm.'/protocol/openid-connect/certs';
-
-// Create logger
-$logger = new class extends AbstractLogger {
-    public function log($level, \Stringable|string $message, array $context = []): void
-    {
-        $logMessage = sprintf("[%s] %s\n", strtoupper($level), $message);
-        error_log($logMessage);
-    }
-};
 
 // Create PSR-17 factory
 $psr17Factory = new Psr17Factory();
@@ -77,15 +67,15 @@ $authMiddleware = new AuthorizationMiddleware(
 // Build MCP server
 $server = Server::builder()
     ->setServerInfo('OAuth Keycloak Example', '1.0.0')
-    ->setLogger($logger)
-    ->setSession(new FileSessionStore('/tmp/mcp-sessions'))
+    ->setLogger(logger())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__)
     ->build();
 
 // Create transport with authorization middleware
 $transport = new StreamableHttpTransport(
     $request,
-    logger: $logger,
+    logger: logger(),
     middlewares: [$authMiddleware],
 );
 

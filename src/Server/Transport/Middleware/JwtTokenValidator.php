@@ -11,10 +11,14 @@
 
 namespace Mcp\Server\Transport\Middleware;
 
+use Firebase\JWT\BeforeValidException;
+use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
+use Firebase\JWT\SignatureInvalidException;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Exception\RuntimeException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -128,31 +132,16 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             }
 
             return AuthorizationResult::allow($attributes);
-        } catch (\Firebase\JWT\ExpiredException $e) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Token has expired.'
-            );
-        } catch (\Firebase\JWT\SignatureInvalidException $e) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Token signature verification failed.'
-            );
-        } catch (\Firebase\JWT\BeforeValidException $e) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Token is not yet valid.'
-            );
+        } catch (ExpiredException) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token has expired.');
+        } catch (SignatureInvalidException) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token signature verification failed.');
+        } catch (BeforeValidException) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token is not yet valid.');
         } catch (\UnexpectedValueException|\DomainException $e) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Token validation failed: ' . $e->getMessage()
-            );
-        } catch (\Throwable $e) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Token validation error.'
-            );
+            return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed: '.$e->getMessage());
+        } catch (\Throwable) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token validation error.');
         }
     }
 
@@ -320,10 +309,9 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return false;
         }
 
-        $tokenIssuer = $claims['iss'];
         $expectedIssuers = \is_array($this->issuer) ? $this->issuer : [$this->issuer];
 
-        return \in_array($tokenIssuer, $expectedIssuers, true);
+        return \in_array($claims['iss'], $expectedIssuers, true);
     }
 
     /**
@@ -336,24 +324,24 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 
         $response = $this->httpClient->sendRequest($request);
 
-        if ($response->getStatusCode() >= 400) {
-            throw new \RuntimeException(sprintf(
+        if (200 !== $response->getStatusCode()) {
+            throw new RuntimeException(sprintf(
                 'Failed to fetch JWKS from %s: HTTP %d',
                 $jwksUri,
                 $response->getStatusCode()
             ));
         }
 
-        $body = (string)$response->getBody();
+        $body = (string) $response->getBody();
 
         try {
             $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new \RuntimeException(sprintf('Failed to decode JWKS: %s', $e->getMessage()), 0, $e);
+            throw new RuntimeException(sprintf('Failed to decode JWKS: %s', $e->getMessage()), 0, $e);
         }
 
         if (!\is_array($data) || !isset($data['keys'])) {
-            throw new \RuntimeException('Invalid JWKS format: missing "keys" array.');
+            throw new RuntimeException('Invalid JWKS format: missing "keys" array.');
         }
 
         /** @var array<string, mixed> $data */
