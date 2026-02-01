@@ -22,7 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class StringSchemaDefinition implements \JsonSerializable
+final class StringSchemaDefinition extends AbstractSchemaDefinition
 {
     private const VALID_FORMATS = ['date', 'date-time', 'email', 'uri'];
 
@@ -35,13 +35,15 @@ final class StringSchemaDefinition implements \JsonSerializable
      * @param int|null    $maxLength   Optional maximum string length
      */
     public function __construct(
-        public readonly string $title,
-        public readonly ?string $description = null,
+        string $title,
+        ?string $description = null,
         public readonly ?string $default = null,
         public readonly ?string $format = null,
         public readonly ?int $minLength = null,
         public readonly ?int $maxLength = null,
     ) {
+        parent::__construct($title, $description);
+
         if (null !== $format && !\in_array($format, self::VALID_FORMATS, true)) {
             throw new InvalidArgumentException(\sprintf('Invalid format "%s". Valid formats are: %s.', $format, implode(', ', self::VALID_FORMATS)));
         }
@@ -71,9 +73,7 @@ final class StringSchemaDefinition implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['title']) || !\is_string($data['title'])) {
-            throw new InvalidArgumentException('Missing or invalid "title" for string schema definition.');
-        }
+        self::validateTitle($data, 'string');
 
         return new self(
             title: $data['title'],
@@ -98,14 +98,7 @@ final class StringSchemaDefinition implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        $data = [
-            'type' => 'string',
-            'title' => $this->title,
-        ];
-
-        if (null !== $this->description) {
-            $data['description'] = $this->description;
-        }
+        $data = $this->buildBaseJson('string');
 
         if (null !== $this->default) {
             $data['default'] = $this->default;

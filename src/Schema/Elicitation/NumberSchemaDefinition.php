@@ -22,7 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class NumberSchemaDefinition implements \JsonSerializable
+final class NumberSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
      * @param string         $title       Human-readable title for the field
@@ -33,15 +33,29 @@ final class NumberSchemaDefinition implements \JsonSerializable
      * @param int|float|null $maximum     Optional maximum value (inclusive)
      */
     public function __construct(
-        public readonly string $title,
+        string $title,
         public readonly bool $integerOnly = false,
-        public readonly ?string $description = null,
+        ?string $description = null,
         public readonly int|float|null $default = null,
         public readonly int|float|null $minimum = null,
         public readonly int|float|null $maximum = null,
     ) {
+        parent::__construct($title, $description);
+
         if (null !== $minimum && null !== $maximum && $minimum > $maximum) {
             throw new InvalidArgumentException('minimum cannot be greater than maximum.');
+        }
+
+        if (null !== $default && null !== $minimum && $default < $minimum) {
+            throw new InvalidArgumentException('default value cannot be less than minimum.');
+        }
+
+        if (null !== $default && null !== $maximum && $default > $maximum) {
+            throw new InvalidArgumentException('default value cannot be greater than maximum.');
+        }
+
+        if ($integerOnly && null !== $default && $default !== (int) $default) {
+            throw new InvalidArgumentException('default value must be an integer when integerOnly is true.');
         }
     }
 
@@ -57,9 +71,7 @@ final class NumberSchemaDefinition implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['title']) || !\is_string($data['title'])) {
-            throw new InvalidArgumentException('Missing or invalid "title" for number schema definition.');
-        }
+        self::validateTitle($data, 'number');
 
         $type = $data['type'] ?? 'number';
         $integerOnly = 'integer' === $type;
@@ -86,14 +98,7 @@ final class NumberSchemaDefinition implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        $data = [
-            'type' => $this->integerOnly ? 'integer' : 'number',
-            'title' => $this->title,
-        ];
-
-        if (null !== $this->description) {
-            $data['description'] = $this->description;
-        }
+        $data = $this->buildBaseJson($this->integerOnly ? 'integer' : 'number');
 
         if (null !== $this->default) {
             $data['default'] = $this->default;

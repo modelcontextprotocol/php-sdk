@@ -16,7 +16,7 @@ namespace Mcp\Schema\Enum;
 /**
  * Action taken by the user in response to an elicitation request.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 enum ElicitAction: string
 {

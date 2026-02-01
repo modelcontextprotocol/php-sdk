@@ -23,7 +23,7 @@ use Mcp\Schema\JsonRpc\Request;
  * The client will present the message and requested schema to the user, allowing them
  * to provide the requested information, decline, or cancel the operation.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class ElicitRequest extends Request
 {

@@ -22,7 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class EnumSchemaDefinition implements \JsonSerializable
+final class EnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
      * @param string        $title       Human-readable title for the field
@@ -32,12 +32,14 @@ final class EnumSchemaDefinition implements \JsonSerializable
      * @param string[]|null $enumNames   Optional human-readable labels for each enum value
      */
     public function __construct(
-        public readonly string $title,
+        string $title,
         public readonly array $enum,
-        public readonly ?string $description = null,
+        ?string $description = null,
         public readonly ?string $default = null,
         public readonly ?array $enumNames = null,
     ) {
+        parent::__construct($title, $description);
+
         if ([] === $enum) {
             throw new InvalidArgumentException('enum array must not be empty.');
         }
@@ -68,9 +70,7 @@ final class EnumSchemaDefinition implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['title']) || !\is_string($data['title'])) {
-            throw new InvalidArgumentException('Missing or invalid "title" for enum schema definition.');
-        }
+        self::validateTitle($data, 'enum');
 
         if (!isset($data['enum']) || !\is_array($data['enum'])) {
             throw new InvalidArgumentException('Missing or invalid "enum" for enum schema definition.');

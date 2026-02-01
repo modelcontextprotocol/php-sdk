@@ -72,6 +72,30 @@ final class NumberSchemaDefinitionTest extends TestCase
         new NumberSchemaDefinition('Test', minimum: 10, maximum: 5);
     }
 
+    public function testConstructorWithDefaultBelowMinimum(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('default value cannot be less than minimum');
+
+        new NumberSchemaDefinition('Test', default: 5, minimum: 10);
+    }
+
+    public function testConstructorWithDefaultAboveMaximum(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('default value cannot be greater than maximum');
+
+        new NumberSchemaDefinition('Test', default: 15, maximum: 10);
+    }
+
+    public function testConstructorWithNonIntegerDefaultWhenIntegerOnly(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('default value must be an integer when integerOnly is true');
+
+        new NumberSchemaDefinition('Test', integerOnly: true, default: 5.5);
+    }
+
     public function testFromArrayWithIntegerType(): void
     {
         $schema = NumberSchemaDefinition::fromArray([

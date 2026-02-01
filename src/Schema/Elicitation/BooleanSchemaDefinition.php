@@ -13,14 +13,12 @@ declare(strict_types=1);
 
 namespace Mcp\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
-
 /**
  * Schema definition for boolean fields in elicitation requests.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
-final class BooleanSchemaDefinition implements \JsonSerializable
+final class BooleanSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
      * @param string      $title       Human-readable title for the field
@@ -28,10 +26,11 @@ final class BooleanSchemaDefinition implements \JsonSerializable
      * @param bool|null   $default     Optional default value
      */
     public function __construct(
-        public readonly string $title,
-        public readonly ?string $description = null,
+        string $title,
+        ?string $description = null,
         public readonly ?bool $default = null,
     ) {
+        parent::__construct($title, $description);
     }
 
     /**
@@ -43,9 +42,7 @@ final class BooleanSchemaDefinition implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['title']) || !\is_string($data['title'])) {
-            throw new InvalidArgumentException('Missing or invalid "title" for boolean schema definition.');
-        }
+        self::validateTitle($data, 'boolean');
 
         return new self(
             title: $data['title'],
@@ -64,14 +61,7 @@ final class BooleanSchemaDefinition implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        $data = [
-            'type' => 'boolean',
-            'title' => $this->title,
-        ];
-
-        if (null !== $this->description) {
-            $data['description'] = $this->description;
-        }
+        $data = $this->buildBaseJson('boolean');
 
         if (null !== $this->default) {
             $data['default'] = $this->default;

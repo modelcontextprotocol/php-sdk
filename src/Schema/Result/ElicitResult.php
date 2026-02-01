@@ -23,9 +23,9 @@ use Mcp\Schema\JsonRpc\ResultInterface;
  * Contains the user's action (accept, decline, or cancel) and the content
  * they provided when accepting.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
-class ElicitResult implements ResultInterface
+final class ElicitResult implements ResultInterface
 {
     /**
      * @param ElicitAction              $action  The user's action in response to the elicitation
@@ -49,28 +49,23 @@ class ElicitResult implements ResultInterface
         $action = ElicitAction::from($data['action']);
         $content = isset($data['content']) && \is_array($data['content']) ? $data['content'] : null;
 
+        if (ElicitAction::Accept === $action && null === $content) {
+            throw new InvalidArgumentException('Content must be provided when action is "accept".');
+        }
+
         return new self($action, $content);
     }
 
-    /**
-     * Check if the user accepted the elicitation request.
-     */
     public function isAccepted(): bool
     {
         return ElicitAction::Accept === $this->action;
     }
 
-    /**
-     * Check if the user declined the elicitation request.
-     */
     public function isDeclined(): bool
     {
         return ElicitAction::Decline === $this->action;
     }
 
-    /**
-     * Check if the user cancelled the elicitation request.
-     */
     public function isCancelled(): bool
     {
         return ElicitAction::Cancel === $this->action;

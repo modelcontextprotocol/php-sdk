@@ -92,6 +92,14 @@ final class ElicitResultTest extends TestCase
         ElicitResult::fromArray(['action' => 'invalid']);
     }
 
+    public function testFromArrayWithAcceptActionRequiresContent(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Content must be provided when action is "accept"');
+
+        ElicitResult::fromArray(['action' => 'accept']);
+    }
+
     public function testIsAccepted(): void
     {
         $acceptResult = new ElicitResult(ElicitAction::Accept, ['name' => 'John']);

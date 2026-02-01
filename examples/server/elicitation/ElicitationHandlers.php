@@ -111,10 +111,22 @@ final class ElicitationHandlers
             ];
         }
 
-        $content = $result->content ?? [];
-        $partySize = (int) ($content['party_size'] ?? 2);
-        $date = (string) ($content['date'] ?? '');
+        $content = $result->content;
+        if (null === $content) {
+            throw new \RuntimeException('Expected content for accepted elicitation.');
+        }
+
+        if (!isset($content['party_size']) || !isset($content['date'])) {
+            throw new \RuntimeException('Missing required fields: party_size and date.');
+        }
+
+        $partySize = (int) $content['party_size'];
+        $date = (string) $content['date'];
         $dietary = (string) ($content['dietary'] ?? 'none');
+
+        if ($partySize < 1 || $partySize > 20) {
+            throw new \RuntimeException(\sprintf('Invalid party size: %d. Must be between 1 and 20.', $partySize));
+        }
 
         $this->logger->info(\sprintf(
             'Booking confirmed: %d guests on %s with %s dietary requirements',
@@ -181,7 +193,16 @@ final class ElicitationHandlers
             ];
         }
 
-        $confirmed = (bool) ($result->content['confirm'] ?? false);
+        $content = $result->content;
+        if (null === $content) {
+            throw new \RuntimeException('Expected content for accepted elicitation.');
+        }
+
+        if (!isset($content['confirm'])) {
+            throw new \RuntimeException('Missing required field: confirm.');
+        }
+
+        $confirmed = (bool) $content['confirm'];
 
         if (!$confirmed) {
             return [
@@ -246,8 +267,16 @@ final class ElicitationHandlers
             ];
         }
 
-        $content = $result->content ?? [];
-        $rating = (string) ($content['rating'] ?? '3');
+        $content = $result->content;
+        if (null === $content) {
+            throw new \RuntimeException('Expected content for accepted elicitation.');
+        }
+
+        if (!isset($content['rating'])) {
+            throw new \RuntimeException('Missing required field: rating.');
+        }
+
+        $rating = (string) $content['rating'];
         $comments = (string) ($content['comments'] ?? '');
 
         $this->logger->info(\sprintf('Feedback received: rating=%s, comments=%s', $rating, $comments));
