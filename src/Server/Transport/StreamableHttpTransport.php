@@ -242,6 +242,10 @@ class StreamableHttpTransport extends BaseTransport
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($payload));
 
+        if ($statusCode === 405) {
+            $response = $response->withHeader('Allow', 'POST, DELETE, OPTIONS');
+        }
+
         return $this->withCorsHeaders($response);
     }
 
