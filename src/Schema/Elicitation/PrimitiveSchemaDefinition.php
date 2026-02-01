@@ -20,7 +20,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * Dispatches to the correct schema definition class based on the "type" field.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class PrimitiveSchemaDefinition
 {
@@ -40,8 +40,6 @@ final class PrimitiveSchemaDefinition
      *     minimum?: int|float,
      *     maximum?: int|float,
      * } $data
-     *
-     * @return StringSchemaDefinition|NumberSchemaDefinition|BooleanSchemaDefinition|EnumSchemaDefinition
      */
     public static function fromArray(array $data): StringSchemaDefinition|NumberSchemaDefinition|BooleanSchemaDefinition|EnumSchemaDefinition
     {
@@ -53,10 +51,7 @@ final class PrimitiveSchemaDefinition
             'string' => isset($data['enum']) ? EnumSchemaDefinition::fromArray($data) : StringSchemaDefinition::fromArray($data),
             'integer', 'number' => NumberSchemaDefinition::fromArray($data),
             'boolean' => BooleanSchemaDefinition::fromArray($data),
-            default => throw new InvalidArgumentException(\sprintf(
-                'Unsupported primitive type "%s". Supported types are: string, integer, number, boolean.',
-                $data['type']
-            )),
+            default => throw new InvalidArgumentException(\sprintf('Unsupported primitive type "%s". Supported types are: string, integer, number, boolean.', $data['type'])),
         };
     }
 }

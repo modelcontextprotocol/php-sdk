@@ -20,7 +20,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * Supports optional format validation (date, date-time, email, uri) and length constraints.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class StringSchemaDefinition implements \JsonSerializable
 {
@@ -43,11 +43,7 @@ final class StringSchemaDefinition implements \JsonSerializable
         public readonly ?int $maxLength = null,
     ) {
         if (null !== $format && !\in_array($format, self::VALID_FORMATS, true)) {
-            throw new InvalidArgumentException(\sprintf(
-                'Invalid format "%s". Valid formats are: %s.',
-                $format,
-                implode(', ', self::VALID_FORMATS)
-            ));
+            throw new InvalidArgumentException(\sprintf('Invalid format "%s". Valid formats are: %s.', $format, implode(', ', self::VALID_FORMATS)));
         }
 
         if (null !== $minLength && $minLength < 0) {

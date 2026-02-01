@@ -20,7 +20,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * Represents an object schema with primitive property definitions and optional required fields.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class ElicitationSchema implements \JsonSerializable
 {
@@ -38,10 +38,7 @@ final class ElicitationSchema implements \JsonSerializable
 
         foreach ($required as $name) {
             if (!\array_key_exists($name, $properties)) {
-                throw new InvalidArgumentException(\sprintf(
-                    'Required property "%s" is not defined in properties.',
-                    $name
-                ));
+                throw new InvalidArgumentException(\sprintf('Required property "%s" is not defined in properties.', $name));
             }
         }
     }
@@ -68,10 +65,7 @@ final class ElicitationSchema implements \JsonSerializable
         $properties = [];
         foreach ($data['properties'] as $name => $propertyData) {
             if (!\is_array($propertyData)) {
-                throw new InvalidArgumentException(\sprintf(
-                    'Property "%s" must be an array.',
-                    $name
-                ));
+                throw new InvalidArgumentException(\sprintf('Property "%s" must be an array.', $name));
             }
             $properties[$name] = PrimitiveSchemaDefinition::fromArray($propertyData);
         }

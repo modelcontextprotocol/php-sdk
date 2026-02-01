@@ -20,17 +20,17 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * Supports minimum and maximum value constraints.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class NumberSchemaDefinition implements \JsonSerializable
 {
     /**
-     * @param string          $title       Human-readable title for the field
-     * @param bool            $integerOnly Whether to restrict to integer values only
-     * @param string|null     $description Optional description/help text
-     * @param int|float|null  $default     Optional default value
-     * @param int|float|null  $minimum     Optional minimum value (inclusive)
-     * @param int|float|null  $maximum     Optional maximum value (inclusive)
+     * @param string         $title       Human-readable title for the field
+     * @param bool           $integerOnly Whether to restrict to integer values only
+     * @param string|null    $description Optional description/help text
+     * @param int|float|null $default     Optional default value
+     * @param int|float|null $minimum     Optional minimum value (inclusive)
+     * @param int|float|null $maximum     Optional maximum value (inclusive)
      */
     public function __construct(
         public readonly string $title,

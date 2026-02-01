@@ -13,29 +13,10 @@ declare(strict_types=1);
  */
 
 /**
- * MCP Elicitation Example Server
+ * MCP Elicitation Example Server.
  *
- * This example demonstrates the elicitation feature which allows servers to
- * request additional information from users during tool execution.
- *
- * Elicitation enables interactive workflows where the server can:
- * - Ask for user preferences or choices
- * - Collect form data with validated fields
- * - Request confirmation before actions
- *
- * The server provides three example tools:
- * 1. book_restaurant - Multi-field form with number, date, and enum fields
- * 2. confirm_action - Simple boolean confirmation dialog
- * 3. collect_feedback - Rating and comments form with optional fields
- *
- * IMPORTANT: Elicitation requires:
- * - A session store (FileSessionStore is used here)
- * - Client support for elicitation (check client capabilities)
- *
- * Usage:
- *   php server.php
- *
- * The server will start in stdio mode and wait for MCP client connections.
+ * Demonstrates server-to-client elicitation for interactive user input during tool execution.
+ * See docs/examples.md for detailed documentation and usage examples.
  */
 
 require_once dirname(__DIR__).'/bootstrap.php';
@@ -49,10 +30,8 @@ $server = Server::builder()
     ->setServerInfo('Elicitation Demo', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
-    // Session store is REQUIRED for server-to-client requests like elicitation
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setCapabilities(new ServerCapabilities(logging: true, tools: true))
-    // Auto-discover tools from ElicitationHandlers class
     ->setDiscovery(__DIR__)
     ->build();
 

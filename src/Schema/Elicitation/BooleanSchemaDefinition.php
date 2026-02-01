@@ -18,7 +18,7 @@ use Mcp\Exception\InvalidArgumentException;
 /**
  * Schema definition for boolean fields in elicitation requests.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class BooleanSchemaDefinition implements \JsonSerializable
 {

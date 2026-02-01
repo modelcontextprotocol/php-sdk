@@ -20,7 +20,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * Provides a list of allowed values with optional human-readable labels.
  *
- * @author
+ * @author Johannes Wachter <johannes@sulu.io>
  */
 final class EnumSchemaDefinition implements \JsonSerializable
 {
@@ -53,10 +53,7 @@ final class EnumSchemaDefinition implements \JsonSerializable
         }
 
         if (null !== $default && !\in_array($default, $enum, true)) {
-            throw new InvalidArgumentException(\sprintf(
-                'Default value "%s" is not in the enum array.',
-                $default
-            ));
+            throw new InvalidArgumentException(\sprintf('Default value "%s" is not in the enum array.', $default));
         }
     }
 

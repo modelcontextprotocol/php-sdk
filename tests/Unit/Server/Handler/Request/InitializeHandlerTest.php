@@ -44,7 +44,7 @@ class InitializeHandlerTest extends TestCase
             ->willReturnCallback(function (string $key, array $value): void {
                 match ($key) {
                     'client_info' => $this->assertSame(['name' => 'client-app', 'version' => '1.0.0'], $value),
-                    'client_capabilities' => $this->assertIsArray($value),
+                    'client_capabilities' => $this->assertSame([], $value),
                     default => $this->fail("Unexpected session key: {$key}"),
                 };
             });

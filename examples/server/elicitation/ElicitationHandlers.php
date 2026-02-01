@@ -38,17 +38,6 @@ final class ElicitationHandlers
     }
 
     /**
-     * Check if the client supports elicitation.
-     */
-    private function clientSupportsElicitation(RequestContext $context): bool
-    {
-        $capabilities = $context->getSession()->get('client_capabilities', []);
-
-        // MCP spec: capability presence indicates support (value is typically {} or [])
-        return \array_key_exists('elicitation', $capabilities);
-    }
-
-    /**
      * Book a restaurant reservation with user elicitation.
      *
      * Demonstrates multi-field elicitation with different field types:
@@ -61,7 +50,7 @@ final class ElicitationHandlers
     #[McpTool('book_restaurant', 'Book a restaurant reservation, collecting details via elicitation.')]
     public function bookRestaurant(RequestContext $context, string $restaurantName): array
     {
-        if (!$this->clientSupportsElicitation($context)) {
+        if (!$context->getClientGateway()->supportsElicitation()) {
             return [
                 'status' => 'error',
                 'message' => 'Client does not support elicitation. Please provide reservation details (party_size, date, dietary) as tool parameters instead.',
@@ -160,7 +149,7 @@ final class ElicitationHandlers
     #[McpTool('confirm_action', 'Request user confirmation before proceeding with an action.')]
     public function confirmAction(RequestContext $context, string $actionDescription): array
     {
-        if (!$this->clientSupportsElicitation($context)) {
+        if (!$context->getClientGateway()->supportsElicitation()) {
             return [
                 'status' => 'error',
                 'message' => 'Client does not support elicitation. Please confirm the action explicitly in your request.',
@@ -219,7 +208,7 @@ final class ElicitationHandlers
     #[McpTool('collect_feedback', 'Collect user feedback via elicitation form.')]
     public function collectFeedback(RequestContext $context, string $topic): array
     {
-        if (!$this->clientSupportsElicitation($context)) {
+        if (!$context->getClientGateway()->supportsElicitation()) {
             return [
                 'status' => 'error',
                 'message' => 'Client does not support elicitation. Please provide feedback (rating 1-5, comments) as tool parameters instead.',
