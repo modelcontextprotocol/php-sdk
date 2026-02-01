@@ -50,7 +50,7 @@ class ListResourcesResult implements ResultInterface
         }
 
         return new self(
-            array_map(fn (array $resource) => ResourceSchema::fromArray($resource), $data['resources']),
+            array_map(static fn (array $resource) => ResourceSchema::fromArray($resource), $data['resources']),
             $data['nextCursor'] ?? null
         );
     }

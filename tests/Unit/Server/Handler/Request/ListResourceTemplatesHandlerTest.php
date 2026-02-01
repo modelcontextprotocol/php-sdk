@@ -196,7 +196,7 @@ class ListResourceTemplatesHandlerTest extends TestCase
                 description: "Test resource $i"
             );
             // Use a simple callable as handler
-            $this->registry->registerResourceTemplate($resourceTemplate, fn () => null);
+            $this->registry->registerResourceTemplate($resourceTemplate, static fn () => null);
         }
     }
 

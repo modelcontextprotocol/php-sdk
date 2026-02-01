@@ -27,7 +27,7 @@ $server = Server::builder()
     ->setCapabilities(new ServerCapabilities(logging: true, tools: true))
     ->setDiscovery(__DIR__)
     ->addTool(
-        function (RequestContext $context, string $dataset): array {
+        static function (RequestContext $context, string $dataset): array {
             $client = $context->getClientGateway();
             $client->log(LoggingLevel::Info, sprintf('Running quality checks on dataset "%s"', $dataset));
 

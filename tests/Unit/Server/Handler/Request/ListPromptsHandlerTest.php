@@ -226,7 +226,7 @@ class ListPromptsHandlerTest extends TestCase
                 description: "Test prompt $i"
             );
 
-            $this->registry->registerPrompt($prompt, fn () => null);
+            $this->registry->registerPrompt($prompt, static fn () => null);
         }
     }
 

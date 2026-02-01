@@ -21,7 +21,7 @@ final class SystemStatsService implements StatsServiceInterface
     public function getSystemStats(): array
     {
         $allTasks = $this->taskRepository->getAllTasks();
-        $completed = \count(array_filter($allTasks, fn ($task) => $task['completed']));
+        $completed = \count(array_filter($allTasks, static fn ($task) => $task['completed']));
         $pending = \count($allTasks) - $completed;
 
         return [
