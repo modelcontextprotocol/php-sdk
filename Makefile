@@ -39,5 +39,5 @@ ci-lowest: deps-low cs phpstan tests
 
 docs:
 	vendor/bin/phpdoc
-	@grep -q 'No errors have been found' build/docs/reports/errors.html || \
+	@grep -q 'No errors have been found' .phpdoc/build/reports/errors.html || \
 		(echo "Documentation errors found. See build/docs/reports/errors.html" && exit 1)

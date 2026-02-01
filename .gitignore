@@ -11,6 +11,5 @@ tests/Conformance/sessions
 tests/Conformance/logs/*.log
 
 # phpDocumentor
-build/
+.phpdoc/build/
 .phpdoc/cache/
-phpDocumentor.phar

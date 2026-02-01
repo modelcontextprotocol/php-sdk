@@ -7,10 +7,11 @@
 >
     <title>MCP PHP SDK</title>
     <paths>
-        <output>build/docs</output>
+        <output>.phpdoc/build</output>
     </paths>
     <version number="latest">
-        <api>
+        <folder>latest</folder>
+        <api ignore-packages="true">
             <source dsn=".">
                 <path>src</path>
             </source>
@@ -19,14 +20,25 @@
                 <path>vendor/**/*</path>
                 <path>tests/**/*</path>
             </ignore>
+            <ignore-tags>
+                <ignore-tag>phpstan-type</ignore-tag>
+                <ignore-tag>phpstan-type-import</ignore-tag>
+                <ignore-tag>template</ignore-tag>
+                <ignore-tag>template-covariant</ignore-tag>
+                <ignore-tag>template-extends</ignore-tag>
+                <ignore-tag>template-implements</ignore-tag>
+                <ignore-tag>extends</ignore-tag>
+                <ignore-tag>implements</ignore-tag>
+            </ignore-tags>
         </api>
         <guide format="md">
             <source dsn=".">
                 <path>docs</path>
             </source>
-            <output>guide</output>
+            <output>/</output>
         </guide>
     </version>
     <setting name="guides.enabled" value="true"/>
-    <setting name="graphs.enabled" value="true"/>
+    <setting name="graphs.enabled" value="false"/>
+    <setting name="template.color" value="black"/>
 </phpdocumentor>
