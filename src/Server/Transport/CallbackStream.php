@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Exception\RuntimeException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -115,12 +116,12 @@ final class CallbackStream implements \Stringable, StreamInterface
 
     public function seek($offset, $whence = \SEEK_SET): void
     {
-        throw new \RuntimeException('Stream is not seekable');
+        throw new RuntimeException('Stream is not seekable');
     }
 
     public function rewind(): void
     {
-        throw new \RuntimeException('Stream is not seekable');
+        throw new RuntimeException('Stream is not rewindable');
     }
 
     public function isWritable(): bool
@@ -130,7 +131,7 @@ final class CallbackStream implements \Stringable, StreamInterface
 
     public function write($string): int
     {
-        throw new \RuntimeException('Stream is not writable');
+        throw new RuntimeException('Stream is not writable');
     }
 
     public function isReadable(): bool
