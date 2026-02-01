@@ -39,12 +39,15 @@ class InitializeHandlerTest extends TestCase
         $handler = new InitializeHandler($configuration);
 
         $session = $this->createMock(SessionInterface::class);
-        $session->expects($this->once())
+        $session->expects($this->exactly(2))
             ->method('set')
-            ->with('client_info', [
-                'name' => 'client-app',
-                'version' => '1.0.0',
-            ]);
+            ->willReturnCallback(function (string $key, array $value): void {
+                match ($key) {
+                    'client_info' => $this->assertSame(['name' => 'client-app', 'version' => '1.0.0'], $value),
+                    'client_capabilities' => $this->assertSame([], $value),
+                    default => $this->fail("Unexpected session key: {$key}"),
+                };
+            });
 
         $request = InitializeRequest::fromArray([
             'jsonrpc' => MessageInterface::JSONRPC_VERSION,

@@ -19,6 +19,7 @@ use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingContext;
@@ -30,7 +31,9 @@ use Mcp\Schema\ModelPreferences;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
+use Mcp\Schema\Result\ElicitResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
@@ -156,6 +159,50 @@ class ClientGateway
         }
 
         return CreateSamplingMessageResult::fromArray($response->result);
+    }
+
+    /**
+     * Convenience method for elicitation requests.
+     *
+     * Requests additional information from the user via the client. The user can
+     * accept (providing the requested data), decline, or cancel the request.
+     *
+     * @param string            $message         A human-readable message describing what information is needed
+     * @param ElicitationSchema $requestedSchema The schema defining the fields to elicit from the user
+     * @param int               $timeout         The timeout in seconds
+     *
+     * @return ElicitResult The elicitation response containing the user's action and any provided content
+     *
+     * @throws ClientException if the client request results in an error message
+     */
+    public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120): ElicitResult
+    {
+        $request = new ElicitRequest($message, $requestedSchema);
+
+        $response = $this->request($request, $timeout);
+
+        if ($response instanceof Error) {
+            throw new ClientException($response);
+        }
+
+        return ElicitResult::fromArray($response->result);
+    }
+
+    /**
+     * Check if the connected client supports elicitation.
+     *
+     * Elicitation allows servers to request additional information from users
+     * during tool execution. This method checks the client's advertised capabilities
+     * to determine if elicitation/create requests are supported.
+     *
+     * @return bool True if the client supports elicitation, false otherwise
+     */
+    public function supportsElicitation(): bool
+    {
+        $capabilities = $this->session->get('client_capabilities', []);
+
+        // MCP spec: capability presence indicates support (value is typically {} or [])
+        return \array_key_exists('elicitation', $capabilities);
     }
 
     /**
