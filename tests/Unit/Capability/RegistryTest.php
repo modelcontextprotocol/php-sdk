@@ -620,7 +620,7 @@ class RegistryTest extends TestCase
                 'properties' => [
                     'param' => ['type' => 'string'],
                 ],
-                'required' => null,
+                'required' => [],
             ],
             description: "Test tool: {$name}",
             annotations: null,
