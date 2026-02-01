@@ -92,17 +92,7 @@ jobs:
 
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: |
-          exit_code=0
-          OUTPUT=$(npx @modelcontextprotocol/conformance server --url http://localhost:8000/) || exit_code=1 
-          echo "$OUTPUT"
-          
-          passedTests=$(echo "$OUTPUT" | sed -nE 's/.*Total: ([0-9]+) passed.*/\1/p')
-          passedTests=${passedTests:-0}
-          
-          REQUIRED_TESTS_TO_PASS=22
-          echo "Required tests to pass: $REQUIRED_TESTS_TO_PASS"
-          [ "$passedTests" -ge "$REQUIRED_TESTS_TO_PASS" ] || exit $exit_code
+        run: npx @modelcontextprotocol/conformance server --url http://localhost:8000/ --expected-failures conformance-baseline.yml
 
       - name: Show logs on failure
         if: failure()
