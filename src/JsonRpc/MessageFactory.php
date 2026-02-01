@@ -37,7 +37,7 @@ final class MessageFactory
     /**
      * Registry of all known message classes that have methods.
      *
-     * @var array<int, class-string<Request|Notification>>
+     * @var list<class-string<Request>|class-string<Notification>>
      */
     private const REGISTERED_MESSAGES = [
         Schema\Notification\CancelledNotification::class,
@@ -68,7 +68,7 @@ final class MessageFactory
     ];
 
     /**
-     * @param array<int, class-string<Request|Notification>> $registeredMessages
+     * @param list<class-string<Request>|class-string<Notification>> $registeredMessages
      */
     public function __construct(
         private readonly array $registeredMessages,
@@ -151,7 +151,7 @@ final class MessageFactory
     /**
      * Finds the registered message class for a given method name.
      *
-     * @return class-string<Request|Notification>
+     * @return class-string<Request>|class-string<Notification>
      *
      * @throws InvalidInputMessageException
      */

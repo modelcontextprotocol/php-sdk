@@ -36,7 +36,9 @@
     "laminas/laminas-httphandlerrunner": "^2.12",
     "nyholm/psr7": "^1.8",
     "nyholm/psr7-server": "^1.1",
+    "phar-io/composer-distributor": "^1.0.2",
     "php-cs-fixer/shim": "^3.91",
+    "phpdocumentor/shim": "^3",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^10.5",
     "psr/simple-cache": "^2.0 || ^3.0",
@@ -69,7 +71,8 @@
   },
   "config": {
     "allow-plugins": {
-      "php-http/discovery": false
+      "php-http/discovery": false,
+      "phpdocumentor/shim": true
     },
     "sort-packages": true
   }
