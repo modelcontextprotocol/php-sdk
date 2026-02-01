@@ -33,6 +33,8 @@ use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Resource\SessionSubscriptionManager;
+use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionFactory;
 use Mcp\Server\Session\SessionFactoryInterface;
@@ -53,6 +55,8 @@ final class Builder
     private ?Implementation $serverInfo = null;
 
     private RegistryInterface $registry;
+
+    private ?SubscriptionManagerInterface $subscriptionManager = null;
 
     private ?LoggerInterface $logger = null;
 
@@ -309,6 +313,13 @@ final class Builder
         return $this;
     }
 
+    public function setResourceSubscriptionManager(SubscriptionManagerInterface $subscriptionManager): self
+    {
+        $this->subscriptionManager = $subscriptionManager;
+
+        return $this;
+    }
+
     public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
@@ -489,11 +500,15 @@ final class Builder
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
         $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
-
+        $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
         $loaders = [
             ...$this->loaders,
             new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
+
+        $sessionTtl = $this->sessionTtl ?? 3600;
+        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
+        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
 
         if (null !== $this->discoveryBasePath) {
             $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
@@ -504,16 +519,13 @@ final class Builder
             $loader->load($registry);
         }
 
-        $sessionTtl = $this->sessionTtl ?? 3600;
-        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
-        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
         $messageFactory = MessageFactory::make();
 
         $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
             tools: $registry->hasTools(),
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             resources: $registry->hasResources() || $registry->hasResourceTemplates(),
-            resourcesSubscribe: false,
+            resourcesSubscribe: $registry->hasResources() || $registry->hasResourceTemplates(),
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             prompts: $registry->hasPrompts(),
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
@@ -536,6 +548,8 @@ final class Builder
             new Handler\Request\ListToolsHandler($registry, $this->paginationLimit),
             new Handler\Request\PingHandler(),
             new Handler\Request\ReadResourceHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\ResourceSubscribeHandler($registry, $subscriptionManager, $logger),
+            new Handler\Request\ResourceUnsubscribeHandler($registry, $subscriptionManager, $logger),
             new Handler\Request\SetLogLevelHandler(),
         ]);
 

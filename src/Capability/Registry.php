@@ -352,7 +352,7 @@ final class Registry implements RegistryInterface
     }
 
     /**
-     * Set discovery state, replacing all discovered elements.
+     * Set the discovery state, replacing all discovered elements.
      * Manual elements are preserved.
      */
     public function setDiscoveryState(DiscoveryState $state): void
