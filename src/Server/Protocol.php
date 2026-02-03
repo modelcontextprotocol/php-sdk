@@ -57,6 +57,8 @@ class Protocol
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
 
+    private ?SessionInterface $session = null;
+
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
@@ -113,29 +115,30 @@ class Protocol
         } catch (\JsonException $e) {
             $this->logger->warning('Failed to decode json message.', ['exception' => $e]);
             $error = Error::forParseError($e->getMessage());
-            $this->sendResponse($transport, $error, null);
+            $this->sendResponse($transport, $error);
 
             return;
         }
 
-        $session = $this->resolveSession($transport, $sessionId, $messages);
-        if (null === $session) {
+        $this->resolveSession($transport, $sessionId, $messages);
+        if (null === $this->session) {
             return;
         }
 
         foreach ($messages as $message) {
             if ($message instanceof InvalidInputMessageException) {
-                $this->handleInvalidMessage($transport, $message, $session);
+                $this->handleInvalidMessage($transport, $message);
             } elseif ($message instanceof Request) {
-                $this->handleRequest($transport, $message, $session);
+                $this->handleRequest($transport, $message);
             } elseif ($message instanceof Response || $message instanceof Error) {
-                $this->handleResponse($message, $session);
+                $this->handleResponse($message);
             } elseif ($message instanceof Notification) {
-                $this->handleNotification($message, $session);
+                $this->handleNotification($message);
             }
         }
 
-        $session->save();
+        $this->session->save();
+        $this->session = null;
     }
 
     /**
@@ -143,12 +146,12 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      */
-    private function handleInvalidMessage(TransportInterface $transport, InvalidInputMessageException $exception, SessionInterface $session): void
+    private function handleInvalidMessage(TransportInterface $transport, InvalidInputMessageException $exception): void
     {
         $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
         $error = Error::forInvalidRequest($exception->getMessage());
-        $this->sendResponse($transport, $error, $session);
+        $this->sendResponse($transport, $error);
     }
 
     /**
@@ -156,11 +159,11 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      */
-    private function handleRequest(TransportInterface $transport, Request $request, SessionInterface $session): void
+    private function handleRequest(TransportInterface $transport, Request $request): void
     {
         $this->logger->info('Handling request.', ['request' => $request]);
 
-        $session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
+        $this->session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
 
         $handlerFound = false;
 
@@ -172,6 +175,7 @@ class Protocol
             $handlerFound = true;
 
             try {
+                $session = $this->session;
                 /** @var McpFiber $fiber */
                 $fiber = new \Fiber(static fn () => $handler->handle($request, $session));
 
@@ -181,31 +185,31 @@ class Protocol
                     if (\is_array($result) && isset($result['type'])) {
                         if ('notification' === $result['type']) {
                             $notification = $result['notification'];
-                            $this->sendNotification($notification, $session);
+                            $this->sendNotification($notification);
                         } elseif ('request' === $result['type']) {
                             $request = $result['request'];
                             $timeout = $result['timeout'] ?? 120;
-                            $this->sendRequest($request, $timeout, $session);
+                            $this->sendRequest($request, $timeout);
                         }
                     }
 
-                    $transport->attachFiberToSession($fiber, $session->getId());
+                    $transport->attachFiberToSession($fiber, $this->session->getId());
 
                     return;
                 }
                 $finalResult = $fiber->getReturn();
 
-                $this->sendResponse($transport, $finalResult, $session);
+                $this->sendResponse($transport, $finalResult);
             } catch (\InvalidArgumentException $e) {
                 $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
 
                 $error = Error::forInvalidParams($e->getMessage(), $request->getId());
-                $this->sendResponse($transport, $error, $session);
+                $this->sendResponse($transport, $error);
             } catch (\Throwable $e) {
                 $this->logger->error(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
 
                 $error = Error::forInternalError($e->getMessage(), $request->getId());
-                $this->sendResponse($transport, $error, $session);
+                $this->sendResponse($transport, $error);
             }
 
             break;
@@ -213,28 +217,28 @@ class Protocol
 
         if (!$handlerFound) {
             $error = Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $request::getMethod()), $request->getId());
-            $this->sendResponse($transport, $error, $session);
+            $this->sendResponse($transport, $error);
         }
     }
 
     /**
      * @param Response<array<string, mixed>>|Error $response
      */
-    private function handleResponse(Response|Error $response, SessionInterface $session): void
+    private function handleResponse(Response|Error $response): void
     {
         $this->logger->info('Handling response from client.', ['response' => $response]);
 
         $messageId = $response->getId();
 
-        $session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
-        $session->forget(self::SESSION_ACTIVE_REQUEST_META);
+        $this->session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
+        $this->session->forget(self::SESSION_ACTIVE_REQUEST_META);
 
         $this->logger->info('Client response stored in session', [
             'message_id' => $messageId,
         ]);
     }
 
-    private function handleNotification(Notification $notification, SessionInterface $session): void
+    private function handleNotification(Notification $notification): void
     {
         $this->logger->info('Handling notification.', ['notification' => $notification]);
 
@@ -244,7 +248,7 @@ class Protocol
             }
 
             try {
-                $handler->handle($notification, $session);
+                $handler->handle($notification, $this->session);
             } catch (\Throwable $e) {
                 $this->logger->error(\sprintf('Error while handling notification: %s', $e->getMessage()), ['exception' => $e]);
             }
@@ -254,11 +258,11 @@ class Protocol
     /**
      * Sends a request to the client and returns the request ID.
      */
-    public function sendRequest(Request $request, int $timeout, SessionInterface $session): int
+    public function sendRequest(Request $request, int $timeout): int
     {
-        $counter = $session->get(self::SESSION_REQUEST_ID_COUNTER, 1000);
+        $counter = $this->session->get(self::SESSION_REQUEST_ID_COUNTER, 1000);
         $requestId = $counter++;
-        $session->set(self::SESSION_REQUEST_ID_COUNTER, $counter);
+        $this->session->set(self::SESSION_REQUEST_ID_COUNTER, $counter);
 
         $requestWithId = $request->withId($requestId);
 
@@ -267,15 +271,15 @@ class Protocol
             'method' => $request::getMethod(),
         ]);
 
-        $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
+        $pending = $this->session->get(self::SESSION_PENDING_REQUESTS, []);
         $pending[$requestId] = [
             'request_id' => $requestId,
             'timeout' => $timeout,
             'timestamp' => time(),
         ];
-        $session->set(self::SESSION_PENDING_REQUESTS, $pending);
+        $this->session->set(self::SESSION_PENDING_REQUESTS, $pending);
 
-        $this->queueOutgoing($requestWithId, ['type' => 'request'], $session);
+        $this->queueOutgoing($requestWithId, ['type' => 'request']);
 
         return $requestId;
     }
@@ -283,13 +287,13 @@ class Protocol
     /**
      * Queues a notification for later delivery.
      */
-    public function sendNotification(Notification $notification, SessionInterface $session): void
+    public function sendNotification(Notification $notification): void
     {
         $this->logger->info('Queueing server notification to client', [
             'method' => $notification::getMethod(),
         ]);
 
-        $this->queueOutgoing($notification, ['type' => 'notification'], $session);
+        $this->queueOutgoing($notification, ['type' => 'notification']);
     }
 
     /**
@@ -299,9 +303,9 @@ class Protocol
      * @param Response<ResultInterface|array<string, mixed>>|Error $response
      * @param array<string, mixed>                                 $context
      */
-    private function sendResponse(TransportInterface $transport, Response|Error $response, ?SessionInterface $session, array $context = []): void
+    private function sendResponse(TransportInterface $transport, Response|Error $response, array $context = []): void
     {
-        if (null === $session) {
+        if (null === $this->session) {
             $this->logger->info('Sending immediate response', [
                 'response_id' => $response->getId(),
             ]);
@@ -330,7 +334,7 @@ class Protocol
                 'response_id' => $response->getId(),
             ]);
 
-            $this->queueOutgoing($response, ['type' => 'response'], $session);
+            $this->queueOutgoing($response, ['type' => 'response']);
         }
     }
 
@@ -340,7 +344,7 @@ class Protocol
      * @param Request|Notification|Response<ResultInterface|array<string, mixed>>|Error $message
      * @param array<string, mixed>                                                      $context
      */
-    private function queueOutgoing(Request|Notification|Response|Error $message, array $context, SessionInterface $session): void
+    private function queueOutgoing(Request|Notification|Response|Error $message, array $context): void
     {
         try {
             $encoded = json_encode($message, \JSON_THROW_ON_ERROR);
@@ -352,12 +356,12 @@ class Protocol
             return;
         }
 
-        $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
+        $queue = $this->session->get(self::SESSION_OUTGOING_QUEUE, []);
         $queue[] = [
             'message' => $encoded,
             'context' => $context,
         ];
-        $session->set(self::SESSION_OUTGOING_QUEUE, $queue);
+        $this->session->set(self::SESSION_OUTGOING_QUEUE, $queue);
     }
 
     /**
@@ -476,7 +480,7 @@ class Protocol
                     return;
                 }
 
-                $this->sendNotification($notification, $session);
+                $this->sendNotification($notification);
             } elseif ('request' === $yieldedValue['type']) {
                 $request = $yieldedValue['request'] ?? null;
                 if (!$request instanceof Request) {
@@ -488,7 +492,7 @@ class Protocol
                 }
 
                 $timeout = isset($yieldedValue['timeout']) ? (int) $yieldedValue['timeout'] : 120;
-                $this->sendRequest($request, $timeout, $session);
+                $this->sendRequest($request, $timeout);
             } else {
                 $this->logger->warning('Fiber yielded unknown operation type.', [
                     'type' => $yieldedValue['type'],
@@ -520,50 +524,50 @@ class Protocol
      * @param Uuid|null                 $sessionId The session ID from the transport
      * @param array<int,mixed>          $messages  The parsed messages
      */
-    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, array $messages): ?SessionInterface
+    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, array $messages): void
     {
         if ($this->hasInitializeRequest($messages)) {
             // Spec: An initialize request must not be part of a batch.
             if (\count($messages) > 1) {
                 $error = Error::forInvalidRequest('The "initialize" request MUST NOT be part of a batch.');
-                $this->sendResponse($transport, $error, null);
+                $this->sendResponse($transport, $error);
 
-                return null;
+                return;
             }
 
             // Spec: An initialize request must not have a session ID.
             if ($sessionId) {
                 $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
-                $this->sendResponse($transport, $error, null);
+                $this->sendResponse($transport, $error);
 
-                return null;
+                return;
             }
 
-            $session = $this->sessionFactory->create($this->sessionStore);
+            $this->session = $this->sessionFactory->create($this->sessionStore);
             $this->logger->debug('Created new session for initialize', [
-                'session_id' => $session->getId()->toRfc4122(),
+                'session_id' => $this->session->getId()->toRfc4122(),
             ]);
 
-            $transport->setSessionId($session->getId());
+            $transport->setSessionId($this->session->getId());
 
-            return $session;
+            return;
         }
 
         if (!$sessionId) {
             $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.');
-            $this->sendResponse($transport, $error, null, ['status_code' => 400]);
+            $this->sendResponse($transport, $error, ['status_code' => 400]);
 
-            return null;
+            return;
         }
 
         if (!$this->sessionStore->exists($sessionId)) {
             $error = Error::forInvalidRequest('Session not found or has expired.');
-            $this->sendResponse($transport, $error, null, ['status_code' => 404]);
+            $this->sendResponse($transport, $error, ['status_code' => 404]);
 
-            return null;
+            return;
         }
 
-        return $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
+        $this->session = $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
     }
 
     /**

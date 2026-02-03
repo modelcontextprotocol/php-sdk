@@ -23,6 +23,11 @@ use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\Dispatcher;
+use Mcp\Event\ListenerProvider;
+use Mcp\Event\PromptListChangedEvent;
+use Mcp\Event\ResourceListChangedEvent;
+use Mcp\Event\ToolListChangedEvent;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -59,6 +64,8 @@ final class Builder
     private ?CacheInterface $discoveryCache = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
+
+    private ?ListenerProvider $eventListenerProvider = null;
 
     private ?ContainerInterface $container = null;
 
@@ -284,6 +291,13 @@ final class Builder
         return $this;
     }
 
+    public function setEventListenerProvider(ListenerProvider $listenerProvider): self
+    {
+        $this->eventListenerProvider = $listenerProvider;
+
+        return $this;
+    }
+
     /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
@@ -488,6 +502,8 @@ final class Builder
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
+        $this->eventListenerProvider ??= new ListenerProvider();
+        $this->eventDispatcher ??= new Dispatcher($this->eventListenerProvider);
         $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
 
         $loaders = [
@@ -511,12 +527,12 @@ final class Builder
 
         $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
             tools: $registry->hasTools(),
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            toolsListChanged: true,
             resources: $registry->hasResources() || $registry->hasResourceTemplates(),
             resourcesSubscribe: false,
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            resourcesListChanged: true,
             prompts: $registry->hasPrompts(),
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
+            promptsListChanged: true,
             logging: true,
             completions: true,
         );
@@ -551,6 +567,11 @@ final class Builder
             sessionStore: $sessionStore,
             logger: $logger,
         );
+
+        $changeListener = new ChangeListener($protocol);
+        $this->eventListenerProvider->addListener(PromptListChangedEvent::class, $changeListener->onPromptListChange(...));
+        $this->eventListenerProvider->addListener(ResourceListChangedEvent::class, $changeListener->onResourceListChange(...));
+        $this->eventListenerProvider->addListener(ToolListChangedEvent::class, $changeListener->onToolListChange(...));
 
         return new Server($protocol, $logger);
     }
