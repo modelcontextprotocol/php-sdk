@@ -34,8 +34,8 @@ class ClientCapabilities implements \JsonSerializable
      * @param array{
      *     roots?: array{
      *         listChanged?: bool,
-     *     },
-     *     sampling?: bool,
+     *     }|object,
+     *     sampling?: object|bool,
      *     experimental?: array<string, mixed>,
      * } $data
      */
