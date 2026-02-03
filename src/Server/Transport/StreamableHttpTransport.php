@@ -17,6 +17,8 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -36,19 +38,22 @@ class StreamableHttpTransport extends BaseTransport
     /** @var array<string, string> */
     private array $corsHeaders;
 
+    /** @var list<MiddlewareInterface> */
+    private array $middlewares = [];
+
     /**
      * @param array<string, string> $corsHeaders
+     * @param iterable<MiddlewareInterface> $middlewares
      */
     public function __construct(
-        private readonly ServerRequestInterface $request,
+        private ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         array $corsHeaders = [],
         ?LoggerInterface $logger = null,
+        iterable $middlewares = [],
     ) {
         parent::__construct($logger);
-        $sessionIdString = $this->request->getHeaderLine('Mcp-Session-Id');
-        $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -59,6 +64,13 @@ class StreamableHttpTransport extends BaseTransport
             'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
             'Access-Control-Expose-Headers' => 'Mcp-Session-Id',
         ], $corsHeaders);
+
+        foreach ($middlewares as $middleware) {
+            if (!$middleware instanceof MiddlewareInterface) {
+                throw new \InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
+            }
+            $this->middlewares[] = $middleware;
+        }
     }
 
     public function send(string $data, array $context): void
@@ -69,17 +81,15 @@ class StreamableHttpTransport extends BaseTransport
 
     public function listen(): ResponseInterface
     {
-        return match ($this->request->getMethod()) {
-            'OPTIONS' => $this->handleOptionsRequest(),
-            'POST' => $this->handlePostRequest(),
-            'DELETE' => $this->handleDeleteRequest(),
-            default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
-        };
+        $handler = $this->createRequestHandler();
+        $response = $handler->handle($this->request);
+
+        return $this->withCorsHeaders($response);
     }
 
     protected function handleOptionsRequest(): ResponseInterface
     {
-        return $this->withCorsHeaders($this->responseFactory->createResponse(204));
+        return $this->responseFactory->createResponse(204);
     }
 
     protected function handlePostRequest(): ResponseInterface
@@ -92,7 +102,7 @@ class StreamableHttpTransport extends BaseTransport
                 ->withHeader('Content-Type', 'application/json')
                 ->withBody($this->streamFactory->createStream($this->immediateResponse));
 
-            return $this->withCorsHeaders($response);
+            return $response;
         }
 
         if (null !== $this->sessionFiber) {
@@ -112,7 +122,7 @@ class StreamableHttpTransport extends BaseTransport
 
         $this->handleSessionEnd($this->sessionId);
 
-        return $this->withCorsHeaders($this->responseFactory->createResponse(200));
+        return $this->responseFactory->createResponse(200);
     }
 
     protected function createJsonResponse(): ResponseInterface
@@ -120,7 +130,7 @@ class StreamableHttpTransport extends BaseTransport
         $outgoingMessages = $this->getOutgoingMessages($this->sessionId);
 
         if (empty($outgoingMessages)) {
-            return $this->withCorsHeaders($this->responseFactory->createResponse(202));
+            return $this->responseFactory->createResponse(202);
         }
 
         $messages = array_column($outgoingMessages, 'message');
@@ -134,7 +144,7 @@ class StreamableHttpTransport extends BaseTransport
             $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
         }
 
-        return $this->withCorsHeaders($response);
+        return $response;
     }
 
     protected function createStreamedResponse(): ResponseInterface
@@ -201,7 +211,7 @@ class StreamableHttpTransport extends BaseTransport
             $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
         }
 
-        return $this->withCorsHeaders($response);
+        return $response;
     }
 
     protected function handleFiberTermination(): void
@@ -242,15 +252,65 @@ class StreamableHttpTransport extends BaseTransport
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($payload));
 
-        return $this->withCorsHeaders($response);
+        return $response;
     }
 
     protected function withCorsHeaders(ResponseInterface $response): ResponseInterface
     {
         foreach ($this->corsHeaders as $name => $value) {
-            $response = $response->withHeader($name, $value);
+            if (!$response->hasHeader($name)) {
+                $response = $response->withHeader($name, $value);
+            }
         }
 
         return $response;
+    }
+
+    private function handleRequest(ServerRequestInterface $request): ResponseInterface
+    {
+        $this->request = $request;
+        $sessionIdString = $request->getHeaderLine('Mcp-Session-Id');
+        $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+
+        return match ($request->getMethod()) {
+            'OPTIONS' => $this->handleOptionsRequest(),
+            'POST' => $this->handlePostRequest(),
+            'DELETE' => $this->handleDeleteRequest(),
+            default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
+        };
+    }
+
+    private function createRequestHandler(): RequestHandlerInterface
+    {
+        /**
+         * @see self::handleRequest
+         */
+        $handler = new class(\Closure::fromCallable([$this, 'handleRequest'])) implements RequestHandlerInterface {
+            public function __construct(private \Closure $handler)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return ($this->handler)($request);
+            }
+        };
+
+        foreach (array_reverse($this->middlewares) as $middleware) {
+            $handler = new class($middleware, $handler) implements RequestHandlerInterface {
+                public function __construct(
+                    private MiddlewareInterface $middleware,
+                    private RequestHandlerInterface $handler,
+                ) {
+                }
+
+                public function handle(ServerRequestInterface $request): ResponseInterface
+                {
+                    return $this->middleware->process($request, $this->handler);
+                }
+            };
+        }
+
+        return $handler;
     }
 }

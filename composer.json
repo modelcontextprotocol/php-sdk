@@ -28,6 +28,8 @@
     "psr/event-dispatcher": "^1.0",
     "psr/http-factory": "^1.1",
     "psr/http-message": "^1.1 || ^2.0",
+    "psr/http-server-handler": "^1.0",
+    "psr/http-server-middleware": "^1.0",
     "psr/log": "^1.0 || ^2.0 || ^3.0",
     "symfony/finder": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
