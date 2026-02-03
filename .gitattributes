@@ -1,7 +1,10 @@
-/.git* export-ignore
+/.github export-ignore
+/.phpdoc export-ignore
+/docs export-ignore
 /examples export-ignore
 /tests export-ignore
 /.php-cs-fixer.dist.php export-ignore
+/Makefile export-ignore
+/phpdoc.dist.xml
 /phpstan* export-ignore
 /phpunit.xml.dist export-ignore
-/Makefile export-ignore
