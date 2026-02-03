@@ -24,7 +24,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author luoyue <1569097443@qq.com>
  */
-class Psr16StoreSession implements SessionStoreInterface
+class Psr16SessionStore implements SessionStoreInterface
 {
     public function __construct(
         private readonly CacheInterface $cache,
