@@ -550,6 +550,7 @@ final class Builder
             sessionFactory: $sessionFactory,
             sessionStore: $sessionStore,
             logger: $logger,
+            eventDispatcher: $this->eventDispatcher,
         );
 
         return new Server($protocol, $logger);
