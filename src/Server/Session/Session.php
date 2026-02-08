@@ -22,23 +22,20 @@ use Symfony\Component\Uid\UuidV4;
 class Session implements SessionInterface
 {
     /**
-     * @param array<string, mixed> $data Stores all session data.
-     *                                   Keys are snake_case by convention for MCP-specific data.
-     *
      * Official keys are:
      * - initialized: bool
      * - client_info: array|null
      * - protocol_version: string|null
      * - log_level: string|null
+     *
+     * @var array<string, mixed>
      */
+    private array $data;
+
     public function __construct(
-        protected SessionStoreInterface $store,
-        protected Uuid $id = new UuidV4(),
-        protected array $data = [],
+        private SessionStoreInterface $store,
+        private Uuid $id = new UuidV4(),
     ) {
-        if ($rawData = $this->store->read($this->id)) {
-            $this->data = json_decode($rawData, true) ?? [];
-        }
     }
 
     public function getId(): Uuid
@@ -59,7 +56,7 @@ class Session implements SessionInterface
     public function get(string $key, mixed $default = null): mixed
     {
         $key = explode('.', $key);
-        $data = $this->data;
+        $data = $this->readData();
 
         foreach ($key as $segment) {
             if (\is_array($data) && \array_key_exists($segment, $data)) {
@@ -75,6 +72,7 @@ class Session implements SessionInterface
     public function set(string $key, mixed $value, bool $overwrite = true): void
     {
         $segments = explode('.', $key);
+        $this->readData();
         $data = &$this->data;
 
         while (\count($segments) > 1) {
@@ -94,7 +92,7 @@ class Session implements SessionInterface
     public function has(string $key): bool
     {
         $key = explode('.', $key);
-        $data = $this->data;
+        $data = $this->readData();
 
         foreach ($key as $segment) {
             if (\is_array($data) && \array_key_exists($segment, $data)) {
@@ -112,6 +110,7 @@ class Session implements SessionInterface
     public function forget(string $key): void
     {
         $segments = explode('.', $key);
+        $this->readData();
         $data = &$this->data;
 
         while (\count($segments) > 1) {
@@ -143,7 +142,7 @@ class Session implements SessionInterface
 
     public function all(): array
     {
-        return $this->data;
+        return $this->readData();
     }
 
     public function hydrate(array $attributes): void
@@ -155,5 +154,23 @@ class Session implements SessionInterface
     public function jsonSerialize(): array
     {
         return $this->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function readData(): array
+    {
+        if (isset($this->data)) {
+            return $this->data;
+        }
+
+        $rawData = $this->store->read($this->id);
+
+        if (false === $rawData) {
+            return $this->data = [];
+        }
+
+        return $this->data = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
     }
 }
