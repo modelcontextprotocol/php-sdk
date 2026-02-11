@@ -171,6 +171,12 @@ class Session implements SessionInterface
             return $this->data = [];
         }
 
-        return $this->data = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
+        $decoded = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
+
+        if (!\is_array($decoded)) {
+            return $this->data = [];
+        }
+
+        return $this->data = $decoded;
     }
 }
