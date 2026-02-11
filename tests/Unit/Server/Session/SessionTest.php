@@ -33,4 +33,18 @@ class SessionTest extends TestCase
         $result = $session->all();
         $this->assertEquals(['foo' => 'bar'], $result);
     }
+
+    public function testAllReturnsEmptyArrayForNullPayload()
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('null');
+
+        $session = new Session($store);
+        $result = $session->all();
+
+        $this->assertSame([], $result);
+    }
 }
