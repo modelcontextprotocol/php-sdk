@@ -23,6 +23,9 @@ jobs:
           - symfony-version: '7.4.*'
             dependencies: 'highest'
             php: '8.4'
+          - symfony-version: '8.0.*'
+            dependencies: 'highest'
+            php: '8.4'
 
     env:
       SYMFONY_REQUIRE: ${{ matrix.symfony-version || '>=6.4' }}
