@@ -68,10 +68,10 @@ class Resource implements \JsonSerializable
         public readonly ?array $meta = null,
     ) {
         if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
-            throw new InvalidArgumentException('Invalid resource name: must contain only alphanumeric characters, underscores, and hyphens.');
+            throw new InvalidArgumentException(\sprintf('Invalid resource name "%s": must contain only alphanumeric characters, underscores, and hyphens.', $name));
         }
         if (!preg_match(self::URI_PATTERN, $uri)) {
-            throw new InvalidArgumentException('Invalid resource URI: must be a valid URI with a scheme and optional path.');
+            throw new InvalidArgumentException(\sprintf('Invalid resource URI: "%s" must be a valid URI with a scheme and optional path.', $uri));
         }
     }
 
