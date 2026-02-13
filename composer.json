@@ -26,6 +26,7 @@
     "psr/clock": "^1.0",
     "psr/container": "^1.0 || ^2.0",
     "psr/event-dispatcher": "^1.0",
+    "psr/http-client": "^1.0",
     "psr/http-factory": "^1.1",
     "psr/http-message": "^1.1 || ^2.0",
     "psr/http-server-handler": "^1.0",
@@ -46,6 +47,7 @@
     "psr/simple-cache": "^2.0 || ^3.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
+    "symfony/http-client": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "autoload": {

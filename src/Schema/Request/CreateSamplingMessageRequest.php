@@ -74,17 +74,33 @@ final class CreateSamplingMessageRequest extends Request
             throw new InvalidArgumentException('Missing or invalid "maxTokens" parameter for sampling/createMessage.');
         }
 
+        $messages = [];
+        foreach ($params['messages'] as $messageData) {
+            if ($messageData instanceof SamplingMessage) {
+                $messages[] = $messageData;
+            } elseif (\is_array($messageData)) {
+                $messages[] = SamplingMessage::fromArray($messageData);
+            } else {
+                throw new InvalidArgumentException('Invalid message format in sampling/createMessage.');
+            }
+        }
+
         $preferences = null;
         if (isset($params['preferences'])) {
             $preferences = ModelPreferences::fromArray($params['preferences']);
         }
 
+        $includeContext = null;
+        if (isset($params['includeContext']) && \is_string($params['includeContext'])) {
+            $includeContext = SamplingContext::tryFrom($params['includeContext']);
+        }
+
         return new self(
-            $params['messages'],
+            $messages,
             $params['maxTokens'],
             $preferences,
             $params['systemPrompt'] ?? null,
-            $params['includeContext'] ?? null,
+            $includeContext,
             $params['temperature'] ?? null,
             $params['stopSequences'] ?? null,
             $params['metadata'] ?? null,
