@@ -276,3 +276,80 @@ public function formatText(
     string $format = 'sentence'
 ): array
 ```
+
+### Elicitation
+
+**File**: `examples/server/elicitation/`
+
+**What it demonstrates:**
+- Server-to-client elicitation requests
+- Interactive user input during tool execution
+- Multi-field form schemas with validation
+- Boolean confirmation dialogs
+- Enum fields with human-readable labels
+- Handling accept/decline/cancel responses
+- Session persistence requirement for server-initiated requests
+
+**Key Features:**
+```php
+// Check client support before eliciting
+if (!$context->getClientGateway()->supportsElicitation()) {
+    return ['status' => 'error', 'message' => 'Client does not support elicitation'];
+}
+
+// Build schema with multiple field types
+$schema = new ElicitationSchema(
+    properties: [
+        'party_size' => new NumberSchemaDefinition(
+            title: 'Party Size',
+            integerOnly: true,
+            minimum: 1,
+            maximum: 20
+        ),
+        'date' => new StringSchemaDefinition(
+            title: 'Reservation Date',
+            format: 'date'
+        ),
+        'dietary' => new EnumSchemaDefinition(
+            title: 'Dietary Restrictions',
+            enum: ['none', 'vegetarian', 'vegan'],
+            enumNames: ['None', 'Vegetarian', 'Vegan']
+        ),
+    ],
+    required: ['party_size', 'date']
+);
+
+// Send elicitation request
+$result = $client->elicit(
+    message: 'Please provide your reservation details',
+    requestedSchema: $schema
+);
+
+// Handle response
+if ($result->isAccepted()) {
+    $data = $result->content; // User-provided data
+} elseif ($result->isDeclined() || $result->isCancelled()) {
+    // User declined or cancelled
+}
+```
+
+**Important Notes:**
+- Elicitation requires a session store (e.g., `FileSessionStore`)
+- Check client capabilities with `supportsElicitation()` before sending requests
+- Schema supports primitive types: string, number/integer, boolean, enum
+- String fields support format validation: date, date-time, email, uri
+- Users can accept (providing data), decline, or cancel requests
+
+**Usage:**
+```bash
+# Interactive testing with MCP client that supports elicitation
+npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
+
+# Test with Goose (confirmed working by reviewer)
+# Or configure in Claude Desktop or other MCP clients
+```
+
+**Example Tools:**
+1. **book_restaurant** - Multi-field reservation form with number, date, and enum fields
+2. **confirm_action** - Simple boolean confirmation dialog
+3. **collect_feedback** - Rating and comments form with optional fields

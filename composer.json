@@ -59,6 +59,7 @@
       "Mcp\\Example\\Server\\ClientCommunication\\": "examples/server/client-communication/",
       "Mcp\\Example\\Server\\ClientLogging\\": "examples/server/client-logging/",
       "Mcp\\Example\\Server\\CombinedRegistration\\": "examples/server/combined-registration/",
+      "Mcp\\Example\\Server\\Elicitation\\": "examples/server/elicitation/",
       "Mcp\\Example\\Server\\ComplexToolSchema\\": "examples/server/complex-tool-schema/",
       "Mcp\\Example\\Server\\Conformance\\": "examples/server/conformance/",
       "Mcp\\Example\\Server\\CustomDependencies\\": "examples/server/custom-dependencies/",
