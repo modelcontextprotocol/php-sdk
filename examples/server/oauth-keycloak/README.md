@@ -57,7 +57,7 @@ curl -X POST http://localhost:8000/mcp \
 
 5. **Use with MCP Inspector:**
 
-The MCP Inspector doesn't support OAuth out of the box, but you can test using curl or build a custom client.
+MCP Inspector can call this server if you provide a valid Bearer token manually (Authorization header). It does not run the OAuth login flow automatically.
 
 ## Keycloak Configuration
 
@@ -102,14 +102,13 @@ Access at http://localhost:8180/admin with:
 - `server.php` - MCP server with OAuth middleware
 - `McpElements.php` - MCP tools and resources
 
-## Environment Variables
+## Configuration
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `KEYCLOAK_EXTERNAL_URL` | `http://localhost:8180` | Keycloak URL as seen by clients (token issuer) |
-| `KEYCLOAK_INTERNAL_URL` | `http://keycloak:8080` | Keycloak URL from within Docker network (for JWKS) |
-| `KEYCLOAK_REALM` | `mcp` | Keycloak realm name |
-| `MCP_AUDIENCE` | `mcp-server` | Expected JWT audience |
+This example uses hard-coded values in `server.php` for consistency with other examples:
+- Keycloak external URL: `http://localhost:8180`
+- Keycloak internal URL: `http://keycloak:8080`
+- Realm: `mcp`
+- Audience: `mcp-server`
 
 ## Troubleshooting
 

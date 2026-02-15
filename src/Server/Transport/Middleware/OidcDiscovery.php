@@ -274,7 +274,7 @@ class OidcDiscovery
             ));
         }
 
-        $body = (string)$response->getBody();
+        $body = $response->getBody()->__toString();
 
         try {
             $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);

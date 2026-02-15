@@ -88,11 +88,11 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         }
 
         $result = $this->validator->validate($request, $accessToken);
-        if ($result->isAllowed()) {
-            return $handler->handle($this->applyAttributes($request, $result->getAttributes()));
+        if (!$result->isAllowed()) {
+            return $this->buildErrorResponse($request, $result);
         }
 
-        return $this->buildErrorResponse($request, $result);
+        return $handler->handle($this->applyAttributes($request, $result->getAttributes()));
     }
 
     private function createMetadataResponse(): ResponseInterface
@@ -105,7 +105,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     private function isMetadataRequest(ServerRequestInterface $request): bool
     {
-        if (empty($this->metadataPaths) || 'GET' !== $request->getMethod()) {
+        if ([] === $this->metadataPaths || 'GET' !== $request->getMethod()) {
             return false;
         }
 
@@ -128,19 +128,16 @@ final class AuthorizationMiddleware implements MiddlewareInterface
     {
         $parts = [];
 
-        // Include resource_metadata URL per RFC 9728
         $resourceMetadataUrl = $this->resolveResourceMetadataUrl($request);
         if (null !== $resourceMetadataUrl) {
             $parts[] = 'resource_metadata="' . $this->escapeHeaderValue($resourceMetadataUrl) . '"';
         }
 
-        // Include scope hint per RFC 6750 Section 3
         $scopes = $this->resolveScopes($request, $result);
-        if (!empty($scopes)) {
+        if (null !== $scopes) {
             $parts[] = 'scope="' . $this->escapeHeaderValue(implode(' ', $scopes)) . '"';
         }
 
-        // Include error details
         if (null !== $result->getError()) {
             $parts[] = 'error="' . $this->escapeHeaderValue($result->getError()) . '"';
         }
@@ -149,7 +146,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             $parts[] = 'error_description="' . $this->escapeHeaderValue($result->getErrorDescription()) . '"';
         }
 
-        if (empty($parts)) {
+        if ([] === $parts) {
             return 'Bearer';
         }
 
@@ -161,13 +158,11 @@ final class AuthorizationMiddleware implements MiddlewareInterface
      */
     private function resolveScopes(ServerRequestInterface $request, AuthorizationResult $result): ?array
     {
-        // First, check if the result has specific scopes (e.g., from insufficient_scope error)
         $scopes = $this->normalizeScopes($result->getScopes());
         if (null !== $scopes) {
             return $scopes;
         }
 
-        // Then, check the scope provider callback
         if (null !== $this->scopeProvider) {
             $provided = ($this->scopeProvider)($request);
             $scopes = $this->normalizeScopes($provided);
@@ -176,7 +171,6 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             }
         }
 
-        // Fall back to scopes from metadata
         return $this->normalizeScopes($this->metadata->getScopesSupported());
     }
 
@@ -195,42 +189,28 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             return '' !== $scope;
         }));
 
-        return empty($normalized) ? null : $normalized;
+        return [] === $normalized ? null : $normalized;
     }
 
     private function resolveResourceMetadataUrl(ServerRequestInterface $request): ?string
     {
-        // Use explicit URL if configured
         if (null !== $this->resourceMetadataUrl) {
             return $this->resourceMetadataUrl;
         }
 
-        // Auto-generate from request if metadata paths are configured
-        if (empty($this->metadataPaths)) {
+        if ([] === $this->metadataPaths) {
             return null;
         }
 
         $uri = $request->getUri();
         $scheme = $uri->getScheme();
-        $host = $uri->getHost();
+        $authority = $uri->getAuthority();
 
-        if ('' === $scheme || '' === $host) {
+        if ('' === $scheme || '' === $authority) {
             return null;
         }
 
-        $authority = $host;
-        $port = $uri->getPort();
-
-        if (null !== $port && !$this->isDefaultPort($scheme, $port)) {
-            $authority .= ':' . $port;
-        }
-
         return $scheme . '://' . $authority . $this->metadataPaths[0];
-    }
-
-    private function isDefaultPort(string $scheme, int $port): bool
-    {
-        return ('https' === $scheme && 443 === $port) || ('http' === $scheme && 80 === $port);
     }
 
     /**

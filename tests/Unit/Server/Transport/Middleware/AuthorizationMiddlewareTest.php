@@ -201,7 +201,7 @@ class AuthorizationMiddlewareTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
 
-        $payload = json_decode((string) $response->getBody(), true, 512, \JSON_THROW_ON_ERROR);
+        $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
         $this->assertSame(['https://auth.example.com'], $payload['authorization_servers']);
         $this->assertSame(['mcp:read', 'mcp:write'], $payload['scopes_supported']);
     }
