@@ -1,5 +1,8 @@
 <?php
 
+
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -8,8 +11,6 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-
-declare(strict_types=1);
 
 namespace Mcp\Example\Server\OAuthMicrosoft;
 
@@ -78,7 +79,7 @@ final class McpElements
     {
         return [
             'note' => 'Simulated data. Implement Graph API call with Mail.Read scope for real emails.',
-            'emails' => array_map(fn ($i) => [
+            'emails' => array_map(static fn ($i) => [
                 'id' => 'msg_'.uniqid(),
                 'subject' => "Sample Email #{$i}",
                 'from' => "sender{$i}@example.com",
@@ -102,7 +103,7 @@ final class McpElements
             'status' => 'healthy',
             'timestamp' => date('c'),
             'auth_provider' => 'Microsoft Entra ID',
-            'php_version' => PHP_VERSION,
+            'php_version' => \PHP_VERSION,
             'memory_usage_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
         ];
     }

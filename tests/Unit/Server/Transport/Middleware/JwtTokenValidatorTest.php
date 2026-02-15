@@ -182,7 +182,7 @@ class JwtTokenValidatorTest extends TestCase
             'exp' => time() + 600,
         ], \JSON_THROW_ON_ERROR));
 
-        $token = $header . '.' . $payload . '.';
+        $token = $header.'.'.$payload.'.';
 
         $validator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
@@ -509,7 +509,7 @@ class JwtTokenValidatorTest extends TestCase
 
         // Trigger the Graph token path (nonce in header) with an empty payload segment.
         // This makes validateGraphToken() run and fail decoding the payload.
-        $token = $header . '..';
+        $token = $header.'..';
 
         $validator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
@@ -548,7 +548,7 @@ class JwtTokenValidatorTest extends TestCase
             'exp' => time() + 600,
         ], \JSON_THROW_ON_ERROR));
 
-        $token = $header . '.' . $payload . '.';
+        $token = $header.'.'.$payload.'.';
 
         $validator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
@@ -640,7 +640,7 @@ class JwtTokenValidatorTest extends TestCase
         $header = $this->b64urlEncode(json_encode(['alg' => 'none', 'typ' => 'JWT'], \JSON_THROW_ON_ERROR));
         $payload = $this->b64urlEncode(json_encode($claims, \JSON_THROW_ON_ERROR));
 
-        return $header . '.' . $payload . '.';
+        return $header.'.'.$payload.'.';
     }
 
     /**
@@ -649,22 +649,22 @@ class JwtTokenValidatorTest extends TestCase
     private function generateRsaKeypairAsJwk(string $kid): array
     {
         $key = openssl_pkey_new([
-            'private_key_type' => OPENSSL_KEYTYPE_RSA,
+            'private_key_type' => \OPENSSL_KEYTYPE_RSA,
             'private_key_bits' => 2048,
         ]);
 
         if (false === $key) {
-            self::fail('Failed to generate RSA keypair via OpenSSL.');
+            $this->fail('Failed to generate RSA keypair via OpenSSL.');
         }
 
         $privateKeyPem = '';
         if (!openssl_pkey_export($key, $privateKeyPem)) {
-            self::fail('Failed to export RSA private key.');
+            $this->fail('Failed to export RSA private key.');
         }
 
         $details = openssl_pkey_get_details($key);
         if (false === $details || !isset($details['rsa']['n'], $details['rsa']['e'])) {
-            self::fail('Failed to read RSA key details.');
+            $this->fail('Failed to read RSA key details.');
         }
 
         $n = $this->b64urlEncode($details['rsa']['n']);
@@ -692,7 +692,7 @@ class JwtTokenValidatorTest extends TestCase
      */
     private function createHttpClientMock(array $responses, ?int $expectedCalls = null): ClientInterface
     {
-        $expectedCalls ??= count($responses);
+        $expectedCalls ??= \count($responses);
 
         $httpClient = $this->createMock(ClientInterface::class);
         $expectation = $httpClient
@@ -705,7 +705,7 @@ class JwtTokenValidatorTest extends TestCase
         } else {
             // If expectedCalls > count(responses), keep returning the last response.
             $sequence = $responses;
-            while (count($sequence) < $expectedCalls) {
+            while (\count($sequence) < $expectedCalls) {
                 $sequence[] = $responses[array_key_last($responses)];
             }
             $expectation->willReturnOnConsecutiveCalls(...$sequence);

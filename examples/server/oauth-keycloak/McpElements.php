@@ -1,5 +1,8 @@
 <?php
 
+
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -8,8 +11,6 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-
-declare(strict_types=1);
 
 namespace Mcp\Example\Server\OAuthKeycloak;
 
@@ -62,7 +63,7 @@ final class McpElements
 
         return [
             'status' => 'success',
-            'message' => sprintf('Simulated %s request to %s', $method, $endpoint),
+            'message' => \sprintf('Simulated %s request to %s', $method, $endpoint),
             'simulated_response' => [
                 'data' => 'This is simulated data from the protected API',
                 'timestamp' => date('c'),
@@ -84,7 +85,7 @@ final class McpElements
         return [
             'status' => 'healthy',
             'timestamp' => date('c'),
-            'php_version' => PHP_VERSION,
+            'php_version' => \PHP_VERSION,
             'memory_usage_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
             'protected' => true,
         ];
@@ -100,10 +101,10 @@ final class McpElements
     public function greeting(string $style = 'formal'): string
     {
         return match ($style) {
-            'casual' => "Hey there! Welcome to the protected MCP server!",
-            'formal' => "Good day. Welcome to the OAuth-protected MCP server.",
-            'friendly' => "Hello! Great to have you here!",
-            default => "Welcome to the MCP server!",
+            'casual' => 'Hey there! Welcome to the protected MCP server!',
+            'formal' => 'Good day. Welcome to the OAuth-protected MCP server.',
+            'friendly' => 'Hello! Great to have you here!',
+            default => 'Welcome to the MCP server!',
         };
     }
 }

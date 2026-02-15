@@ -25,7 +25,7 @@ namespace Mcp\Server\Transport\Middleware;
 final class AuthorizationResult
 {
     /**
-     * @param list<string>|null $scopes Scopes to include in WWW-Authenticate challenge
+     * @param list<string>|null    $scopes     Scopes to include in WWW-Authenticate challenge
      * @param array<string, mixed> $attributes Attributes to attach to the request on success
      */
     private function __construct(
@@ -53,16 +53,15 @@ final class AuthorizationResult
      *
      * Use when no valid credentials are provided or the token is invalid.
      *
-     * @param string|null $error OAuth error code (e.g., "invalid_token")
-     * @param string|null $errorDescription Human-readable error description
-     * @param list<string>|null $scopes Required scopes to include in challenge
+     * @param string|null       $error            OAuth error code (e.g., "invalid_token")
+     * @param string|null       $errorDescription Human-readable error description
+     * @param list<string>|null $scopes           Required scopes to include in challenge
      */
     public static function unauthorized(
         ?string $error = null,
         ?string $errorDescription = null,
         ?array $scopes = null,
-    ): self
-    {
+    ): self {
         return new self(false, 401, $error, $errorDescription, $scopes, []);
     }
 
@@ -71,16 +70,15 @@ final class AuthorizationResult
      *
      * Use when the token is valid but lacks required permissions/scopes.
      *
-     * @param string|null $error OAuth error code (defaults to "insufficient_scope")
-     * @param string|null $errorDescription Human-readable error description
-     * @param list<string>|null $scopes Required scopes to include in challenge
+     * @param string|null       $error            OAuth error code (defaults to "insufficient_scope")
+     * @param string|null       $errorDescription Human-readable error description
+     * @param list<string>|null $scopes           Required scopes to include in challenge
      */
     public static function forbidden(
         ?string $error = 'insufficient_scope',
         ?string $errorDescription = null,
         ?array $scopes = null,
-    ): self
-    {
+    ): self {
         return new self(false, 403, $error ?? 'insufficient_scope', $errorDescription, $scopes, []);
     }
 
@@ -89,14 +87,13 @@ final class AuthorizationResult
      *
      * Use when the Authorization header is malformed.
      *
-     * @param string|null $error OAuth error code (defaults to "invalid_request")
+     * @param string|null $error            OAuth error code (defaults to "invalid_request")
      * @param string|null $errorDescription Human-readable error description
      */
     public static function badRequest(
         ?string $error = 'invalid_request',
         ?string $errorDescription = null,
-    ): self
-    {
+    ): self {
         return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, []);
     }
 

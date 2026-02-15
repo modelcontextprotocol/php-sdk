@@ -1,5 +1,8 @@
 <?php
 
+
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -8,8 +11,6 @@
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
  */
-
-declare(strict_types=1);
 
 require_once dirname(__DIR__).'/bootstrap.php';
 
@@ -22,7 +23,6 @@ use Mcp\Server\Transport\Middleware\JwtTokenValidator;
 use Mcp\Server\Transport\Middleware\OAuthProxyMiddleware;
 use Mcp\Server\Transport\Middleware\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
-use Psr\Log\AbstractLogger;
 
 // Configuration from environment
 $tenantId = getenv('AZURE_TENANT_ID') ?: throw new RuntimeException('AZURE_TENANT_ID environment variable is required');

@@ -24,10 +24,10 @@ namespace Mcp\Server\Transport\Middleware;
 class ProtectedResourceMetadata
 {
     /**
-     * @param list<string> $authorizationServers URLs of authorization servers that can issue tokens for this resource
-     * @param list<string>|null $scopesSupported OAuth scopes supported by this resource
-     * @param string|null $resource The resource identifier (typically the resource's URL)
-     * @param array<string, mixed> $extra Additional metadata fields
+     * @param list<string>         $authorizationServers URLs of authorization servers that can issue tokens for this resource
+     * @param list<string>|null    $scopesSupported      OAuth scopes supported by this resource
+     * @param string|null          $resource             The resource identifier (typically the resource's URL)
+     * @param array<string, mixed> $extra                Additional metadata fields
      */
     public function __construct(
         private readonly array $authorizationServers,

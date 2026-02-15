@@ -44,13 +44,13 @@ final class AuthorizationMiddleware implements MiddlewareInterface
     private $scopeProvider;
 
     /**
-     * @param ProtectedResourceMetadata $metadata The protected resource metadata to serve
-     * @param AuthorizationTokenValidatorInterface $validator Token validator implementation
-     * @param ResponseFactoryInterface|null $responseFactory PSR-17 response factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null $streamFactory PSR-17 stream factory (auto-discovered if null)
-     * @param list<string> $metadataPaths Paths where metadata should be served (e.g., ["/.well-known/oauth-protected-resource"])
-     * @param string|null $resourceMetadataUrl Explicit URL for the resource_metadata in WWW-Authenticate
-     * @param callable(ServerRequestInterface): list<string>|null $scopeProvider Optional callback to determine required scopes per request
+     * @param ProtectedResourceMetadata                           $metadata            The protected resource metadata to serve
+     * @param AuthorizationTokenValidatorInterface                $validator           Token validator implementation
+     * @param ResponseFactoryInterface|null                       $responseFactory     PSR-17 response factory (auto-discovered if null)
+     * @param StreamFactoryInterface|null                         $streamFactory       PSR-17 stream factory (auto-discovered if null)
+     * @param list<string>                                        $metadataPaths       Paths where metadata should be served (e.g., ["/.well-known/oauth-protected-resource"])
+     * @param string|null                                         $resourceMetadataUrl Explicit URL for the resource_metadata in WWW-Authenticate
+     * @param callable(ServerRequestInterface): list<string>|null $scopeProvider       Optional callback to determine required scopes per request
      */
     public function __construct(
         private ProtectedResourceMetadata $metadata,
@@ -109,7 +109,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             return false;
         }
 
-        return in_array($request->getUri()->getPath(), $this->metadataPaths, true);
+        return \in_array($request->getUri()->getPath(), $this->metadataPaths, true);
     }
 
     private function buildErrorResponse(ServerRequestInterface $request, AuthorizationResult $result): ResponseInterface
@@ -130,27 +130,27 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
         $resourceMetadataUrl = $this->resolveResourceMetadataUrl($request);
         if (null !== $resourceMetadataUrl) {
-            $parts[] = 'resource_metadata="' . $this->escapeHeaderValue($resourceMetadataUrl) . '"';
+            $parts[] = 'resource_metadata="'.$this->escapeHeaderValue($resourceMetadataUrl).'"';
         }
 
         $scopes = $this->resolveScopes($request, $result);
         if (null !== $scopes) {
-            $parts[] = 'scope="' . $this->escapeHeaderValue(implode(' ', $scopes)) . '"';
+            $parts[] = 'scope="'.$this->escapeHeaderValue(implode(' ', $scopes)).'"';
         }
 
         if (null !== $result->getError()) {
-            $parts[] = 'error="' . $this->escapeHeaderValue($result->getError()) . '"';
+            $parts[] = 'error="'.$this->escapeHeaderValue($result->getError()).'"';
         }
 
         if (null !== $result->getErrorDescription()) {
-            $parts[] = 'error_description="' . $this->escapeHeaderValue($result->getErrorDescription()) . '"';
+            $parts[] = 'error_description="'.$this->escapeHeaderValue($result->getErrorDescription()).'"';
         }
 
         if ([] === $parts) {
             return 'Bearer';
         }
 
-        return 'Bearer ' . implode(', ', $parts);
+        return 'Bearer '.implode(', ', $parts);
     }
 
     /**
@@ -210,7 +210,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             return null;
         }
 
-        return $scheme . '://' . $authority . $this->metadataPaths[0];
+        return $scheme.'://'.$authority.$this->metadataPaths[0];
     }
 
     /**
@@ -240,7 +240,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
                 continue;
             }
             if ('/' !== $path[0]) {
-                $path = '/' . $path;
+                $path = '/'.$path;
             }
             $normalized[] = $path;
         }

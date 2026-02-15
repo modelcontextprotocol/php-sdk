@@ -26,8 +26,8 @@ interface AuthorizationTokenValidatorInterface
     /**
      * Validates an access token extracted from the Authorization header.
      *
-     * @param ServerRequestInterface $request The incoming HTTP request
-     * @param string $accessToken The bearer token (without "Bearer " prefix)
+     * @param ServerRequestInterface $request     The incoming HTTP request
+     * @param string                 $accessToken The bearer token (without "Bearer " prefix)
      *
      * @return AuthorizationResult The result of the validation
      */
