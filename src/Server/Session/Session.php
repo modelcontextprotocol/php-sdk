@@ -25,6 +25,7 @@ class Session implements SessionInterface
      * Official keys are:
      * - initialized: bool
      * - client_info: array|null
+     * - client_capabilities: array|null
      * - protocol_version: string|null
      * - log_level: string|null
      *
