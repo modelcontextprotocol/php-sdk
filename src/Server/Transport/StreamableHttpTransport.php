@@ -30,6 +30,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport extends BaseTransport
 {
+    public const MCP_SESSION_ID_HEADER = 'Mcp-Session-Id';
+
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
@@ -62,8 +64,8 @@ class StreamableHttpTransport extends BaseTransport
         $this->corsHeaders = array_merge([
             'Access-Control-Allow-Origin' => '*',
             'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => 'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
-            'Access-Control-Expose-Headers' => 'Mcp-Session-Id',
+            'Access-Control-Allow-Headers' => 'Content-Type, '.self::MCP_SESSION_ID_HEADER.', Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Access-Control-Expose-Headers' => self::MCP_SESSION_ID_HEADER,
         ], $corsHeaders);
 
         foreach ($middleware as $m) {
@@ -120,7 +122,7 @@ class StreamableHttpTransport extends BaseTransport
     protected function handleDeleteRequest(): ResponseInterface
     {
         if (!$this->sessionId) {
-            return $this->createErrorResponse(Error::forInvalidRequest('Mcp-Session-Id header is required.'), 400);
+            return $this->createErrorResponse(Error::forInvalidRequest(self::MCP_SESSION_ID_HEADER.' header is required.'), 400);
         }
 
         $this->handleSessionEnd($this->sessionId);
@@ -144,7 +146,7 @@ class StreamableHttpTransport extends BaseTransport
             ->withBody($this->streamFactory->createStream($responseBody));
 
         if ($this->sessionId) {
-            $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
+            $response = $response->withHeader(self::MCP_SESSION_ID_HEADER, $this->sessionId->toRfc4122());
         }
 
         return $response;
@@ -211,7 +213,7 @@ class StreamableHttpTransport extends BaseTransport
             ->withBody($stream);
 
         if ($this->sessionId) {
-            $response = $response->withHeader('Mcp-Session-Id', $this->sessionId->toRfc4122());
+            $response = $response->withHeader(self::MCP_SESSION_ID_HEADER, $this->sessionId->toRfc4122());
         }
 
         return $response;
@@ -276,7 +278,7 @@ class StreamableHttpTransport extends BaseTransport
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         $this->request = $request;
-        $sessionIdString = $request->getHeaderLine('Mcp-Session-Id');
+        $sessionIdString = $request->getHeaderLine(self::MCP_SESSION_ID_HEADER);
         $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
 
         return match ($request->getMethod()) {
