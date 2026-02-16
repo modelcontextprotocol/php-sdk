@@ -80,7 +80,7 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertSame(
-            'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
             $response->getHeaderLine('Access-Control-Allow-Headers')
         );
         $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
@@ -120,7 +120,7 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('https://another.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertSame(
-            'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
             $response->getHeaderLine('Access-Control-Allow-Headers')
         );
         $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
