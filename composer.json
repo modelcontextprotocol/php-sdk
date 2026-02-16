@@ -56,6 +56,7 @@
   "autoload-dev": {
     "psr-4": {
       "Mcp\\Example\\Server\\CachedDiscovery\\": "examples/server/cached-discovery/",
+      "Mcp\\Example\\Server\\ChangeEvents\\": "examples/server/change-events/",
       "Mcp\\Example\\Server\\ClientCommunication\\": "examples/server/client-communication/",
       "Mcp\\Example\\Server\\ClientLogging\\": "examples/server/client-logging/",
       "Mcp\\Example\\Server\\CombinedRegistration\\": "examples/server/combined-registration/",
