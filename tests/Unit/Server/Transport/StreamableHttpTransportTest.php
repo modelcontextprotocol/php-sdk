@@ -80,10 +80,10 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertSame(
-            'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Content-Type, '.StreamableHttpTransport::MCP_SESSION_ID_HEADER.', Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
             $response->getHeaderLine('Access-Control-Allow-Headers')
         );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame(StreamableHttpTransport::MCP_SESSION_ID_HEADER, $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('transport replaces existing CORS headers on the response')]
@@ -120,10 +120,10 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('https://another.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertSame(
-            'Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
+            'Content-Type, '.StreamableHttpTransport::MCP_SESSION_ID_HEADER.', Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept',
             $response->getHeaderLine('Access-Control-Allow-Headers')
         );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame(StreamableHttpTransport::MCP_SESSION_ID_HEADER, $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('middleware runs before transport handles the request')]
