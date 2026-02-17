@@ -39,7 +39,7 @@ interface TransportInterface
      *
      * @throws \Mcp\Exception\ConnectionException
      */
-    public function connectAndInitialize(): void;
+    public function connect(): void;
 
     /**
      * Send a message to the server immediately.

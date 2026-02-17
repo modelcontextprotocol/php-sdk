@@ -31,10 +31,10 @@ class ClientState implements ClientStateInterface
     private ?Implementation $serverInfo = null;
     private ?string $instructions = null;
 
-    /** @var array<int, array{request_id: int, timestamp: int, timeout: int}> */
+    /** @var array<int|string, array{request_id: int|string, timestamp: int, timeout: int}> */
     private array $pendingRequests = [];
 
-    /** @var array<int, array<string, mixed>> */
+    /** @var array<int|string, array<string, mixed>> */
     private array $responses = [];
 
     /** @var array<int, array{token: string, progress: float, total: ?float, message: ?string}> */
@@ -45,7 +45,7 @@ class ClientState implements ClientStateInterface
         return $this->requestIdCounter++;
     }
 
-    public function addPendingRequest(int $requestId, int $timeout): void
+    public function addPendingRequest(int|string $requestId, int $timeout): void
     {
         $this->pendingRequests[$requestId] = [
             'request_id' => $requestId,
@@ -54,7 +54,7 @@ class ClientState implements ClientStateInterface
         ];
     }
 
-    public function removePendingRequest(int $requestId): void
+    public function removePendingRequest(int|string $requestId): void
     {
         unset($this->pendingRequests[$requestId]);
     }
@@ -64,12 +64,12 @@ class ClientState implements ClientStateInterface
         return $this->pendingRequests;
     }
 
-    public function storeResponse(int $requestId, array $responseData): void
+    public function storeResponse(int|string $requestId, array $responseData): void
     {
         $this->responses[$requestId] = $responseData;
     }
 
-    public function consumeResponse(int $requestId): Response|Error|null
+    public function consumeResponse(int|string $requestId): Response|Error|null
     {
         if (!isset($this->responses[$requestId])) {
             return null;

@@ -82,7 +82,7 @@ class Client
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        $transport->connectAndInitialize();
+        $transport->connect();
 
         $this->logger->info('Client connected and initialized');
     }
