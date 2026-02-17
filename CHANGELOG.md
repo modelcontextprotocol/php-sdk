@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Rename `Mcp\Server\Session\Psr16StoreSession` to `Mcp\Server\Session\Psr16SessionStore`
+* Add missing handlers for resource subscribe/unsubscribe and persist subscriptions via session
 
 0.3.0
 -----
