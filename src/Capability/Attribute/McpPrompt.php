@@ -20,7 +20,7 @@ use Mcp\Schema\Icon;
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 #[\Attribute(\Attribute::TARGET_METHOD | \Attribute::TARGET_CLASS)]
-final class McpPrompt
+class McpPrompt
 {
     /**
      * @param ?string               $name        overrides the prompt name (defaults to method name)
