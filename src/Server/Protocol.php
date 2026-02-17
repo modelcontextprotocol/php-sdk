@@ -21,9 +21,8 @@ use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
-use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
-use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -65,8 +64,7 @@ class Protocol
         private readonly array $requestHandlers,
         private readonly array $notificationHandlers,
         private readonly MessageFactory $messageFactory,
-        private readonly SessionFactoryInterface $sessionFactory,
-        private readonly SessionStoreInterface $sessionStore,
+        private readonly SessionManagerInterface $sessionManager,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -106,7 +104,7 @@ class Protocol
     {
         $this->logger->info('Received message to process.', ['message' => $input]);
 
-        $this->gcSessions();
+        $this->sessionManager->gc();
 
         try {
             $messages = $this->messageFactory->create($input);
@@ -367,7 +365,7 @@ class Protocol
      */
     public function consumeOutgoingMessages(Uuid $sessionId): array
     {
-        $session = $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
+        $session = $this->sessionManager->createWithId($sessionId);
         $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
         $session->set(self::SESSION_OUTGOING_QUEUE, []);
         $session->save();
@@ -386,7 +384,7 @@ class Protocol
      */
     public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
     {
-        $session = $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
+        $session = $this->sessionManager->createWithId($sessionId);
         $responseData = $session->get(self::SESSION_RESPONSES.".{$requestId}");
 
         if (null === $responseData) {
@@ -428,7 +426,7 @@ class Protocol
      */
     public function getPendingRequests(Uuid $sessionId): array
     {
-        $session = $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
+        $session = $this->sessionManager->createWithId($sessionId);
 
         return $session->get(self::SESSION_PENDING_REQUESTS, []);
     }
@@ -455,7 +453,7 @@ class Protocol
             return;
         }
 
-        $session = $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
+        $session = $this->sessionManager->createWithId($sessionId);
 
         $payloadSessionId = $yieldedValue['session_id'] ?? null;
         if (\is_string($payloadSessionId) && $payloadSessionId !== $sessionId->toRfc4122()) {
@@ -539,7 +537,7 @@ class Protocol
                 return null;
             }
 
-            $session = $this->sessionFactory->create($this->sessionStore);
+            $session = $this->sessionManager->create();
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
             ]);
@@ -556,33 +554,14 @@ class Protocol
             return null;
         }
 
-        if (!$this->sessionStore->exists($sessionId)) {
+        if (!$this->sessionManager->exists($sessionId)) {
             $error = Error::forInvalidRequest('Session not found or has expired.');
             $this->sendResponse($transport, $error, null, ['status_code' => 404]);
 
             return null;
         }
 
-        return $this->sessionFactory->createWithId($sessionId, $this->sessionStore);
-    }
-
-    /**
-     * Run garbage collection on expired sessions.
-     * Uses the session store's internal TTL configuration.
-     */
-    private function gcSessions(): void
-    {
-        if (random_int(0, 100) > 1) {
-            return;
-        }
-
-        $deletedSessions = $this->sessionStore->gc();
-        if (!empty($deletedSessions)) {
-            $this->logger->debug('Garbage collected expired sessions.', [
-                'count' => \count($deletedSessions),
-                'session_ids' => array_map(static fn (Uuid $id) => $id->toRfc4122(), $deletedSessions),
-            ]);
-        }
+        return $this->sessionManager->createWithId($sessionId);
     }
 
     /**
@@ -590,7 +569,7 @@ class Protocol
      */
     public function destroySession(Uuid $sessionId): void
     {
-        $this->sessionStore->destroy($sessionId);
+        $this->sessionManager->destroy($sessionId);
         $this->logger->info('Session destroyed.', ['session_id' => $sessionId->toRfc4122()]);
     }
 }

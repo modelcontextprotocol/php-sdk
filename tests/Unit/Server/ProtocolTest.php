@@ -17,9 +17,8 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
-use Mcp\Server\Session\SessionFactoryInterface;
 use Mcp\Server\Session\SessionInterface;
-use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -28,15 +27,13 @@ use Symfony\Component\Uid\Uuid;
 
 final class ProtocolTest extends TestCase
 {
-    private MockObject&SessionFactoryInterface $sessionFactory;
-    private MockObject&SessionStoreInterface $sessionStore;
+    private MockObject&SessionManagerInterface $sessionManager;
     /** @var MockObject&TransportInterface<mixed> */
     private MockObject&TransportInterface $transport;
 
     protected function setUp(): void
     {
-        $this->sessionFactory = $this->createMock(SessionFactoryInterface::class);
-        $this->sessionStore = $this->createMock(SessionStoreInterface::class);
+        $this->sessionManager = $this->createMock(SessionManagerInterface::class);
         $this->transport = $this->createMock(TransportInterface::class);
     }
 
@@ -57,15 +54,14 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         $protocol = new Protocol(
             requestHandlers: [],
             notificationHandlers: [$handlerA, $handlerB, $handlerC],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -93,8 +89,8 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
         $session->method('getId')->willReturn(Uuid::v4());
 
         // Configure session mock for queue operations
@@ -122,8 +118,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [$handlerA, $handlerB, $handlerC],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -160,8 +155,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -191,8 +185,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $protocol->processInput(
@@ -223,8 +216,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $protocol->processInput(
@@ -237,7 +229,7 @@ final class ProtocolTest extends TestCase
     #[TestDox('Non-existent session ID returns error')]
     public function testNonExistentSessionIdReturnsError(): void
     {
-        $this->sessionStore->method('exists')->willReturn(false);
+        $this->sessionManager->method('exists')->willReturn(false);
 
         $this->transport->expects($this->once())
             ->method('send')
@@ -257,8 +249,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -288,8 +279,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $protocol->processInput(
@@ -304,8 +294,8 @@ final class ProtocolTest extends TestCase
     {
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // Configure session mock for queue operations
         $queue = [];
@@ -332,8 +322,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -357,8 +346,8 @@ final class ProtocolTest extends TestCase
     {
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // Configure session mock for queue operations
         $queue = [];
@@ -385,8 +374,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -415,8 +403,8 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // Configure session mock for queue operations
         $queue = [];
@@ -443,8 +431,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [$handler],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -473,8 +460,8 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // Configure session mock for queue operations
         $queue = [];
@@ -501,8 +488,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [$handler],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -531,15 +517,14 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         $protocol = new Protocol(
             requestHandlers: [],
             notificationHandlers: [$handler],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -563,8 +548,8 @@ final class ProtocolTest extends TestCase
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn($sessionId);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // Configure session mock for queue operations
         $queue = [];
@@ -591,8 +576,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [$handler],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $protocol->processInput(
@@ -642,8 +626,8 @@ final class ProtocolTest extends TestCase
             }
         });
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         // The protocol now queues responses instead of sending them directly
         $session->expects($this->exactly(2))
@@ -653,8 +637,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [$handlerA],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -679,8 +662,8 @@ final class ProtocolTest extends TestCase
     {
         $session = $this->createMock(SessionInterface::class);
 
-        $this->sessionFactory->method('createWithId')->willReturn($session);
-        $this->sessionStore->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         $session->expects($this->once())->method('save');
 
@@ -688,8 +671,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $sessionId = Uuid::v4();
@@ -705,7 +687,7 @@ final class ProtocolTest extends TestCase
     {
         $sessionId = Uuid::v4();
 
-        $this->sessionStore->expects($this->once())
+        $this->sessionManager->expects($this->once())
             ->method('destroy')
             ->with($sessionId);
 
@@ -713,8 +695,7 @@ final class ProtocolTest extends TestCase
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionFactory: $this->sessionFactory,
-            sessionStore: $this->sessionStore,
+            sessionManager: $this->sessionManager,
         );
 
         $protocol->destroySession($sessionId);
