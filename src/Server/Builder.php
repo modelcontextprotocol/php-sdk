@@ -23,6 +23,7 @@ use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -36,8 +37,8 @@ use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
-use Mcp\Server\Session\SessionFactory;
-use Mcp\Server\Session\SessionFactoryInterface;
+use Mcp\Server\Session\SessionManager;
+use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -70,11 +71,9 @@ final class Builder
 
     private ?DiscovererInterface $discoverer = null;
 
-    private ?SessionFactoryInterface $sessionFactory = null;
+    private ?SessionManagerInterface $sessionManager = null;
 
     private ?SessionStoreInterface $sessionStore = null;
-
-    private int $sessionTtl = 3600;
 
     private int $paginationLimit = 50;
 
@@ -321,13 +320,15 @@ final class Builder
     }
 
     public function setSession(
-        SessionStoreInterface $sessionStore,
-        SessionFactoryInterface $sessionFactory = new SessionFactory(),
-        int $ttl = 3600,
+        ?SessionStoreInterface $sessionStore = null,
+        ?SessionManagerInterface $sessionManager = null,
     ): self {
-        $this->sessionFactory = $sessionFactory;
         $this->sessionStore = $sessionStore;
-        $this->sessionTtl = $ttl;
+        $this->sessionManager = $sessionManager;
+
+        if (null !== $sessionManager && null !== $sessionStore) {
+            throw new InvalidArgumentException('Cannot set both SessionStore and SessionManager. Set only one or the other.');
+        }
 
         return $this;
     }
@@ -506,9 +507,10 @@ final class Builder
             new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 
-        $sessionTtl = $this->sessionTtl ?? 3600;
-        $sessionFactory = $this->sessionFactory ?? new SessionFactory();
-        $sessionStore = $this->sessionStore ?? new InMemorySessionStore($sessionTtl);
+        $sessionManager = $this->sessionManager ?? new SessionManager(
+            $this->sessionStore ?? new InMemorySessionStore(),
+            $logger,
+        );
 
         if (null !== $this->discoveryBasePath) {
             $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
@@ -561,8 +563,7 @@ final class Builder
             requestHandlers: $requestHandlers,
             notificationHandlers: $notificationHandlers,
             messageFactory: $messageFactory,
-            sessionFactory: $sessionFactory,
-            sessionStore: $sessionStore,
+            sessionManager: $sessionManager,
             logger: $logger,
             eventDispatcher: $this->eventDispatcher,
         );

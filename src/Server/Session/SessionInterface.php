@@ -77,9 +77,4 @@ interface SessionInterface extends \JsonSerializable
      * @param array<string, mixed> $attributes
      */
     public function hydrate(array $attributes): void;
-
-    /**
-     * Get the session store instance.
-     */
-    public function getStore(): SessionStoreInterface;
 }
