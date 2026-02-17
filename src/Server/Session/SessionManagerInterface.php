@@ -19,17 +19,29 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-interface SessionFactoryInterface
+interface SessionManagerInterface
 {
     /**
      * Creates a new session with an auto-generated UUID.
      * This is the standard factory method for creating sessions.
      */
-    public function create(SessionStoreInterface $store): SessionInterface;
+    public function create(): SessionInterface;
 
     /**
      * Creates a session with a specific UUID.
      * Use this when you need to reconstruct a session with a known ID.
      */
-    public function createWithId(Uuid $id, SessionStoreInterface $store): SessionInterface;
+    public function createWithId(Uuid $id): SessionInterface;
+
+    /**
+     * Checks if a session with the given UUID exists.
+     */
+    public function exists(Uuid $id): bool;
+
+    /**
+     * Destroys the session with the given UUID.
+     */
+    public function destroy(Uuid $sessionId): bool;
+
+    public function gc(): void;
 }

@@ -44,11 +44,6 @@ class Session implements SessionInterface
         return $this->id;
     }
 
-    public function getStore(): SessionStoreInterface
-    {
-        return $this->store;
-    }
-
     public function save(): bool
     {
         return $this->store->write($this->id, json_encode($this->data, \JSON_THROW_ON_ERROR));

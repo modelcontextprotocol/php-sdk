@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Rename `Mcp\Server\Session\Psr16StoreSession` to `Mcp\Server\Session\Psr16SessionStore`
+* Introduce `SessionManager` to encapsulate session handling (replaces `SessionFactory`) and move garbage collection logic from `Protocol`.
 
 0.3.0
 -----
