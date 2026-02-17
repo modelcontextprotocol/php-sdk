@@ -67,7 +67,7 @@ class StdioTransport extends BaseTransport
         parent::__construct($logger);
     }
 
-    public function connectAndInitialize(): void
+    public function connect(): void
     {
         $this->spawnProcess();
 

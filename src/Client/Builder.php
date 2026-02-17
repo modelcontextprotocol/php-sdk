@@ -25,7 +25,7 @@ use Psr\Log\NullLogger;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Builder
+final class Builder
 {
     private string $name = 'mcp-php-client';
     private string $version = '1.0.0';

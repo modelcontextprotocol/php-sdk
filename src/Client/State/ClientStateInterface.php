@@ -34,37 +34,37 @@ interface ClientStateInterface
     /**
      * Add a pending request to track.
      *
-     * @param int $requestId The request ID
-     * @param int $timeout   Timeout in seconds
+     * @param int|string $requestId The request ID
+     * @param int        $timeout   Timeout in seconds
      */
-    public function addPendingRequest(int $requestId, int $timeout): void;
+    public function addPendingRequest(int|string $requestId, int $timeout): void;
 
     /**
      * Remove a pending request.
      */
-    public function removePendingRequest(int $requestId): void;
+    public function removePendingRequest(int|string $requestId): void;
 
     /**
      * Get all pending requests.
      *
-     * @return array<int, array{request_id: int, timestamp: int, timeout: int}>
+     * @return array<int|string, array{request_id: int|string, timestamp: int, timeout: int}>
      */
     public function getPendingRequests(): array;
 
     /**
      * Store a received response.
      *
-     * @param int                  $requestId    The request ID
+     * @param int|string           $requestId    The request ID
      * @param array<string, mixed> $responseData The raw response data
      */
-    public function storeResponse(int $requestId, array $responseData): void;
+    public function storeResponse(int|string $requestId, array $responseData): void;
 
     /**
      * Check and consume a response for a request ID.
      *
      * @return Response<array<string, mixed>>|Error|null
      */
-    public function consumeResponse(int $requestId): Response|Error|null;
+    public function consumeResponse(int|string $requestId): Response|Error|null;
 
     /**
      * Set initialization state.

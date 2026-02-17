@@ -73,7 +73,7 @@ class HttpTransport extends BaseTransport
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
-    public function connectAndInitialize(): void
+    public function connect(): void
     {
         $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
 

@@ -12,6 +12,7 @@
 namespace Mcp\Client\Transport;
 
 use Mcp\Client\State\ClientStateInterface;
+use Mcp\Exception\RuntimeException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -74,12 +75,12 @@ abstract class BaseTransport implements TransportInterface
      *
      * @return mixed The result from the initialization callback
      *
-     * @throws \RuntimeException If no initialize listener is registered
+     * @throws RuntimeException If no initialize listener is registered
      */
     protected function handleInitialize(): mixed
     {
         if (!\is_callable($this->initializeCallback)) {
-            throw new \RuntimeException('No initialize listener registered');
+            throw new RuntimeException('No initialize listener registered');
         }
 
         return ($this->initializeCallback)();
