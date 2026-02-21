@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Exception\RuntimeException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -64,7 +65,7 @@ class OidcDiscovery
      *
      * @return array<string, mixed> The authorization server metadata
      *
-     * @throws \RuntimeException If discovery fails
+     * @throws RuntimeException If discovery fails
      */
     public function discover(string $issuer): array
     {
@@ -93,14 +94,14 @@ class OidcDiscovery
      *
      * @return string The JWKS URI
      *
-     * @throws \RuntimeException If JWKS URI is not found in metadata
+     * @throws RuntimeException If JWKS URI is not found in metadata
      */
     public function getJwksUri(string $issuer): string
     {
         $metadata = $this->discover($issuer);
 
         if (!isset($metadata['jwks_uri']) || !\is_string($metadata['jwks_uri'])) {
-            throw new \RuntimeException('Authorization server metadata does not contain jwks_uri.');
+            throw new RuntimeException('Authorization server metadata does not contain jwks_uri.');
         }
 
         return $metadata['jwks_uri'];
@@ -113,7 +114,7 @@ class OidcDiscovery
      *
      * @return array<string, mixed> The JWKS
      *
-     * @throws \RuntimeException If fetching fails
+     * @throws RuntimeException If fetching fails
      */
     public function fetchJwks(string $issuer): array
     {
@@ -162,14 +163,14 @@ class OidcDiscovery
      *
      * @return string The token endpoint URL
      *
-     * @throws \RuntimeException If token endpoint is not found
+     * @throws RuntimeException If token endpoint is not found
      */
     public function getTokenEndpoint(string $issuer): string
     {
         $metadata = $this->discover($issuer);
 
         if (!isset($metadata['token_endpoint']) || !\is_string($metadata['token_endpoint'])) {
-            throw new \RuntimeException('Authorization server metadata does not contain token_endpoint.');
+            throw new RuntimeException('Authorization server metadata does not contain token_endpoint.');
         }
 
         return $metadata['token_endpoint'];
@@ -182,14 +183,14 @@ class OidcDiscovery
      *
      * @return string The authorization endpoint URL
      *
-     * @throws \RuntimeException If authorization endpoint is not found
+     * @throws RuntimeException If authorization endpoint is not found
      */
     public function getAuthorizationEndpoint(string $issuer): string
     {
         $metadata = $this->discover($issuer);
 
         if (!isset($metadata['authorization_endpoint']) || !\is_string($metadata['authorization_endpoint'])) {
-            throw new \RuntimeException('Authorization server metadata does not contain authorization_endpoint.');
+            throw new RuntimeException('Authorization server metadata does not contain authorization_endpoint.');
         }
 
         return $metadata['authorization_endpoint'];
@@ -204,7 +205,7 @@ class OidcDiscovery
         $parsed = parse_url($issuer);
 
         if (false === $parsed || !isset($parsed['scheme'], $parsed['host'])) {
-            throw new \RuntimeException(\sprintf('Invalid issuer URL: %s', $issuer));
+            throw new RuntimeException(\sprintf('Invalid issuer URL: %s', $issuer));
         }
 
         $scheme = $parsed['scheme'];
@@ -243,13 +244,13 @@ class OidcDiscovery
                 }
 
                 return $metadata;
-            } catch (\RuntimeException $e) {
+            } catch (RuntimeException $e) {
                 $lastException = $e;
                 continue;
             }
         }
 
-        throw new \RuntimeException(\sprintf('Failed to discover authorization server metadata for issuer: %s', $issuer), 0, $lastException);
+        throw new RuntimeException(\sprintf('Failed to discover authorization server metadata for issuer: %s', $issuer), 0, $lastException);
     }
 
     /**
@@ -263,7 +264,7 @@ class OidcDiscovery
         $response = $this->httpClient->sendRequest($request);
 
         if ($response->getStatusCode() >= 400) {
-            throw new \RuntimeException(\sprintf('HTTP request to %s failed with status %d', $url, $response->getStatusCode()));
+            throw new RuntimeException(\sprintf('HTTP request to %s failed with status %d', $url, $response->getStatusCode()));
         }
 
         $body = $response->getBody()->__toString();
@@ -271,11 +272,11 @@ class OidcDiscovery
         try {
             $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new \RuntimeException(\sprintf('Failed to decode JSON from %s: %s', $url, $e->getMessage()), 0, $e);
+            throw new RuntimeException(\sprintf('Failed to decode JSON from %s: %s', $url, $e->getMessage()), 0, $e);
         }
 
         if (!\is_array($data)) {
-            throw new \RuntimeException(\sprintf('Expected JSON object from %s, got %s', $url, \gettype($data)));
+            throw new RuntimeException(\sprintf('Expected JSON object from %s, got %s', $url, \gettype($data)));
         }
 
         return $data;

@@ -11,6 +11,8 @@
 
 namespace Mcp\Server\Transport\Middleware;
 
+use Mcp\Exception\InvalidArgumentException;
+
 /**
  * Represents OAuth 2.0 Protected Resource Metadata (RFC 9728).
  *
@@ -36,7 +38,7 @@ class ProtectedResourceMetadata
         private readonly array $extra = [],
     ) {
         if (empty($authorizationServers)) {
-            throw new \InvalidArgumentException('Protected resource metadata requires at least one authorization server.');
+            throw new InvalidArgumentException('Protected resource metadata requires at least one authorization server.');
         }
     }
 

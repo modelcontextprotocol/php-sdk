@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Middleware;
 
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\Transport\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Middleware\AuthorizationResult;
 use Mcp\Server\Transport\Middleware\AuthorizationTokenValidatorInterface;
@@ -33,7 +34,7 @@ class AuthorizationMiddlewareTest extends TestCase
         $validator = new class implements AuthorizationTokenValidatorInterface {
             public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
             {
-                throw new \RuntimeException('Validator should not be called without a token.');
+                throw new RuntimeException('Validator should not be called without a token.');
             }
         };
 
