@@ -1,0 +1,32 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: mcp-php-microsoft
+    volumes:
+      - ../../../:/app:ro
+      - ./server.php:/app/examples/server/oauth-microsoft/server.php:ro
+      - ./McpElements.php:/app/examples/server/oauth-microsoft/McpElements.php:ro
+    environment:
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+    networks:
+      - mcp-network
+
+  nginx:
+    image: nginx:alpine
+    container_name: mcp-nginx-microsoft
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - php
+    networks:
+      - mcp-network
+
+networks:
+  mcp-network:
+    driver: bridge
