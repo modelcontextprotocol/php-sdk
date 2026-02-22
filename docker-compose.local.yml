@@ -1,0 +1,39 @@
+services:
+  php:
+    build:
+      context: .
+      dockerfile: .docker/php-local.Dockerfile
+    working_dir: /app
+    user: "${UID:-1000}:${GID:-1000}"
+    environment:
+      COMPOSER_ALLOW_SUPERUSER: "1"
+      COMPOSER_HOME: /tmp/composer
+      COMPOSER_CACHE_DIR: /tmp/composer/cache
+      XDEBUG_MODE: coverage
+    volumes:
+      - ./:/app
+      - composer-cache:/tmp/composer/cache
+    tty: true
+    stdin_open: true
+    command: sh -lc "while sleep 3600; do :; done"
+
+  php-fpm:
+    image: php:8.4-fpm-alpine
+    profiles: ["http"]
+    working_dir: /app
+    volumes:
+      - ./:/app
+
+  nginx:
+    image: nginx:1.26-alpine
+    profiles: ["http"]
+    ports:
+      - "8000:80"
+    volumes:
+      - ./.docker/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./:/app:ro
+    depends_on:
+      - php-fpm
+
+volumes:
+  composer-cache:

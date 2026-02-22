@@ -39,7 +39,14 @@ services:
       keycloak:
         condition: service_healthy
     command: >
-      sh -c "composer install --no-interaction --quiet 2>/dev/null || true && php-fpm"
+      sh -c "mkdir -p /app/examples/server/oauth-keycloak/sessions;
+      chmod -R 0777 /app/examples/server/oauth-keycloak/sessions;
+      touch /app/examples/server/oauth-keycloak/dev.log;
+      chmod 0666 /app/examples/server/oauth-keycloak/dev.log;
+      touch /app/examples/server/dev.log;
+      chmod 0666 /app/examples/server/dev.log;
+      composer install --no-interaction --quiet 2>/dev/null || true;
+      php-fpm"
     networks:
       - mcp-network
 

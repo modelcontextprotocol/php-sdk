@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport\Middleware;
+namespace Mcp\Server\Transport\Http\OAuth;
 
 /**
  * Describes the outcome of an authorization decision.

@@ -5,6 +5,7 @@ This example demonstrates MCP server authorization using Microsoft Entra ID (for
 ## Features
 
 - JWT token validation with Microsoft Entra ID
+- Microsoft-specific validator/discovery overrides for Entra quirks
 - Protected Resource Metadata (RFC 9728)
 - MCP tools that access Microsoft claims
 - Optional Microsoft Graph API integration
@@ -148,6 +149,8 @@ curl -X POST http://localhost:8000/mcp \
 - `nginx/default.conf` - Nginx configuration
 - `env.example` - Environment variables template
 - `server.php` - MCP server with OAuth middleware
+- `MicrosoftJwtTokenValidator.php` - Example-specific validator for Graph/non-Graph tokens
+- `MicrosoftOidcMetadataPolicy.php` - Lenient metadata validation policy
 - `McpElements.php` - MCP tools including Graph API integration
 
 ## Environment Variables
@@ -180,7 +183,7 @@ Microsoft uses different issuer URLs depending on the token flow:
 - v2.0 endpoint (user/delegated flows): `https://login.microsoftonline.com/{tenant}/v2.0`
 - v1.0 endpoint (client credentials flow): `https://sts.windows.net/{tenant}/`
 
-This example **automatically accepts both formats** by configuring multiple issuers in the `JwtTokenValidator`.
+This example **automatically accepts both formats** by configuring multiple issuers in the `MicrosoftJwtTokenValidator`.
 Check your token's `iss` claim to verify which format is being used.
 
 ### "Invalid audience" error
@@ -192,6 +195,11 @@ the audience might be `api://your-client-id`.
 
 Microsoft's JWKS endpoint is public. Ensure your container can reach:
 `https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`
+
+### `code_challenge_methods_supported` missing in discovery metadata
+
+This example configures `OidcDiscovery` with `MicrosoftOidcMetadataPolicy`, so this
+field can be missing or malformed and will not fail discovery.
 
 ### Graph API errors
 

@@ -9,10 +9,11 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\Transport\Middleware;
+namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Firebase\JWT\JWT;
-use Mcp\Server\Transport\Middleware\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\JwksProvider;
+use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -20,6 +21,11 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
+/**
+ * Tests JwtTokenValidator for signature, claims, and scope extraction.
+ *
+ * @author Volodymyr Panivko <sveneld300@gmail.com>
+ */
 class JwtTokenValidatorTest extends TestCase
 {
     #[TestDox('valid JWT is allowed and claims/scopes are exposed as request attributes')]
@@ -39,8 +45,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: $jwksUri,
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -59,8 +64,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $result = $validator->validate($request, $token);
+        $result = $validator->validate($token);
 
         $this->assertTrue($result->isAllowed());
         $attributes = $result->getAttributes();
@@ -90,8 +94,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: $jwksUri,
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -108,8 +111,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $result = $validator->validate($request, $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
@@ -134,8 +136,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: ['mcp-api'],
             jwksUri: $jwksUri,
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -152,56 +153,12 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $result = $validator->validate($request, $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
         $this->assertSame('invalid_token', $result->getError());
         $this->assertSame('Token audience mismatch.', $result->getErrorDescription());
-    }
-
-    #[TestDox('Graph token (nonce header) is validated by claims without signature verification')]
-    public function testGraphTokenWithNonceHeaderIsAllowed(): void
-    {
-        $factory = new Psr17Factory();
-
-        // Build a token with a header containing "nonce" to trigger validateGraphToken().
-        $header = $this->b64urlEncode(json_encode([
-            'alg' => 'none',
-            'typ' => 'JWT',
-            'nonce' => 'abc',
-        ], \JSON_THROW_ON_ERROR));
-
-        $payload = $this->b64urlEncode(json_encode([
-            'iss' => 'https://login.microsoftonline.com/tenant-id/v2.0',
-            'aud' => 'mcp-api',
-            'sub' => 'user-graph',
-            'scp' => 'files.read files.write',
-            'iat' => time() - 10,
-            'exp' => time() + 600,
-        ], \JSON_THROW_ON_ERROR));
-
-        $token = $header.'.'.$payload.'.';
-
-        $validator = new JwtTokenValidator(
-            issuer: ['https://auth.example.com'],
-            audience: ['mcp-api'],
-            jwksUri: 'https://unused.example.com/jwks',
-            httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
-            requestFactory: $factory,
-            scopeClaim: 'scp',
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $result = $validator->validate($request, $token);
-
-        $this->assertTrue($result->isAllowed());
-        $attributes = $result->getAttributes();
-
-        $this->assertTrue($attributes['oauth.graph_token']);
-        $this->assertSame(['files.read', 'files.write'], $attributes['oauth.scopes']);
-        $this->assertSame('user-graph', $attributes['oauth.subject']);
     }
 
     #[TestDox('expired token yields unauthorized invalid_token with expired message')]
@@ -220,8 +177,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -237,7 +193,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
@@ -261,8 +217,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -279,7 +234,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
@@ -307,8 +262,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -324,7 +278,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
@@ -341,14 +295,13 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $this->createHttpClientMock([$factory->createResponse(500)]),
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $this->createHttpClientMock([$factory->createResponse(500)]), requestFactory: $factory),
         );
 
-        // Any token without the Graph nonce will attempt JWKS and fail.
+        // Unsigned token forces the validator to load JWKS and fail on HTTP 500.
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame('invalid_token', $result->getError());
@@ -370,13 +323,12 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame('invalid_token', $result->getError());
@@ -398,13 +350,12 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame('invalid_token', $result->getError());
@@ -427,8 +378,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -445,7 +395,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
         $this->assertTrue($result->isAllowed());
 
         $scoped = $validator->requireScopes($result, ['mcp:read', 'mcp:write']);
@@ -471,8 +421,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -489,82 +438,11 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
+        $result = $validator->validate($token);
         $this->assertTrue($result->isAllowed());
 
         $scoped = $validator->requireScopes($result, ['mcp:read']);
         $this->assertTrue($scoped->isAllowed());
-    }
-
-    #[TestDox('Graph token invalid format is unauthorized')]
-    public function testGraphTokenInvalidFormatIsUnauthorized(): void
-    {
-        $factory = new Psr17Factory();
-
-        $header = $this->b64urlEncode(json_encode([
-            'alg' => 'none',
-            'typ' => 'JWT',
-            'nonce' => 'abc',
-        ], \JSON_THROW_ON_ERROR));
-
-        // Trigger the Graph token path (nonce in header) with an empty payload segment.
-        // This makes validateGraphToken() run and fail decoding the payload.
-        $token = $header.'..';
-
-        $validator = new JwtTokenValidator(
-            issuer: ['https://auth.example.com'],
-            audience: ['mcp-api'],
-            jwksUri: 'https://unused.example.com/jwks',
-            httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
-            requestFactory: $factory,
-            scopeClaim: 'scp',
-        );
-
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Invalid token payload.', $result->getErrorDescription());
-    }
-
-    #[TestDox('Graph token invalid issuer is unauthorized with graph issuer message')]
-    public function testGraphTokenInvalidIssuerIsUnauthorized(): void
-    {
-        $factory = new Psr17Factory();
-
-        $header = $this->b64urlEncode(json_encode([
-            'alg' => 'none',
-            'typ' => 'JWT',
-            'nonce' => 'abc',
-        ], \JSON_THROW_ON_ERROR));
-
-        $payload = $this->b64urlEncode(json_encode([
-            'iss' => 'https://evil.example.com',
-            'aud' => 'mcp-api',
-            'sub' => 'user-graph',
-            'scp' => 'files.read',
-            'iat' => time() - 10,
-            'exp' => time() + 600,
-        ], \JSON_THROW_ON_ERROR));
-
-        $token = $header.'.'.$payload.'.';
-
-        $validator = new JwtTokenValidator(
-            issuer: ['https://auth.example.com'],
-            audience: ['mcp-api'],
-            jwksUri: 'https://unused.example.com/jwks',
-            httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
-            requestFactory: $factory,
-            scopeClaim: 'scp',
-        );
-
-        $result = $validator->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Invalid token issuer for Graph token.', $result->getErrorDescription());
     }
 
     #[TestDox('extractScopes returns empty array when scope claim is missing or invalid type')]
@@ -584,8 +462,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
         );
 
         $tokenMissing = JWT::encode(
@@ -601,7 +478,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $resultMissing = $validatorMissing->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $tokenMissing);
+        $resultMissing = $validatorMissing->validate($tokenMissing);
         $this->assertTrue($resultMissing->isAllowed());
         $this->assertSame([], $resultMissing->getAttributes()['oauth.scopes']);
 
@@ -612,8 +489,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            httpClient: $httpClient2,
-            requestFactory: $factory,
+            jwksProvider: new JwksProvider(httpClient: $httpClient2, requestFactory: $factory),
         );
 
         $tokenInvalid = JWT::encode(
@@ -630,7 +506,7 @@ class JwtTokenValidatorTest extends TestCase
             keyId: 'test-kid',
         );
 
-        $resultInvalid = $validatorInvalid->validate($factory->createServerRequest('GET', 'https://mcp.example.com/mcp'), $tokenInvalid);
+        $resultInvalid = $validatorInvalid->validate($tokenInvalid);
         $this->assertTrue($resultInvalid->isAllowed());
         $this->assertSame([], $resultInvalid->getAttributes()['oauth.scopes']);
     }

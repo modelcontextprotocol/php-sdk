@@ -9,13 +9,13 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\Transport\Middleware;
+namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
 use Mcp\Exception\RuntimeException;
-use Mcp\Server\Transport\Middleware\AuthorizationMiddleware;
-use Mcp\Server\Transport\Middleware\AuthorizationResult;
-use Mcp\Server\Transport\Middleware\AuthorizationTokenValidatorInterface;
-use Mcp\Server\Transport\Middleware\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -24,30 +24,32 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
+/**
+ * Tests AuthorizationMiddleware behavior for token validation and challenges.
+ *
+ * @author Volodymyr Panivko <sveneld300@gmail.com>
+ */
 class AuthorizationMiddlewareTest extends TestCase
 {
     #[TestDox('missing Authorization header returns 401 with metadata and scope guidance')]
     public function testMissingAuthorizationReturns401(): void
     {
         $factory = new Psr17Factory();
-        $metadata = new ProtectedResourceMetadata(['https://auth.example.com'], ['mcp:read']);
+        $resourceMetadata = new ProtectedResourceMetadata(
+            authorizationServers: ['https://auth.example.com'],
+            scopesSupported: ['mcp:read'],
+        );
         $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+            public function validate(string $accessToken): AuthorizationResult
             {
                 throw new RuntimeException('Validator should not be called without a token.');
             }
         };
 
         $middleware = new AuthorizationMiddleware(
-            $metadata,
-            $validator,
-            $factory,
-            $factory,
-            ['/.well-known/oauth-protected-resource'],
-            'https://mcp.example.com/.well-known/oauth-protected-resource',
-            static function (): array {
-                return ['mcp:read'];
-            },
+            validator: $validator,
+            resourceMetadata: $resourceMetadata,
+            responseFactory: $factory,
         );
 
         $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
@@ -78,21 +80,18 @@ class AuthorizationMiddlewareTest extends TestCase
     public function testMalformedAuthorizationReturns400(): void
     {
         $factory = new Psr17Factory();
-        $metadata = new ProtectedResourceMetadata(['https://auth.example.com']);
+        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
         $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+            public function validate(string $accessToken): AuthorizationResult
             {
                 return AuthorizationResult::allow();
             }
         };
 
         $middleware = new AuthorizationMiddleware(
-            $metadata,
-            $validator,
-            $factory,
-            $factory,
-            ['/.well-known/oauth-protected-resource'],
-            'https://mcp.example.com/.well-known/oauth-protected-resource',
+            validator: $validator,
+            resourceMetadata: $resourceMetadata,
+            responseFactory: $factory,
         );
 
         $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')
@@ -119,21 +118,18 @@ class AuthorizationMiddlewareTest extends TestCase
     public function testInsufficientScopeReturns403(): void
     {
         $factory = new Psr17Factory();
-        $metadata = new ProtectedResourceMetadata(['https://auth.example.com']);
+        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
         $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+            public function validate(string $accessToken): AuthorizationResult
             {
                 return AuthorizationResult::forbidden('insufficient_scope', 'Need more scopes.', ['mcp:write']);
             }
         };
 
         $middleware = new AuthorizationMiddleware(
-            $metadata,
-            $validator,
-            $factory,
-            $factory,
-            ['/.well-known/oauth-protected-resource'],
-            'https://mcp.example.com/.well-known/oauth-protected-resource',
+            validator: $validator,
+            resourceMetadata: $resourceMetadata,
+            responseFactory: $factory,
         );
 
         $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')
@@ -158,34 +154,28 @@ class AuthorizationMiddlewareTest extends TestCase
         $this->assertStringContainsString('scope="mcp:write"', $header);
     }
 
-    #[TestDox('metadata endpoint returns protected resource metadata JSON')]
-    public function testMetadataEndpointReturnsJson(): void
+    #[TestDox('metadata scopes are used in challenge when result has no scopes')]
+    public function testMetadataScopesAreUsedWhenResultHasNoScopes(): void
     {
         $factory = new Psr17Factory();
-        $metadata = new ProtectedResourceMetadata(
-            ['https://auth.example.com'],
-            ['mcp:read', 'mcp:write'],
+        $resourceMetadata = new ProtectedResourceMetadata(
+            authorizationServers: ['https://auth.example.com'],
+            scopesSupported: ['openid', 'profile'],
         );
         $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+            public function validate(string $accessToken): AuthorizationResult
             {
-                return AuthorizationResult::allow();
+                throw new RuntimeException('Validator should not be called without a token.');
             }
         };
 
         $middleware = new AuthorizationMiddleware(
-            $metadata,
-            $validator,
-            $factory,
-            $factory,
-            ['/.well-known/oauth-protected-resource'],
+            validator: $validator,
+            resourceMetadata: $resourceMetadata,
+            responseFactory: $factory,
         );
 
-        $request = $factory->createServerRequest(
-            'GET',
-            'https://mcp.example.com/.well-known/oauth-protected-resource',
-        );
-
+        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
         $handler = new class($factory) implements RequestHandlerInterface {
             public function __construct(private ResponseFactoryInterface $factory)
             {
@@ -198,32 +188,77 @@ class AuthorizationMiddlewareTest extends TestCase
         };
 
         $response = $middleware->process($request, $handler);
+        $header = $response->getHeaderLine('WWW-Authenticate');
 
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertStringContainsString(
+            'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"',
+            $header,
+        );
+        $this->assertStringContainsString('scope="openid profile"', $header);
+    }
 
-        $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
-        $this->assertSame(['https://auth.example.com'], $payload['authorization_servers']);
-        $this->assertSame(['mcp:read', 'mcp:write'], $payload['scopes_supported']);
+    #[TestDox('resource metadata object path and scopes are reflected in challenge')]
+    public function testResourceMetadataObjectProvidesMetadataAndScopes(): void
+    {
+        $factory = new Psr17Factory();
+        $validator = new class implements AuthorizationTokenValidatorInterface {
+            public function validate(string $accessToken): AuthorizationResult
+            {
+                throw new RuntimeException('Validator should not be called without a token.');
+            }
+        };
+
+        $resourceMetadata = new ProtectedResourceMetadata(
+            authorizationServers: ['https://auth.example.com'],
+            scopesSupported: ['openid', 'profile'],
+            metadataPaths: ['/oauth/resource-meta'],
+        );
+
+        $middleware = new AuthorizationMiddleware(
+            validator: $validator,
+            responseFactory: $factory,
+            resourceMetadata: $resourceMetadata,
+        );
+
+        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
+        $handler = new class($factory) implements RequestHandlerInterface {
+            public function __construct(private ResponseFactoryInterface $factory)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->factory->createResponse(200);
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+        $header = $response->getHeaderLine('WWW-Authenticate');
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertStringContainsString(
+            'resource_metadata="https://mcp.example.com/oauth/resource-meta"',
+            $header,
+        );
+        $this->assertStringContainsString('scope="openid profile"', $header);
     }
 
     #[TestDox('authorized requests reach the handler with attributes applied')]
     public function testAllowedRequestPassesAttributes(): void
     {
         $factory = new Psr17Factory();
-        $metadata = new ProtectedResourceMetadata(['https://auth.example.com']);
+        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
         $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+            public function validate(string $accessToken): AuthorizationResult
             {
                 return AuthorizationResult::allow(['subject' => 'user-1']);
             }
         };
 
         $middleware = new AuthorizationMiddleware(
-            $metadata,
-            $validator,
-            $factory,
-            $factory,
+            validator: $validator,
+            resourceMetadata: $resourceMetadata,
+            responseFactory: $factory,
         );
 
         $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')

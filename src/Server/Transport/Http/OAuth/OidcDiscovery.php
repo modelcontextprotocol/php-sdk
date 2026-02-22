@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport\Middleware;
+namespace Mcp\Server\Transport\Http\OAuth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
@@ -30,27 +30,79 @@ use Psr\SimpleCache\CacheInterface;
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
-class OidcDiscovery
+class OidcDiscovery implements OidcDiscoveryInterface
 {
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
+    private OidcDiscoveryMetadataPolicyInterface $metadataPolicy;
 
     private const CACHE_KEY_PREFIX = 'mcp_oidc_discovery_';
 
     /**
-     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param CacheInterface|null          $cache          PSR-16 cache for metadata (optional)
-     * @param int                          $cacheTtl       Cache TTL in seconds (default: 1 hour)
+     * @param ClientInterface|null                      $httpClient     PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null              $requestFactory PSR-17 request factory (auto-discovered if null)
+     * @param CacheInterface|null                       $cache          PSR-16 cache for metadata (optional)
+     * @param int                                       $cacheTtl       Cache TTL in seconds (default: 1 hour)
+     * @param OidcDiscoveryMetadataPolicyInterface|null $metadataPolicy Metadata validation policy
      */
     public function __construct(
         ?ClientInterface $httpClient = null,
         ?RequestFactoryInterface $requestFactory = null,
         private readonly ?CacheInterface $cache = null,
         private readonly int $cacheTtl = 3600,
+        ?OidcDiscoveryMetadataPolicyInterface $metadataPolicy = null,
     ) {
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
+        $this->metadataPolicy = $metadataPolicy ?? new StrictOidcDiscoveryMetadataPolicy();
+    }
+
+    /**
+     * Gets the JWKS URI from the authorization server metadata.
+     *
+     * @param string $issuer The issuer URL
+     *
+     * @return string The JWKS URI
+     *
+     * @throws RuntimeException If discover fails
+     */
+    public function getJwksUri(string $issuer): string
+    {
+        $metadata = $this->discover($issuer);
+
+        return $metadata['jwks_uri'];
+    }
+
+    /**
+     * Gets the token endpoint from the authorization server metadata.
+     *
+     * @param string $issuer The issuer URL
+     *
+     * @return string The token endpoint URL
+     *
+     * @throws RuntimeException If discover fails
+     */
+    public function getTokenEndpoint(string $issuer): string
+    {
+        $metadata = $this->discover($issuer);
+
+        return $metadata['token_endpoint'];
+    }
+
+    /**
+     * Gets the authorization endpoint from the authorization server metadata.
+     *
+     * @param string $issuer The issuer URL
+     *
+     * @return string The authorization endpoint URL
+     *
+     * @throws RuntimeException If discover fails
+     */
+    public function getAuthorizationEndpoint(string $issuer): string
+    {
+        $metadata = $this->discover($issuer);
+
+        return $metadata['authorization_endpoint'];
     }
 
     /**
@@ -73,7 +125,8 @@ class OidcDiscovery
 
         if (null !== $this->cache) {
             $cached = $this->cache->get($cacheKey);
-            if (\is_array($cached)) {
+            if ($this->metadataPolicy->isValid($cached)) {
+                /* @var array<string, mixed> $cached */
                 return $cached;
             }
         }
@@ -85,115 +138,6 @@ class OidcDiscovery
         }
 
         return $metadata;
-    }
-
-    /**
-     * Gets the JWKS URI from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The JWKS URI
-     *
-     * @throws RuntimeException If JWKS URI is not found in metadata
-     */
-    public function getJwksUri(string $issuer): string
-    {
-        $metadata = $this->discover($issuer);
-
-        if (!isset($metadata['jwks_uri']) || !\is_string($metadata['jwks_uri'])) {
-            throw new RuntimeException('Authorization server metadata does not contain jwks_uri.');
-        }
-
-        return $metadata['jwks_uri'];
-    }
-
-    /**
-     * Fetches JWKS (JSON Web Key Set) from the authorization server.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return array<string, mixed> The JWKS
-     *
-     * @throws RuntimeException If fetching fails
-     */
-    public function fetchJwks(string $issuer): array
-    {
-        $jwksUri = $this->getJwksUri($issuer);
-
-        $cacheKey = self::CACHE_KEY_PREFIX.'jwks_'.hash('sha256', $jwksUri);
-
-        if (null !== $this->cache) {
-            $cached = $this->cache->get($cacheKey);
-            if (\is_array($cached)) {
-                return $cached;
-            }
-        }
-
-        $jwks = $this->fetchJson($jwksUri);
-
-        if (null !== $this->cache) {
-            $this->cache->set($cacheKey, $jwks, $this->cacheTtl);
-        }
-
-        return $jwks;
-    }
-
-    /**
-     * Checks if the authorization server supports PKCE.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return bool True if PKCE is supported (code_challenge_methods_supported includes S256)
-     */
-    public function supportsPkce(string $issuer): bool
-    {
-        $metadata = $this->discover($issuer);
-
-        if (!isset($metadata['code_challenge_methods_supported']) || !\is_array($metadata['code_challenge_methods_supported'])) {
-            return false;
-        }
-
-        return \in_array('S256', $metadata['code_challenge_methods_supported'], true);
-    }
-
-    /**
-     * Gets the token endpoint from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The token endpoint URL
-     *
-     * @throws RuntimeException If token endpoint is not found
-     */
-    public function getTokenEndpoint(string $issuer): string
-    {
-        $metadata = $this->discover($issuer);
-
-        if (!isset($metadata['token_endpoint']) || !\is_string($metadata['token_endpoint'])) {
-            throw new RuntimeException('Authorization server metadata does not contain token_endpoint.');
-        }
-
-        return $metadata['token_endpoint'];
-    }
-
-    /**
-     * Gets the authorization endpoint from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The authorization endpoint URL
-     *
-     * @throws RuntimeException If authorization endpoint is not found
-     */
-    public function getAuthorizationEndpoint(string $issuer): string
-    {
-        $metadata = $this->discover($issuer);
-
-        if (!isset($metadata['authorization_endpoint']) || !\is_string($metadata['authorization_endpoint'])) {
-            throw new RuntimeException('Authorization server metadata does not contain authorization_endpoint.');
-        }
-
-        return $metadata['authorization_endpoint'];
     }
 
     /**
@@ -237,6 +181,9 @@ class OidcDiscovery
         foreach ($discoveryUrls as $url) {
             try {
                 $metadata = $this->fetchJson($url);
+                if (!$this->metadataPolicy->isValid($metadata)) {
+                    throw new RuntimeException(\sprintf('OIDC discovery response from %s has invalid format.', $url));
+                }
 
                 // Validate issuer claim matches
                 if (isset($metadata['issuer']) && $metadata['issuer'] !== $issuer) {
@@ -261,7 +208,11 @@ class OidcDiscovery
         $request = $this->requestFactory->createRequest('GET', $url)
             ->withHeader('Accept', 'application/json');
 
-        $response = $this->httpClient->sendRequest($request);
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (\Throwable $e) {
+            throw new RuntimeException(\sprintf('HTTP request to %s failed: %s', $url, $e->getMessage()), 0, $e);
+        }
 
         if ($response->getStatusCode() >= 400) {
             throw new RuntimeException(\sprintf('HTTP request to %s failed with status %d', $url, $response->getStatusCode()));

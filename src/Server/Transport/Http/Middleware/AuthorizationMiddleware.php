@@ -9,21 +9,23 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport\Middleware;
+namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Exception\RuntimeException;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Enforces MCP HTTP authorization requirements and serves protected resource metadata.
+ * Enforces MCP HTTP authorization requirements.
  *
  * This middleware:
- * - Serves Protected Resource Metadata (RFC 9728) at configured well-known paths
  * - Validates Bearer tokens via the configured validator
  * - Returns 401 with WWW-Authenticate header on missing/invalid tokens
  * - Returns 403 on insufficient scope
@@ -35,45 +37,22 @@ use Psr\Http\Server\RequestHandlerInterface;
 final class AuthorizationMiddleware implements MiddlewareInterface
 {
     private ResponseFactoryInterface $responseFactory;
-    private StreamFactoryInterface $streamFactory;
-
-    /** @var list<string> */
-    private array $metadataPaths;
-
-    /** @var callable(ServerRequestInterface): list<string>|null */
-    private $scopeProvider;
 
     /**
-     * @param ProtectedResourceMetadata                           $metadata            The protected resource metadata to serve
-     * @param AuthorizationTokenValidatorInterface                $validator           Token validator implementation
-     * @param ResponseFactoryInterface|null                       $responseFactory     PSR-17 response factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null                         $streamFactory       PSR-17 stream factory (auto-discovered if null)
-     * @param list<string>                                        $metadataPaths       Paths where metadata should be served (e.g., ["/.well-known/oauth-protected-resource"])
-     * @param string|null                                         $resourceMetadataUrl Explicit URL for the resource_metadata in WWW-Authenticate
-     * @param callable(ServerRequestInterface): list<string>|null $scopeProvider       Optional callback to determine required scopes per request
+     * @param AuthorizationTokenValidatorInterface $validator        Token validator implementation
+     * @param ProtectedResourceMetadata            $resourceMetadata Protected resource metadata object used for challenge hints
+     * @param ResponseFactoryInterface|null        $responseFactory  PSR-17 response factory (auto-discovered if null)
      */
     public function __construct(
-        private ProtectedResourceMetadata $metadata,
         private AuthorizationTokenValidatorInterface $validator,
+        private ProtectedResourceMetadata $resourceMetadata,
         ?ResponseFactoryInterface $responseFactory = null,
-        ?StreamFactoryInterface $streamFactory = null,
-        array $metadataPaths = [],
-        private ?string $resourceMetadataUrl = null,
-        ?callable $scopeProvider = null,
     ) {
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
-        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
-
-        $this->metadataPaths = $this->normalizePaths($metadataPaths);
-        $this->scopeProvider = $scopeProvider;
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        if ($this->isMetadataRequest($request)) {
-            return $this->createMetadataResponse();
-        }
-
         $authorization = $request->getHeaderLine('Authorization');
         if ('' === $authorization) {
             return $this->buildErrorResponse($request, AuthorizationResult::unauthorized());
@@ -87,29 +66,12 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             );
         }
 
-        $result = $this->validator->validate($request, $accessToken);
+        $result = $this->validator->validate($accessToken);
         if (!$result->isAllowed()) {
             return $this->buildErrorResponse($request, $result);
         }
 
         return $handler->handle($this->applyAttributes($request, $result->getAttributes()));
-    }
-
-    private function createMetadataResponse(): ResponseInterface
-    {
-        return $this->responseFactory
-            ->createResponse(200)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($this->metadata->toJson()));
-    }
-
-    private function isMetadataRequest(ServerRequestInterface $request): bool
-    {
-        if ([] === $this->metadataPaths || 'GET' !== $request->getMethod()) {
-            return false;
-        }
-
-        return \in_array($request->getUri()->getPath(), $this->metadataPaths, true);
     }
 
     private function buildErrorResponse(ServerRequestInterface $request, AuthorizationResult $result): ResponseInterface
@@ -128,12 +90,9 @@ final class AuthorizationMiddleware implements MiddlewareInterface
     {
         $parts = [];
 
-        $resourceMetadataUrl = $this->resolveResourceMetadataUrl($request);
-        if (null !== $resourceMetadataUrl) {
-            $parts[] = 'resource_metadata="'.$this->escapeHeaderValue($resourceMetadataUrl).'"';
-        }
+        $parts[] = 'resource_metadata="'.$this->escapeHeaderValue($this->resolveResourceMetadataUrl($request)).'"';
 
-        $scopes = $this->resolveScopes($request, $result);
+        $scopes = $this->resolveScopes($result);
         if (null !== $scopes) {
             $parts[] = 'scope="'.$this->escapeHeaderValue(implode(' ', $scopes)).'"';
         }
@@ -156,22 +115,14 @@ final class AuthorizationMiddleware implements MiddlewareInterface
     /**
      * @return list<string>|null
      */
-    private function resolveScopes(ServerRequestInterface $request, AuthorizationResult $result): ?array
+    private function resolveScopes(AuthorizationResult $result): ?array
     {
         $scopes = $this->normalizeScopes($result->getScopes());
         if (null !== $scopes) {
             return $scopes;
         }
 
-        if (null !== $this->scopeProvider) {
-            $provided = ($this->scopeProvider)($request);
-            $scopes = $this->normalizeScopes($provided);
-            if (null !== $scopes) {
-                return $scopes;
-            }
-        }
-
-        return $this->normalizeScopes($this->metadata->getScopesSupported());
+        return $this->normalizeScopes($this->resourceMetadata->getScopesSupported());
     }
 
     /**
@@ -192,25 +143,19 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         return [] === $normalized ? null : $normalized;
     }
 
-    private function resolveResourceMetadataUrl(ServerRequestInterface $request): ?string
+    private function resolveResourceMetadataUrl(ServerRequestInterface $request): string
     {
-        if (null !== $this->resourceMetadataUrl) {
-            return $this->resourceMetadataUrl;
-        }
-
-        if ([] === $this->metadataPaths) {
-            return null;
-        }
+        $metadataPath = $this->resourceMetadata->getPrimaryMetadataPath();
 
         $uri = $request->getUri();
         $scheme = $uri->getScheme();
         $authority = $uri->getAuthority();
 
         if ('' === $scheme || '' === $authority) {
-            return null;
+            throw new RuntimeException('Cannot resolve resource metadata URL: request URI must have scheme and authority');
         }
 
-        return $scheme.'://'.$authority.$this->metadataPaths[0];
+        return $scheme.'://'.$authority.$metadataPath;
     }
 
     /**
@@ -225,32 +170,9 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         return $request;
     }
 
-    /**
-     * @param list<string> $paths
-     *
-     * @return list<string>
-     */
-    private function normalizePaths(array $paths): array
-    {
-        $normalized = [];
-
-        foreach ($paths as $path) {
-            $path = trim($path);
-            if ('' === $path) {
-                continue;
-            }
-            if ('/' !== $path[0]) {
-                $path = '/'.$path;
-            }
-            $normalized[] = $path;
-        }
-
-        return array_values(array_unique($normalized));
-    }
-
     private function parseBearerToken(string $authorization): ?string
     {
-        if (!preg_match('/^Bearer\\s+(.+)$/i', $authorization, $matches)) {
+        if (!preg_match('/^Bearer\\s+(.+)$/', $authorization, $matches)) {
             return null;
         }
 

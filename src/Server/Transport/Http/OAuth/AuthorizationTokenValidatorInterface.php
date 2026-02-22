@@ -9,9 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Server\Transport\Middleware;
-
-use Psr\Http\Message\ServerRequestInterface;
+namespace Mcp\Server\Transport\Http\OAuth;
 
 /**
  * Validates bearer tokens for HTTP transports.
@@ -26,10 +24,9 @@ interface AuthorizationTokenValidatorInterface
     /**
      * Validates an access token extracted from the Authorization header.
      *
-     * @param ServerRequestInterface $request     The incoming HTTP request
-     * @param string                 $accessToken The bearer token (without "Bearer " prefix)
+     * @param string $accessToken The bearer token (without "Bearer " prefix)
      *
      * @return AuthorizationResult The result of the validation
      */
-    public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult;
+    public function validate(string $accessToken): AuthorizationResult;
 }
