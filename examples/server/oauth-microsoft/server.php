@@ -46,6 +46,9 @@ $localBaseUrl = 'http://localhost:8000';
 // Create PSR-17 factory
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
+$discovery = new OidcDiscovery(
+    metadataPolicy: new MicrosoftOidcMetadataPolicy(),
+);
 
 // Create base JWT validator for Microsoft Entra ID
 // Microsoft uses the client ID as the audience for access tokens
@@ -53,7 +56,7 @@ $request = $psr17Factory->createServerRequestFromGlobals();
 $jwtTokenValidator = new JwtTokenValidator(
     issuer: $issuers,
     audience: $clientId,
-    jwksProvider: new JwksProvider(),
+    jwksProvider: new JwksProvider(discovery: $discovery),
     // Microsoft's JWKS endpoint - use common endpoint for all Microsoft signing keys
     jwksUri: 'https://login.microsoftonline.com/common/discovery/v2.0/keys',
     scopeClaim: 'scp',
@@ -87,9 +90,7 @@ $clientSecret = getenv('AZURE_CLIENT_SECRET') ?: null;
 $oauthProxyMiddleware = new OAuthProxyMiddleware(
     upstreamIssuer: $issuerV2,
     localBaseUrl: $localBaseUrl,
-    discovery: new OidcDiscovery(
-        metadataPolicy: new MicrosoftOidcMetadataPolicy(),
-    ),
+    discovery: $discovery,
     clientSecret: $clientSecret,
 );
 

@@ -213,6 +213,7 @@ field can be missing or malformed and will not fail discovery.
 2. **Use managed identities** in Azure deployments instead of client secrets
 3. **Implement proper token refresh** in production clients
 4. **Validate scopes** for sensitive operations
+5. **Important:** `MicrosoftJwtTokenValidator` in this example accepts `nonce` Graph-style tokens via claim checks only (`iss`/`exp`/`nbf`) without signature verification. Treat this as demo-only behavior and replace it with full signature validation for production.
 
 ## Cleanup
 

@@ -38,6 +38,9 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class OAuthProxyMiddleware implements MiddlewareInterface
 {
+    private const CLIENT_SECRET_BASIC = 'client_secret_basic';
+    private const CLIENT_SECRET_POST = 'client_secret_post';
+
     private ?ClientInterface $httpClient;
     private ?RequestFactoryInterface $requestFactory;
     private ResponseFactoryInterface $responseFactory;
@@ -115,8 +118,25 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         $body = $request->getBody()->__toString();
         parse_str($body, $params);
 
-        if (null !== $this->clientSecret && !isset($params['client_secret'])) {
-            $params['client_secret'] = $this->clientSecret;
+        $upstreamAuthorization = trim($request->getHeaderLine('Authorization'));
+        if ('' === $upstreamAuthorization) {
+            $upstreamAuthorization = null;
+        }
+
+        if (null !== $this->clientSecret && !isset($params['client_secret']) && null === $upstreamAuthorization) {
+            $authMethod = $this->resolveTokenEndpointAuthMethod();
+
+            if (self::CLIENT_SECRET_BASIC === $authMethod) {
+                $clientId = $params['client_id'] ?? null;
+
+                if (\is_string($clientId) && '' !== trim($clientId)) {
+                    $upstreamAuthorization = 'Basic '.base64_encode(trim($clientId).':'.$this->clientSecret);
+                } else {
+                    $params['client_secret'] = $this->clientSecret;
+                }
+            } else {
+                $params['client_secret'] = $this->clientSecret;
+            }
         }
 
         $body = http_build_query($params);
@@ -126,8 +146,8 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
             ->withBody($this->streamFactory->createStream($body));
 
-        if ($request->hasHeader('Authorization')) {
-            $upstreamRequest = $upstreamRequest->withHeader('Authorization', $request->getHeaderLine('Authorization'));
+        if (null !== $upstreamAuthorization) {
+            $upstreamRequest = $upstreamRequest->withHeader('Authorization', $upstreamAuthorization);
         }
 
         try {
@@ -152,10 +172,11 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
             return $this->createErrorResponse(500, 'Failed to discover upstream server metadata');
         }
 
+        $localBaseUrl = rtrim($this->localBaseUrl, '/');
         $localMetadata = [
-            'issuer' => $this->upstreamIssuer,
-            'authorization_endpoint' => rtrim($this->localBaseUrl, '/').'/authorize',
-            'token_endpoint' => rtrim($this->localBaseUrl, '/').'/token',
+            'issuer' => $localBaseUrl,
+            'authorization_endpoint' => $localBaseUrl.'/authorize',
+            'token_endpoint' => $localBaseUrl.'/token',
             'response_types_supported' => $upstreamMetadata['response_types_supported'] ?? ['code'],
             'grant_types_supported' => $upstreamMetadata['grant_types_supported'] ?? ['authorization_code', 'refresh_token'],
             'code_challenge_methods_supported' => $upstreamMetadata['code_challenge_methods_supported'] ?? ['S256'],
@@ -188,6 +209,54 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
             ->createResponse($status)
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($body));
+    }
+
+    private function resolveTokenEndpointAuthMethod(): string
+    {
+        $supportedMethods = $this->getTokenEndpointAuthMethods();
+
+        if (\in_array(self::CLIENT_SECRET_BASIC, $supportedMethods, true)) {
+            return self::CLIENT_SECRET_BASIC;
+        }
+
+        if (\in_array(self::CLIENT_SECRET_POST, $supportedMethods, true)) {
+            return self::CLIENT_SECRET_POST;
+        }
+
+        return self::CLIENT_SECRET_POST;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getTokenEndpointAuthMethods(): array
+    {
+        try {
+            $metadata = $this->discovery->discover($this->upstreamIssuer);
+        } catch (\Throwable) {
+            return [];
+        }
+
+        $methods = $metadata['token_endpoint_auth_methods_supported'] ?? null;
+        if (!\is_array($methods)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($methods as $method) {
+            if (!\is_string($method)) {
+                continue;
+            }
+
+            $method = trim($method);
+            if ('' === $method) {
+                continue;
+            }
+
+            $normalized[] = $method;
+        }
+
+        return array_values(array_unique($normalized));
     }
 
     private function getHttpClient(): ClientInterface

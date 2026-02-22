@@ -48,6 +48,7 @@ class JwksProviderTest extends TestCase
             );
 
         $provider = new JwksProvider(
+            discovery: $this->createDiscoveryStub(),
             httpClient: $httpClient,
             requestFactory: $factory,
         );
@@ -85,6 +86,7 @@ class JwksProviderTest extends TestCase
             ->method('set');
 
         $provider = new JwksProvider(
+            discovery: $this->createDiscoveryStub(),
             httpClient: $httpClient,
             requestFactory: $factory,
             cache: $cache,
@@ -148,6 +150,7 @@ class JwksProviderTest extends TestCase
             );
 
         $provider = new JwksProvider(
+            discovery: $this->createDiscoveryStub(),
             httpClient: $httpClient,
             requestFactory: $factory,
         );
@@ -156,5 +159,10 @@ class JwksProviderTest extends TestCase
         $this->expectExceptionMessage('expected non-empty "keys" array');
 
         $provider->getJwks('https://auth.example.com', $jwksUri);
+    }
+
+    private function createDiscoveryStub(): OidcDiscoveryInterface
+    {
+        return $this->createStub(OidcDiscoveryInterface::class);
     }
 }

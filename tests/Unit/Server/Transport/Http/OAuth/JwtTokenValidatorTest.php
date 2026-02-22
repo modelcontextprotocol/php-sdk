@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 use Firebase\JWT\JWT;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -45,7 +46,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -94,7 +95,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -136,7 +137,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: ['mcp-api'],
             jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -177,7 +178,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -217,7 +218,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -262,7 +263,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -295,7 +296,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $this->createHttpClientMock([$factory->createResponse(500)]), requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $this->createHttpClientMock([$factory->createResponse(500)]), requestFactory: $factory),
         );
 
         // Unsigned token forces the validator to load JWKS and fail on HTTP 500.
@@ -323,7 +324,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
@@ -350,7 +351,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
@@ -378,7 +379,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -421,7 +422,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $token = JWT::encode(
@@ -462,7 +463,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
         );
 
         $tokenMissing = JWT::encode(
@@ -489,7 +490,7 @@ class JwtTokenValidatorTest extends TestCase
             issuer: 'https://auth.example.com',
             audience: 'mcp-api',
             jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(httpClient: $httpClient2, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient2, requestFactory: $factory),
         );
 
         $tokenInvalid = JWT::encode(
@@ -561,6 +562,11 @@ class JwtTokenValidatorTest extends TestCase
     private function b64urlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    private function createDiscoveryStub(): OidcDiscoveryInterface
+    {
+        return $this->createStub(OidcDiscoveryInterface::class);
     }
 
     /**

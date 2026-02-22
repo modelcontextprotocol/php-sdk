@@ -50,7 +50,7 @@ final class ProtectedResourceMetadataMiddleware implements MiddlewareInterface
         return $this->responseFactory
             ->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream(json_encode($this->metadata, \JSON_THROW_ON_ERROR)));
+            ->withBody($this->streamFactory->createStream(json_encode($this->metadata, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)));
     }
 
     private function isMetadataRequest(ServerRequestInterface $request): bool

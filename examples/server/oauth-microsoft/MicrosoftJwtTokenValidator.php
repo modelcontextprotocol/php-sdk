@@ -22,6 +22,12 @@ use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
  * - Standard JWT validation via JWKS (delegated/client credentials tokens)
  * - Claim-based Microsoft Graph token validation for tokens with a "nonce" header
  *
+ * Security notice:
+ * Tokens treated as Graph tokens (header contains "nonce") are validated by
+ * claims only in this example and are NOT signature-verified.
+ * This mode is intended for local/demo interoperability only and should not be
+ * used as-is in production deployments.
+ *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
 class MicrosoftJwtTokenValidator implements AuthorizationTokenValidatorInterface
@@ -87,6 +93,7 @@ class MicrosoftJwtTokenValidator implements AuthorizationTokenValidatorInterface
      */
     private function validateGraphToken(array $parts): AuthorizationResult
     {
+        // Intentionally claim-based only for example Graph token compatibility.
         if (\count($parts) < 2) {
             return AuthorizationResult::unauthorized('invalid_token', 'Invalid token format.');
         }

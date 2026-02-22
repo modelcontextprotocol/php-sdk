@@ -16,6 +16,7 @@ use Mcp\Example\Server\OAuthMicrosoft\MicrosoftJwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -46,7 +47,7 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
         $jwtTokenValidator = new JwtTokenValidator(
             issuer: 'https://login.microsoftonline.com/tenant-id/v2.0',
             audience: 'mcp-api',
-            jwksProvider: new JwksProvider(httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
             jwksUri: $jwksUri,
             scopeClaim: 'scp',
         );
@@ -90,7 +91,7 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
         $jwtTokenValidator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
             audience: ['mcp-api'],
-            jwksProvider: new JwksProvider(
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(),
                 httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
                 requestFactory: $factory
             ),
@@ -124,7 +125,7 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
         $jwtTokenValidator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
             audience: ['mcp-api'],
-            jwksProvider: new JwksProvider(
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(),
                 httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
                 requestFactory: $factory
             ),
@@ -160,7 +161,7 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
         $jwtTokenValidator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
             audience: ['mcp-api'],
-            jwksProvider: new JwksProvider(
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(),
                 httpClient: $this->createHttpClientMock([$factory->createResponse(500)], 0),
                 requestFactory: $factory
             ),
@@ -187,7 +188,7 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
         $jwtTokenValidator = new JwtTokenValidator(
             issuer: ['https://auth.example.com'],
             audience: ['mcp-api'],
-            jwksProvider: new JwksProvider(
+            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(),
                 httpClient: $this->createHttpClientMock([], 0),
                 requestFactory: $factory,
             ),
@@ -267,6 +268,11 @@ class MicrosoftJwtTokenValidatorTest extends TestCase
     private function b64urlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    private function createDiscoveryStub(): OidcDiscoveryInterface
+    {
+        return $this->createStub(OidcDiscoveryInterface::class);
     }
 
     /**

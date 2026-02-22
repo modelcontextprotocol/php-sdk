@@ -22,6 +22,7 @@ use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
@@ -44,6 +45,7 @@ $jwksUri = rtrim($keycloakInternalUrl, '/').'/realms/'.$keycloakRealm.'/protocol
 // Create PSR-17 factory
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
+$discovery = new OidcDiscovery();
 
 // Create JWT validator
 // - issuer: accepts both external and internal issuer forms
@@ -51,7 +53,7 @@ $request = $psr17Factory->createServerRequestFromGlobals();
 $validator = new JwtTokenValidator(
     issuer: [$externalIssuer, $internalIssuer],
     audience: $mcpAudience,
-    jwksProvider: new JwksProvider(),
+    jwksProvider: new JwksProvider(discovery: $discovery),
     jwksUri: $jwksUri,
 );
 

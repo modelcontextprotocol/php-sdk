@@ -29,18 +29,23 @@ class JwksProvider implements JwksProviderInterface
 
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
-    private ?OidcDiscoveryInterface $discovery;
 
+    /**
+     * @param OidcDiscoveryInterface       $discovery      OIDC discovery provider (required for JWKS URI resolution when $jwksUri is not explicit)
+     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
+     * @param CacheInterface|null          $cache          Optional PSR-16 cache
+     * @param int                          $cacheTtl       JWKS cache TTL in seconds
+     */
     public function __construct(
+        private readonly OidcDiscoveryInterface $discovery,
         ?ClientInterface $httpClient = null,
         ?RequestFactoryInterface $requestFactory = null,
-        ?OidcDiscoveryInterface $discovery = null,
         private readonly ?CacheInterface $cache = null,
         private readonly int $cacheTtl = 3600,
     ) {
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
-        $this->discovery = $discovery;
     }
 
     /**
@@ -74,15 +79,6 @@ class JwksProvider implements JwksProviderInterface
 
     private function resolveJwksUri(string $issuer): string
     {
-        if (null === $this->discovery) {
-            $this->discovery = new OidcDiscovery(
-                $this->httpClient,
-                $this->requestFactory,
-                $this->cache,
-                $this->cacheTtl,
-            );
-        }
-
         return $this->discovery->getJwksUri($issuer);
     }
 
