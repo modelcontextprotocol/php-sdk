@@ -3,6 +3,8 @@
 composer.lock
 coverage
 vendor
+/.docker/
+/docker-compose.local.yml
 examples/**/dev.log
 examples/**/cache
 examples/**/sessions
