@@ -79,14 +79,12 @@ final class AuthorizationMiddleware implements MiddlewareInterface
         $response = $this->responseFactory->createResponse($result->getStatusCode());
         $header = $this->buildAuthenticateHeader($request, $result);
 
-        if (null !== $header) {
-            $response = $response->withHeader('WWW-Authenticate', $header);
-        }
+        $response = $response->withHeader('WWW-Authenticate', $header);
 
         return $response;
     }
 
-    private function buildAuthenticateHeader(ServerRequestInterface $request, AuthorizationResult $result): ?string
+    private function buildAuthenticateHeader(ServerRequestInterface $request, AuthorizationResult $result): string
     {
         $parts = [];
 
@@ -103,10 +101,6 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
         if (null !== $result->getErrorDescription()) {
             $parts[] = 'error_description="'.$this->escapeHeaderValue($result->getErrorDescription()).'"';
-        }
-
-        if ([] === $parts) {
-            return 'Bearer';
         }
 
         return 'Bearer '.implode(', ', $parts);

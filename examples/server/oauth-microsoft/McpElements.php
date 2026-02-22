@@ -28,6 +28,8 @@ final class McpElements
 {
     /**
      * Confirms the user is authenticated with Microsoft.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'get_auth_status',
@@ -64,6 +66,8 @@ final class McpElements
 
     /**
      * Simulates calling Microsoft Graph API.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'call_graph_api',
@@ -89,6 +93,8 @@ final class McpElements
 
     /**
      * Lists simulated emails.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'list_emails',
@@ -109,6 +115,8 @@ final class McpElements
 
     /**
      * Returns the current server status.
+     *
+     * @return array<string, mixed>
      */
     #[McpResource(
         uri: 'server://status',

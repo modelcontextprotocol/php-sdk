@@ -30,6 +30,8 @@ final class McpElements
      * Confirms the user is authenticated.
      *
      * The fact that this tool executes means the request passed OAuth validation.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'get_auth_status',
@@ -65,6 +67,8 @@ final class McpElements
 
     /**
      * Simulates calling a protected external API.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'call_protected_api',
@@ -91,6 +95,8 @@ final class McpElements
 
     /**
      * Returns the current server time and status.
+     *
+     * @return array<string, mixed>
      */
     #[McpResource(
         uri: 'server://status',
