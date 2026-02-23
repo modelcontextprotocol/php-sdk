@@ -3,25 +3,12 @@
 The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers
 and clients in PHP.
 
-> [!IMPORTANT]
-> This SDK is currently in active development with ongoing refinement of its architecture and features. While
-> functional, the API may experience changes as we work toward stabilization.
-> 
-> If you want to help us stabilize the SDK, please see the [issue tracker](https://github.com/modelcontextprotocol/php-sdk/issues).
-
 This project represents a collaboration between [the PHP Foundation](https://thephp.foundation/) and the [Symfony project](https://symfony.com/). It adopts
 development practices and standards from the Symfony project, including [Coding Standards](https://symfony.com/doc/current/contributing/code/standards.html) and the
 [Backward Compatibility Promise](https://symfony.com/doc/current/contributing/code/bc.html).
 
-Until the first major release, this SDK is considered [experimental](https://symfony.com/doc/current/contributing/code/experimental.html).
-
-## Roadmap
-
-**Features**
-- [ ] Stabilize server component with all needed handlers and functional tests
-- [ ] Extend documentation, including integration guides for popular frameworks
-- [ ] Implement Client component
-- [ ] Support multiple schema versions
+Until the first major release, this SDK is considered [experimental](https://symfony.com/doc/current/contributing/code/experimental.html), please see the [roadmap](./ROADMAP.md) for
+planned next steps and features.
 
 ## Installation
 
