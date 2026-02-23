@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>MCP PHP SDK</title>
+    
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title">
+    <a href="docs/index.html" class="phpdocumentor-title__link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 195 195" fill="none">
+            <path d="M25 97.8528L92.8823 29.9706C102.255 20.598 117.451 20.598 126.823 29.9706V29.9706C136.196 39.3431 136.196 54.5391 126.823 63.9117L75.5581 115.177" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M76.2653 114.47L126.823 63.9117C136.196 54.5391 151.392 54.5391 160.765 63.9117L161.118 64.2652C170.491 73.6378 170.491 88.8338 161.118 98.2063L99.7248 159.6C96.6006 162.724 96.6006 167.789 99.7248 170.913L112.331 183.52" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M109.853 46.9411L59.6482 97.1457C50.2757 106.518 50.2757 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2168 140.459 93.5894 131.087L143.794 80.8822" stroke="black" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <span style="margin-left: 0.25em;">MCP PHP SDK</span>
+    </a>
+</h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+                        <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="docs/index.html">
+                    <span>
+                                                                        Guides
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="https://modelcontextprotocol.io/">
+                    <span>
+                                                                        Specification
+                    </span>
+                </a>
+            </li>
+                                <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://github.com/modelcontextprotocol/php-sdk">
+                    <span>
+                                                                        <i class="fab fa-github"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://discord.gg/6CSzBmMkjX">
+                    <span>
+                                                                        <i class="fab fa-discord"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/mcp.html" class="">Mcp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/mcp-capability.html" class="">Capability</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-exception.html" class="">Exception</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-jsonrpc.html" class="">JsonRpc</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-schema.html" class="">Schema</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-server.html" class="">Server</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                        
+<section class="section " id="server-builder">
+            <h1>Server Builder</h1>
+
+            
+    <p>The server <code>Builder</code>
+ is a fluent builder class that simplifies the creation and configuration of an MCP server instance. It provides methods for setting server information, configuring discovery, registering capabilities, and customizing various aspects of the server behavior.</p>
+
+            <section class="section " id="table-of-contents">
+            <h2>Table of Contents</h2>
+
+            
+
+<ul>
+    <li class="dash"><a href="#basic-usage">Basic Usage</a></li>
+
+    <li class="dash"><a href="#server-configuration">Server Configuration</a></li>
+
+    <li class="dash"><a href="#discovery-configuration">Discovery Configuration</a></li>
+
+    <li class="dash"><a href="#session-management">Session Management</a></li>
+
+    <li class="dash"><a href="#manual-capability-registration">Manual Capability Registration</a></li>
+
+    <li class="dash"><a href="#service-dependencies">Service Dependencies</a></li>
+
+    <li class="dash"><a href="#custom-message-handlers">Custom Message Handlers</a></li>
+
+    <li class="dash"><a href="#complete-example">Complete Example</a></li>
+
+    <li class="dash"><a href="#method-reference">Method Reference</a></li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="basic-usage">
+            <h2>Basic Usage</h2>
+
+            
+    <p>There are two ways to obtain a server builder instance:</p>
+
+            <section class="section " id="method-1-static-builder-method-recommended">
+            <h3>Method 1: Static Builder Method (Recommended)</h3>
+
+            <pre><code class="language-">use Mcp\Server;
+
+$server = Server::builder()
+    -&gt;setServerInfo(&#039;My MCP Server&#039;, &#039;1.0.0&#039;)
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="method-2-direct-instantiation">
+            <h3>Method 2: Direct Instantiation</h3>
+
+            <pre><code class="language-">use Mcp\Server\Builder;
+
+$server = (new Builder())
+    -&gt;setServerInfo(&#039;My MCP Server&#039;, &#039;1.0.0&#039;)
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])
+    -&gt;build();
+</code></pre>
+
+            
+    <p>Both methods return a <code>Builder</code>
+ instance that you can configure with fluent methods. The <code>build()</code>
+ method returns the final <code>Server</code>
+ instance ready for use.</p>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="server-configuration">
+            <h2>Server Configuration</h2>
+
+            <section class="section " id="server-information">
+            <h3>Server Information</h3>
+
+            
+    <p>Set the server&#039;s identity with name, version, and optional description:</p>
+
+            <pre><code class="language-">use Mcp\Schema\Icon;
+use Mcp\Server;
+
+$server = Server::builder()
+    -&gt;setServerInfo(
+        name: &#039;Calculator Server&#039;,
+        version: &#039;1.2.0&#039;,
+        description: &#039;Advanced mathematical calculations&#039;,
+        icons: [new Icon(&#039;https://example.com/icon.png&#039;, &#039;image/png&#039;, [&#039;64x64&#039;])],
+        websiteUrl: &#039;https://example.com&#039;
+    &#039;);
+</code></pre>
+
+            
+    <p><strong>Parameters:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>$name</code>
+ (string): The server name</li>
+
+    <li class="dash"><code>$version</code>
+ (string): Version string (semantic versioning recommended)</li>
+
+    <li class="dash"><code>$description</code>
+ (string|null): Optional description</li>
+
+    <li class="dash"><code>$icons</code>
+ (Icon[]|null): Optional array of server icons</li>
+
+    <li class="dash"><code>$websiteUrl</code>
+ (string|null): Optional server website URL</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="pagination-limit">
+            <h3>Pagination Limit</h3>
+
+            
+    <p>Configure the maximum number of items returned in paginated responses:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setPaginationLimit(100); // Default: 50
+</code></pre>
+
+    </section>
+
+            <section class="section " id="instructions">
+            <h3>Instructions</h3>
+
+            
+    <p>Provide hints to help AI models understand how to use your server:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setInstructions(&#039;This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.&#039;);
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="discovery-configuration">
+            <h2>Discovery Configuration</h2>
+
+            
+    <p><strong>Required when using MCP attributes.</strong>
+ If you&#039;re using PHP attributes (<code>#[McpTool]</code>
+, <code>#[McpResource]</code>
+, <code>#[McpResourceTemplate]</code>
+, <code>#[McpPrompt]</code>
+) to define your MCP elements, you <strong>MUST</strong>
+ configure discovery to tell the server where to look for these attributes.</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setDiscovery(
+        basePath: __DIR__,
+        scanDirs: [&#039;.&#039;, &#039;src&#039;, &#039;lib&#039;],           // Where to look for MCP attributes
+        excludeDirs: [&#039;vendor&#039;, &#039;tests&#039;],        // Where NOT to look 
+        cache: $cacheInstance                    // Optional: cache discovered elements
+    );
+</code></pre>
+
+            
+    <p><strong>Parameters:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>$basePath</code>
+ (string): Base directory for discovery (typically <code>__DIR__</code>
+)</li>
+
+    <li class="dash"><code>$scanDirs</code>
+ (array): Directories to recursively scan for <code>#[McpTool]</code>
+, <code>#[McpResource]</code>
+, etc. All subdirectories are included. (default: <code>[&#039;.&#039;, &#039;src&#039;]</code>
+)</li>
+
+    <li class="dash"><code>$excludeDirs</code>
+ (array): Directory names to exclude <strong>within</strong>
+ the scanned directories during recursive scanning</li>
+
+    <li class="dash"><code>$cache</code>
+ (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance</li>
+
+</ul>
+
+            
+    <p><strong>Basic Discovery (scans current directory and <code>src/</code>
+):</strong>
+</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setDiscovery(__DIR__)  // Minimal setup
+    -&gt;build();
+</code></pre>
+
+            
+    <p><strong>Production Setup with Caching:</strong>
+</p>
+
+            <pre><code class="language-">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+
+// Cache discovered elements to avoid filesystem scanning on every server start
+$cache = new Psr16Cache(new FilesystemAdapter(&#039;mcp-discovery&#039;));
+
+$server = Server::builder()
+    -&gt;setDiscovery(
+        basePath: __DIR__,
+        scanDirs: [&#039;src&#039;, &#039;lib&#039;],                    // Scan these directories recursively
+        excludeDirs: [&#039;vendor&#039;, &#039;tests&#039;, &#039;temp&#039;],    // Skip these directory names within scanned dirs
+        cache: $cache                                // Cache for performance
+    )
+    -&gt;build();
+</code></pre>
+
+            
+    <p><strong>How <code>excludeDirs</code>
+ works:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">If scanning <code>src/</code>
+ and there&#039;s <code>src/vendor/</code>
+, it will be excluded</li>
+
+    <li class="dash">If scanning <code>lib/</code>
+ and there&#039;s <code>lib/tests/</code>
+, it will be excluded</li>
+
+    <li class="dash">But if <code>vendor/</code>
+ and <code>tests/</code>
+ are at the same level as <code>src/</code>
+, they&#039;re not scanned anyway (not in <code>scanDirs</code>
+)</li>
+
+</ul>
+
+            <blockquote>
+    <p><strong>Performance</strong>
+: Always use a cache in production. The first run scans and caches all discovered MCP elements, making subsequent server startups nearly instantaneous.</p>
+</blockquote>
+
+    </section>
+
+            <section class="section " id="session-management">
+            <h2>Session Management</h2>
+
+            
+    <p>Configure session storage and lifecycle. By default, the SDK uses <code>InMemorySessionStore</code>
+:</p>
+
+            <pre><code class="language-">use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16SessionStore;
+use Symfony\Component\Cache\Psr16Cache;
+use Symfony\Component\Cache\Adapter\RedisAdapter;
+
+// Use default in-memory sessions with custom TTL
+$server = Server::builder()
+    -&gt;setSession(ttl: 7200) // 2 hours
+    -&gt;build();
+
+// Override with file-based storage
+$server = Server::builder()
+    -&gt;setSession(new FileSessionStore(__DIR__ . &#039;/sessions&#039;))
+    -&gt;build();
+
+// Override with in-memory storage and custom TTL
+$server = Server::builder()
+    -&gt;setSession(new InMemorySessionStore(3600))
+    -&gt;build();
+
+// Override with PSR-16 cache-based storage
+// Requires psr/simple-cache and symfony/cache (or any other PSR-16 implementation)
+// composer require psr/simple-cache symfony/cache
+$redisAdapter = new RedisAdapter(
+    RedisAdapter::createConnection(&#039;redis://localhost:6379&#039;),
+    &#039;mcp_sessions&#039;
+);
+
+$server = Server::builder()
+    -&gt;setSession(new Psr16SessionStore(
+        cache: new Psr16Cache($redisAdapter),
+        prefix: &#039;mcp-&#039;,
+        ttl: 3600
+    ))
+    -&gt;build();
+</code></pre>
+
+            
+    <p><strong>Available Session Stores:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>InMemorySessionStore</code>
+: Fast in-memory storage (default)</li>
+
+    <li class="dash"><code>FileSessionStore</code>
+: Persistent file-based storage</li>
+
+    <li class="dash"><code>Psr16StoreSession</code>
+: PSR-16 compliant cache-based storage</li>
+
+</ul>
+
+            
+    <p><strong>Custom Session Stores:</strong>
+</p>
+
+            
+    <p>Implement <code>SessionStoreInterface</code>
+ to create custom session storage:</p>
+
+            <pre><code class="language-">use Mcp\Server\Session\SessionStoreInterface;
+use Symfony\Component\Uid\Uuid;
+
+class RedisSessionStore implements SessionStoreInterface
+{
+    public function __construct(private $redis, private int $ttl = 3600) {}
+
+    public function exists(Uuid $id): bool
+    {
+        return $this-&gt;redis-&gt;exists($id-&gt;toRfc4122());
+    }
+
+    public function read(Uuid $sessionId): string|false
+    {
+        $data = $this-&gt;redis-&gt;get($sessionId-&gt;toRfc4122());
+        return $data !== false ? $data : false;
+    }
+
+    public function write(Uuid $sessionId, string $data): bool
+    {
+        return $this-&gt;redis-&gt;setex($sessionId-&gt;toRfc4122(), $this-&gt;ttl, $data);
+    }
+
+    public function destroy(Uuid $sessionId): bool
+    {
+        return $this-&gt;redis-&gt;del($sessionId-&gt;toRfc4122()) &gt; 0;
+    }
+
+    public function gc(): array
+    {
+        // Redis handles TTL automatically
+        return [];
+    }
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="manual-capability-registration">
+            <h2>Manual Capability Registration</h2>
+
+            
+    <p>Register MCP elements programmatically without using attributes. The handler is the most important parameter and can be any PHP callable.</p>
+
+            <section class="section " id="handler-types">
+            <h3>Handler Types</h3>
+
+            
+    <p><strong>Handler</strong>
+ can be any PHP callable:</p>
+
+            
+    
+<ol>
+    <li><strong>Closure</strong>
+: <code>function(int $a, int $b): int { return $a + $b; }</code>
+</li>
+
+    <li><strong>Class and method name pair</strong>
+: <code>[ClassName::class, &#039;methodName&#039;]</code>
+ - class must be constructable through the container</li>
+
+    <li><strong>Class instance and method name</strong>
+: <code>[$instance, &#039;methodName&#039;]</code>
+</li>
+
+    <li><strong>Invokable class name</strong>
+: <code>InvokableClass::class</code>
+ - class must be constructable through the container and have <code>__invoke</code>
+ method</li>
+
+</ol>
+
+    </section>
+
+            <section class="section " id="manual-tool-registration">
+            <h3>Manual Tool Registration</h3>
+
+            <pre><code class="language-">$server = Server::builder()
+    // Using closure
+    -&gt;addTool(
+        handler: function(int $a, int $b): int { return $a + $b; },
+        name: &#039;add_numbers&#039;,
+        description: &#039;Adds two numbers together&#039;
+    )
+    
+    // Using class method pair
+    -&gt;addTool(
+        handler: [Calculator::class, &#039;multiply&#039;],
+        name: &#039;multiply_numbers&#039;
+        // name and description are optional - derived from method name and docblock
+    )
+    
+    // Using instance method
+    -&gt;addTool(
+        handler: [$calculatorInstance, &#039;divide&#039;]
+    )
+    
+    // Using invokable class
+    -&gt;addTool(
+        handler: InvokableCalculator::class
+    );
+</code></pre>
+
+            <section class="section " id="parameters">
+            <h4>Parameters</h4>
+
+            
+
+<ul>
+    <li class="dash"><code>handler</code>
+ (callable|string): The tool handler</li>
+
+    <li class="dash"><code>name</code>
+ (string|null): Optional tool name</li>
+
+    <li class="dash"><code>description</code>
+ (string|null): Optional tool description</li>
+
+    <li class="dash"><code>annotations</code>
+ (ToolAnnotations|null): Optional annotations for the tool</li>
+
+    <li class="dash"><code>inputSchema</code>
+ (array|null): Optional input schema for the tool</li>
+
+    <li class="dash"><code>icons</code>
+ (Icon[]|null): Optional array of icons for the tool</li>
+
+    <li class="dash"><code>meta</code>
+ (array|null): Optional metadata for the tool</li>
+
+</ul>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="manual-resource-registration">
+            <h3>Manual Resource Registration</h3>
+
+            
+    <p>Register static resources:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addResource(
+        handler: [Config::class, &#039;getSettings&#039;],
+        uri: &#039;config://app/settings&#039;,
+        name: &#039;app_config&#039;,
+        description: &#039;Application configuration&#039;,
+        mimeType: &#039;application/json&#039;
+    );
+</code></pre>
+
+            <section class="section " id="parameters">
+            <h4>Parameters</h4>
+
+            
+
+<ul>
+    <li class="dash"><code>handler</code>
+ (callable|string): The resource handler</li>
+
+    <li class="dash"><code>uri</code>
+ (string): The resource URI</li>
+
+    <li class="dash"><code>name</code>
+ (string|null): Optional resource name</li>
+
+    <li class="dash"><code>description</code>
+ (string|null): Optional resource description</li>
+
+    <li class="dash"><code>mimeType</code>
+ (string|null): Optional MIME type of the resource</li>
+
+    <li class="dash"><code>size</code>
+ (int|null): Optional size of the resource in bytes</li>
+
+    <li class="dash"><code>annotations</code>
+ (Annotations|null): Optional annotations for the resource</li>
+
+    <li class="dash"><code>icons</code>
+ (Icon[]|null): Optional array of icons for the resource</li>
+
+    <li class="dash"><code>meta</code>
+ (array|null): Optional metadata for the resource</li>
+
+</ul>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="manual-resource-template-registration">
+            <h3>Manual Resource Template Registration</h3>
+
+            
+    <p>Register dynamic resources with URI templates:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addResourceTemplate(
+        handler: [UserService::class, &#039;getUserProfile&#039;],
+        uriTemplate: &#039;user://{userId}/profile&#039;,
+        name: &#039;user_profile&#039;,
+        description: &#039;User profile by ID&#039;,
+        mimeType: &#039;application/json&#039;
+    );
+</code></pre>
+
+            <section class="section " id="parameters">
+            <h4>Parameters</h4>
+
+            
+
+<ul>
+    <li class="dash"><code>handler</code>
+ (callable|string): The resource template handler</li>
+
+    <li class="dash"><code>uriTemplate</code>
+ (string): The resource URI template</li>
+
+    <li class="dash"><code>name</code>
+ (string|null): Optional resource template name</li>
+
+    <li class="dash"><code>description</code>
+ (string|null): Optional resource template description</li>
+
+    <li class="dash"><code>mimeType</code>
+ (string|null): Optional MIME type of the resource</li>
+
+    <li class="dash"><code>annotations</code>
+ (Annotations|null): Optional annotations for the resource template</li>
+
+</ul>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="manual-prompt-registration">
+            <h3>Manual Prompt Registration</h3>
+
+            
+    <p>Register prompt generators:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addPrompt(
+        handler: [PromptService::class, &#039;generatePrompt&#039;],
+        name: &#039;custom_prompt&#039;,
+        description: &#039;A custom prompt generator&#039;
+    );
+</code></pre>
+
+            <section class="section " id="parameters">
+            <h4>Parameters</h4>
+
+            
+
+<ul>
+    <li class="dash"><code>handler</code>
+ (callable|string): The prompt handler</li>
+
+    <li class="dash"><code>name</code>
+ (string|null): Optional prompt name</li>
+
+    <li class="dash"><code>description</code>
+ (string|null): Optional prompt description</li>
+
+    <li class="dash"><code>icons</code>
+ (Icon[]|null): Optional array of icons for the prompt</li>
+
+</ul>
+
+            
+    <p><strong>Note:</strong>
+ <code>name</code>
+ and <code>description</code>
+ are optional for all manual registrations. If not provided, they will be derived from the handler&#039;s method name and docblock.</p>
+
+            
+    <p>For more details on MCP elements, handlers, and attribute-based discovery, see <a href="docs/mcp-elements.html#mcp-elements">MCP Elements</a>.</p>
+
+    </section>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="service-dependencies">
+            <h2>Service Dependencies</h2>
+
+            <section class="section " id="container">
+            <h3>Container</h3>
+
+            
+    <p>The container is used to resolve handlers and their dependencies when handlers inject dependencies in their constructors. The SDK includes a basic container with simple auto-wiring capabilities.</p>
+
+            <pre><code class="language-">use Mcp\Capability\Registry\Container;
+
+// Use the default basic container
+$container = new Container();
+$container-&gt;set(DatabaseService::class, new DatabaseService($pdo));
+$container-&gt;set(\PDO::class, $pdo);
+
+$server = Server::builder()
+    -&gt;setContainer($container)
+    -&gt;build();
+</code></pre>
+
+            
+    <p><strong>Basic Container Features:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Supports constructor auto-wiring for classes with parameterless constructors</li>
+
+    <li class="dash">Resolves dependencies where all parameters are type-hinted classes/interfaces known to the container</li>
+
+    <li class="dash">Supports parameters with default values</li>
+
+    <li class="dash">Does NOT support scalar/built-in type injection without defaults</li>
+
+    <li class="dash">Detects circular dependencies</li>
+
+</ul>
+
+            
+    <p>You can also use any PSR-11 compatible container (Symfony DI, PHP-DI, Laravel Container, etc.).</p>
+
+    </section>
+
+            <section class="section " id="logger">
+            <h3>Logger</h3>
+
+            
+    <p>Provide a PSR-3 logger instance for internal server logging (request/response processing, errors, session management, transport events):</p>
+
+            <pre><code class="language-">use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+$logger = new Logger(&#039;mcp-server&#039;);
+$logger-&gt;pushHandler(new StreamHandler(&#039;mcp.log&#039;, Logger::INFO));
+
+$server = Server::builder()
+    -&gt;setLogger($logger);
+</code></pre>
+
+    </section>
+
+            <section class="section " id="event-dispatcher">
+            <h3>Event Dispatcher</h3>
+
+            
+    <p>Configure event dispatching:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setEventDispatcher($eventDispatcher);
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="custom-message-handlers">
+            <h2>Custom Message Handlers</h2>
+
+            
+    <p><strong>Low-level escape hatch.</strong>
+ Custom message handlers run before the SDK&#039;s built-in handlers and give you total control over individual JSON-RPC messages. They do not receive the builder&#039;s registry, container, or discovery output unless you pass those dependencies in yourself.</p>
+
+            <blockquote>
+    <p><strong>Warning</strong>
+: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler loads and executes them manually. Reach for this API only when you need that level of control and are comfortable taking on the additional plumbing.</p>
+</blockquote>
+
+            <section class="section " id="request-handlers">
+            <h3>Request Handlers</h3>
+
+            
+    <p>Handle JSON-RPC requests (messages with an <code>id</code>
+ that expect a response). Request handlers <strong>must</strong>
+ return either a <code>Response</code>
+ or an <code>Error</code>
+ object.</p>
+
+            
+    <p>Attach request handlers with <code>addRequestHandler()</code>
+ (single) or <code>addRequestHandlers()</code>
+ (multiple). You can call these methods as many times as needed; each call prepends the handlers so they execute before the defaults:</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addRequestHandler(new CustomListToolsHandler())
+    -&gt;addRequestHandlers([
+        new CustomCallToolHandler(),
+        new CustomGetPromptHandler(),
+    ])
+    -&gt;build();
+</code></pre>
+
+            
+    <p>Request handlers implement <code>RequestHandlerInterface</code>
+:</p>
+
+            <pre><code class="language-">use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
+
+interface RequestHandlerInterface
+{
+    public function supports(Request $request): bool;
+
+    public function handle(Request $request, SessionInterface $session): Response|Error;
+}
+</code></pre>
+
+            
+
+<ul>
+    <li class="dash"><code>supports()</code>
+ decides if the handler should process the incoming request</li>
+
+    <li class="dash"><code>handle()</code>
+ <strong>must</strong>
+ return a <code>Response</code>
+ (on success) or an <code>Error</code>
+ (on failure)</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="notification-handlers">
+            <h3>Notification Handlers</h3>
+
+            
+    <p>Handle JSON-RPC notifications (messages without an <code>id</code>
+ that don&#039;t expect a response). Notification handlers <strong>do not</strong>
+ return anything - they perform side effects only.</p>
+
+            
+    <p>Attach notification handlers with <code>addNotificationHandler()</code>
+ (single) or <code>addNotificationHandlers()</code>
+ (multiple):</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addNotificationHandler(new LoggingNotificationHandler())
+    -&gt;addNotificationHandlers([
+        new InitializedNotificationHandler(),
+        new ProgressNotificationHandler(),
+    ])
+    -&gt;build();
+</code></pre>
+
+            
+    <p>Notification handlers implement <code>NotificationHandlerInterface</code>
+:</p>
+
+            <pre><code class="language-">use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
+
+interface NotificationHandlerInterface
+{
+    public function supports(Notification $notification): bool;
+
+    public function handle(Notification $notification, SessionInterface $session): void;
+}
+</code></pre>
+
+            
+
+<ul>
+    <li class="dash"><code>supports()</code>
+ decides if the handler should process the incoming notification</li>
+
+    <li class="dash"><code>handle()</code>
+ performs side effects but <strong>does not</strong>
+ return a value (notifications have no response)</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="key-differences">
+            <h3>Key Differences</h3>
+
+            <table>
+                <thead>
+            <tr>
+                            <th>Handler Type</th>
+                            <th>Interface</th>
+                            <th>Returns</th>
+                            <th>Use Case</th>
+                    </tr>
+        </thead>
+    <tbody>
+    <tr>
+            <td>Request Handler</td>
+            <td><code>RequestHandlerInterface</code>
+</td>
+            <td><code>Response|Error</code>
+</td>
+            <td>Handle requests that need responses (e.g., <code>tools/list</code>
+, <code>tools/call</code>
+)</td>
+    </tr>
+    <tr>
+            <td>Notification Handler</td>
+            <td><code>NotificationHandlerInterface</code>
+</td>
+            <td><code>void</code>
+</td>
+            <td>Handle fire-and-forget notifications (e.g., <code>notifications/initialized</code>
+, <code>notifications/progress</code>
+)</td>
+    </tr>
+</tbody>
+</table>
+
+    </section>
+
+            <section class="section " id="example">
+            <h3>Example</h3>
+
+            
+    <p>Check out <code>examples/custom-method-handlers/server.php</code>
+ for a complete example showing how to implement custom <code>tools/list</code>
+ and <code>tools/call</code>
+ request handlers independently of the registry.</p>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="complete-example">
+            <h2>Complete Example</h2>
+
+            
+    <p>Here&#039;s a comprehensive example showing all major configuration options:</p>
+
+            <pre><code class="language-">use Mcp\Server;
+use Mcp\Server\Session\FileSessionStore;
+use Mcp\Capability\Registry\Container;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+// Setup dependencies
+$logger = new Logger(&#039;mcp-server&#039;);
+$logger-&gt;pushHandler(new StreamHandler(&#039;mcp.log&#039;, Logger::INFO));
+
+$cache = new Psr16Cache(new FilesystemAdapter(&#039;mcp-discovery&#039;));
+$sessionStore = new FileSessionStore(__DIR__ . &#039;/sessions&#039;);
+
+// Setup container with dependencies
+$container = new Container();
+$container-&gt;set(\PDO::class, new \PDO(&#039;sqlite::memory:&#039;));
+$container-&gt;set(DatabaseService::class, new DatabaseService($container-&gt;get(\PDO::class)));
+
+// Build server
+$server = Server::builder()
+    // Server identity
+    -&gt;setServerInfo(&#039;Advanced Calculator&#039;, &#039;2.1.0&#039;)
+    
+    // Performance and behavior
+    -&gt;setPaginationLimit(100)
+    -&gt;setInstructions(&#039;Use calculate tool for math operations. Check config resource for current settings.&#039;)
+    
+    // Discovery with caching
+    -&gt;setDiscovery(__DIR__, [&#039;src&#039;], [&#039;vendor&#039;, &#039;tests&#039;], $cache)
+    
+    // Session management
+    -&gt;setSession($sessionStore)
+    
+    // Services
+    -&gt;setLogger($logger)
+    -&gt;setContainer($container)
+    
+    // Manual capability registration
+    -&gt;addTool([Calculator::class, &#039;advancedCalculation&#039;], &#039;advanced_calc&#039;)
+    -&gt;addResource([Config::class, &#039;getSettings&#039;], &#039;config://app/settings&#039;, &#039;app_settings&#039;)
+    
+    // Build the server
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="method-reference">
+            <h2>Method Reference</h2>
+
+            <table>
+                <thead>
+            <tr>
+                            <th>Method</th>
+                            <th>Parameters</th>
+                            <th>Description</th>
+                    </tr>
+        </thead>
+    <tbody>
+    <tr>
+            <td><code>setServerInfo()</code>
+</td>
+            <td>name, version, description?</td>
+            <td>Set server identity</td>
+    </tr>
+    <tr>
+            <td><code>setPaginationLimit()</code>
+</td>
+            <td>limit</td>
+            <td>Set max items per page</td>
+    </tr>
+    <tr>
+            <td><code>setInstructions()</code>
+</td>
+            <td>instructions</td>
+            <td>Set usage instructions</td>
+    </tr>
+    <tr>
+            <td><code>setDiscovery()</code>
+</td>
+            <td>basePath, scanDirs?, excludeDirs?, cache?</td>
+            <td>Configure attribute discovery</td>
+    </tr>
+    <tr>
+            <td><code>setSession()</code>
+</td>
+            <td>store?, factory?, ttl?</td>
+            <td>Configure session management</td>
+    </tr>
+    <tr>
+            <td><code>setLogger()</code>
+</td>
+            <td>logger</td>
+            <td>Set PSR-3 logger</td>
+    </tr>
+    <tr>
+            <td><code>setContainer()</code>
+</td>
+            <td>container</td>
+            <td>Set PSR-11 container</td>
+    </tr>
+    <tr>
+            <td><code>setEventDispatcher()</code>
+</td>
+            <td>dispatcher</td>
+            <td>Set PSR-14 event dispatcher</td>
+    </tr>
+    <tr>
+            <td><code>addRequestHandler()</code>
+</td>
+            <td>handler</td>
+            <td>Prepend a single custom request handler</td>
+    </tr>
+    <tr>
+            <td><code>addRequestHandlers()</code>
+</td>
+            <td>handlers</td>
+            <td>Prepend multiple custom request handlers</td>
+    </tr>
+    <tr>
+            <td><code>addNotificationHandler()</code>
+</td>
+            <td>handler</td>
+            <td>Prepend a single custom notification handler</td>
+    </tr>
+    <tr>
+            <td><code>addNotificationHandlers()</code>
+</td>
+            <td>handlers</td>
+            <td>Prepend multiple custom notification handlers</td>
+    </tr>
+    <tr>
+            <td><code>addTool()</code>
+</td>
+            <td>handler, name?, description?, annotations?, inputSchema?</td>
+            <td>Register tool</td>
+    </tr>
+    <tr>
+            <td><code>addResource()</code>
+</td>
+            <td>handler, uri, name?, description?, mimeType?, size?, annotations?</td>
+            <td>Register resource</td>
+    </tr>
+    <tr>
+            <td><code>addResourceTemplate()</code>
+</td>
+            <td>handler, uriTemplate, name?, description?, mimeType?, annotations?</td>
+            <td>Register resource template</td>
+    </tr>
+    <tr>
+            <td><code>addPrompt()</code>
+</td>
+            <td>handler, name?, description?</td>
+            <td>Register prompt</td>
+    </tr>
+    <tr>
+            <td><code>build()</code>
+</td>
+            <td>-</td>
+            <td>Create the server instance</td>
+    </tr>
+</tbody>
+</table>
+
+    </section>
+
+    </section>
+
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>

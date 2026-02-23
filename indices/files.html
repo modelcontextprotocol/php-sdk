@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>MCP PHP SDK</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title">
+    <a href="docs/index.html" class="phpdocumentor-title__link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 195 195" fill="none">
+            <path d="M25 97.8528L92.8823 29.9706C102.255 20.598 117.451 20.598 126.823 29.9706V29.9706C136.196 39.3431 136.196 54.5391 126.823 63.9117L75.5581 115.177" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M76.2653 114.47L126.823 63.9117C136.196 54.5391 151.392 54.5391 160.765 63.9117L161.118 64.2652C170.491 73.6378 170.491 88.8338 161.118 98.2063L99.7248 159.6C96.6006 162.724 96.6006 167.789 99.7248 170.913L112.331 183.52" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M109.853 46.9411L59.6482 97.1457C50.2757 106.518 50.2757 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2168 140.459 93.5894 131.087L143.794 80.8822" stroke="black" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <span style="margin-left: 0.25em;">MCP PHP SDK</span>
+    </a>
+</h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+                        <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="docs/index.html">
+                    <span>
+                                                                        Guides
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="https://modelcontextprotocol.io/">
+                    <span>
+                                                                        Specification
+                    </span>
+                </a>
+            </li>
+                                <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://github.com/modelcontextprotocol/php-sdk">
+                    <span>
+                                                                        <i class="fab fa-github"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://discord.gg/6CSzBmMkjX">
+                    <span>
+                                                                        <i class="fab fa-discord"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/mcp.html" class="">Mcp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/mcp-capability.html" class="">Capability</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-exception.html" class="">Exception</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-jsonrpc.html" class="">JsonRpc</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-schema.html" class="">Schema</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-server.html" class="">Server</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                        <section>
+        
+        <h2 class="phpdocumentor-content__title">Files</h2>
+                                            <h3>A</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-schema-elicitation-abstractschemadefinition.html"><abbr title="src/Schema/Elicitation/AbstractSchemaDefinition.php">AbstractSchemaDefinition.php</abbr></a></li>
+                            <li><a href="files/src-schema-annotations.html"><abbr title="src/Schema/Annotations.php">Annotations.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-loader-arrayloader.html"><abbr title="src/Capability/Registry/Loader/ArrayLoader.php">ArrayLoader.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-audiocontent.html"><abbr title="src/Schema/Content/AudioContent.php">AudioContent.php</abbr></a></li>
+                        </ul>
+                                                        <h3>B</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-exception-badmethodcallexception.html"><abbr title="src/Exception/BadMethodCallException.php">BadMethodCallException.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-basetransport.html"><abbr title="src/Server/Transport/BaseTransport.php">BaseTransport.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-blobresourcecontents.html"><abbr title="src/Schema/Content/BlobResourceContents.php">BlobResourceContents.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-booleanschemadefinition.html"><abbr title="src/Schema/Elicitation/BooleanSchemaDefinition.php">BooleanSchemaDefinition.php</abbr></a></li>
+                            <li><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></li>
+                        </ul>
+                                                        <h3>C</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-capability-discovery-cacheddiscoverer.html"><abbr title="src/Capability/Discovery/CachedDiscoverer.php">CachedDiscoverer.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-calltoolhandler.html"><abbr title="src/Server/Handler/Request/CallToolHandler.php">CallToolHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-calltoolrequest.html"><abbr title="src/Schema/Request/CallToolRequest.php">CallToolRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-calltoolresult.html"><abbr title="src/Schema/Result/CallToolResult.php">CallToolResult.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-callbackstream.html"><abbr title="src/Server/Transport/CallbackStream.php">CallbackStream.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-cancellednotification.html"><abbr title="src/Schema/Notification/CancelledNotification.php">CancelledNotification.php</abbr></a></li>
+                            <li><a href="files/src-schema-clientcapabilities.html"><abbr title="src/Schema/ClientCapabilities.php">ClientCapabilities.php</abbr></a></li>
+                            <li><a href="files/src-exception-clientexception.html"><abbr title="src/Exception/ClientException.php">ClientException.php</abbr></a></li>
+                            <li><a href="files/src-server-clientgateway.html"><abbr title="src/Server/ClientGateway.php">ClientGateway.php</abbr></a></li>
+                            <li><a href="files/src-capability-logger-clientlogger.html"><abbr title="src/Capability/Logger/ClientLogger.php">ClientLogger.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-completioncompleterequest.html"><abbr title="src/Schema/Request/CompletionCompleteRequest.php">CompletionCompleteRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-completioncompleteresult.html"><abbr title="src/Schema/Result/CompletionCompleteResult.php">CompletionCompleteResult.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-completionprovider.html"><abbr title="src/Capability/Attribute/CompletionProvider.php">CompletionProvider.php</abbr></a></li>
+                            <li><a href="files/src-server-configuration.html"><abbr title="src/Server/Configuration.php">Configuration.php</abbr></a></li>
+                            <li><a href="files/src-exception-configurationexception.html"><abbr title="src/Exception/ConfigurationException.php">ConfigurationException.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-container.html"><abbr title="src/Capability/Registry/Container.php">Container.php</abbr></a></li>
+                            <li><a href="files/src-exception-containerexception.html"><abbr title="src/Exception/ContainerException.php">ContainerException.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-content.html"><abbr title="src/Schema/Content/Content.php">Content.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-createsamplingmessagerequest.html"><abbr title="src/Schema/Request/CreateSamplingMessageRequest.php">CreateSamplingMessageRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-createsamplingmessageresult.html"><abbr title="src/Schema/Result/CreateSamplingMessageResult.php">CreateSamplingMessageResult.php</abbr></a></li>
+                        </ul>
+                                                        <h3>D</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-capability-discovery-discoverer.html"><abbr title="src/Capability/Discovery/Discoverer.php">Discoverer.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-discovererinterface.html"><abbr title="src/Capability/Discovery/DiscovererInterface.php">DiscovererInterface.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-loader-discoveryloader.html"><abbr title="src/Capability/Registry/Loader/DiscoveryLoader.php">DiscoveryLoader.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-discoverystate.html"><abbr title="src/Capability/Discovery/DiscoveryState.php">DiscoveryState.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-docblockparser.html"><abbr title="src/Capability/Discovery/DocBlockParser.php">DocBlockParser.php</abbr></a></li>
+                        </ul>
+                                                        <h3>E</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-capability-registry-elementreference.html"><abbr title="src/Capability/Registry/ElementReference.php">ElementReference.php</abbr></a></li>
+                            <li><a href="files/src-schema-enum-elicitaction.html"><abbr title="src/Schema/Enum/ElicitAction.php">ElicitAction.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-elicitrequest.html"><abbr title="src/Schema/Request/ElicitRequest.php">ElicitRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-elicitresult.html"><abbr title="src/Schema/Result/ElicitResult.php">ElicitResult.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-elicitationschema.html"><abbr title="src/Schema/Elicitation/ElicitationSchema.php">ElicitationSchema.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-embeddedresource.html"><abbr title="src/Schema/Content/EmbeddedResource.php">EmbeddedResource.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-emptyresult.html"><abbr title="src/Schema/Result/EmptyResult.php">EmptyResult.php</abbr></a></li>
+                            <li><a href="files/src-capability-completion-enumcompletionprovider.html"><abbr title="src/Capability/Completion/EnumCompletionProvider.php">EnumCompletionProvider.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-enumschemadefinition.html"><abbr title="src/Schema/Elicitation/EnumSchemaDefinition.php">EnumSchemaDefinition.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-error.html"><abbr title="src/Schema/JsonRpc/Error.php">Error.php</abbr></a></li>
+                            <li><a href="files/src-event-errorevent.html"><abbr title="src/Event/ErrorEvent.php">ErrorEvent.php</abbr></a></li>
+                            <li><a href="files/src-exception-exception.html"><abbr title="src/Exception/Exception.php">Exception.php</abbr></a></li>
+                            <li><a href="files/src-exception-exceptioninterface.html"><abbr title="src/Exception/ExceptionInterface.php">ExceptionInterface.php</abbr></a></li>
+                        </ul>
+                                                        <h3>F</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-server-session-filesessionstore.html"><abbr title="src/Server/Session/FileSessionStore.php">FileSessionStore.php</abbr></a></li>
+                        </ul>
+                                                        <h3>G</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-server-handler-request-getprompthandler.html"><abbr title="src/Server/Handler/Request/GetPromptHandler.php">GetPromptHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-getpromptrequest.html"><abbr title="src/Schema/Request/GetPromptRequest.php">GetPromptRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-getpromptresult.html"><abbr title="src/Schema/Result/GetPromptResult.php">GetPromptResult.php</abbr></a></li>
+                        </ul>
+                                                        <h3>H</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-exception-handlernotfoundexception.html"><abbr title="src/Exception/HandlerNotFoundException.php">HandlerNotFoundException.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-handlerresolver.html"><abbr title="src/Capability/Discovery/HandlerResolver.php">HandlerResolver.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-hasmethodinterface.html"><abbr title="src/Schema/JsonRpc/HasMethodInterface.php">HasMethodInterface.php</abbr></a></li>
+                        </ul>
+                                                        <h3>I</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-schema-icon.html"><abbr title="src/Schema/Icon.php">Icon.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-imagecontent.html"><abbr title="src/Schema/Content/ImageContent.php">ImageContent.php</abbr></a></li>
+                            <li><a href="files/src-schema-implementation.html"><abbr title="src/Schema/Implementation.php">Implementation.php</abbr></a></li>
+                            <li><a href="files/src-server-session-inmemorysessionstore.html"><abbr title="src/Server/Session/InMemorySessionStore.php">InMemorySessionStore.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-inmemorytransport.html"><abbr title="src/Server/Transport/InMemoryTransport.php">InMemoryTransport.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-initializehandler.html"><abbr title="src/Server/Handler/Request/InitializeHandler.php">InitializeHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-initializerequest.html"><abbr title="src/Schema/Request/InitializeRequest.php">InitializeRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-initializeresult.html"><abbr title="src/Schema/Result/InitializeResult.php">InitializeResult.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-notification-initializedhandler.html"><abbr title="src/Server/Handler/Notification/InitializedHandler.php">InitializedHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-initializednotification.html"><abbr title="src/Schema/Notification/InitializedNotification.php">InitializedNotification.php</abbr></a></li>
+                            <li><a href="files/src-exception-invalidargumentexception.html"><abbr title="src/Exception/InvalidArgumentException.php">InvalidArgumentException.php</abbr></a></li>
+                            <li><a href="files/src-exception-invalidcursorexception.html"><abbr title="src/Exception/InvalidCursorException.php">InvalidCursorException.php</abbr></a></li>
+                            <li><a href="files/src-exception-invalidinputmessageexception.html"><abbr title="src/Exception/InvalidInputMessageException.php">InvalidInputMessageException.php</abbr></a></li>
+                        </ul>
+                                                                                                                        <h3>L</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-capability-completion-listcompletionprovider.html"><abbr title="src/Capability/Completion/ListCompletionProvider.php">ListCompletionProvider.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-listpromptshandler.html"><abbr title="src/Server/Handler/Request/ListPromptsHandler.php">ListPromptsHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-listpromptsrequest.html"><abbr title="src/Schema/Request/ListPromptsRequest.php">ListPromptsRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-listpromptsresult.html"><abbr title="src/Schema/Result/ListPromptsResult.php">ListPromptsResult.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-listresourcetemplateshandler.html"><abbr title="src/Server/Handler/Request/ListResourceTemplatesHandler.php">ListResourceTemplatesHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-listresourcetemplatesrequest.html"><abbr title="src/Schema/Request/ListResourceTemplatesRequest.php">ListResourceTemplatesRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-listresourcetemplatesresult.html"><abbr title="src/Schema/Result/ListResourceTemplatesResult.php">ListResourceTemplatesResult.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-listresourceshandler.html"><abbr title="src/Server/Handler/Request/ListResourcesHandler.php">ListResourcesHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-listresourcesrequest.html"><abbr title="src/Schema/Request/ListResourcesRequest.php">ListResourcesRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-listresourcesresult.html"><abbr title="src/Schema/Result/ListResourcesResult.php">ListResourcesResult.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-listrootsrequest.html"><abbr title="src/Schema/Request/ListRootsRequest.php">ListRootsRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-listrootsresult.html"><abbr title="src/Schema/Result/ListRootsResult.php">ListRootsResult.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-listtoolshandler.html"><abbr title="src/Server/Handler/Request/ListToolsHandler.php">ListToolsHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-listtoolsrequest.html"><abbr title="src/Schema/Request/ListToolsRequest.php">ListToolsRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-listtoolsresult.html"><abbr title="src/Schema/Result/ListToolsResult.php">ListToolsResult.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-loader-loaderinterface.html"><abbr title="src/Capability/Registry/Loader/LoaderInterface.php">LoaderInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-enum-logginglevel.html"><abbr title="src/Schema/Enum/LoggingLevel.php">LoggingLevel.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-loggingmessagenotification.html"><abbr title="src/Schema/Notification/LoggingMessageNotification.php">LoggingMessageNotification.php</abbr></a></li>
+                            <li><a href="files/src-exception-logicexception.html"><abbr title="src/Exception/LogicException.php">LogicException.php</abbr></a></li>
+                        </ul>
+                                                        <h3>M</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-server-transport-managestransportcallbacks.html"><abbr title="src/Server/Transport/ManagesTransportCallbacks.php">ManagesTransportCallbacks.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-mcpprompt.html"><abbr title="src/Capability/Attribute/McpPrompt.php">McpPrompt.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-mcpresource.html"><abbr title="src/Capability/Attribute/McpResource.php">McpResource.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-mcpresourcetemplate.html"><abbr title="src/Capability/Attribute/McpResourceTemplate.php">McpResourceTemplate.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-mcptool.html"><abbr title="src/Capability/Attribute/McpTool.php">McpTool.php</abbr></a></li>
+                            <li><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-messageinterface.html"><abbr title="src/Schema/JsonRpc/MessageInterface.php">MessageInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-http-middlewarerequesthandler.html"><abbr title="src/Server/Transport/Http/MiddlewareRequestHandler.php">MiddlewareRequestHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-modelhint.html"><abbr title="src/Schema/ModelHint.php">ModelHint.php</abbr></a></li>
+                            <li><a href="files/src-schema-modelpreferences.html"><abbr title="src/Schema/ModelPreferences.php">ModelPreferences.php</abbr></a></li>
+                        </ul>
+                                                        <h3>N</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-capability-tool-namevalidator.html"><abbr title="src/Capability/Tool/NameValidator.php">NameValidator.php</abbr></a></li>
+                            <li><a href="files/src-server-nativeclock.html"><abbr title="src/Server/NativeClock.php">NativeClock.php</abbr></a></li>
+                            <li><a href="files/src-exception-notfoundexceptioninterface.html"><abbr title="src/Exception/NotFoundExceptionInterface.php">NotFoundExceptionInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-notification.html"><abbr title="src/Schema/JsonRpc/Notification.php">Notification.php</abbr></a></li>
+                            <li><a href="files/src-event-notificationevent.html"><abbr title="src/Event/NotificationEvent.php">NotificationEvent.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-notification-notificationhandlerinterface.html"><abbr title="src/Server/Handler/Notification/NotificationHandlerInterface.php">NotificationHandlerInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-numberschemadefinition.html"><abbr title="src/Schema/Elicitation/NumberSchemaDefinition.php">NumberSchemaDefinition.php</abbr></a></li>
+                        </ul>
+                                                                                        <h3>P</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-schema-page.html"><abbr title="src/Schema/Page.php">Page.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-pinghandler.html"><abbr title="src/Server/Handler/Request/PingHandler.php">PingHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-pingrequest.html"><abbr title="src/Schema/Request/PingRequest.php">PingRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-primitiveschemadefinition.html"><abbr title="src/Schema/Elicitation/PrimitiveSchemaDefinition.php">PrimitiveSchemaDefinition.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-progressnotification.html"><abbr title="src/Schema/Notification/ProgressNotification.php">ProgressNotification.php</abbr></a></li>
+                            <li><a href="files/src-schema-prompt.html"><abbr title="src/Schema/Prompt.php">Prompt.php</abbr></a></li>
+                            <li><a href="files/src-schema-promptargument.html"><abbr title="src/Schema/PromptArgument.php">PromptArgument.php</abbr></a></li>
+                            <li><a href="files/src-exception-promptgetexception.html"><abbr title="src/Exception/PromptGetException.php">PromptGetException.php</abbr></a></li>
+                            <li><a href="files/src-event-promptlistchangedevent.html"><abbr title="src/Event/PromptListChangedEvent.php">PromptListChangedEvent.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-promptlistchangednotification.html"><abbr title="src/Schema/Notification/PromptListChangedNotification.php">PromptListChangedNotification.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-promptmessage.html"><abbr title="src/Schema/Content/PromptMessage.php">PromptMessage.php</abbr></a></li>
+                            <li><a href="files/src-exception-promptnotfoundexception.html"><abbr title="src/Exception/PromptNotFoundException.php">PromptNotFoundException.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-promptreference.html"><abbr title="src/Capability/Registry/PromptReference.php">PromptReference.php</abbr></a></li>
+                            <li><a href="files/src-schema-promptreference.html"><abbr title="src/Schema/PromptReference.php">PromptReference.php</abbr></a></li>
+                            <li><a href="files/src-capability-formatter-promptresultformatter.html"><abbr title="src/Capability/Formatter/PromptResultFormatter.php">PromptResultFormatter.php</abbr></a></li>
+                            <li><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></li>
+                            <li><a href="files/src-schema-enum-protocolversion.html"><abbr title="src/Schema/Enum/ProtocolVersion.php">ProtocolVersion.php</abbr></a></li>
+                            <li><a href="files/src-capability-completion-providerinterface.html"><abbr title="src/Capability/Completion/ProviderInterface.php">ProviderInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-session-psr16sessionstore.html"><abbr title="src/Server/Session/Psr16SessionStore.php">Psr16SessionStore.php</abbr></a></li>
+                        </ul>
+                                                                                        <h3>R</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-server-handler-request-readresourcehandler.html"><abbr title="src/Server/Handler/Request/ReadResourceHandler.php">ReadResourceHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-readresourcerequest.html"><abbr title="src/Schema/Request/ReadResourceRequest.php">ReadResourceRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-result-readresourceresult.html"><abbr title="src/Schema/Result/ReadResourceResult.php">ReadResourceResult.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-referencehandler.html"><abbr title="src/Capability/Registry/ReferenceHandler.php">ReferenceHandler.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-referencehandlerinterface.html"><abbr title="src/Capability/Registry/ReferenceHandlerInterface.php">ReferenceHandlerInterface.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></li>
+                            <li><a href="files/src-exception-registryexception.html"><abbr title="src/Exception/RegistryException.php">RegistryException.php</abbr></a></li>
+                            <li><a href="files/src-capability-registryinterface.html"><abbr title="src/Capability/RegistryInterface.php">RegistryInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-request.html"><abbr title="src/Schema/JsonRpc/Request.php">Request.php</abbr></a></li>
+                            <li><a href="files/src-server-requestcontext.html"><abbr title="src/Server/RequestContext.php">RequestContext.php</abbr></a></li>
+                            <li><a href="files/src-event-requestevent.html"><abbr title="src/Event/RequestEvent.php">RequestEvent.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-requesthandlerinterface.html"><abbr title="src/Server/Handler/Request/RequestHandlerInterface.php">RequestHandlerInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-resource.html"><abbr title="src/Schema/Resource.php">Resource.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-resourcecontents.html"><abbr title="src/Schema/Content/ResourceContents.php">ResourceContents.php</abbr></a></li>
+                            <li><a href="files/src-event-resourcelistchangedevent.html"><abbr title="src/Event/ResourceListChangedEvent.php">ResourceListChangedEvent.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-resourcelistchangednotification.html"><abbr title="src/Schema/Notification/ResourceListChangedNotification.php">ResourceListChangedNotification.php</abbr></a></li>
+                            <li><a href="files/src-exception-resourcenotfoundexception.html"><abbr title="src/Exception/ResourceNotFoundException.php">ResourceNotFoundException.php</abbr></a></li>
+                            <li><a href="files/src-exception-resourcereadexception.html"><abbr title="src/Exception/ResourceReadException.php">ResourceReadException.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-resourcereference.html"><abbr title="src/Capability/Registry/ResourceReference.php">ResourceReference.php</abbr></a></li>
+                            <li><a href="files/src-schema-resourcereference.html"><abbr title="src/Schema/ResourceReference.php">ResourceReference.php</abbr></a></li>
+                            <li><a href="files/src-capability-formatter-resourceresultformatter.html"><abbr title="src/Capability/Formatter/ResourceResultFormatter.php">ResourceResultFormatter.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-resourcesubscribehandler.html"><abbr title="src/Server/Handler/Request/ResourceSubscribeHandler.php">ResourceSubscribeHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-resourcesubscriberequest.html"><abbr title="src/Schema/Request/ResourceSubscribeRequest.php">ResourceSubscribeRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></li>
+                            <li><a href="files/src-event-resourcetemplatelistchangedevent.html"><abbr title="src/Event/ResourceTemplateListChangedEvent.php">ResourceTemplateListChangedEvent.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-resourcetemplatereference.html"><abbr title="src/Capability/Registry/ResourceTemplateReference.php">ResourceTemplateReference.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-resourceunsubscribehandler.html"><abbr title="src/Server/Handler/Request/ResourceUnsubscribeHandler.php">ResourceUnsubscribeHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-resourceunsubscriberequest.html"><abbr title="src/Schema/Request/ResourceUnsubscribeRequest.php">ResourceUnsubscribeRequest.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-resourceupdatednotification.html"><abbr title="src/Schema/Notification/ResourceUpdatedNotification.php">ResourceUpdatedNotification.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-response.html"><abbr title="src/Schema/JsonRpc/Response.php">Response.php</abbr></a></li>
+                            <li><a href="files/src-event-responseevent.html"><abbr title="src/Event/ResponseEvent.php">ResponseEvent.php</abbr></a></li>
+                            <li><a href="files/src-schema-jsonrpc-resultinterface.html"><abbr title="src/Schema/JsonRpc/ResultInterface.php">ResultInterface.php</abbr></a></li>
+                            <li><a href="files/src-schema-enum-role.html"><abbr title="src/Schema/Enum/Role.php">Role.php</abbr></a></li>
+                            <li><a href="files/src-schema-root.html"><abbr title="src/Schema/Root.php">Root.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-rootslistchangednotification.html"><abbr title="src/Schema/Notification/RootsListChangedNotification.php">RootsListChangedNotification.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-stdio-runnercontrol.html"><abbr title="src/Server/Transport/Stdio/RunnerControl.php">RunnerControl.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-stdio-runnercontrolinterface.html"><abbr title="src/Server/Transport/Stdio/RunnerControlInterface.php">RunnerControlInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-stdio-runnerstate.html"><abbr title="src/Server/Transport/Stdio/RunnerState.php">RunnerState.php</abbr></a></li>
+                            <li><a href="files/src-exception-runtimeexception.html"><abbr title="src/Exception/RuntimeException.php">RuntimeException.php</abbr></a></li>
+                        </ul>
+                                                        <h3>S</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-schema-enum-samplingcontext.html"><abbr title="src/Schema/Enum/SamplingContext.php">SamplingContext.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-samplingmessage.html"><abbr title="src/Schema/Content/SamplingMessage.php">SamplingMessage.php</abbr></a></li>
+                            <li><a href="files/src-capability-attribute-schema.html"><abbr title="src/Capability/Attribute/Schema.php">Schema.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-schemageneratorinterface.html"><abbr title="src/Capability/Discovery/SchemaGeneratorInterface.php">SchemaGeneratorInterface.php</abbr></a></li>
+                            <li><a href="files/src-capability-discovery-schemavalidator.html"><abbr title="src/Capability/Discovery/SchemaValidator.php">SchemaValidator.php</abbr></a></li>
+                            <li><a href="files/src-server.html"><abbr title="src/Server.php">Server.php</abbr></a></li>
+                            <li><a href="files/src-schema-servercapabilities.html"><abbr title="src/Schema/ServerCapabilities.php">ServerCapabilities.php</abbr></a></li>
+                            <li><a href="files/src-exception-servicenotfoundexception.html"><abbr title="src/Exception/ServiceNotFoundException.php">ServiceNotFoundException.php</abbr></a></li>
+                            <li><a href="files/src-server-session-session.html"><abbr title="src/Server/Session/Session.php">Session.php</abbr></a></li>
+                            <li><a href="files/src-server-session-sessionfactory.html"><abbr title="src/Server/Session/SessionFactory.php">SessionFactory.php</abbr></a></li>
+                            <li><a href="files/src-server-session-sessionfactoryinterface.html"><abbr title="src/Server/Session/SessionFactoryInterface.php">SessionFactoryInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-session-sessioninterface.html"><abbr title="src/Server/Session/SessionInterface.php">SessionInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-session-sessionstoreinterface.html"><abbr title="src/Server/Session/SessionStoreInterface.php">SessionStoreInterface.php</abbr></a></li>
+                            <li><a href="files/src-server-resource-sessionsubscriptionmanager.html"><abbr title="src/Server/Resource/SessionSubscriptionManager.php">SessionSubscriptionManager.php</abbr></a></li>
+                            <li><a href="files/src-server-handler-request-setloglevelhandler.html"><abbr title="src/Server/Handler/Request/SetLogLevelHandler.php">SetLogLevelHandler.php</abbr></a></li>
+                            <li><a href="files/src-schema-request-setloglevelrequest.html"><abbr title="src/Schema/Request/SetLogLevelRequest.php">SetLogLevelRequest.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></li>
+                            <li><a href="files/src-schema-elicitation-stringschemadefinition.html"><abbr title="src/Schema/Elicitation/StringSchemaDefinition.php">StringSchemaDefinition.php</abbr></a></li>
+                            <li><a href="files/src-server-resource-subscriptionmanagerinterface.html"><abbr title="src/Server/Resource/SubscriptionManagerInterface.php">SubscriptionManagerInterface.php</abbr></a></li>
+                        </ul>
+                                                        <h3>T</h3>
+            <ul class="phpdocumentor-list">
+                            <li><a href="files/src-schema-content-textcontent.html"><abbr title="src/Schema/Content/TextContent.php">TextContent.php</abbr></a></li>
+                            <li><a href="files/src-schema-content-textresourcecontents.html"><abbr title="src/Schema/Content/TextResourceContents.php">TextResourceContents.php</abbr></a></li>
+                            <li><a href="files/src-schema-tool.html"><abbr title="src/Schema/Tool.php">Tool.php</abbr></a></li>
+                            <li><a href="files/src-schema-toolannotations.html"><abbr title="src/Schema/ToolAnnotations.php">ToolAnnotations.php</abbr></a></li>
+                            <li><a href="files/src-exception-toolcallexception.html"><abbr title="src/Exception/ToolCallException.php">ToolCallException.php</abbr></a></li>
+                            <li><a href="files/src-event-toollistchangedevent.html"><abbr title="src/Event/ToolListChangedEvent.php">ToolListChangedEvent.php</abbr></a></li>
+                            <li><a href="files/src-schema-notification-toollistchangednotification.html"><abbr title="src/Schema/Notification/ToolListChangedNotification.php">ToolListChangedNotification.php</abbr></a></li>
+                            <li><a href="files/src-exception-toolnotfoundexception.html"><abbr title="src/Exception/ToolNotFoundException.php">ToolNotFoundException.php</abbr></a></li>
+                            <li><a href="files/src-capability-registry-toolreference.html"><abbr title="src/Capability/Registry/ToolReference.php">ToolReference.php</abbr></a></li>
+                            <li><a href="files/src-capability-formatter-toolresultformatter.html"><abbr title="src/Capability/Formatter/ToolResultFormatter.php">ToolResultFormatter.php</abbr></a></li>
+                            <li><a href="files/src-server-transport-transportinterface.html"><abbr title="src/Server/Transport/TransportInterface.php">TransportInterface.php</abbr></a></li>
+                        </ul>
+                                                                                                                                                                                                                        </section>
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="indices/files.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>

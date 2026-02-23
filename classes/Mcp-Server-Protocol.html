@@ -1,0 +1,2253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>MCP PHP SDK</title>
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title">
+    <a href="docs/index.html" class="phpdocumentor-title__link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 195 195" fill="none">
+            <path d="M25 97.8528L92.8823 29.9706C102.255 20.598 117.451 20.598 126.823 29.9706V29.9706C136.196 39.3431 136.196 54.5391 126.823 63.9117L75.5581 115.177" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M76.2653 114.47L126.823 63.9117C136.196 54.5391 151.392 54.5391 160.765 63.9117L161.118 64.2652C170.491 73.6378 170.491 88.8338 161.118 98.2063L99.7248 159.6C96.6006 162.724 96.6006 167.789 99.7248 170.913L112.331 183.52" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M109.853 46.9411L59.6482 97.1457C50.2757 106.518 50.2757 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2168 140.459 93.5894 131.087L143.794 80.8822" stroke="black" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <span style="margin-left: 0.25em;">MCP PHP SDK</span>
+    </a>
+</h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+                        <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="docs/index.html">
+                    <span>
+                                                                        Guides
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="https://modelcontextprotocol.io/">
+                    <span>
+                                                                        Specification
+                    </span>
+                </a>
+            </li>
+                                <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://github.com/modelcontextprotocol/php-sdk">
+                    <span>
+                                                                        <i class="fab fa-github"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://discord.gg/6CSzBmMkjX">
+                    <span>
+                                                                        <i class="fab fa-discord"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/mcp.html" class="">Mcp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/mcp-capability.html" class="">Capability</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-exception.html" class="">Exception</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-jsonrpc.html" class="">JsonRpc</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-schema.html" class="">Schema</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-server.html" class="">Server</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                <section>
+                                        <ul class="phpdocumentor-breadcrumbs">
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp.html">Mcp</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server.html">Server</a></li>
+    </ul>
+
+    <article class="phpdocumentor-element -class">
+        <h2 class="phpdocumentor-content__title">
+    Protocol
+
+    
+    
+    
+    </h2>
+
+<div class="phpdocumentor-label-line">
+
+
+</div>
+
+        <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">46</span>
+
+    </aside>
+
+        
+
+
+
+    <h5 class="phpdocumentor-tag-list__heading" id="tags">
+        Tags
+        <a href="classes/Mcp-Server-Protocol.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h5>
+    <dl class="phpdocumentor-tag-list">
+                                    <dt class="phpdocumentor-tag-list__entry">
+                    <span class="phpdocumentor-tag__name">final</span>
+                </dt>
+                <dd class="phpdocumentor-tag-list__definition">
+                                                                                
+                                             
+                                    </dd>
+                                                <dt class="phpdocumentor-tag-list__entry">
+                    <span class="phpdocumentor-tag__name">phpstan-import-type</span>
+                </dt>
+                <dd class="phpdocumentor-tag-list__definition">
+                                                                                
+                                                 <section class="phpdocumentor-description"><p>McpFiber from TransportInterface</p>
+</section>
+
+                                    </dd>
+                            <dt class="phpdocumentor-tag-list__entry">
+                    <span class="phpdocumentor-tag__name">phpstan-import-type</span>
+                </dt>
+                <dd class="phpdocumentor-tag-list__definition">
+                                                                                
+                                                 <section class="phpdocumentor-description"><p>FiberSuspend from TransportInterface</p>
+</section>
+
+                                    </dd>
+                                                <dt class="phpdocumentor-tag-list__entry">
+                    <span class="phpdocumentor-tag__name">author</span>
+                </dt>
+                <dd class="phpdocumentor-tag-list__definition">
+                                                                                
+                                                 <section class="phpdocumentor-description"><p>Christopher Hertel <a href="mailto:mail@christopher-hertel.de">mail@christopher-hertel.de</a></p>
+</section>
+
+                                    </dd>
+                            <dt class="phpdocumentor-tag-list__entry">
+                    <span class="phpdocumentor-tag__name">author</span>
+                </dt>
+                <dd class="phpdocumentor-tag-list__definition">
+                                                                                
+                                                 <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
+</section>
+
+                                    </dd>
+                                            </dl>
+
+    
+    
+<h3 id="toc">
+    Table of Contents
+    <a href="classes/Mcp-Server-Protocol.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h3>
+
+
+
+
+
+
+
+<h4 id="toc-constants">
+    Constants
+    <a href="classes/Mcp-Server-Protocol.html#toc-constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_ACTIVE_REQUEST_META">SESSION_ACTIVE_REQUEST_META</a>
+    <span>
+        &nbsp;= &#039;_mcp.active_request_meta&#039;                            </span>
+</dt>
+<dd>Session key for active request meta</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_LOGGING_LEVEL">SESSION_LOGGING_LEVEL</a>
+    <span>
+        &nbsp;= &#039;_mcp.logging_level&#039;                            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_OUTGOING_QUEUE">SESSION_OUTGOING_QUEUE</a>
+    <span>
+        &nbsp;= &#039;_mcp.outgoing_queue&#039;                            </span>
+</dt>
+<dd>Session key for outgoing message queue</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_PENDING_REQUESTS">SESSION_PENDING_REQUESTS</a>
+    <span>
+        &nbsp;= &#039;_mcp.pending_requests&#039;                            </span>
+</dt>
+<dd>Session key for pending outgoing requests</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_REQUEST_ID_COUNTER">SESSION_REQUEST_ID_COUNTER</a>
+    <span>
+        &nbsp;= &#039;_mcp.request_id_counter&#039;                            </span>
+</dt>
+<dd>Session key for request ID counter</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#constant_SESSION_RESPONSES">SESSION_RESPONSES</a>
+    <span>
+        &nbsp;= &#039;_mcp.responses&#039;                            </span>
+</dt>
+<dd>Session key for incoming client responses</dd>
+
+    </dl>
+
+
+<h4 id="toc-properties">
+    Properties
+    <a href="classes/Mcp-Server-Protocol.html#toc-properties" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_eventDispatcher">$eventDispatcher</a>
+    <span>
+                        &nbsp;: <abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_logger">$logger</a>
+    <span>
+                        &nbsp;: <abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_messageFactory">$messageFactory</a>
+    <span>
+                        &nbsp;: <a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a>            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_notificationHandlers">$notificationHandlers</a>
+    <span>
+                        &nbsp;: array&lt;string|int, mixed&gt;            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_requestHandlers">$requestHandlers</a>
+    <span>
+                        &nbsp;: array&lt;string|int, mixed&gt;            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_sessionFactory">$sessionFactory</a>
+    <span>
+                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_sessionStore">$sessionStore</a>
+    <span>
+                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>            </span>
+</dt>
+
+    </dl>
+
+<h4 id="toc-methods">
+    Methods
+    <a href="classes/Mcp-Server-Protocol.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method___construct">__construct()</a>
+    <span>
+                                &nbsp;: mixed    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_checkResponse">checkResponse()</a>
+    <span>
+                                &nbsp;: <a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>|null    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_connect">connect()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Connect this protocol to transport.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_consumeOutgoingMessages">consumeOutgoingMessages()</a>
+    <span>
+                                &nbsp;: array&lt;int, array{message: string, context: array<string,mixed>}&gt;    </span>
+</dt>
+<dd>Consume (get and clear) all outgoing messages for a session.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_destroySession">destroySession()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Destroy a specific session.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_getPendingRequests">getPendingRequests()</a>
+    <span>
+                                &nbsp;: array&lt;int, mixed&gt;    </span>
+</dt>
+<dd>Get pending requests for a session.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_handleFiberYield">handleFiberYield()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Handle values yielded by Fibers during transport-managed resumes.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_processInput">processInput()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Handle an incoming message from the transport.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_sendNotification">sendNotification()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Queues a notification for later delivery.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_sendRequest">sendRequest()</a>
+    <span>
+                                &nbsp;: int    </span>
+</dt>
+<dd>Sends a request to the client and returns the request ID.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_dispatchEvent">dispatchEvent()</a>
+    <span>
+                                &nbsp;: <abbr title="\Mcp\Server\T">T</abbr>    </span>
+</dt>
+<dd>Dispatches an event through the event dispatcher if available.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_gcSessions">gcSessions()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Run garbage collection on expired sessions.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage">handleInvalidMessage()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Handle an invalid message from the transport.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_handleNotification">handleNotification()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_handleRequest">handleRequest()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Handle a request from the transport.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_handleResponse">handleResponse()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_hasInitializeRequest">hasInitializeRequest()</a>
+    <span>
+                                &nbsp;: bool    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_queueOutgoing">queueOutgoing()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Helper to queue outgoing messages in session.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_resolveSession">resolveSession()</a>
+    <span>
+                                &nbsp;: <a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>|null    </span>
+</dt>
+<dd>Resolves and validates the session based on the request context.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Protocol.html#method_sendResponse">sendResponse()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Sends a response either immediately or queued for later delivery.</dd>
+
+    </dl>
+
+
+
+        
+    <section class="phpdocumentor-constants">
+        <h3 class="phpdocumentor-elements__header" id="constants">
+            Constants
+            <a href="classes/Mcp-Server-Protocol.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_ACTIVE_REQUEST_META">
+        SESSION_ACTIVE_REQUEST_META
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_ACTIVE_REQUEST_META" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">61</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Session key for active request meta</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_ACTIVE_REQUEST_META</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.active_request_meta&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_LOGGING_LEVEL">
+        SESSION_LOGGING_LEVEL
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_LOGGING_LEVEL" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">63</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_LOGGING_LEVEL</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.logging_level&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+                    <article class="phpdocumentor-element -constant -private ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_OUTGOING_QUEUE">
+        SESSION_OUTGOING_QUEUE
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_OUTGOING_QUEUE" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">58</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Session key for outgoing message queue</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_OUTGOING_QUEUE</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.outgoing_queue&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+                    <article class="phpdocumentor-element -constant -private ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_PENDING_REQUESTS">
+        SESSION_PENDING_REQUESTS
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_PENDING_REQUESTS" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">52</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Session key for pending outgoing requests</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_PENDING_REQUESTS</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.pending_requests&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+                    <article class="phpdocumentor-element -constant -private ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_REQUEST_ID_COUNTER">
+        SESSION_REQUEST_ID_COUNTER
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_REQUEST_ID_COUNTER" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">49</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Session key for request ID counter</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_REQUEST_ID_COUNTER</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.request_id_counter&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+                    <article class="phpdocumentor-element -constant -private ">
+    <h4 class="phpdocumentor-element__name" id="constant_SESSION_RESPONSES">
+        SESSION_RESPONSES
+        <a href="classes/Mcp-Server-Protocol.html#constant_SESSION_RESPONSES" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">55</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Session key for incoming client responses</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">SESSION_RESPONSES</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;_mcp.responses&#039;</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+            </section>
+
+        
+    <section class="phpdocumentor-properties">
+        <h3 class="phpdocumentor-elements__header" id="properties">
+            Properties
+            <a href="classes/Mcp-Server-Protocol.html#properties" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_eventDispatcher">
+        $eventDispatcher
+        <a href="classes/Mcp-Server-Protocol.html#property_eventDispatcher" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">76</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null</span>
+    <span class="phpdocumentor-signature__name">$eventDispatcher</span>
+     = <span class="phpdocumentor-signature__default-value">null</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_logger">
+        $logger
+        <a href="classes/Mcp-Server-Protocol.html#property_logger" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">75</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr></span>
+    <span class="phpdocumentor-signature__name">$logger</span>
+     = <span class="phpdocumentor-signature__default-value">new NullLogger()</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_messageFactory">
+        $messageFactory
+        <a href="classes/Mcp-Server-Protocol.html#property_messageFactory" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">72</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a></span>
+    <span class="phpdocumentor-signature__name">$messageFactory</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_notificationHandlers">
+        $notificationHandlers
+        <a href="classes/Mcp-Server-Protocol.html#property_notificationHandlers" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">71</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">array&lt;string|int, mixed&gt;</span>
+    <span class="phpdocumentor-signature__name">$notificationHandlers</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_requestHandlers">
+        $requestHandlers
+        <a href="classes/Mcp-Server-Protocol.html#property_requestHandlers" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">70</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">array&lt;string|int, mixed&gt;</span>
+    <span class="phpdocumentor-signature__name">$requestHandlers</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_sessionFactory">
+        $sessionFactory
+        <a href="classes/Mcp-Server-Protocol.html#property_sessionFactory" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">73</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a></span>
+    <span class="phpdocumentor-signature__name">$sessionFactory</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_sessionStore">
+        $sessionStore
+        <a href="classes/Mcp-Server-Protocol.html#property_sessionStore" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">74</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
+    <span class="phpdocumentor-signature__name">$sessionStore</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+            </section>
+
+            <section class="phpdocumentor-methods">
+        <h3 class="phpdocumentor-elements__header" id="methods">
+            Methods
+            <a href="classes/Mcp-Server-Protocol.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method___construct">
+        __construct()
+        <a href="classes/Mcp-Server-Protocol.html#method___construct" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">69</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Notification-NotificationHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Notification\NotificationHandlerInterface">NotificationHandlerInterface</abbr></a>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$notificationHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$messageFactory</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionFactory</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionStore</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$eventDispatcher</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$requestHandlers</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$notificationHandlers</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Notification-NotificationHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Notification\NotificationHandlerInterface">NotificationHandlerInterface</abbr></a>&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$messageFactory</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionFactory</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionStore</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$logger</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr></span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$eventDispatcher</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_checkResponse">
+        checkResponse()
+        <a href="classes/Mcp-Server-Protocol.html#method_checkResponse" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">430</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">checkResponse</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestId</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>|null</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$requestId</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>|null</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_connect">
+        connect()
+        <a href="classes/Mcp-Server-Protocol.html#method_connect" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">87</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Connect this protocol to transport.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">connect</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p>The protocol takes ownership of the transport and sets up all callbacks.</p>
+</section>
+
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_consumeOutgoingMessages">
+        consumeOutgoingMessages()
+        <a href="classes/Mcp-Server-Protocol.html#method_consumeOutgoingMessages" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">411</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Consume (get and clear) all outgoing messages for a session.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">consumeOutgoingMessages</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;int, array{message: string, context: array<string,mixed>}&gt;</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">array&lt;int, array{message: string, context: array<string,mixed>}&gt;</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_destroySession">
+        destroySession()
+        <a href="classes/Mcp-Server-Protocol.html#method_destroySession" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">634</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Destroy a specific session.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">destroySession</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_getPendingRequests">
+        getPendingRequests()
+        <a href="classes/Mcp-Server-Protocol.html#method_getPendingRequests" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">472</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Get pending requests for a session.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">getPendingRequests</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;int, mixed&gt;</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">array&lt;int, mixed&gt;</span>
+                    &mdash;
+                <section class="phpdocumentor-description"><p>The pending requests</p>
+</section>
+
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_handleFiberYield">
+        handleFiberYield()
+        <a href="classes/Mcp-Server-Protocol.html#method_handleFiberYield" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">484</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Handle values yielded by Fibers during transport-managed resumes.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">handleFiberYield</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\FiberSuspend">FiberSuspend</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$yieldedValue</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$yieldedValue</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Mcp\Server\FiberSuspend">FiberSuspend</abbr>|null</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_processInput">
+        processInput()
+        <a href="classes/Mcp-Server-Protocol.html#method_processInput" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">111</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Handle an incoming message from the transport.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">processInput</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$input</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p>This is called by the transport whenever ANY message arrives.</p>
+</section>
+
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$input</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_sendNotification">
+        sendNotification()
+        <a href="classes/Mcp-Server-Protocol.html#method_sendNotification" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">329</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Queues a notification for later delivery.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">sendNotification</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$notification</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$notification</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_sendRequest">
+        sendRequest()
+        <a href="classes/Mcp-Server-Protocol.html#method_sendRequest" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">300</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Sends a request to the client and returns the request ID.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">sendRequest</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$timeout</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">int</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$request</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$timeout</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">int</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_dispatchEvent">
+        dispatchEvent()
+        <a href="classes/Mcp-Server-Protocol.html#method_dispatchEvent" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">169</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Dispatches an event through the event dispatcher if available.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">dispatchEvent</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\T">T</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$event</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\Mcp\Server\T">T</abbr></span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$event</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Mcp\Server\T">T</abbr></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><abbr title="\Mcp\Server\T">T</abbr></span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_gcSessions">
+        gcSessions()
+        <a href="classes/Mcp-Server-Protocol.html#method_gcSessions" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">616</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Run garbage collection on expired sessions.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">gcSessions</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p>Uses the session store's internal TTL configuration.</p>
+</section>
+
+    
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_handleInvalidMessage">
+        handleInvalidMessage()
+        <a href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">152</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Handle an invalid message from the transport.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">handleInvalidMessage</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Exception-InvalidInputMessageException.html"><abbr title="\Mcp\Exception\InvalidInputMessageException">InvalidInputMessageException</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$exception</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$exception</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Exception-InvalidInputMessageException.html"><abbr title="\Mcp\Exception\InvalidInputMessageException">InvalidInputMessageException</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_handleNotification">
+        handleNotification()
+        <a href="classes/Mcp-Server-Protocol.html#method_handleNotification" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">277</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">handleNotification</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$notification</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$notification</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_handleRequest">
+        handleRequest()
+        <a href="classes/Mcp-Server-Protocol.html#method_handleRequest" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">179</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Handle a request from the transport.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">handleRequest</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$request</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_handleResponse">
+        handleResponse()
+        <a href="classes/Mcp-Server-Protocol.html#method_handleResponse" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">263</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">handleResponse</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$response</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$response</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_hasInitializeRequest">
+        hasInitializeRequest()
+        <a href="classes/Mcp-Server-Protocol.html#method_hasInitializeRequest" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">548</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">hasInitializeRequest</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$messages</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$messages</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">bool</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_queueOutgoing">
+        queueOutgoing()
+        <a href="classes/Mcp-Server-Protocol.html#method_queueOutgoing" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">386</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Helper to queue outgoing messages in session.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">queueOutgoing</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>|<a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a>|<a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$message</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$context</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$message</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>|<a href="classes/Mcp-Schema-JsonRpc-Notification.html"><abbr title="\Mcp\Schema\JsonRpc\Notification">Notification</abbr></a>|<a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$context</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;string, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_resolveSession">
+        resolveSession()
+        <a href="classes/Mcp-Server-Protocol.html#method_resolveSession" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">566</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Resolves and validates the session based on the request context.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">resolveSession</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionId</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$messages</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>|null</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$sessionId</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>|null</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>The session ID from the transport</p>
+</section>
+
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$messages</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>The parsed messages</p>
+</section>
+
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>|null</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_sendResponse">
+        sendResponse()
+        <a href="classes/Mcp-Server-Protocol.html#method_sendResponse" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">345</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Sends a response either immediately or queued for later delivery.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">sendResponse</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$transport</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$response</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$context</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$transport</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Transport-TransportInterface.html"><abbr title="\Mcp\Server\Transport\TransportInterface">TransportInterface</abbr></a>&lt;string|int, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$response</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$session</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>|null</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$context</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;string, mixed&gt;</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">[]</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+            </section>
+
+        <div class="phpdocumentor-modal" id="source-view">
+    <div class="phpdocumentor-modal-bg" data-exit-button></div>
+    <div class="phpdocumentor-modal-container">
+        <div class="phpdocumentor-modal-content">
+            <pre style="max-height: 500px; overflow-y: scroll" data-src="files/src/Server/Protocol.php.txt" class="language-php line-numbers linkable-line-numbers"></pre>
+        </div>
+        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
+    </div>
+</div>
+
+    <script type="text/javascript">
+        (function () {
+            function loadExternalCodeSnippet(el, url, line) {
+                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
+                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
+                    const language = 'php';
+
+                    const code = document.createElement('code');
+                    code.className = 'language-' + language;
+                    pre.textContent = '';
+                    pre.setAttribute('data-line', line)
+                    code.textContent = 'Loading…';
+                    pre.appendChild(code);
+
+                    var xhr = new XMLHttpRequest();
+
+                    xhr.open('GET', src, true);
+
+                    xhr.onreadystatechange = function () {
+                        if (xhr.readyState !== 4) {
+                            return;
+                        }
+
+                        if (xhr.status < 400 && xhr.responseText) {
+                            code.textContent = xhr.responseText;
+                            Prism.highlightElement(code);
+                            d=document.getElementsByClassName("line-numbers");
+                            d[0].scrollTop = d[0].children[1].offsetTop;
+                            return;
+                        }
+
+                        if (xhr.status === 404) {
+                            code.textContent = '✖ Error: File could not be found';
+                            return;
+                        }
+
+                        if (xhr.status >= 400) {
+                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
+                            return;
+                        }
+
+                        code.textContent = '✖ Error: An unknown error occurred';
+                    };
+
+                    xhr.send(null);
+                });
+            }
+
+            const modalButtons = document.querySelectorAll("[data-modal]");
+            const openedAsLocalFile = window.location.protocol === 'file:';
+            if (modalButtons.length > 0 && openedAsLocalFile) {
+                console.warn(
+                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
+                    'browsers block XHR requests when a page is opened this way'
+                );
+            }
+
+            modalButtons.forEach(function (trigger) {
+                if (openedAsLocalFile) {
+                    trigger.setAttribute("hidden", "hidden");
+                }
+
+                trigger.addEventListener("click", function (event) {
+                    event.preventDefault();
+                    const modal = document.getElementById(trigger.dataset.modal);
+                    if (!modal) {
+                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
+                        return;
+                    }
+                    modal.classList.add("phpdocumentor-modal__open");
+
+                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
+                    const exits = modal.querySelectorAll("[data-exit-button]");
+                    exits.forEach(function (exit) {
+                        exit.addEventListener("click", function (event) {
+                            event.preventDefault();
+                            modal.classList.remove("phpdocumentor-modal__open");
+                        });
+                    });
+                });
+            });
+        })();
+    </script>
+
+    </article>
+                                </section>
+                <section class="phpdocumentor-on-this-page__sidebar">
+                                
+    <section class="phpdocumentor-on-this-page__content">
+        <strong class="phpdocumentor-on-this-page__title">On this page</strong>
+
+        <ul class="phpdocumentor-list -clean">
+            <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
+            <li>
+                <ul class="phpdocumentor-list -clean">
+                                        <li><a href="classes/Mcp-Server-Protocol.html#toc-constants">Constants</a></li>
+                                                            <li><a href="classes/Mcp-Server-Protocol.html#toc-properties">Properties</a></li>
+                                                            <li><a href="classes/Mcp-Server-Protocol.html#toc-methods">Methods</a></li>
+                                    </ul>
+            </li>
+                            <li class="phpdocumentor-on-this-page-section__title">Constants</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_ACTIVE_REQUEST_META">SESSION_ACTIVE_REQUEST_META</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_LOGGING_LEVEL">SESSION_LOGGING_LEVEL</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_OUTGOING_QUEUE">SESSION_OUTGOING_QUEUE</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_PENDING_REQUESTS">SESSION_PENDING_REQUESTS</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_REQUEST_ID_COUNTER">SESSION_REQUEST_ID_COUNTER</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#constant_SESSION_RESPONSES">SESSION_RESPONSES</a></li>
+                                            </ul>
+                </li>
+            
+                            <li class="phpdocumentor-on-this-page-section__title">Properties</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_eventDispatcher">$eventDispatcher</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_logger">$logger</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_messageFactory">$messageFactory</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_notificationHandlers">$notificationHandlers</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_requestHandlers">$requestHandlers</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_sessionFactory">$sessionFactory</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_sessionStore">$sessionStore</a></li>
+                                            </ul>
+                </li>
+            
+                        <li class="phpdocumentor-on-this-page-section__title">Methods</li>
+            <li>
+                <ul class="phpdocumentor-list -clean">
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method___construct">__construct()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_checkResponse">checkResponse()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_connect">connect()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_consumeOutgoingMessages">consumeOutgoingMessages()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_destroySession">destroySession()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_getPendingRequests">getPendingRequests()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleFiberYield">handleFiberYield()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_processInput">processInput()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_sendNotification">sendNotification()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_sendRequest">sendRequest()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_dispatchEvent">dispatchEvent()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_gcSessions">gcSessions()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage">handleInvalidMessage()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleNotification">handleNotification()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleRequest">handleRequest()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleResponse">handleResponse()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_hasInitializeRequest">hasInitializeRequest()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_queueOutgoing">queueOutgoing()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_resolveSession">resolveSession()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_sendResponse">sendResponse()</a></li>
+                                    </ul>
+            </li>
+                    </ul>
+    </section>
+
+                </section>
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="classes/Mcp-Server-Protocol.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>

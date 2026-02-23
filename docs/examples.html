@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>MCP PHP SDK</title>
+    
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title">
+    <a href="docs/index.html" class="phpdocumentor-title__link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 195 195" fill="none">
+            <path d="M25 97.8528L92.8823 29.9706C102.255 20.598 117.451 20.598 126.823 29.9706V29.9706C136.196 39.3431 136.196 54.5391 126.823 63.9117L75.5581 115.177" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M76.2653 114.47L126.823 63.9117C136.196 54.5391 151.392 54.5391 160.765 63.9117L161.118 64.2652C170.491 73.6378 170.491 88.8338 161.118 98.2063L99.7248 159.6C96.6006 162.724 96.6006 167.789 99.7248 170.913L112.331 183.52" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M109.853 46.9411L59.6482 97.1457C50.2757 106.518 50.2757 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2168 140.459 93.5894 131.087L143.794 80.8822" stroke="black" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <span style="margin-left: 0.25em;">MCP PHP SDK</span>
+    </a>
+</h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+                        <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="docs/index.html">
+                    <span>
+                                                                        Guides
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="https://modelcontextprotocol.io/">
+                    <span>
+                                                                        Specification
+                    </span>
+                </a>
+            </li>
+                                <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://github.com/modelcontextprotocol/php-sdk">
+                    <span>
+                                                                        <i class="fab fa-github"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://discord.gg/6CSzBmMkjX">
+                    <span>
+                                                                        <i class="fab fa-discord"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/mcp.html" class="">Mcp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/mcp-capability.html" class="">Capability</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-exception.html" class="">Exception</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-jsonrpc.html" class="">JsonRpc</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-schema.html" class="">Schema</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-server.html" class="">Server</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                        
+<section class="section " id="examples">
+            <h1>Examples</h1>
+
+            
+    <p>The MCP PHP SDK includes comprehensive examples demonstrating different patterns and use cases. Each example showcases specific features and can be run independently to understand how the SDK works.</p>
+
+            <section class="section " id="table-of-contents">
+            <h2>Table of Contents</h2>
+
+            
+
+<ul>
+    <li class="dash"><a href="#getting-started">Getting Started</a></li>
+
+    <li class="dash"><a href="#running-examples">Running Examples</a></li>
+
+    <li class="dash"><a href="#examples">Examples</a></li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="getting-started">
+            <h2>Getting Started</h2>
+
+            
+    <p>All examples are located in the <code>examples/</code>
+ directory and use the SDK dependencies from the root project. Most examples can be run directly without additional setup.</p>
+
+            <section class="section " id="prerequisites">
+            <h3>Prerequisites</h3>
+
+            <pre><code class="language-"># Install dependencies (in project root)
+composer install
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="running-examples">
+            <h2>Running Examples</h2>
+
+            
+    <p>The bootstrapping of the example will choose the used transport based on the SAPI you use.</p>
+
+            <section class="section " id="stdio-transport">
+            <h3>STDIO Transport</h3>
+
+            
+    <p>The STDIO transport will use standard input/output for communication:</p>
+
+            <pre><code class="language-"># Interactive testing with MCP Inspector
+npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
+
+# Run with debugging enabled
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discovery-calculator/server.php
+
+# Or configure the script path in your MCP client
+# Path: php examples/discovery-calculator/server.php
+</code></pre>
+
+    </section>
+
+            <section class="section " id="http-transport">
+            <h3>HTTP Transport</h3>
+
+            
+    <p>The Streamable HTTP transport will be chosen if running examples with a web servers:</p>
+
+            <pre><code class="language-"># Start the server
+php -S localhost:8000 examples/discovery-userprofile/server.php
+
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector http://localhost:8000
+
+# Test with curl
+curl -X POST http://localhost:8000 \
+  -H &quot;Content-Type: application/json&quot; \
+  -H &quot;Accept: application/json, text/event-stream&quot; \
+  -d &#039;{&quot;jsonrpc&quot;:&quot;2.0&quot;,&quot;id&quot;:1,&quot;method&quot;:&quot;initialize&quot;,&quot;params&quot;:{&quot;protocolVersion&quot;:&quot;2024-11-05&quot;,&quot;clientInfo&quot;:{&quot;name&quot;:&quot;test&quot;,&quot;version&quot;:&quot;1.0.0&quot;},&quot;capabilities&quot;:{}}}&#039;
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="examples">
+            <h2>Examples</h2>
+
+            <section class="section " id="discovery-calculator">
+            <h3>Discovery Calculator</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/discovery-calculator/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Attribute-based discovery using <code>#[McpTool]</code>
+ and <code>#[McpResource]</code>
+</li>
+
+    <li class="dash">Basic arithmetic operations</li>
+
+    <li class="dash">Configuration management through resources</li>
+
+    <li class="dash">State management between tool calls</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">#[McpTool(name: &#039;calculate&#039;)]
+public function calculate(float $a, float $b, string $operation): float|string
+
+#[McpResource(
+    uri: &#039;config://calculator/settings&#039;,
+    name: &#039;calculator_config&#039;,
+    mimeType: &#039;application/json&#039;
+)]
+public function getConfiguration(): array
+</code></pre>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Interactive testing
+npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
+
+# Or configure in MCP client: php examples/discovery-calculator/server.php
+</code></pre>
+
+    </section>
+
+            <section class="section " id="explicit-registration">
+            <h3>Explicit Registration</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/explicit-registration/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Manual registration of tools, resources, and prompts</li>
+
+    <li class="dash">Alternative to attribute-based discovery</li>
+
+    <li class="dash">Simple handler functions</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;addTool([SimpleHandlers::class, &#039;echoText&#039;], &#039;echo_text&#039;)
+    -&gt;addResource([SimpleHandlers::class, &#039;getAppVersion&#039;], &#039;app://version&#039;)
+    -&gt;addPrompt([SimpleHandlers::class, &#039;greetingPrompt&#039;], &#039;personalized_greeting&#039;)
+</code></pre>
+
+    </section>
+
+            <section class="section " id="environment-variables">
+            <h3>Environment Variables</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/env-variables/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Environment variable integration</li>
+
+    <li class="dash">Server configuration from environment</li>
+
+    <li class="dash">Environment-based tool behavior</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Reading environment variables within tools</li>
+
+    <li class="dash">Conditional behavior based on environment</li>
+
+    <li class="dash">Environment validation and defaults</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="custom-dependencies">
+            <h3>Custom Dependencies</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/custom-dependencies/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Dependency injection with PSR-11 containers</li>
+
+    <li class="dash">Service layer architecture</li>
+
+    <li class="dash">Repository pattern implementation</li>
+
+    <li class="dash">Complex business logic integration</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">$container-&gt;set(TaskRepositoryInterface::class, $taskRepo);
+$container-&gt;set(StatsServiceInterface::class, $statsService);
+
+$server = Server::builder()
+    -&gt;setContainer($container)
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])
+</code></pre>
+
+    </section>
+
+            <section class="section " id="cached-discovery">
+            <h3>Cached Discovery</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/cached-discovery/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Discovery caching for improved performance</li>
+
+    <li class="dash">PSR-16 cache integration</li>
+
+    <li class="dash">Cache invalidation strategies</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
+
+$cache = new Psr16Cache(new FilesystemAdapter(&#039;mcp-discovery&#039;));
+
+$server = Server::builder()
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;], [], $cache)
+</code></pre>
+
+    </section>
+
+            <section class="section " id="client-communication">
+            <h3>Client Communication</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/client-communication/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Server initiated communication back to the client</li>
+
+    <li class="dash">Logging, sampling, progress and notifications</li>
+
+    <li class="dash">Using <code>ClientGateway</code>
+ in tool method via method argument injection of <code>RequestContext</code>
+</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="discovery-user-profile">
+            <h3>Discovery User Profile</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/discovery-userprofile/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">HTTP transport with StreamableHttpTransport</li>
+
+    <li class="dash">Resource templates with URI parameters</li>
+
+    <li class="dash">Completion providers for parameter hints</li>
+
+    <li class="dash">User profile management system</li>
+
+    <li class="dash">Session persistence with FileSessionStore</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">#[McpResourceTemplate(
+    uriTemplate: &#039;user://{userId}/profile&#039;,
+    name: &#039;user_profile&#039;,
+    mimeType: &#039;application/json&#039;
+)]
+public function getUserProfile(
+    #[CompletionProvider(values: [&#039;101&#039;, &#039;102&#039;, &#039;103&#039;])]
+    string $userId
+): array
+
+#[McpPrompt(name: &#039;generate_bio_prompt&#039;)]
+public function generateBio(string $userId, string $tone = &#039;professional&#039;): array
+</code></pre>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Start the HTTP server
+php -S localhost:8000 examples/discovery-userprofile/server.php
+
+# Test with MCP Inspector
+npx @modelcontextprotocol/inspector http://localhost:8000
+
+# Or configure in MCP client: http://localhost:8000
+</code></pre>
+
+    </section>
+
+            <section class="section " id="combined-registration">
+            <h3>Combined Registration</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/combined-registration/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Mixing attribute discovery with manual registration</li>
+
+    <li class="dash">HTTP server with both discovered and manual capabilities</li>
+
+    <li class="dash">Flexible registration patterns</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">$server = Server::builder()
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])  // Automatic discovery
+    -&gt;addTool([ManualHandlers::class, &#039;manualGreeter&#039;])  // Manual registration
+    -&gt;addResource([ManualHandlers::class, &#039;getPriorityConfig&#039;], &#039;config://priority&#039;)
+</code></pre>
+
+    </section>
+
+            <section class="section " id="complex-tool-schema">
+            <h3>Complex Tool Schema</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/complex-tool-schema/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Advanced JSON schema definitions</li>
+
+    <li class="dash">Complex data structures and validation</li>
+
+    <li class="dash">Event scheduling and management</li>
+
+    <li class="dash">Enum types and nested objects</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">#[Schema(definition: [
+    &#039;type&#039; =&gt; &#039;object&#039;,
+    &#039;properties&#039; =&gt; [
+        &#039;title&#039; =&gt; [&#039;type&#039; =&gt; &#039;string&#039;, &#039;minLength&#039; =&gt; 1, &#039;maxLength&#039; =&gt; 100],
+        &#039;eventType&#039; =&gt; [&#039;type&#039; =&gt; &#039;string&#039;, &#039;enum&#039; =&gt; [&#039;meeting&#039;, &#039;deadline&#039;, &#039;reminder&#039;]],
+        &#039;priority&#039; =&gt; [&#039;type&#039; =&gt; &#039;string&#039;, &#039;enum&#039; =&gt; [&#039;low&#039;, &#039;medium&#039;, &#039;high&#039;, &#039;urgent&#039;]]
+    ]
+])]
+public function scheduleEvent(array $eventData): array
+</code></pre>
+
+    </section>
+
+            <section class="section " id="schema-showcase">
+            <h3>Schema Showcase</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/schema-showcase/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Comprehensive JSON schema features</li>
+
+    <li class="dash">Parameter-level schema validation</li>
+
+    <li class="dash">String constraints (minLength, maxLength, pattern)</li>
+
+    <li class="dash">Numeric constraints (minimum, maximum, multipleOf)</li>
+
+    <li class="dash">Array and object validation</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">#[McpTool]
+public function formatText(
+    #[Schema(
+        type: &#039;string&#039;,
+        minLength: 5,
+        maxLength: 100,
+        pattern: &#039;^[a-zA-Z0-9\s\.,!?\-]+$&#039;
+    )]
+    string $text,
+    
+    #[Schema(enum: [&#039;uppercase&#039;, &#039;lowercase&#039;, &#039;title&#039;, &#039;sentence&#039;])]
+    string $format = &#039;sentence&#039;
+): array
+</code></pre>
+
+    </section>
+
+            <section class="section " id="elicitation">
+            <h3>Elicitation</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/server/elicitation/</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Server-to-client elicitation requests</li>
+
+    <li class="dash">Interactive user input during tool execution</li>
+
+    <li class="dash">Multi-field form schemas with validation</li>
+
+    <li class="dash">Boolean confirmation dialogs</li>
+
+    <li class="dash">Enum fields with human-readable labels</li>
+
+    <li class="dash">Handling accept/decline/cancel responses</li>
+
+    <li class="dash">Session persistence requirement for server-initiated requests</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">// Check client support before eliciting
+if (!$context-&gt;getClientGateway()-&gt;supportsElicitation()) {
+    return [&#039;status&#039; =&gt; &#039;error&#039;, &#039;message&#039; =&gt; &#039;Client does not support elicitation&#039;];
+}
+
+// Build schema with multiple field types
+$schema = new ElicitationSchema(
+    properties: [
+        &#039;party_size&#039; =&gt; new NumberSchemaDefinition(
+            title: &#039;Party Size&#039;,
+            integerOnly: true,
+            minimum: 1,
+            maximum: 20
+        ),
+        &#039;date&#039; =&gt; new StringSchemaDefinition(
+            title: &#039;Reservation Date&#039;,
+            format: &#039;date&#039;
+        ),
+        &#039;dietary&#039; =&gt; new EnumSchemaDefinition(
+            title: &#039;Dietary Restrictions&#039;,
+            enum: [&#039;none&#039;, &#039;vegetarian&#039;, &#039;vegan&#039;],
+            enumNames: [&#039;None&#039;, &#039;Vegetarian&#039;, &#039;Vegan&#039;]
+        ),
+    ],
+    required: [&#039;party_size&#039;, &#039;date&#039;]
+);
+
+// Send elicitation request
+$result = $client-&gt;elicit(
+    message: &#039;Please provide your reservation details&#039;,
+    requestedSchema: $schema
+);
+
+// Handle response
+if ($result-&gt;isAccepted()) {
+    $data = $result-&gt;content; // User-provided data
+} elseif ($result-&gt;isDeclined() || $result-&gt;isCancelled()) {
+    // User declined or cancelled
+}
+</code></pre>
+
+            
+    <p><strong>Important Notes:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Elicitation requires a session store (e.g., <code>FileSessionStore</code>
+)</li>
+
+    <li class="dash">Check client capabilities with <code>supportsElicitation()</code>
+ before sending requests</li>
+
+    <li class="dash">Schema supports primitive types: string, number/integer, boolean, enum</li>
+
+    <li class="dash">String fields support format validation: date, date-time, email, uri</li>
+
+    <li class="dash">Users can accept (providing data), decline, or cancel requests</li>
+
+</ul>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Interactive testing with MCP client that supports elicitation
+npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
+
+# Test with Goose (confirmed working by reviewer)
+# Or configure in Claude Desktop or other MCP clients
+</code></pre>
+
+            
+    <p><strong>Example Tools:</strong>
+</p>
+
+            
+    
+<ol>
+    <li><strong>book_restaurant</strong>
+ - Multi-field reservation form with number, date, and enum fields</li>
+
+    <li><strong>confirm_action</strong>
+ - Simple boolean confirmation dialog</li>
+
+    <li><strong>collect_feedback</strong>
+ - Rating and comments form with optional fields</li>
+
+</ol>
+
+    </section>
+
+    </section>
+
+    </section>
+
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>
