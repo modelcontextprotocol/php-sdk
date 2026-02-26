@@ -1,0 +1,128 @@
+{
+  "realm": "mcp",
+  "enabled": true,
+  "registrationAllowed": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "accessTokenLifespan": 300,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "clients": [
+    {
+      "clientId": "mcp-client",
+      "name": "MCP Client Application",
+      "description": "Public client for MCP client applications",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "fullScopeAllowed": true,
+      "redirectUris": [
+        "http://localhost:*",
+        "http://127.0.0.1:*"
+      ],
+      "webOrigins": [
+        "http://localhost:*",
+        "http://127.0.0.1:*"
+      ],
+      "defaultClientScopes": [
+        "openid",
+        "profile",
+        "email",
+        "mcp"
+      ],
+      "optionalClientScopes": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      }
+    },
+    {
+      "clientId": "mcp-server",
+      "name": "MCP Server Resource",
+      "description": "Resource server representing the MCP server",
+      "enabled": true,
+      "publicClient": false,
+      "bearerOnly": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false
+    }
+  ],
+  "clientScopes": [
+    {
+      "name": "mcp",
+      "description": "MCP access scope",
+      "protocol": "openid-connect",
+      "attributes": {
+        "include.in.token.scope": "true",
+        "display.on.consent.screen": "true",
+        "consent.screen.text": "Access to MCP server resources"
+      },
+      "protocolMappers": [
+        {
+          "name": "mcp-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "consentRequired": false,
+          "config": {
+            "included.client.audience": "mcp-server",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        },
+        {
+          "name": "mcp-scopes",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-hardcoded-claim-mapper",
+          "consentRequired": false,
+          "config": {
+            "claim.name": "scope",
+            "claim.value": "mcp:read mcp:write",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "demo",
+      "email": "demo@example.com",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Demo",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "demo123",
+          "temporary": false
+        }
+      ],
+      "realmRoles": ["default-roles-mcp"]
+    }
+  ],
+  "defaultDefaultClientScopes": [
+    "openid",
+    "profile",
+    "email"
+  ],
+  "roles": {
+    "realm": [
+      {
+        "name": "default-roles-mcp",
+        "description": "Default roles for MCP realm",
+        "composite": false
+      }
+    ]
+  }
+}
