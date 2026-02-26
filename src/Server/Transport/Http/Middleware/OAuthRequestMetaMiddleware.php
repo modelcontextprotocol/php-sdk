@@ -44,7 +44,7 @@ final class OAuthRequestMetaMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $body = (string) $request->getBody();
+        $body = $request->getBody()->__toString();
         if ('' === trim($body)) {
             return $handler->handle($request);
         }
