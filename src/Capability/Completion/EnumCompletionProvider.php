@@ -33,7 +33,7 @@ class EnumCompletionProvider implements ProviderInterface
         }
 
         $this->values = array_map(
-            fn ($case) => isset($case->value) && \is_string($case->value) ? $case->value : $case->name,
+            static fn ($case) => isset($case->value) && \is_string($case->value) ? $case->value : $case->name,
             $enumClass::cases()
         );
     }
@@ -46,7 +46,7 @@ class EnumCompletionProvider implements ProviderInterface
 
         return array_values(array_filter(
             $this->values,
-            fn (string $value) => str_starts_with($value, $currentValue)
+            static fn (string $value) => str_starts_with($value, $currentValue)
         ));
     }
 }

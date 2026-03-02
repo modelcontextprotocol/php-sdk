@@ -50,7 +50,7 @@ class ListToolsResult implements ResultInterface
         }
 
         return new self(
-            array_map(fn (array $tool) => Tool::fromArray($tool), $data['tools']),
+            array_map(static fn (array $tool) => Tool::fromArray($tool), $data['tools']),
             $data['nextCursor'] ?? null
         );
     }

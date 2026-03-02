@@ -5,5 +5,11 @@
             "text": "{\n    \"result\": 50,\n    \"operation\": \"10 multiply 5\",\n    \"precision\": 2,\n    \"within_bounds\": true\n}"
         }
     ],
+    "structuredContent": {
+        "result": 50,
+        "operation": "10 multiply 5",
+        "precision": 2,
+        "within_bounds": true
+    },
     "isError": false
 }

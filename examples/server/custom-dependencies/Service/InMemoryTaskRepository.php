@@ -50,7 +50,7 @@ final class InMemoryTaskRepository implements TaskRepositoryInterface
 
     public function getTasksForUser(string $userId): array
     {
-        return array_values(array_filter($this->tasks, fn ($task) => $task['userId'] === $userId && !$task['completed']));
+        return array_values(array_filter($this->tasks, static fn ($task) => $task['userId'] === $userId && !$task['completed']));
     }
 
     public function getAllTasks(): array

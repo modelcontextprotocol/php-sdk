@@ -50,7 +50,7 @@ class ListResourceTemplatesResult implements ResultInterface
         }
 
         return new self(
-            array_map(fn (array $resourceTemplate) => ResourceTemplate::fromArray($resourceTemplate), $data['resourceTemplates']),
+            array_map(static fn (array $resourceTemplate) => ResourceTemplate::fromArray($resourceTemplate), $data['resourceTemplates']),
             $data['nextCursor'] ?? null
         );
     }

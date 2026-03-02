@@ -50,7 +50,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
                 if (\is_array($value)) {
                     $args[] = \sprintf('%s=%s', $key, json_encode($value));
                 } elseif (\is_bool($value)) {
-                    $args[] = \sprintf('%s=%s', $key, $value ? '1' : '0');
+                    $args[] = \sprintf('%s=%s', $key, $value ? 'true' : 'false');
                 } else {
                     $args[] = \sprintf('%s=%s', $key, $value);
                 }
@@ -73,7 +73,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
                 if (\is_array($value)) {
                     $args[] = \sprintf('%s=%s', $key, json_encode($value));
                 } elseif (\is_bool($value)) {
-                    $args[] = \sprintf('%s=%s', $key, $value ? '1' : '0');
+                    $args[] = \sprintf('%s=%s', $key, $value ? 'true' : 'false');
                 } else {
                     $args[] = \sprintf('%s=%s', $key, $value);
                 }

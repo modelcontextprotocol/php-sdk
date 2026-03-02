@@ -23,7 +23,7 @@ $server = Server::builder()
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setDiscovery(__DIR__)
     ->addTool(
-        function (float $a, float $b, string $operation = 'add'): array {
+        static function (float $a, float $b, string $operation = 'add'): array {
             $result = match ($operation) {
                 'add' => $a + $b,
                 'subtract' => $a - $b,
@@ -42,7 +42,7 @@ $server = Server::builder()
         description: 'Perform basic math operations (add, subtract, multiply, divide)'
     )
     ->addResource(
-        function (): array {
+        static function (): array {
             $memoryUsage = memory_get_usage(true);
             $memoryPeak = memory_get_peak_usage(true);
             $uptime = time() - ($_SERVER['REQUEST_TIME_FLOAT'] ?? time());

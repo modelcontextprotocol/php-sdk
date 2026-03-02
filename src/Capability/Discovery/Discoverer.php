@@ -42,14 +42,16 @@ use Symfony\Component\Finder\SplFileInfo;
  *     resourceTemplates: int,
  * }
  *
+ * @internal
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Discoverer
+final class Discoverer implements DiscovererInterface
 {
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
         private ?DocBlockParser $docBlockParser = null,
-        private ?SchemaGenerator $schemaGenerator = null,
+        private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
         $this->docBlockParser = $docBlockParser ?? new DocBlockParser(logger: $this->logger);
         $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator($this->docBlockParser);
@@ -220,8 +222,9 @@ class Discoverer
                 case McpTool::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $inputSchema = $this->schemaGenerator->generate($method);
+                    $outputSchema = $this->schemaGenerator->generateOutputSchema($method);
                     $tool = new Tool(
                         $name,
                         $inputSchema,
@@ -229,6 +232,7 @@ class Discoverer
                         $instance->annotations,
                         $instance->icons,
                         $instance->meta,
+                        $outputSchema,
                     );
                     $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
                     ++$discoveredCount['tools'];
@@ -237,7 +241,7 @@ class Discoverer
                 case McpResource::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $resource = new Resource(
                         $instance->uri,
                         $name,
@@ -256,7 +260,7 @@ class Discoverer
                 case McpPrompt::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $arguments = [];
                     $paramTags = $this->docBlockParser->getParamTags($docBlock);
                     foreach ($method->getParameters() as $param) {
@@ -276,7 +280,7 @@ class Discoverer
                 case McpResourceTemplate::class:
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $instance->description ?? $this->docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
                     $mimeType = $instance->mimeType;
                     $annotations = $instance->annotations;
                     $meta = $instance->meta ?? null;

@@ -2,7 +2,7 @@
   "tools": [
     {
       "name": "schedule_event",
-      "description": "Schedules a new event.",
+      "description": "Schedules a new event.\n\nThe inputSchema for this tool will reflect all parameter types and defaults.",
       "inputSchema": {
         "type": "object",
         "properties": {
@@ -33,13 +33,13 @@
             "default": null
           },
           "priority": {
-            "type": "integer",
+            "type": "string",
             "description": "The priority of the event. Defaults to Normal.",
-            "default": 1,
+            "default": "normal",
             "enum": [
-              0,
-              1,
-              2
+              "low",
+              "normal",
+              "high"
             ]
           },
           "attendees": {

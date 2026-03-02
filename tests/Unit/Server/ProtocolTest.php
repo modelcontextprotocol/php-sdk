@@ -99,7 +99,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -107,7 +107,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -147,7 +147,7 @@ final class ProtocolTest extends TestCase
         $this->transport->expects($this->once())
             ->method('send')
             ->with(
-                $this->callback(function ($data) {
+                $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
                     return isset($decoded['error'])
@@ -178,7 +178,7 @@ final class ProtocolTest extends TestCase
         $this->transport->expects($this->once())
             ->method('send')
             ->with(
-                $this->callback(function ($data) {
+                $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
                     return isset($decoded['error'])
@@ -208,13 +208,13 @@ final class ProtocolTest extends TestCase
         $this->transport->expects($this->once())
             ->method('send')
             ->with(
-                $this->callback(function ($data) {
+                $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
                     return isset($decoded['error'])
                         && str_contains($decoded['error']['message'], 'session id is REQUIRED');
                 }),
-                $this->callback(function ($context) {
+                $this->callback(static function ($context) {
                     return isset($context['status_code']) && 400 === $context['status_code'];
                 })
             );
@@ -242,13 +242,13 @@ final class ProtocolTest extends TestCase
         $this->transport->expects($this->once())
             ->method('send')
             ->with(
-                $this->callback(function ($data) {
+                $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
                     return isset($decoded['error'])
                         && str_contains($decoded['error']['message'], 'Session not found or has expired');
                 }),
-                $this->callback(function ($context) {
+                $this->callback(static function ($context) {
                     return isset($context['status_code']) && 404 === $context['status_code'];
                 })
             );
@@ -275,7 +275,7 @@ final class ProtocolTest extends TestCase
         $this->transport->expects($this->once())
             ->method('send')
             ->with(
-                $this->callback(function ($data) {
+                $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
                     return isset($decoded['error'])
@@ -309,7 +309,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -317,7 +317,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -362,7 +362,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -370,7 +370,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -420,7 +420,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -428,7 +428,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -478,7 +478,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -486,7 +486,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -568,7 +568,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -576,7 +576,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }
@@ -615,7 +615,7 @@ final class ProtocolTest extends TestCase
     {
         $handlerA = $this->createMock(RequestHandlerInterface::class);
         $handlerA->method('supports')->willReturn(true);
-        $handlerA->method('handle')->willReturnCallback(function ($request) {
+        $handlerA->method('handle')->willReturnCallback(static function ($request) {
             return Response::fromArray([
                 'jsonrpc' => '2.0',
                 'id' => $request->getId(),
@@ -628,7 +628,7 @@ final class ProtocolTest extends TestCase
 
         // Configure session mock for queue operations
         $queue = [];
-        $session->method('get')->willReturnCallback(function ($key, $default = null) use (&$queue) {
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 return $queue;
             }
@@ -636,7 +636,7 @@ final class ProtocolTest extends TestCase
             return $default;
         });
 
-        $session->method('set')->willReturnCallback(function ($key, $value) use (&$queue) {
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
                 $queue = $value;
             }

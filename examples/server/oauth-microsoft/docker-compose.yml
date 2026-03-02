@@ -5,13 +5,23 @@ services:
       dockerfile: Dockerfile
     container_name: mcp-php-microsoft
     volumes:
-      - ../../../:/app:ro
-      - ./server.php:/app/examples/server/oauth-microsoft/server.php:ro
-      - ./McpElements.php:/app/examples/server/oauth-microsoft/McpElements.php:ro
+      - ../../../:/app
+    working_dir: /app
+    env_file:
+      - .env
     environment:
       AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
       AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
       AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+    command: >
+      sh -c "mkdir -p /app/examples/server/oauth-microsoft/sessions;
+      chmod -R 0777 /app/examples/server/oauth-microsoft/sessions;
+      touch /app/examples/server/oauth-microsoft/dev.log;
+      chmod 0666 /app/examples/server/oauth-microsoft/dev.log;
+      touch /app/examples/server/dev.log;
+      chmod 0666 /app/examples/server/dev.log;
+      composer install --no-interaction --quiet 2>/dev/null || true;
+      php-fpm"
     networks:
       - mcp-network
 
@@ -19,9 +29,10 @@ services:
     image: nginx:alpine
     container_name: mcp-nginx-microsoft
     ports:
-      - "8000:80"
+      - "${MCP_HTTP_PORT:-8000}:80"
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - ../../../:/app:ro
     depends_on:
       - php
     networks:

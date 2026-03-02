@@ -19,7 +19,7 @@ class HandlerResolverTest extends TestCase
 {
     public function testResolvesClosuresToReflectionFunction()
     {
-        $closure = function (string $input): string {
+        $closure = static function (string $input): string {
             return "processed: $input";
         };
         $resolved = HandlerResolver::resolve($closure);
@@ -135,13 +135,13 @@ class HandlerResolverTest extends TestCase
 
     public function testResolvesClosuresWithDifferentSignatures()
     {
-        $noParams = function () {
+        $noParams = static function () {
             return 'test';
         };
-        $withParams = function (int $a, string $b = 'default') {
+        $withParams = static function (int $a, string $b = 'default') {
             return $a.$b;
         };
-        $variadic = function (...$args) {
+        $variadic = static function (...$args) {
             return $args;
         };
         $this->assertInstanceOf(\ReflectionFunction::class, HandlerResolver::resolve($noParams));
@@ -154,7 +154,7 @@ class HandlerResolverTest extends TestCase
 
     public function testDistinguishesBetweenClosuresAndCallableArrays()
     {
-        $closure = function () {
+        $closure = static function () {
             return 'closure';
         };
         $array = [ValidHandlerClass::class, 'publicMethod'];

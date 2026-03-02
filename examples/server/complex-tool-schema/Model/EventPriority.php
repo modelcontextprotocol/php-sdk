@@ -11,9 +11,9 @@
 
 namespace Mcp\Example\Server\ComplexToolSchema\Model;
 
-enum EventPriority: int
+enum EventPriority: string
 {
-    case Low = 0;
-    case Normal = 1;
-    case High = 2;
+    case Low = 'low';
+    case Normal = 'normal';
+    case High = 'high';
 }

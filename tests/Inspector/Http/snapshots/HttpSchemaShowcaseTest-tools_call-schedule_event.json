@@ -5,5 +5,27 @@
             "text": "{\n    \"success\": true,\n    \"event\": {\n        \"id\": \"event_test123456789\",\n        \"title\": \"Team Meeting\",\n        \"start_time\": \"2025-01-01T00:00:00+00:00\",\n        \"end_time\": \"2025-01-01T00:00:00+00:00\",\n        \"duration_hours\": 1.5,\n        \"priority\": \"high\",\n        \"attendees\": [\n            \"alice@example.com\",\n            \"bob@example.com\"\n        ],\n        \"created_at\": \"2025-01-01T00:00:00+00:00\"\n    },\n    \"info\": {\n        \"attendee_count\": 2,\n        \"is_all_day\": false,\n        \"is_future\": false,\n        \"timezone_note\": \"Times are in UTC\"\n    }\n}"
         }
     ],
+    "structuredContent": {
+        "success": true,
+        "event": {
+            "id": "event_test123456789",
+            "title": "Team Meeting",
+            "start_time": "2025-01-01T00:00:00+00:00",
+            "end_time": "2025-01-01T00:00:00+00:00",
+            "duration_hours": 1.5,
+            "priority": "high",
+            "attendees": [
+                "alice@example.com",
+                "bob@example.com"
+            ],
+            "created_at": "2025-01-01T00:00:00+00:00"
+        },
+        "info": {
+            "attendee_count": 2,
+            "is_all_day": false,
+            "is_future": false,
+            "timezone_note": "Times are in UTC"
+        }
+    },
     "isError": false
 }

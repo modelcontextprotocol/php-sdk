@@ -50,7 +50,7 @@ class ListPromptsResult implements ResultInterface
         }
 
         return new self(
-            array_map(fn (array $prompt) => Prompt::fromArray($prompt), $data['prompts']),
+            array_map(static fn (array $prompt) => Prompt::fromArray($prompt), $data['prompts']),
             $data['nextCursor'] ?? null
         );
     }

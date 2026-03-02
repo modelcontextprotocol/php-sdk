@@ -20,14 +20,16 @@ use Psr\SimpleCache\CacheInterface;
  * This decorator caches the results of file system operations and reflection
  * to improve performance when discovery is called multiple times.
  *
+ * @internal
+ *
  * @author Xentixar <xentixar@gmail.com>
  */
-class CachedDiscoverer
+final class CachedDiscoverer implements DiscovererInterface
 {
     private const CACHE_PREFIX = 'mcp_discovery_';
 
     public function __construct(
-        private readonly Discoverer $discoverer,
+        private readonly DiscovererInterface $discoverer,
         private readonly CacheInterface $cache,
         private readonly LoggerInterface $logger,
     ) {

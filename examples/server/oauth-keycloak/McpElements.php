@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -9,13 +11,12 @@
  * file that was distributed with this source code.
  */
 
-declare(strict_types=1);
-
 namespace Mcp\Example\Server\OAuthKeycloak;
 
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\RequestContext;
 
 /**
  * MCP elements for the OAuth Keycloak example.
@@ -29,23 +30,45 @@ final class McpElements
      * Confirms the user is authenticated.
      *
      * The fact that this tool executes means the request passed OAuth validation.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'get_auth_status',
         description: 'Confirm authentication status - only accessible with valid OAuth token'
     )]
-    public function getAuthStatus(): array
+    public function getAuthStatus(RequestContext $context): array
     {
+        $meta = $context->getRequest()->getMeta() ?? [];
+        $oauth = isset($meta['oauth']) && \is_array($meta['oauth']) ? $meta['oauth'] : [];
+        $claims = isset($oauth['oauth.claims']) && \is_array($oauth['oauth.claims']) ? $oauth['oauth.claims'] : [];
+        $scopes = isset($oauth['oauth.scopes']) && \is_array($oauth['oauth.scopes']) ? $oauth['oauth.scopes'] : [];
+
         return [
             'authenticated' => true,
+            'provider' => 'Keycloak',
             'message' => 'You have successfully authenticated with OAuth!',
             'timestamp' => date('c'),
+            'user' => [
+                'subject' => $oauth['oauth.subject'] ?? ($claims['sub'] ?? null),
+                'username' => $claims['preferred_username'] ?? null,
+                'name' => $claims['name'] ?? null,
+                'email' => $claims['email'] ?? null,
+                'issuer' => $claims['iss'] ?? null,
+                'audience' => $claims['aud'] ?? null,
+                'scopes' => $scopes,
+                'expires_at' => isset($claims['exp']) && is_numeric($claims['exp'])
+                    ? date('c', (int) $claims['exp'])
+                    : null,
+            ],
             'note' => 'This endpoint is protected by JWT validation. If you see this, your token was valid.',
         ];
     }
 
     /**
      * Simulates calling a protected external API.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'call_protected_api',
@@ -62,7 +85,7 @@ final class McpElements
 
         return [
             'status' => 'success',
-            'message' => sprintf('Simulated %s request to %s', $method, $endpoint),
+            'message' => \sprintf('Simulated %s request to %s', $method, $endpoint),
             'simulated_response' => [
                 'data' => 'This is simulated data from the protected API',
                 'timestamp' => date('c'),
@@ -72,6 +95,8 @@ final class McpElements
 
     /**
      * Returns the current server time and status.
+     *
+     * @return array<string, mixed>
      */
     #[McpResource(
         uri: 'server://status',
@@ -84,7 +109,7 @@ final class McpElements
         return [
             'status' => 'healthy',
             'timestamp' => date('c'),
-            'php_version' => PHP_VERSION,
+            'php_version' => \PHP_VERSION,
             'memory_usage_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
             'protected' => true,
         ];
@@ -100,10 +125,10 @@ final class McpElements
     public function greeting(string $style = 'formal'): string
     {
         return match ($style) {
-            'casual' => "Hey there! Welcome to the protected MCP server!",
-            'formal' => "Good day. Welcome to the OAuth-protected MCP server.",
-            'friendly' => "Hello! Great to have you here!",
-            default => "Welcome to the MCP server!",
+            'casual' => 'Hey there! Welcome to the protected MCP server!',
+            'formal' => 'Good day. Welcome to the OAuth-protected MCP server.',
+            'friendly' => 'Hello! Great to have you here!',
+            default => 'Welcome to the MCP server!',
         };
     }
 }

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<phpdocumentor
+    configVersion="3"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns="https://www.phpdoc.org"
+    xsi:noNamespaceSchemaLocation="https://docs.phpdoc.org/latest/phpdoc.xsd"
+>
+    <title>MCP PHP SDK</title>
+    <paths>
+        <output>.phpdoc/build</output>
+    </paths>
+    <version number="latest">
+        <folder>latest</folder>
+        <api ignore-packages="true">
+            <source dsn=".">
+                <path>src</path>
+            </source>
+            <output>api</output>
+            <ignore>
+                <path>vendor/**/*</path>
+                <path>tests/**/*</path>
+            </ignore>
+            <ignore-tags>
+                <ignore-tag>phpstan-type</ignore-tag>
+                <ignore-tag>phpstan-type-import</ignore-tag>
+                <ignore-tag>template</ignore-tag>
+                <ignore-tag>template-covariant</ignore-tag>
+                <ignore-tag>template-extends</ignore-tag>
+                <ignore-tag>template-implements</ignore-tag>
+                <ignore-tag>extends</ignore-tag>
+                <ignore-tag>implements</ignore-tag>
+            </ignore-tags>
+        </api>
+        <guide format="md">
+            <source dsn=".">
+                <path>docs</path>
+            </source>
+            <output>/</output>
+        </guide>
+    </version>
+    <setting name="guides.enabled" value="true"/>
+    <setting name="graphs.enabled" value="false"/>
+    <setting name="template.color" value="black"/>
+</phpdocumentor>

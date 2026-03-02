@@ -18,6 +18,7 @@ use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\HandlerResolver;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ConfigurationException;
@@ -47,7 +48,8 @@ final class ArrayLoader implements LoaderInterface
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     icons: ?Icon[],
-     *     meta: ?array<string, mixed>
+     *     meta: ?array<string, mixed>,
+     *     outputSchema: ?array<string, mixed>
      * }[] $tools
      * @param array{
      *     handler: Handler,
@@ -83,13 +85,14 @@ final class ArrayLoader implements LoaderInterface
         private readonly array $resourceTemplates = [],
         private readonly array $prompts = [],
         private LoggerInterface $logger = new NullLogger(),
+        private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
         $docBlockParser = new DocBlockParser(logger: $this->logger);
-        $schemaGenerator = new SchemaGenerator($docBlockParser);
+        $schemaGenerator = $this->schemaGenerator ?? new SchemaGenerator($docBlockParser);
 
         // Register Tools
         foreach ($this->tools as $data) {
@@ -105,7 +108,7 @@ final class ArrayLoader implements LoaderInterface
                     $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
 
                     $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
                 }
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
@@ -117,6 +120,7 @@ final class ArrayLoader implements LoaderInterface
                     annotations: $data['annotations'] ?? null,
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null,
+                    outputSchema: $data['outputSchema'] ?? null,
                 );
                 $registry->registerTool($tool, $data['handler'], true);
 
@@ -145,7 +149,7 @@ final class ArrayLoader implements LoaderInterface
                     $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
 
                     $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
                 }
 
                 $resource = new Resource(
@@ -185,7 +189,7 @@ final class ArrayLoader implements LoaderInterface
                     $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
 
                     $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
                 }
 
                 $template = new ResourceTemplate(
@@ -224,7 +228,7 @@ final class ArrayLoader implements LoaderInterface
                     $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
 
                     $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getSummary($docBlock) ?? null;
+                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
                 }
 
                 $arguments = [];

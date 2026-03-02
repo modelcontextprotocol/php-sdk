@@ -173,7 +173,7 @@ class Protocol
 
             try {
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(fn () => $handler->handle($request, $session));
+                $fiber = new \Fiber(static fn () => $handler->handle($request, $session));
 
                 $result = $fiber->start();
 
@@ -192,11 +192,10 @@ class Protocol
                     $transport->attachFiberToSession($fiber, $session->getId());
 
                     return;
-                } else {
-                    $finalResult = $fiber->getReturn();
-
-                    $this->sendResponse($transport, $finalResult, $session);
                 }
+                $finalResult = $fiber->getReturn();
+
+                $this->sendResponse($transport, $finalResult, $session);
             } catch (\InvalidArgumentException $e) {
                 $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
 
@@ -581,7 +580,7 @@ class Protocol
         if (!empty($deletedSessions)) {
             $this->logger->debug('Garbage collected expired sessions.', [
                 'count' => \count($deletedSessions),
-                'session_ids' => array_map(fn (Uuid $id) => $id->toRfc4122(), $deletedSessions),
+                'session_ids' => array_map(static fn (Uuid $id) => $id->toRfc4122(), $deletedSessions),
             ]);
         }
     }

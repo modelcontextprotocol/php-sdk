@@ -21,6 +21,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Tool;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -59,7 +60,9 @@ class CallToolHandlerTest extends TestCase
     public function testHandleSuccessfulToolCall(): void
     {
         $request = $this->createCallToolRequest('greet_user', ['name' => 'John']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $expectedResult = new CallToolResult([new TextContent('Hello, John!')]);
 
         $this->registry
@@ -92,7 +95,9 @@ class CallToolHandlerTest extends TestCase
     public function testHandleToolCallWithEmptyArguments(): void
     {
         $request = $this->createCallToolRequest('simple_tool', []);
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $expectedResult = new CallToolResult([new TextContent('Simple result')]);
 
         $this->registry
@@ -129,7 +134,9 @@ class CallToolHandlerTest extends TestCase
             'null_param' => null,
         ];
         $request = $this->createCallToolRequest('complex_tool', $arguments);
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $expectedResult = new CallToolResult([new TextContent('Complex result')]);
 
         $this->registry
@@ -182,7 +189,9 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
         $exception = new ToolCallException('Tool execution failed');
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -217,7 +226,9 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('null_tool', []);
         $expectedResult = new CallToolResult([]);
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -254,7 +265,9 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException('Custom error message');
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -297,7 +310,9 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
         $exception = new \RuntimeException('Internal database connection failed');
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -324,7 +339,10 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('tool-with_special.chars', []);
         $expectedResult = new CallToolResult([new TextContent('Special tool result')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
+
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -359,7 +377,9 @@ class CallToolHandlerTest extends TestCase
         $request = $this->createCallToolRequest('unicode_tool', $arguments);
         $expectedResult = new CallToolResult([new TextContent('Unicode handled')]);
 
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $this->registry
             ->expects($this->once())
             ->method('getTool')
@@ -387,7 +407,9 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsStructuredContentResult(): void
     {
         $request = $this->createCallToolRequest('structured_tool', ['query' => 'php']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $structuredResult = new CallToolResult([new TextContent('Rendered results')], false, ['result' => 'Rendered results']);
 
         $this->registry
@@ -416,7 +438,9 @@ class CallToolHandlerTest extends TestCase
     public function testHandleReturnsCallToolResult(): void
     {
         $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
-        $toolReference = $this->createMock(ToolReference::class);
+        $toolReference = $this->createToolReference('greet_user', static function () {
+            return 'Hello, John!';
+        });
         $callToolResult = new CallToolResult([new TextContent('Error result')], true);
 
         $this->registry
@@ -442,6 +466,43 @@ class CallToolHandlerTest extends TestCase
         $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
     }
 
+    public function testValidationError(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'favorite_number' => [
+                    'type' => 'number',
+                    'description' => 'Your favorite number',
+                ],
+            ],
+            'required' => [
+                'favorite_number',
+            ],
+        ];
+
+        $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([new Tool('simple_tool', $schema, null, null), static function () {}])
+            ->getMock();
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('result_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->never())
+            ->method('handle');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+    }
+
     /**
      * @param array<string, mixed> $arguments
      */
@@ -456,5 +517,33 @@ class CallToolHandlerTest extends TestCase
                 'arguments' => $arguments,
             ],
         ]);
+    }
+
+    private function createToolReference(
+        string $name,
+        callable $handler,
+        ?array $outputSchema = null,
+        array $methodsToMock = ['formatResult'],
+    ): ToolReference&MockObject {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'example' => [
+                    'type' => 'string',
+                    'description' => 'This is just a dummy',
+                ],
+            ],
+            'required' => [],
+        ];
+        $tool = new Tool($name, $schema, null, null, null, null, $outputSchema);
+
+        $builder = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([$tool, $handler]);
+
+        if (!empty($methodsToMock)) {
+            $builder->onlyMethods($methodsToMock);
+        }
+
+        return $builder->getMock();
     }
 }

@@ -298,7 +298,7 @@ class ListToolsHandlerTest extends TestCase
                 annotations: null
             );
 
-            $this->registry->registerTool($tool, fn () => null);
+            $this->registry->registerTool($tool, static fn () => null);
         }
     }
 

@@ -11,13 +11,13 @@
 
 namespace Mcp\Tests\Conformance;
 
-use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\Protocol;
 use Mcp\Server\RequestContext;
 
@@ -26,12 +26,9 @@ final class Elements
     public const TEST_IMAGE_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
     public const TEST_AUDIO_BASE64 = 'UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAA=';
 
-    /**
-     * @return Content[]
-     */
-    public function toolMultipleTypes(): array
+    public function toolMultipleTypes(): CallToolResult
     {
-        return [
+        return new CallToolResult([
             new TextContent('Multiple content types test:'),
             new ImageContent(self::TEST_IMAGE_BASE64, 'image/png'),
             EmbeddedResource::fromText(
@@ -39,7 +36,7 @@ final class Elements
                 '{ "test" = "data", "value" = 123 }',
                 'application/json',
             ),
-        ];
+        ]);
     }
 
     public function toolWithLogging(RequestContext $context): string

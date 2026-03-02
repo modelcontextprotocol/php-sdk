@@ -5,5 +5,9 @@
       "text": "{\n    \"success\": true,\n    \"message\": \"Precision updated to 3.\"\n}"
     }
   ],
+  "structuredContent": {
+    "success": true,
+    "message": "Precision updated to 3."
+  },
   "isError": false
 }

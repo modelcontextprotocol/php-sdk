@@ -11,8 +11,8 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Capability\Formatter\ToolResultFormatter;
 use Mcp\Schema\Content\Content;
-use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Tool;
 
 /**
@@ -54,61 +54,35 @@ class ToolReference extends ElementReference
      */
     public function formatResult(mixed $toolExecutionResult): array
     {
-        if ($toolExecutionResult instanceof Content) {
-            return [$toolExecutionResult];
-        }
+        return (new ToolResultFormatter())->format($toolExecutionResult);
+    }
 
+    /**
+     * Extracts structured content from a tool result using the output schema.
+     *
+     * @param mixed $toolExecutionResult the raw value returned by the tool's PHP method
+     *
+     * @return array<string, mixed>|null the structured content, or null if not extractable
+     *
+     * @throws \JsonException if JSON encoding fails for non-Content array/object results
+     */
+    public function extractStructuredContent(mixed $toolExecutionResult): ?array
+    {
         if (\is_array($toolExecutionResult)) {
-            if (empty($toolExecutionResult)) {
-                return [new TextContent('[]')];
-            }
-
-            $allAreContent = true;
-            $hasContent = false;
-
-            foreach ($toolExecutionResult as $item) {
-                if ($item instanceof Content) {
-                    $hasContent = true;
-                } else {
-                    $allAreContent = false;
-                }
-            }
-
-            if ($allAreContent && $hasContent) {
-                return $toolExecutionResult;
-            }
-
-            if ($hasContent) {
-                $result = [];
-                foreach ($toolExecutionResult as $item) {
-                    if ($item instanceof Content) {
-                        $result[] = $item;
-                    } else {
-                        $result = array_merge($result, $this->formatResult($item));
-                    }
-                }
-
-                return $result;
-            }
+            return $toolExecutionResult;
         }
 
-        if (null === $toolExecutionResult) {
-            return [new TextContent('(null)')];
+        if (\is_object($toolExecutionResult) && !($toolExecutionResult instanceof Content)) {
+            $jsonResult = json_encode(
+                $toolExecutionResult,
+                \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE
+            );
+
+            return json_decode(
+                $jsonResult, true, 512, \JSON_THROW_ON_ERROR
+            );
         }
 
-        if (\is_bool($toolExecutionResult)) {
-            return [new TextContent($toolExecutionResult ? 'true' : 'false')];
-        }
-
-        if (\is_scalar($toolExecutionResult)) {
-            return [new TextContent($toolExecutionResult)];
-        }
-
-        $jsonResult = json_encode(
-            $toolExecutionResult,
-            \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE
-        );
-
-        return [new TextContent($jsonResult)];
+        return null;
     }
 }

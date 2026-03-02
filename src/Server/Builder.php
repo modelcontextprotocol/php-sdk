@@ -11,6 +11,10 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Discovery\CachedDiscoverer;
+use Mcp\Capability\Discovery\Discoverer;
+use Mcp\Capability\Discovery\DiscovererInterface;
+use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -58,6 +62,10 @@ final class Builder
 
     private ?ContainerInterface $container = null;
 
+    private ?SchemaGeneratorInterface $schemaGenerator = null;
+
+    private ?DiscovererInterface $discoverer = null;
+
     private ?SessionFactoryInterface $sessionFactory = null;
 
     private ?SessionStoreInterface $sessionStore = null;
@@ -87,7 +95,8 @@ final class Builder
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     icons: ?Icon[],
-     *     meta: ?array<string, mixed>
+     *     meta: ?array<string, mixed>,
+     *     outputSchema: ?array<string, mixed>,
      * }[]
      */
     private array $tools = [];
@@ -286,6 +295,20 @@ final class Builder
         return $this;
     }
 
+    public function setSchemaGenerator(SchemaGeneratorInterface $schemaGenerator): self
+    {
+        $this->schemaGenerator = $schemaGenerator;
+
+        return $this;
+    }
+
+    public function setDiscoverer(DiscovererInterface $discoverer): self
+    {
+        $this->discoverer = $discoverer;
+
+        return $this;
+    }
+
     public function setSession(
         SessionStoreInterface $sessionStore,
         SessionFactoryInterface $sessionFactory = new SessionFactory(),
@@ -330,6 +353,7 @@ final class Builder
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
+     * @param array<string, mixed>|null $outputSchema
      */
     public function addTool(
         callable|array|string $handler,
@@ -339,6 +363,7 @@ final class Builder
         ?array $inputSchema = null,
         ?array $icons = null,
         ?array $meta = null,
+        ?array $outputSchema = null,
     ): self {
         $this->tools[] = compact(
             'handler',
@@ -348,6 +373,7 @@ final class Builder
             'inputSchema',
             'icons',
             'meta',
+            'outputSchema',
         );
 
         return $this;
@@ -466,11 +492,12 @@ final class Builder
 
         $loaders = [
             ...$this->loaders,
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger),
+            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 
         if (null !== $this->discoveryBasePath) {
-            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $logger, $this->discoveryCache);
+            $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
+            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer);
         }
 
         foreach ($loaders as $loader) {
@@ -526,5 +553,16 @@ final class Builder
         );
 
         return new Server($protocol, $logger);
+    }
+
+    private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
+    {
+        $discoverer = new Discoverer($logger, null, $this->schemaGenerator);
+
+        if (null !== $this->discoveryCache) {
+            return new CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
+        }
+
+        return $discoverer;
     }
 }

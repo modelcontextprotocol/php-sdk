@@ -25,6 +25,6 @@ class CompletionProviderFixture implements ProviderInterface
     {
         self::$lastCurrentValue = $currentValue;
 
-        return array_filter(self::$completions, fn ($item) => str_starts_with($item, $currentValue));
+        return array_filter(self::$completions, static fn ($item) => str_starts_with($item, $currentValue));
     }
 }

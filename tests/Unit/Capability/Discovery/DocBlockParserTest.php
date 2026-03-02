@@ -16,7 +16,6 @@ use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 use phpDocumentor\Reflection\DocBlock\Tags\See;
-use phpDocumentor\Reflection\DocBlock\Tags\Throws;
 use PHPUnit\Framework\TestCase;
 
 class DocBlockParserTest extends TestCase
@@ -26,19 +25,6 @@ class DocBlockParserTest extends TestCase
     protected function setUp(): void
     {
         $this->parser = new DocBlockParser();
-    }
-
-    public function testGetSummaryReturnsCorrectSummary()
-    {
-        $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
-        $docComment = $method->getDocComment() ?: null;
-        $docBlock = $this->parser->parseDocBlock($docComment);
-        $this->assertEquals('Simple summary line.', $this->parser->getSummary($docBlock));
-
-        $method2 = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
-        $docComment2 = $method2->getDocComment() ?: null;
-        $docBlock2 = $this->parser->parseDocBlock($docComment2);
-        $this->assertEquals('Summary line here.', $this->parser->getSummary($docBlock2));
     }
 
     public function testGetDescriptionReturnsCorrectDescription()
@@ -109,12 +95,6 @@ class DocBlockParserTest extends TestCase
 
         $this->assertInstanceOf(DocBlock::class, $docBlock);
 
-        $throwsTags = $docBlock->getTagsByName('throws');
-        $this->assertCount(1, $throwsTags);
-        $this->assertInstanceOf(Throws::class, $throwsTags[0]);
-        $this->assertEquals('\\RuntimeException', (string) $throwsTags[0]->getType());
-        $this->assertEquals('if processing fails', $throwsTags[0]->getDescription()->render());
-
         $deprecatedTags = $docBlock->getTagsByName('deprecated');
         $this->assertCount(1, $deprecatedTags);
         $this->assertInstanceOf(Deprecated::class, $deprecatedTags[0]);
@@ -136,7 +116,6 @@ class DocBlockParserTest extends TestCase
         $docBlock = $this->parser->parseDocBlock($docComment);
 
         $this->assertNull($docBlock);
-        $this->assertNull($this->parser->getSummary($docBlock));
         $this->assertNull($this->parser->getDescription($docBlock));
         $this->assertEmpty($this->parser->getParamTags($docBlock));
     }

@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -9,13 +11,12 @@
  * file that was distributed with this source code.
  */
 
-declare(strict_types=1);
-
 namespace Mcp\Example\Server\OAuthMicrosoft;
 
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResource;
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\RequestContext;
 
 /**
  * MCP elements for the OAuth Microsoft example.
@@ -27,23 +28,46 @@ final class McpElements
 {
     /**
      * Confirms the user is authenticated with Microsoft.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'get_auth_status',
         description: 'Confirm Microsoft Entra ID authentication status'
     )]
-    public function getAuthStatus(): array
+    public function getAuthStatus(RequestContext $context): array
     {
+        $meta = $context->getRequest()->getMeta() ?? [];
+        $oauth = isset($meta['oauth']) && \is_array($meta['oauth']) ? $meta['oauth'] : [];
+        $claims = isset($oauth['oauth.claims']) && \is_array($oauth['oauth.claims']) ? $oauth['oauth.claims'] : [];
+        $scopes = isset($oauth['oauth.scopes']) && \is_array($oauth['oauth.scopes']) ? $oauth['oauth.scopes'] : [];
+
         return [
             'authenticated' => true,
             'provider' => 'Microsoft Entra ID',
             'message' => 'You have successfully authenticated with Microsoft!',
             'timestamp' => date('c'),
+            'user' => [
+                'subject' => $oauth['oauth.subject'] ?? ($claims['sub'] ?? null),
+                'object_id' => $oauth['oauth.object_id'] ?? ($claims['oid'] ?? null),
+                'username' => $claims['preferred_username'] ?? ($claims['upn'] ?? null),
+                'name' => $oauth['oauth.name'] ?? ($claims['name'] ?? null),
+                'email' => $claims['email'] ?? null,
+                'issuer' => $claims['iss'] ?? null,
+                'audience' => $claims['aud'] ?? null,
+                'tenant_id' => $claims['tid'] ?? null,
+                'scopes' => $scopes,
+                'expires_at' => isset($claims['exp']) && is_numeric($claims['exp'])
+                    ? date('c', (int) $claims['exp'])
+                    : null,
+            ],
         ];
     }
 
     /**
      * Simulates calling Microsoft Graph API.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'call_graph_api',
@@ -69,6 +93,8 @@ final class McpElements
 
     /**
      * Lists simulated emails.
+     *
+     * @return array<string, mixed>
      */
     #[McpTool(
         name: 'list_emails',
@@ -78,7 +104,7 @@ final class McpElements
     {
         return [
             'note' => 'Simulated data. Implement Graph API call with Mail.Read scope for real emails.',
-            'emails' => array_map(fn ($i) => [
+            'emails' => array_map(static fn ($i) => [
                 'id' => 'msg_'.uniqid(),
                 'subject' => "Sample Email #{$i}",
                 'from' => "sender{$i}@example.com",
@@ -89,6 +115,8 @@ final class McpElements
 
     /**
      * Returns the current server status.
+     *
+     * @return array<string, mixed>
      */
     #[McpResource(
         uri: 'server://status',
@@ -102,7 +130,7 @@ final class McpElements
             'status' => 'healthy',
             'timestamp' => date('c'),
             'auth_provider' => 'Microsoft Entra ID',
-            'php_version' => PHP_VERSION,
+            'php_version' => \PHP_VERSION,
             'memory_usage_mb' => round(memory_get_usage(true) / 1024 / 1024, 2),
         ];
     }

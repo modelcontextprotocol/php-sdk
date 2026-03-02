@@ -32,7 +32,7 @@
     },
     {
       "name": "calculate_range",
-      "description": "Performs mathematical operations with numeric constraints.",
+      "description": "Performs mathematical operations with numeric constraints.\n\nDemonstrates: METHOD-LEVEL Schema",
       "inputSchema": {
         "type": "object",
         "properties": {

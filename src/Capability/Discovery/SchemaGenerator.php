@@ -11,7 +11,9 @@
 
 namespace Mcp\Capability\Discovery;
 
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Exception\BadMethodCallException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
@@ -56,7 +58,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class SchemaGenerator
+final class SchemaGenerator implements SchemaGeneratorInterface
 {
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
@@ -64,12 +66,20 @@ class SchemaGenerator
     }
 
     /**
-     * Generates a JSON Schema object (as a PHP array) for a method's or function's parameters.
+     * Generates a JSON Schema object (as a PHP array) for parameters.
      *
      * @return array<string, mixed>
      */
-    public function generate(\ReflectionMethod|\ReflectionFunction $reflection): array
+    public function generate(\Reflector $reflection): array
     {
+        if ($reflection instanceof \ReflectionClass) {
+            throw new BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
+        }
+
+        if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
+            throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
+        }
+
         $methodSchema = $this->extractMethodLevelSchema($reflection);
 
         if ($methodSchema && isset($methodSchema['definition'])) {
@@ -82,11 +92,40 @@ class SchemaGenerator
     }
 
     /**
+     * Generates a JSON Schema object (as a PHP array) for a method's or function's return type.
+     *
+     * Only returns an outputSchema if explicitly provided in the McpTool attribute.
+     * Per MCP spec, outputSchema should only be present when explicitly provided.
+     *
+     * @return ?array<string, mixed>
+     */
+    public function generateOutputSchema(\Reflector $reflection): ?array
+    {
+        if ($reflection instanceof \ReflectionClass) {
+            throw new BadMethodCallException('Schema generation from ReflectionClass is not implemented yet. Use ReflectionMethod or ReflectionFunction instead.');
+        }
+
+        if (!$reflection instanceof \ReflectionMethod && !$reflection instanceof \ReflectionFunction) {
+            throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
+        }
+
+        // Only return outputSchema if explicitly provided in McpTool attribute
+        $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
+        if ($mcpToolAttrs) {
+            $mcpToolInstance = $mcpToolAttrs[0]->newInstance();
+
+            return $mcpToolInstance->outputSchema;
+        }
+
+        return null;
+    }
+
+    /**
      * Extracts method-level or function-level Schema attribute.
      *
      * @return SchemaAttributeData
      */
-    private function extractMethodLevelSchema(\ReflectionMethod|\ReflectionFunction $reflection): ?array
+    private function extractMethodLevelSchema(\ReflectionFunctionAbstract $reflection): ?array
     {
         $schemaAttrs = $reflection->getAttributes(Schema::class, \ReflectionAttribute::IS_INSTANCEOF);
         if (empty($schemaAttrs)) {
@@ -272,7 +311,7 @@ class SchemaGenerator
         // If no items specified by Schema attribute, infer from type
         if (!isset($paramSchema['items'])) {
             $itemJsonTypes = $this->mapPhpTypeToJsonSchemaType($paramInfo['type_string']);
-            $nonNullItemTypes = array_filter($itemJsonTypes, fn ($t) => 'null' !== $t);
+            $nonNullItemTypes = array_filter($itemJsonTypes, static fn ($t) => 'null' !== $t);
 
             if (1 === \count($nonNullItemTypes)) {
                 $paramSchema['items'] = ['type' => $nonNullItemTypes[0]];
@@ -535,7 +574,7 @@ class SchemaGenerator
                 $types[] = $this->getTypeStringFromReflection($innerType, $innerType->allowsNull());
             }
             if ($nativeAllowsNull) {
-                $types = array_filter($types, fn ($t) => 'null' !== strtolower($t));
+                $types = array_filter($types, static fn ($t) => 'null' !== strtolower($t));
             }
             $typeString = implode('|', array_unique(array_filter($types)));
         } elseif ($type instanceof \ReflectionIntersectionType) {
@@ -580,7 +619,7 @@ class SchemaGenerator
         // Remove leading backslash from class names, but handle built-ins like 'int' or unions like 'int|string'
         if (str_contains($typeString, '\\')) {
             $parts = preg_split('/([|&])/', $typeString, -1, \PREG_SPLIT_DELIM_CAPTURE);
-            $processedParts = array_map(fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
+            $processedParts = array_map(static fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
             $typeString = implode('', $processedParts);
         }
 

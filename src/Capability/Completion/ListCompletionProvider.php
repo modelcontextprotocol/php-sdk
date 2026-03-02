@@ -32,7 +32,7 @@ class ListCompletionProvider implements ProviderInterface
 
         return array_values(array_filter(
             $this->values,
-            fn (string $value) => str_starts_with($value, $currentValue)
+            static fn (string $value) => str_starts_with($value, $currentValue)
         ));
     }
 }

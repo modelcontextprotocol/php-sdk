@@ -12,13 +12,14 @@
 namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
-use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -39,11 +40,11 @@ class StreamableHttpTransport extends BaseTransport
     private array $corsHeaders;
 
     /** @var list<MiddlewareInterface> */
-    private array $middlewares = [];
+    private array $middleware = [];
 
     /**
-     * @param array<string, string> $corsHeaders
-     * @param iterable<MiddlewareInterface> $middlewares
+     * @param array<string, string>         $corsHeaders
+     * @param iterable<MiddlewareInterface> $middleware
      */
     public function __construct(
         private ServerRequestInterface $request,
@@ -51,7 +52,7 @@ class StreamableHttpTransport extends BaseTransport
         ?StreamFactoryInterface $streamFactory = null,
         array $corsHeaders = [],
         ?LoggerInterface $logger = null,
-        iterable $middlewares = [],
+        iterable $middleware = [],
     ) {
         parent::__construct($logger);
 
@@ -65,11 +66,11 @@ class StreamableHttpTransport extends BaseTransport
             'Access-Control-Expose-Headers' => 'Mcp-Session-Id',
         ], $corsHeaders);
 
-        foreach ($middlewares as $middleware) {
-            if (!$middleware instanceof MiddlewareInterface) {
-                throw new \InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
+        foreach ($middleware as $m) {
+            if (!$m instanceof MiddlewareInterface) {
+                throw new InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
             }
-            $this->middlewares[] = $middleware;
+            $this->middleware[] = $m;
         }
     }
 
@@ -81,10 +82,12 @@ class StreamableHttpTransport extends BaseTransport
 
     public function listen(): ResponseInterface
     {
-        $handler = $this->createRequestHandler();
-        $response = $handler->handle($this->request);
+        $handler = new MiddlewareRequestHandler(
+            $this->middleware,
+            \Closure::fromCallable([$this, 'handleRequest']),
+        );
 
-        return $this->withCorsHeaders($response);
+        return $this->withCorsHeaders($handler->handle($this->request));
     }
 
     protected function handleOptionsRequest(): ResponseInterface
@@ -252,6 +255,10 @@ class StreamableHttpTransport extends BaseTransport
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($payload));
 
+        if (405 === $statusCode) {
+            $response = $response->withHeader('Allow', 'POST, DELETE, OPTIONS');
+        }
+
         return $response;
     }
 
@@ -278,39 +285,5 @@ class StreamableHttpTransport extends BaseTransport
             'DELETE' => $this->handleDeleteRequest(),
             default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
-    }
-
-    private function createRequestHandler(): RequestHandlerInterface
-    {
-        /**
-         * @see self::handleRequest
-         */
-        $handler = new class(\Closure::fromCallable([$this, 'handleRequest'])) implements RequestHandlerInterface {
-            public function __construct(private \Closure $handler)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return ($this->handler)($request);
-            }
-        };
-
-        foreach (array_reverse($this->middlewares) as $middleware) {
-            $handler = new class($middleware, $handler) implements RequestHandlerInterface {
-                public function __construct(
-                    private MiddlewareInterface $middleware,
-                    private RequestHandlerInterface $handler,
-                ) {
-                }
-
-                public function handle(ServerRequestInterface $request): ResponseInterface
-                {
-                    return $this->middleware->process($request, $this->handler);
-                }
-            };
-        }
-
-        return $handler;
     }
 }

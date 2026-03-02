@@ -9,3 +9,7 @@ examples/**/sessions
 tests/Conformance/results
 tests/Conformance/sessions
 tests/Conformance/logs/*.log
+
+# phpDocumentor
+.phpdoc/build/
+.phpdoc/cache/

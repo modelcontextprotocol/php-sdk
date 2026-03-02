@@ -48,20 +48,20 @@ final class ServerTest extends TestCase
 
         $this->transport->expects($this->once())
             ->method('initialize')
-            ->willReturnCallback(function () use (&$callOrder) {
+            ->willReturnCallback(static function () use (&$callOrder) {
                 $callOrder[] = 'initialize';
             });
 
         $this->protocol->expects($this->once())
             ->method('connect')
             ->with($this->transport)
-            ->willReturnCallback(function () use (&$callOrder) {
+            ->willReturnCallback(static function () use (&$callOrder) {
                 $callOrder[] = 'connect';
             });
 
         $this->transport->expects($this->once())
             ->method('listen')
-            ->willReturnCallback(function () use (&$callOrder) {
+            ->willReturnCallback(static function () use (&$callOrder) {
                 $callOrder[] = 'listen';
 
                 return 0;
@@ -69,7 +69,7 @@ final class ServerTest extends TestCase
 
         $this->transport->expects($this->once())
             ->method('close')
-            ->willReturnCallback(function () use (&$callOrder) {
+            ->willReturnCallback(static function () use (&$callOrder) {
                 $callOrder[] = 'close';
             });
 

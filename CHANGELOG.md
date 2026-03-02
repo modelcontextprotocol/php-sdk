@@ -2,6 +2,20 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.4.0
+-----
+
+* Rename `Mcp\Server\Session\Psr16StoreSession` to `Mcp\Server\Session\Psr16SessionStore`
+
+0.3.0
+-----
+
+* Add output schema support to MCP tools
+* Add validation of the input parameters given to a Tool.
+* Rename `Mcp\Capability\Registry\ResourceReference::$schema` to `Mcp\Capability\Registry\ResourceReference::$resource`.
+* Introduce `SchemaGeneratorInterface` and `DiscovererInterface` to allow custom schema generation and discovery implementations.
+* Remove `DocBlockParser::getSummary()` method, use `DocBlockParser::getDescription()` instead.
+
 0.2.2
 -----
 
