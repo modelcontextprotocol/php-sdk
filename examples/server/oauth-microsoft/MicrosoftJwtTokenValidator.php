@@ -143,7 +143,7 @@ class MicrosoftJwtTokenValidator implements AuthorizationTokenValidatorInterface
     {
         $host = parse_url($issuer, \PHP_URL_HOST);
 
-        return in_array($host, $this->trustedGraphIssuers, true);
+        return \in_array($host, $this->trustedGraphIssuers, true);
     }
 
     /**

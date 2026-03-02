@@ -37,10 +37,10 @@ class OidcDiscovery
     private const CACHE_KEY_PREFIX = 'mcp_oidc_discovery_';
 
     /**
-     * @param ClientInterface|null $httpClient PSR-18 HTTP client (auto-discovered if null)
+     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
      * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param CacheInterface|null $cache PSR-16 cache for metadata (optional)
-     * @param int $cacheTtl Cache TTL in seconds (default: 1 hour)
+     * @param CacheInterface|null          $cache          PSR-16 cache for metadata (optional)
+     * @param int                          $cacheTtl       Cache TTL in seconds (default: 1 hour)
      */
     public function __construct(
         ?ClientInterface $httpClient = null,
@@ -68,7 +68,7 @@ class OidcDiscovery
      */
     public function discover(string $issuer): array
     {
-        $cacheKey = self::CACHE_KEY_PREFIX . hash('sha256', $issuer);
+        $cacheKey = self::CACHE_KEY_PREFIX.hash('sha256', $issuer);
 
         if (null !== $this->cache) {
             $cached = $this->cache->get($cacheKey);
@@ -119,7 +119,7 @@ class OidcDiscovery
     {
         $jwksUri = $this->getJwksUri($issuer);
 
-        $cacheKey = self::CACHE_KEY_PREFIX . 'jwks_' . hash('sha256', $jwksUri);
+        $cacheKey = self::CACHE_KEY_PREFIX.'jwks_'.hash('sha256', $jwksUri);
 
         if (null !== $this->cache) {
             $cached = $this->cache->get($cacheKey);
@@ -204,15 +204,15 @@ class OidcDiscovery
         $parsed = parse_url($issuer);
 
         if (false === $parsed || !isset($parsed['scheme'], $parsed['host'])) {
-            throw new \RuntimeException(sprintf('Invalid issuer URL: %s', $issuer));
+            throw new \RuntimeException(\sprintf('Invalid issuer URL: %s', $issuer));
         }
 
         $scheme = $parsed['scheme'];
         $host = $parsed['host'];
-        $port = isset($parsed['port']) ? ':' . $parsed['port'] : '';
+        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
         $path = $parsed['path'] ?? '';
 
-        $baseUrl = $scheme . '://' . $host . $port;
+        $baseUrl = $scheme.'://'.$host.$port;
 
         // Build discovery URLs in priority order per RFC 8414 Section 3.1
         $discoveryUrls = [];
@@ -220,15 +220,15 @@ class OidcDiscovery
         if ('' !== $path && '/' !== $path) {
             // For issuer URLs with path components
             // 1. OAuth 2.0 path insertion
-            $discoveryUrls[] = $baseUrl . '/.well-known/oauth-authorization-server' . $path;
+            $discoveryUrls[] = $baseUrl.'/.well-known/oauth-authorization-server'.$path;
             // 2. OIDC path insertion
-            $discoveryUrls[] = $baseUrl . '/.well-known/openid-configuration' . $path;
+            $discoveryUrls[] = $baseUrl.'/.well-known/openid-configuration'.$path;
             // 3. OIDC path appending
-            $discoveryUrls[] = $issuer . '/.well-known/openid-configuration';
+            $discoveryUrls[] = $issuer.'/.well-known/openid-configuration';
         } else {
             // For issuer URLs without path components
-            $discoveryUrls[] = $baseUrl . '/.well-known/oauth-authorization-server';
-            $discoveryUrls[] = $baseUrl . '/.well-known/openid-configuration';
+            $discoveryUrls[] = $baseUrl.'/.well-known/oauth-authorization-server';
+            $discoveryUrls[] = $baseUrl.'/.well-known/openid-configuration';
         }
 
         $lastException = null;
@@ -249,11 +249,7 @@ class OidcDiscovery
             }
         }
 
-        throw new \RuntimeException(
-            sprintf('Failed to discover authorization server metadata for issuer: %s', $issuer),
-            0,
-            $lastException
-        );
+        throw new \RuntimeException(\sprintf('Failed to discover authorization server metadata for issuer: %s', $issuer), 0, $lastException);
     }
 
     /**
@@ -267,11 +263,7 @@ class OidcDiscovery
         $response = $this->httpClient->sendRequest($request);
 
         if ($response->getStatusCode() >= 400) {
-            throw new \RuntimeException(sprintf(
-                'HTTP request to %s failed with status %d',
-                $url,
-                $response->getStatusCode()
-            ));
+            throw new \RuntimeException(\sprintf('HTTP request to %s failed with status %d', $url, $response->getStatusCode()));
         }
 
         $body = $response->getBody()->__toString();
@@ -279,11 +271,11 @@ class OidcDiscovery
         try {
             $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new \RuntimeException(sprintf('Failed to decode JSON from %s: %s', $url, $e->getMessage()), 0, $e);
+            throw new \RuntimeException(\sprintf('Failed to decode JSON from %s: %s', $url, $e->getMessage()), 0, $e);
         }
 
         if (!\is_array($data)) {
-            throw new \RuntimeException(sprintf('Expected JSON object from %s, got %s', $url, \gettype($data)));
+            throw new \RuntimeException(\sprintf('Expected JSON object from %s, got %s', $url, \gettype($data)));
         }
 
         return $data;

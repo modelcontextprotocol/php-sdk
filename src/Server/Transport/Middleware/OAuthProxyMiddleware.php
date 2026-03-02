@@ -45,9 +45,9 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     private ?array $upstreamMetadata = null;
 
     /**
-     * @param string $upstreamIssuer The issuer URL of the upstream OAuth provider
-     * @param string $localBaseUrl The base URL of this MCP server (e.g., http://localhost:8000)
-     * @param string|null $clientSecret Optional client secret for confidential clients
+     * @param string      $upstreamIssuer The issuer URL of the upstream OAuth provider
+     * @param string      $localBaseUrl   The base URL of this MCP server (e.g., http://localhost:8000)
+     * @param string|null $clientSecret   Optional client secret for confidential clients
      */
     public function __construct(
         private readonly string $upstreamIssuer,
@@ -100,7 +100,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         $rawQueryString = $request->getUri()->getQuery();
 
         // Build upstream URL preserving exact query string
-        $upstreamUrl = $authorizationEndpoint . '?' . $rawQueryString;
+        $upstreamUrl = $authorizationEndpoint.'?'.$rawQueryString;
 
         // Redirect to upstream authorization server
         return $this->responseFactory
@@ -152,7 +152,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
                 ->withHeader('Cache-Control', 'no-store')
                 ->withBody($this->streamFactory->createStream($responseBody));
         } catch (\Throwable $e) {
-            return $this->createErrorResponse(502, 'Failed to contact upstream token endpoint: ' . $e->getMessage());
+            return $this->createErrorResponse(502, 'Failed to contact upstream token endpoint: '.$e->getMessage());
         }
     }
 
@@ -163,8 +163,8 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         // Create local metadata that points to our proxy endpoints
         $localMetadata = [
             'issuer' => $this->upstreamIssuer,
-            'authorization_endpoint' => rtrim($this->localBaseUrl, '/') . '/authorize',
-            'token_endpoint' => rtrim($this->localBaseUrl, '/') . '/token',
+            'authorization_endpoint' => rtrim($this->localBaseUrl, '/').'/authorize',
+            'token_endpoint' => rtrim($this->localBaseUrl, '/').'/token',
             'response_types_supported' => $upstreamMetadata['response_types_supported'] ?? ['code'],
             'grant_types_supported' => $upstreamMetadata['grant_types_supported'] ?? ['authorization_code', 'refresh_token'],
             'code_challenge_methods_supported' => $upstreamMetadata['code_challenge_methods_supported'] ?? ['S256'],
@@ -198,8 +198,8 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
 
         // Try OpenID Connect discovery first
         $discoveryUrls = [
-            rtrim($this->upstreamIssuer, '/') . '/.well-known/openid-configuration',
-            rtrim($this->upstreamIssuer, '/') . '/.well-known/oauth-authorization-server',
+            rtrim($this->upstreamIssuer, '/').'/.well-known/openid-configuration',
+            rtrim($this->upstreamIssuer, '/').'/.well-known/oauth-authorization-server',
         ];
 
         foreach ($discoveryUrls as $url) {

@@ -46,15 +46,15 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     private const CACHE_KEY_PREFIX = 'mcp_jwt_jwks_';
 
     /**
-     * @param string|list<string> $issuer Expected token issuer(s) (e.g., "https://auth.example.com/realms/mcp")  For Microsoft Entra ID, you may need to provide both v1.0 and v2.0 issuers
-     * @param string|list<string> $audience Expected audience(s) for the token
-     * @param string|null $jwksUri Explicit JWKS URI (auto-discovered from first issuer if null)
-     * @param ClientInterface|null $httpClient PSR-18 HTTP client (auto-discovered if null)
+     * @param string|list<string>          $issuer         Expected token issuer(s) (e.g., "https://auth.example.com/realms/mcp")  For Microsoft Entra ID, you may need to provide both v1.0 and v2.0 issuers
+     * @param string|list<string>          $audience       Expected audience(s) for the token
+     * @param string|null                  $jwksUri        Explicit JWKS URI (auto-discovered from first issuer if null)
+     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
      * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param CacheInterface|null $cache PSR-16 cache for JWKS (optional)
-     * @param int $cacheTtl Cache TTL in seconds (default: 1 hour)
-     * @param list<string> $algorithms Allowed JWT algorithms (default: RS256, RS384, RS512)
-     * @param string $scopeClaim Claim name for scopes (default: "scope")
+     * @param CacheInterface|null          $cache          PSR-16 cache for JWKS (optional)
+     * @param int                          $cacheTtl       Cache TTL in seconds (default: 1 hour)
+     * @param list<string>                 $algorithms     Allowed JWT algorithms (default: RS256, RS384, RS512)
+     * @param string                       $scopeClaim     Claim name for scopes (default: "scope")
      */
     public function __construct(
         private readonly string|array $issuer,
@@ -76,7 +76,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         // Decode header to see key ID
         $parts = explode('.', $accessToken);
         $header = null;
-        if (count($parts) >= 2) {
+        if (\count($parts) >= 2) {
             $header = json_decode(base64_decode(strtr($parts[0], '-_', '+/')), true);
         }
 
@@ -90,7 +90,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             $keys = $this->getJwks();
             $decoded = JWT::decode($accessToken, $keys);
             /** @var array<string, mixed> $claims */
-            $claims = (array)$decoded;
+            $claims = (array) $decoded;
 
             // Validate issuer
             if (!$this->validateIssuer($claims)) {
@@ -154,12 +154,12 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      *
      * This method performs claim-based validation without signature verification.
      *
-     * @param string $accessToken The JWT access token
-     * @param array<string> $parts Token parts (header, payload, signature)
+     * @param string        $accessToken The JWT access token
+     * @param array<string> $parts       Token parts (header, payload, signature)
      */
     private function validateGraphToken(string $accessToken, array $parts): AuthorizationResult
     {
-        if (count($parts) < 2) {
+        if (\count($parts) < 2) {
             return AuthorizationResult::unauthorized('invalid_token', 'Invalid token format.');
         }
 
@@ -219,8 +219,8 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      *
      * Use this after validation to check specific scope requirements.
      *
-     * @param AuthorizationResult $result The result from validate()
-     * @param list<string> $requiredScopes Scopes required for this operation
+     * @param AuthorizationResult $result         The result from validate()
+     * @param list<string>        $requiredScopes Scopes required for this operation
      *
      * @return AuthorizationResult The original result if scopes are sufficient, forbidden otherwise
      */
@@ -240,7 +240,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             if (!\in_array($required, $tokenScopes, true)) {
                 return AuthorizationResult::forbidden(
                     'insufficient_scope',
-                    sprintf('Required scope: %s', $required),
+                    \sprintf('Required scope: %s', $required),
                     $requiredScopes
                 );
             }
@@ -255,7 +255,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     private function getJwks(): array
     {
         $jwksUri = $this->resolveJwksUri();
-        $cacheKey = self::CACHE_KEY_PREFIX . hash('sha256', $jwksUri);
+        $cacheKey = self::CACHE_KEY_PREFIX.hash('sha256', $jwksUri);
 
         $jwksData = null;
 
@@ -275,7 +275,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             }
         }
 
-        /** @var array<string, \Firebase\JWT\Key> */
+        /* @var array<string, \Firebase\JWT\Key> */
         return JWK::parseKeySet($jwksData, $this->algorithms[0]);
     }
 
@@ -325,11 +325,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         $response = $this->httpClient->sendRequest($request);
 
         if (200 !== $response->getStatusCode()) {
-            throw new RuntimeException(sprintf(
-                'Failed to fetch JWKS from %s: HTTP %d',
-                $jwksUri,
-                $response->getStatusCode()
-            ));
+            throw new RuntimeException(\sprintf('Failed to fetch JWKS from %s: HTTP %d', $jwksUri, $response->getStatusCode()));
         }
 
         $body = $response->getBody()->__toString();
@@ -337,14 +333,14 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         try {
             $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
-            throw new RuntimeException(sprintf('Failed to decode JWKS: %s', $e->getMessage()), 0, $e);
+            throw new RuntimeException(\sprintf('Failed to decode JWKS: %s', $e->getMessage()), 0, $e);
         }
 
         if (!\is_array($data) || !isset($data['keys'])) {
             throw new RuntimeException('Invalid JWKS format: missing "keys" array.');
         }
 
-        /** @var array<string, mixed> $data */
+        /* @var array<string, mixed> $data */
         return $data;
     }
 
