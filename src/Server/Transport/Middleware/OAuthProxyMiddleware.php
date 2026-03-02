@@ -119,7 +119,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         }
 
         // Get the request body and parse it
-        $body = (string)$request->getBody();
+        $body = $request->getBody()->__toString();
         parse_str($body, $params);
 
         // Inject client_secret if configured and not already present
@@ -143,7 +143,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
 
         try {
             $upstreamResponse = $this->httpClient->sendRequest($upstreamRequest);
-            $responseBody = (string)$upstreamResponse->getBody();
+            $responseBody = $upstreamResponse->getBody()->__toString();
 
             // Return upstream response as-is
             return $this->responseFactory
@@ -208,7 +208,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
                 $response = $this->httpClient->sendRequest($request);
 
                 if (200 === $response->getStatusCode()) {
-                    $this->upstreamMetadata = json_decode((string)$response->getBody(), true) ?? [];
+                    $this->upstreamMetadata = json_decode($response->getBody()->__toString(), true) ?? [];
 
                     return $this->upstreamMetadata;
                 }

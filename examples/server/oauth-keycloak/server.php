@@ -26,39 +26,16 @@ use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
-// Configuration
-// External URL is what clients use and what appears in tokens
-$keycloakExternalUrl = 'http://localhost:8180';
-// Internal URL is how this server reaches Keycloak (Docker network)
-$keycloakInternalUrl = 'http://keycloak:8080';
-$keycloakRealm = 'mcp';
-$mcpAudience = 'mcp-server';
+$externalIssuer = 'http://localhost:8180/realms/mcp';
+$internalIssuer = 'http://keycloak:8180/realms/mcp';
 
-// Accept both issuers:
-// - external issuer for clients outside Docker
-// - internal issuer for tokens requested from within Docker network
-$externalIssuer = rtrim($keycloakExternalUrl, '/').'/realms/'.$keycloakRealm;
-$internalIssuer = rtrim($keycloakInternalUrl, '/').'/realms/'.$keycloakRealm;
-// JWKS URI uses internal URL to reach Keycloak within Docker network
-$jwksUri = rtrim($keycloakInternalUrl, '/').'/realms/'.$keycloakRealm.'/protocol/openid-connect/certs';
-
-// Create PSR-17 factory
-$psr17Factory = new Psr17Factory();
-$request = $psr17Factory->createServerRequestFromGlobals();
-$discovery = new OidcDiscovery();
-
-// Create JWT validator
-// - issuer: accepts both external and internal issuer forms
-// - jwksUri: where to fetch keys (internal URL)
 $validator = new JwtTokenValidator(
     issuer: [$externalIssuer, $internalIssuer],
-    audience: $mcpAudience,
-    jwksProvider: new JwksProvider(discovery: $discovery),
-    jwksUri: $jwksUri,
+    audience: 'mcp-server',
+    jwksProvider: new JwksProvider(new OidcDiscovery()),
+    jwksUri: $internalIssuer.'/protocol/openid-connect/certs',
 );
 
-// Create a shared Protected Resource Metadata object (RFC 9728).
-// It is used both for the metadata endpoint and for WWW-Authenticate hints.
 $protectedResourceMetadata = new ProtectedResourceMetadata(
     authorizationServers: [$externalIssuer],
     scopesSupported: ['openid'],
@@ -66,19 +43,13 @@ $protectedResourceMetadata = new ProtectedResourceMetadata(
     resourceName: 'OAuth Keycloak Example MCP Server',
 );
 
-// Create middleware serving Protected Resource Metadata (RFC 9728).
-$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
-    metadata: $protectedResourceMetadata,
-);
+$metadataMiddleware = new ProtectedResourceMetadataMiddleware($protectedResourceMetadata);
 
-// Create authorization middleware.
 $authMiddleware = new AuthorizationMiddleware(
-    validator: $validator,
-    resourceMetadata: $protectedResourceMetadata,
+    $validator,
+    $protectedResourceMetadata,
 );
-$oauthRequestMetaMiddleware = new OAuthRequestMetaMiddleware();
 
-// Build MCP server
 $server = Server::builder()
     ->setServerInfo('OAuth Keycloak Example', '1.0.0')
     ->setLogger(logger())
@@ -86,15 +57,12 @@ $server = Server::builder()
     ->setDiscovery(__DIR__)
     ->build();
 
-// Create transport with authorization middleware
 $transport = new StreamableHttpTransport(
-    $request,
+    (new Psr17Factory())->createServerRequestFromGlobals(),
     logger: logger(),
-    middleware: [$metadataMiddleware, $authMiddleware, $oauthRequestMetaMiddleware],
+    middleware: [$metadataMiddleware, $authMiddleware, new OAuthRequestMetaMiddleware()],
 );
 
-// Run server
 $response = $server->run($transport);
 
-// Emit response
 (new SapiEmitter())->emit($response);

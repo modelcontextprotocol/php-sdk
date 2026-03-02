@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport\Http\OAuth;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\RuntimeException;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -53,7 +54,7 @@ class JwksProvider implements JwksProviderInterface
      */
     public function getJwks(string $issuer, ?string $jwksUri = null): array
     {
-        $jwksUri ??= $this->resolveJwksUri($issuer);
+        $jwksUri ??= $this->discovery->getJwksUri($issuer);
         $cacheKey = self::CACHE_KEY_PREFIX.hash('sha256', $jwksUri);
 
         if (null !== $this->cache) {
@@ -77,14 +78,6 @@ class JwksProvider implements JwksProviderInterface
         return $jwks;
     }
 
-    private function resolveJwksUri(string $issuer): string
-    {
-        return $this->discovery->getJwksUri($issuer);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
     private function fetchJwks(string $jwksUri): array
     {
         $request = $this->requestFactory->createRequest('GET', $jwksUri)
@@ -92,7 +85,7 @@ class JwksProvider implements JwksProviderInterface
 
         try {
             $response = $this->httpClient->sendRequest($request);
-        } catch (\Throwable $e) {
+        } catch (ClientExceptionInterface $e) {
             throw new RuntimeException(\sprintf('Failed to fetch JWKS from %s: %s', $jwksUri, $e->getMessage()), 0, $e);
         }
 
@@ -100,10 +93,8 @@ class JwksProvider implements JwksProviderInterface
             throw new RuntimeException(\sprintf('Failed to fetch JWKS from %s: HTTP %d', $jwksUri, $response->getStatusCode()));
         }
 
-        $body = $response->getBody()->__toString();
-
         try {
-            $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
+            $data = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             throw new RuntimeException(\sprintf('Failed to decode JWKS: %s', $e->getMessage()), 0, $e);
         }

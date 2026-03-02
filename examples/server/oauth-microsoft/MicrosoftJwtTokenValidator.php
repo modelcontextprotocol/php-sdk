@@ -141,13 +141,9 @@ class MicrosoftJwtTokenValidator implements AuthorizationTokenValidatorInterface
 
     private function isTrustedGraphIssuer(string $issuer): bool
     {
-        foreach ($this->trustedGraphIssuers as $marker) {
-            if (str_contains($issuer, $marker)) {
-                return true;
-            }
-        }
+        $host = parse_url($issuer, \PHP_URL_HOST);
 
-        return false;
+        return in_array($host, $this->trustedGraphIssuers, true);
     }
 
     /**

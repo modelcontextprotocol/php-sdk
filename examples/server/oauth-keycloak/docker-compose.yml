@@ -11,10 +11,11 @@ services:
     command:
       - start-dev
       - --import-realm
+      - --http-port=8180
     ports:
-      - "8180:8080"
+      - "8180:8180"
     healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8180;echo -e 'GET /health/ready HTTP/1.1\r\nhost: localhost\r\nConnection: close\r\n\r\n' >&3;if [ $? -eq 0 ]; then echo 'Healthcheck Successful';exit 0;else echo 'Healthcheck Failed';exit 1;fi;"]
       interval: 10s
       timeout: 5s
       retries: 15
@@ -32,7 +33,7 @@ services:
     working_dir: /app
     environment:
       KEYCLOAK_EXTERNAL_URL: http://localhost:8180
-      KEYCLOAK_INTERNAL_URL: http://keycloak:8080
+      KEYCLOAK_INTERNAL_URL: http://keycloak:8180
       KEYCLOAK_REALM: mcp
       MCP_AUDIENCE: mcp-server
     depends_on:

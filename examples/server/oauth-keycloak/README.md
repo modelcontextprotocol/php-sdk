@@ -106,7 +106,7 @@ Access at http://localhost:8180/admin with:
 
 This example uses hard-coded values in `server.php` for consistency with other examples:
 - Keycloak external URL: `http://localhost:8180`
-- Keycloak internal URL: `http://keycloak:8080`
+- Keycloak internal URL: `http://keycloak:8180`
 - Realm: `mcp`
 - Audience: `mcp-server`
 
@@ -125,7 +125,7 @@ This example uses hard-coded values in `server.php` for consistency with other e
 
 ### JWKS fetch fails
 
-The MCP server needs to reach Keycloak at `http://keycloak:8080` (Docker network).
+The MCP server needs to reach Keycloak at `http://keycloak:8180` (Docker network).
 For local development outside Docker, use `http://localhost:8180`.
 
 ## Cleanup

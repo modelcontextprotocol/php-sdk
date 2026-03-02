@@ -13,7 +13,9 @@ namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -91,7 +93,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     {
         try {
             $authorizationEndpoint = $this->discovery->getAuthorizationEndpoint($this->upstreamIssuer);
-        } catch (\Throwable) {
+        } catch (RuntimeException) {
             return $this->createErrorResponse(500, 'Upstream authorization endpoint not found');
         }
 
@@ -111,7 +113,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     {
         try {
             $tokenEndpoint = $this->discovery->getTokenEndpoint($this->upstreamIssuer);
-        } catch (\Throwable) {
+        } catch (RuntimeException) {
             return $this->createErrorResponse(500, 'Upstream token endpoint not found');
         }
 
@@ -159,7 +161,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
                 ->withHeader('Content-Type', $upstreamResponse->getHeaderLine('Content-Type'))
                 ->withHeader('Cache-Control', 'no-store')
                 ->withBody($this->streamFactory->createStream($responseBody));
-        } catch (\Throwable $e) {
+        } catch (ClientExceptionInterface $e) {
             return $this->createErrorResponse(502, 'Failed to contact upstream token endpoint: '.$e->getMessage());
         }
     }
@@ -168,7 +170,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     {
         try {
             $upstreamMetadata = $this->discovery->discover($this->upstreamIssuer);
-        } catch (\Throwable) {
+        } catch (RuntimeException) {
             return $this->createErrorResponse(500, 'Failed to discover upstream server metadata');
         }
 
@@ -233,7 +235,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     {
         try {
             $metadata = $this->discovery->discover($this->upstreamIssuer);
-        } catch (\Throwable) {
+        } catch (RuntimeException) {
             return [];
         }
 

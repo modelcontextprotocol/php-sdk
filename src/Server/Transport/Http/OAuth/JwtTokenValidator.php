@@ -16,6 +16,7 @@ use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Firebase\JWT\SignatureInvalidException;
+use Mcp\Exception\RuntimeException;
 
 /**
  * Validates JWT access tokens using JWKS from an OAuth 2.0 / OpenID Connect provider.
@@ -47,39 +48,31 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         private readonly array $algorithms = ['RS256', 'RS384', 'RS512'],
         private readonly string $scopeClaim = 'scope',
     ) {
+        if (!class_exists(JWT::class)) {
+            throw new RuntimeException('For using the JwtTokenValidator, the firebase/php-jwt package is required. Try running "composer require firebase/php-jwt".');
+        }
     }
 
     public function validate(string $accessToken): AuthorizationResult
     {
         try {
-            $keys = $this->getJwks();
-            $decoded = JWT::decode($accessToken, $keys);
             /** @var array<string, mixed> $claims */
-            $claims = (array) $decoded;
+            $claims = (array) JWT::decode($accessToken, $this->getJwks());
 
             // Validate issuer
             if (!$this->validateIssuer($claims)) {
-                return AuthorizationResult::unauthorized(
-                    'invalid_token',
-                    'Token issuer mismatch.'
-                );
+                return AuthorizationResult::unauthorized('invalid_token', 'Token issuer mismatch.');
             }
 
             // Validate audience
             if (!$this->validateAudience($claims)) {
-                return AuthorizationResult::unauthorized(
-                    'invalid_token',
-                    'Token audience mismatch.'
-                );
+                return AuthorizationResult::unauthorized('invalid_token', 'Token audience mismatch.');
             }
-
-            // Extract scopes
-            $scopes = $this->extractScopes($claims);
 
             // Build attributes to attach to request
             $attributes = [
                 'oauth.claims' => $claims,
-                'oauth.scopes' => $scopes,
+                'oauth.scopes' => $this->extractScopes($claims),
             ];
 
             // Add common claims as individual attributes
@@ -134,11 +127,7 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 
         foreach ($requiredScopes as $required) {
             if (!\in_array($required, $tokenScopes, true)) {
-                return AuthorizationResult::forbidden(
-                    'insufficient_scope',
-                    \sprintf('Required scope: %s', $required),
-                    $requiredScopes
-                );
+                return AuthorizationResult::forbidden('insufficient_scope', \sprintf('Required scope: %s', $required), $requiredScopes);
             }
         }
 

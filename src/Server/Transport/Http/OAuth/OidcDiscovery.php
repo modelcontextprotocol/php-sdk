@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport\Http\OAuth;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\RuntimeException;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\SimpleCache\CacheInterface;
@@ -32,11 +33,11 @@ use Psr\SimpleCache\CacheInterface;
  */
 class OidcDiscovery implements OidcDiscoveryInterface
 {
+    private const CACHE_KEY_PREFIX = 'mcp_oidc_discovery_';
+
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
     private OidcDiscoveryMetadataPolicyInterface $metadataPolicy;
-
-    private const CACHE_KEY_PREFIX = 'mcp_oidc_discovery_';
 
     /**
      * @param ClientInterface|null                      $httpClient     PSR-18 HTTP client (auto-discovered if null)
@@ -125,7 +126,7 @@ class OidcDiscovery implements OidcDiscoveryInterface
 
         if (null !== $this->cache) {
             $cached = $this->cache->get($cacheKey);
-            if ($this->metadataPolicy->isValid($cached)) {
+            if (\is_array($cached)) {
                 /* @var array<string, mixed> $cached */
                 return $cached;
             }
@@ -185,9 +186,11 @@ class OidcDiscovery implements OidcDiscoveryInterface
                     throw new RuntimeException(\sprintf('OIDC discovery response from %s has invalid format.', $url));
                 }
 
-                // Validate issuer claim matches
-                if (isset($metadata['issuer']) && $metadata['issuer'] !== $issuer) {
-                    continue;
+                if (!isset($metadata['issuer']) || !\is_string($metadata['issuer'])) {
+                    throw new RuntimeException(\sprintf('OIDC discovery response from %s is missing required "issuer" field.', $url));
+                }
+                if ($metadata['issuer'] !== $issuer) {
+                    throw new RuntimeException(\sprintf('OIDC discovery issuer mismatch for %s: expected %s, got %s.', $url, $issuer, $metadata['issuer']));
                 }
 
                 return $metadata;
@@ -210,18 +213,16 @@ class OidcDiscovery implements OidcDiscoveryInterface
 
         try {
             $response = $this->httpClient->sendRequest($request);
-        } catch (\Throwable $e) {
+        } catch (ClientExceptionInterface $e) {
             throw new RuntimeException(\sprintf('HTTP request to %s failed: %s', $url, $e->getMessage()), 0, $e);
         }
 
-        if ($response->getStatusCode() >= 400) {
+        if (200 !== $response->getStatusCode()) {
             throw new RuntimeException(\sprintf('HTTP request to %s failed with status %d', $url, $response->getStatusCode()));
         }
 
-        $body = $response->getBody()->__toString();
-
         try {
-            $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
+            $data = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
             throw new RuntimeException(\sprintf('Failed to decode JSON from %s: %s', $url, $e->getMessage()), 0, $e);
         }
