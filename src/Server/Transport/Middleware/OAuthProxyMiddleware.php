@@ -42,6 +42,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
+    /** @var array<string, mixed>|null */
     private ?array $upstreamMetadata = null;
 
     /**
@@ -190,6 +191,9 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
             ->withBody($this->streamFactory->createStream(json_encode($localMetadata, \JSON_UNESCAPED_SLASHES)));
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function getUpstreamMetadata(): array
     {
         if (null !== $this->upstreamMetadata) {
@@ -208,7 +212,12 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
                 $response = $this->httpClient->sendRequest($request);
 
                 if (200 === $response->getStatusCode()) {
-                    $this->upstreamMetadata = json_decode($response->getBody()->__toString(), true) ?? [];
+                    $decoded = json_decode($response->getBody()->__toString(), true);
+                    if (!\is_array($decoded)) {
+                        continue;
+                    }
+
+                    $this->upstreamMetadata = $decoded;
 
                     return $this->upstreamMetadata;
                 }

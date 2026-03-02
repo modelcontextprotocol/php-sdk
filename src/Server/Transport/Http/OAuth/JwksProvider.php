@@ -78,6 +78,9 @@ class JwksProvider implements JwksProviderInterface
         return $jwks;
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     private function fetchJwks(string $jwksUri): array
     {
         $request = $this->requestFactory->createRequest('GET', $jwksUri)
