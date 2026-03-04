@@ -34,6 +34,15 @@ class SessionTest extends TestCase
         $this->assertEquals(['foo' => 'bar'], $result);
     }
 
+    public function testSaveBeforeReadInitializesData()
+    {
+        $store = new InMemorySessionStore();
+        $session = new Session($store);
+
+        // save() before any get()/set() should not crash
+        $this->assertTrue($session->save());
+    }
+
     public function testAllReturnsEmptyArrayForNullPayload()
     {
         $store = $this->getMockBuilder(InMemorySessionStore::class)
