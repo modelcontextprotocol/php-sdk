@@ -38,8 +38,9 @@ class ResourceTemplateReference extends ElementReference
         callable|array|string $handler,
         bool $isManual = false,
         public readonly array $completionProviders = [],
+        bool $isDiscovered = false,
     ) {
-        parent::__construct($handler, $isManual);
+        parent::__construct($handler, $isManual, $isDiscovered);
 
         $this->compileTemplate();
     }
