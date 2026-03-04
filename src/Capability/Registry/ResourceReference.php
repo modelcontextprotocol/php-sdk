@@ -29,8 +29,9 @@ class ResourceReference extends ElementReference
         public readonly Resource $resource,
         callable|array|string $handler,
         bool $isManual = false,
+        bool $isDiscovered = false,
     ) {
-        parent::__construct($handler, $isManual);
+        parent::__construct($handler, $isManual, $isDiscovered);
     }
 
     /**
