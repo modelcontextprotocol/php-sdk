@@ -46,11 +46,11 @@ use Mcp\Schema\Result\CreateSamplingMessageResult;
 
 $endpoint = 'http://127.0.0.1:8000';
 
-$loggingNotificationHandler = new LoggingNotificationHandler(function (LoggingMessageNotification $n) {
+$loggingNotificationHandler = new LoggingNotificationHandler(static function (LoggingMessageNotification $n) {
     echo "[LOG {$n->level->value}] {$n->data}\n";
 });
 
-$samplingRequestHandler = new SamplingRequestHandler(function (CreateSamplingMessageRequest $request): CreateSamplingMessageResult {
+$samplingRequestHandler = new SamplingRequestHandler(static function (CreateSamplingMessageRequest $request): CreateSamplingMessageResult {
     echo "[SAMPLING] Server requested LLM sampling (max {$request->maxTokens} tokens)\n";
 
     $mockResponse = 'Based on the incident analysis, I recommend: 1) Activate the on-call team, '.
@@ -93,7 +93,7 @@ try {
     $result = $client->callTool(
         name: 'run_dataset_quality_checks',
         arguments: ['dataset' => 'sales_transactions_q4'],
-        onProgress: function (float $progress, ?float $total, ?string $message) {
+        onProgress: static function (float $progress, ?float $total, ?string $message) {
             $percent = $total > 0 ? round(($progress / $total) * 100) : '?';
             echo "[PROGRESS {$percent}%] {$message}\n";
         }
@@ -110,7 +110,7 @@ try {
     $result = $client->callTool(
         name: 'coordinate_incident_response',
         arguments: ['incidentTitle' => 'Database connection pool exhausted'],
-        onProgress: function (float $progress, ?float $total, ?string $message) {
+        onProgress: static function (float $progress, ?float $total, ?string $message) {
             $percent = $total > 0 ? round(($progress / $total) * 100) : '?';
             echo "[PROGRESS {$percent}%] {$message}\n";
         }
