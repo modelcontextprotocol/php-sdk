@@ -19,59 +19,72 @@ The PHP MCP SDK provides OAuth 2.1 authorization support for HTTP transports, im
 Authorization in MCP is implemented at the transport level using PSR-15 middleware. The SDK provides:
 
 - **AuthorizationMiddleware** - PSR-15 middleware that enforces bearer token authentication
+- **ProtectedResourceMetadataMiddleware** - Serves RFC 9728 metadata at well-known endpoints
+- **OAuthProxyMiddleware** - Proxies OAuth flows to upstream authorization servers
+- **OAuthRequestMetaMiddleware** - Bridges HTTP OAuth attributes to JSON-RPC request meta
 - **JwtTokenValidator** - Validates JWT tokens using JWKS from OAuth 2.0 / OIDC providers
-- **ProtectedResourceMetadata** - Implements RFC 9728 for authorization server discovery
 - **OidcDiscovery** - Discovers authorization server metadata from well-known endpoints
 
 ```
 ┌─────────────┐     ┌────────────────────┐     ┌─────────────────┐
 │ MCP Client  │────▶│ AuthorizationMiddleware │────▶│  MCP Handlers   │
 └─────────────┘     └────────────────────┘     └─────────────────┘
-      │                      │                          
-      │                      │ Validate JWT             
-      ▼                      ▼                          
-┌─────────────┐     ┌─────────────────┐                 
-│ Auth Server │◀────│ JwtTokenValidator│                 
-│  (Keycloak, │     │    + JWKS       │                 
-│   Entra ID) │     └─────────────────┘                 
-└─────────────┘                                         
+      │                      │
+      │                      │ Validate JWT
+      ▼                      ▼
+┌─────────────┐     ┌─────────────────┐
+│ Auth Server │◀────│ JwtTokenValidator│
+│  (Keycloak, │     │    + JWKS       │
+│   Entra ID) │     └─────────────────┘
+└─────────────┘
 ```
 
 ## Quick Start
 
 ```php
 use Mcp\Server;
-use Mcp\Server\Transport\Middleware\AuthorizationMiddleware;
-use Mcp\Server\Transport\Middleware\JwtTokenValidator;
-use Mcp\Server\Transport\Middleware\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
+use Mcp\Server\Transport\Http\OAuth\JwksProvider;
+use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
-// 1. Create JWT validator for your OAuth provider
+// 1. Set up OIDC discovery and JWKS provider
+$discovery = new OidcDiscovery();
+$jwksProvider = new JwksProvider($discovery);
+
+// 2. Create JWT validator for your OAuth provider
 $validator = new JwtTokenValidator(
     issuer: 'https://auth.example.com/realms/mcp',
     audience: 'mcp-server',
+    jwksProvider: $jwksProvider,
 );
 
-// 2. Create Protected Resource Metadata (RFC 9728)
+// 3. Create Protected Resource Metadata (RFC 9728)
 $metadata = new ProtectedResourceMetadata(
     authorizationServers: ['https://auth.example.com/realms/mcp'],
     scopesSupported: ['mcp:read', 'mcp:write'],
 );
 
-// 3. Create the authorization middleware
+// 4. Create middleware stack
 $authMiddleware = new AuthorizationMiddleware(
-    metadata: $metadata,
     validator: $validator,
-    metadataPaths: ['/.well-known/oauth-protected-resource'],
+    resourceMetadata: $metadata,
 );
 
-// 4. Create transport with middleware
+$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
+    metadata: $metadata,
+);
+
+// 5. Create transport with middleware
 $transport = new StreamableHttpTransport(
     $request,
-    middlewares: [$authMiddleware],
+    middlewares: [$metadataMiddleware, $authMiddleware],
 );
 
-// 5. Run server
+// 6. Run server
 $server = Server::builder()
     ->setServerInfo('Protected MCP Server', '1.0.0')
     ->setDiscovery(__DIR__)
@@ -88,15 +101,9 @@ The main middleware that enforces authentication:
 
 ```php
 $middleware = new AuthorizationMiddleware(
-    metadata: $metadata,           // ProtectedResourceMetadata instance
     validator: $validator,         // AuthorizationTokenValidatorInterface
+    resourceMetadata: $metadata,   // ProtectedResourceMetadata instance
     responseFactory: null,         // PSR-17 (auto-discovered)
-    streamFactory: null,           // PSR-17 (auto-discovered)
-    metadataPaths: [               // Paths to serve metadata
-        '/.well-known/oauth-protected-resource',
-    ],
-    resourceMetadataUrl: null,     // Explicit URL for WWW-Authenticate
-    scopeProvider: null,           // Callback for dynamic scope requirements
 );
 ```
 
@@ -104,10 +111,21 @@ $middleware = new AuthorizationMiddleware(
 
 | Request | Response |
 |---------|----------|
-| GET to metadata path | Returns Protected Resource Metadata JSON |
 | Missing Authorization header | 401 with `WWW-Authenticate: Bearer resource_metadata="..."` |
 | Invalid/expired token | 401 with error details |
 | Valid token | Passes to next handler with OAuth attributes on request |
+
+### ProtectedResourceMetadataMiddleware
+
+Serves Protected Resource Metadata at configured well-known paths:
+
+```php
+$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
+    metadata: $metadata,           // ProtectedResourceMetadata instance
+    responseFactory: null,         // PSR-17 (auto-discovered)
+    streamFactory: null,           // PSR-17 (auto-discovered)
+);
+```
 
 ### JwtTokenValidator
 
@@ -117,11 +135,8 @@ Validates JWT access tokens:
 $validator = new JwtTokenValidator(
     issuer: 'https://auth.example.com',  // Expected issuer claim
     audience: 'mcp-server',              // Expected audience (string or array)
-    jwksUri: null,                       // Auto-discovered from issuer
-    httpClient: null,                    // PSR-18 (auto-discovered)
-    requestFactory: null,                // PSR-17 (auto-discovered)
-    cache: $psrCache,                    // PSR-16 cache (optional)
-    cacheTtl: 3600,                      // JWKS cache TTL in seconds
+    jwksProvider: $jwksProvider,          // JwksProviderInterface
+    jwksUri: null,                       // Explicit JWKS URI (auto-discovered)
     algorithms: ['RS256', 'RS384'],      // Allowed algorithms
     scopeClaim: 'scope',                 // Claim name for scopes
 );
@@ -153,13 +168,14 @@ $metadata = new ProtectedResourceMetadata(
         'mcp:write',
     ],
     resource: 'https://mcp.example.com', // Optional: resource identifier
+    resourceName: 'My MCP Server',       // Optional: human-readable name
+    metadataPaths: [                     // Paths to serve metadata (default: /.well-known/oauth-protected-resource)
+        '/.well-known/oauth-protected-resource',
+    ],
     extra: [                             // Optional: additional fields
         'custom_field' => 'value',
     ],
 );
-
-// Serve as JSON
-$json = $metadata->toJson();
 ```
 
 ### OidcDiscovery
@@ -181,9 +197,20 @@ $metadata = $discovery->discover('https://auth.example.com/realms/mcp');
 $jwksUri = $discovery->getJwksUri($issuer);
 $tokenEndpoint = $discovery->getTokenEndpoint($issuer);
 $authEndpoint = $discovery->getAuthorizationEndpoint($issuer);
+```
 
-// Check PKCE support
-$supportsPkce = $discovery->supportsPkce($issuer);
+### JwksProvider
+
+Fetches and caches JWKS key sets:
+
+```php
+$jwksProvider = new JwksProvider(
+    discovery: $discovery,     // OidcDiscoveryInterface
+    httpClient: null,          // PSR-18 (auto-discovered)
+    requestFactory: null,      // PSR-17 (auto-discovered)
+    cache: $cache,             // PSR-16 cache (optional)
+    cacheTtl: 3600,            // JWKS cache TTL
+);
 ```
 
 ## JWT Token Validation
@@ -194,6 +221,7 @@ $supportsPkce = $discovery->supportsPkce($issuer);
 $validator = new JwtTokenValidator(
     issuer: 'https://keycloak.example.com/realms/mcp',
     audience: 'mcp-server',
+    jwksProvider: $jwksProvider,
 );
 ```
 
@@ -206,6 +234,7 @@ $clientId = 'your-client-id';
 $validator = new JwtTokenValidator(
     issuer: "https://login.microsoftonline.com/{$tenantId}/v2.0",
     audience: $clientId,
+    jwksProvider: $jwksProvider,
 );
 ```
 
@@ -215,6 +244,7 @@ $validator = new JwtTokenValidator(
 $validator = new JwtTokenValidator(
     issuer: 'https://your-tenant.auth0.com/',
     audience: 'https://api.example.com',
+    jwksProvider: $jwksProvider,
 );
 ```
 
@@ -224,12 +254,13 @@ $validator = new JwtTokenValidator(
 $validator = new JwtTokenValidator(
     issuer: 'https://your-org.okta.com/oauth2/default',
     audience: 'api://default',
+    jwksProvider: $jwksProvider,
 );
 ```
 
 ## Protected Resource Metadata
 
-The middleware serves Protected Resource Metadata at configured paths, enabling clients to discover the authorization server:
+The `ProtectedResourceMetadataMiddleware` serves Protected Resource Metadata at configured paths, enabling clients to discover the authorization server:
 
 ```json
 {
@@ -255,9 +286,8 @@ WWW-Authenticate: Bearer resource_metadata="https://mcp.example.com/.well-known/
 Implement `AuthorizationTokenValidatorInterface` for custom validation:
 
 ```php
-use Mcp\Server\Transport\Middleware\AuthorizationTokenValidatorInterface;
-use Mcp\Server\Transport\Middleware\AuthorizationResult;
-use Psr\Http\Message\ServerRequestInterface;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 
 final class ApiKeyValidator implements AuthorizationTokenValidatorInterface
 {
@@ -265,7 +295,7 @@ final class ApiKeyValidator implements AuthorizationTokenValidatorInterface
         private array $validKeys,
     ) {}
 
-    public function validate(ServerRequestInterface $request, string $accessToken): AuthorizationResult
+    public function validate(string $accessToken): AuthorizationResult
     {
         if (!isset($this->validKeys[$accessToken])) {
             return AuthorizationResult::unauthorized(
@@ -309,27 +339,6 @@ AuthorizationResult::badRequest('invalid_request', 'Malformed header');
 
 ## Scope-Based Access Control
 
-### Dynamic Scope Requirements
-
-Use a scope provider callback for per-request scope requirements:
-
-```php
-$authMiddleware = new AuthorizationMiddleware(
-    metadata: $metadata,
-    validator: $validator,
-    scopeProvider: function (ServerRequestInterface $request): array {
-        // Require different scopes based on the request
-        $path = $request->getUri()->getPath();
-        
-        if (str_starts_with($path, '/admin')) {
-            return ['mcp:admin'];
-        }
-        
-        return ['mcp:read'];
-    },
-);
-```
-
 ### Checking Scopes in Handlers
 
 ```php
@@ -337,11 +346,11 @@ $authMiddleware = new AuthorizationMiddleware(
 public function adminAction(RequestContext $context): array
 {
     $scopes = $context->getRequest()?->getAttribute('oauth.scopes') ?? [];
-    
+
     if (!in_array('mcp:admin', $scopes, true)) {
         throw new \RuntimeException('Admin scope required');
     }
-    
+
     // Perform admin action
     return ['status' => 'success'];
 }
@@ -351,7 +360,7 @@ public function adminAction(RequestContext $context): array
 
 ```php
 // In a custom middleware or handler
-$result = $validator->validate($request, $token);
+$result = $validator->validate($token);
 
 if ($result->isAllowed()) {
     // Check for specific scopes
