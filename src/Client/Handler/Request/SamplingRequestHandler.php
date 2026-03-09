@@ -32,16 +32,10 @@ use Psr\Log\NullLogger;
  */
 class SamplingRequestHandler implements RequestHandlerInterface
 {
-    private readonly LoggerInterface $logger;
-
-    /**
-     * @param callable(CreateSamplingMessageRequest): CreateSamplingMessageResult $callback
-     */
     public function __construct(
-        private readonly mixed $callback,
-        ?LoggerInterface $logger = null,
+        private readonly SamplingCallbackInterface $callback,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        $this->logger = $logger ?? new NullLogger();
     }
 
     public function supports(Request $request): bool
@@ -57,7 +51,7 @@ class SamplingRequestHandler implements RequestHandlerInterface
         \assert($request instanceof CreateSamplingMessageRequest);
 
         try {
-            $result = ($this->callback)($request);
+            $result = $this->callback->__invoke($request);
 
             return new Response($request->getId(), $result);
         } catch (SamplingException $e) {

@@ -35,6 +35,7 @@ require_once __DIR__.'/../../vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
@@ -50,18 +51,21 @@ $loggingNotificationHandler = new LoggingNotificationHandler(static function (Lo
     echo "[LOG {$n->level->value}] {$n->data}\n";
 });
 
-$samplingRequestHandler = new SamplingRequestHandler(static function (CreateSamplingMessageRequest $request): CreateSamplingMessageResult {
-    echo "[SAMPLING] Server requested LLM sampling (max {$request->maxTokens} tokens)\n";
+$samplingRequestHandler = new SamplingRequestHandler(new class implements SamplingCallbackInterface {
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        echo "[SAMPLING] Server requested LLM sampling (max {$request->maxTokens} tokens)\n";
 
-    $mockResponse = 'Based on the incident analysis, I recommend: 1) Activate the on-call team, '.
-        '2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.';
+        $mockResponse = 'Based on the incident analysis, I recommend: 1) Activate the on-call team, '.
+            '2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.';
 
-    return new CreateSamplingMessageResult(
-        role: Role::Assistant,
-        content: new TextContent($mockResponse),
-        model: 'mock-gpt-4',
-        stopReason: 'end_turn',
-    );
+        return new CreateSamplingMessageResult(
+            role: Role::Assistant,
+            content: new TextContent($mockResponse),
+            model: 'mock-gpt-4',
+            stopReason: 'end_turn',
+        );
+    }
 });
 
 $client = Client::builder()
