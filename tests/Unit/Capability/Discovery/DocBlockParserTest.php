@@ -11,6 +11,8 @@
 
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
+use Composer\InstalledVersions;
+use Composer\Semver\VersionParser;
 use Mcp\Capability\Discovery\DocBlockParser;
 use phpDocumentor\Reflection\DocBlock;
 use phpDocumentor\Reflection\DocBlock\Tags\Deprecated;
@@ -78,7 +80,12 @@ class DocBlockParserTest extends TestCase
 
         $this->assertInstanceOf(Param::class, $params['$param5']);
         $this->assertEquals('param5', $params['$param5']->getVariableName());
-        $this->assertEquals('array<string,mixed>', $this->parser->getParamTypeString($params['$param5']));
+        // Remove if when dropping support for phpdocumentor/reflection-docblock:^5.6
+        if (InstalledVersions::satisfies(new VersionParser(), 'phpdocumentor/reflection-docblock', '^6.0')) {
+            $this->assertEquals('array<string, mixed>', $this->parser->getParamTypeString($params['$param5']));
+        } else {
+            $this->assertEquals('array<string,mixed>', $this->parser->getParamTypeString($params['$param5']));
+        }
         $this->assertEquals('array description', $this->parser->getParamDescription($params['$param5']));
 
         $this->assertInstanceOf(Param::class, $params['$param6']);
