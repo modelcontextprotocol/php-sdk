@@ -2,6 +2,12 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.5.0
+-----
+
+* Add built-in authentication middleware for HTTP transport using OAuth
+* Add client component for building MCP clients
+
 0.4.0
 -----
 
