@@ -22,6 +22,7 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Tests\Conformance\Elements;
 use Mcp\Tests\Conformance\FileLogger;
@@ -33,7 +34,9 @@ $logger = new FileLogger(__DIR__.'/logs/conformance.log', true);
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
 
-$transport = new StreamableHttpTransport($request, logger: $logger);
+$transport = new StreamableHttpTransport($request, logger: $logger, middleware: [
+    new DnsRebindingProtectionMiddleware(),
+]);
 
 $server = Server::builder()
     ->setServerInfo('mcp-conformance-test-server', '1.0.0')
