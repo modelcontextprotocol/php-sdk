@@ -17,6 +17,7 @@ use Http\Discovery\Psr17FactoryDiscovery;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
@@ -32,16 +33,20 @@ use Psr\Http\Server\RequestHandlerInterface;
 final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
 {
     private ResponseFactoryInterface $responseFactory;
+    private StreamFactoryInterface $streamFactory;
 
     /**
      * @param string[]                      $allowedHosts    Allowed hostnames (without port). Defaults to localhost variants.
      * @param ResponseFactoryInterface|null $responseFactory PSR-17 response factory
+     * @param StreamFactoryInterface|null   $streamFactory   PSR-17 stream factory
      */
     public function __construct(
         private readonly array $allowedHosts = ['localhost', '127.0.0.1', '[::1]', '::1'],
         ?ResponseFactoryInterface $responseFactory = null,
+        ?StreamFactoryInterface $streamFactory = null,
     ) {
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -79,9 +84,9 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
 
     private function createForbiddenResponse(string $message): ResponseInterface
     {
-        $response = $this->responseFactory->createResponse(403);
-        $response->getBody()->write($message);
-
-        return $response;
+        return $this->responseFactory
+            ->createResponse(403)
+            ->withHeader('Content-Type', 'text/plain')
+            ->withBody($this->streamFactory->createStream($message));
     }
 }
