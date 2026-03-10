@@ -96,10 +96,8 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token signature verification failed.');
         } catch (BeforeValidException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token is not yet valid.');
-        } catch (\UnexpectedValueException|\DomainException $e) {
+        } catch (\InvalidArgumentException|\UnexpectedValueException|\DomainException $e) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed: '.$e->getMessage());
-        } catch (\Throwable) {
-            return AuthorizationResult::unauthorized('invalid_token', 'Token validation error.');
         }
     }
 

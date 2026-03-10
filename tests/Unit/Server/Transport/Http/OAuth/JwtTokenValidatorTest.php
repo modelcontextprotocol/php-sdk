@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Firebase\JWT\JWT;
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
@@ -287,8 +288,8 @@ class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token signature verification failed.', $result->getErrorDescription());
     }
 
-    #[TestDox('JWKS HTTP error results in unauthorized token validation error')]
-    public function testJwksHttpErrorResultsInUnauthorized(): void
+    #[TestDox('JWKS HTTP error results in RuntimeException')]
+    public function testJwksHttpErrorThrowsRuntimeException(): void
     {
         $factory = new Psr17Factory();
 
@@ -299,18 +300,14 @@ class JwtTokenValidatorTest extends TestCase
             jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $this->createHttpClientMock([$factory->createResponse(500)]), requestFactory: $factory),
         );
 
-        // Unsigned token forces the validator to load JWKS and fail on HTTP 500.
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Token validation error.', $result->getErrorDescription());
+        $this->expectException(RuntimeException::class);
+        $validator->validate($token);
     }
 
-    #[TestDox('Invalid JWKS JSON results in unauthorized token validation error')]
-    public function testInvalidJwksJsonResultsInUnauthorized(): void
+    #[TestDox('Invalid JWKS JSON results in RuntimeException')]
+    public function testInvalidJwksJsonThrowsRuntimeException(): void
     {
         $factory = new Psr17Factory();
 
@@ -329,15 +326,12 @@ class JwtTokenValidatorTest extends TestCase
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Token validation error.', $result->getErrorDescription());
+        $this->expectException(RuntimeException::class);
+        $validator->validate($token);
     }
 
-    #[TestDox('JWKS without keys array results in unauthorized token validation error')]
-    public function testJwksMissingKeysResultsInUnauthorized(): void
+    #[TestDox('JWKS without keys array results in RuntimeException')]
+    public function testJwksMissingKeysThrowsRuntimeException(): void
     {
         $factory = new Psr17Factory();
 
@@ -356,11 +350,8 @@ class JwtTokenValidatorTest extends TestCase
 
         $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
 
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Token validation error.', $result->getErrorDescription());
+        $this->expectException(RuntimeException::class);
+        $validator->validate($token);
     }
 
     #[TestDox('requireScopes returns forbidden when any required scope is missing')]

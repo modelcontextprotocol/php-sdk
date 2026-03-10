@@ -200,7 +200,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
             ->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
             ->withHeader('Cache-Control', 'max-age=3600')
-            ->withBody($this->streamFactory->createStream(json_encode($localMetadata, \JSON_UNESCAPED_SLASHES)));
+            ->withBody($this->streamFactory->createStream(json_encode($localMetadata, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)));
     }
 
     private function createErrorResponse(int $status, string $message): ResponseInterface
