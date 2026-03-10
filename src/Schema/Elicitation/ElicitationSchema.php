@@ -25,8 +25,8 @@ use Mcp\Exception\InvalidArgumentException;
 final class ElicitationSchema implements \JsonSerializable
 {
     /**
-     * @param array<string, StringSchemaDefinition|NumberSchemaDefinition|BooleanSchemaDefinition|EnumSchemaDefinition> $properties Property definitions keyed by name
-     * @param string[]                                                                                                  $required   Array of required property names
+     * @param array<string, AbstractSchemaDefinition> $properties Property definitions keyed by name
+     * @param string[]                                $required   Array of required property names
      */
     public function __construct(
         public readonly array $properties,
@@ -67,13 +67,65 @@ final class ElicitationSchema implements \JsonSerializable
             if (!\is_array($propertyData)) {
                 throw new InvalidArgumentException(\sprintf('Property "%s" must be an array.', $name));
             }
-            $properties[$name] = PrimitiveSchemaDefinition::fromArray($propertyData);
+            $properties[$name] = self::createSchemaDefinition($propertyData);
         }
 
         return new self(
             properties: $properties,
             required: $data['required'] ?? [],
         );
+    }
+
+    /**
+     * Create a schema definition from array data.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function createSchemaDefinition(array $data): AbstractSchemaDefinition
+    {
+        if (!isset($data['type']) || !\is_string($data['type'])) {
+            throw new InvalidArgumentException('Missing or invalid "type" for schema definition.');
+        }
+
+        return match ($data['type']) {
+            'string' => self::resolveStringType($data),
+            'integer', 'number' => NumberSchemaDefinition::fromArray($data),
+            'boolean' => BooleanSchemaDefinition::fromArray($data),
+            'array' => self::resolveArrayType($data),
+            default => throw new InvalidArgumentException(\sprintf('Unsupported type "%s". Supported types are: string, integer, number, boolean, array.', $data['type'])),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function resolveStringType(array $data): AbstractSchemaDefinition
+    {
+        if (isset($data['oneOf'])) {
+            return TitledEnumSchemaDefinition::fromArray($data);
+        }
+
+        if (isset($data['enum'])) {
+            return EnumSchemaDefinition::fromArray($data);
+        }
+
+        return StringSchemaDefinition::fromArray($data);
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private static function resolveArrayType(array $data): AbstractSchemaDefinition
+    {
+        if (isset($data['items']['anyOf'])) {
+            return TitledMultiSelectEnumSchemaDefinition::fromArray($data);
+        }
+
+        if (isset($data['items']['enum'])) {
+            return MultiSelectEnumSchemaDefinition::fromArray($data);
+        }
+
+        throw new InvalidArgumentException('Array type must have "items" with either "enum" or "anyOf".');
     }
 
     /**
