@@ -28,9 +28,11 @@ use Psr\Http\Server\RequestHandlerInterface;
  */
 final class OAuthRequestMetaMiddleware implements MiddlewareInterface
 {
-    public function __construct(
-        private ?StreamFactoryInterface $streamFactory = null,
-    ) {
+    private StreamFactoryInterface $streamFactory;
+
+    public function __construct(?StreamFactoryInterface $streamFactory = null)
+    {
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -66,7 +68,7 @@ final class OAuthRequestMetaMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        $request = $request->withBody($this->getStreamFactory()->createStream($updatedBody));
+        $request = $request->withBody($this->streamFactory->createStream($updatedBody));
 
         return $handler->handle($request);
     }
@@ -140,10 +142,5 @@ final class OAuthRequestMetaMiddleware implements MiddlewareInterface
         $message['params'] = $params;
 
         return $message;
-    }
-
-    private function getStreamFactory(): StreamFactoryInterface
-    {
-        return $this->streamFactory ??= Psr17FactoryDiscovery::findStreamFactory();
     }
 }
