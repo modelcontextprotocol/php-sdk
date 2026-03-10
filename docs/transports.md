@@ -219,6 +219,31 @@ $transport = new StreamableHttpTransport(
 
 If middleware returns a response, the transport will still ensure CORS headers are present unless you set them yourself.
 
+#### DNS Rebinding Protection
+
+The SDK ships with `DnsRebindingProtectionMiddleware`, which validates `Host` and `Origin` headers to prevent
+[DNS rebinding attacks](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning).
+By default it only allows localhost variants (`localhost`, `127.0.0.1`, `[::1]`):
+
+```php
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [new DnsRebindingProtectionMiddleware()],
+);
+
+// Or allow additional hosts
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [
+        new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost', '127.0.0.1', '[::1]', '::1', 'myapp.local']),
+    ],
+);
+```
+
+Requests with a non-allowed `Host` or `Origin` header receive a `403 Forbidden` response.
+
 ### Architecture
 
 The HTTP transport doesn't run its own web server. Instead, it processes PSR-7 requests and returns PSR-7 responses that

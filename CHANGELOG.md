@@ -7,6 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Add built-in authentication middleware for HTTP transport using OAuth
 * Add client component for building MCP clients
+* Add `DnsRebindingProtectionMiddleware` to validate Host and Origin headers against allowed hostnames
 
 0.4.0
 -----

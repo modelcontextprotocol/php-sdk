@@ -2,4 +2,3 @@ server:
   - tools-call-elicitation
   - elicitation-sep1034-defaults
   - elicitation-sep1330-enums
-  - dns-rebinding-protection
