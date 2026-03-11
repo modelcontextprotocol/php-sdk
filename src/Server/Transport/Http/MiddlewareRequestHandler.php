@@ -24,24 +24,25 @@ use Psr\Http\Server\RequestHandlerInterface;
  *
  * @internal
  */
-class MiddlewareRequestHandler implements RequestHandlerInterface
+final class MiddlewareRequestHandler implements RequestHandlerInterface
 {
+    private int $index = 0;
+
     /**
      * @param list<MiddlewareInterface> $middleware
      */
     public function __construct(
-        private array $middleware,
-        private \Closure $application,
+        private readonly array $middleware,
+        private readonly \Closure $application,
     ) {
     }
 
     public function handle(ServerRequestInterface $request): ResponseInterface
     {
-        $middleware = array_shift($this->middleware);
-        if (null === $middleware) {
+        if (!isset($this->middleware[$this->index])) {
             return ($this->application)($request);
         }
 
-        return $middleware->process($request, $this);
+        return $this->middleware[$this->index++]->process($request, $this);
     }
 }

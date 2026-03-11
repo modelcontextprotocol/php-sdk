@@ -43,8 +43,8 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
     private const CLIENT_SECRET_BASIC = 'client_secret_basic';
     private const CLIENT_SECRET_POST = 'client_secret_post';
 
-    private ?ClientInterface $httpClient;
-    private ?RequestFactoryInterface $requestFactory;
+    private ClientInterface $httpClient;
+    private RequestFactoryInterface $requestFactory;
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
@@ -64,8 +64,8 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
-        $this->httpClient = $httpClient;
-        $this->requestFactory = $requestFactory;
+        $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
+        $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
@@ -143,7 +143,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
 
         $body = http_build_query($params);
 
-        $upstreamRequest = $this->getRequestFactory()
+        $upstreamRequest = $this->requestFactory
             ->createRequest('POST', $tokenEndpoint)
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
             ->withBody($this->streamFactory->createStream($body));
@@ -153,7 +153,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         }
 
         try {
-            $upstreamResponse = $this->getHttpClient()->sendRequest($upstreamRequest);
+            $upstreamResponse = $this->httpClient->sendRequest($upstreamRequest);
             $responseBody = $upstreamResponse->getBody()->__toString();
 
             return $this->responseFactory
@@ -259,15 +259,5 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
         }
 
         return array_values(array_unique($normalized));
-    }
-
-    private function getHttpClient(): ClientInterface
-    {
-        return $this->httpClient ??= Psr18ClientDiscovery::find();
-    }
-
-    private function getRequestFactory(): RequestFactoryInterface
-    {
-        return $this->requestFactory ??= Psr17FactoryDiscovery::findRequestFactory();
     }
 }
