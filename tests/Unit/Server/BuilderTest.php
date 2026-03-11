@@ -14,7 +14,6 @@ namespace Mcp\Tests\Unit\Server;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Server;
-use Mcp\Server\Builder;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -60,7 +59,7 @@ final class BuilderTest extends TestCase
         $referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $referenceHandler->expects($this->once())
             ->method('handle')
-            ->willReturnCallback(function (ElementReference $reference, array $arguments): string {
+            ->willReturnCallback(static function (ElementReference $reference, array $arguments): string {
                 return 'intercepted';
             });
 
@@ -81,14 +80,14 @@ final class BuilderTest extends TestCase
         $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);
 
         foreach ($requestHandlers as $handler) {
-            if ($handler instanceof \Mcp\Server\Handler\Request\CallToolHandler) {
+            if ($handler instanceof Server\Handler\Request\CallToolHandler) {
                 $request = \Mcp\Schema\Request\CallToolRequest::fromArray([
                     'jsonrpc' => '2.0',
                     'method' => 'tools/call',
                     'id' => 'test-1',
                     'params' => ['name' => $toolName, 'arguments' => []],
                 ]);
-                $session = $this->createStub(\Mcp\Server\Session\SessionInterface::class);
+                $session = $this->createStub(Server\Session\SessionInterface::class);
 
                 $response = $handler->handle($request, $session);
 
@@ -98,7 +97,7 @@ final class BuilderTest extends TestCase
                     return $content instanceof \Mcp\Schema\Content\TextContent ? $content->text : null;
                 }
 
-                $this->fail('Expected Response, got ' . $response::class);
+                $this->fail('Expected Response, got '.$response::class);
             }
         }
 
