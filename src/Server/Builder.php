@@ -22,6 +22,7 @@ use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\JsonRpc\MessageFactory;
@@ -68,6 +69,8 @@ final class Builder
     private ?ContainerInterface $container = null;
 
     private ?SchemaGeneratorInterface $schemaGenerator = null;
+
+    private ?ReferenceHandlerInterface $referenceHandler = null;
 
     private ?DiscovererInterface $discoverer = null;
 
@@ -305,6 +308,13 @@ final class Builder
         return $this;
     }
 
+    public function setReferenceHandler(ReferenceHandlerInterface $referenceHandler): self
+    {
+        $this->referenceHandler = $referenceHandler;
+
+        return $this;
+    }
+
     public function setDiscoverer(DiscovererInterface $discoverer): self
     {
         $this->discoverer = $discoverer;
@@ -537,7 +547,7 @@ final class Builder
 
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
-        $referenceHandler = new ReferenceHandler($container);
+        $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
             new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
