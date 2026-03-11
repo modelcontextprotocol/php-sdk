@@ -13,7 +13,12 @@ namespace Mcp\Tests\Unit\Server;
 
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Server;
+use Mcp\Server\Handler\Request\CallToolHandler;
+use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -80,21 +85,21 @@ final class BuilderTest extends TestCase
         $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);
 
         foreach ($requestHandlers as $handler) {
-            if ($handler instanceof Server\Handler\Request\CallToolHandler) {
-                $request = \Mcp\Schema\Request\CallToolRequest::fromArray([
+            if ($handler instanceof CallToolHandler) {
+                $request = CallToolRequest::fromArray([
                     'jsonrpc' => '2.0',
                     'method' => 'tools/call',
                     'id' => 'test-1',
                     'params' => ['name' => $toolName, 'arguments' => []],
                 ]);
-                $session = $this->createStub(Server\Session\SessionInterface::class);
+                $session = $this->createStub(SessionInterface::class);
 
                 $response = $handler->handle($request, $session);
 
-                if ($response instanceof \Mcp\Schema\JsonRpc\Response) {
+                if ($response instanceof Response) {
                     $content = $response->result->content[0] ?? null;
 
-                    return $content instanceof \Mcp\Schema\Content\TextContent ? $content->text : null;
+                    return $content instanceof TextContent ? $content->text : null;
                 }
 
                 $this->fail('Expected Response, got '.$response::class);
