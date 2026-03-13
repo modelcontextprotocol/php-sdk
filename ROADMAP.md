@@ -8,8 +8,8 @@ This roadmap is a living document that outlines the planned features and improve
 - [ ] Implement full support for elicitations
 - [ ] Implement OAuth2 authentication for server
 - **Client**
-- [ ] Implement client-side support
-- [ ] Implement client examples and documentation
+- [x] Implement client-side support
+- [x] Implement client examples and documentation
 - **Schema**
 - [ ] Implement schema generation based on TS or JSON Schema
 
