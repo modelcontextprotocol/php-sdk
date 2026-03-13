@@ -25,8 +25,8 @@ use Mcp\Exception\InvalidArgumentException;
 final class ElicitationSchema implements \JsonSerializable
 {
     /**
-     * @param array<string, StringSchemaDefinition|NumberSchemaDefinition|BooleanSchemaDefinition|EnumSchemaDefinition> $properties Property definitions keyed by name
-     * @param string[]                                                                                                  $required   Array of required property names
+     * @param array<string, AbstractSchemaDefinition> $properties Property definitions keyed by name
+     * @param string[]                                $required   Array of required property names
      */
     public function __construct(
         public readonly array $properties,
