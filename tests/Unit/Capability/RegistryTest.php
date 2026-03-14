@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Capability;
 
 use Mcp\Capability\Completion\EnumCompletionProvider;
+use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
@@ -426,59 +427,73 @@ class RegistryTest extends TestCase
         $manualTemplate = $this->createValidResourceTemplate('manual://{id}');
         $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
 
+        // Register manual elements directly
         $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
         $this->registry->registerResource($manualResource, static fn () => 'manual', true);
-        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
         $this->registry->registerPrompt($manualPrompt, static fn () => [], [], true);
-        $this->registry->registerPrompt($discoveredPrompt, static fn () => []);
         $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
-        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
 
-        // Test that all elements exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
-        $this->registry->getTool('discovered_tool');
-        $this->registry->getResource('test://discovered');
-        $this->registry->getPrompt('discovered_prompt');
-        $this->registry->getResourceTemplate('discovered://{id}');
+        // Import discovered elements via setDiscoveryState
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: ['discovered_tool' => new ToolReference($discoveredTool, static fn () => 'discovered')],
+            resources: ['test://discovered' => new ResourceReference($discoveredResource, static fn () => 'discovered')],
+            prompts: ['discovered_prompt' => new PromptReference($discoveredPrompt, static fn () => [])],
+            resourceTemplates: ['discovered://{id}' => new ResourceTemplateReference($discoveredTemplate, static fn () => 'discovered')],
+        ));
+
+        // All elements exist before clear
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('discovered_tool'));
 
         $this->registry->clear();
 
-        // Manual elements should still exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
+        // Manual elements survive
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('manual_tool'));
+        $this->assertInstanceOf(ResourceReference::class, $this->registry->getResource('test://manual'));
+        $this->assertInstanceOf(PromptReference::class, $this->registry->getPrompt('manual_prompt'));
+        $this->assertInstanceOf(ResourceTemplateReference::class, $this->registry->getResourceTemplate('manual://{id}'));
 
-        // Test that all discovered elements throw exceptions
+        // Discovered elements are gone
         $this->expectException(ToolNotFoundException::class);
         $this->registry->getTool('discovered_tool');
+    }
+
+    public function testClearRemovesDiscoveredResources(): void
+    {
+        $discoveredResource = $this->createValidResource('test://discovered');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            resources: ['test://discovered' => new ResourceReference($discoveredResource, static fn () => 'discovered')],
+        ));
+
+        $this->registry->clear();
 
         $this->expectException(ResourceNotFoundException::class);
         $this->registry->getResource('test://discovered');
+    }
+
+    public function testClearRemovesDiscoveredPrompts(): void
+    {
+        $discoveredPrompt = $this->createValidPrompt('discovered_prompt');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            prompts: ['discovered_prompt' => new PromptReference($discoveredPrompt, static fn () => [])],
+        ));
+
+        $this->registry->clear();
 
         $this->expectException(PromptNotFoundException::class);
         $this->registry->getPrompt('discovered_prompt');
-
-        $this->expectException(ResourceNotFoundException::class);
-        $this->registry->getResourceTemplate('discovered://{id}');
     }
 
-    public function testClearLogsNothingWhenNoDiscoveredElements(): void
+    public function testClearRemovesDiscoveredResourceTemplates(): void
     {
-        $manualTool = $this->createValidTool('manual_tool');
-        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-
-        $this->logger
-            ->expects($this->never())
-            ->method('debug');
+        $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            resourceTemplates: ['discovered://{id}' => new ResourceTemplateReference($discoveredTemplate, static fn () => 'discovered')],
+        ));
 
         $this->registry->clear();
 
-        $this->registry->getTool('manual_tool');
+        $this->expectException(ResourceNotFoundException::class);
+        $this->registry->getResourceTemplate('discovered://{id}');
     }
 
     public function testRegisterToolHandlesStringHandler(): void
