@@ -66,6 +66,10 @@ final class Discoverer implements DiscovererInterface
      */
     public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
     {
+        if (!class_exists(Finder::class)) {
+            throw new \RuntimeException('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
+        }
+
         $startTime = microtime(true);
         $discoveredCount = [
             'tools' => 0,
