@@ -9,6 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
 * Add elicitation enum schema types per SEP-1330: `TitledEnumSchemaDefinition`, `MultiSelectEnumSchemaDefinition`, `TitledMultiSelectEnumSchemaDefinition`
+* [BC break] Make Symfony Finder component optional. Users would need to install `symfony/finder` now themselves
 
 0.4.0
 -----
