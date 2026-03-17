@@ -8,6 +8,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add built-in authentication middleware for HTTP transport using OAuth
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
+* Add elicitation enum schema types per SEP-1330: `TitledEnumSchemaDefinition`, `MultiSelectEnumSchemaDefinition`, `TitledMultiSelectEnumSchemaDefinition`
 
 0.4.0
 -----

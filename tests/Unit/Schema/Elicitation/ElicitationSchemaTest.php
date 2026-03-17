@@ -17,8 +17,11 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
+use Mcp\Schema\Elicitation\MultiSelectEnumSchemaDefinition;
 use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Elicitation\TitledEnumSchemaDefinition;
+use Mcp\Schema\Elicitation\TitledMultiSelectEnumSchemaDefinition;
 use PHPUnit\Framework\TestCase;
 
 final class ElicitationSchemaTest extends TestCase
@@ -159,6 +162,101 @@ final class ElicitationSchemaTest extends TestCase
         $this->assertInstanceOf(NumberSchemaDefinition::class, $schema->properties['age']);
         $this->assertInstanceOf(BooleanSchemaDefinition::class, $schema->properties['confirm']);
         $this->assertInstanceOf(EnumSchemaDefinition::class, $schema->properties['rating']);
+    }
+
+    public function testFromArrayWithMissingPropertyType(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Missing or invalid "type"');
+
+        /* @phpstan-ignore argument.type */
+        ElicitationSchema::fromArray([
+            'properties' => [
+                'name' => ['title' => 'Name'],
+            ],
+        ]);
+    }
+
+    public function testFromArrayWithUnsupportedPropertyType(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unsupported type "object"');
+
+        ElicitationSchema::fromArray([
+            'properties' => [
+                'name' => ['type' => 'object', 'title' => 'Name'],
+            ],
+        ]);
+    }
+
+    public function testFromArrayWithArrayTypeMissingItems(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Array type must have "items" with either "enum" or "anyOf"');
+
+        ElicitationSchema::fromArray([
+            'properties' => [
+                'tags' => ['type' => 'array', 'title' => 'Tags'],
+            ],
+        ]);
+    }
+
+    public function testFromArrayWithNewEnumTypes(): void
+    {
+        $schema = ElicitationSchema::fromArray([
+            'properties' => [
+                'titledSingle' => [
+                    'type' => 'string',
+                    'title' => 'Titled Single',
+                    'oneOf' => [
+                        ['const' => 'a', 'title' => 'Option A'],
+                        ['const' => 'b', 'title' => 'Option B'],
+                    ],
+                ],
+                'multiSelect' => [
+                    'type' => 'array',
+                    'title' => 'Multi Select',
+                    'items' => ['type' => 'string', 'enum' => ['x', 'y']],
+                ],
+                'titledMulti' => [
+                    'type' => 'array',
+                    'title' => 'Titled Multi',
+                    'items' => [
+                        'anyOf' => [
+                            ['const' => 'c', 'title' => 'Option C'],
+                            ['const' => 'd', 'title' => 'Option D'],
+                        ],
+                    ],
+                ],
+            ],
+        ]);
+
+        $this->assertInstanceOf(TitledEnumSchemaDefinition::class, $schema->properties['titledSingle']);
+        $this->assertInstanceOf(MultiSelectEnumSchemaDefinition::class, $schema->properties['multiSelect']);
+        $this->assertInstanceOf(TitledMultiSelectEnumSchemaDefinition::class, $schema->properties['titledMulti']);
+    }
+
+    public function testFromArrayJsonSerializeRoundTripWithAllTypes(): void
+    {
+        $schema = new ElicitationSchema(
+            [
+                'name' => new StringSchemaDefinition('Name'),
+                'rating' => new EnumSchemaDefinition('Rating', ['1', '2', '3']),
+                'titledSingle' => new TitledEnumSchemaDefinition('Titled', [
+                    ['const' => 'a', 'title' => 'A'],
+                ]),
+                'tags' => new MultiSelectEnumSchemaDefinition('Tags', ['x', 'y']),
+                'titledMulti' => new TitledMultiSelectEnumSchemaDefinition('Multi', [
+                    ['const' => 'c', 'title' => 'C'],
+                ]),
+            ],
+            ['name'],
+        );
+
+        $serialized = $schema->jsonSerialize();
+        $restored = ElicitationSchema::fromArray($serialized);
+
+        $this->assertSame($serialized, $restored->jsonSerialize());
     }
 
     public function testJsonSerializeWithMinimalParams(): void
