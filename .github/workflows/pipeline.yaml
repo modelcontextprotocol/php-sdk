@@ -42,7 +42,7 @@ jobs:
           coverage: "none"
 
       - name: Install Composer
-        uses: "ramsey/composer-install@v3"
+        uses: "ramsey/composer-install@v4"
         with:
           dependency-versions: "${{ matrix.dependencies }}"
 
@@ -67,7 +67,7 @@ jobs:
           node-version: '22'
 
       - name: Install Composer
-        uses: "ramsey/composer-install@v3"
+        uses: "ramsey/composer-install@v4"
 
       - name: Tests
         run: vendor/bin/phpunit --testsuite=inspector
@@ -84,7 +84,7 @@ jobs:
           node-version: '22'
 
       - name: Install Composer
-        uses: "ramsey/composer-install@v3"
+        uses: "ramsey/composer-install@v4"
 
       - name: Start conformance server
         run: |
@@ -138,7 +138,7 @@ jobs:
         run: composer validate --strict
 
       - name: Install Composer
-        uses: "ramsey/composer-install@v3"
+        uses: "ramsey/composer-install@v4"
 
       - name: Code Style PHP
         run: vendor/bin/php-cs-fixer fix --dry-run
