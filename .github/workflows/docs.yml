@@ -22,7 +22,7 @@ jobs:
           coverage: "none"
 
       - name: Install Composer
-        uses: "ramsey/composer-install@v3"
+        uses: "ramsey/composer-install@v4"
 
       - name: Generate Documentation
         run: make docs
