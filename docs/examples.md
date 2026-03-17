@@ -7,7 +7,8 @@ specific features and can be run independently to understand how the SDK works.
 
 - [Getting Started](#getting-started)
 - [Running Examples](#running-examples)
-- [Examples](#examples)
+- [Server Examples](#server-examples)
+- [Client Examples](#client-examples)
 
 ## Getting Started
 
@@ -58,7 +59,7 @@ curl -X POST http://localhost:8000 \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","clientInfo":{"name":"test","version":"1.0.0"},"capabilities":{}}}'
 ```
 
-## Examples
+## Server Examples
 
 ### Discovery Calculator
 
@@ -353,3 +354,149 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
 1. **book_restaurant** - Multi-field reservation form with number, date, and enum fields
 2. **confirm_action** - Simple boolean confirmation dialog
 3. **collect_feedback** - Rating and comments form with optional fields
+
+## Client Examples
+
+### STDIO Discovery Calculator (Client)
+
+**File**: `examples/client/stdio_discovery_calculator.php`
+
+**What it demonstrates:**
+- Basic MCP client usage with STDIO transport
+- Connecting to a local MCP server process
+- Listing and calling tools
+- Reading resources
+
+**Key Features:**
+```php
+$client = Client::builder()
+    ->setClientInfo('STDIO Example Client', '1.0.0')
+    ->setInitTimeout(30)
+    ->setRequestTimeout(60)
+    ->build();
+
+$transport = new StdioTransport(
+    command: 'php',
+    args: [__DIR__.'/../server/discovery-calculator/server.php'],
+);
+
+$client->connect($transport);
+$tools = $client->listTools();
+$result = $client->callTool('calculate', ['a' => 5, 'b' => 3, 'operation' => 'add']);
+$resourceContent = $client->readResource('config://calculator/settings');
+```
+
+**Usage:**
+```bash
+# Run the client (automatically starts the server)
+php examples/client/stdio_discovery_calculator.php
+```
+
+### HTTP Discovery Calculator (Client)
+
+**File**: `examples/client/http_discovery_calculator.php`
+
+**What it demonstrates:**
+- MCP client with HTTP transport
+- Connecting to remote MCP servers
+- Listing tools, resources, and prompts
+
+**Key Features:**
+```php
+$transport = new HttpTransport('http://localhost:8000');
+$client->connect($transport);
+
+$tools = $client->listTools();
+$resources = $client->listResources();
+$prompts = $client->listPrompts();
+```
+
+**Usage:**
+```bash
+# Start the server first
+php -S localhost:8000 examples/server/http-discovery-calculator/server.php
+
+# Then run the client
+php examples/client/http_discovery_calculator.php
+```
+
+### STDIO Client Communication
+
+**File**: `examples/client/stdio_client_communication.php`
+
+**What it demonstrates:**
+- Server-to-client communication (logging, progress, sampling)
+- Handling logging notifications from server
+- Implementing sampling callbacks for LLM requests
+- Progress tracking during tool execution
+
+**Key Features:**
+```php
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $n) {
+        echo "[LOG {$n->level->value}] {$n->data}\n";
+    }
+);
+
+$samplingHandler = new SamplingRequestHandler(new class implements SamplingCallbackInterface {
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        // Perform LLM sampling and return result
+    }
+});
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(sampling: true))
+    ->addNotificationHandler($loggingHandler)
+    ->addRequestHandler($samplingHandler)
+    ->build();
+
+// Call tool with progress tracking
+$result = $client->callTool(
+    name: 'run_dataset_quality_checks',
+    arguments: ['dataset' => 'customer_orders_2024'],
+    onProgress: static function (float $progress, ?float $total, ?string $message) {
+        $percent = $total > 0 ? round(($progress / $total) * 100) : '?';
+        echo "[PROGRESS {$percent}%] {$message}\n";
+    }
+);
+```
+
+**Usage:**
+```bash
+# Run the client (automatically starts the communication server)
+php examples/client/stdio_client_communication.php
+```
+
+### HTTP Client Communication
+
+**File**: `examples/client/http_client_communication.php`
+
+**What it demonstrates:**
+- Server-to-client communication over HTTP
+- Receiving logging and progress notifications via SSE streaming
+- Implementing sampling for HTTP-based servers
+- Progress tracking with long-running operations
+
+**Key Features:**
+- Same client-side code as STDIO version
+- Uses HttpTransport instead of StdioTransport
+- Demonstrates SSE-based real-time notifications
+- Shows HTTP session management
+
+**Usage:**
+```bash
+# Start the server
+php -S 127.0.0.1:8000 examples/server/client-communication/server.php
+
+# Run the client
+php examples/client/http_client_communication.php
+```
+
+> [!NOTE]
+> For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP's built-in development server cannot handle the concurrent requests required for sampling.
