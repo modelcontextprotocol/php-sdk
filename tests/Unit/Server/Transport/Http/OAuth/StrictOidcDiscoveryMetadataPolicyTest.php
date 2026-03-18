@@ -22,8 +22,8 @@ use PHPUnit\Framework\TestCase;
  */
 class StrictOidcDiscoveryMetadataPolicyTest extends TestCase
 {
-    #[TestDox('metadata without code challenge methods is invalid in strict mode')]
-    public function testMissingCodeChallengeMethodsIsInvalid(): void
+    #[TestDox('metadata without code challenge methods is valid (defaults to S256 downstream)')]
+    public function testMissingCodeChallengeMethodsIsValid(): void
     {
         $policy = new StrictOidcDiscoveryMetadataPolicy();
         $metadata = [
@@ -32,7 +32,7 @@ class StrictOidcDiscoveryMetadataPolicyTest extends TestCase
             'jwks_uri' => 'https://auth.example.com/jwks',
         ];
 
-        $this->assertFalse($policy->isValid($metadata));
+        $this->assertTrue($policy->isValid($metadata));
     }
 
     #[TestDox('valid code challenge methods list is accepted in strict mode')]

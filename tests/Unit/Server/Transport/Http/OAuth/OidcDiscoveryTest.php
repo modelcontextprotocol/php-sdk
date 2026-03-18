@@ -44,14 +44,14 @@ class OidcDiscoveryTest extends TestCase
         $discovery->discover('invalid-issuer');
     }
 
-    #[TestDox('strict discovery rejects metadata without code challenge methods')]
-    public function testDiscoverRejectsMetadataWithoutCodeChallengeMethodsSupported(): void
+    #[TestDox('discovery accepts metadata without code_challenge_methods_supported')]
+    public function testDiscoverAcceptsMetadataWithoutCodeChallengeMethodsSupported(): void
     {
         $this->skipIfPsrHttpClientIsMissing();
 
         $factory = new Psr17Factory();
         $issuer = 'https://auth.example.com';
-        $metadataWithoutCodeChallengeMethods = [
+        $metadata = [
             'issuer' => $issuer,
             'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
             'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
@@ -59,10 +59,10 @@ class OidcDiscoveryTest extends TestCase
         ];
 
         $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(2))
+        $httpClient->expects($this->once())
             ->method('sendRequest')
             ->willReturn($factory->createResponse(200)->withBody(
-                $factory->createStream(json_encode($metadataWithoutCodeChallengeMethods, \JSON_THROW_ON_ERROR)),
+                $factory->createStream(json_encode($metadata, \JSON_THROW_ON_ERROR)),
             ));
 
         $discovery = new OidcDiscovery(
@@ -70,9 +70,10 @@ class OidcDiscoveryTest extends TestCase
             requestFactory: $factory,
         );
 
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Failed to discover authorization server metadata');
-        $discovery->discover($issuer);
+        $result = $discovery->discover($issuer);
+
+        $this->assertSame($metadata['authorization_endpoint'], $result['authorization_endpoint']);
+        $this->assertArrayNotHasKey('code_challenge_methods_supported', $result);
     }
 
     #[TestDox('discover falls back to the next metadata URL when first response is invalid')]

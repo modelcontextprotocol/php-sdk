@@ -28,18 +28,19 @@ final class StrictOidcDiscoveryMetadataPolicy implements OidcDiscoveryMetadataPo
             || '' === trim($metadata['token_endpoint'])
             || !\is_string($metadata['jwks_uri'])
             || '' === trim($metadata['jwks_uri'])
-            || !isset($metadata['code_challenge_methods_supported'])
         ) {
             return false;
         }
 
-        if (!\is_array($metadata['code_challenge_methods_supported']) || [] === $metadata['code_challenge_methods_supported']) {
-            return false;
-        }
-
-        foreach ($metadata['code_challenge_methods_supported'] as $method) {
-            if (!\is_string($method) || '' === trim($method)) {
+        if (isset($metadata['code_challenge_methods_supported'])) {
+            if (!\is_array($metadata['code_challenge_methods_supported']) || [] === $metadata['code_challenge_methods_supported']) {
                 return false;
+            }
+
+            foreach ($metadata['code_challenge_methods_supported'] as $method) {
+                if (!\is_string($method) || '' === trim($method)) {
+                    return false;
+                }
             }
         }
 
