@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
 use Mcp\Exception\ClientRegistrationException;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\ClientRegistrationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\ClientRegistrarInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -165,7 +166,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
     #[TestDox('constructor rejects empty localBaseUrl')]
     public function testConstructorRejectsEmptyBaseUrl(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(InvalidArgumentException::class);
 
         new ClientRegistrationMiddleware(
             $this->createStub(ClientRegistrarInterface::class),

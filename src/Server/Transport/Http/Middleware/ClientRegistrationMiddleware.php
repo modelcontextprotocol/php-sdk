@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\ClientRegistrationException;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\ClientRegistrarInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -42,7 +43,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
         ?StreamFactoryInterface $streamFactory = null,
     ) {
         if ('' === trim($localBaseUrl)) {
-            throw new \InvalidArgumentException('The $localBaseUrl must not be empty.');
+            throw new InvalidArgumentException('The $localBaseUrl must not be empty.');
         }
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();

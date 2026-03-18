@@ -15,15 +15,28 @@ use Mcp\Exception\ClientRegistrationException;
 
 /**
  * Interface for OAuth 2.0 Dynamic Client Registration (RFC 7591).
+ *
+ * Implementations are responsible for persisting client credentials and
+ * returning a registration response as defined in RFC 7591 Section 3.2.
+ *
+ * @see https://datatracker.ietf.org/doc/html/rfc7591
  */
 interface ClientRegistrarInterface
 {
     /**
-     * @param array<string, mixed> $registrationRequest
+     * Registers a new OAuth 2.0 client.
      *
-     * @return array<string, mixed>
+     * The registration request contains metadata fields as defined in RFC 7591
+     * Section 2 (e.g. redirect_uris, client_name, token_endpoint_auth_method).
      *
-     * @throws ClientRegistrationException
+     * The returned array MUST include at least "client_id" and should include
+     * "client_secret" when the token endpoint auth method requires one.
+     *
+     * @param array<string, mixed> $registrationRequest Client metadata from the registration request body
+     *
+     * @return array<string, mixed> Registration response including client_id and optional client_secret
+     *
+     * @throws ClientRegistrationException If registration fails (e.g. invalid metadata, storage error)
      */
     public function register(array $registrationRequest): array;
 }
