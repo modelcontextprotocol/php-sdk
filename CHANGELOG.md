@@ -8,6 +8,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add built-in authentication middleware for HTTP transport using OAuth
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
+* Allow `StrictOidcDiscoveryMetadataPolicy` to accept metadata without `code_challenge_methods_supported` (defaults to S256 downstream)
+* Add OAuth 2.0 Dynamic Client Registration middleware (RFC 7591)
 
 0.4.0
 -----

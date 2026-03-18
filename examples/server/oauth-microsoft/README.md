@@ -198,8 +198,9 @@ Microsoft's JWKS endpoint is public. Ensure your container can reach:
 
 ### `code_challenge_methods_supported` missing in discovery metadata
 
-This example configures `OidcDiscovery` with `MicrosoftOidcMetadataPolicy`, so this
-field can be missing or malformed and will not fail discovery.
+The default `StrictOidcDiscoveryMetadataPolicy` accepts metadata without `code_challenge_methods_supported`
+(defaults to S256 downstream). The `MicrosoftOidcMetadataPolicy` in this example demonstrates
+how to implement a custom policy via `OidcDiscoveryMetadataPolicyInterface`.
 
 ### Graph API errors
 
