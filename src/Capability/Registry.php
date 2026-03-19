@@ -161,36 +161,10 @@ final class Registry implements RegistryInterface
 
     public function clear(): void
     {
-        $clearCount = 0;
-
-        foreach ($this->tools as $name => $tool) {
-            if (!$tool->isManual) {
-                unset($this->tools[$name]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->resources as $uri => $resource) {
-            if (!$resource->isManual) {
-                unset($this->resources[$uri]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->prompts as $name => $prompt) {
-            if (!$prompt->isManual) {
-                unset($this->prompts[$name]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->resourceTemplates as $uriTemplate => $template) {
-            if (!$template->isManual) {
-                unset($this->resourceTemplates[$uriTemplate]);
-                ++$clearCount;
-            }
-        }
-
-        if ($clearCount > 0) {
-            $this->logger->debug(\sprintf('Removed %d discovered elements from internal registry.', $clearCount));
-        }
+        $this->tools = array_filter($this->tools, static fn ($t) => !$t->isDiscovered);
+        $this->resources = array_filter($this->resources, static fn ($r) => !$r->isDiscovered);
+        $this->prompts = array_filter($this->prompts, static fn ($p) => !$p->isDiscovered);
+        $this->resourceTemplates = array_filter($this->resourceTemplates, static fn ($t) => !$t->isDiscovered);
     }
 
     public function hasTools(): bool
@@ -344,10 +318,10 @@ final class Registry implements RegistryInterface
     public function getDiscoveryState(): DiscoveryState
     {
         return new DiscoveryState(
-            tools: array_filter($this->tools, static fn ($tool) => !$tool->isManual),
-            resources: array_filter($this->resources, static fn ($resource) => !$resource->isManual),
-            prompts: array_filter($this->prompts, static fn ($prompt) => !$prompt->isManual),
-            resourceTemplates: array_filter($this->resourceTemplates, static fn ($template) => !$template->isManual),
+            tools: array_filter($this->tools, static fn ($t) => $t->isDiscovered),
+            resources: array_filter($this->resources, static fn ($r) => $r->isDiscovered),
+            prompts: array_filter($this->prompts, static fn ($p) => $p->isDiscovered),
+            resourceTemplates: array_filter($this->resourceTemplates, static fn ($t) => $t->isDiscovered),
         );
     }
 
@@ -360,21 +334,29 @@ final class Registry implements RegistryInterface
         // Clear existing discovered elements
         $this->clear();
 
-        // Import new discovered elements
+        // Import new discovered elements — skip any that conflict with manual or dynamic registrations
         foreach ($state->getTools() as $name => $tool) {
-            $this->tools[$name] = $tool;
+            if (!isset($this->tools[$name])) {
+                $this->tools[$name] = new ToolReference($tool->tool, $tool->handler, isDiscovered: true);
+            }
         }
 
         foreach ($state->getResources() as $uri => $resource) {
-            $this->resources[$uri] = $resource;
+            if (!isset($this->resources[$uri])) {
+                $this->resources[$uri] = new ResourceReference($resource->resource, $resource->handler, isDiscovered: true);
+            }
         }
 
         foreach ($state->getPrompts() as $name => $prompt) {
-            $this->prompts[$name] = $prompt;
+            if (!isset($this->prompts[$name])) {
+                $this->prompts[$name] = new PromptReference($prompt->prompt, $prompt->handler, completionProviders: $prompt->completionProviders, isDiscovered: true);
+            }
         }
 
         foreach ($state->getResourceTemplates() as $uriTemplate => $template) {
-            $this->resourceTemplates[$uriTemplate] = $template;
+            if (!isset($this->resourceTemplates[$uriTemplate])) {
+                $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference($template->resourceTemplate, $template->handler, completionProviders: $template->completionProviders, isDiscovered: true);
+            }
         }
 
         // Dispatch events for the imported elements
