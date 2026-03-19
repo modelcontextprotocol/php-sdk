@@ -24,8 +24,8 @@ namespace Mcp\Capability\Attribute;
  *     definition?: array<string, mixed>,
  *     type?: string,
  *     description?: string,
- *     enum?: array<int, float|string|int>,
- *     gormat?: string,
+ *     enum?: array<int, int|float|string|null>,
+ *     format?: string,
  *     minLength?: int,
  *     maxLength?: int,
  *     pattern?: string,
@@ -64,7 +64,7 @@ class Schema
     public ?string $description = null;
     public mixed $default = null;
     /**
-     * @var ?array<int, float|string|int>
+     * @var ?array<int, int|float|string|null>
      */
     public ?array $enum = null; // list of allowed values
     public ?string $format = null; // e.g., 'email', 'date-time'
@@ -105,26 +105,26 @@ class Schema
     public bool|array|null $additionalProperties = null; // true, false, or a schema array
 
     /**
-     * @param ?array<string, mixed>          $definition           A complete JSON schema array. If provided, other parameters are ignored.
-     * @param ?string                        $type                 the JSON schema type
-     * @param ?string                        $description          description of the element
-     * @param ?array<int, float|string|int>  $enum                 allowed enum values
-     * @param ?string                        $format               String format (e.g., 'date-time', 'email').
-     * @param ?int                           $minLength            minimum length for strings
-     * @param ?int                           $maxLength            maximum length for strings
-     * @param ?string                        $pattern              regex pattern for strings
-     * @param int|float|null                 $minimum              minimum value for numbers/integers
-     * @param int|float|null                 $maximum              maximum value for numbers/integers
-     * @param ?bool                          $exclusiveMinimum     exclusive minimum
-     * @param ?bool                          $exclusiveMaximum     exclusive maximum
-     * @param int|float|null                 $multipleOf           must be a multiple of this value
-     * @param ?array<string, mixed>          $items                JSON Schema for items if type is 'array'
-     * @param ?int                           $minItems             minimum items for an array
-     * @param ?int                           $maxItems             maximum items for an array
-     * @param ?bool                          $uniqueItems          whether array items must be unique
-     * @param ?array<string, mixed>          $properties           Property definitions if type is 'object'. [name => schema_array].
-     * @param ?array<int, string>            $required             list of required properties for an object
-     * @param bool|array<string, mixed>|null $additionalProperties policy for additional properties in an object
+     * @param ?array<string, mixed>              $definition           A complete JSON schema array. If provided, other parameters are ignored.
+     * @param ?string                            $type                 the JSON schema type
+     * @param ?string                            $description          description of the element
+     * @param ?array<int, int|float|string|null> $enum                 allowed enum values
+     * @param ?string                            $format               String format (e.g., 'date-time', 'email').
+     * @param ?int                               $minLength            minimum length for strings
+     * @param ?int                               $maxLength            maximum length for strings
+     * @param ?string                            $pattern              regex pattern for strings
+     * @param int|float|null                     $minimum              minimum value for numbers/integers
+     * @param int|float|null                     $maximum              maximum value for numbers/integers
+     * @param ?bool                              $exclusiveMinimum     exclusive minimum
+     * @param ?bool                              $exclusiveMaximum     exclusive maximum
+     * @param int|float|null                     $multipleOf           must be a multiple of this value
+     * @param ?array<string, mixed>              $items                JSON Schema for items if type is 'array'
+     * @param ?int                               $minItems             minimum items for an array
+     * @param ?int                               $maxItems             maximum items for an array
+     * @param ?bool                              $uniqueItems          whether array items must be unique
+     * @param ?array<string, mixed>              $properties           Property definitions if type is 'object'. [name => schema_array].
+     * @param ?array<int, string>                $required             list of required properties for an object
+     * @param bool|array<string, mixed>|null     $additionalProperties policy for additional properties in an object
      */
     public function __construct(
         ?array $definition = null,

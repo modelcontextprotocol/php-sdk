@@ -471,6 +471,7 @@ class SchemaValidatorTest extends TestCase
                 'active' => ['type' => 'boolean'],
                 'score' => ['type' => 'number'],
                 'items' => ['type' => 'array', 'items' => ['type' => 'string']],
+                'status' => ['enum' => [null, 'active', 'inactive']],
                 'nullableValue' => ['type' => ['string', 'null']],
                 'optionalValue' => ['type' => 'string'],
             ],
@@ -486,6 +487,7 @@ class SchemaValidatorTest extends TestCase
      *     active: bool,
      *     score: float,
      *     items: string[],
+     *     status: 'active'|'inactive'|null,
      *     nullableValue: null,
      *     optionalValue: string
      * }
@@ -498,6 +500,7 @@ class SchemaValidatorTest extends TestCase
             'active' => true,
             'score' => 99.5,
             'items' => ['a', 'b'],
+            'status' => null,
             'nullableValue' => null,
             'optionalValue' => 'present',
         ];
