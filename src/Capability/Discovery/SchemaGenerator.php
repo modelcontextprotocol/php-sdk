@@ -46,7 +46,7 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *     type?: string|array,
  *     description?: string,
  *     default?: mixed,
- *     enum?: array<string|int>,
+ *     enum?: array<int, int|float|string|null>,
  *     items?: array<string, mixed>,
  * }
  * @phpstan-type VariadicParameterSchema array{
