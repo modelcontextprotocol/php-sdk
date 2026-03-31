@@ -34,13 +34,13 @@ composer require mcp/sdk
 The MCP PHP SDK provides both **server** and **client** implementations for the Model Context Protocol, enabling you to:
 
 - **Build MCP Servers**: Expose your PHP application's functionality (tools, resources, prompts) to AI agents
-- **Create MCP Clients**: Connect to and interact with MCP servers from your PHP applications
+- **Build MCP Clients**: Connect to and interact with MCP servers from your PHP applications
 
 ## Server SDK
 
 Build MCP servers to expose your PHP application's capabilities to AI agents like Claude, Codex, and others.
 
-### Quick Example
+### Quick Start
 
 ```php
 use Mcp\Server;
@@ -145,7 +145,7 @@ $server = Server::builder()
     ->build();
 ```
 
-**Redis** (suitable for distributed/multi-server deployments):
+**PSR-16 Cache** (for example with Redis for scaled deployments):
 ```php
 $server = Server::builder()
     ->setSession(new Psr16SessionStore(
@@ -162,7 +162,7 @@ $server = Server::builder()
 
 Connect to MCP servers from your PHP applications to access their tools, resources, and prompts.
 
-### Quick Example
+### Quick Start
 
 ```php
 use Mcp\Client;
