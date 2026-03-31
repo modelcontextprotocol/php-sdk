@@ -274,6 +274,20 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $this->assertSame('"just a string"', $response->getBody()->getContents());
     }
 
+    #[TestDox('GET /.well-known/oauth-authorization-server with JSON array body passes through unchanged')]
+    public function testMetadataEnrichmentPassesThroughJsonArrayBody(): void
+    {
+        $registrar = $this->createStub(ClientRegistrarInterface::class);
+        $middleware = $this->createMiddleware($registrar);
+
+        $request = $this->factory->createServerRequest('GET', 'http://localhost:8000/.well-known/oauth-authorization-server');
+        $handler = $this->createPlainTextHandler(200, '["not","an","object"]');
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame('["not","an","object"]', $response->getBody()->getContents());
+    }
+
     #[TestDox('GET /.well-known/oauth-authorization-server with non-200 status passes through unchanged')]
     public function testMetadataNon200PassesThrough(): void
     {

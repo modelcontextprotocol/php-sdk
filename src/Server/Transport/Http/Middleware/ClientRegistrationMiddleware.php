@@ -127,7 +127,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             return $response;
         }
 
-        if (!\is_array($metadata)) {
+        if (!\is_array($metadata) || ([] !== $metadata && array_is_list($metadata))) {
             if ($stream->isSeekable()) {
                 $stream->rewind();
             }
