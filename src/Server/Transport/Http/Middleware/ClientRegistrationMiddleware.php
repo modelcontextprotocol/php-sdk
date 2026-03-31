@@ -87,6 +87,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             ], ['Cache-Control' => 'no-store']);
         }
 
+        // Re-decode with assoc=true so nested objects become arrays (safe — already validated above)
         /** @var array<string, mixed> $data */
         $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
 
@@ -116,7 +117,15 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             $stream->rewind();
         }
 
-        $metadata = json_decode($stream->__toString(), true);
+        try {
+            $metadata = json_decode($stream->__toString(), true, 512, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            if ($stream->isSeekable()) {
+                $stream->rewind();
+            }
+
+            return $response;
+        }
 
         if (!\is_array($metadata)) {
             if ($stream->isSeekable()) {

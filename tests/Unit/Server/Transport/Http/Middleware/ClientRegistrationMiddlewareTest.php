@@ -180,6 +180,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
 
         $this->assertSame(400, $response->getStatusCode());
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
 
         $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
         $this->assertSame('invalid_client_metadata', $payload['error']);
@@ -245,32 +246,32 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $this->assertFalse($response->hasHeader('Content-Length'));
     }
 
-    #[TestDox('GET /.well-known/oauth-authorization-server with non-JSON body rewinds stream before returning')]
-    public function testMetadataEnrichmentRewindsStreamOnNonJsonBody(): void
+    #[TestDox('GET /.well-known/oauth-authorization-server with invalid JSON body rewinds stream before returning')]
+    public function testMetadataEnrichmentRewindsStreamOnInvalidJsonBody(): void
     {
         $registrar = $this->createStub(ClientRegistrarInterface::class);
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('GET', 'http://localhost:8000/.well-known/oauth-authorization-server');
-
-        // Create a handler that returns a 200 with non-JSON body
-        $handler = new class($this->factory) implements RequestHandlerInterface {
-            public function __construct(private readonly Psr17Factory $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200)
-                    ->withHeader('Content-Type', 'text/plain')
-                    ->withBody($this->factory->createStream('not json'));
-            }
-        };
+        $handler = $this->createPlainTextHandler(200, 'not json');
 
         $response = $middleware->process($request, $handler);
 
-        // Stream should be rewound so getContents() returns the full body
         $this->assertSame('not json', $response->getBody()->getContents());
+    }
+
+    #[TestDox('GET /.well-known/oauth-authorization-server with non-object JSON body rewinds stream before returning')]
+    public function testMetadataEnrichmentRewindsStreamOnNonObjectJsonBody(): void
+    {
+        $registrar = $this->createStub(ClientRegistrarInterface::class);
+        $middleware = $this->createMiddleware($registrar);
+
+        $request = $this->factory->createServerRequest('GET', 'http://localhost:8000/.well-known/oauth-authorization-server');
+        $handler = $this->createPlainTextHandler(200, '"just a string"');
+
+        $response = $middleware->process($request, $handler);
+
+        $this->assertSame('"just a string"', $response->getBody()->getContents());
     }
 
     #[TestDox('GET /.well-known/oauth-authorization-server with non-200 status passes through unchanged')]
@@ -402,6 +403,27 @@ class ClientRegistrationMiddlewareTest extends TestCase
                 }
 
                 return $response;
+            }
+        };
+    }
+
+    private function createPlainTextHandler(int $status, string $body): RequestHandlerInterface
+    {
+        $factory = $this->factory;
+
+        return new class($factory, $status, $body) implements RequestHandlerInterface {
+            public function __construct(
+                private readonly ResponseFactoryInterface $factory,
+                private readonly int $status,
+                private readonly string $body,
+            ) {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->factory->createResponse($this->status)
+                    ->withHeader('Content-Type', 'text/plain')
+                    ->withBody((new Psr17Factory())->createStream($this->body));
             }
         };
     }

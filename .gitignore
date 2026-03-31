@@ -13,4 +13,3 @@ tests/Conformance/logs/*.log
 # phpDocumentor
 .phpdoc/build/
 .phpdoc/cache/
-
