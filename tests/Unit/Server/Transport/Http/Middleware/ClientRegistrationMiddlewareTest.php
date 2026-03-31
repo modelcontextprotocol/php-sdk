@@ -114,6 +114,56 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $this->assertSame('Request body must be a JSON object.', $payload['error_description']);
     }
 
+    #[TestDox('POST /register with nested JSON objects passes associative arrays to registrar')]
+    public function testRegistrationWithNestedObjectsPassesAssociativeArrays(): void
+    {
+        $registrar = $this->createMock(ClientRegistrarInterface::class);
+        $registrar->expects($this->once())
+            ->method('register')
+            ->with($this->callback(function (array $data): bool {
+                // Nested objects must be associative arrays, not stdClass
+                $this->assertIsArray($data['jwks']);
+                $this->assertIsArray($data['jwks']['keys'][0]);
+                $this->assertSame('RSA', $data['jwks']['keys'][0]['kty']);
+
+                return true;
+            }))
+            ->willReturn(['client_id' => 'nested-client']);
+
+        $middleware = $this->createMiddleware($registrar);
+
+        $body = json_encode([
+            'redirect_uris' => ['https://example.com/callback'],
+            'jwks' => ['keys' => [['kty' => 'RSA', 'n' => 'abc', 'e' => 'AQAB']]],
+        ]);
+
+        $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withBody($this->factory->createStream($body));
+
+        $response = $middleware->process($request, $this->createPassthroughHandler(404));
+
+        $this->assertSame(201, $response->getStatusCode());
+    }
+
+    #[TestDox('POST /register error responses include Cache-Control: no-store')]
+    public function testRegistrationErrorResponsesIncludeCacheControl(): void
+    {
+        $registrar = $this->createStub(ClientRegistrarInterface::class);
+        $middleware = $this->createMiddleware($registrar);
+
+        // Invalid JSON
+        $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withBody($this->factory->createStream('not json'));
+        $response = $middleware->process($request, $this->createPassthroughHandler(404));
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+
+        // JSON array (not object)
+        $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withBody($this->factory->createStream('["array"]'));
+        $response = $middleware->process($request, $this->createPassthroughHandler(404));
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+    }
+
     #[TestDox('POST /register returns 400 when registrar throws ClientRegistrationException')]
     public function testRegistrationWithRegistrarException(): void
     {
@@ -193,6 +243,34 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $response = $middleware->process($request, $handler);
 
         $this->assertFalse($response->hasHeader('Content-Length'));
+    }
+
+    #[TestDox('GET /.well-known/oauth-authorization-server with non-JSON body rewinds stream before returning')]
+    public function testMetadataEnrichmentRewindsStreamOnNonJsonBody(): void
+    {
+        $registrar = $this->createStub(ClientRegistrarInterface::class);
+        $middleware = $this->createMiddleware($registrar);
+
+        $request = $this->factory->createServerRequest('GET', 'http://localhost:8000/.well-known/oauth-authorization-server');
+
+        // Create a handler that returns a 200 with non-JSON body
+        $handler = new class($this->factory) implements RequestHandlerInterface {
+            public function __construct(private readonly Psr17Factory $factory)
+            {
+            }
+
+            public function handle(ServerRequestInterface $request): ResponseInterface
+            {
+                return $this->factory->createResponse(200)
+                    ->withHeader('Content-Type', 'text/plain')
+                    ->withBody($this->factory->createStream('not json'));
+            }
+        };
+
+        $response = $middleware->process($request, $handler);
+
+        // Stream should be rewound so getContents() returns the full body
+        $this->assertSame('not json', $response->getBody()->getContents());
     }
 
     #[TestDox('GET /.well-known/oauth-authorization-server with non-200 status passes through unchanged')]

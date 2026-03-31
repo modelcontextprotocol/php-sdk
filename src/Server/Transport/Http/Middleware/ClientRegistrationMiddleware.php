@@ -77,18 +77,18 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             return $this->jsonResponse(400, [
                 'error' => 'invalid_client_metadata',
                 'error_description' => 'Request body must be valid JSON.',
-            ]);
+            ], ['Cache-Control' => 'no-store']);
         }
 
         if (!$decoded instanceof \stdClass) {
             return $this->jsonResponse(400, [
                 'error' => 'invalid_client_metadata',
                 'error_description' => 'Request body must be a JSON object.',
-            ]);
+            ], ['Cache-Control' => 'no-store']);
         }
 
         /** @var array<string, mixed> $data */
-        $data = (array) $decoded;
+        $data = json_decode($body, true, 512, \JSON_THROW_ON_ERROR);
 
         try {
             $result = $this->registrar->register($data);
@@ -96,7 +96,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             return $this->jsonResponse(400, [
                 'error' => 'invalid_client_metadata',
                 'error_description' => $e->getMessage(),
-            ]);
+            ], ['Cache-Control' => 'no-store']);
         }
 
         return $this->jsonResponse(201, $result, [
@@ -119,6 +119,10 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
         $metadata = json_decode($stream->__toString(), true);
 
         if (!\is_array($metadata)) {
+            if ($stream->isSeekable()) {
+                $stream->rewind();
+            }
+
             return $response;
         }
 
