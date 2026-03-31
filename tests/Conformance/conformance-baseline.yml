@@ -1,5 +1,4 @@
-server:
-  - dns-rebinding-protection
+server: []
 
 client:
   - elicitation-sep1034-client-defaults

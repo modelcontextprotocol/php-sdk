@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Allow overriding the default name pattern for Discovery
+* Add `DnsRebindingProtectionMiddleware` enabled by default on `StreamableHttpTransport` to validate Origin headers against allowed hostnames
 
 0.5.0
 -----

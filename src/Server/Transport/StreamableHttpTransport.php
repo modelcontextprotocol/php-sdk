@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -77,11 +78,22 @@ class StreamableHttpTransport extends BaseTransport
             'Access-Control-Expose-Headers' => self::SESSION_HEADER,
         ], $corsHeaders);
 
+        $hasDnsRebindingProtection = false;
         foreach ($middleware as $m) {
             if (!$m instanceof MiddlewareInterface) {
                 throw new InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
             }
+            if ($m instanceof DnsRebindingProtectionMiddleware) {
+                $hasDnsRebindingProtection = true;
+            }
             $this->middleware[] = $m;
+        }
+
+        if (!$hasDnsRebindingProtection) {
+            array_unshift($this->middleware, new DnsRebindingProtectionMiddleware(
+                responseFactory: $this->responseFactory,
+                streamFactory: $this->streamFactory,
+            ));
         }
     }
 
