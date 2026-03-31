@@ -150,7 +150,7 @@ curl -X POST http://localhost:8000/mcp \
 - `env.example` - Environment variables template
 - `server.php` - MCP server with OAuth middleware
 - `MicrosoftJwtTokenValidator.php` - Example-specific validator for Graph/non-Graph tokens
-- `MicrosoftOidcMetadataPolicy.php` - Lenient metadata validation policy
+- Uses built-in `LenientOidcDiscoveryMetadataPolicy` for metadata validation
 - `McpElements.php` - MCP tools including Graph API integration
 
 ## Environment Variables
@@ -198,8 +198,10 @@ Microsoft's JWKS endpoint is public. Ensure your container can reach:
 
 ### `code_challenge_methods_supported` missing in discovery metadata
 
-This example configures `OidcDiscovery` with `MicrosoftOidcMetadataPolicy`, so this
-field can be missing or malformed and will not fail discovery.
+The default `StrictOidcDiscoveryMetadataPolicy` requires `code_challenge_methods_supported`.
+Microsoft Entra ID omits this field despite supporting PKCE with S256.
+This example uses the built-in `LenientOidcDiscoveryMetadataPolicy` which accepts missing
+`code_challenge_methods_supported` (defaults to S256 downstream).
 
 ### Graph API errors
 
