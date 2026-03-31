@@ -80,7 +80,7 @@ $server->run($transport);
 - **Resources**: Data sources that can be read (files, configs, databases)
 - **Resource Templates**: Dynamic resources with URI parameters
 - **Prompts**: Pre-defined templates for AI interactions
-- **Server-Initiated Communication**: Sampling, logging, progress notifications
+- **Server-Initiated Communication**: Elicitations, sampling, logging, progress notifications
 
 ### Registration Methods
 
