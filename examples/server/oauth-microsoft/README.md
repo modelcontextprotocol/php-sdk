@@ -148,9 +148,8 @@ curl -X POST http://localhost:8000/mcp \
 - `Dockerfile` - PHP-FPM container
 - `nginx/default.conf` - Nginx configuration
 - `env.example` - Environment variables template
-- `server.php` - MCP server with OAuth middleware
+- `server.php` - MCP server with OAuth middleware (uses built-in `LenientOidcDiscoveryMetadataPolicy` for metadata validation)
 - `MicrosoftJwtTokenValidator.php` - Example-specific validator for Graph/non-Graph tokens
-- Uses built-in `LenientOidcDiscoveryMetadataPolicy` for metadata validation
 - `McpElements.php` - MCP tools including Graph API integration
 
 ## Environment Variables
