@@ -154,11 +154,6 @@ use Mcp\Server\Session\Psr16SessionStore;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
-// Use default in-memory sessions with custom TTL
-$server = Server::builder()
-    ->setSession(ttl: 7200) // 2 hours
-    ->build();
-
 // Override with file-based storage
 $server = Server::builder()
     ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
@@ -185,6 +180,45 @@ $server = Server::builder()
     ))
     ->build();
 ```
+
+### Garbage Collection Configuration
+
+The SDK periodically runs garbage collection to clean up expired sessions, similar to PHP's native
+`session.gc_probability` and `session.gc_divisor` settings. The probability that GC runs on any given
+request is `gcProbability / gcDivisor`.
+
+```php
+// Default: 1/100 (1% chance per request)
+$server = Server::builder()
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->build();
+
+// Higher frequency: 1/10 (10% chance per request)
+$server = Server::builder()
+    ->setSession(
+        new FileSessionStore(__DIR__ . '/sessions'),
+        gcProbability: 1,
+        gcDivisor: 10,
+    )
+    ->build();
+
+// Run GC on every request
+$server = Server::builder()
+    ->setSession(gcProbability: 1, gcDivisor: 1)
+    ->build();
+
+// Disable GC entirely (e.g. when using an external cleanup process)
+$server = Server::builder()
+    ->setSession(gcProbability: 0)
+    ->build();
+```
+
+**Parameters:**
+- `$gcProbability` (int): The numerator of the GC probability fraction (default: `1`). Set to `0` to disable GC.
+- `$gcDivisor` (int): The denominator of the GC probability fraction (default: `100`). Must be >= 1.
+
+> **Note**: When providing a custom `SessionManagerInterface` via the `$sessionManager` parameter,
+> the `gcProbability` and `gcDivisor` settings are ignored — you control GC behavior in your own implementation.
 
 **Available Session Stores:**
 - `InMemorySessionStore`: Fast in-memory storage (default)
@@ -569,7 +603,7 @@ $server = Server::builder()
 | `setPaginationLimit()` | limit | Set max items per page |
 | `setInstructions()` | instructions | Set usage instructions |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
-| `setSession()` | store?, factory?, ttl? | Configure session management |
+| `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher |
