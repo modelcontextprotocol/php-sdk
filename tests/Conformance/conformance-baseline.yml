@@ -1,3 +1,1 @@
-server:
-  - dns-rebinding-protection
-
+server: []
