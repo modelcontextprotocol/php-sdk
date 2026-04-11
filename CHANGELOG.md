@@ -9,6 +9,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
 * Add elicitation enum schema types per SEP-1330: `TitledEnumSchemaDefinition`, `MultiSelectEnumSchemaDefinition`, `TitledMultiSelectEnumSchemaDefinition`
+* Add optional `title` field to `Prompt` and `McpPrompt` for MCP spec compliance
+* **BC Break**: `Builder::addPrompt()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments for `$description` must switch to named arguments.
 
 0.4.0
 -----

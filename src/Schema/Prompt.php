@@ -21,6 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @phpstan-type PromptData array{
  *     name: string,
+ *     title?: string,
  *     description?: string,
  *     arguments?: PromptArgumentData[],
  *     icons?: IconData[],
@@ -33,6 +34,7 @@ class Prompt implements \JsonSerializable
 {
     /**
      * @param string                $name        the name of the prompt or prompt template
+     * @param ?string               $title       Optional human-readable title for display in UI
      * @param ?string               $description an optional description of what this prompt provides
      * @param ?PromptArgument[]     $arguments   A list of arguments for templating. Null if not a template.
      * @param ?Icon[]               $icons       optional icons representing the prompt
@@ -40,6 +42,7 @@ class Prompt implements \JsonSerializable
      */
     public function __construct(
         public readonly string $name,
+        public readonly ?string $title = null,
         public readonly ?string $description = null,
         public readonly ?array $arguments = null,
         public readonly ?array $icons = null,
@@ -73,6 +76,7 @@ class Prompt implements \JsonSerializable
 
         return new self(
             name: $data['name'],
+            title: $data['title'] ?? null,
             description: $data['description'] ?? null,
             arguments: $arguments,
             icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
@@ -83,6 +87,7 @@ class Prompt implements \JsonSerializable
     /**
      * @return array{
      *     name: string,
+     *     title?: string,
      *     description?: string,
      *     arguments?: array<PromptArgument>,
      *     icons?: Icon[],
@@ -92,6 +97,9 @@ class Prompt implements \JsonSerializable
     public function jsonSerialize(): array
     {
         $data = ['name' => $this->name];
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
+        }
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }

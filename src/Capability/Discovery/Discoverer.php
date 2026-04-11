@@ -271,7 +271,7 @@ final class Discoverer implements DiscovererInterface
                         $paramTag = $paramTags['$'.$param->getName()] ?? null;
                         $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
                     }
-                    $prompt = new Prompt($name, $description, $arguments, $instance->icons, $instance->meta);
+                    $prompt = new Prompt($name, $instance->title, $description, $arguments, $instance->icons, $instance->meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $prompts[$name] = new PromptReference($prompt, [$className, $methodName], false, $completionProviders);
                     ++$discoveredCount['prompts'];

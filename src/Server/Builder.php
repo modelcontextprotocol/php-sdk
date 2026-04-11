@@ -472,11 +472,12 @@ final class Builder
     public function addPrompt(
         \Closure|array|string $handler,
         ?string $name = null,
+        ?string $title = null,
         ?string $description = null,
         ?array $icons = null,
         ?array $meta = null,
     ): self {
-        $this->prompts[] = compact('handler', 'name', 'description', 'icons', 'meta');
+        $this->prompts[] = compact('handler', 'name', 'title', 'description', 'icons', 'meta');
 
         return $this;
     }
