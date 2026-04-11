@@ -24,6 +24,7 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Exception\ExceptionInterface;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
 use Mcp\Schema\Resource;
@@ -53,6 +54,10 @@ final class Discoverer implements DiscovererInterface
         private ?DocBlockParser $docBlockParser = null,
         private ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
+        if (!class_exists(Finder::class)) {
+            throw new RuntimeException('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
+        }
+
         $this->docBlockParser = $docBlockParser ?? new DocBlockParser(logger: $this->logger);
         $this->schemaGenerator = $schemaGenerator ?? new SchemaGenerator($this->docBlockParser);
     }
