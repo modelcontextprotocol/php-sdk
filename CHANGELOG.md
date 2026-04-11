@@ -12,6 +12,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC break] Make Symfony Finder component optional. Users would need to install `symfony/finder` now themselves
 * Add `LenientOidcDiscoveryMetadataPolicy` for identity providers that omit `code_challenge_methods_supported` (e.g. FusionAuth, Microsoft Entra ID)
 * Add OAuth 2.0 Dynamic Client Registration middleware (RFC 7591)
+* Add `DnsRebindingProtectionMiddleware` enabled by default on `StreamableHttpTransport` to validate Origin headers against allowed hostnames
 
 0.4.0
 -----
