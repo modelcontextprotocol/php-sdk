@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests docs
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests client-conformance-tests docs
 
 deps-stable:
 	composer update --prefer-stable
@@ -27,6 +27,9 @@ conformance-tests:
 	@sleep 5
 	cd tests/Conformance && npx @modelcontextprotocol/conformance server --url http://localhost:8000/ || true
 	docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
+
+client-conformance-tests:
+	cd tests/Conformance && npx @modelcontextprotocol/conformance client --command "php $(CURDIR)/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml || true
 
 coverage:
 	XDEBUG_MODE=coverage vendor/bin/phpunit --testsuite=unit --coverage-html=coverage
