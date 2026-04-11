@@ -20,7 +20,8 @@ namespace Mcp\Schema;
 class ClientCapabilities implements \JsonSerializable
 {
     /**
-     * @param array<string, mixed> $experimental
+     * @param array<string, mixed>  $experimental
+     * @param ?array<string, mixed> $extensions   protocol extensions the client supports (e.g. io.modelcontextprotocol/ui)
      */
     public function __construct(
         public readonly ?bool $roots = false,
@@ -28,6 +29,7 @@ class ClientCapabilities implements \JsonSerializable
         public readonly ?bool $sampling = null,
         public readonly ?bool $elicitation = null,
         public readonly ?array $experimental = null,
+        public readonly ?array $extensions = null,
     ) {
     }
 
@@ -39,6 +41,7 @@ class ClientCapabilities implements \JsonSerializable
      *     sampling?: bool,
      *     elicitation?: bool,
      *     experimental?: array<string, mixed>,
+     *     extensions?: array<string, mixed>,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -68,7 +71,8 @@ class ClientCapabilities implements \JsonSerializable
             $rootsListChanged,
             $sampling,
             $elicitation,
-            $data['experimental'] ?? null
+            $data['experimental'] ?? null,
+            $data['extensions'] ?? null,
         );
     }
 
@@ -78,6 +82,7 @@ class ClientCapabilities implements \JsonSerializable
      *     sampling?: object,
      *     elicitation?: object,
      *     experimental?: object,
+     *     extensions?: object,
      * }
      */
     public function jsonSerialize(): array
@@ -100,6 +105,10 @@ class ClientCapabilities implements \JsonSerializable
 
         if ($this->experimental) {
             $data['experimental'] = (object) $this->experimental;
+        }
+
+        if ($this->extensions) {
+            $data['extensions'] = (object) $this->extensions;
         }
 
         return $data;
