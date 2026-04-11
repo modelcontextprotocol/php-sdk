@@ -10,6 +10,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
 * Add elicitation enum schema types per SEP-1330: `TitledEnumSchemaDefinition`, `MultiSelectEnumSchemaDefinition`, `TitledMultiSelectEnumSchemaDefinition`
 * [BC break] Make Symfony Finder component optional. Users would need to install `symfony/finder` now themselves
+* Add `LenientOidcDiscoveryMetadataPolicy` for identity providers that omit `code_challenge_methods_supported` (e.g. FusionAuth, Microsoft Entra ID)
+* Add OAuth 2.0 Dynamic Client Registration middleware (RFC 7591)
 
 0.4.0
 -----

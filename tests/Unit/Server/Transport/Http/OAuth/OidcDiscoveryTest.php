@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Mcp\Exception\RuntimeException;
+use Mcp\Server\Transport\Http\OAuth\LenientOidcDiscoveryMetadataPolicy;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -51,7 +52,7 @@ class OidcDiscoveryTest extends TestCase
 
         $factory = new Psr17Factory();
         $issuer = 'https://auth.example.com';
-        $metadataWithoutCodeChallengeMethods = [
+        $metadata = [
             'issuer' => $issuer,
             'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
             'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
@@ -62,7 +63,7 @@ class OidcDiscoveryTest extends TestCase
         $httpClient->expects($this->exactly(2))
             ->method('sendRequest')
             ->willReturn($factory->createResponse(200)->withBody(
-                $factory->createStream(json_encode($metadataWithoutCodeChallengeMethods, \JSON_THROW_ON_ERROR)),
+                $factory->createStream(json_encode($metadata, \JSON_THROW_ON_ERROR)),
             ));
 
         $discovery = new OidcDiscovery(
@@ -73,6 +74,39 @@ class OidcDiscoveryTest extends TestCase
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('Failed to discover authorization server metadata');
         $discovery->discover($issuer);
+    }
+
+    #[TestDox('lenient discovery accepts metadata without code challenge methods')]
+    public function testDiscoverAcceptsMetadataWithoutCodeChallengeMethodsUsingLenientPolicy(): void
+    {
+        $this->skipIfPsrHttpClientIsMissing();
+
+        $factory = new Psr17Factory();
+        $issuer = 'https://auth.example.com';
+        $metadata = [
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
+            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
+            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
+        ];
+
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->expects($this->once())
+            ->method('sendRequest')
+            ->willReturn($factory->createResponse(200)->withBody(
+                $factory->createStream(json_encode($metadata, \JSON_THROW_ON_ERROR)),
+            ));
+
+        $discovery = new OidcDiscovery(
+            httpClient: $httpClient,
+            requestFactory: $factory,
+            metadataPolicy: new LenientOidcDiscoveryMetadataPolicy(),
+        );
+
+        $result = $discovery->discover($issuer);
+
+        $this->assertSame($metadata['authorization_endpoint'], $result['authorization_endpoint']);
+        $this->assertArrayNotHasKey('code_challenge_methods_supported', $result);
     }
 
     #[TestDox('discover falls back to the next metadata URL when first response is invalid')]

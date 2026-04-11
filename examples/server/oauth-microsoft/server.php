@@ -16,7 +16,6 @@ require_once dirname(__DIR__).'/bootstrap.php';
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Example\Server\OAuthMicrosoft\MicrosoftJwtTokenValidator;
-use Mcp\Example\Server\OAuthMicrosoft\MicrosoftOidcMetadataPolicy;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
@@ -25,6 +24,7 @@ use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
+use Mcp\Server\Transport\Http\OAuth\LenientOidcDiscoveryMetadataPolicy;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
@@ -37,7 +37,7 @@ $issuerV1 = "https://sts.windows.net/{$tenantId}/";
 $localBaseUrl = 'http://localhost:8000';
 
 $discovery = new OidcDiscovery(
-    metadataPolicy: new MicrosoftOidcMetadataPolicy(),
+    metadataPolicy: new LenientOidcDiscoveryMetadataPolicy(),
 );
 
 $jwtTokenValidator = new JwtTokenValidator(
