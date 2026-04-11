@@ -72,7 +72,8 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --testsuite=inspector
 
-  conformance:
+  conformance-server:
+    name: conformance / server
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -121,6 +122,47 @@ jobs:
       - name: Cleanup
         if: always()
         run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
+
+  conformance-client:
+    name: conformance / client
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: "none"
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+
+      - name: Install Composer
+        uses: "ramsey/composer-install@v4"
+
+      - name: Create log directory
+        run: mkdir -p tests/Conformance/logs
+
+      - name: Run client conformance tests
+        working-directory: ./tests/Conformance
+        run: npx @modelcontextprotocol/conformance client --command "php ${{ github.workspace }}/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml
+
+      - name: Show logs on failure
+        if: failure()
+        run: |
+          echo "=== Client Conformance Log ==="
+          cat tests/Conformance/logs/client-conformance.log 2>/dev/null || echo "No client conformance log found"
+          echo ""
+          echo "=== Test Results ==="
+          find tests/Conformance/results -name "checks.json" 2>/dev/null | head -3 | while read f; do
+            echo "--- $f ---"
+            cat "$f"
+            echo ""
+          done || echo "No results found"
 
   qa:
     runs-on: ubuntu-latest
