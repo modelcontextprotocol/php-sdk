@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.5.0
 -----
 
+* **[BC BREAK]** Extract CORS handling from `StreamableHttpTransport` into `CorsMiddleware`. The `$corsHeaders` constructor parameter has been removed — pass a configured `CorsMiddleware` via the `$middleware` array instead (a default is prepended automatically if omitted). Default `Access-Control-Allow-Origin` is no longer set (was `*`).
 * Add built-in authentication middleware for HTTP transport using OAuth
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)

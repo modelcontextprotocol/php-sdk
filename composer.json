@@ -56,6 +56,9 @@
     "symfony/http-client": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
+  "conflict": {
+    "php-cs-fixer/shim": "3.95.0"
+  },
   "autoload": {
     "psr-4": {
       "Mcp\\": "src/"
