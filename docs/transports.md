@@ -139,45 +139,55 @@ $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory)
 
 ### CORS Configuration
 
-The transport sets secure CORS defaults that can be customized or disabled:
+CORS is handled by the `CorsMiddleware`, which is automatically prepended to the middleware chain. By default,
+no `Access-Control-Allow-Origin` header is set, which effectively blocks cross-origin browser requests.
 
 ```php
-// Default CORS headers (backward compatible)
-$transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
 
-// Restrict to specific origin
+// Default: cross-origin requests are blocked (no Access-Control-Allow-Origin header)
+$transport = new StreamableHttpTransport($request);
+
+// Allow specific origins
 $transport = new StreamableHttpTransport(
     $request,
-    $responseFactory,
-    $streamFactory,
-    ['Access-Control-Allow-Origin' => 'https://myapp.com']
-);
-
-// Disable CORS for proxy scenarios
-$transport = new StreamableHttpTransport(
-    $request,
-    $responseFactory,
-    $streamFactory,
-    ['Access-Control-Allow-Origin' => '']
-);
-
-// Custom headers with logger
-$transport = new StreamableHttpTransport(
-    $request,
-    $responseFactory,
-    $streamFactory,
-    [
-        'Access-Control-Allow-Origin' => 'https://api.example.com',
-        'Access-Control-Max-Age' => '86400'
+    middleware: [
+        new CorsMiddleware(
+            allowedOrigins: ['https://myapp.com', 'https://staging.myapp.com'],
+        ),
     ],
-    $logger
+);
+
+// Allow all origins (e.g. for development)
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [new CorsMiddleware(allowedOrigins: ['*'])],
+);
+
+// Full configuration
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [
+        new CorsMiddleware(
+            allowedOrigins: ['https://myapp.com'],
+            allowedMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+            allowedHeaders: ['Accept', 'Authorization', 'Content-Type', 'Last-Event-ID', 'Mcp-Protocol-Version', 'Mcp-Session-Id'],
+            exposedHeaders: ['Mcp-Session-Id'],
+        ),
+    ],
 );
 ```
 
-Default CORS headers:
-- `Access-Control-Allow-Origin: *`
+Default CORS headers (always set unless overridden by middleware):
 - `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
-- `Access-Control-Allow-Headers: Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept`
+- `Access-Control-Allow-Headers: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id`
+- `Access-Control-Expose-Headers: Mcp-Session-Id`
+
+If no `CorsMiddleware` is provided, a default instance is automatically prepended — ensuring CORS headers are applied
+to all responses, including those from other middleware that short-circuit (e.g. an auth middleware returning `401`).
+When you provide your own `CorsMiddleware` in the array, it is used at the position you place it and no default is added.
+The transport itself handles `OPTIONS` preflight requests by returning a `204` response.
 
 ### PSR-15 Middleware
 
@@ -209,15 +219,13 @@ final class AuthMiddleware implements MiddlewareInterface
 
 $transport = new StreamableHttpTransport(
     $request,
-    $responseFactory,
-    $streamFactory,
-    [],
-    $logger,
-    [new AuthMiddleware($responseFactory)],
+    logger: $logger,
+    middleware: [new AuthMiddleware($responseFactory)],
 );
 ```
 
-If middleware returns a response, the transport will still ensure CORS headers are present unless you set them yourself.
+If you don't include a `CorsMiddleware` in your middleware array, a default one is automatically prepended,
+so CORS headers are applied to all responses even when middleware short-circuits.
 
 ### Architecture
 
