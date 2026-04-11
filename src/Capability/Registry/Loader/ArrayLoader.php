@@ -252,6 +252,7 @@ final class ArrayLoader implements LoaderInterface
                 }
                 $prompt = new Prompt(
                     name: $name,
+                    title: $data['title'] ?? null,
                     description: $description,
                     arguments: $arguments,
                     icons: $data['icons'] ?? null,
