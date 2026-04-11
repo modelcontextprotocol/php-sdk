@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 /**
  * HTTP Client Communication Example.
  *
@@ -18,17 +27,6 @@
  * response while the original tool request is still pending.
  *
  * Eg. symfony serve --passthru=examples/server/client-communication/server.php --no-tls
- */
-
-declare(strict_types=1);
-
-/*
- * This file is part of the official PHP MCP SDK.
- *
- * A collaboration between Symfony and the PHP Foundation.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
  */
 
 require_once __DIR__.'/../../vendor/autoload.php';
