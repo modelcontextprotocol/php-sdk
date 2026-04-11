@@ -166,7 +166,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     private function parseBearerToken(string $authorization): ?string
     {
-        if (!preg_match('/^Bearer\\s+(.+)$/', $authorization, $matches)) {
+        if (!preg_match('/^Bearer\\s+(.+)$/i', $authorization, $matches)) {
             return null;
         }
 
