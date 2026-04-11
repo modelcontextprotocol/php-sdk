@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 class HandlerResolverTest extends TestCase
 {
-    public function testResolvesClosuresToReflectionFunction()
+    public function testResolvesClosuresToReflectionFunction(): void
     {
         $closure = static function (string $input): string {
             return "processed: $input";
@@ -29,7 +29,7 @@ class HandlerResolverTest extends TestCase
         $this->assertEquals('string', $returnType->getName());
     }
 
-    public function testResolvesValidArrayHandler()
+    public function testResolvesValidArrayHandler(): void
     {
         $handler = [ValidHandlerClass::class, 'publicMethod'];
         $resolved = HandlerResolver::resolve($handler);
@@ -38,7 +38,7 @@ class HandlerResolverTest extends TestCase
         $this->assertEquals(ValidHandlerClass::class, $resolved->getDeclaringClass()->getName());
     }
 
-    public function testResolvesValidInvokableClassStringHandler()
+    public function testResolvesValidInvokableClassStringHandler(): void
     {
         $handler = ValidInvokableClass::class;
         $resolved = HandlerResolver::resolve($handler);
@@ -47,7 +47,7 @@ class HandlerResolverTest extends TestCase
         $this->assertEquals(ValidInvokableClass::class, $resolved->getDeclaringClass()->getName());
     }
 
-    public function testResolvesStaticMethodsForManualRegistration()
+    public function testResolvesStaticMethodsForManualRegistration(): void
     {
         $handler = [ValidHandlerClass::class, 'staticMethod'];
         $resolved = HandlerResolver::resolve($handler);
@@ -56,84 +56,84 @@ class HandlerResolverTest extends TestCase
         $this->assertTrue($resolved->isStatic());
     }
 
-    public function testThrowsForInvalidArrayHandlerFormatCount()
+    public function testThrowsForInvalidArrayHandlerFormatCount(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Invalid array handler format. Expected [ClassName::class, 'methodName'].");
         HandlerResolver::resolve([ValidHandlerClass::class]); /* @phpstan-ignore argument.type */
     }
 
-    public function testThrowsForInvalidArrayHandlerFormatTypes()
+    public function testThrowsForInvalidArrayHandlerFormatTypes(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage("Invalid array handler format. Expected [ClassName::class, 'methodName'].");
         HandlerResolver::resolve([ValidHandlerClass::class, 123]); /* @phpstan-ignore argument.type */
     }
 
-    public function testThrowsForNonExistentClassInArrayHandler()
+    public function testThrowsForNonExistentClassInArrayHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Handler class "NonExistentClass" not found');
         HandlerResolver::resolve(['NonExistentClass', 'method']);
     }
 
-    public function testThrowsForNonExistentMethodInArrayHandler()
+    public function testThrowsForNonExistentMethodInArrayHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Handler method "nonExistentMethod" not found in class');
         HandlerResolver::resolve([ValidHandlerClass::class, 'nonExistentMethod']);
     }
 
-    public function testThrowsForNonExistentClassInStringHandler()
+    public function testThrowsForNonExistentClassInStringHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid handler format. Expected Closure, [ClassName::class, \'methodName\'] or InvokableClassName::class string.');
         HandlerResolver::resolve('NonExistentInvokableClass');
     }
 
-    public function testThrowsForNonInvokableClassStringHandler()
+    public function testThrowsForNonInvokableClassStringHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invokable handler class "Mcp\Tests\Unit\Capability\Discovery\NonInvokableClass" must have a public "__invoke" method.');
         HandlerResolver::resolve(NonInvokableClass::class);
     }
 
-    public function testThrowsForProtectedMethodHandler()
+    public function testThrowsForProtectedMethodHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('must be public');
         HandlerResolver::resolve([ValidHandlerClass::class, 'protectedMethod']);
     }
 
-    public function testThrowsForPrivateMethodHandler()
+    public function testThrowsForPrivateMethodHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('must be public');
         HandlerResolver::resolve([ValidHandlerClass::class, 'privateMethod']);
     }
 
-    public function testThrowsForConstructorAsHandler()
+    public function testThrowsForConstructorAsHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be a constructor or destructor');
         HandlerResolver::resolve([ValidHandlerClass::class, '__construct']);
     }
 
-    public function testThrowsForDestructorAsHandler()
+    public function testThrowsForDestructorAsHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('cannot be a constructor or destructor');
         HandlerResolver::resolve([ValidHandlerClass::class, '__destruct']);
     }
 
-    public function testThrowsForAbstractMethodHandler()
+    public function testThrowsForAbstractMethodHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Handler method "Mcp\Tests\Unit\Capability\Discovery\AbstractHandlerClass::abstractMethod" must be abstract.');
         HandlerResolver::resolve([AbstractHandlerClass::class, 'abstractMethod']);
     }
 
-    public function testResolvesClosuresWithDifferentSignatures()
+    public function testResolvesClosuresWithDifferentSignatures(): void
     {
         $noParams = static function () {
             return 'test';
@@ -152,7 +152,7 @@ class HandlerResolverTest extends TestCase
         $this->assertTrue(HandlerResolver::resolve($variadic)->isVariadic());
     }
 
-    public function testDistinguishesBetweenClosuresAndCallableArrays()
+    public function testDistinguishesBetweenClosuresAndCallableArrays(): void
     {
         $closure = static function () {
             return 'closure';
