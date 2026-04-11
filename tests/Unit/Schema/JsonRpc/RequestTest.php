@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 
 final class RequestTest extends TestCase
 {
-    public function testMetaAndIdAreLoopedThrough()
+    public function testMetaAndIdAreLoopedThrough(): void
     {
         $requestImplementation = new class extends Request {
             public static function getMethod(): string

@@ -22,7 +22,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class ClientLoggerTest extends TestCase
 {
-    public function testLog()
+    public function testLog(): void
     {
         $session = $this->getMockBuilder(Session::class)
             ->disableOriginalConstructor()
@@ -39,7 +39,7 @@ final class ClientLoggerTest extends TestCase
         $logger->notice('test');
     }
 
-    public function testLogFilter()
+    public function testLogFilter(): void
     {
         $session = $this->getMockBuilder(Session::class)
             ->disableOriginalConstructor()
@@ -56,7 +56,7 @@ final class ClientLoggerTest extends TestCase
         $logger->debug('test');
     }
 
-    public function testLogFilterSameLevel()
+    public function testLogFilterSameLevel(): void
     {
         $session = $this->getMockBuilder(Session::class)
             ->disableOriginalConstructor()
@@ -73,7 +73,7 @@ final class ClientLoggerTest extends TestCase
         $logger->info('test');
     }
 
-    public function testLogWithInvalidLevel()
+    public function testLogWithInvalidLevel(): void
     {
         $session = $this->getMockBuilder(Session::class)
             ->disableOriginalConstructor()

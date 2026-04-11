@@ -25,7 +25,7 @@ interface MyDiscoverableInterface
 
 trait MyDiscoverableTrait
 {
-    public function traitMethod()
+    public function traitMethod(): void
     {
     }
 }
