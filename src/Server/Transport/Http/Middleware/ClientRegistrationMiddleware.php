@@ -69,6 +69,14 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
 
     private function handleRegistration(ServerRequestInterface $request): ResponseInterface
     {
+        $contentType = $request->getHeaderLine('Content-Type');
+        if (!str_starts_with($contentType, 'application/json')) {
+            return $this->jsonResponse(400, [
+                'error' => 'invalid_client_metadata',
+                'error_description' => 'Content-Type must be application/json.',
+            ], ['Cache-Control' => 'no-store']);
+        }
+
         $body = $request->getBody()->__toString();
 
         try {
@@ -95,7 +103,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
             $result = $this->registrar->register($data);
         } catch (ClientRegistrationException $e) {
             return $this->jsonResponse(400, [
-                'error' => 'invalid_client_metadata',
+                'error' => $e->errorCode,
                 'error_description' => $e->getMessage(),
             ], ['Cache-Control' => 'no-store']);
         }

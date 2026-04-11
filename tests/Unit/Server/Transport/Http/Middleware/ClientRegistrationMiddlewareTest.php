@@ -44,6 +44,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream(json_encode(['redirect_uris' => ['https://example.com/callback']])));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -65,6 +66,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('not json'));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -84,6 +86,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('["not","an","object"]'));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -103,6 +106,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('[]'));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -138,6 +142,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         ]);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream($body));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -153,12 +158,14 @@ class ClientRegistrationMiddlewareTest extends TestCase
 
         // Invalid JSON
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('not json'));
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
         $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
 
         // JSON array (not object)
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('["array"]'));
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
         $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
@@ -175,6 +182,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $middleware = $this->createMiddleware($registrar);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
             ->withBody($this->factory->createStream('{}'));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
@@ -185,6 +193,49 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
         $this->assertSame('invalid_client_metadata', $payload['error']);
         $this->assertSame('redirect_uris is required', $payload['error_description']);
+    }
+
+    #[TestDox('POST /register without application/json Content-Type returns 400')]
+    public function testRegistrationRejectsNonJsonContentType(): void
+    {
+        $registrar = $this->createStub(ClientRegistrarInterface::class);
+        $middleware = $this->createMiddleware($registrar);
+
+        $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
+            ->withBody($this->factory->createStream('key=value'));
+
+        $response = $middleware->process($request, $this->createPassthroughHandler(404));
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertSame('no-store', $response->getHeaderLine('Cache-Control'));
+
+        $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
+        $this->assertSame('invalid_client_metadata', $payload['error']);
+        $this->assertSame('Content-Type must be application/json.', $payload['error_description']);
+    }
+
+    #[TestDox('POST /register uses error code from ClientRegistrationException')]
+    public function testRegistrationUsesCustomErrorCode(): void
+    {
+        $registrar = $this->createMock(ClientRegistrarInterface::class);
+        $registrar->expects($this->once())
+            ->method('register')
+            ->willThrowException(new ClientRegistrationException('Invalid redirect URI', 'invalid_redirect_uri'));
+
+        $middleware = $this->createMiddleware($registrar);
+
+        $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
+            ->withHeader('Content-Type', 'application/json')
+            ->withBody($this->factory->createStream('{}'));
+
+        $response = $middleware->process($request, $this->createPassthroughHandler(404));
+
+        $this->assertSame(400, $response->getStatusCode());
+
+        $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
+        $this->assertSame('invalid_redirect_uri', $payload['error']);
+        $this->assertSame('Invalid redirect URI', $payload['error_description']);
     }
 
     #[TestDox('GET /.well-known/oauth-authorization-server enriches response with registration_endpoint')]

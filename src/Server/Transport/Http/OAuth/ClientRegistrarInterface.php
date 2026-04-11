@@ -36,7 +36,9 @@ interface ClientRegistrarInterface
      *
      * @return array<string, mixed> Registration response including client_id and optional client_secret
      *
-     * @throws ClientRegistrationException If registration fails (e.g. invalid metadata, storage error)
+     * @throws ClientRegistrationException If registration fails (e.g. invalid metadata, storage error).
+     *                                     The exception message is returned to the client as error_description —
+     *                                     do not include internal details (database errors, stack traces, etc.).
      */
     public function register(array $registrationRequest): array;
 }
