@@ -352,6 +352,7 @@ $server = Server::builder()
 
 - `handler` (callable|string): The prompt handler
 - `name` (string|null): Optional prompt name
+- `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional prompt description
 - `icons` (Icon[]|null): Optional array of icons for the prompt
 
