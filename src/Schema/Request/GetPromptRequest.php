@@ -22,8 +22,8 @@ use Mcp\Schema\JsonRpc\Request;
 final class GetPromptRequest extends Request
 {
     /**
-     * @param string                    $name      the name of the prompt to get
-     * @param array<string, mixed>|null $arguments the arguments to pass to the prompt
+     * @param string                     $name      the name of the prompt to get
+     * @param array<string, string>|null $arguments the arguments to pass to the prompt
      */
     public function __construct(
         public readonly string $name,
@@ -56,7 +56,7 @@ final class GetPromptRequest extends Request
     }
 
     /**
-     * @return array{name: string, arguments?: array<string, mixed>}
+     * @return array{name: string, arguments?: array<string, string>}
      */
     protected function getParams(): array
     {
