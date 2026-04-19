@@ -24,7 +24,7 @@ class DiscoverableToolHandler
      *
      * @return string the greeting
      */
-    #[McpTool(name: 'greet_user', description: 'Greets a user by name.')]
+    #[McpTool(name: 'greet_user', description: 'Greets a user by name.', title: 'Greet User')]
     public function greet(string $name): string
     {
         return "Hello, {$name}!";

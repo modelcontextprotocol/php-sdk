@@ -22,8 +22,8 @@ class ArrayLoaderToolTitleTest extends TestCase
         $tools = [
             [
                 'handler' => static fn (): string => 'ok',
-                'name' => 'n',
-                'title' => 't',
+                'name' => 'weather_lookup',
+                'title' => 'Weather Lookup',
                 'description' => null,
                 'annotations' => null,
                 'inputSchema' => [
@@ -42,7 +42,7 @@ class ArrayLoaderToolTitleTest extends TestCase
 
         $loader->load($registry);
 
-        $toolRef = $registry->getTool('n');
-        $this->assertSame('t', $toolRef->tool->title);
+        $toolRef = $registry->getTool('weather_lookup');
+        $this->assertSame('Weather Lookup', $toolRef->tool->title);
     }
 }

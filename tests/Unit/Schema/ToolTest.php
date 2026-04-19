@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Schema;
 
 use Mcp\Schema\Tool;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class ToolTest extends TestCase
@@ -23,79 +24,70 @@ class ToolTest extends TestCase
     {
         return [
             'type' => 'object',
-            'properties' => [
-                'q' => ['type' => 'string'],
-            ],
+            'properties' => ['q' => ['type' => 'string']],
             'required' => null,
         ];
     }
 
-    public function testConstructsWithTitleAndSerializesTitleAfterName(): void
+    private static function makeTool(?string $title, ?string $description = null): Tool
     {
-        $tool = new Tool(
+        return new Tool(
             name: 'x',
-            title: 'Friendly Title',
             inputSchema: self::validInputSchema(),
-            description: null,
+            description: $description,
             annotations: null,
+            title: $title,
         );
-
-        $serialized = $tool->jsonSerialize();
-        $keys = array_keys($serialized);
-
-        $this->assertSame('Friendly Title', $serialized['title']);
-        $this->assertSame('name', $keys[0]);
-        $this->assertSame('title', $keys[1]);
-        $this->assertSame('inputSchema', $keys[2]);
     }
 
-    public function testSerializesWithoutTitleKeyWhenNull(): void
+    /**
+     * @return iterable<string, array{?string, list<string>}>
+     */
+    public static function serializationKeyOrderProvider(): iterable
     {
-        $tool = new Tool(
-            name: 'x',
-            title: null,
-            inputSchema: self::validInputSchema(),
-            description: null,
-            annotations: null,
-        );
-
-        $serialized = $tool->jsonSerialize();
-
-        $this->assertArrayNotHasKey('title', $serialized);
-        $keys = array_keys($serialized);
-        $this->assertSame(['name', 'inputSchema'], $keys);
+        yield 'with title' => ['Friendly Title', ['name', 'title', 'inputSchema']];
+        yield 'without title' => [null, ['name', 'inputSchema']];
     }
 
-    public function testFromArrayReadsTitle(): void
+    /**
+     * @param list<string> $expectedKeys
+     */
+    #[DataProvider('serializationKeyOrderProvider')]
+    public function testSerializationPlacesTitleBetweenNameAndInputSchema(?string $title, array $expectedKeys): void
     {
-        $tool = Tool::fromArray([
-            'name' => 'x',
-            'title' => 'Friendly Title',
-            'inputSchema' => self::validInputSchema(),
-        ]);
+        $serialized = self::makeTool($title)->jsonSerialize();
 
-        $this->assertSame('Friendly Title', $tool->title);
+        $this->assertSame($expectedKeys, array_keys($serialized));
+        if (null !== $title) {
+            $this->assertSame($title, $serialized['title']);
+        } else {
+            $this->assertArrayNotHasKey('title', $serialized);
+        }
     }
 
-    public function testFromArrayDefaultsTitleToNull(): void
+    /**
+     * @return iterable<string, array{array<string, mixed>, ?string}>
+     */
+    public static function fromArrayTitleProvider(): iterable
     {
-        $tool = Tool::fromArray([
-            'name' => 'x',
-            'inputSchema' => self::validInputSchema(),
-        ]);
+        yield 'title present' => [['title' => 'Friendly Title'], 'Friendly Title'];
+        yield 'title missing' => [[], null];
+    }
 
-        $this->assertNull($tool->title);
+    /**
+     * @param array<string, mixed> $extra
+     */
+    #[DataProvider('fromArrayTitleProvider')]
+    public function testFromArrayReadsTitle(array $extra, ?string $expectedTitle): void
+    {
+        $tool = Tool::fromArray(['name' => 'x', 'inputSchema' => self::validInputSchema()] + $extra);
+
+        $this->assertSame($expectedTitle, $tool->title);
     }
 
     public function testRoundTripPreservesTitle(): void
     {
-        $original = new Tool(
-            name: 'x',
-            title: 'Friendly Title',
-            inputSchema: self::validInputSchema(),
-            description: 'desc',
-            annotations: null,
-        );
+        $original = self::makeTool('Friendly Title', 'desc');
 
         /** @var array{name: string, title?: string, inputSchema: array{type: 'object', properties: array<string, mixed>, required: string[]|null}, description?: string|null} $serialized */
         $serialized = $original->jsonSerialize();

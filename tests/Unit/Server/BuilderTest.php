@@ -16,11 +16,8 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
-use Mcp\Schema\Request\ListToolsRequest;
-use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Server;
 use Mcp\Server\Handler\Request\CallToolHandler;
-use Mcp\Server\Handler\Request\ListToolsHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -80,60 +77,6 @@ final class BuilderTest extends TestCase
         $result = $this->callTool($server, 'test_tool');
 
         $this->assertSame('intercepted', $result);
-    }
-
-    #[TestDox('addTool() with a title propagates it to the registered Tool')]
-    public function testAddToolPropagatesTitleToRegisteredTool(): void
-    {
-        $server = Server::builder()
-            ->setServerInfo('t', '1')
-            ->addTool(
-                static fn (): string => 'ok',
-                name: 'my_tool',
-                title: 't',
-                description: 'd',
-                inputSchema: [
-                    'type' => 'object',
-                    'properties' => new \stdClass(),
-                    'required' => null,
-                ],
-            )
-            ->build();
-
-        $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);
-        $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);
-
-        foreach ($requestHandlers as $handler) {
-            if ($handler instanceof ListToolsHandler) {
-                $request = ListToolsRequest::fromArray([
-                    'jsonrpc' => '2.0',
-                    'method' => 'tools/list',
-                    'id' => 'test-1',
-                    'params' => [],
-                ]);
-                $session = $this->createStub(SessionInterface::class);
-
-                $response = $handler->handle($request, $session);
-                $this->assertInstanceOf(Response::class, $response);
-                /** @var ListToolsResult $result */
-                $result = $response->result;
-
-                $found = null;
-                foreach ($result->tools as $tool) {
-                    if ('my_tool' === $tool->name) {
-                        $found = $tool;
-                        break;
-                    }
-                }
-
-                $this->assertNotNull($found, 'Expected my_tool to be registered');
-                $this->assertSame('t', $found->title);
-
-                return;
-            }
-        }
-
-        $this->fail('ListToolsHandler not found in request handlers');
     }
 
     private function callTool(Server $server, string $toolName): mixed

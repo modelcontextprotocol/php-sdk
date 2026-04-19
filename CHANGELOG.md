@@ -2,12 +2,6 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
-0.6.0
------
-
-* Add optional `title` field to `Tool` and `McpTool` for MCP spec compliance
-* [BC Break] `Builder::addTool()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments for `$description` must switch to named arguments.
-
 0.5.0
 -----
 

@@ -25,7 +25,6 @@ logger()->info('Starting MCP Custom Method Handlers Server...');
 $toolDefinitions = [
     'say_hello' => new Tool(
         name: 'say_hello',
-        title: null,
         inputSchema: [
             'type' => 'object',
             'properties' => [
@@ -38,7 +37,6 @@ $toolDefinitions = [
     ),
     'sum' => new Tool(
         name: 'sum',
-        title: null,
         inputSchema: [
             'type' => 'object',
             'properties' => [

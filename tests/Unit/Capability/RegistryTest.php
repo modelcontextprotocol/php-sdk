@@ -615,7 +615,6 @@ class RegistryTest extends TestCase
     {
         return new Tool(
             name: $name,
-            title: null,
             inputSchema: [
                 'type' => 'object',
                 'properties' => [

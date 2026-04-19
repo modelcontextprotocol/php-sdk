@@ -289,7 +289,6 @@ class ListToolsHandlerTest extends TestCase
         for ($i = 0; $i < $count; ++$i) {
             $tool = new Tool(
                 name: "tool_$i",
-                title: null,
                 inputSchema: [
                     'type' => 'object',
                     'properties' => [],

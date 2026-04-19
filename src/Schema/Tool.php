@@ -48,25 +48,25 @@ class Tool implements \JsonSerializable
 {
     /**
      * @param string                $name         the name of the tool
-     * @param ?string               $title        Optional human-readable title for display in UI
+     * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
      * @param ?string               $description  A human-readable description of the tool.
      *                                            This can be used by clients to improve the LLM's understanding of
      *                                            available tools. It can be thought of like a "hint" to the model.
-     * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
      * @param ?ToolAnnotations      $annotations  optional additional tool information
      * @param ?Icon[]               $icons        optional icons representing the tool
      * @param ?array<string, mixed> $meta         Optional metadata
      * @param ToolOutputSchema|null $outputSchema optional JSON Schema object (as a PHP array) defining the expected output structure
+     * @param ?string               $title        Optional human-readable title for display in UI
      */
     public function __construct(
         public readonly string $name,
-        public readonly ?string $title,
         public readonly array $inputSchema,
         public readonly ?string $description,
         public readonly ?ToolAnnotations $annotations,
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
         public readonly ?array $outputSchema = null,
+        public readonly ?string $title = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
@@ -99,13 +99,13 @@ class Tool implements \JsonSerializable
 
         return new self(
             name: $data['name'],
-            title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             inputSchema: $inputSchema,
             description: isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             annotations: isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
             icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
             meta: isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
             outputSchema: $outputSchema,
+            title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
         );
     }
 

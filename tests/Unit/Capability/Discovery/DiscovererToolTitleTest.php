@@ -21,13 +21,13 @@ class DiscovererToolTitleTest extends TestCase
     {
         $discoverer = new Discoverer();
 
-        $discovery = $discoverer->discover(__DIR__, ['TitleFixture']);
+        $discovery = $discoverer->discover(__DIR__, ['Fixtures']);
 
         $tools = $discovery->getTools();
 
-        $this->assertArrayHasKey('titled_tool', $tools);
-        $toolRef = $tools['titled_tool'];
+        $this->assertArrayHasKey('greet_user', $tools);
+        $toolRef = $tools['greet_user'];
         $this->assertInstanceOf(ToolReference::class, $toolRef);
-        $this->assertSame('Display Title', $toolRef->tool->title);
+        $this->assertSame('Greet User', $toolRef->tool->title);
     }
 }
