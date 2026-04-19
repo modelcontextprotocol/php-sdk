@@ -52,6 +52,21 @@ class McpToolTest extends TestCase
         $this->assertNull($attribute->outputSchema);
     }
 
+    public function testInstantiatesWithTitle(): void
+    {
+        $attribute = new McpTool(name: 'n', title: 'T');
+
+        $this->assertSame('n', $attribute->name);
+        $this->assertSame('T', $attribute->title);
+    }
+
+    public function testDefaultTitleIsNull(): void
+    {
+        $attribute = new McpTool();
+
+        $this->assertNull($attribute->title);
+    }
+
     public function testInstantiatesWithOutputSchema(): void
     {
         // Arrange

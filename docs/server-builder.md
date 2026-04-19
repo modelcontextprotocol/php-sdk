@@ -278,6 +278,7 @@ $server = Server::builder()
 
 - `handler` (callable|string): The tool handler
 - `name` (string|null): Optional tool name
+- `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional tool description
 - `annotations` (ToolAnnotations|null): Optional annotations for the tool
 - `inputSchema` (array|null): Optional input schema for the tool
@@ -578,7 +579,7 @@ $server = Server::builder()
 | `addRequestHandlers()` | handlers | Prepend multiple custom request handlers |
 | `addNotificationHandler()` | handler | Prepend a single custom notification handler |
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
-| `addTool()` | handler, name?, description?, annotations?, inputSchema? | Register tool |
+| `addTool()` | handler, name?, title?, description?, annotations?, inputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
