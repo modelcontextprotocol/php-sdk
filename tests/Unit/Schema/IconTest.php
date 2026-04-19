@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
 
 class IconTest extends TestCase
 {
-    public function testValidConstructor()
+    public function testValidConstructor(): void
     {
         $icon = new Icon('https://www.php.net/images/logos/php-logo-white.svg', 'image/svg+xml', ['any']);
 
@@ -26,7 +26,7 @@ class IconTest extends TestCase
         $this->assertSame('any', $icon->sizes[0]);
     }
 
-    public function testConstructorWithMultipleSizes()
+    public function testConstructorWithMultipleSizes(): void
     {
         $icon = new Icon('https://example.com/icon.png', 'image/png', ['48x48', '96x96']);
 
@@ -34,14 +34,14 @@ class IconTest extends TestCase
         $this->assertSame(['48x48', '96x96'], $icon->sizes);
     }
 
-    public function testConstructorWithAnySizes()
+    public function testConstructorWithAnySizes(): void
     {
         $icon = new Icon('https://example.com/icon.svg', 'image/png', ['any']);
 
         $this->assertSame(['any'], $icon->sizes);
     }
 
-    public function testConstructorWithNullOptionalFields()
+    public function testConstructorWithNullOptionalFields(): void
     {
         $icon = new Icon('https://example.com/icon.png');
 
@@ -50,35 +50,35 @@ class IconTest extends TestCase
         $this->assertNull($icon->sizes);
     }
 
-    public function testInvalidSizesFormatThrowsException()
+    public function testInvalidSizesFormatThrowsException(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
         new Icon('https://example.com/icon.png', 'image/png', ['invalid-size']);
     }
 
-    public function testInvalidPixelSizesFormatThrowsException()
+    public function testInvalidPixelSizesFormatThrowsException(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
         new Icon('https://example.com/icon.png', 'image/png', ['180x48x48']);
     }
 
-    public function testEmptySrcThrowsException()
+    public function testEmptySrcThrowsException(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
         new Icon('', 'image/png', ['48x48']);
     }
 
-    public function testInvalidSrcThrowsException()
+    public function testInvalidSrcThrowsException(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
         new Icon('not-a-url', 'image/png', ['48x48']);
     }
 
-    public function testValidDataUriSrc()
+    public function testValidDataUriSrc(): void
     {
         $dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA';
         $icon = new Icon($dataUri, 'image/png', ['48x48']);

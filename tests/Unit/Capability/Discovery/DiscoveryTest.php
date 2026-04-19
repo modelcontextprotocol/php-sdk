@@ -32,7 +32,7 @@ class DiscoveryTest extends TestCase
         $this->discoverer = new Discoverer();
     }
 
-    public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles()
+    public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles(): void
     {
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
 
@@ -105,7 +105,7 @@ class DiscoveryTest extends TestCase
         $this->assertEquals([InvocableResourceTemplateFixture::class, '__invoke'], $templates['invokable://user-profile/{userId}']->handler);
     }
 
-    public function testDoesNotDiscoverElementsFromExcludedDirectories()
+    public function testDoesNotDiscoverElementsFromExcludedDirectories(): void
     {
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
         $this->assertArrayHasKey('hidden_subdir_tool', $discovery->getTools());
@@ -114,14 +114,14 @@ class DiscoveryTest extends TestCase
         $this->assertArrayNotHasKey('hidden_subdir_tool', $discovery->getTools());
     }
 
-    public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles()
+    public function testHandlesEmptyDirectoriesOrDirectoriesWithNoPhpFiles(): void
     {
         $discovery = $this->discoverer->discover(__DIR__, ['EmptyDir']);
 
         $this->assertTrue($discovery->isEmpty());
     }
 
-    public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute()
+    public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute(): void
     {
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
 
@@ -138,7 +138,7 @@ class DiscoveryTest extends TestCase
         $this->assertEquals('An invokable calculator tool.', $tools['InvokableCalculator']->tool->description);
     }
 
-    public function testDiscoversEnhancedCompletionProvidersWithValuesAndEnumAttributes()
+    public function testDiscoversEnhancedCompletionProvidersWithValuesAndEnumAttributes(): void
     {
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
 
