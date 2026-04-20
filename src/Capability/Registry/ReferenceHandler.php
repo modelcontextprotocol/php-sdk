@@ -173,7 +173,9 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
         $typeName = $type->getName();
 
-        if (enum_exists($typeName)) {
+        $shouldAutoload = !in_array($typeName, ['int', 'float', 'string', 'bool', 'array', 'object', 'callable', 'iterable', 'mixed', 'void', 'null', 'false', 'true', 'never']);
+
+        if (enum_exists($typeName, $shouldAutoload)) {
             if (\is_object($argument) && $argument instanceof $typeName) {
                 return $argument;
             }
