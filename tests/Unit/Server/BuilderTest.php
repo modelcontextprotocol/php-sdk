@@ -71,7 +71,7 @@ final class BuilderTest extends TestCase
         $server = Server::builder()
             ->setServerInfo('test', '1.0.0')
             ->setReferenceHandler($referenceHandler)
-            ->addTool(static fn (): string => 'original', 'test_tool', 'A test tool')
+            ->addTool(static fn (): string => 'original', name: 'test_tool', description: 'A test tool')
             ->build();
 
         $result = $this->callTool($server, 'test_tool');

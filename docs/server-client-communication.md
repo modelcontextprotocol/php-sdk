@@ -24,7 +24,7 @@ use Mcp\Server\RequestContext;
 
 class MyService
 {
-    #[McpTool('my_tool', 'My Tool Description')]
+    #[McpTool(name: 'my_tool', description: 'My Tool Description')]
     public function myTool(RequestContext $context): string
     {
         $context->getClientGateway()->log(...);

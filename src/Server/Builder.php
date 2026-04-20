@@ -99,12 +99,12 @@ final class Builder
      * @var array{
      *     handler: Handler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>,
      *     outputSchema: ?array<string, mixed>,
-     *     title: ?string,
      * }[]
      */
     private array $tools = [];
@@ -374,33 +374,33 @@ final class Builder
      * Manually registers a tool handler.
      *
      * @param Handler                   $handler
+     * @param ?string                   $title        Optional human-readable title for display in UI
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      * @param array<string, mixed>|null $outputSchema
-     * @param ?string                   $title        Optional human-readable title for display in UI
      */
     public function addTool(
         callable|array|string $handler,
         ?string $name = null,
+        ?string $title = null,
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
         ?array $icons = null,
         ?array $meta = null,
         ?array $outputSchema = null,
-        ?string $title = null,
     ): self {
         $this->tools[] = compact(
             'handler',
             'name',
+            'title',
             'description',
             'annotations',
             'inputSchema',
             'icons',
             'meta',
             'outputSchema',
-            'title',
         );
 
         return $this;
