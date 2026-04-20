@@ -45,6 +45,7 @@ final class ArrayLoader implements LoaderInterface
      * @param array{
      *     handler: Handler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     icons: ?Icon[],
@@ -115,6 +116,7 @@ final class ArrayLoader implements LoaderInterface
 
                 $tool = new Tool(
                     name: $name,
+                    title: $data['title'] ?? null,
                     inputSchema: $inputSchema,
                     description: $description,
                     annotations: $data['annotations'] ?? null,

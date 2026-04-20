@@ -28,7 +28,7 @@ final class ClientAwareService
     /**
      * @return array{incident: string, recommended_actions: string, model: string}
      */
-    #[McpTool('coordinate_incident_response', 'Coordinate an incident response with logging, progress, and sampling.')]
+    #[McpTool(name: 'coordinate_incident_response', description: 'Coordinate an incident response with logging, progress, and sampling.')]
     public function coordinateIncident(RequestContext $context, string $incidentTitle): array
     {
         $clientGateway = $context->getClientGateway();

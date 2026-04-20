@@ -14,6 +14,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add OAuth 2.0 Dynamic Client Registration middleware (RFC 7591)
 * Add optional `title` field to `Prompt` and `McpPrompt` for MCP spec compliance
 * [BC Break] `Builder::addPrompt()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments for `$description` must switch to named arguments.
+* Add optional `title` field to `Tool` and `McpTool` for MCP spec compliance
+* [BC Break] `Tool::__construct()` signature changed — `$title` parameter added between `$name` and `$inputSchema`. Callers using positional arguments must switch to named arguments or pass `null` for `$title`.
+* [BC Break] `McpTool` attribute signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments for `$description` must switch to named arguments.
+* [BC Break] `Builder::addTool()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments for `$description` must switch to named arguments.
 
 0.4.0
 -----
