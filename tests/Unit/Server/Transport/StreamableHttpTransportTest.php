@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -26,17 +27,16 @@ final class StreamableHttpTransportTest extends TestCase
 {
     public static function corsHeaderProvider(): iterable
     {
-        yield 'GET (middleware returns 401)' => ['GET', false, 401];
         yield 'POST (middleware returns 401)' => ['POST', false, 401];
         yield 'DELETE (middleware returns 401)' => ['DELETE', false, 401];
         yield 'OPTIONS (middleware delegates -> transport handles preflight)' => ['OPTIONS', true, 204];
-        yield 'GET (middleware delegates -> transport handles preflight)' => ['GET', true, 405];
-        yield 'POST (middleware delegates -> transport handles preflight)' => ['POST', true, 202];
-        yield 'DELETE (middleware delegates -> transport handles preflight)' => ['DELETE', true, 400];
+        yield 'GET (middleware delegates -> transport returns 405)' => ['GET', true, 405];
+        yield 'POST (middleware delegates -> transport returns 202)' => ['POST', true, 202];
+        yield 'DELETE (middleware delegates -> transport returns 400)' => ['DELETE', true, 400];
     }
 
     #[DataProvider('corsHeaderProvider')]
-    #[TestDox('CORS headers are always applied')]
+    #[TestDox('CORS headers are applied by default CorsMiddleware')]
     public function testCorsHeader(string $method, bool $middlewareDelegatesToTransport, int $expectedStatusCode): void
     {
         $factory = new Psr17Factory();
@@ -64,7 +64,6 @@ final class StreamableHttpTransportTest extends TestCase
             $request,
             $factory,
             $factory,
-            [],
             null,
             [$middleware],
         );
@@ -72,21 +71,34 @@ final class StreamableHttpTransportTest extends TestCase
         $response = $transport->listen();
 
         $this->assertSame($expectedStatusCode, $response->getStatusCode(), $response->getBody()->getContents());
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Origin'));
         $this->assertTrue($response->hasHeader('Access-Control-Allow-Methods'));
         $this->assertTrue($response->hasHeader('Access-Control-Allow-Headers'));
         $this->assertTrue($response->hasHeader('Access-Control-Expose-Headers'));
+        // Default CorsMiddleware has no allowed origins, so no Access-Control-Allow-Origin
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+    }
+
+    #[TestDox('CORS headers include Access-Control-Allow-Origin when CorsMiddleware is configured with origins')]
+    public function testCorsHeaderWithConfiguredOrigins(): void
+    {
+        $factory = new Psr17Factory();
+        $request = $factory->createServerRequest('POST', 'https://example.com');
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $factory,
+            $factory,
+            null,
+            [new CorsMiddleware(allowedOrigins: ['*'])],
+        );
+
+        $response = $transport->listen();
 
         $this->assertSame('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
-        $this->assertSame(
-            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
-            $response->getHeaderLine('Access-Control-Allow-Headers')
-        );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
-    #[TestDox('transport replaces existing CORS headers on the response')]
+    #[TestDox('middleware can set CORS headers that CorsMiddleware will not overwrite')]
     public function testCorsHeadersAreReplacedWhenAlreadyPresent(): void
     {
         $factory = new Psr17Factory();
@@ -108,7 +120,6 @@ final class StreamableHttpTransportTest extends TestCase
             $request,
             $factory,
             $factory,
-            [],
             null,
             [$middleware],
         );
@@ -119,18 +130,13 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame('https://another.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
-        $this->assertSame(
-            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
-            $response->getHeaderLine('Access-Control-Allow-Headers')
-        );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('middleware runs before transport handles the request')]
     public function testMiddlewareRunsBeforeTransportHandlesRequest(): void
     {
         $factory = new Psr17Factory();
-        $request = $factory->createServerRequest('OPTIONS', 'https://example.com');
+        $request = $factory->createServerRequest('POST', 'https://example.com');
 
         $state = new \stdClass();
         $state->called = false;
@@ -151,7 +157,6 @@ final class StreamableHttpTransportTest extends TestCase
             $request,
             $factory,
             $factory,
-            [],
             null,
             [$middleware],
         );
@@ -159,6 +164,6 @@ final class StreamableHttpTransportTest extends TestCase
         $response = $transport->listen();
 
         $this->assertTrue($state->called);
-        $this->assertSame(204, $response->getStatusCode());
+        $this->assertSame(202, $response->getStatusCode());
     }
 }
