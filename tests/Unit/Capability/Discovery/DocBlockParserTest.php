@@ -29,7 +29,7 @@ class DocBlockParserTest extends TestCase
         $this->parser = new DocBlockParser();
     }
 
-    public function testGetDescriptionReturnsCorrectDescription()
+    public function testGetDescriptionReturnsCorrectDescription(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
         $docComment = $method->getDocComment() ?: null;
@@ -43,7 +43,7 @@ class DocBlockParserTest extends TestCase
         $this->assertEquals('Simple summary line.', $this->parser->getDescription($docBlock2));
     }
 
-    public function testGetParamTagsReturnsStructuredParamInfo()
+    public function testGetParamTagsReturnsStructuredParamInfo(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithParams');
         $docComment = $method->getDocComment() ?: null;
@@ -94,7 +94,7 @@ class DocBlockParserTest extends TestCase
         $this->assertEquals('object param', $this->parser->getParamDescription($params['$param6']));
     }
 
-    public function testGetTagsByNameReturnsSpecificTags()
+    public function testGetTagsByNameReturnsSpecificTags(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithMultipleTags');
         $docComment = $method->getDocComment() ?: null;
@@ -116,7 +116,7 @@ class DocBlockParserTest extends TestCase
         $this->assertEmpty($nonExistentTags);
     }
 
-    public function testHandlesMethodWithNoDocblockGracefully()
+    public function testHandlesMethodWithNoDocblockGracefully(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithNoDocBlock');
         $docComment = $method->getDocComment() ?: null;

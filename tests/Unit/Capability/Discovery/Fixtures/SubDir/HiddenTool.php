@@ -16,7 +16,7 @@ use Mcp\Capability\Attribute\McpTool;
 class HiddenTool
 {
     #[McpTool(name: 'hidden_subdir_tool')]
-    public function run()
+    public function run(): void
     {
     }
 }

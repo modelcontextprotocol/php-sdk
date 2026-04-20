@@ -58,7 +58,7 @@ final class CallToolHandler implements RequestHandlerInterface
         \assert($request instanceof CallToolRequest);
 
         $toolName = $request->name;
-        $arguments = $request->arguments ?? [];
+        $arguments = $request->arguments;
 
         $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 

@@ -16,7 +16,7 @@ use PHPUnit\Framework\TestCase;
 
 final class NotificationTest extends TestCase
 {
-    public function testMetaIsLoopedThrough()
+    public function testMetaIsLoopedThrough(): void
     {
         $notificationImplementation = new class extends Notification {
             public static function getMethod(): string
