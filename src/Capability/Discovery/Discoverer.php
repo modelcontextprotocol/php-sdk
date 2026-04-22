@@ -65,11 +65,12 @@ final class Discoverer implements DiscovererInterface
     /**
      * Discover MCP elements in the specified directories and return the discovery state.
      *
-     * @param string        $basePath    the base path for resolving directories
-     * @param array<string> $directories list of directories (relative to base path) to scan
-     * @param array<string> $excludeDirs list of directories (relative to base path) to exclude from the scan
+     * @param string             $basePath     the base path for resolving directories
+     * @param array<string>      $directories  list of directories (relative to base path) to scan
+     * @param array<string>      $excludeDirs  list of directories (relative to base path) to exclude from the scan
+     * @param array<string>|null $namePatterns list of file name patterns for the scan. Compatible with Finder->name()
      */
-    public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = ['*.php']): DiscoveryState
+    public function discover(string $basePath, array $directories, array $excludeDirs = [], ?array $namePatterns = null): DiscoveryState
     {
         $startTime = microtime(true);
         $discoveredCount = [
@@ -83,6 +84,8 @@ final class Discoverer implements DiscovererInterface
         $resources = [];
         $prompts = [];
         $resourceTemplates = [];
+
+        $namePatterns = !empty($namePatterns) ? $namePatterns : ['*.php'];
 
         try {
             $finder = new Finder();
@@ -98,14 +101,6 @@ final class Discoverer implements DiscovererInterface
                 $this->logger->warning('No valid discovery directories found to scan.', [
                     'configured_paths' => $directories,
                     'base_path' => $basePath,
-                ]);
-
-                return new DiscoveryState();
-            }
-
-            if (empty($namePatterns)) {
-                $this->logger->warning('No valid file name patterns found to scan.', [
-                    'configured_name_patterns' => $namePatterns,
                 ]);
 
                 return new DiscoveryState();

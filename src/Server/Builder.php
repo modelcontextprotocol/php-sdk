@@ -160,9 +160,9 @@ final class Builder
     private array $discoveryExcludeDirs = [];
 
     /**
-     * @var array|string[]
+     * @var string[]|null
      */
-    private array $discoveryNamePatterns = ['*.php'];
+    private ?array $discoveryNamePatterns = null;
 
     private ?ServerCapabilities $serverCapabilities = null;
 
@@ -350,15 +350,16 @@ final class Builder
     }
 
     /**
-     * @param string[] $scanDirs
-     * @param string[] $excludeDirs
+     * @param string[]      $scanDirs
+     * @param string[]      $excludeDirs
+     * @param string[]|null $namePatterns
      */
     public function setDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
         array $excludeDirs = [],
         ?CacheInterface $cache = null,
-        array $namePatterns = ['*.php'],
+        ?array $namePatterns = null,
     ): self {
         $this->discoveryBasePath = $basePath;
         $this->discoveryScanDirs = $scanDirs;

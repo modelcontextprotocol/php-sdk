@@ -131,14 +131,17 @@ class DiscoveryTest extends TestCase
         $this->assertArrayHasKey('greet_user', $discovery->getTools());
         $this->assertArrayNotHasKey('inc_file_name_tool', $discovery->getTools());
 
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], []);
+        $this->assertArrayHasKey('greet_user', $discovery->getTools());
+        $this->assertArrayNotHasKey('inc_file_name_tool', $discovery->getTools());
+
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.php', '*.inc']);
+        $this->assertArrayHasKey('greet_user', $discovery->getTools());
         $this->assertArrayHasKey('inc_file_name_tool', $discovery->getTools());
 
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.inc']);
         $this->assertArrayNotHasKey('greet_user', $discovery->getTools());
-
-        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], []);
-        $this->assertTrue($discovery->isEmpty());
+        $this->assertArrayHasKey('inc_file_name_tool', $discovery->getTools());
     }
 
     public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute(): void
