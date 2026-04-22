@@ -105,7 +105,7 @@ final class Discoverer implements DiscovererInterface
 
             if (empty($namePatterns)) {
                 $this->logger->warning('No valid file name patterns found to scan.', [
-                    'configured_name_patterns' => $namePatterns
+                    'configured_name_patterns' => $namePatterns,
                 ]);
 
                 return new DiscoveryState();
