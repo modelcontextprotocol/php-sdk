@@ -110,7 +110,7 @@ $server = Server::builder()
 - `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are included. (default: `['.', 'src']`)
 - `$excludeDirs` (array): Directory names to exclude **within** the scanned directories during recursive scanning
 - `$cache` (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance
-- `$namePatterns` (array): Optional list of Finder->name() compatible patterns to match against file names
+- `$namePatterns` (array): Optional list of Finder->name() compatible patterns to match against file names (default: `['*.php']`)
 
 **Basic Discovery (scans current directory and `src/`):**
 ```php
