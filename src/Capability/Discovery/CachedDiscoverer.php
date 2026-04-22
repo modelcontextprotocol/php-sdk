@@ -42,7 +42,7 @@ final class CachedDiscoverer implements DiscovererInterface
      * @param array<string> $directories list of directories (relative to base path) to scan
      * @param array<string> $excludeDirs list of directories (relative to base path) to exclude from the scan
      */
-    public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
+    public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = ['*.php']): DiscoveryState
     {
         $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs);
 
@@ -63,7 +63,7 @@ final class CachedDiscoverer implements DiscovererInterface
             'directories' => $directories,
         ]);
 
-        $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs);
+        $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs, $namePatterns);
 
         $this->cache->set($cacheKey, $discoveryState);
 

@@ -69,7 +69,7 @@ final class Discoverer implements DiscovererInterface
      * @param array<string> $directories list of directories (relative to base path) to scan
      * @param array<string> $excludeDirs list of directories (relative to base path) to exclude from the scan
      */
-    public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
+    public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = ['*.php']): DiscoveryState
     {
         $startTime = microtime(true);
         $discoveredCount = [
@@ -106,7 +106,7 @@ final class Discoverer implements DiscovererInterface
             $finder->files()
                 ->in($absolutePaths)
                 ->exclude($excludeDirs)
-                ->name('*.php');
+                ->name($namePatterns);
 
             foreach ($finder as $file) {
                 $this->processFile($file, $discoveredCount, $tools, $resources, $prompts, $resourceTemplates);

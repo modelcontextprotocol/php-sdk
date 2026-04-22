@@ -159,6 +159,11 @@ final class Builder
      */
     private array $discoveryExcludeDirs = [];
 
+    /**
+     * @var array|string[]
+     */
+    private array $discoveryNamePatterns = ['*.php'];
+
     private ?ServerCapabilities $serverCapabilities = null;
 
     /**
@@ -353,11 +358,13 @@ final class Builder
         array $scanDirs = ['.', 'src'],
         array $excludeDirs = [],
         ?CacheInterface $cache = null,
+        array $namePatterns = ['*.php'],
     ): self {
         $this->discoveryBasePath = $basePath;
         $this->discoveryScanDirs = $scanDirs;
         $this->discoveryExcludeDirs = $excludeDirs;
         $this->discoveryCache = $cache;
+        $this->discoveryNamePatterns = $namePatterns;
 
         return $this;
     }
@@ -527,7 +534,7 @@ final class Builder
         if (null !== $this->discoveryBasePath) {
             if (null !== $this->discoverer || class_exists(Finder::class)) {
                 $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
-                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer);
+                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns);
             } else {
                 $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
             }
