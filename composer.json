@@ -80,7 +80,10 @@
       "Mcp\\Example\\Server\\OAuthMicrosoft\\": "examples/server/oauth-microsoft/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
       "Mcp\\Tests\\": "tests/"
-    }
+    },
+    "classmap": [
+      "tests/Unit/Capability/Discovery/Fixtures/AlternativeFileNameToolHandler.class.inc"
+    ]
   },
   "config": {
     "allow-plugins": {

@@ -99,8 +99,9 @@ $server = Server::builder()
     ->setDiscovery(
         basePath: __DIR__,
         scanDirs: ['.', 'src', 'lib'],           // Where to look for MCP attributes
-        excludeDirs: ['vendor', 'tests'],        // Where NOT to look 
-        cache: $cacheInstance                    // Optional: cache discovered elements
+        excludeDirs: ['vendor', 'tests'],        // Where NOT to look
+        cache: $cacheInstance,                   // Optional: cache discovered elements
+        namePatterns: ['*.php', '*.inc'],         // Optional: list of filename patterns to match
     );
 ```
 
@@ -109,6 +110,7 @@ $server = Server::builder()
 - `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are included. (default: `['.', 'src']`)
 - `$excludeDirs` (array): Directory names to exclude **within** the scanned directories during recursive scanning
 - `$cache` (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance
+- `$namePatterns` (array): Optional list of Finder->name() compatible patterns to match against file names (default: `['*.php']`)
 
 **Basic Discovery (scans current directory and `src/`):**
 ```php
@@ -137,7 +139,7 @@ $server = Server::builder()
 
 **How `excludeDirs` works:**
 - If scanning `src/` and there's `src/vendor/`, it will be excluded
-- If scanning `lib/` and there's `lib/tests/`, it will be excluded  
+- If scanning `lib/` and there's `lib/tests/`, it will be excluded
 - But if `vendor/` and `tests/` are at the same level as `src/`, they're not scanned anyway (not in `scanDirs`)
 
 > **Performance**: Always use a cache in production. The first run scans and caches all discovered MCP elements, making
@@ -255,19 +257,19 @@ $server = Server::builder()
         name: 'add_numbers',
         description: 'Adds two numbers together'
     )
-    
+
     // Using class method pair
     ->addTool(
         handler: [Calculator::class, 'multiply'],
         name: 'multiply_numbers'
         // name and description are optional - derived from method name and docblock
     )
-    
+
     // Using instance method
     ->addTool(
         handler: [$calculatorInstance, 'divide']
     )
-    
+
     // Using invokable class
     ->addTool(
         handler: InvokableCalculator::class
@@ -420,17 +422,17 @@ $server = Server::builder()
 individual JSON-RPC messages. They do not receive the builder's registry, container, or discovery output unless you pass
 those dependencies in yourself.
 
-> **Warning**: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless 
+> **Warning**: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless
 > you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
-> loads and executes them manually. Reach for this API only when you need that level of control and are comfortable 
+> loads and executes them manually. Reach for this API only when you need that level of control and are comfortable
 > taking on the additional plumbing.
 
 ### Request Handlers
 
-Handle JSON-RPC requests (messages with an `id` that expect a response). Request handlers **must** return either a 
+Handle JSON-RPC requests (messages with an `id` that expect a response). Request handlers **must** return either a
 `Response` or an `Error` object.
 
-Attach request handlers with `addRequestHandler()` (single) or `addRequestHandlers()` (multiple). You can call these 
+Attach request handlers with `addRequestHandler()` (single) or `addRequestHandlers()` (multiple). You can call these
 methods as many times as needed; each call prepends the handlers so they execute before the defaults:
 
 ```php
@@ -507,7 +509,7 @@ interface NotificationHandlerInterface
 
 ### Example
 
-Check out `examples/custom-method-handlers/server.php` for a complete example showing how to implement 
+Check out `examples/custom-method-handlers/server.php` for a complete example showing how to implement
 custom `tools/list` and `tools/call` request handlers independently of the registry.
 
 ## Complete Example
@@ -539,25 +541,25 @@ $container->set(DatabaseService::class, new DatabaseService($container->get(\PDO
 $server = Server::builder()
     // Server identity
     ->setServerInfo('Advanced Calculator', '2.1.0')
-    
+
     // Performance and behavior
     ->setPaginationLimit(100)
     ->setInstructions('Use calculate tool for math operations. Check config resource for current settings.')
-    
+
     // Discovery with caching
     ->setDiscovery(__DIR__, ['src'], ['vendor', 'tests'], $cache)
-    
+
     // Session management
     ->setSession($sessionStore)
-    
+
     // Services
     ->setLogger($logger)
     ->setContainer($container)
-    
+
     // Manual capability registration
     ->addTool([Calculator::class, 'advancedCalculation'], 'advanced_calc')
     ->addResource([Config::class, 'getSettings'], 'config://app/settings', 'app_settings')
-    
+
     // Build the server
     ->build();
 ```

@@ -24,18 +24,20 @@ final class DiscoveryLoader implements LoaderInterface
     /**
      * @param string[]       $scanDirs
      * @param array|string[] $excludeDirs
+     * @param string[]|null  $namePatterns
      */
     public function __construct(
         private string $basePath,
         private array $scanDirs,
         private array $excludeDirs,
         private DiscovererInterface $discoverer,
+        private ?array $namePatterns = null,
     ) {
     }
 
     public function load(RegistryInterface $registry): void
     {
-        $discoveryState = $this->discoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs);
+        $discoveryState = $this->discoverer->discover($this->basePath, $this->scanDirs, $this->excludeDirs, $this->namePatterns);
 
         $registry->setDiscoveryState($discoveryState);
     }
