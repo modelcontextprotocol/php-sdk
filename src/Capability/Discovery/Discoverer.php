@@ -103,6 +103,14 @@ final class Discoverer implements DiscovererInterface
                 return new DiscoveryState();
             }
 
+            if (empty($namePatterns)) {
+                $this->logger->warning('No valid file name patterns found to scan.', [
+                    'configured_name_patterns' => $namePatterns
+                ]);
+
+                return new DiscoveryState();
+            }
+
             $finder->files()
                 ->in($absolutePaths)
                 ->exclude($excludeDirs)
