@@ -37,6 +37,9 @@ use Mcp\Server;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RunTimePromptHandlerInterface;
+use Mcp\Server\Handler\RunTimeResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\RunTimeToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -401,15 +404,15 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param callable|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
-     * @param ?string                                                                    $title        Optional human-readable title for display in UI
-     * @param array<string, mixed>|null                                                  $inputSchema
-     * @param ?Icon[]                                                                    $icons
-     * @param array<string, mixed>|null                                                  $meta
-     * @param array<string, mixed>|null                                                  $outputSchema
+     * @param callable|array{0: object|string, 1: string}|string|RunTimeToolHandlerInterface $handler
+     * @param ?string                                                                        $title        Optional human-readable title for display in UI
+     * @param array<string, mixed>|null                                                      $inputSchema
+     * @param ?Icon[]                                                                        $icons
+     * @param array<string, mixed>|null                                                      $meta
+     * @param array<string, mixed>|null                                                      $outputSchema
      */
     public function addTool(
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RunTimeToolHandlerInterface $handler,
         ?string $name = null,
         ?string $title = null,
         ?string $description = null,
@@ -473,12 +476,12 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
-     * @param ?string                                                                    $title   Optional human-readable title for display in UI
-     * @param array<string, mixed>|null                                                  $meta
+     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeResourceTemplateHandlerInterface $handler
+     * @param ?string                                                                                    $title   Optional human-readable title for display in UI
+     * @param array<string, mixed>|null                                                                  $meta
      */
     public function addResourceTemplate(
-        \Closure|array|string|RunTimeHandlerInterface $handler,
+        \Closure|array|string|RunTimeResourceTemplateHandlerInterface $handler,
         string $uriTemplate,
         ?string $name = null,
         ?string $title = null,
@@ -504,12 +507,12 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
-     * @param ?Icon[]                                                                    $icons
-     * @param array<string, mixed>|null                                                  $meta
+     * @param \Closure|array{0: object|string, 1: string}|string|RunTimePromptHandlerInterface $handler
+     * @param ?Icon[]                                                                          $icons
+     * @param array<string, mixed>|null                                                        $meta
      */
     public function addPrompt(
-        \Closure|array|string|RunTimeHandlerInterface $handler,
+        \Closure|array|string|RunTimePromptHandlerInterface $handler,
         ?string $name = null,
         ?string $title = null,
         ?string $description = null,
