@@ -16,6 +16,7 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RunTimeHandlerTrait;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -28,6 +29,8 @@ final class ReferenceHandlerTest extends TestCase
         $session->method('getId')->willReturn(Uuid::v7());
 
         $runtimeHandler = new class implements RunTimeHandlerInterface {
+            use RunTimeHandlerTrait;
+
             /** @var array<string, mixed>|null */
             public ?array $filteredFrom = null;
             /** @var array<string, mixed>|null */
@@ -74,6 +77,8 @@ final class ReferenceHandlerTest extends TestCase
         $session->method('getId')->willReturn(Uuid::v7());
 
         $runtimeHandler = new class implements RunTimeHandlerInterface {
+            use RunTimeHandlerTrait;
+
             public bool $executed = false;
 
             public function __invoke(): string
