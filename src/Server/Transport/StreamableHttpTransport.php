@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -32,36 +33,22 @@ class StreamableHttpTransport extends BaseTransport
 {
     private const SESSION_HEADER = 'Mcp-Session-Id';
 
-    private const ALLOWED_HEADER = [
-        'Accept',
-        'Authorization',
-        'Content-Type',
-        'Last-Event-ID',
-        'Mcp-Protocol-Version',
-        self::SESSION_HEADER,
-    ];
-
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
-    /** @var array<string, string> */
-    private array $corsHeaders;
-
     /** @var list<MiddlewareInterface> */
     private array $middleware = [];
 
     /**
-     * @param array<string, string>         $corsHeaders
      * @param iterable<MiddlewareInterface> $middleware
      */
     public function __construct(
         private ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
-        array $corsHeaders = [],
         ?LoggerInterface $logger = null,
         iterable $middleware = [],
     ) {
@@ -70,18 +57,20 @@ class StreamableHttpTransport extends BaseTransport
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
-        $this->corsHeaders = array_merge([
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => implode(',', self::ALLOWED_HEADER),
-            'Access-Control-Expose-Headers' => self::SESSION_HEADER,
-        ], $corsHeaders);
+        $hasCorsMiddleware = false;
 
         foreach ($middleware as $m) {
             if (!$m instanceof MiddlewareInterface) {
                 throw new InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
             }
+            if ($m instanceof CorsMiddleware) {
+                $hasCorsMiddleware = true;
+            }
             $this->middleware[] = $m;
+        }
+
+        if (!$hasCorsMiddleware) {
+            array_unshift($this->middleware, new CorsMiddleware());
         }
     }
 
@@ -98,7 +87,7 @@ class StreamableHttpTransport extends BaseTransport
             \Closure::fromCallable([$this, 'handleRequest']),
         );
 
-        return $this->withCorsHeaders($handler->handle($this->request));
+        return $handler->handle($this->request);
     }
 
     protected function handleOptionsRequest(): ResponseInterface
@@ -268,17 +257,6 @@ class StreamableHttpTransport extends BaseTransport
 
         if (405 === $statusCode) {
             $response = $response->withHeader('Allow', 'POST, DELETE, OPTIONS');
-        }
-
-        return $response;
-    }
-
-    protected function withCorsHeaders(ResponseInterface $response): ResponseInterface
-    {
-        foreach ($this->corsHeaders as $name => $value) {
-            if (!$response->hasHeader($name)) {
-                $response = $response->withHeader($name, $value);
-            }
         }
 
         return $response;
