@@ -104,6 +104,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -164,7 +168,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">46</span>
+    <span class="phpdocumentor-element-found-in__line">45</span>
 
     </aside>
 
@@ -324,15 +328,9 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Protocol.html#property_sessionFactory">$sessionFactory</a>
+    <a class="" href="classes/Mcp-Server-Protocol.html#property_sessionManager">$sessionManager</a>
     <span>
-                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>            </span>
-</dt>
-
-            <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Protocol.html#property_sessionStore">$sessionStore</a>
-    <span>
-                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>            </span>
+                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>            </span>
 </dt>
 
     </dl>
@@ -419,13 +417,6 @@
 <dd>Dispatches an event through the event dispatcher if available.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -private">
-    <a class="" href="classes/Mcp-Server-Protocol.html#method_gcSessions">gcSessions()</a>
-    <span>
-                                &nbsp;: void    </span>
-</dt>
-<dd>Run garbage collection on expired sessions.</dd>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -private">
     <a class="" href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage">handleInvalidMessage()</a>
     <span>
                                 &nbsp;: void    </span>
@@ -499,7 +490,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">60</span>
 
     </aside>
 
@@ -530,7 +521,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">63</span>
+    <span class="phpdocumentor-element-found-in__line">62</span>
 
     </aside>
 
@@ -560,7 +551,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">58</span>
+    <span class="phpdocumentor-element-found-in__line">57</span>
 
     </aside>
 
@@ -591,7 +582,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">52</span>
+    <span class="phpdocumentor-element-found-in__line">51</span>
 
     </aside>
 
@@ -622,7 +613,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">49</span>
+    <span class="phpdocumentor-element-found-in__line">48</span>
 
     </aside>
 
@@ -653,7 +644,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">55</span>
+    <span class="phpdocumentor-element-found-in__line">54</span>
 
     </aside>
 
@@ -700,7 +691,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">76</span>
+    <span class="phpdocumentor-element-found-in__line">74</span>
 
     </aside>
 
@@ -737,7 +728,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">75</span>
+    <span class="phpdocumentor-element-found-in__line">73</span>
 
     </aside>
 
@@ -774,7 +765,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">72</span>
+    <span class="phpdocumentor-element-found-in__line">71</span>
 
     </aside>
 
@@ -811,7 +802,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">71</span>
+    <span class="phpdocumentor-element-found-in__line">70</span>
 
     </aside>
 
@@ -848,7 +839,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">70</span>
+    <span class="phpdocumentor-element-found-in__line">69</span>
 
     </aside>
 
@@ -875,9 +866,9 @@
             -private
                                                 -read-only                    "
 >
-    <h4 class="phpdocumentor-element__name" id="property_sessionFactory">
-        $sessionFactory
-        <a href="classes/Mcp-Server-Protocol.html#property_sessionFactory" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="property_sessionManager">
+        $sessionManager
+        <a href="classes/Mcp-Server-Protocol.html#property_sessionManager" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                         <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
@@ -885,7 +876,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">73</span>
+    <span class="phpdocumentor-element-found-in__line">72</span>
 
     </aside>
 
@@ -893,45 +884,8 @@
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a></span>
-    <span class="phpdocumentor-signature__name">$sessionFactory</span>
-    </code>
-
-    
-    
-    
-
-        
-        
-
-</article>
-                    <article
-        class="
-            phpdocumentor-element
-            -property
-            -private
-                                                -read-only                    "
->
-    <h4 class="phpdocumentor-element__name" id="property_sessionStore">
-        $sessionStore
-        <a href="classes/Mcp-Server-Protocol.html#property_sessionStore" class="headerlink"><i class="fas fa-link"></i></a>
-
-        <span class="phpdocumentor-element__modifiers">
-                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">74</span>
-
-    </aside>
-
-    
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-        <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
-    <span class="phpdocumentor-signature__name">$sessionStore</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a></span>
+    <span class="phpdocumentor-signature__name">$sessionManager</span>
     </code>
 
     
@@ -964,14 +918,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">69</span>
+    <span class="phpdocumentor-element-found-in__line">68</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Notification-NotificationHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Notification\NotificationHandlerInterface">NotificationHandlerInterface</abbr></a>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$notificationHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$messageFactory</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionFactory</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionStore</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$eventDispatcher</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-JsonRpc-ResultInterface.html"><abbr title="\Mcp\Schema\JsonRpc\ResultInterface">ResultInterface</abbr></a>|array&lt;string, mixed&gt;&gt;&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;int, <a href="classes/Mcp-Server-Handler-Notification-NotificationHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Notification\NotificationHandlerInterface">NotificationHandlerInterface</abbr></a>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$notificationHandlers</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-JsonRpc-MessageFactory.html"><abbr title="\Mcp\JsonRpc\MessageFactory">MessageFactory</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$messageFactory</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionManager</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$eventDispatcher</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -1001,15 +955,8 @@
                 
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$sessionFactory</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$sessionStore</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
+                <span class="phpdocumentor-argument-list__argument__name">$sessionManager</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a></span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
@@ -1050,7 +997,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">430</span>
+    <span class="phpdocumentor-element-found-in__line">428</span>
 
     </aside>
 
@@ -1105,7 +1052,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">87</span>
+    <span class="phpdocumentor-element-found-in__line">85</span>
 
     </aside>
 
@@ -1152,7 +1099,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">411</span>
+    <span class="phpdocumentor-element-found-in__line">409</span>
 
     </aside>
 
@@ -1201,7 +1148,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">634</span>
+    <span class="phpdocumentor-element-found-in__line">613</span>
 
     </aside>
 
@@ -1246,7 +1193,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">472</span>
+    <span class="phpdocumentor-element-found-in__line">470</span>
 
     </aside>
 
@@ -1299,7 +1246,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">484</span>
+    <span class="phpdocumentor-element-found-in__line">482</span>
 
     </aside>
 
@@ -1351,7 +1298,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">111</span>
+    <span class="phpdocumentor-element-found-in__line">109</span>
 
     </aside>
 
@@ -1412,7 +1359,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">329</span>
+    <span class="phpdocumentor-element-found-in__line">327</span>
 
     </aside>
 
@@ -1464,7 +1411,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">300</span>
+    <span class="phpdocumentor-element-found-in__line">298</span>
 
     </aside>
 
@@ -1527,7 +1474,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">169</span>
+    <span class="phpdocumentor-element-found-in__line">167</span>
 
     </aside>
 
@@ -1568,43 +1515,6 @@
             -private
                                                         "
 >
-    <h4 class="phpdocumentor-element__name" id="method_gcSessions">
-        gcSessions()
-        <a href="classes/Mcp-Server-Protocol.html#method_gcSessions" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">616</span>
-
-    </aside>
-
-        <p class="phpdocumentor-summary">Run garbage collection on expired sessions.</p>
-
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">private</span>
-                    <span class="phpdocumentor-signature__name">gcSessions</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-        <section class="phpdocumentor-description"><p>Uses the session store's internal TTL configuration.</p>
-</section>
-
-    
-    
-
-        
-    
-    
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -private
-                                                        "
->
     <h4 class="phpdocumentor-element__name" id="method_handleInvalidMessage">
         handleInvalidMessage()
         <a href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1613,7 +1523,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">152</span>
+    <span class="phpdocumentor-element-found-in__line">150</span>
 
     </aside>
 
@@ -1672,7 +1582,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">277</span>
+    <span class="phpdocumentor-element-found-in__line">275</span>
 
     </aside>
 
@@ -1723,7 +1633,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">179</span>
+    <span class="phpdocumentor-element-found-in__line">177</span>
 
     </aside>
 
@@ -1782,7 +1692,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">263</span>
+    <span class="phpdocumentor-element-found-in__line">261</span>
 
     </aside>
 
@@ -1833,7 +1743,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">548</span>
+    <span class="phpdocumentor-element-found-in__line">546</span>
 
     </aside>
 
@@ -1881,7 +1791,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">386</span>
+    <span class="phpdocumentor-element-found-in__line">384</span>
 
     </aside>
 
@@ -1940,7 +1850,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">566</span>
+    <span class="phpdocumentor-element-found-in__line">564</span>
 
     </aside>
 
@@ -2007,7 +1917,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Protocol.php"><a href="files/src-server-protocol.html"><abbr title="src/Server/Protocol.php">Protocol.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">345</span>
+    <span class="phpdocumentor-element-found-in__line">343</span>
 
     </aside>
 
@@ -2191,8 +2101,7 @@
                                                     <li class=""><a href="classes/Mcp-Server-Protocol.html#property_messageFactory">$messageFactory</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Protocol.html#property_notificationHandlers">$notificationHandlers</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Protocol.html#property_requestHandlers">$requestHandlers</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_sessionFactory">$sessionFactory</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_sessionStore">$sessionStore</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Protocol.html#property_sessionManager">$sessionManager</a></li>
                                             </ul>
                 </li>
             
@@ -2210,7 +2119,6 @@
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_sendNotification">sendNotification()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_sendRequest">sendRequest()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_dispatchEvent">dispatchEvent()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Protocol.html#method_gcSessions">gcSessions()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleInvalidMessage">handleInvalidMessage()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleNotification">handleNotification()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Protocol.html#method_handleRequest">handleRequest()</a></li>

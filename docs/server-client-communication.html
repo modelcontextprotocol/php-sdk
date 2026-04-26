@@ -105,6 +105,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -187,7 +191,7 @@ use Mcp\Server\RequestContext;
 
 class MyService
 {
-    #[McpTool(&#039;my_tool&#039;, &#039;My Tool Description&#039;)]
+    #[McpTool(name: &#039;my_tool&#039;, description: &#039;My Tool Description&#039;)]
     public function myTool(RequestContext $context): string
     {
         $context-&gt;getClientGateway()-&gt;log(...);

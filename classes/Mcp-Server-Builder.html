@@ -104,6 +104,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -166,7 +170,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">53</span>
+    <span class="phpdocumentor-element-found-in__line">56</span>
 
     </aside>
 
@@ -307,6 +311,12 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Builder.html#property_referenceHandler">$referenceHandler</a>
+    <span>
+                        &nbsp;: <a href="classes/Mcp-Capability-Registry-ReferenceHandlerInterface.html"><abbr title="\Mcp\Capability\Registry\ReferenceHandlerInterface">ReferenceHandlerInterface</abbr></a>|null            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-Server-Builder.html#property_registry">$registry</a>
     <span>
                         &nbsp;: <a href="classes/Mcp-Capability-RegistryInterface.html"><abbr title="\Mcp\Capability\RegistryInterface">RegistryInterface</abbr></a>            </span>
@@ -349,21 +359,15 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Builder.html#property_sessionFactory">$sessionFactory</a>
+    <a class="" href="classes/Mcp-Server-Builder.html#property_sessionManager">$sessionManager</a>
     <span>
-                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>|null            </span>
+                        &nbsp;: <a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>|null            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-Server-Builder.html#property_sessionStore">$sessionStore</a>
     <span>
                         &nbsp;: <a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>|null            </span>
-</dt>
-
-            <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Builder.html#property_sessionTtl">$sessionTtl</a>
-    <span>
-                        &nbsp;: int            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
@@ -375,7 +379,7 @@
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-Server-Builder.html#property_tools">$tools</a>
     <span>
-                        &nbsp;: array&lt;string|int, <abbr title="array{handler: \Mcp\Server\Handler, name: ?string, description: ?string, annotations: ?\Mcp\Schema\ToolAnnotations, icons: ?\Mcp\Schema\Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}">Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}</abbr>&gt;            </span>
+                        &nbsp;: array&lt;string|int, <abbr title="array{handler: \Mcp\Server\Handler, name: ?string, title: ?string, description: ?string, annotations: ?\Mcp\Schema\ToolAnnotations, icons: ?\Mcp\Schema\Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}">Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}</abbr>&gt;            </span>
 </dt>
 
     </dl>
@@ -522,6 +526,12 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Builder.html#method_setReferenceHandler">setReferenceHandler()</a>
+    <span>
+                                &nbsp;: self    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Server-Builder.html#method_setRegistry">setRegistry()</a>
     <span>
                                 &nbsp;: self    </span>
@@ -588,7 +598,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">67</span>
+    <span class="phpdocumentor-element-found-in__line">70</span>
 
     </aside>
 
@@ -625,7 +635,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">71</span>
+    <span class="phpdocumentor-element-found-in__line">76</span>
 
     </aside>
 
@@ -662,7 +672,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">147</span>
+    <span class="phpdocumentor-element-found-in__line">151</span>
 
     </aside>
 
@@ -699,7 +709,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">63</span>
+    <span class="phpdocumentor-element-found-in__line">66</span>
 
     </aside>
 
@@ -736,7 +746,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">157</span>
+    <span class="phpdocumentor-element-found-in__line">161</span>
 
     </aside>
 
@@ -773,7 +783,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">152</span>
+    <span class="phpdocumentor-element-found-in__line">156</span>
 
     </aside>
 
@@ -810,7 +820,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">65</span>
+    <span class="phpdocumentor-element-found-in__line">68</span>
 
     </aside>
 
@@ -847,7 +857,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">81</span>
+    <span class="phpdocumentor-element-found-in__line">84</span>
 
     </aside>
 
@@ -884,7 +894,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">164</span>
+    <span class="phpdocumentor-element-found-in__line">168</span>
 
     </aside>
 
@@ -921,7 +931,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">64</span>
 
     </aside>
 
@@ -958,7 +968,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">93</span>
+    <span class="phpdocumentor-element-found-in__line">96</span>
 
     </aside>
 
@@ -995,7 +1005,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">79</span>
+    <span class="phpdocumentor-element-found-in__line">82</span>
 
     </aside>
 
@@ -1032,7 +1042,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">145</span>
+    <span class="phpdocumentor-element-found-in__line">149</span>
 
     </aside>
 
@@ -1069,7 +1079,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">83</span>
+    <span class="phpdocumentor-element-found-in__line">86</span>
 
     </aside>
 
@@ -1079,6 +1089,43 @@
         <span class="phpdocumentor-signature__visibility">private</span>
             <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Schema-Enum-ProtocolVersion.html"><abbr title="\Mcp\Schema\Enum\ProtocolVersion">ProtocolVersion</abbr></a>|null</span>
     <span class="phpdocumentor-signature__name">$protocolVersion</span>
+     = <span class="phpdocumentor-signature__default-value">null</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_referenceHandler">
+        $referenceHandler
+        <a href="classes/Mcp-Server-Builder.html#property_referenceHandler" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                                            </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">74</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Capability-Registry-ReferenceHandlerInterface.html"><abbr title="\Mcp\Capability\Registry\ReferenceHandlerInterface">ReferenceHandlerInterface</abbr></a>|null</span>
+    <span class="phpdocumentor-signature__name">$referenceHandler</span>
      = <span class="phpdocumentor-signature__default-value">null</span></code>
 
     
@@ -1106,7 +1153,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">57</span>
+    <span class="phpdocumentor-element-found-in__line">60</span>
 
     </aside>
 
@@ -1143,7 +1190,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">88</span>
+    <span class="phpdocumentor-element-found-in__line">91</span>
 
     </aside>
 
@@ -1180,7 +1227,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">121</span>
+    <span class="phpdocumentor-element-found-in__line">125</span>
 
     </aside>
 
@@ -1217,7 +1264,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">134</span>
+    <span class="phpdocumentor-element-found-in__line">138</span>
 
     </aside>
 
@@ -1254,7 +1301,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">69</span>
+    <span class="phpdocumentor-element-found-in__line">72</span>
 
     </aside>
 
@@ -1291,7 +1338,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">159</span>
+    <span class="phpdocumentor-element-found-in__line">163</span>
 
     </aside>
 
@@ -1328,7 +1375,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">55</span>
+    <span class="phpdocumentor-element-found-in__line">58</span>
 
     </aside>
 
@@ -1355,9 +1402,9 @@
             -private
                                                                     "
 >
-    <h4 class="phpdocumentor-element__name" id="property_sessionFactory">
-        $sessionFactory
-        <a href="classes/Mcp-Server-Builder.html#property_sessionFactory" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="property_sessionManager">
+        $sessionManager
+        <a href="classes/Mcp-Server-Builder.html#property_sessionManager" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                                             </span>
@@ -1365,7 +1412,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">73</span>
+    <span class="phpdocumentor-element-found-in__line">78</span>
 
     </aside>
 
@@ -1373,8 +1420,8 @@
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>|null</span>
-    <span class="phpdocumentor-signature__name">$sessionFactory</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>|null</span>
+    <span class="phpdocumentor-signature__name">$sessionManager</span>
      = <span class="phpdocumentor-signature__default-value">null</span></code>
 
     
@@ -1402,7 +1449,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">75</span>
+    <span class="phpdocumentor-element-found-in__line">80</span>
 
     </aside>
 
@@ -1429,43 +1476,6 @@
             -private
                                                                     "
 >
-    <h4 class="phpdocumentor-element__name" id="property_sessionTtl">
-        $sessionTtl
-        <a href="classes/Mcp-Server-Builder.html#property_sessionTtl" class="headerlink"><i class="fas fa-link"></i></a>
-
-        <span class="phpdocumentor-element__modifiers">
-                                            </span>
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">77</span>
-
-    </aside>
-
-    
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-        <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type">int</span>
-    <span class="phpdocumentor-signature__name">$sessionTtl</span>
-     = <span class="phpdocumentor-signature__default-value">3600</span></code>
-
-    
-    
-    
-
-        
-        
-
-</article>
-                    <article
-        class="
-            phpdocumentor-element
-            -property
-            -private
-                                                                    "
->
     <h4 class="phpdocumentor-element__name" id="property_subscriptionManager">
         $subscriptionManager
         <a href="classes/Mcp-Server-Builder.html#property_subscriptionManager" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1476,7 +1486,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">59</span>
+    <span class="phpdocumentor-element-found-in__line">62</span>
 
     </aside>
 
@@ -1513,7 +1523,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">106</span>
+    <span class="phpdocumentor-element-found-in__line">110</span>
 
     </aside>
 
@@ -1521,7 +1531,7 @@
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type">array&lt;string|int, <abbr title="array{handler: \Mcp\Server\Handler, name: ?string, description: ?string, annotations: ?\Mcp\Schema\ToolAnnotations, icons: ?\Mcp\Schema\Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}">Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}</abbr>&gt;</span>
+            <span class="phpdocumentor-signature__type">array&lt;string|int, <abbr title="array{handler: \Mcp\Server\Handler, name: ?string, title: ?string, description: ?string, annotations: ?\Mcp\Schema\ToolAnnotations, icons: ?\Mcp\Schema\Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}">Icon[], meta: ?array<string,mixed>, outputSchema: ?array<string,mixed>}</abbr>&gt;</span>
     <span class="phpdocumentor-signature__name">$tools</span>
      = <span class="phpdocumentor-signature__default-value">[]</span></code>
 
@@ -1555,7 +1565,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">476</span>
+    <span class="phpdocumentor-element-found-in__line">493</span>
 
     </aside>
 
@@ -1604,7 +1614,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">486</span>
+    <span class="phpdocumentor-element-found-in__line">503</span>
 
     </aside>
 
@@ -1652,7 +1662,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">246</span>
+    <span class="phpdocumentor-element-found-in__line">250</span>
 
     </aside>
 
@@ -1701,7 +1711,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">258</span>
+    <span class="phpdocumentor-element-found-in__line">262</span>
 
     </aside>
 
@@ -1750,7 +1760,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">461</span>
+    <span class="phpdocumentor-element-found-in__line">477</span>
 
     </aside>
 
@@ -1758,7 +1768,7 @@
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">addPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\Handler">Handler</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, <a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a>&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$icons</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
+                    <span class="phpdocumentor-signature__name">addPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\Handler">Handler</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$title</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, <a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a>&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$icons</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -1775,6 +1785,13 @@
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$title</span>
                 : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
@@ -1827,7 +1844,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">222</span>
+    <span class="phpdocumentor-element-found-in__line">226</span>
 
     </aside>
 
@@ -1876,7 +1893,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">234</span>
+    <span class="phpdocumentor-element-found-in__line">238</span>
 
     </aside>
 
@@ -1925,7 +1942,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">400</span>
+    <span class="phpdocumentor-element-found-in__line">416</span>
 
     </aside>
 
@@ -2030,7 +2047,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">432</span>
+    <span class="phpdocumentor-element-found-in__line">448</span>
 
     </aside>
 
@@ -2121,7 +2138,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">369</span>
+    <span class="phpdocumentor-element-found-in__line">383</span>
 
     </aside>
 
@@ -2129,7 +2146,7 @@
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">addTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\Handler">Handler</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-ToolAnnotations.html"><abbr title="\Mcp\Schema\ToolAnnotations">ToolAnnotations</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$annotations</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$inputSchema</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, <a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a>&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$icons</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$outputSchema</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
+                    <span class="phpdocumentor-signature__name">addTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Server\Handler">Handler</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$title</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-ToolAnnotations.html"><abbr title="\Mcp\Schema\ToolAnnotations">ToolAnnotations</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$annotations</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$inputSchema</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, <a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a>&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$icons</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$outputSchema</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -2150,6 +2167,15 @@
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$title</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>Optional human-readable title for display in UI</p>
+</section>
+
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$description</span>
@@ -2219,7 +2245,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">498</span>
+    <span class="phpdocumentor-element-found-in__line">515</span>
 
     </aside>
 
@@ -2258,7 +2284,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">210</span>
+    <span class="phpdocumentor-element-found-in__line">214</span>
 
     </aside>
 
@@ -2307,7 +2333,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">295</span>
+    <span class="phpdocumentor-element-found-in__line">299</span>
 
     </aside>
 
@@ -2358,7 +2384,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">309</span>
+    <span class="phpdocumentor-element-found-in__line">320</span>
 
     </aside>
 
@@ -2406,7 +2432,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">339</span>
+    <span class="phpdocumentor-element-found-in__line">352</span>
 
     </aside>
 
@@ -2475,7 +2501,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">284</span>
+    <span class="phpdocumentor-element-found-in__line">288</span>
 
     </aside>
 
@@ -2523,7 +2549,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">200</span>
+    <span class="phpdocumentor-element-found-in__line">204</span>
 
     </aside>
 
@@ -2576,7 +2602,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">277</span>
+    <span class="phpdocumentor-element-found-in__line">281</span>
 
     </aside>
 
@@ -2625,7 +2651,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">186</span>
+    <span class="phpdocumentor-element-found-in__line">190</span>
 
     </aside>
 
@@ -2674,7 +2700,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">353</span>
+    <span class="phpdocumentor-element-found-in__line">366</span>
 
     </aside>
 
@@ -2714,6 +2740,54 @@ be added to the system prompt.</p>
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_setReferenceHandler">
+        setReferenceHandler()
+        <a href="classes/Mcp-Server-Builder.html#method_setReferenceHandler" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">313</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">setReferenceHandler</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-Registry-ReferenceHandlerInterface.html"><abbr title="\Mcp\Capability\Registry\ReferenceHandlerInterface">ReferenceHandlerInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$referenceHandler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$referenceHandler</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Capability-Registry-ReferenceHandlerInterface.html"><abbr title="\Mcp\Capability\Registry\ReferenceHandlerInterface">ReferenceHandlerInterface</abbr></a></span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">self</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_setRegistry">
         setRegistry()
         <a href="classes/Mcp-Server-Builder.html#method_setRegistry" class="headerlink"><i class="fas fa-link"></i></a>
@@ -2722,7 +2796,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">267</span>
+    <span class="phpdocumentor-element-found-in__line">271</span>
 
     </aside>
 
@@ -2770,7 +2844,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">316</span>
+    <span class="phpdocumentor-element-found-in__line">327</span>
 
     </aside>
 
@@ -2818,7 +2892,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">302</span>
+    <span class="phpdocumentor-element-found-in__line">306</span>
 
     </aside>
 
@@ -2866,7 +2940,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">171</span>
+    <span class="phpdocumentor-element-found-in__line">175</span>
 
     </aside>
 
@@ -2943,14 +3017,14 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">323</span>
+    <span class="phpdocumentor-element-found-in__line">334</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">setSession</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionStore</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <a href="classes/Mcp-Server-Session-SessionFactory.html"><abbr title="\Mcp\Server\Session\SessionFactory">SessionFactory</abbr></a>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$ttl</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">3600</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
+                    <span class="phpdocumentor-signature__name">setSession</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionStore</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$sessionManager</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -2960,22 +3034,15 @@ be added to the system prompt.</p>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$sessionStore</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
-                            </dt>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$sessionFactory</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html"><abbr title="\Mcp\Server\Session\SessionFactoryInterface">SessionFactoryInterface</abbr></a></span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">new <a href="classes/Mcp-Server-Session-SessionFactory.html"><abbr title="\Mcp\Server\Session\SessionFactory">SessionFactory</abbr></a>()</span>            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$ttl</span>
-                : <span class="phpdocumentor-argument-list__argument__type">int</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">3600</span>            </dt>
+                <span class="phpdocumentor-argument-list__argument__name">$sessionManager</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionManagerInterface.html"><abbr title="\Mcp\Server\Session\SessionManagerInterface">SessionManagerInterface</abbr></a>|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
@@ -3005,7 +3072,7 @@ be added to the system prompt.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Builder.php"><a href="files/src-server-builder.html"><abbr title="src/Server/Builder.php">Builder.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">573</span>
+    <span class="phpdocumentor-element-found-in__line">594</span>
 
     </aside>
 
@@ -3168,6 +3235,7 @@ be added to the system prompt.</p>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_paginationLimit">$paginationLimit</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_prompts">$prompts</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_protocolVersion">$protocolVersion</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Builder.html#property_referenceHandler">$referenceHandler</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_registry">$registry</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_requestHandlers">$requestHandlers</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_resources">$resources</a></li>
@@ -3175,9 +3243,8 @@ be added to the system prompt.</p>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_schemaGenerator">$schemaGenerator</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_serverCapabilities">$serverCapabilities</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_serverInfo">$serverInfo</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Builder.html#property_sessionFactory">$sessionFactory</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Builder.html#property_sessionManager">$sessionManager</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_sessionStore">$sessionStore</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Builder.html#property_sessionTtl">$sessionTtl</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_subscriptionManager">$subscriptionManager</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Builder.html#property_tools">$tools</a></li>
                                             </ul>
@@ -3206,6 +3273,7 @@ be added to the system prompt.</p>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setLogger">setLogger()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setPaginationLimit">setPaginationLimit()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setProtocolVersion">setProtocolVersion()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Builder.html#method_setReferenceHandler">setReferenceHandler()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setRegistry">setRegistry()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setResourceSubscriptionManager">setResourceSubscriptionManager()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Builder.html#method_setSchemaGenerator">setSchemaGenerator()</a></li>

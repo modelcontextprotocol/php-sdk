@@ -104,6 +104,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -144,212 +148,53 @@
                                 <section>
                                         <ul class="phpdocumentor-breadcrumbs">
             <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp.html">Mcp</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server.html">Server</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-session.html">Session</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-client.html">Client</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-client-handler.html">Handler</a></li>
     </ul>
 
-    <article class="phpdocumentor-element -interface">
-        <h2 class="phpdocumentor-content__title">
-    SessionFactoryInterface
-        </h2>
+    <article class="phpdocumentor-element -namespace">
+        <h2 class="phpdocumentor-content__title">Request</h2>
 
-        <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Session/SessionFactoryInterface.php"><a href="files/src-server-session-sessionfactoryinterface.html"><abbr title="src/Server/Session/SessionFactoryInterface.php">SessionFactoryInterface.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">22</span>
-
-    </aside>
-
-            <p class="phpdocumentor-summary">Factory interface for creating session instances.</p>
-
-
-    <section class="phpdocumentor-description"><p>This allows for different session implementations and custom initialization logic.</p>
-</section>
-
-
-    <h5 class="phpdocumentor-tag-list__heading" id="tags">
-        Tags
-        <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h5>
-    <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">author</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
-</section>
-
-                                    </dd>
-                                            </dl>
-
-    
-    
+        
 <h3 id="toc">
     Table of Contents
-    <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="namespaces/mcp-client-handler-request.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h3>
 
 
 
-
-
-
-
-
-
-
-<h4 id="toc-methods">
-    Methods
-    <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
-
-</h4>
-<dl class="phpdocumentor-table-of-contents">
-            <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_create">create()</a>
-    <span>
-                                &nbsp;: <a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>    </span>
-</dt>
-<dd>Creates a new session with an auto-generated UUID.</dd>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_createWithId">createWithId()</a>
-    <span>
-                                &nbsp;: <a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>    </span>
-</dt>
-<dd>Creates a session with a specific UUID.</dd>
-
-    </dl>
-
-
-
-
-        
-
-            <section class="phpdocumentor-methods">
-        <h3 class="phpdocumentor-elements__header" id="methods">
-            Methods
-            <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
-
-        </h3>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -public
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_create">
-        create()
-        <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_create" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 id="toc-interfaces">
+        Interfaces
+        <a href="namespaces/mcp-client-handler-request.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Session/SessionFactoryInterface.php"><a href="files/src-server-session-sessionfactoryinterface.html"><abbr title="src/Server/Session/SessionFactoryInterface.php">SessionFactoryInterface.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">28</span>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Client-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Client\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a></dt><dd>Interface for handling requests from the server.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Client-Handler-Request-SamplingCallbackInterface.html"><abbr title="\Mcp\Client\Handler\Request\SamplingCallbackInterface">SamplingCallbackInterface</abbr></a></dt><dd>Contract for callbacks used by SamplingRequestHandler.</dd>    </dl>
 
-    </aside>
-
-        <p class="phpdocumentor-summary">Creates a new session with an auto-generated UUID.</p>
-
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">create</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$store</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-        <section class="phpdocumentor-description"><p>This is the standard factory method for creating sessions.</p>
-</section>
-
-        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
-    <dl class="phpdocumentor-argument-list">
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$store</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-            </dl>
-
-    
-
-        
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
-            </section>
-
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -public
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_createWithId">
-        createWithId()
-        <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_createWithId" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 id="toc-classes">
+        Classes
+        <a href="namespaces/mcp-client-handler-request.html#toc-classes" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Session/SessionFactoryInterface.php"><a href="files/src-server-session-sessionfactoryinterface.html"><abbr title="src/Server/Session/SessionFactoryInterface.php">SessionFactoryInterface.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">34</span>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Client-Handler-Request-SamplingRequestHandler.html"><abbr title="\Mcp\Client\Handler\Request\SamplingRequestHandler">SamplingRequestHandler</abbr></a></dt><dd>Handler for sampling requests from the server.</dd>    </dl>
 
-    </aside>
 
-        <p class="phpdocumentor-summary">Creates a session with a specific UUID.</p>
 
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">createWithId</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$id</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$store</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span></code>
 
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-        <section class="phpdocumentor-description"><p>Use this when you need to reconstruct a session with a known ID.</p>
-</section>
 
-        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
-    <dl class="phpdocumentor-argument-list">
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$id</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Symfony\Component\Uid\Uuid">Uuid</abbr></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$store</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionStoreInterface.html"><abbr title="\Mcp\Server\Session\SessionStoreInterface">SessionStoreInterface</abbr></a></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-            </dl>
 
-    
+
 
         
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
-            </section>
 
-</article>
-            </section>
-
+        
         <div class="phpdocumentor-modal" id="source-view">
     <div class="phpdocumentor-modal-bg" data-exit-button></div>
     <div class="phpdocumentor-modal-container">
         <div class="phpdocumentor-modal-content">
-            <pre style="max-height: 500px; overflow-y: scroll" data-src="files/src/Server/Session/SessionFactoryInterface.php.txt" class="language-php line-numbers linkable-line-numbers"></pre>
+            <pre style="max-height: 500px; overflow-y: scroll" data-src="" class="language-php line-numbers linkable-line-numbers"></pre>
         </div>
         <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
     </div>
@@ -450,17 +295,11 @@
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                    <li><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#toc-constants">Constants</a></li>
-                    <li><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#toc-methods">Methods</a></li>
-                </ul>
+                                                                                <li><a href="namespaces/mcp-client-handler-request.html#toc-interfaces">Interfaces</a></li>
+                                                            <li><a href="namespaces/mcp-client-handler-request.html#toc-classes">Classes</a></li>
+                                                                                                                    </ul>
             </li>
-                            <li class="phpdocumentor-on-this-page-section__title">Methods</li>
-                <li>
-                    <ul class="phpdocumentor-list -clean">
-                                                    <li class=""><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_create">create()</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#method_createWithId">createWithId()</a></li>
-                                            </ul>
-                </li>
+
             
                     </ul>
     </section>
@@ -479,7 +318,7 @@
     </section>
 </section>
         </div>
-        <a href="classes/Mcp-Server-Session-SessionFactoryInterface.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="namespaces/mcp-client-handler-request.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

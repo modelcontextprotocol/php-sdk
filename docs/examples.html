@@ -105,6 +105,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -159,7 +163,9 @@
 
     <li class="dash"><a href="#running-examples">Running Examples</a></li>
 
-    <li class="dash"><a href="#examples">Examples</a></li>
+    <li class="dash"><a href="#server-examples">Server Examples</a></li>
+
+    <li class="dash"><a href="#client-examples">Client Examples</a></li>
 
 </ul>
 
@@ -230,8 +236,8 @@ curl -X POST http://localhost:8000 \
 
     </section>
 
-            <section class="section " id="examples">
-            <h2>Examples</h2>
+            <section class="section " id="server-examples">
+            <h2>Server Examples</h2>
 
             <section class="section " id="discovery-calculator">
             <h3>Discovery Calculator</h3>
@@ -776,6 +782,251 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
  - Rating and comments form with optional fields</li>
 
 </ol>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="client-examples">
+            <h2>Client Examples</h2>
+
+            <section class="section " id="stdio-discovery-calculator-client">
+            <h3>STDIO Discovery Calculator (Client)</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/client/stdio_discovery_calculator.php</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Basic MCP client usage with STDIO transport</li>
+
+    <li class="dash">Connecting to a local MCP server process</li>
+
+    <li class="dash">Listing and calling tools</li>
+
+    <li class="dash">Reading resources</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">$client = Client::builder()
+    -&gt;setClientInfo(&#039;STDIO Example Client&#039;, &#039;1.0.0&#039;)
+    -&gt;setInitTimeout(30)
+    -&gt;setRequestTimeout(60)
+    -&gt;build();
+
+$transport = new StdioTransport(
+    command: &#039;php&#039;,
+    args: [__DIR__.&#039;/../server/discovery-calculator/server.php&#039;],
+);
+
+$client-&gt;connect($transport);
+$tools = $client-&gt;listTools();
+$result = $client-&gt;callTool(&#039;calculate&#039;, [&#039;a&#039; =&gt; 5, &#039;b&#039; =&gt; 3, &#039;operation&#039; =&gt; &#039;add&#039;]);
+$resourceContent = $client-&gt;readResource(&#039;config://calculator/settings&#039;);
+</code></pre>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Run the client (automatically starts the server)
+php examples/client/stdio_discovery_calculator.php
+</code></pre>
+
+    </section>
+
+            <section class="section " id="http-discovery-calculator-client">
+            <h3>HTTP Discovery Calculator (Client)</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/client/http_discovery_calculator.php</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">MCP client with HTTP transport</li>
+
+    <li class="dash">Connecting to remote MCP servers</li>
+
+    <li class="dash">Listing tools, resources, and prompts</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">$transport = new HttpTransport(&#039;http://localhost:8000&#039;);
+$client-&gt;connect($transport);
+
+$tools = $client-&gt;listTools();
+$resources = $client-&gt;listResources();
+$prompts = $client-&gt;listPrompts();
+</code></pre>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Start the server first
+php -S localhost:8000 examples/server/http-discovery-calculator/server.php
+
+# Then run the client
+php examples/client/http_discovery_calculator.php
+</code></pre>
+
+    </section>
+
+            <section class="section " id="stdio-client-communication">
+            <h3>STDIO Client Communication</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/client/stdio_client_communication.php</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Server-to-client communication (logging, progress, sampling)</li>
+
+    <li class="dash">Handling logging notifications from server</li>
+
+    <li class="dash">Implementing sampling callbacks for LLM requests</li>
+
+    <li class="dash">Progress tracking during tool execution</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $n) {
+        echo &quot;[LOG {$n-&gt;level-&gt;value}] {$n-&gt;data}\n&quot;;
+    }
+);
+
+$samplingHandler = new SamplingRequestHandler(new class implements SamplingCallbackInterface {
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        // Perform LLM sampling and return result
+    }
+});
+
+$client = Client::builder()
+    -&gt;setCapabilities(new ClientCapabilities(sampling: true))
+    -&gt;addNotificationHandler($loggingHandler)
+    -&gt;addRequestHandler($samplingHandler)
+    -&gt;build();
+
+// Call tool with progress tracking
+$result = $client-&gt;callTool(
+    name: &#039;run_dataset_quality_checks&#039;,
+    arguments: [&#039;dataset&#039; =&gt; &#039;customer_orders_2024&#039;],
+    onProgress: static function (float $progress, ?float $total, ?string $message) {
+        $percent = $total &gt; 0 ? round(($progress / $total) * 100) : &#039;?&#039;;
+        echo &quot;[PROGRESS {$percent}%] {$message}\n&quot;;
+    }
+);
+</code></pre>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Run the client (automatically starts the communication server)
+php examples/client/stdio_client_communication.php
+</code></pre>
+
+    </section>
+
+            <section class="section " id="http-client-communication">
+            <h3>HTTP Client Communication</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/client/http_client_communication.php</code>
+</p>
+
+            
+    <p><strong>What it demonstrates:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Server-to-client communication over HTTP</li>
+
+    <li class="dash">Receiving logging and progress notifications via SSE streaming</li>
+
+    <li class="dash">Implementing sampling for HTTP-based servers</li>
+
+    <li class="dash">Progress tracking with long-running operations</li>
+
+</ul>
+
+            
+    <p><strong>Key Features:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash">Same client-side code as STDIO version</li>
+
+    <li class="dash">Uses HttpTransport instead of StdioTransport</li>
+
+    <li class="dash">Demonstrates SSE-based real-time notifications</li>
+
+    <li class="dash">Shows HTTP session management</li>
+
+</ul>
+
+            
+    <p><strong>Usage:</strong>
+</p>
+
+            <pre><code class="language-"># Start the server
+php -S 127.0.0.1:8000 examples/server/client-communication/server.php
+
+# Run the client
+php examples/client/http_client_communication.php
+</code></pre>
+
+            <div class="phpdocumentor-admonition note">
+            <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                    <article>
+         For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP&#039;s built-in development server cannot handle the concurrent requests required for sampling.
+    </article>
+</div>
 
     </section>
 

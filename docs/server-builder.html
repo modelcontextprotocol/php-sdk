@@ -105,6 +105,10 @@
                 
             </li>
                     <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
                 <a href="namespaces/mcp-event.html" class="">Event</a>
                 
             </li>
@@ -587,6 +591,9 @@ class RedisSessionStore implements SessionStoreInterface
     <li class="dash"><code>name</code>
  (string|null): Optional tool name</li>
 
+    <li class="dash"><code>title</code>
+ (string|null): Optional human-readable title for display in UI</li>
+
     <li class="dash"><code>description</code>
  (string|null): Optional tool description</li>
 
@@ -734,6 +741,9 @@ class RedisSessionStore implements SessionStoreInterface
 
     <li class="dash"><code>name</code>
  (string|null): Optional prompt name</li>
+
+    <li class="dash"><code>title</code>
+ (string|null): Optional human-readable title for display in UI</li>
 
     <li class="dash"><code>description</code>
  (string|null): Optional prompt description</li>
@@ -1150,7 +1160,7 @@ $server = Server::builder()
     <tr>
             <td><code>addTool()</code>
 </td>
-            <td>handler, name?, description?, annotations?, inputSchema?</td>
+            <td>handler, name?, title?, description?, annotations?, inputSchema?, ...</td>
             <td>Register tool</td>
     </tr>
     <tr>

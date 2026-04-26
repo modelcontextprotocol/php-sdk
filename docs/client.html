@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+            <title>MCP PHP SDK</title>
+    
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <base href="../">
+    <link rel="icon" href="images/favicon.ico"/>
+    <link rel="stylesheet" href="css/normalize.css">
+    <link rel="stylesheet" href="css/base.css">
+            <link rel="preconnect" href="https://fonts.gstatic.com">
+        <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@100;200;300;400;600;700&display=swap" rel="stylesheet">
+        <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet">
+        <link rel="stylesheet" href="css/template.css">
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.12.0/css/all.min.css" integrity="sha256-ybRkN9dBjhcS2qrW1z+hfCxq+1aBdwyQM5wlQoQVt/0=" crossorigin="anonymous" />
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/themes/prism-okaidia.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.css">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.css">
+                <script src="https://cdn.jsdelivr.net/npm/fuse.js@3.4.6"></script>
+        <script src="https://cdn.jsdelivr.net/npm/css-vars-ponyfill@2"></script>
+        <script src="js/template.js"></script>
+        <script src="js/search.js"></script>
+        <script defer src="js/searchIndex.js"></script>
+    </head>
+<body id="top">
+    <header class="phpdocumentor-header phpdocumentor-section">
+    <h1 class="phpdocumentor-title">
+    <a href="docs/index.html" class="phpdocumentor-title__link">
+        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 195 195" fill="none">
+            <path d="M25 97.8528L92.8823 29.9706C102.255 20.598 117.451 20.598 126.823 29.9706V29.9706C136.196 39.3431 136.196 54.5391 126.823 63.9117L75.5581 115.177" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M76.2653 114.47L126.823 63.9117C136.196 54.5391 151.392 54.5391 160.765 63.9117L161.118 64.2652C170.491 73.6378 170.491 88.8338 161.118 98.2063L99.7248 159.6C96.6006 162.724 96.6006 167.789 99.7248 170.913L112.331 183.52" stroke="black" stroke-width="12" stroke-linecap="round"/>
+            <path d="M109.853 46.9411L59.6482 97.1457C50.2757 106.518 50.2757 121.714 59.6482 131.087V131.087C69.0208 140.459 84.2168 140.459 93.5894 131.087L143.794 80.8822" stroke="black" stroke-width="12" stroke-linecap="round"/>
+        </svg>
+        <span style="margin-left: 0.25em;">MCP PHP SDK</span>
+    </a>
+</h1>
+    <input class="phpdocumentor-header__menu-button" type="checkbox" id="menu-button" name="menu-button" />
+    <label class="phpdocumentor-header__menu-icon" for="menu-button">
+        <i class="fas fa-bars"></i>
+    </label>
+    <section data-search-form class="phpdocumentor-search">
+    <label>
+        <span class="visually-hidden">Search for</span>
+        <svg class="phpdocumentor-search__icon" width="21" height="20" viewBox="0 0 21 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="7.5" cy="7.5" r="6.5" stroke="currentColor" stroke-width="2"/>
+            <line x1="12.4892" y1="12.2727" x2="19.1559" y2="18.9393" stroke="currentColor" stroke-width="3"/>
+        </svg>
+        <input type="search" class="phpdocumentor-field phpdocumentor-search__field" placeholder="Loading .." disabled />
+    </label>
+</section>
+
+    <nav class="phpdocumentor-topnav">
+    <ul class="phpdocumentor-topnav__menu">
+                        <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="docs/index.html">
+                    <span>
+                                                                        Guides
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -menu">
+                <a href="https://modelcontextprotocol.io/">
+                    <span>
+                                                                        Specification
+                    </span>
+                </a>
+            </li>
+                                <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://github.com/modelcontextprotocol/php-sdk">
+                    <span>
+                                                                        <i class="fab fa-github"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                    <li class="phpdocumentor-topnav__menu-item -social">
+                <a href="https://discord.gg/6CSzBmMkjX">
+                    <span>
+                                                                        <i class="fab fa-discord"></i>
+                                                
+                    </span>
+                </a>
+            </li>
+                </ul>
+</nav>
+</header>
+
+    <main class="phpdocumentor">
+        <div class="phpdocumentor-section">
+            <input class="phpdocumentor-sidebar__menu-button" type="checkbox" id="sidebar-button" name="sidebar-button" />
+<label class="phpdocumentor-sidebar__menu-icon" for="sidebar-button">
+    Menu
+</label>
+<aside class="phpdocumentor-column -three phpdocumentor-sidebar">
+                    <section class="phpdocumentor-sidebar__category -namespaces">
+            <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="namespaces/mcp.html" class="">Mcp</a>
+</h4>
+    <ul class="phpdocumentor-list">
+                    <li>
+                <a href="namespaces/mcp-capability.html" class="">Capability</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-client.html" class="">Client</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-event.html" class="">Event</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-exception.html" class="">Exception</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-jsonrpc.html" class="">JsonRpc</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-schema.html" class="">Schema</a>
+                
+            </li>
+                    <li>
+                <a href="namespaces/mcp-server.html" class="">Server</a>
+                
+            </li>
+            </ul>
+
+                        </section>
+            
+    <section class="phpdocumentor-sidebar__category -reports">
+        <h2 class="phpdocumentor-sidebar__category-header">Reports</h2>
+                <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/deprecated.html">Deprecated</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/errors.html">Errors</a></h3>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="reports/markers.html">Markers</a></h3>
+    </section>
+
+    <section class="phpdocumentor-sidebar__category -indices">
+        <h2 class="phpdocumentor-sidebar__category-header">Indices</h2>
+        <h3 class="phpdocumentor-sidebar__root-package"><a href="indices/files.html">Files</a></h3>
+    </section>
+</aside>
+
+            <div class="phpdocumentor-column -nine phpdocumentor-content">
+                                        
+<section class="section " id="client">
+            <h1>Client</h1>
+
+            
+    <p>The MCP Client SDK provides a synchronous, framework-agnostic API for communicating with MCP servers from PHP applications. It handles connection management, request/response correlation, server-initiated requests (sampling), and real-time notifications.</p>
+
+            <section class="section " id="table-of-contents">
+            <h2>Table of Contents</h2>
+
+            
+
+<ul>
+    <li class="dash"><a href="#overview">Overview</a></li>
+
+    <li class="dash"><a href="#client-builder">Client Builder</a></li>
+
+    <li class="dash"><a href="#transports">Transports</a></li>
+
+    <li class="dash"><a href="#connecting-to-servers">Connecting to Servers</a></li>
+
+    <li class="dash"><a href="#server-information">Server Information</a></li>
+
+    <li class="dash"><a href="#working-with-tools">Working with Tools</a></li>
+
+    <li class="dash"><a href="#working-with-resources">Working with Resources</a></li>
+
+    <li class="dash"><a href="#working-with-prompts">Working with Prompts</a></li>
+
+    <li class="dash"><a href="#server-initiated-communication">Server-Initiated Communication</a></li>
+
+    <li class="dash"><a href="#error-handling">Error Handling</a></li>
+
+    <li class="dash"><a href="#complete-example">Complete Example</a></li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="overview">
+            <h2>Overview</h2>
+
+            
+    <p>The client follows a builder pattern for configuration and provides a synchronous API for all operations:</p>
+
+            <pre><code class="language-">use Mcp\Client;
+use Mcp\Client\Transport\StdioTransport;
+
+// Build and configure the client
+$client = Client::builder()
+    -&gt;setClientInfo(&#039;My Client&#039;, &#039;1.0.0&#039;)
+    -&gt;setInitTimeout(30)
+    -&gt;setRequestTimeout(120)
+    -&gt;build();
+
+// Create a transport
+$transport = new StdioTransport(
+    command: &#039;php&#039;,
+    args: [&#039;/path/to/server.php&#039;],
+);
+
+// Connect and use the server
+$client-&gt;connect($transport);
+$tools = $client-&gt;listTools();
+$client-&gt;disconnect();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="client-builder">
+            <h2>Client Builder</h2>
+
+            
+    <p>The <code>Client\Builder</code>
+ provides fluent configuration of client instances.</p>
+
+            <section class="section " id="basic-configuration">
+            <h3>Basic Configuration</h3>
+
+            <pre><code class="language-">use Mcp\Client;
+
+$client = Client::builder()
+    -&gt;setClientInfo(&#039;My Application&#039;, &#039;1.0.0&#039;, &#039;Description of my client&#039;)
+    -&gt;setInitTimeout(30)      // Seconds to wait for initialization
+    -&gt;setRequestTimeout(120)  // Seconds to wait for request responses
+    -&gt;setMaxRetries(3)        // Retry attempts for failed connections
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="client-information">
+            <h3>Client Information</h3>
+
+            
+    <p>Set the client&#039;s identity reported to servers during initialization:</p>
+
+            <pre><code class="language-">$client = Client::builder()
+    -&gt;setClientInfo(
+        name: &#039;AI Assistant Client&#039;,
+        version: &#039;2.1.0&#039;,
+        description: &#039;Client for automated AI workflows&#039;
+    )
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="protocol-version">
+            <h3>Protocol Version</h3>
+
+            
+    <p>Specify the MCP protocol version (defaults to latest):</p>
+
+            <pre><code class="language-">use Mcp\Schema\Enum\ProtocolVersion;
+
+$client = Client::builder()
+    -&gt;setProtocolVersion(ProtocolVersion::V2025_06_18)
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="capabilities">
+            <h3>Capabilities</h3>
+
+            
+    <p>Declare client capabilities to enable server features:</p>
+
+            <pre><code class="language-">use Mcp\Schema\ClientCapabilities;
+
+$client = Client::builder()
+    -&gt;setCapabilities(new ClientCapabilities(
+        sampling: true,  // Enable LLM sampling requests from server
+        roots: true,     // Enable filesystem root listing
+    ))
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="notification-handlers">
+            <h3>Notification Handlers</h3>
+
+            
+    <p>Register handlers for server-initiated notifications:</p>
+
+            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $notification) {
+        echo &quot;[{$notification-&gt;level-&gt;value}] {$notification-&gt;data}\n&quot;;
+    }
+);
+
+$client = Client::builder()
+    -&gt;addNotificationHandler($loggingHandler)
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="request-handlers">
+            <h3>Request Handlers</h3>
+
+            
+    <p>Register handlers for server-initiated requests (e.g., sampling):</p>
+
+            <pre><code class="language-">use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+
+$samplingCallback = new class implements SamplingCallbackInterface {
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        // Perform LLM sampling and return result
+    }
+};
+
+$client = Client::builder()
+    -&gt;addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+            <section class="section " id="logger">
+            <h3>Logger</h3>
+
+            
+    <p>Configure PSR-3 logging for debugging:</p>
+
+            <pre><code class="language-">use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+$logger = new Logger(&#039;mcp-client&#039;);
+$logger-&gt;pushHandler(new StreamHandler(&#039;client.log&#039;, Logger::DEBUG));
+
+$client = Client::builder()
+    -&gt;setLogger($logger)
+    -&gt;build();
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="transports">
+            <h2>Transports</h2>
+
+            
+    <p>Transports handle the communication layer between client and server.</p>
+
+            <section class="section " id="stdio-transport">
+            <h3>STDIO Transport</h3>
+
+            
+    <p>Spawns a server process and communicates via standard input/output:</p>
+
+            <pre><code class="language-">use Mcp\Client\Transport\StdioTransport;
+
+$transport = new StdioTransport(
+    command: &#039;php&#039;,
+    args: [&#039;/path/to/server.php&#039;],
+    cwd: &#039;/working/directory&#039;,     // Optional working directory
+    env: [&#039;KEY&#039; =&gt; &#039;value&#039;],       // Optional environment variables
+);
+</code></pre>
+
+            
+    <p><strong>Parameters:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>command</code>
+ (string): The command to execute</li>
+
+    <li class="dash"><code>args</code>
+ (array): Command arguments</li>
+
+    <li class="dash"><code>cwd</code>
+ (string|null): Working directory for the process</li>
+
+    <li class="dash"><code>env</code>
+ (array|null): Environment variables</li>
+
+    <li class="dash"><code>logger</code>
+ (LoggerInterface|null): Optional PSR-3 logger</li>
+
+</ul>
+
+    </section>
+
+            <section class="section " id="http-transport">
+            <h3>HTTP Transport</h3>
+
+            
+    <p>Communicates with remote MCP servers over HTTP:</p>
+
+            <pre><code class="language-">use Mcp\Client\Transport\HttpTransport;
+
+$transport = new HttpTransport(
+    endpoint: &#039;http://localhost:8000&#039;,
+    headers: [&#039;Authorization&#039; =&gt; &#039;Bearer token&#039;],
+);
+</code></pre>
+
+            
+    <p><strong>Parameters:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>endpoint</code>
+ (string): The MCP server URL</li>
+
+    <li class="dash"><code>headers</code>
+ (array): Additional HTTP headers</li>
+
+    <li class="dash"><code>httpClient</code>
+ (ClientInterface|null): PSR-18 HTTP client (auto-discovered)</li>
+
+    <li class="dash"><code>requestFactory</code>
+ (RequestFactoryInterface|null): PSR-17 request factory (auto-discovered)</li>
+
+    <li class="dash"><code>streamFactory</code>
+ (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)</li>
+
+    <li class="dash"><code>logger</code>
+ (LoggerInterface|null): Optional PSR-3 logger</li>
+
+</ul>
+
+            
+    <p><strong>PSR-18 Auto-Discovery:</strong>
+</p>
+
+            
+    <p>The transport automatically discovers PSR-18 HTTP clients from:</p>
+
+            
+
+<ul>
+    <li class="dash"><code>php-http/guzzle7-adapter</code>
+</li>
+
+    <li class="dash"><code>php-http/curl-client</code>
+</li>
+
+    <li class="dash"><code>symfony/http-client</code>
+</li>
+
+    <li class="dash">And other PSR-18 compatible implementations</li>
+
+</ul>
+
+            <pre><code class="language-"># Install any PSR-18 client - discovery works automatically
+composer require php-http/guzzle7-adapter
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="connecting-to-servers">
+            <h2>Connecting to Servers</h2>
+
+            <section class="section " id="establishing-connection">
+            <h3>Establishing Connection</h3>
+
+            <pre><code class="language-">$client-&gt;connect($transport);
+</code></pre>
+
+            
+    <p>The <code>connect()</code>
+ method performs the MCP initialization handshake:</p>
+
+            
+    
+<ol>
+    <li>Opens the transport connection</li>
+
+    <li>Sends InitializeRequest with client capabilities</li>
+
+    <li>Waits for InitializeResult from server</li>
+
+    <li>Sends InitializedNotification</li>
+
+</ol>
+
+            <div class="phpdocumentor-admonition important">
+        <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <article>
+         Always wrap connection in try/catch to handle <code>ConnectionException</code>
+ for failed connections.
+    </article>
+</div>
+
+    </section>
+
+            <section class="section " id="checking-connection-state">
+            <h3>Checking Connection State</h3>
+
+            <pre><code class="language-">if ($client-&gt;isConnected()) {
+    // Client is connected and initialized
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="disconnecting">
+            <h3>Disconnecting</h3>
+
+            <pre><code class="language-">$client-&gt;disconnect();
+</code></pre>
+
+            
+    <p>Always disconnect when finished to clean up resources:</p>
+
+            <pre><code class="language-">try {
+    $client-&gt;connect($transport);
+    // ... use the client ...
+} finally {
+    $client-&gt;disconnect();
+}
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="server-information">
+            <h2>Server Information</h2>
+
+            
+    <p>After successful connection, retrieve server metadata:</p>
+
+            <pre><code class="language-">// Get server implementation info
+$serverInfo = $client-&gt;getServerInfo();
+echo &quot;Server: {$serverInfo-&gt;name} v{$serverInfo-&gt;version}\n&quot;;
+
+// Get server instructions
+$instructions = $client-&gt;getInstructions();
+if ($instructions) {
+    echo &quot;Instructions: {$instructions}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="working-with-tools">
+            <h2>Working with Tools</h2>
+
+            <section class="section " id="listing-tools">
+            <h3>Listing Tools</h3>
+
+            <pre><code class="language-">$toolsResult = $client-&gt;listTools();
+
+foreach ($toolsResult-&gt;tools as $tool) {
+    echo &quot;- {$tool-&gt;name}: {$tool-&gt;description}\n&quot;;
+}
+
+// Handle pagination
+if ($toolsResult-&gt;nextCursor) {
+    $moreTools = $client-&gt;listTools($toolsResult-&gt;nextCursor);
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="calling-tools">
+            <h3>Calling Tools</h3>
+
+            <pre><code class="language-">$result = $client-&gt;callTool(
+    name: &#039;calculate&#039;,
+    arguments: [&#039;a&#039; =&gt; 5, &#039;b&#039; =&gt; 3, &#039;operation&#039; =&gt; &#039;add&#039;],
+);
+
+// Access results
+foreach ($result-&gt;content as $content) {
+    if ($content instanceof TextContent) {
+        echo $content-&gt;text;
+    }
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="progress-notifications">
+            <h3>Progress Notifications</h3>
+
+            
+    <p>Hook into tool execution progress (if server supports it):</p>
+
+            <pre><code class="language-">$result = $client-&gt;callTool(
+    name: &#039;long_running_task&#039;,
+    arguments: [&#039;data&#039; =&gt; &#039;large_dataset&#039;],
+    onProgress: static function (float $progress, ?float $total, ?string $message) {
+        $percent = $total &gt; 0 ? round(($progress / $total) * 100) : 0;
+        echo &quot;Progress: {$percent}% - {$message}\n&quot;;
+    }
+);
+</code></pre>
+
+            <div class="phpdocumentor-admonition note">
+            <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
+                    <article>
+         Progress notifications are only received if the server sends them. The callback will not be invoked if the server doesn&#039;t support or send progress updates.
+    </article>
+</div>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="working-with-resources">
+            <h2>Working with Resources</h2>
+
+            <section class="section " id="listing-resources">
+            <h3>Listing Resources</h3>
+
+            <pre><code class="language-">$resourcesResult = $client-&gt;listResources();
+
+foreach ($resourcesResult-&gt;resources as $resource) {
+    echo &quot;- {$resource-&gt;uri}: {$resource-&gt;name}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="listing-resource-templates">
+            <h3>Listing Resource Templates</h3>
+
+            <pre><code class="language-">$templatesResult = $client-&gt;listResourceTemplates();
+
+foreach ($templatesResult-&gt;resourceTemplates as $template) {
+    echo &quot;- {$template-&gt;uriTemplate}: {$template-&gt;name}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="reading-resources">
+            <h3>Reading Resources</h3>
+
+            <pre><code class="language-">$resourceResult = $client-&gt;readResource(&#039;config://app/settings&#039;);
+
+foreach ($resourceResult-&gt;contents as $content) {
+    if ($content instanceof TextResourceContents) {
+        echo &quot;Text: {$content-&gt;text}\n&quot;;
+    } elseif ($content instanceof BlobResourceContents) {
+        echo &quot;Binary data (base64): {$content-&gt;blob}\n&quot;;
+    }
+}
+</code></pre>
+
+            
+    <p>Resources also support progress notifications:</p>
+
+            <pre><code class="language-">$result = $client-&gt;readResource(
+    uri: &#039;file://large-file.bin&#039;,
+    onProgress: static function (float $progress, ?float $total, ?string $message) {
+        echo &quot;Reading: {$progress}/{$total} bytes\n&quot;;
+    }
+);
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="working-with-prompts">
+            <h2>Working with Prompts</h2>
+
+            <section class="section " id="listing-prompts">
+            <h3>Listing Prompts</h3>
+
+            <pre><code class="language-">$promptsResult = $client-&gt;listPrompts();
+
+foreach ($promptsResult-&gt;prompts as $prompt) {
+    echo &quot;- {$prompt-&gt;name}: {$prompt-&gt;description}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="getting-prompts">
+            <h3>Getting Prompts</h3>
+
+            <pre><code class="language-">$promptResult = $client-&gt;getPrompt(
+    name: &#039;code_review&#039;,
+    arguments: [&#039;language&#039; =&gt; &#039;php&#039;, &#039;code&#039; =&gt; &#039;...&#039;],
+);
+
+foreach ($promptResult-&gt;messages as $message) {
+    echo &quot;{$message-&gt;role-&gt;value}: {$message-&gt;content-&gt;text}\n&quot;;
+}
+</code></pre>
+
+            
+    <p>Prompts also support progress notifications:</p>
+
+            <pre><code class="language-">$result = $client-&gt;getPrompt(
+    name: &#039;generate_report&#039;,
+    arguments: [&#039;topic&#039; =&gt; &#039;quarterly_analysis&#039;],
+    onProgress: static function (float $progress, ?float $total, ?string $message) {
+        echo &quot;Generating: {$message}\n&quot;;
+    }
+);
+</code></pre>
+
+    </section>
+
+            <section class="section " id="requesting-completions">
+            <h3>Requesting Completions</h3>
+
+            
+    <p>Request auto-completion suggestions for prompt or resource arguments:</p>
+
+            <pre><code class="language-">use Mcp\Schema\PromptReference;
+
+$completionResult = $client-&gt;complete(
+    ref: new PromptReference(&#039;code_review&#039;),
+    argument: [&#039;name&#039; =&gt; &#039;language&#039;, &#039;value&#039; =&gt; &#039;ph&#039;],
+);
+
+foreach ($completionResult-&gt;values as $value) {
+    echo &quot;Suggestion: {$value}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="server-initiated-communication">
+            <h2>Server-Initiated Communication</h2>
+
+            
+    <p>The client can receive requests and notifications from the server when configured with appropriate handlers.</p>
+
+            <section class="section " id="logging-notifications">
+            <h3>Logging Notifications</h3>
+
+            
+    <p>Receive structured log messages from the server:</p>
+
+            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Enum\LoggingLevel;
+
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $notification) {
+        // Route to your application&#039;s logging system
+        $level = $notification-&gt;level;
+        $message = $notification-&gt;data;
+        
+        match ($level) {
+            LoggingLevel::Debug =&gt; logger()-&gt;debug($message),
+            LoggingLevel::Info =&gt; logger()-&gt;info($message),
+            LoggingLevel::Warning =&gt; logger()-&gt;warning($message),
+            LoggingLevel::Error =&gt; logger()-&gt;error($message),
+            default =&gt; logger()-&gt;info($message),
+        };
+    }
+);
+
+$client = Client::builder()
+    -&gt;addNotificationHandler($loggingHandler)
+    -&gt;build();
+
+// Set minimum log level (optional)
+$client-&gt;setLoggingLevel(LoggingLevel::Info);
+</code></pre>
+
+    </section>
+
+            <section class="section " id="sampling-llm-requests">
+            <h3>Sampling (LLM Requests)</h3>
+
+            
+    <p>Handle server requests for LLM completions:</p>
+
+            <pre><code class="language-">use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
+use Mcp\Exception\SamplingException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\Role;
+
+class LlmSamplingCallback implements SamplingCallbackInterface
+{
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        try {
+            // Call your LLM provider
+            $response = $this-&gt;llmClient-&gt;complete(
+                messages: $request-&gt;messages,
+                maxTokens: $request-&gt;maxTokens,
+                temperature: $request-&gt;temperature ?? 0.7,
+            );
+            
+            return new CreateSamplingMessageResult(
+                role: Role::Assistant,
+                content: new TextContent($response-&gt;text),
+                model: $response-&gt;model,
+                stopReason: $response-&gt;stopReason,
+            );
+        } catch (\Throwable $e) {
+            // Throw SamplingException to surface error to server
+            throw new SamplingException(
+                &quot;LLM sampling failed: {$e-&gt;getMessage()}&quot;,
+                (int) $e-&gt;getCode(),
+                $e
+            );
+        }
+    }
+}
+
+$client = Client::builder()
+    -&gt;setCapabilities(new ClientCapabilities(sampling: true))
+    -&gt;addRequestHandler(new SamplingRequestHandler(new LlmSamplingCallback))
+    -&gt;build();
+</code></pre>
+
+            <div class="phpdocumentor-admonition important">
+        <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <article>
+         <strong>Error Handling in Sampling Callbacks:</strong>
+
+    </article>
+</div>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="error-handling">
+            <h2>Error Handling</h2>
+
+            
+    <p>The client throws exceptions for various error conditions:</p>
+
+            <section class="section " id="connectionexception">
+            <h3>ConnectionException</h3>
+
+            
+    <p>Thrown when connection or initialization fails:</p>
+
+            <pre><code class="language-">use Mcp\Exception\ConnectionException;
+
+try {
+    $client-&gt;connect($transport);
+} catch (ConnectionException $e) {
+    echo &quot;Failed to connect: {$e-&gt;getMessage()}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+            <section class="section " id="requestexception">
+            <h3>RequestException</h3>
+
+            
+    <p>Thrown when a request returns an error response:</p>
+
+            <pre><code class="language-">use Mcp\Exception\RequestException;
+
+try {
+    $result = $client-&gt;callTool(&#039;unknown_tool&#039;, []);
+} catch (RequestException $e) {
+    echo &quot;Request failed: {$e-&gt;getMessage()}\n&quot;;
+    echo &quot;Error code: {$e-&gt;getCode()}\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+    </section>
+
+            <section class="section " id="complete-example">
+            <h2>Complete Example</h2>
+
+            
+    <p>Here&#039;s a comprehensive example demonstrating client usage:</p>
+
+            <pre><code class="language-">&lt;?php
+
+use Mcp\Client;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Handler\Request\SamplingCallbackInterface;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Transport\StdioTransport;
+use Mcp\Exception\SamplingException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+
+// Configure logging notification handler
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $notification) {
+        echo &quot;[LOG {$notification-&gt;level-&gt;value}] {$notification-&gt;data}\n&quot;;
+    }
+);
+
+// Configure sampling callback
+$samplingCallback = new class implements SamplingCallbackInterface {
+    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+    {
+        echo &quot;[SAMPLING] Processing request (max {$request-&gt;maxTokens} tokens)\n&quot;;
+        
+        try {
+            // Integration with your LLM provider
+            $response = &quot;This is a mock LLM response for: &quot; . 
+                json_encode($request-&gt;messages);
+            
+            return new CreateSamplingMessageResult(
+                role: Role::Assistant,
+                content: new TextContent($response),
+                model: &#039;mock-llm&#039;,
+                stopReason: &#039;end_turn&#039;,
+            );
+        } catch (\Throwable $e) {
+            throw new SamplingException(
+                &quot;Sampling failed: {$e-&gt;getMessage()}&quot;,
+                0,
+                $e
+            );
+        }
+    }
+};
+
+// Build client
+$client = Client::builder()
+    -&gt;setClientInfo(&#039;Example Client&#039;, &#039;1.0.0&#039;)
+    -&gt;setInitTimeout(30)
+    -&gt;setRequestTimeout(120)
+    -&gt;setCapabilities(new ClientCapabilities(sampling: true))
+    -&gt;addNotificationHandler($loggingHandler)
+    -&gt;addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    -&gt;build();
+
+// Create transport
+$transport = new StdioTransport(
+    command: &#039;php&#039;,
+    args: [__DIR__ . &#039;/server.php&#039;],
+);
+
+// Connect and use server
+try {
+    echo &quot;Connecting to server...\n&quot;;
+    $client-&gt;connect($transport);
+    
+    // Get server info
+    $serverInfo = $client-&gt;getServerInfo();
+    echo &quot;Connected to: {$serverInfo-&gt;name} v{$serverInfo-&gt;version}\n\n&quot;;
+    
+    // List capabilities
+    echo &quot;Available tools:\n&quot;;
+    $tools = $client-&gt;listTools();
+    foreach ($tools-&gt;tools as $tool) {
+        echo &quot;  - {$tool-&gt;name}\n&quot;;
+    }
+    
+    echo &quot;\nAvailable resources:\n&quot;;
+    $resources = $client-&gt;listResources();
+    foreach ($resources-&gt;resources as $resource) {
+        echo &quot;  - {$resource-&gt;uri}\n&quot;;
+    }
+    
+    // Set logging level
+    $client-&gt;setLoggingLevel(LoggingLevel::Debug);
+    
+    // Call tool with progress
+    echo &quot;\nCalling tool with progress...\n&quot;;
+    $result = $client-&gt;callTool(
+        name: &#039;process_data&#039;,
+        arguments: [&#039;dataset&#039; =&gt; &#039;large_file.csv&#039;],
+        onProgress: static function (float $progress, ?float $total, ?string $message) {
+            $percent = $total &gt; 0 ? round(($progress / $total) * 100) : 0;
+            echo &quot;  Progress: {$percent}% - {$message}\n&quot;;
+        }
+    );
+    
+    echo &quot;\nResult:\n&quot;;
+    foreach ($result-&gt;content as $content) {
+        if ($content instanceof TextContent) {
+            echo $content-&gt;text . &quot;\n&quot;;
+        }
+    }
+    
+} catch (\Throwable $e) {
+    echo &quot;Error: {$e-&gt;getMessage()}\n&quot;;
+    echo $e-&gt;getTraceAsString() . &quot;\n&quot;;
+} finally {
+    $client-&gt;disconnect();
+    echo &quot;\nDisconnected.\n&quot;;
+}
+</code></pre>
+
+    </section>
+
+    </section>
+
+                            </div>
+            <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
+    <section class="phpdocumentor-search-results__dialog">
+        <header class="phpdocumentor-search-results__header">
+            <h2 class="phpdocumentor-search-results__title">Search results</h2>
+            <button class="phpdocumentor-search-results__close"><i class="fas fa-times"></i></button>
+        </header>
+        <section class="phpdocumentor-search-results__body">
+            <ul class="phpdocumentor-search-results__entries"></ul>
+        </section>
+    </section>
+</section>
+        </div>
+        <a href="#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+
+    </main>
+
+    <script>
+        cssVars({});
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/prism.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-numbers/prism-line-numbers.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/prismjs@1.23.0/plugins/line-highlight/prism-line-highlight.min.js"></script>
+</body>
+</html>
