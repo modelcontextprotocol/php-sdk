@@ -1,16 +1,5 @@
 <?php
 
-/**
- * Simple STDIO Client Example.
- *
- * This example demonstrates how to use the MCP client with a STDIO transport
- * to communicate with an MCP server running as a child process.
- *
- * Usage: php examples/client/stdio_discovery_calculator.php
- */
-
-declare(strict_types=1);
-
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -18,6 +7,15 @@ declare(strict_types=1);
  *
  * For the full copyright and license information, please view the LICENSE
  * file that was distributed with this source code.
+ */
+
+/**
+ * Simple STDIO Client Example.
+ *
+ * This example demonstrates how to use the MCP client with a STDIO transport
+ * to communicate with an MCP server running as a child process.
+ *
+ * Usage: php examples/client/stdio_discovery_calculator.php
  */
 
 require_once __DIR__.'/../../vendor/autoload.php';
