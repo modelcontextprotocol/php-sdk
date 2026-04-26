@@ -296,6 +296,7 @@ class SessionTest extends TestCase
 
         // save() before any get()/set() should not crash
         $this->assertTrue($session->save());
+        $this->assertSame([], $session->all());
     }
 
     public function testAllReturnsEmptyArrayForNullPayload(): void

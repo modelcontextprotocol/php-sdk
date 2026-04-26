@@ -29,7 +29,9 @@ class Session implements SessionInterface
      *
      * @var array<string, mixed>
      */
-    private array $data;
+    private array $data = [];
+
+    private bool $loaded = false;
 
     public function __construct(
         private SessionStoreInterface $store,
@@ -124,6 +126,7 @@ class Session implements SessionInterface
     public function clear(): void
     {
         $this->data = [];
+        $this->loaded = true;
     }
 
     public function pull(string $key, mixed $default = null): mixed
@@ -142,6 +145,7 @@ class Session implements SessionInterface
     public function hydrate(array $attributes): void
     {
         $this->data = $attributes;
+        $this->loaded = true;
     }
 
     /** @return array<string, mixed> */
@@ -155,20 +159,22 @@ class Session implements SessionInterface
      */
     private function readData(): array
     {
-        if (isset($this->data)) {
+        if ($this->loaded) {
             return $this->data;
         }
+
+        $this->loaded = true;
 
         $rawData = $this->store->read($this->id);
 
         if (false === $rawData) {
-            return $this->data = [];
+            return $this->data;
         }
 
         $decoded = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
 
         if (!\is_array($decoded)) {
-            return $this->data = [];
+            return $this->data;
         }
 
         return $this->data = $decoded;
