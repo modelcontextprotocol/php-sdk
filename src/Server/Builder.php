@@ -17,6 +17,7 @@ use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
+use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\ChainLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
@@ -35,6 +36,7 @@ use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Handler\RunTimeHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -49,6 +51,8 @@ use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Finder\Finder;
 
 /**
+ * @phpstan-import-type Handler from ElementReference
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Builder
@@ -99,11 +103,12 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: \Closure|array{0: object|string, 1: string}|string,
+     *     handler: Handler,
      *     name: ?string,
      *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     inputSchema: ?array<string, mixed>,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>,
      *     outputSchema: ?array<string, mixed>,
@@ -113,7 +118,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: \Closure|array{0: object|string, 1: string}|string,
+     *     handler: Handler,
      *     uri: string,
      *     name: ?string,
      *     title: ?string,
@@ -129,7 +134,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: \Closure|array{0: object|string, 1: string}|string,
+     *     handler: Handler,
      *     uriTemplate: string,
      *     name: ?string,
      *     title: ?string,
@@ -143,8 +148,9 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: \Closure|array{0: object|string, 1: string}|string,
+     *     handler: Handler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>
@@ -395,15 +401,15 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param callable|array{0: object|string, 1: string}|string $handler
-     * @param ?string                                            $title        Optional human-readable title for display in UI
-     * @param array<string, mixed>|null                          $inputSchema
-     * @param ?Icon[]                                            $icons
-     * @param array<string, mixed>|null                          $meta
-     * @param array<string, mixed>|null                          $outputSchema
+     * @param callable|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
+     * @param ?string                                                                    $title        Optional human-readable title for display in UI
+     * @param array<string, mixed>|null                                                  $inputSchema
+     * @param ?Icon[]                                                                    $icons
+     * @param array<string, mixed>|null                                                  $meta
+     * @param array<string, mixed>|null                                                  $outputSchema
      */
     public function addTool(
-        callable|array|string $handler,
+        callable|array|string|RunTimeHandlerInterface $handler,
         ?string $name = null,
         ?string $title = null,
         ?string $description = null,
@@ -431,13 +437,13 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param \Closure|array{0: object|string, 1: string}|string $handler
-     * @param ?string                                            $title   Optional human-readable title for display in UI
-     * @param ?Icon[]                                            $icons
-     * @param array<string, mixed>|null                          $meta
+     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
+     * @param ?string                                                                    $title   Optional human-readable title for display in UI
+     * @param ?Icon[]                                                                    $icons
+     * @param array<string, mixed>|null                                                  $meta
      */
     public function addResource(
-        \Closure|array|string $handler,
+        \Closure|array|string|RunTimeHandlerInterface $handler,
         string $uri,
         ?string $name = null,
         ?string $title = null,
@@ -467,12 +473,12 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param \Closure|array{0: object|string, 1: string}|string $handler
-     * @param ?string                                            $title   Optional human-readable title for display in UI
-     * @param array<string, mixed>|null                          $meta
+     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
+     * @param ?string                                                                    $title   Optional human-readable title for display in UI
+     * @param array<string, mixed>|null                                                  $meta
      */
     public function addResourceTemplate(
-        \Closure|array|string $handler,
+        \Closure|array|string|RunTimeHandlerInterface $handler,
         string $uriTemplate,
         ?string $name = null,
         ?string $title = null,
@@ -498,12 +504,12 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param \Closure|array{0: object|string, 1: string}|string $handler
-     * @param ?Icon[]                                            $icons
-     * @param array<string, mixed>|null                          $meta
+     * @param \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface $handler
+     * @param ?Icon[]                                                                    $icons
+     * @param array<string, mixed>|null                                                  $meta
      */
     public function addPrompt(
-        \Closure|array|string $handler,
+        \Closure|array|string|RunTimeHandlerInterface $handler,
         ?string $name = null,
         ?string $title = null,
         ?string $description = null,
