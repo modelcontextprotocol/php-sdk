@@ -47,4 +47,44 @@ interface RunTimeHandlerInterface
      * @return mixed the handler result
      */
     public function execute(array $arguments, ClientGateway $gateway): mixed;
+
+    /**
+     * Returns the JSON Schema describing tool inputs.
+     *
+     * Returns null when this handler does not back a tool, or when the
+     * Builder caller supplies the schema via the `inputSchema:` keyword.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getInputSchema(): ?array;
+
+    /**
+     * Returns the JSON Schema describing tool outputs.
+     *
+     * Returns null when no output schema applies (the field is itself optional
+     * on Tool), or when the Builder caller supplies the schema via the
+     * `outputSchema:` keyword.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function getOutputSchema(): ?array;
+
+    /**
+     * Returns the prompt arguments for prompt-backed runtime handlers.
+     *
+     * Returns null when this handler does not back a prompt.
+     *
+     * @return list<\Mcp\Schema\PromptArgument>|null
+     */
+    public function getPromptArguments(): ?array;
+
+    /**
+     * Returns the completion providers for prompts and resource templates.
+     *
+     * Map of argument name => provider class-string or provider instance.
+     * Returns null when no completion providers apply.
+     *
+     * @return array<string, class-string|object>|null
+     */
+    public function getCompletionProviders(): ?array;
 }
