@@ -29,6 +29,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Handler\RunTimeHandlerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -67,7 +68,7 @@ final class Registry implements RegistryInterface
     ) {
     }
 
-    public function registerTool(Tool $tool, callable|array|string $handler): ToolReference
+    public function registerTool(Tool $tool, callable|array|string|RunTimeHandlerInterface $handler): ToolReference
     {
         if (!$this->nameValidator->isValid($tool->name)) {
             $this->logger->warning(
@@ -83,7 +84,7 @@ final class Registry implements RegistryInterface
         return $reference;
     }
 
-    public function registerResource(Resource $resource, callable|array|string $handler): ResourceReference
+    public function registerResource(Resource $resource, callable|array|string|RunTimeHandlerInterface $handler): ResourceReference
     {
         $reference = new ResourceReference($resource, $handler);
         $this->resources[$resource->uri] = $reference;
@@ -95,7 +96,7 @@ final class Registry implements RegistryInterface
 
     public function registerResourceTemplate(
         ResourceTemplate $template,
-        callable|array|string $handler,
+        callable|array|string|RunTimeHandlerInterface $handler,
         array $completionProviders = [],
     ): ResourceTemplateReference {
         $reference = new ResourceTemplateReference($template, $handler, $completionProviders);
@@ -108,7 +109,7 @@ final class Registry implements RegistryInterface
 
     public function registerPrompt(
         Prompt $prompt,
-        callable|array|string $handler,
+        callable|array|string|RunTimeHandlerInterface $handler,
         array $completionProviders = [],
     ): PromptReference {
         $reference = new PromptReference($prompt, $handler, $completionProviders);

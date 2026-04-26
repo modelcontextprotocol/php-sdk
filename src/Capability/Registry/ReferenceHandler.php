@@ -13,6 +13,8 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\Handler\RunTimeHandlerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
@@ -33,6 +35,13 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     public function handle(ElementReference $reference, array $arguments): mixed
     {
         $session = $arguments['_session'];
+
+        if ($reference->handler instanceof RunTimeHandlerInterface) {
+            return $reference->handler->execute(
+                $reference->handler->filterArguments($arguments),
+                new ClientGateway($session),
+            );
+        }
 
         if (\is_string($reference->handler)) {
             if (class_exists($reference->handler) && method_exists($reference->handler, '__invoke')) {
