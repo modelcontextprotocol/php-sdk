@@ -40,7 +40,7 @@ final class StreamableHttpTransportTest extends TestCase
     public function testCorsHeader(string $method, bool $middlewareDelegatesToTransport, int $expectedStatusCode): void
     {
         $factory = new Psr17Factory();
-        $request = $factory->createServerRequest($method, 'https://example.com');
+        $request = $factory->createServerRequest($method, 'http://localhost:8000');
 
         $middleware = new class($factory, $expectedStatusCode, $middlewareDelegatesToTransport) implements MiddlewareInterface {
             public function __construct(
@@ -90,7 +90,7 @@ final class StreamableHttpTransportTest extends TestCase
     public function testCorsHeadersAreReplacedWhenAlreadyPresent(): void
     {
         $factory = new Psr17Factory();
-        $request = $factory->createServerRequest('GET', 'https://example.com');
+        $request = $factory->createServerRequest('GET', 'http://localhost:8000');
 
         $middleware = new class($factory) implements MiddlewareInterface {
             public function __construct(private ResponseFactoryInterface $responses)
@@ -130,7 +130,7 @@ final class StreamableHttpTransportTest extends TestCase
     public function testMiddlewareRunsBeforeTransportHandlesRequest(): void
     {
         $factory = new Psr17Factory();
-        $request = $factory->createServerRequest('OPTIONS', 'https://example.com');
+        $request = $factory->createServerRequest('OPTIONS', 'http://localhost:8000');
 
         $state = new \stdClass();
         $state->called = false;
