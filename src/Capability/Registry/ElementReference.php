@@ -11,8 +11,10 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Server\Handler\RunTimeHandlerInterface;
+
 /**
- * @phpstan-type Handler \Closure|array{0: object|string, 1: string}|string
+ * @phpstan-type Handler \Closure|array{0: object|string, 1: string}|string|RunTimeHandlerInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -22,7 +24,7 @@ class ElementReference
      * @param Handler $handler
      */
     public function __construct(
-        public readonly \Closure|array|string $handler,
+        public readonly \Closure|array|string|RunTimeHandlerInterface $handler,
         public readonly bool $isManual = false,
     ) {
     }

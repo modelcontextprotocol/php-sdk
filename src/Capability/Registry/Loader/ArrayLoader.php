@@ -31,6 +31,7 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server\Handler;
+use Mcp\Server\Handler\RunTimeHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -278,10 +279,14 @@ final class ArrayLoader implements LoaderInterface
     /**
      * @param Handler $handler
      */
-    private function getHandlerDescription(\Closure|array|string $handler): string
+    private function getHandlerDescription(\Closure|array|string|RunTimeHandlerInterface $handler): string
     {
         if ($handler instanceof \Closure) {
             return 'Closure';
+        }
+
+        if ($handler instanceof RunTimeHandlerInterface) {
+            return $handler::class;
         }
 
         if (\is_array($handler)) {

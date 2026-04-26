@@ -14,6 +14,7 @@ namespace Mcp\Capability\Registry;
 use Mcp\Capability\Formatter\ToolResultFormatter;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Tool;
+use Mcp\Server\Handler\RunTimeHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -27,7 +28,7 @@ class ToolReference extends ElementReference
      */
     public function __construct(
         public readonly Tool $tool,
-        callable|array|string $handler,
+        callable|array|string|RunTimeHandlerInterface $handler,
         bool $isManual = false,
     ) {
         parent::__construct($handler, $isManual);
