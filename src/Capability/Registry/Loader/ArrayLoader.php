@@ -32,6 +32,9 @@ use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server\Handler;
 use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RunTimePromptHandlerInterface;
+use Mcp\Server\Handler\RunTimeResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\RunTimeToolHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -100,7 +103,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Tools
         foreach ($this->tools as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeHandlerInterface) {
+                if ($data['handler'] instanceof RunTimeToolHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime tool handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -236,7 +239,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Templates
         foreach ($this->resourceTemplates as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeHandlerInterface) {
+                if ($data['handler'] instanceof RunTimeResourceTemplateHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime resource template handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -299,7 +302,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Prompts
         foreach ($this->prompts as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeHandlerInterface) {
+                if ($data['handler'] instanceof RunTimePromptHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime prompt handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }

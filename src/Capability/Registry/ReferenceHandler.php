@@ -37,10 +37,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         $session = $arguments['_session'];
 
         if ($reference->handler instanceof RunTimeHandlerInterface) {
-            return $reference->handler->execute(
-                $reference->handler->filterArguments($arguments),
-                new ClientGateway($session),
-            );
+            return $reference->handler->execute($arguments, new ClientGateway($session));
         }
 
         if (\is_string($reference->handler)) {

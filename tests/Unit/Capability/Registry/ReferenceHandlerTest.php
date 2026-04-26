@@ -16,7 +16,6 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\RunTimeHandlerInterface;
-use Mcp\Server\Handler\RunTimeHandlerTrait;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -29,20 +28,9 @@ final class ReferenceHandlerTest extends TestCase
         $session->method('getId')->willReturn(Uuid::v7());
 
         $runtimeHandler = new class implements RunTimeHandlerInterface {
-            use RunTimeHandlerTrait;
-
-            /** @var array<string, mixed>|null */
-            public ?array $filteredFrom = null;
             /** @var array<string, mixed>|null */
             public ?array $executedWith = null;
             public ?ClientGateway $receivedGateway = null;
-
-            public function filterArguments(array $arguments): array
-            {
-                $this->filteredFrom = $arguments;
-
-                return ['kept' => $arguments['kept'] ?? null];
-            }
 
             public function execute(array $arguments, ClientGateway $gateway): mixed
             {
@@ -65,9 +53,8 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertSame('runtime-result', $result);
         $this->assertSame(
             ['_session' => $session, 'kept' => 'value', 'dropped' => 'noise'],
-            $runtimeHandler->filteredFrom,
+            $runtimeHandler->executedWith,
         );
-        $this->assertSame(['kept' => 'value'], $runtimeHandler->executedWith);
         $this->assertInstanceOf(ClientGateway::class, $runtimeHandler->receivedGateway);
     }
 
@@ -77,18 +64,11 @@ final class ReferenceHandlerTest extends TestCase
         $session->method('getId')->willReturn(Uuid::v7());
 
         $runtimeHandler = new class implements RunTimeHandlerInterface {
-            use RunTimeHandlerTrait;
-
             public bool $executed = false;
 
             public function __invoke(): string
             {
                 throw new \LogicException('__invoke must not be called when RunTimeHandlerInterface is implemented');
-            }
-
-            public function filterArguments(array $arguments): array
-            {
-                return [];
             }
 
             public function execute(array $arguments, ClientGateway $gateway): mixed

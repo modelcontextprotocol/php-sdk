@@ -17,21 +17,13 @@ use Mcp\Schema\PromptArgument;
 use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\RunTimeHandlerInterface;
-use Mcp\Server\Handler\RunTimeHandlerTrait;
+use Mcp\Server\Handler\RunTimePromptHandlerInterface;
+use Mcp\Server\Handler\RunTimeResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\RunTimeToolHandlerInterface;
 use PHPUnit\Framework\TestCase;
 
 final class ArrayLoaderRunTimeHandlerTest extends TestCase
 {
-    public function testTraitOnlyHandlerReturnsNullFromAllMetadataAccessors(): void
-    {
-        $handler = new TraitOnlyRuntimeHandler();
-
-        $this->assertNull($handler->getInputSchema());
-        $this->assertNull($handler->getOutputSchema());
-        $this->assertNull($handler->getPromptArguments());
-        $this->assertNull($handler->getCompletionProviders());
-    }
-
     public function testAddToolUsesInputSchemaFromHandlerWhenNoKwarg(): void
     {
         $handler = new SchemaToolHandler();
@@ -116,10 +108,10 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
     public function testAddToolWithoutAnyInputSchemaRaisesConfigurationException(): void
     {
         $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessageMatches('/'.preg_quote(TraitOnlyRuntimeHandler::class, '/').'/');
+        $this->expectExceptionMessageMatches('/'.preg_quote(NullSchemaToolHandler::class, '/').'/');
 
         $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addTool(
-            handler: new TraitOnlyRuntimeHandler(),
+            handler: new NullSchemaToolHandler(),
             name: 'demo',
             description: 'no schema source',
         ));
@@ -127,7 +119,7 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
 
     public function testAddResourceRegistersRuntimeHandler(): void
     {
-        $handler = new TraitOnlyRuntimeHandler();
+        $handler = new BareResourceHandler();
 
         $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addResource(
             handler: $handler,
@@ -146,10 +138,10 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
     public function testAddResourceWithoutNameRaisesConfigurationException(): void
     {
         $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessageMatches('/'.preg_quote(TraitOnlyRuntimeHandler::class, '/').'/');
+        $this->expectExceptionMessageMatches('/'.preg_quote(BareResourceHandler::class, '/').'/');
 
         $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addResource(
-            handler: new TraitOnlyRuntimeHandler(),
+            handler: new BareResourceHandler(),
             uri: 'config://x',
             description: 'no name',
         ));
@@ -177,10 +169,10 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
     public function testAddResourceTemplateWithoutDescriptionRaisesConfigurationException(): void
     {
         $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessageMatches('/'.preg_quote(TraitOnlyRuntimeHandler::class, '/').'/');
+        $this->expectExceptionMessageMatches('/'.preg_quote(ResourceTemplateRuntimeHandler::class, '/').'/');
 
         $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addResourceTemplate(
-            handler: new TraitOnlyRuntimeHandler(),
+            handler: new ResourceTemplateRuntimeHandler(),
             uriTemplate: 'user://{userId}',
             name: 'user',
         ));
@@ -229,13 +221,24 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
     }
 }
 
-final class TraitOnlyRuntimeHandler implements RunTimeHandlerInterface
+final class BareResourceHandler implements RunTimeHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
-    public function filterArguments(array $arguments): array
+    public function execute(array $arguments, ClientGateway $gateway): mixed
     {
-        return [];
+        return null;
+    }
+}
+
+final class NullSchemaToolHandler implements RunTimeToolHandlerInterface
+{
+    public function getInputSchema(): ?array
+    {
+        return null;
+    }
+
+    public function getOutputSchema(): ?array
+    {
+        return null;
     }
 
     public function execute(array $arguments, ClientGateway $gateway): mixed
@@ -244,18 +247,16 @@ final class TraitOnlyRuntimeHandler implements RunTimeHandlerInterface
     }
 }
 
-final class SchemaToolHandler implements RunTimeHandlerInterface
+final class SchemaToolHandler implements RunTimeToolHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
     public function getInputSchema(): array
     {
         return ['type' => 'object', 'properties' => ['x' => ['type' => 'string']]];
     }
 
-    public function filterArguments(array $arguments): array
+    public function getOutputSchema(): ?array
     {
-        return $arguments;
+        return null;
     }
 
     public function execute(array $arguments, ClientGateway $gateway): mixed
@@ -264,10 +265,8 @@ final class SchemaToolHandler implements RunTimeHandlerInterface
     }
 }
 
-final class OutputSchemaToolHandler implements RunTimeHandlerInterface
+final class OutputSchemaToolHandler implements RunTimeToolHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
     public function getInputSchema(): array
     {
         return ['type' => 'object'];
@@ -278,29 +277,17 @@ final class OutputSchemaToolHandler implements RunTimeHandlerInterface
         return ['type' => 'object', 'properties' => ['from' => ['const' => 'handler']]];
     }
 
-    public function filterArguments(array $arguments): array
-    {
-        return $arguments;
-    }
-
     public function execute(array $arguments, ClientGateway $gateway): mixed
     {
         return ['from' => 'handler'];
     }
 }
 
-final class ResourceTemplateRuntimeHandler implements RunTimeHandlerInterface
+final class ResourceTemplateRuntimeHandler implements RunTimeResourceTemplateHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
     public function getCompletionProviders(): array
     {
         return ['userId' => new ListCompletionProvider(['alice', 'bob'])];
-    }
-
-    public function filterArguments(array $arguments): array
-    {
-        return $arguments;
     }
 
     public function execute(array $arguments, ClientGateway $gateway): mixed
@@ -309,10 +296,8 @@ final class ResourceTemplateRuntimeHandler implements RunTimeHandlerInterface
     }
 }
 
-final class PromptRuntimeHandler implements RunTimeHandlerInterface
+final class PromptRuntimeHandler implements RunTimePromptHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
     public function getPromptArguments(): array
     {
         return [new PromptArgument('q', 'The question', true)];
@@ -321,11 +306,6 @@ final class PromptRuntimeHandler implements RunTimeHandlerInterface
     public function getCompletionProviders(): array
     {
         return ['q' => new ListCompletionProvider(['hello', 'world'])];
-    }
-
-    public function filterArguments(array $arguments): array
-    {
-        return $arguments;
     }
 
     public function execute(array $arguments, ClientGateway $gateway): mixed

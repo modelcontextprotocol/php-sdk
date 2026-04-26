@@ -363,60 +363,29 @@ For more details on MCP elements, handlers, and attribute-based discovery, see [
 
 ### Runtime Handlers
 
-The handler types listed above all rely on PHP reflection to derive a tool's
-input schema, a prompt's arguments, completion providers, and so on. That
-works whenever your element is backed by a PHP function or method whose
-signature is known at compile time.
+When an element's shape is not known at compile time (e.g. config-driven
+integrations), reflection-based discovery does not apply. Implement an
+element-specific runtime interface instead and pass the instance to the
+Builder.
 
-Some integrations need to expose MCP elements whose shape is **not** known at
-compile time. The canonical example is a Drupal-style integration that bridges
-configuration entities into MCP elements: the input schema, prompt arguments,
-and even the element name come from configuration that the SDK cannot
-reflect on. For these cases, implement
-`Mcp\Server\Handler\RunTimeHandlerInterface` and pass the instance to the
-Builder the same way you would pass any other handler.
+| Element kind     | Interface                                |
+|------------------|------------------------------------------|
+| Tool             | `RunTimeToolHandlerInterface`            |
+| Prompt           | `RunTimePromptHandlerInterface`          |
+| Resource template| `RunTimeResourceTemplateHandlerInterface`|
+| Resource         | `RunTimeHandlerInterface`                |
 
-A runtime handler defines its behavior through two methods that the registry
-calls at request time:
-
-- `filterArguments(array $arguments): array` narrows the generic argument map
-  the registry constructs (which includes reserved keys such as `_session`
-  and `_request`) down to the keys your handler cares about.
-- `execute(array $arguments, ClientGateway $gateway): mixed` runs the element
-  and returns its result. The `ClientGateway` lets you send notifications,
-  request sampling, etc.
-
-Because reflection cannot describe the element, the interface also exposes
-four nullable metadata accessors:
-
-- `getInputSchema(): ?array` — JSON Schema for a tool's input. Return `null`
-  when the handler does not back a tool, or when the Builder caller supplies
-  the schema via the `inputSchema:` keyword (the kwarg takes precedence).
-- `getOutputSchema(): ?array` — JSON Schema for a tool's output. Return
-  `null` when no output schema applies; the Builder's `outputSchema:` kwarg
-  takes precedence when supplied.
-- `getPromptArguments(): ?array` — list of `PromptArgument` instances for a
-  prompt-backed runtime handler. Return `null` when the handler does not
-  back a prompt. There is no `arguments:` kwarg on `addPrompt()`; runtime
-  prompts source their arguments from this method only.
-- `getCompletionProviders(): ?array` — map of `argumentName => class-string|object`
-  for prompts and resource templates. Return `null` when no completion
-  providers apply.
-
-Implementing four nullable accessors on top of the two behavior methods is
-boilerplate-heavy for handlers that only back a single element kind. The
-companion trait `Mcp\Server\Handler\RunTimeHandlerTrait` returns `null` from
-all four accessors so you only override the ones relevant to your element.
+Each interface declares only the metadata it needs (input/output schema for
+tools, prompt arguments and completion providers for prompts, completion
+providers for resource templates). All extend the base
+`RunTimeHandlerInterface`, which requires only `execute()`.
 
 ```php
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
-use Mcp\Server\Handler\RunTimeHandlerTrait;
+use Mcp\Server\Handler\RunTimeToolHandlerInterface;
 
-final class WeatherToolHandler implements RunTimeHandlerInterface
+final class WeatherToolHandler implements RunTimeToolHandlerInterface
 {
-    use RunTimeHandlerTrait;
-
     public function getInputSchema(): ?array
     {
         return [
@@ -426,9 +395,9 @@ final class WeatherToolHandler implements RunTimeHandlerInterface
         ];
     }
 
-    public function filterArguments(array $arguments): array
+    public function getOutputSchema(): ?array
     {
-        return ['city' => $arguments['city'] ?? ''];
+        return null;
     }
 
     public function execute(array $arguments, ClientGateway $gateway): mixed
@@ -446,18 +415,10 @@ $server = Server::builder()
     ->build();
 ```
 
-**Required parameters:** `name` and `description` MUST be passed explicitly
-to the Builder call when registering a runtime handler. Reflection-based
-fallbacks do not apply because there is no PHP signature to reflect on.
-Omitting either raises `Mcp\Exception\ConfigurationException` at registration
-time. For tool runtime handlers, an input schema is also required: the
-loader prefers the `inputSchema:` kwarg when supplied and otherwise calls
-`getInputSchema()` — if both yield `null`, registration raises
-`ConfigurationException`.
-
-The same pattern applies to `addResource()`, `addResourceTemplate()`, and
-`addPrompt()`. Override only the metadata accessors relevant to the element
-your handler backs.
+`name` and `description` are required when registering a runtime handler.
+For tools, an input schema is also required (via the `inputSchema:` kwarg or
+`getInputSchema()`). Missing values raise `ConfigurationException` at
+registration time.
 
 ## Service Dependencies
 

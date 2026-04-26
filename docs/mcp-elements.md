@@ -42,12 +42,9 @@ Each capability can be registered using two methods:
 
 For manual registration details, see [Server Builder Manual Registration](server-builder.md#manual-capability-registration).
 
-For runtime, config-driven elements where the input shape is not known at
-compile time and reflection-based discovery is therefore impossible (for
-example, Drupal-style integrations bridging configuration entities into
-MCP elements), see the [Runtime Handlers](server-builder.md#runtime-handlers)
-subsection in the Server Builder docs — it covers the
-`RunTimeHandlerInterface` contract and the `RunTimeHandlerTrait` shortcut.
+For runtime, config-driven elements whose shape is not known at compile time
+(e.g. bridging configuration entities into MCP elements), see [Runtime
+Handlers](server-builder.md#runtime-handlers) in the Server Builder docs.
 
 ## Tools
 
