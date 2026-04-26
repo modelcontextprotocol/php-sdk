@@ -79,6 +79,10 @@ final class Builder
 
     private ?SessionStoreInterface $sessionStore = null;
 
+    private int $gcProbability = 1;
+
+    private int $gcDivisor = 100;
+
     private int $paginationLimit = 50;
 
     private ?string $instructions = null;
@@ -330,12 +334,22 @@ final class Builder
         return $this;
     }
 
+    /**
+     * Configures the session layer.
+     *
+     * @param int $gcProbability The numerator of the GC probability fraction (like PHP's session.gc_probability). Set to 0 to disable GC.
+     * @param int $gcDivisor     The denominator of the GC probability fraction (like PHP's session.gc_divisor). Probability = gcProbability/gcDivisor.
+     */
     public function setSession(
         ?SessionStoreInterface $sessionStore = null,
         ?SessionManagerInterface $sessionManager = null,
+        int $gcProbability = 1,
+        int $gcDivisor = 100,
     ): self {
         $this->sessionStore = $sessionStore;
         $this->sessionManager = $sessionManager;
+        $this->gcProbability = $gcProbability;
+        $this->gcDivisor = $gcDivisor;
 
         if (null !== $sessionManager && null !== $sessionStore) {
             throw new InvalidArgumentException('Cannot set both SessionStore and SessionManager. Set only one or the other.');
@@ -522,6 +536,8 @@ final class Builder
         $sessionManager = $this->sessionManager ?? new SessionManager(
             $this->sessionStore ?? new InMemorySessionStore(),
             $logger,
+            $this->gcProbability,
+            $this->gcDivisor,
         );
 
         if (null !== $this->discoveryBasePath) {
