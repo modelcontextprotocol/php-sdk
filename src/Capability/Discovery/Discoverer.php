@@ -234,13 +234,14 @@ final class Discoverer implements DiscovererInterface
                     $inputSchema = $this->schemaGenerator->generate($method);
                     $outputSchema = $this->schemaGenerator->generateOutputSchema($method);
                     $tool = new Tool(
-                        $name,
-                        $inputSchema,
-                        $description,
-                        $instance->annotations,
-                        $instance->icons,
-                        $instance->meta,
-                        $outputSchema,
+                        name: $name,
+                        title: $instance->title,
+                        inputSchema: $inputSchema,
+                        description: $description,
+                        annotations: $instance->annotations,
+                        icons: $instance->icons,
+                        meta: $instance->meta,
+                        outputSchema: $outputSchema,
                     );
                     $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
                     ++$discoveredCount['tools'];
