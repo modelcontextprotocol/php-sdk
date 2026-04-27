@@ -101,7 +101,7 @@ $server = Server::builder()
         scanDirs: ['.', 'src', 'lib'],           // Where to look for MCP attributes
         excludeDirs: ['vendor', 'tests'],        // Where NOT to look
         cache: $cacheInstance,                   // Optional: cache discovered elements
-        namePatterns: ['*.php', '*.inc'],         // Optional: list of filename patterns to match
+        namePatterns: ['*.php', '*.inc'],        // Optional: list of filename patterns to match
     );
 ```
 
