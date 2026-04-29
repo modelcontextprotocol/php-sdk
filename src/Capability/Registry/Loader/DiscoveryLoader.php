@@ -24,14 +24,14 @@ final class DiscoveryLoader implements LoaderInterface
     /**
      * @param string[]       $scanDirs
      * @param array|string[] $excludeDirs
-     * @param string[]|null  $namePatterns
+     * @param string[]       $namePatterns
      */
     public function __construct(
         private string $basePath,
         private array $scanDirs,
         private array $excludeDirs,
         private DiscovererInterface $discoverer,
-        private ?array $namePatterns = null,
+        private array $namePatterns = DiscovererInterface::DEFAULT_NAME_PATERNS,
     ) {
     }
 

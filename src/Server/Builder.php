@@ -353,14 +353,14 @@ final class Builder
     /**
      * @param string[]      $scanDirs
      * @param string[]      $excludeDirs
-     * @param string[]|null $namePatterns
+     * @param string[]      $namePatterns
      */
     public function setDiscovery(
         string $basePath,
         array $scanDirs = ['.', 'src'],
         array $excludeDirs = [],
         ?CacheInterface $cache = null,
-        ?array $namePatterns = null,
+        array $namePatterns = DiscovererInterface::DEFAULT_NAME_PATERNS,
     ): self {
         $this->discoveryBasePath = $basePath;
         $this->discoveryScanDirs = $scanDirs;
