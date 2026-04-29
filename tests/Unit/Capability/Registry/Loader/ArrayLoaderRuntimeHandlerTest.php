@@ -13,16 +13,16 @@ namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 
 use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Exception\ConfigurationException;
-use Mcp\Schema\PromptArgument;
 use Mcp\Server;
-use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
-use Mcp\Server\Handler\RunTimePromptHandlerInterface;
-use Mcp\Server\Handler\RunTimeResourceTemplateHandlerInterface;
-use Mcp\Server\Handler\RunTimeToolHandlerInterface;
+use Mcp\Tests\Fixtures\Runtime\BareResourceHandler;
+use Mcp\Tests\Fixtures\Runtime\NullSchemaToolHandler;
+use Mcp\Tests\Fixtures\Runtime\OutputSchemaToolHandler;
+use Mcp\Tests\Fixtures\Runtime\PromptRuntimeHandler;
+use Mcp\Tests\Fixtures\Runtime\ResourceTemplateRuntimeHandler;
+use Mcp\Tests\Fixtures\Runtime\SchemaToolHandler;
 use PHPUnit\Framework\TestCase;
 
-final class ArrayLoaderRunTimeHandlerTest extends TestCase
+final class ArrayLoaderRuntimeHandlerTest extends TestCase
 {
     public function testAddToolUsesInputSchemaFromHandlerWhenNoKwarg(): void
     {
@@ -218,98 +218,5 @@ final class ArrayLoaderRunTimeHandlerTest extends TestCase
         $configure($builder)->build();
 
         return $registry;
-    }
-}
-
-final class BareResourceHandler implements RunTimeHandlerInterface
-{
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return null;
-    }
-}
-
-final class NullSchemaToolHandler implements RunTimeToolHandlerInterface
-{
-    public function getInputSchema(): ?array
-    {
-        return null;
-    }
-
-    public function getOutputSchema(): ?array
-    {
-        return null;
-    }
-
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return null;
-    }
-}
-
-final class SchemaToolHandler implements RunTimeToolHandlerInterface
-{
-    public function getInputSchema(): array
-    {
-        return ['type' => 'object', 'properties' => ['x' => ['type' => 'string']]];
-    }
-
-    public function getOutputSchema(): ?array
-    {
-        return null;
-    }
-
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return ['ok' => true];
-    }
-}
-
-final class OutputSchemaToolHandler implements RunTimeToolHandlerInterface
-{
-    public function getInputSchema(): array
-    {
-        return ['type' => 'object'];
-    }
-
-    public function getOutputSchema(): array
-    {
-        return ['type' => 'object', 'properties' => ['from' => ['const' => 'handler']]];
-    }
-
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return ['from' => 'handler'];
-    }
-}
-
-final class ResourceTemplateRuntimeHandler implements RunTimeResourceTemplateHandlerInterface
-{
-    public function getCompletionProviders(): array
-    {
-        return ['userId' => new ListCompletionProvider(['alice', 'bob'])];
-    }
-
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return ['ok' => true];
-    }
-}
-
-final class PromptRuntimeHandler implements RunTimePromptHandlerInterface
-{
-    public function getPromptArguments(): array
-    {
-        return [new PromptArgument('q', 'The question', true)];
-    }
-
-    public function getCompletionProviders(): array
-    {
-        return ['q' => new ListCompletionProvider(['hello', 'world'])];
-    }
-
-    public function execute(array $arguments, ClientGateway $gateway): mixed
-    {
-        return [];
     }
 }
