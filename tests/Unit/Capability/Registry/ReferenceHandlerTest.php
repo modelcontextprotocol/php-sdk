@@ -25,7 +25,7 @@ final class ReferenceHandlerTest extends TestCase
     public function testHandleDispatchesToRuntimeHandlerAndForwardsClientGateway(): void
     {
         $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn(Uuid::v7());
+        $session->method('getId')->willReturn(Uuid::v4());
 
         $runtimeHandler = new class implements RuntimeHandlerInterface {
             /** @var array<string, mixed>|null */
@@ -63,7 +63,7 @@ final class ReferenceHandlerTest extends TestCase
     public function testRuntimeHandlerTakesPriorityOverInvokeAndCallableDetection(): void
     {
         $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn(Uuid::v7());
+        $session->method('getId')->willReturn(Uuid::v4());
 
         $runtimeHandler = new class implements RuntimeHandlerInterface {
             public bool $executed = false;
