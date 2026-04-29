@@ -80,6 +80,8 @@ final class Discoverer implements DiscovererInterface
             'resourceTemplates' => 0,
         ];
 
+        $namePatterns = !empty($namePatterns) ? $namePatterns : self::DEFAULT_NAME_PATERNS;
+
         $tools = [];
         $resources = [];
         $prompts = [];
