@@ -122,7 +122,7 @@ class HttpTransport extends BaseTransport
             $this->logger->debug('Received session ID', ['session_id' => $this->sessionId]);
         }
 
-        $contentType = $response->getHeaderLine('Content-Type');
+        $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if (str_contains($contentType, 'text/event-stream')) {
             $this->activeStream = $response->getBody();
