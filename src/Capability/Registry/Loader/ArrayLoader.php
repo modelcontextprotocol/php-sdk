@@ -121,6 +121,7 @@ final class ArrayLoader implements LoaderInterface
 
                     $tool = new Tool(
                         name: $data['name'],
+                        title: $data['title'] ?? null,
                         inputSchema: $inputSchema,
                         description: $data['description'],
                         annotations: $data['annotations'] ?? null,
