@@ -13,8 +13,10 @@ namespace Mcp\Server\Handler;
 
 /**
  * Runtime handler that backs an MCP prompt.
+ *
+ * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
-interface RunTimePromptHandlerInterface extends RunTimeHandlerInterface
+interface RuntimePromptHandlerInterface extends RuntimeHandlerInterface
 {
     /**
      * Returns the prompt arguments for this handler.

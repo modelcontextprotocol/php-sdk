@@ -370,21 +370,21 @@ Builder.
 
 | Element kind     | Interface                                |
 |------------------|------------------------------------------|
-| Tool             | `RunTimeToolHandlerInterface`            |
-| Prompt           | `RunTimePromptHandlerInterface`          |
-| Resource template| `RunTimeResourceTemplateHandlerInterface`|
-| Resource         | `RunTimeHandlerInterface`                |
+| Tool             | `RuntimeToolHandlerInterface`            |
+| Prompt           | `RuntimePromptHandlerInterface`          |
+| Resource template| `RuntimeResourceTemplateHandlerInterface`|
+| Resource         | `RuntimeHandlerInterface`                |
 
 Each interface declares only the metadata it needs (input/output schema for
 tools, prompt arguments and completion providers for prompts, completion
 providers for resource templates). All extend the base
-`RunTimeHandlerInterface`, which requires only `execute()`.
+`RuntimeHandlerInterface`, which requires only `execute()`.
 
 ```php
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RunTimeToolHandlerInterface;
+use Mcp\Server\Handler\RuntimeToolHandlerInterface;
 
-final class WeatherToolHandler implements RunTimeToolHandlerInterface
+final class WeatherToolHandler implements RuntimeToolHandlerInterface
 {
     public function getInputSchema(): ?array
     {
@@ -416,9 +416,9 @@ $server = Server::builder()
 ```
 
 `name` and `description` are required when registering a runtime handler.
-For tools, an input schema is also required (via the `inputSchema:` kwarg or
-`getInputSchema()`). Missing values raise `ConfigurationException` at
-registration time.
+For tools, an input schema is also required (via the `inputSchema:` named
+argument or `getInputSchema()`). Missing values raise `ConfigurationException`
+at registration time.
 
 ## Service Dependencies
 

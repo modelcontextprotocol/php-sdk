@@ -30,7 +30,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RuntimeHandlerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -69,7 +69,7 @@ final class Registry implements RegistryInterface
     ) {
     }
 
-    public function registerTool(Tool $tool, callable|array|string|RunTimeHandlerInterface $handler, bool $isManual = false): void
+    public function registerTool(Tool $tool, callable|array|string|RuntimeHandlerInterface $handler, bool $isManual = false): void
     {
         $toolName = $tool->name;
         $existing = $this->tools[$toolName] ?? null;
@@ -93,7 +93,7 @@ final class Registry implements RegistryInterface
         $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
     }
 
-    public function registerResource(Resource $resource, callable|array|string|RunTimeHandlerInterface $handler, bool $isManual = false): void
+    public function registerResource(Resource $resource, callable|array|string|RuntimeHandlerInterface $handler, bool $isManual = false): void
     {
         $uri = $resource->uri;
         $existing = $this->resources[$uri] ?? null;
@@ -113,7 +113,7 @@ final class Registry implements RegistryInterface
 
     public function registerResourceTemplate(
         ResourceTemplate $template,
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RuntimeHandlerInterface $handler,
         array $completionProviders = [],
         bool $isManual = false,
     ): void {
@@ -140,7 +140,7 @@ final class Registry implements RegistryInterface
 
     public function registerPrompt(
         Prompt $prompt,
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RuntimeHandlerInterface $handler,
         array $completionProviders = [],
         bool $isManual = false,
     ): void {

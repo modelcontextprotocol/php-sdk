@@ -21,13 +21,22 @@ use Mcp\Server\ClientGateway;
  * with the full argument map (including reserved keys such as `_session` and
  * `_request`) and a {@see ClientGateway} for client-side callbacks.
  *
- * Element-specific subtypes ({@see RunTimeToolHandlerInterface},
- * {@see RunTimePromptHandlerInterface}, {@see RunTimeResourceTemplateHandlerInterface})
- * declare only the metadata accessors relevant to their element kind.
- * Resources have no extra metadata and may implement this base interface
- * directly.
+ * Element-specific subtypes ({@see RuntimeToolHandlerInterface},
+ * {@see RuntimePromptHandlerInterface}, {@see RuntimeResourceTemplateHandlerInterface},
+ * {@see RuntimeResourceHandlerInterface}) declare only the metadata accessors
+ * relevant to their element kind. Implementing the base interface alone is
+ * supported for backwards-compatibility but new handlers should pick the
+ * element-specific subtype that matches how they are registered.
+ *
+ * Note: arguments are forwarded to {@see self::execute()} as received from the
+ * JSON-RPC request, without the type casting performed for reflection-based
+ * handlers (string-to-int, string-to-bool, etc.). Runtime handlers are
+ * responsible for validating and casting their own inputs, typically against
+ * the schema they advertise.
+ *
+ * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
-interface RunTimeHandlerInterface
+interface RuntimeHandlerInterface
 {
     /**
      * Executes the handler and returns its result.

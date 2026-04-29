@@ -13,8 +13,10 @@ namespace Mcp\Server\Handler;
 
 /**
  * Runtime handler that backs an MCP resource template.
+ *
+ * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
-interface RunTimeResourceTemplateHandlerInterface extends RunTimeHandlerInterface
+interface RuntimeResourceTemplateHandlerInterface extends RuntimeHandlerInterface
 {
     /**
      * Returns the completion providers for the URI template variables.

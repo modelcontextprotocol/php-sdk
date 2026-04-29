@@ -15,19 +15,19 @@ use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RuntimeHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
 final class ReferenceHandlerTest extends TestCase
 {
-    public function testHandleDispatchesToRunTimeHandlerAndForwardsClientGateway(): void
+    public function testHandleDispatchesToRuntimeHandlerAndForwardsClientGateway(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v7());
 
-        $runtimeHandler = new class implements RunTimeHandlerInterface {
+        $runtimeHandler = new class implements RuntimeHandlerInterface {
             /** @var array<string, mixed>|null */
             public ?array $executedWith = null;
             public ?ClientGateway $receivedGateway = null;
@@ -44,31 +44,33 @@ final class ReferenceHandlerTest extends TestCase
         $reference = new ElementReference($runtimeHandler, true);
         $referenceHandler = new ReferenceHandler();
 
+        $request = new \stdClass();
         $result = $referenceHandler->handle($reference, [
             '_session' => $session,
+            '_request' => $request,
             'kept' => 'value',
-            'dropped' => 'noise',
+            'other' => 'value2',
         ]);
 
         $this->assertSame('runtime-result', $result);
         $this->assertSame(
-            ['_session' => $session, 'kept' => 'value', 'dropped' => 'noise'],
+            ['kept' => 'value', 'other' => 'value2'],
             $runtimeHandler->executedWith,
         );
         $this->assertInstanceOf(ClientGateway::class, $runtimeHandler->receivedGateway);
     }
 
-    public function testRunTimeHandlerTakesPriorityOverInvokeAndCallableDetection(): void
+    public function testRuntimeHandlerTakesPriorityOverInvokeAndCallableDetection(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v7());
 
-        $runtimeHandler = new class implements RunTimeHandlerInterface {
+        $runtimeHandler = new class implements RuntimeHandlerInterface {
             public bool $executed = false;
 
             public function __invoke(): string
             {
-                throw new \LogicException('__invoke must not be called when RunTimeHandlerInterface is implemented');
+                throw new \LogicException('__invoke must not be called when RuntimeHandlerInterface is implemented');
             }
 
             public function execute(array $arguments, ClientGateway $gateway): mixed

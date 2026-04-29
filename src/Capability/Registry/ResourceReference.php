@@ -14,7 +14,7 @@ namespace Mcp\Capability\Registry;
 use Mcp\Capability\Formatter\ResourceResultFormatter;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Resource;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RuntimeHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -28,7 +28,7 @@ class ResourceReference extends ElementReference
      */
     public function __construct(
         public readonly Resource $resource,
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RuntimeHandlerInterface $handler,
         bool $isManual = false,
     ) {
         parent::__construct($handler, $isManual);

@@ -31,10 +31,11 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server\Handler;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
-use Mcp\Server\Handler\RunTimePromptHandlerInterface;
-use Mcp\Server\Handler\RunTimeResourceTemplateHandlerInterface;
-use Mcp\Server\Handler\RunTimeToolHandlerInterface;
+use Mcp\Server\Handler\RuntimeHandlerInterface;
+use Mcp\Server\Handler\RuntimePromptHandlerInterface;
+use Mcp\Server\Handler\RuntimeResourceHandlerInterface;
+use Mcp\Server\Handler\RuntimeResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\RuntimeToolHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -103,7 +104,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Tools
         foreach ($this->tools as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeToolHandlerInterface) {
+                if ($data['handler'] instanceof RuntimeToolHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime tool handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -113,7 +114,7 @@ final class ArrayLoader implements LoaderInterface
 
                     $inputSchema = $data['inputSchema'] ?? $data['handler']->getInputSchema();
                     if (null === $inputSchema) {
-                        throw new ConfigurationException(\sprintf('Runtime tool handler %s did not provide an input schema (neither via the inputSchema kwarg nor via getInputSchema()).', $data['handler']::class));
+                        throw new ConfigurationException(\sprintf('Runtime tool handler %s did not provide an input schema (neither via the inputSchema named argument nor via getInputSchema()).', $data['handler']::class));
                     }
                     $outputSchema = $data['outputSchema'] ?? $data['handler']->getOutputSchema();
 
@@ -167,14 +168,18 @@ final class ArrayLoader implements LoaderInterface
                     'Failed to register manual tool',
                     ['handler' => $this->getHandlerDescription($data['handler']), 'name' => $data['name'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual tool '{$data['name']}': {$e->getMessage()}", 0, $e);
+                if ($e instanceof ConfigurationException) {
+                    throw $e;
+                }
+                $nameForMessage = $data['name'] ?? '<unnamed>';
+                throw new ConfigurationException("Error registering manual tool '{$nameForMessage}': {$e->getMessage()}", 0, $e);
             }
         }
 
         // Register Resources
         foreach ($this->resources as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeHandlerInterface) {
+                if ($data['handler'] instanceof RuntimeResourceHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime resource handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -232,6 +237,9 @@ final class ArrayLoader implements LoaderInterface
                     'Failed to register manual resource',
                     ['handler' => $this->getHandlerDescription($data['handler']), 'uri' => $data['uri'], 'exception' => $e],
                 );
+                if ($e instanceof ConfigurationException) {
+                    throw $e;
+                }
                 throw new ConfigurationException("Error registering manual resource '{$data['uri']}': {$e->getMessage()}", 0, $e);
             }
         }
@@ -239,7 +247,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Templates
         foreach ($this->resourceTemplates as $data) {
             try {
-                if ($data['handler'] instanceof RunTimeResourceTemplateHandlerInterface) {
+                if ($data['handler'] instanceof RuntimeResourceTemplateHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime resource template handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -295,6 +303,9 @@ final class ArrayLoader implements LoaderInterface
                     'Failed to register manual template',
                     ['handler' => $this->getHandlerDescription($data['handler']), 'uriTemplate' => $data['uriTemplate'], 'exception' => $e],
                 );
+                if ($e instanceof ConfigurationException) {
+                    throw $e;
+                }
                 throw new ConfigurationException("Error registering manual resource template '{$data['uriTemplate']}': {$e->getMessage()}", 0, $e);
             }
         }
@@ -302,7 +313,7 @@ final class ArrayLoader implements LoaderInterface
         // Register Prompts
         foreach ($this->prompts as $data) {
             try {
-                if ($data['handler'] instanceof RunTimePromptHandlerInterface) {
+                if ($data['handler'] instanceof RuntimePromptHandlerInterface) {
                     if (null === $data['name']) {
                         throw new ConfigurationException(\sprintf('Runtime prompt handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
                     }
@@ -379,7 +390,11 @@ final class ArrayLoader implements LoaderInterface
                     'Failed to register manual prompt',
                     ['handler' => $this->getHandlerDescription($data['handler']), 'name' => $data['name'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual prompt '{$data['name']}': {$e->getMessage()}", 0, $e);
+                if ($e instanceof ConfigurationException) {
+                    throw $e;
+                }
+                $nameForMessage = $data['name'] ?? '<unnamed>';
+                throw new ConfigurationException("Error registering manual prompt '{$nameForMessage}': {$e->getMessage()}", 0, $e);
             }
         }
 
@@ -389,13 +404,13 @@ final class ArrayLoader implements LoaderInterface
     /**
      * @param Handler $handler
      */
-    private function getHandlerDescription(\Closure|array|string|RunTimeHandlerInterface $handler): string
+    private function getHandlerDescription(\Closure|array|string|RuntimeHandlerInterface $handler): string
     {
         if ($handler instanceof \Closure) {
             return 'Closure';
         }
 
-        if ($handler instanceof RunTimeHandlerInterface) {
+        if ($handler instanceof RuntimeHandlerInterface) {
             return $handler::class;
         }
 

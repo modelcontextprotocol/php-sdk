@@ -25,7 +25,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
-use Mcp\Server\Handler\RunTimeHandlerInterface;
+use Mcp\Server\Handler\RuntimeHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -40,14 +40,14 @@ interface RegistryInterface
      *
      * @param Handler $handler
      */
-    public function registerTool(Tool $tool, callable|array|string|RunTimeHandlerInterface $handler, bool $isManual = false): void;
+    public function registerTool(Tool $tool, callable|array|string|RuntimeHandlerInterface $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource with its handler.
      *
      * @param Handler $handler
      */
-    public function registerResource(Resource $resource, callable|array|string|RunTimeHandlerInterface $handler, bool $isManual = false): void;
+    public function registerResource(Resource $resource, callable|array|string|RuntimeHandlerInterface $handler, bool $isManual = false): void;
 
     /**
      * Registers a resource template with its handler and completion providers.
@@ -57,7 +57,7 @@ interface RegistryInterface
      */
     public function registerResourceTemplate(
         ResourceTemplate $template,
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RuntimeHandlerInterface $handler,
         array $completionProviders = [],
         bool $isManual = false,
     ): void;
@@ -70,7 +70,7 @@ interface RegistryInterface
      */
     public function registerPrompt(
         Prompt $prompt,
-        callable|array|string|RunTimeHandlerInterface $handler,
+        callable|array|string|RuntimeHandlerInterface $handler,
         array $completionProviders = [],
         bool $isManual = false,
     ): void;
