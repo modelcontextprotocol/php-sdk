@@ -351,9 +351,9 @@ final class Builder
     }
 
     /**
-     * @param string[]      $scanDirs
-     * @param string[]      $excludeDirs
-     * @param string[]      $namePatterns
+     * @param string[] $scanDirs
+     * @param string[] $excludeDirs
+     * @param string[] $namePatterns
      */
     public function setDiscovery(
         string $basePath,
