@@ -103,6 +103,7 @@ final class Builder
      * @var array{
      *     handler: Handler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
      *     inputSchema: ?array<string, mixed>,
@@ -378,15 +379,17 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param callable|array{0: object|string, 1: string}|string|RuntimeToolHandlerInterface $handler
-     * @param array<string, mixed>|null                                                      $inputSchema
-     * @param ?Icon[]                                                                        $icons
-     * @param array<string, mixed>|null                                                      $meta
-     * @param array<string, mixed>|null                                                      $outputSchema
+     * @param Handler                   $handler
+     * @param ?string                   $title        Optional human-readable title for display in UI
+     * @param array<string, mixed>|null $inputSchema
+     * @param ?Icon[]                   $icons
+     * @param array<string, mixed>|null $meta
+     * @param array<string, mixed>|null $outputSchema
      */
     public function addTool(
         callable|array|string|RuntimeToolHandlerInterface $handler,
         ?string $name = null,
+        ?string $title = null,
         ?string $description = null,
         ?ToolAnnotations $annotations = null,
         ?array $inputSchema = null,
@@ -397,6 +400,7 @@ final class Builder
         $this->tools[] = compact(
             'handler',
             'name',
+            'title',
             'description',
             'annotations',
             'inputSchema',

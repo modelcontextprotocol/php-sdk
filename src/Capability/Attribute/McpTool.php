@@ -22,6 +22,7 @@ class McpTool
 {
     /**
      * @param string|null           $name         The name of the tool (defaults to the method name)
+     * @param string|null           $title        Optional human-readable title for display in UI
      * @param string|null           $description  The description of the tool (defaults to the DocBlock/inferred)
      * @param ToolAnnotations|null  $annotations  Optional annotations describing tool behavior
      * @param ?Icon[]               $icons        Optional list of icon URLs representing the tool
@@ -30,6 +31,7 @@ class McpTool
      */
     public function __construct(
         public ?string $name = null,
+        public ?string $title = null,
         public ?string $description = null,
         public ?ToolAnnotations $annotations = null,
         public ?array $icons = null,

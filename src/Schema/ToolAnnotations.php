@@ -28,7 +28,7 @@ namespace Mcp\Schema;
 class ToolAnnotations implements \JsonSerializable
 {
     /**
-     * @param ?string $title           a human-readable title for the tool
+     * @param ?string $title           a human-readable title for the tool — deprecated for display in favor of `Mcp\Schema\Tool::$title` per MCP spec revision 2025-06-18; retained for backward compatibility
      * @param ?bool   $readOnlyHint    if true, the tool does not modify its environment
      * @param ?bool   $destructiveHint If true, the tool may perform destructive updates to its environment. If false, the tool performs only additive updates.
      * @param ?bool   $idempotentHint  If true, calling the tool repeatedly with the same arguments will have no additional effect on the its environment. (This property is meaningful only when `readOnlyHint == false`)

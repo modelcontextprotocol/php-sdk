@@ -14,8 +14,6 @@ parameters:
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
         -
-            message: "#^Method .*::test.*\\(\\) has no return type specified\\.$#"
-        -
             identifier: missingType.iterableValue
             path: tests/
 

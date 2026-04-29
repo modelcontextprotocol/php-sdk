@@ -65,7 +65,7 @@ final class CallToolRequest extends Request
     {
         return [
             'name' => $this->name,
-            'arguments' => $this->arguments,
+            'arguments' => $this->arguments ?: new \stdClass(),
         ];
     }
 }

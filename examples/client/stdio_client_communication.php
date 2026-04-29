@@ -1,5 +1,14 @@
 <?php
 
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
 /**
  * STDIO Client Communication Example.
  *
@@ -9,17 +18,6 @@
  * - Sampling requests (mocked LLM response)
  *
  * Usage: php examples/client/stdio_client_communication.php
- */
-
-declare(strict_types=1);
-
-/*
- * This file is part of the official PHP MCP SDK.
- *
- * A collaboration between Symfony and the PHP Foundation.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
  */
 
 require_once __DIR__.'/../../vendor/autoload.php';

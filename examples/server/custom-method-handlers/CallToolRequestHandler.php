@@ -44,7 +44,7 @@ class CallToolRequestHandler implements RequestHandlerInterface
         \assert($request instanceof CallToolRequest);
 
         $name = $request->name;
-        $args = $request->arguments ?? [];
+        $args = $request->arguments;
 
         if (!isset($this->toolDefinitions[$name])) {
             return new Error($request->getId(), Error::METHOD_NOT_FOUND, \sprintf('Tool not found: %s', $name));

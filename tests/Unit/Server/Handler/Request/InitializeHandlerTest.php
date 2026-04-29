@@ -41,10 +41,10 @@ class InitializeHandlerTest extends TestCase
         $session = $this->createMock(SessionInterface::class);
         $session->expects($this->exactly(2))
             ->method('set')
-            ->willReturnCallback(function (string $key, array $value): void {
+            ->willReturnCallback(function (string $key, mixed $value): void {
                 match ($key) {
                     'client_info' => $this->assertSame(['name' => 'client-app', 'version' => '1.0.0'], $value),
-                    'client_capabilities' => $this->assertSame([], $value),
+                    'client_capabilities' => $this->assertEquals(new \stdClass(), $value),
                     default => $this->fail("Unexpected session key: {$key}"),
                 };
             });

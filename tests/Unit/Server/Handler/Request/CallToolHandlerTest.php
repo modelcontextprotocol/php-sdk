@@ -483,7 +483,7 @@ class CallToolHandlerTest extends TestCase
 
         $request = $this->createCallToolRequest('result_tool', ['query' => 'php']);
         $toolReference = $this->getMockBuilder(ToolReference::class)
-            ->setConstructorArgs([new Tool('simple_tool', $schema, null, null), static function () {}])
+            ->setConstructorArgs([new Tool('simple_tool', null, $schema, null, null), static function () {}])
             ->getMock();
 
         $this->registry
@@ -535,7 +535,7 @@ class CallToolHandlerTest extends TestCase
             ],
             'required' => [],
         ];
-        $tool = new Tool($name, $schema, null, null, null, null, $outputSchema);
+        $tool = new Tool($name, null, $schema, null, null, null, null, $outputSchema);
 
         $builder = $this->getMockBuilder(ToolReference::class)
             ->setConstructorArgs([$tool, $handler]);

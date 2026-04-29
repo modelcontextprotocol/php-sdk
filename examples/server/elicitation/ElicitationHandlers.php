@@ -1,7 +1,5 @@
 <?php
 
-declare(strict_types=1);
-
 /*
  * This file is part of the official PHP MCP SDK.
  *
@@ -47,7 +45,7 @@ final class ElicitationHandlers
      *
      * @return array{status: string, message: string, booking?: array{party_size: int, date: string, dietary: string}}
      */
-    #[McpTool('book_restaurant', 'Book a restaurant reservation, collecting details via elicitation.')]
+    #[McpTool(name: 'book_restaurant', description: 'Book a restaurant reservation, collecting details via elicitation.')]
     public function bookRestaurant(RequestContext $context, string $restaurantName): array
     {
         if (!$context->getClientGateway()->supportsElicitation()) {
@@ -158,7 +156,7 @@ final class ElicitationHandlers
      *
      * @return array{status: string, message: string}
      */
-    #[McpTool('confirm_action', 'Request user confirmation before proceeding with an action.')]
+    #[McpTool(name: 'confirm_action', description: 'Request user confirmation before proceeding with an action.')]
     public function confirmAction(RequestContext $context, string $actionDescription): array
     {
         if (!$context->getClientGateway()->supportsElicitation()) {
@@ -226,7 +224,7 @@ final class ElicitationHandlers
      *
      * @return array{status: string, message: string, feedback?: array{rating: string, comments: string}}
      */
-    #[McpTool('collect_feedback', 'Collect user feedback via elicitation form.')]
+    #[McpTool(name: 'collect_feedback', description: 'Collect user feedback via elicitation form.')]
     public function collectFeedback(RequestContext $context, string $topic): array
     {
         if (!$context->getClientGateway()->supportsElicitation()) {

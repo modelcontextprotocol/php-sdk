@@ -20,7 +20,7 @@ use PHPUnit\Framework\TestCase;
 
 final class CreateSamplingMessageRequestTest extends TestCase
 {
-    public function testConstructorWithValidSetOfMessages()
+    public function testConstructorWithValidSetOfMessages(): void
     {
         $messages = [
             new SamplingMessage(Role::User, new TextContent('My name is George.')),
@@ -34,7 +34,7 @@ final class CreateSamplingMessageRequestTest extends TestCase
         $this->assertSame(150, $request->maxTokens);
     }
 
-    public function testConstructorWithInvalidSetOfMessages()
+    public function testConstructorWithInvalidSetOfMessages(): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Messages must be instance of SamplingMessage.');

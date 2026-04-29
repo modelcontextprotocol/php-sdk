@@ -272,7 +272,7 @@ class SessionTest extends TestCase
         $this->assertNotEquals($session1->getId()->toRfc4122(), $session2->getId()->toRfc4122());
     }
 
-    public function testAll()
+    public function testAll(): void
     {
         $store = $this->getMockBuilder(InMemorySessionStore::class)
             ->disableOriginalConstructor()
@@ -289,7 +289,7 @@ class SessionTest extends TestCase
         $this->assertEquals(['foo' => 'bar'], $result);
     }
 
-    public function testSaveBeforeReadInitializesData()
+    public function testSaveBeforeReadInitializesData(): void
     {
         $store = new InMemorySessionStore();
         $session = new Session($store);
@@ -298,7 +298,7 @@ class SessionTest extends TestCase
         $this->assertTrue($session->save());
     }
 
-    public function testAllReturnsEmptyArrayForNullPayload()
+    public function testAllReturnsEmptyArrayForNullPayload(): void
     {
         $store = $this->getMockBuilder(InMemorySessionStore::class)
             ->disableOriginalConstructor()
