@@ -404,7 +404,7 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param callable|array{0: object|string, 1: string}|string|RuntimeToolHandlerInterface $handler
+     * @param \Closure|array{0: object|string, 1: string}|string|RuntimeToolHandlerInterface $handler
      * @param ?string                                                                        $title        Optional human-readable title for display in UI
      * @param array<string, mixed>|null                                                      $inputSchema
      * @param ?Icon[]                                                                        $icons
