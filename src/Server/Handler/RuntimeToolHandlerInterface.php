@@ -21,12 +21,12 @@ interface RuntimeToolHandlerInterface extends RuntimeHandlerInterface
     /**
      * Returns the JSON Schema describing tool inputs.
      *
-     * Returns null when the Builder caller supplies the schema via the
-     * `inputSchema:` named argument (the named argument takes precedence).
+     * The Builder's `inputSchema:` named argument, when supplied, takes precedence
+     * over this value.
      *
-     * @return array<string, mixed>|null
+     * @return array<string, mixed>
      */
-    public function getInputSchema(): ?array;
+    public function getInputSchema(): array;
 
     /**
      * Returns the JSON Schema describing tool outputs.

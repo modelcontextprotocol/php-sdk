@@ -252,15 +252,10 @@ final class ArrayLoader implements LoaderInterface
     {
         $this->assertRuntimeRequiredFields($data, $handler, 'tool');
 
-        $inputSchema = $data['inputSchema'] ?? $handler->getInputSchema();
-        if (null === $inputSchema) {
-            throw new ConfigurationException(\sprintf('Runtime tool handler %s did not provide an input schema (neither via the inputSchema named argument nor via getInputSchema()).', $handler::class));
-        }
-
         return [
             'name' => $data['name'],
             'description' => $data['description'],
-            'inputSchema' => $inputSchema,
+            'inputSchema' => $data['inputSchema'] ?? $handler->getInputSchema(),
             'outputSchema' => $data['outputSchema'] ?? $handler->getOutputSchema(),
             'kind' => 'runtime tool',
         ];
@@ -332,7 +327,7 @@ final class ArrayLoader implements LoaderInterface
         return [
             'name' => $data['name'],
             'description' => $data['description'],
-            'completionProviders' => $handler->getCompletionProviders() ?? [],
+            'completionProviders' => $handler->getCompletionProviders(),
             'kind' => 'runtime template',
         ];
     }
@@ -368,8 +363,8 @@ final class ArrayLoader implements LoaderInterface
         return [
             'name' => $data['name'],
             'description' => $data['description'],
-            'arguments' => $handler->getPromptArguments() ?? [],
-            'completionProviders' => $handler->getCompletionProviders() ?? [],
+            'arguments' => $handler->getPromptArguments(),
+            'completionProviders' => $handler->getCompletionProviders(),
             'kind' => 'runtime prompt',
         ];
     }

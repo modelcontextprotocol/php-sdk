@@ -19,21 +19,19 @@ namespace Mcp\Server\Handler;
 interface RuntimePromptHandlerInterface extends RuntimeHandlerInterface
 {
     /**
-     * Returns the prompt arguments for this handler.
+     * Returns the prompt arguments for this handler, or an empty array when the prompt takes no arguments.
      *
-     * Returns null when the prompt takes no arguments.
-     *
-     * @return list<\Mcp\Schema\PromptArgument>|null
+     * @return list<\Mcp\Schema\PromptArgument>
      */
-    public function getPromptArguments(): ?array;
+    public function getPromptArguments(): array;
 
     /**
      * Returns the completion providers for the prompt arguments.
      *
      * Map of argument name => provider class-string or provider instance.
-     * Returns null when no completion providers apply.
+     * Returns an empty array when no completion providers apply.
      *
-     * @return array<string, class-string|object>|null
+     * @return array<string, class-string|object>
      */
-    public function getCompletionProviders(): ?array;
+    public function getCompletionProviders(): array;
 }

@@ -22,9 +22,9 @@ interface RuntimeResourceTemplateHandlerInterface extends RuntimeHandlerInterfac
      * Returns the completion providers for the URI template variables.
      *
      * Map of variable name => provider class-string or provider instance.
-     * Returns null when no completion providers apply.
+     * Returns an empty array when no completion providers apply.
      *
-     * @return array<string, class-string|object>|null
+     * @return array<string, class-string|object>
      */
-    public function getCompletionProviders(): ?array;
+    public function getCompletionProviders(): array;
 }
