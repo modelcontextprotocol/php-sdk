@@ -105,67 +105,25 @@ final class ArrayLoader implements LoaderInterface
         // Register Tools
         foreach ($this->tools as $data) {
             try {
-                if ($data['handler'] instanceof RuntimeToolHandlerInterface) {
-                    if (null === $data['name']) {
-                        throw new ConfigurationException(\sprintf('Runtime tool handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
-                    }
-                    if (null === $data['description']) {
-                        throw new ConfigurationException(\sprintf('Runtime tool handler %s is missing a description; the Builder requires an explicit description for runtime handlers.', $data['handler']::class));
-                    }
-
-                    $inputSchema = $data['inputSchema'] ?? $data['handler']->getInputSchema();
-                    if (null === $inputSchema) {
-                        throw new ConfigurationException(\sprintf('Runtime tool handler %s did not provide an input schema (neither via the inputSchema named argument nor via getInputSchema()).', $data['handler']::class));
-                    }
-                    $outputSchema = $data['outputSchema'] ?? $data['handler']->getOutputSchema();
-
-                    $tool = new Tool(
-                        name: $data['name'],
-                        title: $data['title'] ?? null,
-                        inputSchema: $inputSchema,
-                        description: $data['description'],
-                        annotations: $data['annotations'] ?? null,
-                        icons: $data['icons'] ?? null,
-                        meta: $data['meta'] ?? null,
-                        outputSchema: $outputSchema,
-                    );
-                    $registry->registerTool($tool, $data['handler'], true);
-
-                    $handlerDesc = $this->getHandlerDescription($data['handler']);
-                    $this->logger->debug("Registered manual runtime tool {$data['name']} from handler {$handlerDesc}");
-                    continue;
-                }
-
-                $reflection = HandlerResolver::resolve($data['handler']);
-
-                if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
-                    $description = $data['description'] ?? null;
-                } else {
-                    $classShortName = $reflection->getDeclaringClass()->getShortName();
-                    $methodName = $reflection->getName();
-                    $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
-
-                    $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
-                }
-
-                $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
+                $handler = $data['handler'];
+                $prepared = $handler instanceof RuntimeToolHandlerInterface
+                    ? $this->prepareRuntimeTool($data, $handler)
+                    : $this->prepareReflectedTool($data, $handler, $schemaGenerator, $docBlockParser);
 
                 $tool = new Tool(
-                    name: $name,
+                    name: $prepared['name'],
                     title: $data['title'] ?? null,
-                    inputSchema: $inputSchema,
-                    description: $description,
+                    inputSchema: $prepared['inputSchema'],
+                    description: $prepared['description'],
                     annotations: $data['annotations'] ?? null,
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null,
-                    outputSchema: $data['outputSchema'] ?? null,
+                    outputSchema: $prepared['outputSchema'],
                 );
                 $registry->registerTool($tool, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
-                $this->logger->debug("Registered manual tool {$name} from handler {$handlerDesc}");
+                $this->logger->debug("Registered manual {$prepared['kind']} {$prepared['name']} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $this->logger->error(
                     'Failed to register manual tool',
@@ -182,49 +140,15 @@ final class ArrayLoader implements LoaderInterface
         // Register Resources
         foreach ($this->resources as $data) {
             try {
-                if ($data['handler'] instanceof RuntimeResourceHandlerInterface) {
-                    if (null === $data['name']) {
-                        throw new ConfigurationException(\sprintf('Runtime resource handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
-                    }
-                    if (null === $data['description']) {
-                        throw new ConfigurationException(\sprintf('Runtime resource handler %s is missing a description; the Builder requires an explicit description for runtime handlers.', $data['handler']::class));
-                    }
-
-                    $resource = new Resource(
-                        uri: $data['uri'],
-                        name: $data['name'],
-                        description: $data['description'],
-                        mimeType: $data['mimeType'] ?? null,
-                        annotations: $data['annotations'] ?? null,
-                        size: $data['size'] ?? null,
-                        icons: $data['icons'] ?? null,
-                        meta: $data['meta'] ?? null,
-                    );
-                    $registry->registerResource($resource, $data['handler'], true);
-
-                    $handlerDesc = $this->getHandlerDescription($data['handler']);
-                    $this->logger->debug("Registered manual runtime resource {$data['name']} from handler {$handlerDesc}");
-                    continue;
-                }
-
-                $reflection = HandlerResolver::resolve($data['handler']);
-
-                if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
-                    $description = $data['description'] ?? null;
-                } else {
-                    $classShortName = $reflection->getDeclaringClass()->getShortName();
-                    $methodName = $reflection->getName();
-                    $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
-
-                    $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
-                }
+                $handler = $data['handler'];
+                $prepared = $handler instanceof RuntimeResourceHandlerInterface
+                    ? $this->prepareRuntimeResource($data, $handler)
+                    : $this->prepareReflectedResource($data, $handler, $docBlockParser);
 
                 $resource = new Resource(
                     uri: $data['uri'],
-                    name: $name,
-                    description: $description,
+                    name: $prepared['name'],
+                    description: $prepared['description'],
                     mimeType: $data['mimeType'] ?? null,
                     annotations: $data['annotations'] ?? null,
                     size: $data['size'] ?? null,
@@ -234,7 +158,7 @@ final class ArrayLoader implements LoaderInterface
                 $registry->registerResource($resource, $data['handler'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
-                $this->logger->debug("Registered manual resource {$name} from handler {$handlerDesc}");
+                $this->logger->debug("Registered manual {$prepared['kind']} {$prepared['name']} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $this->logger->error(
                     'Failed to register manual resource',
@@ -250,57 +174,23 @@ final class ArrayLoader implements LoaderInterface
         // Register Templates
         foreach ($this->resourceTemplates as $data) {
             try {
-                if ($data['handler'] instanceof RuntimeResourceTemplateHandlerInterface) {
-                    if (null === $data['name']) {
-                        throw new ConfigurationException(\sprintf('Runtime resource template handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
-                    }
-                    if (null === $data['description']) {
-                        throw new ConfigurationException(\sprintf('Runtime resource template handler %s is missing a description; the Builder requires an explicit description for runtime handlers.', $data['handler']::class));
-                    }
-
-                    $template = new ResourceTemplate(
-                        uriTemplate: $data['uriTemplate'],
-                        name: $data['name'],
-                        description: $data['description'],
-                        mimeType: $data['mimeType'] ?? null,
-                        annotations: $data['annotations'] ?? null,
-                        meta: $data['meta'] ?? null,
-                    );
-                    $completionProviders = $data['handler']->getCompletionProviders() ?? [];
-                    $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
-
-                    $handlerDesc = $this->getHandlerDescription($data['handler']);
-                    $this->logger->debug("Registered manual runtime template {$data['name']} from handler {$handlerDesc}");
-                    continue;
-                }
-
-                $reflection = HandlerResolver::resolve($data['handler']);
-
-                if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
-                    $description = $data['description'] ?? null;
-                } else {
-                    $classShortName = $reflection->getDeclaringClass()->getShortName();
-                    $methodName = $reflection->getName();
-                    $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
-
-                    $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
-                }
+                $handler = $data['handler'];
+                $prepared = $handler instanceof RuntimeResourceTemplateHandlerInterface
+                    ? $this->prepareRuntimeResourceTemplate($data, $handler)
+                    : $this->prepareReflectedResourceTemplate($data, $handler, $docBlockParser);
 
                 $template = new ResourceTemplate(
                     uriTemplate: $data['uriTemplate'],
-                    name: $name,
-                    description: $description,
+                    name: $prepared['name'],
+                    description: $prepared['description'],
                     mimeType: $data['mimeType'] ?? null,
                     annotations: $data['annotations'] ?? null,
                     meta: $data['meta'] ?? null,
                 );
-                $completionProviders = $this->getCompletionProviders($reflection);
-                $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
+                $registry->registerResourceTemplate($template, $data['handler'], $prepared['completionProviders'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
-                $this->logger->debug("Registered manual template {$name} from handler {$handlerDesc}");
+                $this->logger->debug("Registered manual {$prepared['kind']} {$prepared['name']} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $this->logger->error(
                     'Failed to register manual template',
@@ -316,78 +206,23 @@ final class ArrayLoader implements LoaderInterface
         // Register Prompts
         foreach ($this->prompts as $data) {
             try {
-                if ($data['handler'] instanceof RuntimePromptHandlerInterface) {
-                    if (null === $data['name']) {
-                        throw new ConfigurationException(\sprintf('Runtime prompt handler %s is missing a name; the Builder requires an explicit name for runtime handlers.', $data['handler']::class));
-                    }
-                    if (null === $data['description']) {
-                        throw new ConfigurationException(\sprintf('Runtime prompt handler %s is missing a description; the Builder requires an explicit description for runtime handlers.', $data['handler']::class));
-                    }
+                $handler = $data['handler'];
+                $prepared = $handler instanceof RuntimePromptHandlerInterface
+                    ? $this->prepareRuntimePrompt($data, $handler)
+                    : $this->prepareReflectedPrompt($data, $handler, $docBlockParser);
 
-                    $arguments = $data['handler']->getPromptArguments() ?? [];
-                    $completionProviders = $data['handler']->getCompletionProviders() ?? [];
-
-                    $prompt = new Prompt(
-                        name: $data['name'],
-                        title: $data['title'] ?? null,
-                        description: $data['description'],
-                        arguments: $arguments,
-                        icons: $data['icons'] ?? null,
-                        meta: $data['meta'] ?? null
-                    );
-                    $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
-
-                    $handlerDesc = $this->getHandlerDescription($data['handler']);
-                    $this->logger->debug("Registered manual runtime prompt {$data['name']} from handler {$handlerDesc}");
-                    continue;
-                }
-
-                $reflection = HandlerResolver::resolve($data['handler']);
-
-                if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
-                    $description = $data['description'] ?? null;
-                } else {
-                    $classShortName = $reflection->getDeclaringClass()->getShortName();
-                    $methodName = $reflection->getName();
-                    $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
-
-                    $name = $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName);
-                    $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
-                }
-
-                $arguments = [];
-                $paramTags = $reflection instanceof \ReflectionMethod ? $docBlockParser->getParamTags(
-                    $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null),
-                ) : [];
-                foreach ($reflection->getParameters() as $param) {
-                    $reflectionType = $param->getType();
-
-                    // Basic DI check (heuristic)
-                    if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
-                        continue;
-                    }
-
-                    $paramTag = $paramTags['$'.$param->getName()] ?? null;
-                    $arguments[] = new PromptArgument(
-                        $param->getName(),
-                        $paramTag ? trim((string) $paramTag->getDescription()) : null,
-                        !$param->isOptional() && !$param->isDefaultValueAvailable(),
-                    );
-                }
                 $prompt = new Prompt(
-                    name: $name,
+                    name: $prepared['name'],
                     title: $data['title'] ?? null,
-                    description: $description,
-                    arguments: $arguments,
+                    description: $prepared['description'],
+                    arguments: $prepared['arguments'],
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null
                 );
-                $completionProviders = $this->getCompletionProviders($reflection);
-                $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
+                $registry->registerPrompt($prompt, $data['handler'], $prepared['completionProviders'], true);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
-                $this->logger->debug("Registered manual prompt {$name} from handler {$handlerDesc}");
+                $this->logger->debug("Registered manual {$prepared['kind']} {$prepared['name']} from handler {$handlerDesc}");
             } catch (\Throwable $e) {
                 $this->logger->error(
                     'Failed to register manual prompt',
@@ -402,6 +237,219 @@ final class ArrayLoader implements LoaderInterface
         }
 
         $this->logger->debug('Manual element registration complete.');
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{name: string, description: string, inputSchema: array<string, mixed>, outputSchema: ?array<string, mixed>, kind: string}
+     */
+    private function prepareRuntimeTool(array $data, RuntimeToolHandlerInterface $handler): array
+    {
+        $this->assertRuntimeRequiredFields($data, $handler, 'tool');
+
+        $inputSchema = $data['inputSchema'] ?? $handler->getInputSchema();
+        if (null === $inputSchema) {
+            throw new ConfigurationException(\sprintf('Runtime tool handler %s did not provide an input schema (neither via the inputSchema named argument nor via getInputSchema()).', $handler::class));
+        }
+
+        return [
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'inputSchema' => $inputSchema,
+            'outputSchema' => $data['outputSchema'] ?? $handler->getOutputSchema(),
+            'kind' => 'runtime tool',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>                               $data
+     * @param \Closure|array{0: object|string, 1: string}|string $handler
+     *
+     * @return array{name: string, description: ?string, inputSchema: array<string, mixed>, outputSchema: ?array<string, mixed>, kind: string}
+     */
+    private function prepareReflectedTool(array $data, \Closure|array|string $handler, SchemaGeneratorInterface $schemaGenerator, DocBlockParser $docBlockParser): array
+    {
+        $reflection = HandlerResolver::resolve($handler);
+        $meta = $this->resolveReflectedNameAndDescription($data, $handler, $reflection, $docBlockParser, 'closure_tool_');
+
+        return [
+            'name' => $meta['name'],
+            'description' => $meta['description'],
+            'inputSchema' => $data['inputSchema'] ?? $schemaGenerator->generate($reflection),
+            'outputSchema' => $data['outputSchema'] ?? null,
+            'kind' => 'tool',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{name: string, description: string, kind: string}
+     */
+    private function prepareRuntimeResource(array $data, RuntimeResourceHandlerInterface $handler): array
+    {
+        $this->assertRuntimeRequiredFields($data, $handler, 'resource');
+
+        return [
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'kind' => 'runtime resource',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>                               $data
+     * @param \Closure|array{0: object|string, 1: string}|string $handler
+     *
+     * @return array{name: string, description: ?string, kind: string}
+     */
+    private function prepareReflectedResource(array $data, \Closure|array|string $handler, DocBlockParser $docBlockParser): array
+    {
+        $reflection = HandlerResolver::resolve($handler);
+        $meta = $this->resolveReflectedNameAndDescription($data, $handler, $reflection, $docBlockParser, 'closure_resource_');
+
+        return [
+            'name' => $meta['name'],
+            'description' => $meta['description'],
+            'kind' => 'resource',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{name: string, description: string, completionProviders: array<string, ProviderInterface|class-string>, kind: string}
+     */
+    private function prepareRuntimeResourceTemplate(array $data, RuntimeResourceTemplateHandlerInterface $handler): array
+    {
+        $this->assertRuntimeRequiredFields($data, $handler, 'resource template');
+
+        return [
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'completionProviders' => $handler->getCompletionProviders() ?? [],
+            'kind' => 'runtime template',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>                               $data
+     * @param \Closure|array{0: object|string, 1: string}|string $handler
+     *
+     * @return array{name: string, description: ?string, completionProviders: array<string, ProviderInterface|class-string>, kind: string}
+     */
+    private function prepareReflectedResourceTemplate(array $data, \Closure|array|string $handler, DocBlockParser $docBlockParser): array
+    {
+        $reflection = HandlerResolver::resolve($handler);
+        $meta = $this->resolveReflectedNameAndDescription($data, $handler, $reflection, $docBlockParser, 'closure_template_');
+
+        return [
+            'name' => $meta['name'],
+            'description' => $meta['description'],
+            'completionProviders' => $this->getCompletionProviders($reflection),
+            'kind' => 'template',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     *
+     * @return array{name: string, description: string, arguments: PromptArgument[], completionProviders: array<string, ProviderInterface|class-string>, kind: string}
+     */
+    private function prepareRuntimePrompt(array $data, RuntimePromptHandlerInterface $handler): array
+    {
+        $this->assertRuntimeRequiredFields($data, $handler, 'prompt');
+
+        return [
+            'name' => $data['name'],
+            'description' => $data['description'],
+            'arguments' => $handler->getPromptArguments() ?? [],
+            'completionProviders' => $handler->getCompletionProviders() ?? [],
+            'kind' => 'runtime prompt',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed>                               $data
+     * @param \Closure|array{0: object|string, 1: string}|string $handler
+     *
+     * @return array{name: string, description: ?string, arguments: PromptArgument[], completionProviders: array<string, ProviderInterface|class-string>, kind: string}
+     */
+    private function prepareReflectedPrompt(array $data, \Closure|array|string $handler, DocBlockParser $docBlockParser): array
+    {
+        $reflection = HandlerResolver::resolve($handler);
+        $meta = $this->resolveReflectedNameAndDescription($data, $handler, $reflection, $docBlockParser, 'closure_prompt_');
+
+        $arguments = [];
+        $paramTags = $reflection instanceof \ReflectionMethod ? $docBlockParser->getParamTags(
+            $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null),
+        ) : [];
+        foreach ($reflection->getParameters() as $param) {
+            $reflectionType = $param->getType();
+
+            // Basic DI check (heuristic)
+            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+                continue;
+            }
+
+            $paramTag = $paramTags['$'.$param->getName()] ?? null;
+            $arguments[] = new PromptArgument(
+                $param->getName(),
+                $paramTag ? trim((string) $paramTag->getDescription()) : null,
+                !$param->isOptional() && !$param->isDefaultValueAvailable(),
+            );
+        }
+
+        return [
+            'name' => $meta['name'],
+            'description' => $meta['description'],
+            'arguments' => $arguments,
+            'completionProviders' => $this->getCompletionProviders($reflection),
+            'kind' => 'prompt',
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $data
+     */
+    private function assertRuntimeRequiredFields(array $data, RuntimeHandlerInterface $handler, string $kindLabel): void
+    {
+        foreach (['name', 'description'] as $field) {
+            if (null === $data[$field]) {
+                throw new ConfigurationException(\sprintf('Runtime %s handler %s is missing a %s; the Builder requires an explicit %s for runtime handlers.', $kindLabel, $handler::class, $field, $field));
+            }
+        }
+    }
+
+    /**
+     * @param array<string, mixed>                               $data
+     * @param \Closure|array{0: object|string, 1: string}|string $handler
+     *
+     * @return array{name: string, description: ?string}
+     */
+    private function resolveReflectedNameAndDescription(
+        array $data,
+        \Closure|array|string $handler,
+        \ReflectionFunction|\ReflectionMethod $reflection,
+        DocBlockParser $docBlockParser,
+        string $closurePrefix,
+    ): array {
+        if ($reflection instanceof \ReflectionFunction) {
+            return [
+                'name' => $data['name'] ?? $closurePrefix.spl_object_id($handler),
+                'description' => $data['description'] ?? null,
+            ];
+        }
+
+        $classShortName = $reflection->getDeclaringClass()->getShortName();
+        $methodName = $reflection->getName();
+        $docBlock = $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null);
+
+        return [
+            'name' => $data['name'] ?? ('__invoke' === $methodName ? $classShortName : $methodName),
+            'description' => $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null,
+        ];
     }
 
     /**
@@ -429,7 +477,7 @@ final class ArrayLoader implements LoaderInterface
     }
 
     /**
-     * @return array<string, ProviderInterface>
+     * @return array<string, ProviderInterface|class-string>
      */
     private function getCompletionProviders(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
