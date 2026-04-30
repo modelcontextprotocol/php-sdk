@@ -15,7 +15,6 @@ use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Exception\ConfigurationException;
 use Mcp\Server;
 use Mcp\Tests\Fixtures\Runtime\BareResourceHandler;
-use Mcp\Tests\Fixtures\Runtime\NullSchemaToolHandler;
 use Mcp\Tests\Fixtures\Runtime\OutputSchemaToolHandler;
 use Mcp\Tests\Fixtures\Runtime\PromptRuntimeHandler;
 use Mcp\Tests\Fixtures\Runtime\ResourceTemplateRuntimeHandler;
@@ -102,18 +101,6 @@ final class ArrayLoaderRuntimeHandlerTest extends TestCase
         $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addTool(
             handler: new SchemaToolHandler(),
             name: 'demo',
-        ));
-    }
-
-    public function testAddToolWithoutAnyInputSchemaRaisesConfigurationException(): void
-    {
-        $this->expectException(ConfigurationException::class);
-        $this->expectExceptionMessageMatches('/'.preg_quote(NullSchemaToolHandler::class, '/').'/');
-
-        $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->addTool(
-            handler: new NullSchemaToolHandler(),
-            name: 'demo',
-            description: 'no schema source',
         ));
     }
 

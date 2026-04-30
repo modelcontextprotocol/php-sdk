@@ -14,25 +14,12 @@ namespace Mcp\Server\Handler;
 use Mcp\Server\ClientGateway;
 
 /**
- * Base contract for handlers that execute at runtime.
+ * Base contract for runtime handlers — stateful objects invoked per request.
  *
- * Unlike string/array/Closure handlers, a runtime handler is a stateful object
- * registered with a reference. The reference handler invokes {@see self::execute()}
- * with the full argument map (including reserved keys such as `_session` and
- * `_request`) and a {@see ClientGateway} for client-side callbacks.
- *
- * Element-specific subtypes ({@see RuntimeToolHandlerInterface},
- * {@see RuntimePromptHandlerInterface}, {@see RuntimeResourceTemplateHandlerInterface},
- * {@see RuntimeResourceHandlerInterface}) declare only the metadata accessors
- * relevant to their element kind. Implementing the base interface alone is
- * supported for backwards-compatibility but new handlers should pick the
- * element-specific subtype that matches how they are registered.
- *
- * Note: arguments are forwarded to {@see self::execute()} as received from the
- * JSON-RPC request, without the type casting performed for reflection-based
- * handlers (string-to-int, string-to-bool, etc.). Runtime handlers are
- * responsible for validating and casting their own inputs, typically against
- * the schema they advertise.
+ * New handlers should implement the element-specific subtype matching how they
+ * are registered. Arguments are forwarded as received from JSON-RPC, without
+ * the casting performed for reflection-based handlers; implementations must
+ * validate and cast their own inputs.
  *
  * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
