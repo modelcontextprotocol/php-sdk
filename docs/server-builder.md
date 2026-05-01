@@ -374,7 +374,7 @@ Builder.
 | Tool             | `RuntimeToolHandlerInterface`            |
 | Prompt           | `RuntimePromptHandlerInterface`          |
 | Resource template| `RuntimeResourceTemplateHandlerInterface`|
-| Resource         | `RuntimeHandlerInterface`                |
+| Resource         | `RuntimeResourceHandlerInterface`        |
 
 Each interface declares only the metadata it needs (input/output schema for
 tools, prompt arguments and completion providers for prompts, completion
