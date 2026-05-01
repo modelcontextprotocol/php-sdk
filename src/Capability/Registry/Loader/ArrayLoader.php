@@ -37,13 +37,13 @@ use Psr\Log\NullLogger;
 /**
  * @author Antoine Bluchet <soyuka@gmail.com>
  *
- * @phpstan-import-type Handler from ElementReference
+ * @phpstan-import-type CallableHandler from ElementReference
  */
 final class ArrayLoader implements LoaderInterface
 {
     /**
      * @param array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     name: ?string,
      *     title: ?string,
      *     description: ?string,
@@ -53,7 +53,7 @@ final class ArrayLoader implements LoaderInterface
      *     outputSchema: ?array<string, mixed>
      * }[] $tools
      * @param array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     uri: string,
      *     name: ?string,
      *     description: ?string,
@@ -64,7 +64,7 @@ final class ArrayLoader implements LoaderInterface
      *     meta: ?array<string, mixed>
      * }[] $resources
      * @param array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     uriTemplate: string,
      *     name: ?string,
      *     description: ?string,
@@ -73,7 +73,7 @@ final class ArrayLoader implements LoaderInterface
      *     meta: ?array<string, mixed>
      * }[] $resourceTemplates
      * @param array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     name: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
@@ -278,7 +278,7 @@ final class ArrayLoader implements LoaderInterface
     }
 
     /**
-     * @param Handler $handler
+     * @param CallableHandler $handler
      */
     private function getHandlerDescription(\Closure|array|string $handler): string
     {

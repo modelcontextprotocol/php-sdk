@@ -20,6 +20,7 @@ use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
+use Mcp\Capability\Registry\Loader\ExplicitElementLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
@@ -30,11 +31,20 @@ use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\Prompt;
+use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Handler\ElementHandlerInterface;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Server\Handler\PromptHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Handler\ResourceHandlerInterface;
+use Mcp\Server\Handler\ResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -49,6 +59,7 @@ use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Finder\Finder;
 
 /**
+ * @phpstan-import-type CallableHandler from ElementReference
  * @phpstan-import-type Handler from ElementReference
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -97,11 +108,12 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     name: ?string,
      *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     inputSchema: ?array<string, mixed>,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>,
      *     outputSchema: ?array<string, mixed>,
@@ -111,7 +123,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     uri: string,
      *     name: ?string,
      *     description: ?string,
@@ -126,7 +138,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     uriTemplate: string,
      *     name: ?string,
      *     description: ?string,
@@ -139,14 +151,35 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: Handler,
+     *     handler: CallableHandler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>
      * }[]
      */
     private array $prompts = [];
+
+    /**
+     * @var list<array{definition: Tool, handler: ToolHandlerInterface}>
+     */
+    private array $explicitTools = [];
+
+    /**
+     * @var list<array{definition: \Mcp\Schema\Resource, handler: ResourceHandlerInterface}>
+     */
+    private array $explicitResources = [];
+
+    /**
+     * @var list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface}>
+     */
+    private array $explicitResourceTemplates = [];
+
+    /**
+     * @var list<array{definition: Prompt, handler: PromptHandlerInterface}>
+     */
+    private array $explicitPrompts = [];
 
     private ?string $discoveryBasePath = null;
 
@@ -373,7 +406,7 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param Handler                   $handler
+     * @param CallableHandler           $handler
      * @param ?string                   $title        Optional human-readable title for display in UI
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
@@ -409,7 +442,7 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param Handler                   $handler
+     * @param CallableHandler           $handler
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      */
@@ -442,7 +475,7 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param Handler                   $handler
+     * @param CallableHandler           $handler
      * @param array<string, mixed>|null $meta
      */
     public function addResourceTemplate(
@@ -470,7 +503,7 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param Handler                   $handler
+     * @param CallableHandler           $handler
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      */
@@ -483,6 +516,31 @@ final class Builder
         ?array $meta = null,
     ): self {
         $this->prompts[] = compact('handler', 'name', 'title', 'description', 'icons', 'meta');
+
+        return $this;
+    }
+
+    /**
+     * Registers an element using an explicit schema value object paired with a handler interface.
+     *
+     * Use this entry point when an element's name, schema, or description is only known at
+     * runtime (e.g. config-driven integrations). For statically-known elements, prefer
+     * `addTool/addResource/addResourceTemplate/addPrompt`, which can derive metadata from
+     * reflection of the handler.
+     *
+     * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise `\TypeError`.
+     */
+    public function add(
+        Tool|Resource|ResourceTemplate|Prompt $definition,
+        ElementHandlerInterface $handler,
+    ): self {
+        match (true) {
+            $definition instanceof Tool && $handler instanceof ToolHandlerInterface => $this->explicitTools[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof Resource && $handler instanceof ResourceHandlerInterface => $this->explicitResources[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof ResourceTemplate && $handler instanceof ResourceTemplateHandlerInterface => $this->explicitResourceTemplates[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof Prompt && $handler instanceof PromptHandlerInterface => $this->explicitPrompts[] = ['definition' => $definition, 'handler' => $handler],
+            default => throw new \TypeError(\sprintf('%s definition cannot be paired with %s; expected the matching handler interface.', $definition::class, $handler::class)),
+        };
 
         return $this;
     }
@@ -520,6 +578,12 @@ final class Builder
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
         $loaders = [
             ...$this->loaders,
+            new ExplicitElementLoader(
+                $this->explicitTools,
+                $this->explicitResources,
+                $this->explicitResourceTemplates,
+                $this->explicitPrompts,
+            ),
             new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 

@@ -362,6 +362,67 @@ the handler's method name and docblock.
 
 For more details on MCP elements, handlers, and attribute-based discovery, see [MCP Elements](mcp-elements.md).
 
+### Explicit element registration
+
+When an element's name, schema, or description is only known at runtime
+(for example, a Drupal module bridging configuration entities into MCP
+tools), pair an `Mcp\Schema\*` value object with one of the four handler
+interfaces below and register it through `Builder::add()`.
+
+| Element kind      | Handler interface                                     |
+|-------------------|-------------------------------------------------------|
+| Tool              | `Mcp\Server\Handler\ToolHandlerInterface`             |
+| Resource          | `Mcp\Server\Handler\ResourceHandlerInterface`         |
+| Resource template | `Mcp\Server\Handler\ResourceTemplateHandlerInterface` |
+| Prompt            | `Mcp\Server\Handler\PromptHandlerInterface`           |
+
+Each handler interface declares a single execution method. Tool and
+prompt handlers receive an arguments map and a `ClientGateway`. Resource
+handlers receive the requested URI; resource template handlers
+additionally receive the parsed template variables.
+
+```php
+use Mcp\Schema\Tool;
+use Mcp\Server;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\Handler\ToolHandlerInterface;
+
+final class WeatherHandler implements ToolHandlerInterface
+{
+    public function execute(array $arguments, ClientGateway $gateway): mixed
+    {
+        return ['temperature' => 21, 'unit' => 'C'];
+    }
+}
+
+$tool = new Tool(
+    name: 'get_weather',
+    title: null,
+    inputSchema: [
+        'type' => 'object',
+        'properties' => ['city' => ['type' => 'string']],
+        'required' => ['city'],
+    ],
+    description: 'Returns the current weather for a city.',
+    annotations: null,
+);
+
+$server = Server::builder()
+    ->add($tool, new WeatherHandler())
+    ->build();
+```
+
+`Builder::add()` validates the pairing at registration time. Pairing a
+`Tool` definition with, for example, a `PromptHandlerInterface` raises
+`Mcp\Exception\ConfigurationException`. The schema value object validates
+its own inputs (name pattern, schema shape, etc.), so passing an
+incomplete definition fails before `add()` returns.
+
+Use `add()` when the metadata cannot be inferred from a handler class via
+reflection. For statically-known elements, prefer
+`addTool/addResource/addResourceTemplate/addPrompt`, which can derive
+metadata from the handler's signature and docblock.
+
 ## Service Dependencies
 
 ### Container
@@ -583,4 +644,5 @@ $server = Server::builder()
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
+| `add()` | definition, handler | Register an element from a schema VO + handler pair |
 | `build()` | - | Create the server instance |
