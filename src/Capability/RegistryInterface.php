@@ -24,7 +24,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\Resource;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
-use Mcp\Server\Handler\RuntimeHandlerInterface;
+use Mcp\Server\Handler\ElementHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -40,7 +40,7 @@ interface RegistryInterface
      *
      * @param Handler $handler
      */
-    public function registerTool(Tool $tool, callable|array|string|RuntimeHandlerInterface $handler): ToolReference;
+    public function registerTool(Tool $tool, callable|array|string|ElementHandlerInterface $handler): ToolReference;
 
     /**
      * Registers a resource with its handler. Overwrites any prior registration of the same URI.
@@ -48,7 +48,7 @@ interface RegistryInterface
      *
      * @param Handler $handler
      */
-    public function registerResource(Resource $resource, callable|array|string|RuntimeHandlerInterface $handler): ResourceReference;
+    public function registerResource(Resource $resource, callable|array|string|ElementHandlerInterface $handler): ResourceReference;
 
     /**
      * Registers a resource template with its handler and completion providers.
@@ -60,7 +60,7 @@ interface RegistryInterface
      */
     public function registerResourceTemplate(
         ResourceTemplate $template,
-        callable|array|string|RuntimeHandlerInterface $handler,
+        callable|array|string|ElementHandlerInterface $handler,
         array $completionProviders = [],
     ): ResourceTemplateReference;
 
@@ -74,7 +74,7 @@ interface RegistryInterface
      */
     public function registerPrompt(
         Prompt $prompt,
-        callable|array|string|RuntimeHandlerInterface $handler,
+        callable|array|string|ElementHandlerInterface $handler,
         array $completionProviders = [],
     ): PromptReference;
 
