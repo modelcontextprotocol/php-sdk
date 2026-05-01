@@ -65,11 +65,12 @@ final class Discoverer implements DiscovererInterface
     /**
      * Discover MCP elements in the specified directories and return the discovery state.
      *
-     * @param string        $basePath    the base path for resolving directories
-     * @param array<string> $directories list of directories (relative to base path) to scan
-     * @param array<string> $excludeDirs list of directories (relative to base path) to exclude from the scan
+     * @param string        $basePath     the base path for resolving directories
+     * @param array<string> $directories  list of directories (relative to base path) to scan
+     * @param array<string> $excludeDirs  list of directories (relative to base path) to exclude from the scan
+     * @param array<string> $namePatterns list of file name patterns for the scan. Compatible with Finder->name()
      */
-    public function discover(string $basePath, array $directories, array $excludeDirs = []): DiscoveryState
+    public function discover(string $basePath, array $directories, array $excludeDirs = [], array $namePatterns = self::DEFAULT_NAME_PATERNS): DiscoveryState
     {
         $startTime = microtime(true);
         $discoveredCount = [
@@ -78,6 +79,8 @@ final class Discoverer implements DiscovererInterface
             'prompts' => 0,
             'resourceTemplates' => 0,
         ];
+
+        $namePatterns = !empty($namePatterns) ? $namePatterns : self::DEFAULT_NAME_PATERNS;
 
         $tools = [];
         $resources = [];
@@ -106,7 +109,7 @@ final class Discoverer implements DiscovererInterface
             $finder->files()
                 ->in($absolutePaths)
                 ->exclude($excludeDirs)
-                ->name('*.php');
+                ->name($namePatterns);
 
             foreach ($finder as $file) {
                 $this->processFile($file, $discoveredCount, $tools, $resources, $prompts, $resourceTemplates);

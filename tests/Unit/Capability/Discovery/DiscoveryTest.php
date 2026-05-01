@@ -16,6 +16,7 @@ use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Tests\Unit\Capability\Attribute\CompletionProviderFixture;
+use Mcp\Tests\Unit\Capability\Discovery\Fixtures\AlternativeFileNameToolHandler;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\DiscoverableToolHandler;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocablePromptFixture;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\InvocableResourceFixture;
@@ -34,10 +35,10 @@ class DiscoveryTest extends TestCase
 
     public function testDiscoversAllElementTypesCorrectlyFromFixtureFiles(): void
     {
-        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.php', '*.inc']);
 
         $tools = $discovery->getTools();
-        $this->assertCount(4, $tools);
+        $this->assertCount(5, $tools);
 
         $this->assertArrayHasKey('greet_user', $tools);
         $this->assertFalse($tools['greet_user']->isManual);
@@ -55,6 +56,9 @@ class DiscoveryTest extends TestCase
         $this->assertInstanceOf(ToolReference::class, $tools['InvokableCalculator']);
         $this->assertFalse($tools['InvokableCalculator']->isManual);
         $this->assertEquals([InvocableToolFixture::class, '__invoke'], $tools['InvokableCalculator']->handler);
+
+        $this->assertArrayHasKey('inc_file_name_tool', $tools);
+        $this->assertEquals([AlternativeFileNameToolHandler::class, 'run'], $tools['inc_file_name_tool']->handler);
 
         $this->assertArrayNotHasKey('private_tool_should_be_ignored', $tools);
         $this->assertArrayNotHasKey('protected_tool_should_be_ignored', $tools);
@@ -119,6 +123,25 @@ class DiscoveryTest extends TestCase
         $discovery = $this->discoverer->discover(__DIR__, ['EmptyDir']);
 
         $this->assertTrue($discovery->isEmpty());
+    }
+
+    public function testHandlesDefaultAndOverriddenFileNamePatterns(): void
+    {
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
+        $this->assertArrayHasKey('greet_user', $discovery->getTools());
+        $this->assertArrayNotHasKey('inc_file_name_tool', $discovery->getTools());
+
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], []);
+        $this->assertArrayHasKey('greet_user', $discovery->getTools());
+        $this->assertArrayNotHasKey('inc_file_name_tool', $discovery->getTools());
+
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.php', '*.inc']);
+        $this->assertArrayHasKey('greet_user', $discovery->getTools());
+        $this->assertArrayHasKey('inc_file_name_tool', $discovery->getTools());
+
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.inc']);
+        $this->assertArrayNotHasKey('greet_user', $discovery->getTools());
+        $this->assertArrayHasKey('inc_file_name_tool', $discovery->getTools());
     }
 
     public function testCorrectlyInfersNamesAndDescriptionsFromMethodsOrClassesIfNotSetInAttribute(): void
