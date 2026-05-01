@@ -14,7 +14,7 @@ namespace Mcp\Capability\Registry;
 use Mcp\Capability\Formatter\PromptResultFormatter;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Prompt;
-use Mcp\Server\Handler\RuntimeHandlerInterface;
+use Mcp\Server\Handler\ElementHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -29,7 +29,7 @@ class PromptReference extends ElementReference
      */
     public function __construct(
         public readonly Prompt $prompt,
-        \Closure|array|string|RuntimeHandlerInterface $handler,
+        \Closure|array|string|ElementHandlerInterface $handler,
         bool $isManual = false,
         public readonly array $completionProviders = [],
     ) {

@@ -43,8 +43,9 @@ Each capability can be registered using two methods:
 For manual registration details, see [Server Builder Manual Registration](server-builder.md#manual-capability-registration).
 
 For runtime, config-driven elements whose shape is not known at compile time
-(e.g. bridging configuration entities into MCP elements), see [Runtime
-Handlers](server-builder.md#runtime-handlers) in the Server Builder docs.
+(e.g. bridging configuration entities into MCP elements), see [Explicit
+element registration](server-builder.md#explicit-element-registration) in the
+Server Builder docs.
 
 ## Tools
 

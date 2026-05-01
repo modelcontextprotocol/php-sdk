@@ -11,15 +11,18 @@
 
 namespace Mcp\Server\Handler;
 
+use Mcp\Server\ClientGateway;
+
 /**
- * Runtime handler that backs an MCP resource.
- *
- * Resources have no extra metadata beyond the base contract; this interface
- * exists so {@see \Mcp\Server\Builder::addResource()} can reject runtime
- * handlers intended for other element kinds at the type level.
+ * Contract for explicit prompt handlers paired with an `Mcp\Schema\Prompt` definition
+ * via `Mcp\Server\Builder::add()`.
  *
  * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
-interface RuntimeResourceHandlerInterface extends RuntimeHandlerInterface
+interface PromptHandlerInterface extends ElementHandlerInterface
 {
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    public function get(array $arguments, ClientGateway $gateway): mixed;
 }

@@ -362,64 +362,66 @@ the handler's method name and docblock.
 
 For more details on MCP elements, handlers, and attribute-based discovery, see [MCP Elements](mcp-elements.md).
 
-### Runtime Handlers
+### Explicit element registration
 
-When an element's shape is not known at compile time (e.g. config-driven
-integrations), reflection-based discovery does not apply. Implement an
-element-specific runtime interface instead and pass the instance to the
-Builder.
+When an element's name, schema, or description is only known at runtime
+(for example, a Drupal module bridging configuration entities into MCP
+tools), pair an `Mcp\Schema\*` value object with one of the four handler
+interfaces below and register it through `Builder::add()`.
 
-| Element kind     | Interface                                |
-|------------------|------------------------------------------|
-| Tool             | `RuntimeToolHandlerInterface`            |
-| Prompt           | `RuntimePromptHandlerInterface`          |
-| Resource template| `RuntimeResourceTemplateHandlerInterface`|
-| Resource         | `RuntimeResourceHandlerInterface`        |
+| Element kind      | Handler interface                                     |
+|-------------------|-------------------------------------------------------|
+| Tool              | `Mcp\Server\Handler\ToolHandlerInterface`             |
+| Resource          | `Mcp\Server\Handler\ResourceHandlerInterface`         |
+| Resource template | `Mcp\Server\Handler\ResourceTemplateHandlerInterface` |
+| Prompt            | `Mcp\Server\Handler\PromptHandlerInterface`           |
 
-Each interface declares only the metadata it needs (input/output schema for
-tools, prompt arguments and completion providers for prompts, completion
-providers for resource templates). All extend the base
-`RuntimeHandlerInterface`, which requires only `execute()`.
+Each handler interface declares a single execution method. Tool and
+prompt handlers receive an arguments map and a `ClientGateway`. Resource
+handlers receive the requested URI; resource template handlers
+additionally receive the parsed template variables.
 
 ```php
+use Mcp\Schema\Tool;
+use Mcp\Server;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RuntimeToolHandlerInterface;
+use Mcp\Server\Handler\ToolHandlerInterface;
 
-final class WeatherToolHandler implements RuntimeToolHandlerInterface
+final class WeatherHandler implements ToolHandlerInterface
 {
-    public function getInputSchema(): ?array
-    {
-        return [
-            'type' => 'object',
-            'properties' => ['city' => ['type' => 'string']],
-            'required' => ['city'],
-        ];
-    }
-
-    public function getOutputSchema(): ?array
-    {
-        return null;
-    }
-
     public function execute(array $arguments, ClientGateway $gateway): mixed
     {
         return ['temperature' => 21, 'unit' => 'C'];
     }
 }
 
+$tool = new Tool(
+    name: 'get_weather',
+    title: null,
+    inputSchema: [
+        'type' => 'object',
+        'properties' => ['city' => ['type' => 'string']],
+        'required' => ['city'],
+    ],
+    description: 'Returns the current weather for a city.',
+    annotations: null,
+);
+
 $server = Server::builder()
-    ->addTool(
-        handler: new WeatherToolHandler(),
-        name: 'get_weather',
-        description: 'Returns the current weather for a city.',
-    )
+    ->add($tool, new WeatherHandler())
     ->build();
 ```
 
-`name` and `description` are required when registering a runtime handler.
-For tools, an input schema is also required (via the `inputSchema:` named
-argument or `getInputSchema()`). Missing values raise `ConfigurationException`
-at registration time.
+`Builder::add()` validates the pairing at registration time. Pairing a
+`Tool` definition with, for example, a `PromptHandlerInterface` raises
+`Mcp\Exception\ConfigurationException`. The schema value object validates
+its own inputs (name pattern, schema shape, etc.), so passing an
+incomplete definition fails before `add()` returns.
+
+Use `add()` when the metadata cannot be inferred from a handler class via
+reflection. For statically-known elements, prefer
+`addTool/addResource/addResourceTemplate/addPrompt`, which can derive
+metadata from the handler's signature and docblock.
 
 ## Service Dependencies
 
@@ -642,4 +644,5 @@ $server = Server::builder()
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
+| `add()` | definition, handler | Register an element from a schema VO + handler pair |
 | `build()` | - | Create the server instance |

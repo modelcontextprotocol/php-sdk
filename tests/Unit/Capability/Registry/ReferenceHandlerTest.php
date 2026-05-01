@@ -15,19 +15,20 @@ use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\RuntimeHandlerInterface;
+use Mcp\Server\Handler\ResourceHandlerInterface;
+use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
 final class ReferenceHandlerTest extends TestCase
 {
-    public function testHandleDispatchesToRuntimeHandlerAndForwardsClientGateway(): void
+    public function testHandleDispatchesToToolHandlerAndForwardsClientGateway(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
 
-        $runtimeHandler = new class implements RuntimeHandlerInterface {
+        $toolHandler = new class implements ToolHandlerInterface {
             /** @var array<string, mixed>|null */
             public ?array $executedWith = null;
             public ?ClientGateway $receivedGateway = null;
@@ -37,11 +38,11 @@ final class ReferenceHandlerTest extends TestCase
                 $this->executedWith = $arguments;
                 $this->receivedGateway = $gateway;
 
-                return 'runtime-result';
+                return 'tool-result';
             }
         };
 
-        $reference = new ElementReference($runtimeHandler, true);
+        $reference = new ElementReference($toolHandler, true);
         $referenceHandler = new ReferenceHandler();
 
         $request = new \stdClass();
@@ -52,25 +53,25 @@ final class ReferenceHandlerTest extends TestCase
             'other' => 'value2',
         ]);
 
-        $this->assertSame('runtime-result', $result);
+        $this->assertSame('tool-result', $result);
         $this->assertSame(
             ['kept' => 'value', 'other' => 'value2'],
-            $runtimeHandler->executedWith,
+            $toolHandler->executedWith,
         );
-        $this->assertInstanceOf(ClientGateway::class, $runtimeHandler->receivedGateway);
+        $this->assertInstanceOf(ClientGateway::class, $toolHandler->receivedGateway);
     }
 
-    public function testRuntimeHandlerTakesPriorityOverInvokeAndCallableDetection(): void
+    public function testToolHandlerTakesPriorityOverInvokeAndCallableDetection(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
 
-        $runtimeHandler = new class implements RuntimeHandlerInterface {
+        $toolHandler = new class implements ToolHandlerInterface {
             public bool $executed = false;
 
             public function __invoke(): string
             {
-                throw new \LogicException('__invoke must not be called when RuntimeHandlerInterface is implemented');
+                throw new \LogicException('__invoke must not be called when ToolHandlerInterface is implemented');
             }
 
             public function execute(array $arguments, ClientGateway $gateway): mixed
@@ -81,11 +82,44 @@ final class ReferenceHandlerTest extends TestCase
             }
         };
 
-        $reference = new ElementReference($runtimeHandler);
+        $reference = new ElementReference($toolHandler);
         $referenceHandler = new ReferenceHandler();
 
         $this->assertSame('priority-ok', $referenceHandler->handle($reference, ['_session' => $session]));
-        $this->assertTrue($runtimeHandler->executed);
+        $this->assertTrue($toolHandler->executed);
+    }
+
+    public function testHandleDispatchesToResourceHandlerAndForwardsClientGateway(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $resourceHandler = new class implements ResourceHandlerInterface {
+            public ?string $receivedUri = null;
+            public ?ClientGateway $receivedGateway = null;
+
+            public function read(string $uri, ClientGateway $gateway): mixed
+            {
+                $this->receivedUri = $uri;
+                $this->receivedGateway = $gateway;
+
+                return ['contents' => 'r-ok'];
+            }
+        };
+
+        $reference = new ElementReference($resourceHandler, true);
+        $referenceHandler = new ReferenceHandler();
+
+        $request = new \stdClass();
+        $result = $referenceHandler->handle($reference, [
+            '_session' => $session,
+            '_request' => $request,
+            'uri' => 'config://x',
+        ]);
+
+        $this->assertSame(['contents' => 'r-ok'], $result);
+        $this->assertSame('config://x', $resourceHandler->receivedUri);
+        $this->assertInstanceOf(ClientGateway::class, $resourceHandler->receivedGateway);
     }
 
     public function testHandleThrowsForStringHandlerThatIsNeitherFunctionNorClass(): void
