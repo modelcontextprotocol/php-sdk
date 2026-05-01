@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Capability;
 
 use Mcp\Capability\Completion\EnumCompletionProvider;
+use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
@@ -426,42 +427,70 @@ class RegistryTest extends TestCase
         $manualTemplate = $this->createValidResourceTemplate('manual://{id}');
         $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
 
+        // Register manual elements directly
         $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
         $this->registry->registerResource($manualResource, static fn () => 'manual', true);
-        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
         $this->registry->registerPrompt($manualPrompt, static fn () => [], [], true);
-        $this->registry->registerPrompt($discoveredPrompt, static fn () => []);
         $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
-        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
 
-        // Test that all elements exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
-        $this->registry->getTool('discovered_tool');
-        $this->registry->getResource('test://discovered');
-        $this->registry->getPrompt('discovered_prompt');
-        $this->registry->getResourceTemplate('discovered://{id}');
+        // Import discovered elements via setDiscoveryState
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: ['discovered_tool' => new ToolReference($discoveredTool, static fn () => 'discovered')],
+            resources: ['test://discovered' => new ResourceReference($discoveredResource, static fn () => 'discovered')],
+            prompts: ['discovered_prompt' => new PromptReference($discoveredPrompt, static fn () => [])],
+            resourceTemplates: ['discovered://{id}' => new ResourceTemplateReference($discoveredTemplate, static fn () => 'discovered')],
+        ));
+
+        // All elements exist before clear
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('discovered_tool'));
 
         $this->registry->clear();
 
-        // Manual elements should still exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
+        // Manual elements survive
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('manual_tool'));
+        $this->assertInstanceOf(ResourceReference::class, $this->registry->getResource('test://manual'));
+        $this->assertInstanceOf(PromptReference::class, $this->registry->getPrompt('manual_prompt'));
+        $this->assertInstanceOf(ResourceTemplateReference::class, $this->registry->getResourceTemplate('manual://{id}'));
 
-        // Test that all discovered elements throw exceptions
+        // Discovered elements are gone
         $this->expectException(ToolNotFoundException::class);
         $this->registry->getTool('discovered_tool');
+    }
+
+    public function testClearRemovesDiscoveredResources(): void
+    {
+        $discoveredResource = $this->createValidResource('test://discovered');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            resources: ['test://discovered' => new ResourceReference($discoveredResource, static fn () => 'discovered')],
+        ));
+
+        $this->registry->clear();
 
         $this->expectException(ResourceNotFoundException::class);
         $this->registry->getResource('test://discovered');
+    }
+
+    public function testClearRemovesDiscoveredPrompts(): void
+    {
+        $discoveredPrompt = $this->createValidPrompt('discovered_prompt');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            prompts: ['discovered_prompt' => new PromptReference($discoveredPrompt, static fn () => [])],
+        ));
+
+        $this->registry->clear();
 
         $this->expectException(PromptNotFoundException::class);
         $this->registry->getPrompt('discovered_prompt');
+    }
+
+    public function testClearRemovesDiscoveredResourceTemplates(): void
+    {
+        $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            resourceTemplates: ['discovered://{id}' => new ResourceTemplateReference($discoveredTemplate, static fn () => 'discovered')],
+        ));
+
+        $this->registry->clear();
 
         $this->expectException(ResourceNotFoundException::class);
         $this->registry->getResourceTemplate('discovered://{id}');
@@ -609,6 +638,127 @@ class RegistryTest extends TestCase
             ['foo' => 'bar'],
             ['foo' => 'bar'],
         ], $structuredContent);
+    }
+
+    public function testClearPreservesDynamicallyRegisteredElements(): void
+    {
+        // 1. Register a manual tool
+        $manualTool = $this->createValidTool('manual_tool');
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
+
+        // 2. Import discovered tools via setDiscoveryState
+        $discoveredTool = $this->createValidTool('discovered_tool');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: ['discovered_tool' => new ToolReference($discoveredTool, static fn () => 'discovered')],
+        ));
+
+        // 3. Register a dynamic tool (not manual, not discovered)
+        $dynamicTool = $this->createValidTool('dynamic_tool');
+        $this->registry->registerTool($dynamicTool, static fn () => 'dynamic');
+
+        // 4. Restore discovery state again (simulates next HTTP request)
+        $discoveredTool2 = $this->createValidTool('discovered_tool_v2');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: ['discovered_tool_v2' => new ToolReference($discoveredTool2, static fn () => 'discovered_v2')],
+        ));
+
+        // Manual tool survives
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('manual_tool'));
+        // Dynamic tool survives
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('dynamic_tool'));
+        // New discovered tool is present
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('discovered_tool_v2'));
+        // Old discovered tool is gone
+        $this->expectException(ToolNotFoundException::class);
+        $this->registry->getTool('discovered_tool');
+    }
+
+    public function testGetDiscoveryStateExcludesDynamicTools(): void
+    {
+        // Import discovered tool via setDiscoveryState
+        $discoveredTool = $this->createValidTool('discovered_tool');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: ['discovered_tool' => new ToolReference($discoveredTool, static fn () => 'discovered')],
+        ));
+
+        // Register a dynamic tool
+        $dynamicTool = $this->createValidTool('dynamic_tool');
+        $this->registry->registerTool($dynamicTool, static fn () => 'dynamic');
+
+        // Register a manual tool
+        $manualTool = $this->createValidTool('manual_tool');
+        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
+
+        $state = $this->registry->getDiscoveryState();
+
+        $this->assertArrayHasKey('discovered_tool', $state->getTools());
+        $this->assertArrayNotHasKey('dynamic_tool', $state->getTools());
+        $this->assertArrayNotHasKey('manual_tool', $state->getTools());
+    }
+
+    public function testSetDiscoveryStateRoundTrip(): void
+    {
+        // Import initial discovered state
+        $tool = $this->createValidTool('round_trip_tool');
+        $resource = $this->createValidResource('test://round-trip');
+        $prompt = $this->createValidPrompt('round_trip_prompt');
+        $template = $this->createValidResourceTemplate('round-trip://{id}');
+
+        $initialState = new DiscoveryState(
+            tools: ['round_trip_tool' => new ToolReference($tool, static fn () => 'result')],
+            resources: ['test://round-trip' => new ResourceReference($resource, static fn () => 'content')],
+            prompts: ['round_trip_prompt' => new PromptReference($prompt, static fn () => [])],
+            resourceTemplates: ['round-trip://{id}' => new ResourceTemplateReference($template, static fn () => 'tpl')],
+        );
+
+        $this->registry->setDiscoveryState($initialState);
+
+        // Round-trip: get and set again
+        $exportedState = $this->registry->getDiscoveryState();
+        $this->registry->setDiscoveryState($exportedState);
+
+        // All elements still present
+        $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('round_trip_tool'));
+        $this->assertInstanceOf(ResourceReference::class, $this->registry->getResource('test://round-trip'));
+        $this->assertInstanceOf(PromptReference::class, $this->registry->getPrompt('round_trip_prompt'));
+        $this->assertInstanceOf(ResourceTemplateReference::class, $this->registry->getResourceTemplate('round-trip://{id}'));
+
+        // Exported state matches
+        $reExportedState = $this->registry->getDiscoveryState();
+        $this->assertCount(\count($exportedState->getTools()), $reExportedState->getTools());
+        $this->assertCount(\count($exportedState->getResources()), $reExportedState->getResources());
+        $this->assertCount(\count($exportedState->getPrompts()), $reExportedState->getPrompts());
+        $this->assertCount(\count($exportedState->getResourceTemplates()), $reExportedState->getResourceTemplates());
+    }
+
+    public function testSetDiscoveryStateDoesNotOverwriteManualOrDynamicTools(): void
+    {
+        // Register a manual tool
+        $manualTool = $this->createValidTool('conflict_tool');
+        $this->registry->registerTool($manualTool, static fn () => 'manual_result', true);
+
+        // Register a dynamic tool
+        $dynamicTool = $this->createValidTool('dynamic_conflict');
+        $this->registry->registerTool($dynamicTool, static fn () => 'dynamic_result');
+
+        // Try to import discovered tools with same names
+        $discoveredConflict = $this->createValidTool('conflict_tool');
+        $discoveredDynConflict = $this->createValidTool('dynamic_conflict');
+        $this->registry->setDiscoveryState(new DiscoveryState(
+            tools: [
+                'conflict_tool' => new ToolReference($discoveredConflict, static fn () => 'discovered_result'),
+                'dynamic_conflict' => new ToolReference($discoveredDynConflict, static fn () => 'discovered_dyn_result'),
+            ],
+        ));
+
+        // Manual tool preserved with original handler
+        $manualRef = $this->registry->getTool('conflict_tool');
+        $this->assertTrue($manualRef->isManual);
+        $this->assertEquals('manual_result', ($manualRef->handler)());
+
+        // Dynamic tool preserved with original handler
+        $dynamicRef = $this->registry->getTool('dynamic_conflict');
+        $this->assertEquals('dynamic_result', ($dynamicRef->handler)());
     }
 
     private function createValidTool(string $name, ?array $outputSchema = null): Tool
