@@ -46,6 +46,27 @@ class ResourceTest extends TestCase
         );
     }
 
+    #[DataProvider('provideValidUrisWithoutDoubleSlash')]
+    public function testConstructorAcceptsUrisWithoutDoubleSlash(string $uri): void
+    {
+        $resource = new Resource(
+            uri: $uri,
+            name: 'test-resource',
+        );
+
+        $this->assertInstanceOf(Resource::class, $resource);
+        $this->assertSame($uri, $resource->uri);
+    }
+
+    public static function provideValidUrisWithoutDoubleSlash(): iterable
+    {
+        yield 'urn' => ['urn:isbn:0451450523'];
+        yield 'mailto' => ['mailto:user@example.com'];
+        yield 'data' => ['data:text/plain;base64,SGVsbG8='];
+        yield 'custom scheme without slashes' => ['config:myapp/settings'];
+        yield 'custom scheme with slashes' => ['config://myapp/settings'];
+    }
+
     public function testFromArrayValid(): void
     {
         $resource = Resource::fromArray([
