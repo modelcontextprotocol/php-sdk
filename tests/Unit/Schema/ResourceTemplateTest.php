@@ -46,6 +46,25 @@ class ResourceTemplateTest extends TestCase
         );
     }
 
+    #[DataProvider('provideValidTemplatesWithoutDoubleSlash')]
+    public function testConstructorAcceptsTemplatesWithoutDoubleSlash(string $uriTemplate): void
+    {
+        $resource = new ResourceTemplate(
+            uriTemplate: $uriTemplate,
+            name: 'test-template',
+        );
+
+        $this->assertInstanceOf(ResourceTemplate::class, $resource);
+        $this->assertSame($uriTemplate, $resource->uriTemplate);
+    }
+
+    public static function provideValidTemplatesWithoutDoubleSlash(): iterable
+    {
+        yield 'custom scheme without slashes' => ['config:{key}'];
+        yield 'custom scheme with slashes' => ['config://{key}'];
+        yield 'urn-style template' => ['urn:resource:{id}'];
+    }
+
     public function testFromArrayValid(): void
     {
         $resource = ResourceTemplate::fromArray([
