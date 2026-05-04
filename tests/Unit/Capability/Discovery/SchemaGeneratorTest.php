@@ -197,7 +197,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => 'string', 'description' => 'Backed string enum', 'enum' => ['A', 'B']], $schema['properties']['stringEnum']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Backed int enum', 'enum' => [1, 2]], $schema['properties']['intEnum']);
         $this->assertEquals(['type' => 'string', 'description' => 'Unit enum', 'enum' => ['Yes', 'No']], $schema['properties']['unitEnum']);
-        $this->assertEquals(['type' => ['null', 'string'], 'enum' => ['A', 'B'], 'default' => null], $schema['properties']['nullableEnum']);
+        $this->assertEquals(['type' => ['string', 'null'], 'enum' => ['A', 'B', null], 'default' => null], $schema['properties']['nullableEnum']);
         $this->assertEquals(['type' => 'integer', 'enum' => [1, 2], 'default' => 1], $schema['properties']['enumWithDefault']);
         $this->assertEqualsCanonicalizing(['stringEnum', 'intEnum', 'unitEnum'], $schema['required']);
     }

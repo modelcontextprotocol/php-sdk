@@ -374,7 +374,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
 
             if ($jsonBackingType) {
                 if (isset($paramSchema['type']) && \is_array($paramSchema['type']) && \in_array('null', $paramSchema['type'])) {
-                    $paramSchema['type'] = ['null', $jsonBackingType];
+                    $paramSchema['type'] = [$jsonBackingType, 'null'];
                     $paramSchema['enum'][] = null;
                 } else {
                     $paramSchema['type'] = $jsonBackingType;
@@ -384,7 +384,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             // Non-backed enum - use names as enum values
             $paramSchema['enum'] = array_column($enumClass::cases(), 'name');
             if (isset($paramSchema['type']) && \is_array($paramSchema['type']) && \in_array('null', $paramSchema['type'])) {
-                $paramSchema['type'] = ['null', 'string'];
+                $paramSchema['type'] = ['string', 'null'];
                 $paramSchema['enum'][] = null;
             } else {
                 $paramSchema['type'] = 'string';
