@@ -27,6 +27,7 @@ use Mcp\Server\Handler\Request\GetPromptHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class GetPromptHandlerTest extends TestCase
 {
@@ -34,14 +35,16 @@ class GetPromptHandlerTest extends TestCase
     private RegistryInterface&MockObject $referenceProvider;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
         $this->referenceProvider = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->handler = new GetPromptHandler($this->referenceProvider, $this->referenceHandler);
+        $this->handler = new GetPromptHandler($this->referenceProvider, $this->referenceHandler, $this->logger);
     }
 
     public function testSupportsGetPromptRequest(): void
@@ -239,6 +242,11 @@ class GetPromptHandlerTest extends TestCase
             ->with('nonexistent_prompt')
             ->willThrowException($exception);
 
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Prompt not found', ['prompt_name' => 'nonexistent_prompt', 'exception' => $exception]);
+
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
@@ -257,6 +265,11 @@ class GetPromptHandlerTest extends TestCase
             ->method('getPrompt')
             ->with('failing_prompt')
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Error while handling prompt "failing_prompt": "Failed to get prompt".', ['exception' => $exception]);
 
         $response = $this->handler->handle($request, $this->session);
 

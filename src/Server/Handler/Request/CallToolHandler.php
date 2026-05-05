@@ -65,7 +65,7 @@ final class CallToolHandler implements RequestHandlerInterface
         try {
             $reference = $this->registry->getTool($toolName);
         } catch (ToolNotFoundException $e) {
-            $this->logger->error('Tool not found', ['name' => $toolName]);
+            $this->logger->error('Tool not found', ['name' => $toolName, 'exception' => $e]);
 
             return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
         }
@@ -112,6 +112,7 @@ final class CallToolHandler implements RequestHandlerInterface
             $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
+                'exception' => $e,
             ]);
 
             $errorContent = [new TextContent($e->getMessage())];

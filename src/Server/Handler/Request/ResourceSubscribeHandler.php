@@ -55,7 +55,7 @@ final class ResourceSubscribeHandler implements RequestHandlerInterface
         try {
             $this->registry->getResource($uri);
         } catch (ResourceNotFoundException $e) {
-            $this->logger->error('Resource not found', ['uri' => $uri]);
+            $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
         }

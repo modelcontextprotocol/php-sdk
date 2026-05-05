@@ -27,6 +27,7 @@ use Mcp\Server\Handler\Request\ReadResourceHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ReadResourceHandlerTest extends TestCase
 {
@@ -34,14 +35,16 @@ class ReadResourceHandlerTest extends TestCase
     private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
     private SessionInterface&MockObject $session;
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
         $this->registry = $this->createMock(RegistryInterface::class);
         $this->referenceHandler = $this->createMock(ReferenceHandlerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler);
+        $this->handler = new ReadResourceHandler($this->registry, $this->referenceHandler, $this->logger);
     }
 
     public function testSupportsReadResourceRequest(): void
@@ -186,6 +189,11 @@ class ReadResourceHandlerTest extends TestCase
             ->with($uri)
             ->willThrowException($exception);
 
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Resource not found', ['uri' => $uri, 'exception' => $exception]);
+
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
@@ -206,6 +214,11 @@ class ReadResourceHandlerTest extends TestCase
             ->with($uri)
             ->willThrowException($exception);
 
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Error while reading resource "file://corrupted/file.txt": "Failed to read resource: corrupted data".', ['exception' => $exception]);
+
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Error::class, $response);
@@ -225,6 +238,11 @@ class ReadResourceHandlerTest extends TestCase
             ->method('getResource')
             ->with($uri)
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Unexpected error while reading resource "file://problematic/file.txt": "Internal database connection failed".', ['exception' => $exception]);
 
         $response = $this->handler->handle($request, $this->session);
 

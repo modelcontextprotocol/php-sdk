@@ -77,15 +77,15 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
             return new Response($request->getId(), new ReadResourceResult($formatted));
         } catch (ResourceReadException $e) {
-            $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()));
+            $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError($e->getMessage(), $request->getId());
         } catch (ResourceNotFoundException $e) {
-            $this->logger->error('Resource not found', ['uri' => $uri]);
+            $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
-            $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()));
+            $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError('Error while reading resource', $request->getId());
         }

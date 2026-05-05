@@ -65,15 +65,15 @@ final class GetPromptHandler implements RequestHandlerInterface
 
             return new Response($request->getId(), new GetPromptResult($formatted));
         } catch (PromptGetException $e) {
-            $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
+            $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError($e->getMessage(), $request->getId());
         } catch (PromptNotFoundException $e) {
-            $this->logger->error('Prompt not found', ['prompt_name' => $promptName]);
+            $this->logger->error('Prompt not found', ['prompt_name' => $promptName, 'exception' => $e]);
 
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
-            $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()));
+            $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError('Error while handling prompt', $request->getId());
         }

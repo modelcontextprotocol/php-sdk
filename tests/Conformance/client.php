@@ -96,7 +96,7 @@ try {
     $logger->info('Disconnected');
     exit(0);
 } catch (Throwable $e) {
-    $logger->error(sprintf('Error: %s', $e->getMessage()));
+    $logger->error(sprintf('Error: %s', $e->getMessage()), ['exception' => $e]);
     fwrite(\STDERR, sprintf("Error: %s\n%s\n", $e->getMessage(), $e->getTraceAsString()));
 
     try {

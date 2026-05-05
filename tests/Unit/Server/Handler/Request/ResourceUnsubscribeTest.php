@@ -26,6 +26,7 @@ use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class ResourceUnsubscribeTest extends TestCase
 {
@@ -33,14 +34,16 @@ class ResourceUnsubscribeTest extends TestCase
     private RegistryInterface&MockObject $registry;
     private SessionInterface&MockObject $session;
     private SubscriptionManagerInterface&MockObject $subscriptionManager;
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
         $this->registry = $this->createMock(RegistryInterface::class);
         $this->subscriptionManager = $this->createMock(SubscriptionManagerInterface::class);
         $this->session = $this->createMock(SessionInterface::class);
+        $this->logger = $this->createMock(LoggerInterface::class);
 
-        $this->handler = new ResourceUnsubscribeHandler($this->registry, $this->subscriptionManager);
+        $this->handler = new ResourceUnsubscribeHandler($this->registry, $this->subscriptionManager, $this->logger);
     }
 
     #[TestDox('Client can unsubscribe from a resource')]
@@ -118,6 +121,11 @@ class ResourceUnsubscribeTest extends TestCase
             ->method('getResource')
             ->with($uri)
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Resource not found', ['uri' => $uri, 'exception' => $exception]);
 
         $response = $this->handler->handle($request, $this->session);
 
