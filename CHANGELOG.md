@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.6.0
+-----
+
+* Allow overriding the default name pattern for Discovery
+
 0.5.0
 -----
 
