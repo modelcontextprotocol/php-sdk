@@ -144,7 +144,8 @@ class StreamableHttpTransport extends BaseTransport
         $outgoingMessages = $this->getOutgoingMessages($this->sessionId);
 
         if (empty($outgoingMessages)) {
-            return $this->responseFactory->createResponse(202);
+            return $this->responseFactory->createResponse(202)
+                ->withHeader('Content-Type', 'application/json');
         }
 
         $messages = array_column($outgoingMessages, 'message');
