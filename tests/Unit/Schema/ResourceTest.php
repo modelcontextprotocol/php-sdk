@@ -46,8 +46,8 @@ class ResourceTest extends TestCase
         );
     }
 
-    #[DataProvider('provideValidUrisWithoutDoubleSlash')]
-    public function testConstructorAcceptsUrisWithoutDoubleSlash(string $uri): void
+    #[DataProvider('provideValidUris')]
+    public function testConstructorAcceptsUris(string $uri): void
     {
         $resource = new Resource(
             uri: $uri,
@@ -58,7 +58,7 @@ class ResourceTest extends TestCase
         $this->assertSame($uri, $resource->uri);
     }
 
-    public static function provideValidUrisWithoutDoubleSlash(): iterable
+    public static function provideValidUris(): iterable
     {
         yield 'urn' => ['urn:isbn:0451450523'];
         yield 'mailto' => ['mailto:user@example.com'];

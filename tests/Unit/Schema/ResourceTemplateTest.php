@@ -46,8 +46,8 @@ class ResourceTemplateTest extends TestCase
         );
     }
 
-    #[DataProvider('provideValidTemplatesWithoutDoubleSlash')]
-    public function testConstructorAcceptsTemplatesWithoutDoubleSlash(string $uriTemplate): void
+    #[DataProvider('provideValidTemplates')]
+    public function testConstructorAcceptsTemplates(string $uriTemplate): void
     {
         $resource = new ResourceTemplate(
             uriTemplate: $uriTemplate,
@@ -58,7 +58,7 @@ class ResourceTemplateTest extends TestCase
         $this->assertSame($uriTemplate, $resource->uriTemplate);
     }
 
-    public static function provideValidTemplatesWithoutDoubleSlash(): iterable
+    public static function provideValidTemplates(): iterable
     {
         yield 'custom scheme without slashes' => ['config:{key}'];
         yield 'custom scheme with slashes' => ['config://{key}'];
