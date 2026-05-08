@@ -40,10 +40,10 @@ class Resource implements \JsonSerializable
     private const RESOURCE_NAME_PATTERN = '/^[a-zA-Z0-9_-]+$/';
 
     /**
-     * URI pattern regex - requires a valid scheme, followed by colon and optional path.
-     * Example patterns: config://, file://path, db://table, etc.
+     * URI pattern regex - requires a valid scheme followed by colon and optional path (RFC 3986).
+     * Example patterns: file://path, db://table, urn:isbn:123, config:key, etc.
      */
-    private const URI_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/[^\s]*$/';
+    private const URI_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:[^\s]*$/';
 
     /**
      * @param string                $uri         the URI of this resource

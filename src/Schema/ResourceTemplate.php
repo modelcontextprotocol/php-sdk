@@ -37,10 +37,10 @@ class ResourceTemplate implements \JsonSerializable
     private const RESOURCE_NAME_PATTERN = '/^[a-zA-Z0-9_-]+$/';
 
     /**
-     * URI Template pattern regex - requires a valid scheme, followed by colon and path with at least one placeholder.
-     * Example patterns: config://{key}, file://{path}/contents.txt, db://{table}/{id}, etc.
+     * URI Template pattern regex - requires a valid scheme followed by colon and path with at least one placeholder (RFC 3986).
+     * Example patterns: file://{path}/contents.txt, db://{table}/{id}, config:{key}, etc.
      */
-    private const URI_TEMPLATE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/';
+    private const URI_TEMPLATE_PATTERN = '/^[a-zA-Z][a-zA-Z0-9+.-]*:.*{[^{}]+}.*/';
 
     /**
      * @param string                $uriTemplate a URI template (according to RFC 6570) that can be used to construct resource URIs
