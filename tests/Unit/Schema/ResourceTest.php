@@ -77,8 +77,43 @@ class ResourceTest extends TestCase
         $this->assertInstanceOf(Resource::class, $resource);
         $this->assertSame(self::VALID_URI, $resource->uri);
         $this->assertSame('list-books', $resource->name);
+        $this->assertNull($resource->title);
         $this->assertNull($resource->description);
         $this->assertNull($resource->meta);
+    }
+
+    public function testTitleFromArray(): void
+    {
+        $resource = Resource::fromArray([
+            'uri' => self::VALID_URI,
+            'name' => 'list-books',
+            'title' => 'Book Listing',
+        ]);
+
+        $this->assertSame('Book Listing', $resource->title);
+    }
+
+    public function testTitleSerialization(): void
+    {
+        $resource = new Resource(
+            uri: self::VALID_URI,
+            name: 'list-books',
+            title: 'Book Listing',
+        );
+
+        $data = $resource->jsonSerialize();
+        $this->assertSame('Book Listing', $data['title']);
+    }
+
+    public function testTitleOmittedWhenNull(): void
+    {
+        $resource = new Resource(
+            uri: self::VALID_URI,
+            name: 'list-books',
+        );
+
+        $data = $resource->jsonSerialize();
+        $this->assertArrayNotHasKey('title', $data);
     }
 
     #[DataProvider('provideInvalidResources')]

@@ -22,6 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
  * @phpstan-type ResourceData array{
  *     uri: string,
  *     name: string,
+ *     title?: string,
  *     description?: string,
  *     mimeType?: string,
  *     annotations?: AnnotationsData,
@@ -47,19 +48,19 @@ class Resource implements \JsonSerializable
 
     /**
      * @param string                $uri         the URI of this resource
-     * @param string                $name        A human-readable name for this resource. This can be used by clients to populate UI elements.
-     * @param ?string               $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
+     * @param string                $name        a short identifier for this resource
+     * @param ?string               $title       optional human-readable title for display in UI
+     * @param ?string               $description A description of what this resource represents. This can be used by clients to improve the LLM's understanding of available resources.
      * @param ?string               $mimeType    the MIME type of this resource, if known
      * @param ?Annotations          $annotations optional annotations for the client
-     * @param ?int                  $size        The size of the raw resource content, in bytes (i.e., before base64 encoding or any tokenization), if known.
+     * @param ?int                  $size        the size of the raw resource content, in bytes (before base64 encoding or any tokenization), if known
      * @param ?Icon[]               $icons       optional icons representing the resource
-     * @param ?array<string, mixed> $meta        Optional metadata
-     *
-     * This can be used by Hosts to display file sizes and estimate context window usage
+     * @param ?array<string, mixed> $meta        optional metadata
      */
     public function __construct(
         public readonly string $uri,
         public readonly string $name,
+        public readonly ?string $title = null,
         public readonly ?string $description = null,
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
@@ -94,6 +95,7 @@ class Resource implements \JsonSerializable
         return new self(
             uri: $data['uri'],
             name: $data['name'],
+            title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
@@ -107,6 +109,7 @@ class Resource implements \JsonSerializable
      * @return array{
      *     uri: string,
      *     name: string,
+     *     title?: string,
      *     description?: string,
      *     mimeType?: string,
      *     annotations?: Annotations,
@@ -121,6 +124,9 @@ class Resource implements \JsonSerializable
             'uri' => $this->uri,
             'name' => $this->name,
         ];
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
+        }
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }

@@ -24,18 +24,20 @@ use Mcp\Schema\Icon;
 class McpResource
 {
     /**
-     * @param string                $uri         The specific URI identifying this resource instance. Must be unique within the server.
-     * @param ?string               $name        A human-readable name for this resource. If null, a default might be generated from the method name.
-     * @param ?string               $description An optional description of the resource. Defaults to class DocBlock summary.
+     * @param string                $uri         the specific URI identifying this resource instance
+     * @param ?string               $name        a short identifier for this resource; defaults to the method name
+     * @param ?string               $title       optional human-readable title for display in UI
+     * @param ?string               $description optional description; defaults to class DocBlock summary
      * @param ?string               $mimeType    the MIME type, if known and constant for this resource
      * @param ?int                  $size        the size in bytes, if known and constant
-     * @param Annotations|null      $annotations optional annotations describing the resource
-     * @param ?Icon[]               $icons       Optional list of icon URLs representing the resource
-     * @param ?array<string, mixed> $meta        Optional metadata
+     * @param ?Annotations          $annotations optional annotations describing the resource
+     * @param ?Icon[]               $icons       optional icons representing the resource
+     * @param ?array<string, mixed> $meta        optional metadata
      */
     public function __construct(
         public string $uri,
         public ?string $name = null,
+        public ?string $title = null,
         public ?string $description = null,
         public ?string $mimeType = null,
         public ?int $size = null,

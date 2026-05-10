@@ -21,6 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
  * @phpstan-type ResourceTemplateData array{
  *     uriTemplate: string,
  *     name: string,
+ *     title?: string,
  *     description?: string|null,
  *     mimeType?: string|null,
  *     annotations?: AnnotationsData|null,
@@ -44,15 +45,17 @@ class ResourceTemplate implements \JsonSerializable
 
     /**
      * @param string                $uriTemplate a URI template (according to RFC 6570) that can be used to construct resource URIs
-     * @param string                $name        A human-readable name for the type of resource this template refers to. This can be used by clients to populate UI elements.
-     * @param string|null           $description This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a "hint" to the model.
-     * @param string|null           $mimeType    The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.
-     * @param Annotations|null      $annotations optional annotations for the client
-     * @param ?array<string, mixed> $meta        Optional metadata
+     * @param string                $name        a short identifier for this resource template type
+     * @param ?string               $title       optional human-readable title for display in UI
+     * @param ?string               $description a description to help the LLM understand available resources
+     * @param ?string               $mimeType    the MIME type for all resources that match this template, if uniform
+     * @param ?Annotations          $annotations optional annotations for the client
+     * @param ?array<string, mixed> $meta        optional metadata
      */
     public function __construct(
         public readonly string $uriTemplate,
         public readonly string $name,
+        public readonly ?string $title = null,
         public readonly ?string $description = null,
         public readonly ?string $mimeType = null,
         public readonly ?Annotations $annotations = null,
@@ -85,6 +88,7 @@ class ResourceTemplate implements \JsonSerializable
         return new self(
             uriTemplate: $data['uriTemplate'],
             name: $data['name'],
+            title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
             annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
@@ -96,6 +100,7 @@ class ResourceTemplate implements \JsonSerializable
      * @return array{
      *     uriTemplate: string,
      *     name: string,
+     *     title?: string,
      *     description?: string,
      *     mimeType?: string,
      *     annotations?: Annotations,
@@ -108,6 +113,9 @@ class ResourceTemplate implements \JsonSerializable
             'uriTemplate' => $this->uriTemplate,
             'name' => $this->name,
         ];
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
+        }
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }
