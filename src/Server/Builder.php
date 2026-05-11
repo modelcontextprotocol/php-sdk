@@ -19,6 +19,7 @@ use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\ArrayLoader;
+use Mcp\Capability\Registry\Loader\ChainLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandler;
@@ -540,11 +541,6 @@ final class Builder
         $container = $this->container ?? new Container();
         $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
-        $loaders = [
-            ...$this->loaders,
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
-        ];
-
         $sessionManager = $this->sessionManager ?? new SessionManager(
             $this->sessionStore ?? new InMemorySessionStore(),
             $logger,
@@ -552,18 +548,24 @@ final class Builder
             $this->gcDivisor,
         );
 
+        // ArrayLoader runs before DiscoveryLoader so manual entries are seen first; DiscoveryLoader's
+        // identity check then preserves them against same-name discovered entries.
+        $loaders = [
+            ...$this->loaders,
+            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
+        ];
+
         if (null !== $this->discoveryBasePath) {
             if (null !== $this->discoverer || class_exists(Finder::class)) {
                 $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
-                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns);
+                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
             } else {
                 $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
             }
         }
 
-        foreach ($loaders as $loader) {
-            $loader->load($registry);
-        }
+        $loader = new ChainLoader($loaders);
+        $loader->load($registry);
 
         $messageFactory = MessageFactory::make();
 

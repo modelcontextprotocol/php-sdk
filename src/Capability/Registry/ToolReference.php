@@ -28,9 +28,8 @@ class ToolReference extends ElementReference
     public function __construct(
         public readonly Tool $tool,
         callable|array|string $handler,
-        bool $isManual = false,
     ) {
-        parent::__construct($handler, $isManual);
+        parent::__construct($handler);
     }
 
     /**

@@ -124,7 +124,7 @@ final class ArrayLoader implements LoaderInterface
                     meta: $data['meta'] ?? null,
                     outputSchema: $data['outputSchema'] ?? null,
                 );
-                $registry->registerTool($tool, $data['handler'], true);
+                $registry->registerTool($tool, $data['handler']);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $this->logger->debug("Registered manual tool {$name} from handler {$handlerDesc}");
@@ -164,7 +164,7 @@ final class ArrayLoader implements LoaderInterface
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null,
                 );
-                $registry->registerResource($resource, $data['handler'], true);
+                $registry->registerResource($resource, $data['handler']);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $this->logger->debug("Registered manual resource {$name} from handler {$handlerDesc}");
@@ -203,7 +203,7 @@ final class ArrayLoader implements LoaderInterface
                     meta: $data['meta'] ?? null,
                 );
                 $completionProviders = $this->getCompletionProviders($reflection);
-                $registry->registerResourceTemplate($template, $data['handler'], $completionProviders, true);
+                $registry->registerResourceTemplate($template, $data['handler'], $completionProviders);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $this->logger->debug("Registered manual template {$name} from handler {$handlerDesc}");
@@ -261,7 +261,7 @@ final class ArrayLoader implements LoaderInterface
                     meta: $data['meta'] ?? null
                 );
                 $completionProviders = $this->getCompletionProviders($reflection);
-                $registry->registerPrompt($prompt, $data['handler'], $completionProviders, true);
+                $registry->registerPrompt($prompt, $data['handler'], $completionProviders);
 
                 $handlerDesc = $this->getHandlerDescription($data['handler']);
                 $this->logger->debug("Registered manual prompt {$name} from handler {$handlerDesc}");

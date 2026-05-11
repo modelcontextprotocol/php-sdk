@@ -73,6 +73,23 @@ final class DiscoveryState
     }
 
     /**
+     * Returns the subset of this state whose keys are absent from $next.
+     *
+     * Asymmetric by design: entries whose keys exist in both states are excluded
+     * regardless of value. Used to identify owned entries that a fresh discovery
+     * no longer produces.
+     */
+    public function obsoletedBy(self $next): self
+    {
+        return new self(
+            array_diff_key($this->tools, $next->tools),
+            array_diff_key($this->resources, $next->resources),
+            array_diff_key($this->prompts, $next->prompts),
+            array_diff_key($this->resourceTemplates, $next->resourceTemplates),
+        );
+    }
+
+    /**
      * Check if this state contains any discovered elements.
      */
     public function isEmpty(): bool

@@ -41,7 +41,6 @@ class DiscoveryTest extends TestCase
         $this->assertCount(5, $tools);
 
         $this->assertArrayHasKey('greet_user', $tools);
-        $this->assertFalse($tools['greet_user']->isManual);
         $this->assertEquals('greet_user', $tools['greet_user']->tool->name);
         $this->assertEquals('Greets a user by name.', $tools['greet_user']->tool->description);
         $this->assertEquals([DiscoverableToolHandler::class, 'greet'], $tools['greet_user']->handler);
@@ -54,7 +53,6 @@ class DiscoveryTest extends TestCase
 
         $this->assertArrayHasKey('InvokableCalculator', $tools);
         $this->assertInstanceOf(ToolReference::class, $tools['InvokableCalculator']);
-        $this->assertFalse($tools['InvokableCalculator']->isManual);
         $this->assertEquals([InvocableToolFixture::class, '__invoke'], $tools['InvokableCalculator']->handler);
 
         $this->assertArrayHasKey('inc_file_name_tool', $tools);
@@ -68,44 +66,36 @@ class DiscoveryTest extends TestCase
         $this->assertCount(3, $resources);
 
         $this->assertArrayHasKey('app://info/version', $resources);
-        $this->assertFalse($resources['app://info/version']->isManual);
         $this->assertEquals('app_version', $resources['app://info/version']->resource->name);
         $this->assertEquals('text/plain', $resources['app://info/version']->resource->mimeType);
 
         $this->assertArrayHasKey('invokable://config/status', $resources);
-        $this->assertFalse($resources['invokable://config/status']->isManual);
         $this->assertEquals([InvocableResourceFixture::class, '__invoke'], $resources['invokable://config/status']->handler);
 
         $prompts = $discovery->getPrompts();
         $this->assertCount(4, $prompts);
 
         $this->assertArrayHasKey('creative_story_prompt', $prompts);
-        $this->assertFalse($prompts['creative_story_prompt']->isManual);
         $this->assertCount(2, $prompts['creative_story_prompt']->prompt->arguments);
         $this->assertEquals(CompletionProviderFixture::class, $prompts['creative_story_prompt']->completionProviders['genre']);
 
         $this->assertArrayHasKey('simpleQuestionPrompt', $prompts);
-        $this->assertFalse($prompts['simpleQuestionPrompt']->isManual);
 
         $this->assertArrayHasKey('InvokableGreeterPrompt', $prompts);
-        $this->assertFalse($prompts['InvokableGreeterPrompt']->isManual);
         $this->assertEquals([InvocablePromptFixture::class, '__invoke'], $prompts['InvokableGreeterPrompt']->handler);
 
         $this->assertArrayHasKey('content_creator', $prompts);
-        $this->assertFalse($prompts['content_creator']->isManual);
         $this->assertCount(3, $prompts['content_creator']->completionProviders);
 
         $templates = $discovery->getResourceTemplates();
         $this->assertCount(4, $templates);
 
         $this->assertArrayHasKey('product://{region}/details/{productId}', $templates);
-        $this->assertFalse($templates['product://{region}/details/{productId}']->isManual);
         $this->assertEquals('product_details_template', $templates['product://{region}/details/{productId}']->resourceTemplate->name);
         $this->assertEquals(CompletionProviderFixture::class, $templates['product://{region}/details/{productId}']->completionProviders['region']);
         $this->assertEqualsCanonicalizing(['region', 'productId'], $templates['product://{region}/details/{productId}']->getVariableNames());
 
         $this->assertArrayHasKey('invokable://user-profile/{userId}', $templates);
-        $this->assertFalse($templates['invokable://user-profile/{userId}']->isManual);
         $this->assertEquals([InvocableResourceTemplateFixture::class, '__invoke'], $templates['invokable://user-profile/{userId}']->handler);
     }
 

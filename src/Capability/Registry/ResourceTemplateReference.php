@@ -36,10 +36,9 @@ class ResourceTemplateReference extends ElementReference
     public function __construct(
         public readonly ResourceTemplate $resourceTemplate,
         callable|array|string $handler,
-        bool $isManual = false,
         public readonly array $completionProviders = [],
     ) {
-        parent::__construct($handler, $isManual);
+        parent::__construct($handler);
 
         $this->compileTemplate();
     }
