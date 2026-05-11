@@ -29,6 +29,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\ServerExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\ServerCapabilities;
@@ -175,6 +176,11 @@ final class Builder
     private ?ServerCapabilities $serverCapabilities = null;
 
     /**
+     * @var array<string, array<string, mixed>>
+     */
+    private array $extensions = [];
+
+    /**
      * @var LoaderInterface[]
      */
     private array $loaders = [];
@@ -226,6 +232,31 @@ final class Builder
     public function setCapabilities(ServerCapabilities $serverCapabilities): self
     {
         $this->serverCapabilities = $serverCapabilities;
+
+        return $this;
+    }
+
+    /**
+     * Enable one or more MCP protocol extensions, announced to clients under
+     * `capabilities.extensions` during the initialize handshake.
+     *
+     * Pass either fully qualified class names (instantiated with no arguments) or
+     * pre-built instances.
+     *
+     * @param class-string<ServerExtensionInterface>|ServerExtensionInterface ...$extensions
+     */
+    public function enableExtension(string|ServerExtensionInterface ...$extensions): self
+    {
+        foreach ($extensions as $extension) {
+            if (\is_string($extension)) {
+                if (!is_subclass_of($extension, ServerExtensionInterface::class)) {
+                    throw new InvalidArgumentException(\sprintf('Extension class "%s" must implement "%s".', $extension, ServerExtensionInterface::class));
+                }
+                $extension = new $extension();
+            }
+
+            $this->extensions[$extension->getId()] = $extension->getCapabilities();
+        }
 
         return $this;
     }
@@ -587,6 +618,7 @@ final class Builder
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             logging: true,
             completions: true,
+            extensions: [] !== $this->extensions ? $this->extensions : null,
         );
 
         $serverInfo = $this->serverInfo ?? new Implementation();
