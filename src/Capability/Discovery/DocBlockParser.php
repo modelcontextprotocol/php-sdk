@@ -47,9 +47,7 @@ class DocBlockParser
         } catch (\Throwable $e) {
             // Log error or handle gracefully if invalid DocBlock syntax is encountered
             $this->logger->warning('Failed to parse DocBlock', [
-                'error' => $e->getMessage(),
                 'exception' => $e,
-                'exception_trace' => $e->getTraceAsString(),
             ]);
 
             return null;

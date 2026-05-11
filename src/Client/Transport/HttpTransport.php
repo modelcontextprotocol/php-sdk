@@ -170,7 +170,7 @@ class HttpTransport extends BaseTransport
                 $this->httpClient->sendRequest($request);
                 $this->logger->info('Session closed', ['session_id' => $this->sessionId]);
             } catch (\Throwable $e) {
-                $this->logger->warning('Failed to close session', ['error' => $e->getMessage(), 'exception' => $e]);
+                $this->logger->warning('Failed to close session', ['exception' => $e]);
             }
         }
 
