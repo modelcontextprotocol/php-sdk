@@ -117,7 +117,6 @@ final class Discoverer implements DiscovererInterface
         } catch (\Throwable $e) {
             $this->logger->error('Error during file finding process for MCP discovery'.json_encode($e->getTrace(), \JSON_PRETTY_PRINT), [
                 'exception' => $e,
-                'trace' => $e->getTraceAsString(),
             ]);
         }
 
@@ -199,7 +198,6 @@ final class Discoverer implements DiscovererInterface
                 'file' => $file->getPathname(),
                 'class' => $className,
                 'exception' => $e,
-                'trace' => $e->getTraceAsString(),
             ]);
         }
     }
@@ -300,9 +298,15 @@ final class Discoverer implements DiscovererInterface
                     break;
             }
         } catch (ExceptionInterface $e) {
-            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e, 'trace' => $e->getPrevious() ? $e->getPrevious()->getTraceAsString() : $e->getTraceAsString()]);
+            $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", [
+                'attribute' => $attributeClassName,
+                'exception' => $e,
+            ]);
         } catch (\Throwable $e) {
-            $this->logger->error("Unexpected error processing attribute on {$className}::{$methodName}", ['attribute' => $attributeClassName, 'exception' => $e, 'trace' => $e->getTraceAsString()]);
+            $this->logger->error("Unexpected error processing attribute on {$className}::{$methodName}", [
+                'attribute' => $attributeClassName,
+                'exception' => $e,
+            ]);
         }
     }
 

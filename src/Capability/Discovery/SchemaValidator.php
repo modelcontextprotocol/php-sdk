@@ -87,8 +87,7 @@ class SchemaValidator
             $result = $validator->validate($dataToValidate, $schemaObject);
         } catch (\Throwable $e) {
             $this->logger->error('MCP SDK: JSON Schema validation failed internally.', [
-                'exception_message' => $e->getMessage(),
-                'exception_trace' => $e->getTraceAsString(),
+                'exception' => $e,
                 'data' => json_encode($dataToValidate),
                 'schema' => json_encode($schemaObject),
             ]);
