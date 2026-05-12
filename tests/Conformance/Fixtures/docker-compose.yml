@@ -10,6 +10,12 @@ services:
       - php-fpm
     networks:
       - mcp-net
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O-", "http://localhost/"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 2s
 
   php-fpm:
     image: php:8.4-fpm-alpine
