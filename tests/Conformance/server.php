@@ -19,6 +19,7 @@ use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
@@ -37,6 +38,7 @@ $transport = new StreamableHttpTransport($request, logger: $logger);
 
 $server = Server::builder()
     ->setServerInfo('mcp-conformance-test-server', '1.0.0')
+    ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->setLogger($logger)
     // Tools
@@ -52,6 +54,29 @@ $server = Server::builder()
     ->addTool([Elements::class, 'toolWithElicitation'], name: 'test_elicitation', description: 'Tests server-initiated elicitation')
     ->addTool([Elements::class, 'toolWithElicitationDefaults'], name: 'test_elicitation_sep1034_defaults', description: 'Tests elicitation with default values')
     ->addTool([Elements::class, 'toolWithElicitationEnums'], name: 'test_elicitation_sep1330_enums', description: 'Tests elicitation with enum schemas')
+    ->addTool(
+        static fn () => 'ok',
+        name: 'json_schema_2020_12_tool',
+        description: 'Tool with JSON Schema 2020-12 features',
+        inputSchema: [
+            '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+            'type' => 'object',
+            '$defs' => [
+                'address' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'street' => ['type' => 'string'],
+                        'city' => ['type' => 'string'],
+                    ],
+                ],
+            ],
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'address' => ['$ref' => '#/$defs/address'],
+            ],
+            'additionalProperties' => false,
+        ],
+    )
     // Resources
     ->addResource(static fn () => 'This is the content of the static text resource.', 'test://static-text', 'static-text', 'A static text resource for testing')
     ->addResource(static fn () => fopen('data://image/png;base64,'.Elements::TEST_IMAGE_BASE64, 'r'), 'test://static-binary', 'static-binary', 'A static binary resource (image) for testing')

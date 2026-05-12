@@ -16,6 +16,7 @@ use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ElicitRequest;
@@ -36,6 +37,7 @@ $logger->info(sprintf('Starting client conformance test: scenario=%s, url=%s', $
 
 $builder = Client::builder()
     ->setClientInfo('mcp-conformance-test-client', '1.0.0')
+    ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->setInitTimeout(30)
     ->setRequestTimeout(60)
     ->setLogger($logger);
