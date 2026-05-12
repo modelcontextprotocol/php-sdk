@@ -70,7 +70,7 @@ final class ClientRegistrationMiddleware implements MiddlewareInterface
     private function handleRegistration(ServerRequestInterface $request): ResponseInterface
     {
         $contentType = $request->getHeaderLine('Content-Type');
-        if (!str_starts_with($contentType, 'application/json')) {
+        if (!str_starts_with(strtolower($contentType), 'application/json')) {
             return $this->jsonResponse(400, [
                 'error' => 'invalid_client_metadata',
                 'error_description' => 'Content-Type must be application/json.',
