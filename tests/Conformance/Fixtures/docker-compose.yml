@@ -11,7 +11,7 @@ services:
     networks:
       - mcp-net
     healthcheck:
-      test: ["CMD", "wget", "-q", "-O-", "http://localhost/"]
+      test: ["CMD", "wget", "-q", "-O-", "http://127.0.0.1/healthz"]
       interval: 2s
       timeout: 2s
       retries: 10
