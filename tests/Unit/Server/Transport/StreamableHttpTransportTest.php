@@ -11,9 +11,12 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -24,117 +27,204 @@ use Psr\Http\Server\RequestHandlerInterface;
 
 final class StreamableHttpTransportTest extends TestCase
 {
-    public static function corsHeaderProvider(): iterable
+    private Psr17Factory $factory;
+
+    protected function setUp(): void
     {
-        yield 'GET (middleware returns 401)' => ['GET', false, 401];
-        yield 'POST (middleware returns 401)' => ['POST', false, 401];
-        yield 'DELETE (middleware returns 401)' => ['DELETE', false, 401];
-        yield 'OPTIONS (middleware delegates -> transport handles preflight)' => ['OPTIONS', true, 204];
-        yield 'GET (middleware delegates -> transport handles preflight)' => ['GET', true, 405];
-        yield 'POST (middleware delegates -> transport handles preflight)' => ['POST', true, 202];
-        yield 'DELETE (middleware delegates -> transport handles preflight)' => ['DELETE', true, 400];
+        $this->factory = new Psr17Factory();
     }
 
-    #[DataProvider('corsHeaderProvider')]
-    #[TestDox('CORS headers are always applied')]
-    public function testCorsHeader(string $method, bool $middlewareDelegatesToTransport, int $expectedStatusCode): void
+    #[TestDox('default middleware is applied when none is passed')]
+    public function testDefaultMiddlewareIsAppliedWhenOmitted(): void
     {
-        $factory = new Psr17Factory();
-        $request = $factory->createServerRequest($method, 'https://example.com');
+        $request = $this->factory
+            ->createServerRequest('OPTIONS', 'http://localhost/')
+            ->withHeader('Host', 'localhost');
 
-        $middleware = new class($factory, $expectedStatusCode, $middlewareDelegatesToTransport) implements MiddlewareInterface {
-            public function __construct(
-                private ResponseFactoryInterface $responseFactory,
-                private int $expectedStatusCode,
-                private bool $middlewareDelegatesToTransport,
-            ) {
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        // Default CORS middleware exposes Methods/Headers/Expose but no Allow-Origin (secure-by-default).
+        $this->assertSame(204, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+        $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
+        $this->assertNotSame('', $response->getHeaderLine('Access-Control-Expose-Headers'));
+    }
+
+    #[TestDox('default middleware blocks non-localhost Origin')]
+    public function testDefaultMiddlewareBlocksRebindingAttempt(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Origin', 'http://evil.example.com');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(403, $response->getStatusCode());
+    }
+
+    #[TestDox('default middleware rejects unsupported MCP-Protocol-Version')]
+    public function testDefaultMiddlewareRejectsUnsupportedProtocolVersion(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, '1900-01-01');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(400, $response->getStatusCode());
+    }
+
+    #[TestDox('explicit empty middleware list disables all defaults')]
+    public function testEmptyMiddlewareListDisablesDefaults(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'evil.example.com')
+            ->withHeader('Origin', 'http://evil.example.com');
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            null,
+            [],
+        );
+
+        $response = $transport->listen();
+
+        // No CORS, no DNS rebinding check — transport just answers.
+        $this->assertNotSame(403, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
+    }
+
+    #[TestDox('custom middleware composes with default stack via spread')]
+    public function testDefaultsCanBeSpreadAndExtended(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost');
+
+        $authStub = new class($this->factory) implements MiddlewareInterface {
+            public function __construct(private ResponseFactoryInterface $factory)
+            {
             }
 
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
-                if ($this->middlewareDelegatesToTransport) {
-                    return $handler->handle($request);
+                return $this->factory->createResponse(401);
+            }
+        };
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            null,
+            [
+                ...StreamableHttpTransport::defaultMiddleware(),
+                $authStub,
+            ],
+        );
+
+        $response = $transport->listen();
+
+        $this->assertSame(401, $response->getStatusCode());
+        // CORS middleware is outermost — its headers must still be applied to the 401.
+        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+    }
+
+    #[TestDox('defaults can be filtered to drop DNS rebinding for proxy deployments')]
+    public function testDefaultsCanBeFilteredToDropDnsRebinding(): void
+    {
+        // Behind a reverse proxy: real Host is api.myapp.com, browser Origin is myapp.com.
+        // DnsRebindingProtectionMiddleware default (localhost-only) would 403 this — drop it.
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://api.myapp.com/')
+            ->withHeader('Host', 'api.myapp.com')
+            ->withHeader('Origin', 'https://myapp.com');
+
+        $authStub = new class($this->factory) implements MiddlewareInterface {
+            public function __construct(private ResponseFactoryInterface $factory)
+            {
+            }
+
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                if ('' === $request->getHeaderLine('Authorization')) {
+                    return $this->factory->createResponse(401);
                 }
 
-                return $this->responseFactory->createResponse($this->expectedStatusCode);
+                return $handler->handle($request);
             }
         };
 
         $transport = new StreamableHttpTransport(
             $request,
-            $factory,
-            $factory,
-            [],
+            $this->factory,
+            $this->factory,
             null,
-            [$middleware],
+            [
+                ...array_filter(
+                    StreamableHttpTransport::defaultMiddleware(),
+                    static fn (MiddlewareInterface $m): bool => !$m instanceof DnsRebindingProtectionMiddleware,
+                ),
+                $authStub,
+            ],
         );
 
         $response = $transport->listen();
 
-        $this->assertSame($expectedStatusCode, $response->getStatusCode(), $response->getBody()->getContents());
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Origin'));
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Methods'));
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Headers'));
-        $this->assertTrue($response->hasHeader('Access-Control-Expose-Headers'));
-
-        $this->assertSame('*', $response->getHeaderLine('Access-Control-Allow-Origin'));
+        // Auth short-circuits with 401 — proves DNS rebinding didn't reject the request first.
+        $this->assertSame(401, $response->getStatusCode());
+        // CORS middleware is still in the chain — Methods header attached to the 401.
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
-        $this->assertSame(
-            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
-            $response->getHeaderLine('Access-Control-Allow-Headers')
-        );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        // ProtocolVersionMiddleware also still in the chain — would have rejected a bad header.
     }
 
-    #[TestDox('transport replaces existing CORS headers on the response')]
-    public function testCorsHeadersAreReplacedWhenAlreadyPresent(): void
+    #[TestDox('configured CorsMiddleware reflects matching Origin')]
+    public function testConfiguredCorsReflectsMatchingOrigin(): void
     {
-        $factory = new Psr17Factory();
-        $request = $factory->createServerRequest('GET', 'https://example.com');
-
-        $middleware = new class($factory) implements MiddlewareInterface {
-            public function __construct(private ResponseFactoryInterface $responses)
-            {
-            }
-
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $this->responses->createResponse(200)
-                    ->withHeader('Access-Control-Allow-Origin', 'https://another.com');
-            }
-        };
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Origin', 'https://myapp.example.com');
 
         $transport = new StreamableHttpTransport(
             $request,
-            $factory,
-            $factory,
-            [],
+            $this->factory,
+            $this->factory,
             null,
-            [$middleware],
+            [
+                new CorsMiddleware(allowedOrigins: ['https://myapp.example.com']),
+                new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost']),
+                new ProtocolVersionMiddleware(),
+            ],
         );
 
         $response = $transport->listen();
 
-        $this->assertSame(200, $response->getStatusCode());
-
-        $this->assertSame('https://another.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
-        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
-        $this->assertSame(
-            'Accept,Authorization,Content-Type,Last-Event-ID,Mcp-Protocol-Version,Mcp-Session-Id',
-            $response->getHeaderLine('Access-Control-Allow-Headers')
-        );
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame('https://myapp.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
     }
 
     #[TestDox('middleware runs before transport handles the request')]
     public function testMiddlewareRunsBeforeTransportHandlesRequest(): void
     {
-        $factory = new Psr17Factory();
-        $request = $factory->createServerRequest('OPTIONS', 'https://example.com');
+        $request = $this->factory->createServerRequest('OPTIONS', 'http://localhost/')
+            ->withHeader('Host', 'localhost');
 
         $state = new \stdClass();
         $state->called = false;
-        $middleware = new class($state) implements MiddlewareInterface {
+        $spy = new class($state) implements MiddlewareInterface {
             public function __construct(private \stdClass $state)
             {
             }
@@ -149,16 +239,31 @@ final class StreamableHttpTransportTest extends TestCase
 
         $transport = new StreamableHttpTransport(
             $request,
-            $factory,
-            $factory,
-            [],
+            $this->factory,
+            $this->factory,
             null,
-            [$middleware],
+            [$spy],
         );
 
         $response = $transport->listen();
 
         $this->assertTrue($state->called);
         $this->assertSame(204, $response->getStatusCode());
+    }
+
+    #[TestDox('non-middleware entries are rejected')]
+    public function testInvalidMiddlewareEntryThrows(): void
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://localhost/');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            null,
+            [new \stdClass()], // @phpstan-ignore-line argument.type
+        );
     }
 }

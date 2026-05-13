@@ -14,6 +14,9 @@ namespace Mcp\Server\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -30,16 +33,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport extends BaseTransport
 {
-    private const SESSION_HEADER = 'Mcp-Session-Id';
-
-    private const ALLOWED_HEADER = [
-        'Accept',
-        'Authorization',
-        'Content-Type',
-        'Last-Event-ID',
-        'Mcp-Protocol-Version',
-        self::SESSION_HEADER,
-    ];
+    public const SESSION_HEADER = 'Mcp-Session-Id';
+    public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
 
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
@@ -47,42 +42,39 @@ class StreamableHttpTransport extends BaseTransport
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
-    /** @var array<string, string> */
-    private array $corsHeaders;
-
     /** @var list<MiddlewareInterface> */
-    private array $middleware = [];
+    private array $middleware;
 
     /**
-     * @param array<string, string>         $corsHeaders
-     * @param iterable<MiddlewareInterface> $middleware
+     * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables all middleware
      */
     public function __construct(
         private ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
-        array $corsHeaders = [],
         ?LoggerInterface $logger = null,
-        iterable $middleware = [],
+        ?iterable $middleware = null,
     ) {
         parent::__construct($logger);
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
-        $this->corsHeaders = array_merge([
-            'Access-Control-Allow-Origin' => '*',
-            'Access-Control-Allow-Methods' => 'GET, POST, DELETE, OPTIONS',
-            'Access-Control-Allow-Headers' => implode(',', self::ALLOWED_HEADER),
-            'Access-Control-Expose-Headers' => self::SESSION_HEADER,
-        ], $corsHeaders);
+        $this->middleware = self::normalizeMiddleware($middleware ?? self::defaultMiddleware());
+    }
 
-        foreach ($middleware as $m) {
-            if (!$m instanceof MiddlewareInterface) {
-                throw new InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
-            }
-            $this->middleware[] = $m;
-        }
+    /**
+     * Secure default middleware stack applied when no `$middleware` is provided to the constructor.
+     *
+     * @return list<MiddlewareInterface>
+     */
+    public static function defaultMiddleware(): array
+    {
+        return [
+            new CorsMiddleware(),
+            new DnsRebindingProtectionMiddleware(),
+            new ProtocolVersionMiddleware(),
+        ];
     }
 
     public function send(string $data, array $context): void
@@ -98,7 +90,7 @@ class StreamableHttpTransport extends BaseTransport
             \Closure::fromCallable([$this, 'handleRequest']),
         );
 
-        return $this->withCorsHeaders($handler->handle($this->request));
+        return $handler->handle($this->request);
     }
 
     protected function handleOptionsRequest(): ResponseInterface
@@ -274,15 +266,22 @@ class StreamableHttpTransport extends BaseTransport
         return $response;
     }
 
-    protected function withCorsHeaders(ResponseInterface $response): ResponseInterface
+    /**
+     * @param iterable<MiddlewareInterface> $middleware
+     *
+     * @return list<MiddlewareInterface>
+     */
+    private static function normalizeMiddleware(iterable $middleware): array
     {
-        foreach ($this->corsHeaders as $name => $value) {
-            if (!$response->hasHeader($name)) {
-                $response = $response->withHeader($name, $value);
+        $normalized = [];
+        foreach ($middleware as $m) {
+            if (!$m instanceof MiddlewareInterface) {
+                throw new InvalidArgumentException('Streamable HTTP middleware must implement Psr\\Http\\Server\\MiddlewareInterface.');
             }
+            $normalized[] = $m;
         }
 
-        return $response;
+        return $normalized;
     }
 
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
