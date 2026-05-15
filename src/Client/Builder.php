@@ -153,7 +153,7 @@ final class Builder
         $config = new Configuration(
             clientInfo: $clientInfo,
             capabilities: $this->capabilities ?? new ClientCapabilities(),
-            protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_06_18,
+            protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_11_25,
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,
             maxRetries: $this->maxRetries,

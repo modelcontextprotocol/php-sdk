@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.6.0
 -----
 
+* [BC Break] Bump default protocol version to `2025-11-25`
 * Allow overriding the default name pattern for Discovery
 * Add configurable session garbage collection (`gcProbability`/`gcDivisor`)
 
