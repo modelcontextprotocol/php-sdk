@@ -273,6 +273,8 @@ $client->connect($transport);
 - **[Transports](docs/transports.md)** — STDIO and HTTP transport setup and usage
 - **[MCP Elements](docs/mcp-elements.md)** — Creating tools, resources, prompts, and templates
 - **[Server-Client Communication](docs/server-client-communication.md)** — Sampling, logging, progress, and notifications
+- **[Protocol Extensions](docs/extensions.md)** — Opt-in protocol extensions announced during capability negotiation, including MCP Apps (HTML UI resources)
+- **[Authorization](docs/authorization.md)** — OAuth and authorization setup for HTTP transport
 - **[Events](docs/events.md)** — Hooking into server lifecycle with events
 
 ### Learning & Examples

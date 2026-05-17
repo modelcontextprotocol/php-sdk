@@ -83,7 +83,7 @@ Specify the MCP protocol version (defaults to latest):
 use Mcp\Schema\Enum\ProtocolVersion;
 
 $client = Client::builder()
-    ->setProtocolVersion(ProtocolVersion::V2025_06_18)
+    ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->build();
 ```
 
