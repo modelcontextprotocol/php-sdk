@@ -1,0 +1,98 @@
+name: conformance-weekly
+
+# Runs the MCP conformance suite weekly against the latest
+# @modelcontextprotocol/conformance release. The on:pull_request pipeline
+# pins to whatever version is available at PR time; this schedule catches
+# upstream releases that add scenarios between PRs.
+on:
+  schedule:
+    - cron: '0 6 * * 1' # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  server:
+    name: conformance / server (latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: composer install --prefer-dist --no-progress --no-interaction
+      - name: Start conformance server
+        run: |
+          mkdir -p tests/Conformance/sessions tests/Conformance/logs
+          chmod -R 777 tests/Conformance/sessions tests/Conformance/logs
+          docker compose -f tests/Conformance/Fixtures/docker-compose.yml up -d
+          sleep 5
+      - name: Run conformance tests
+        working-directory: ./tests/Conformance
+        run: npx --yes @modelcontextprotocol/conformance@latest server --url http://localhost:8000/ --expected-failures conformance-baseline.yml
+      - name: Show docker logs on failure
+        if: failure()
+        run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml logs
+      - name: Upload conformance results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-server-results
+          path: |
+            tests/Conformance/logs
+            tests/Conformance/results
+
+  client:
+    name: conformance / client (latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - run: composer install --prefer-dist --no-progress --no-interaction
+      - run: mkdir -p tests/Conformance/logs
+      - name: Run conformance tests
+        working-directory: ./tests/Conformance
+        run: npx --yes @modelcontextprotocol/conformance@latest client --command "php ${{ github.workspace }}/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml
+      - name: Upload conformance results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-client-results
+          path: |
+            tests/Conformance/logs
+            tests/Conformance/results
+
+  notify:
+    name: Open issue on failure
+    runs-on: ubuntu-latest
+    needs: [server, client]
+    if: failure() && github.event_name == 'schedule'
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_REPO: ${{ github.repository }}
+      RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+    steps:
+      - name: File or comment tracking issue
+        run: |
+          existing=$(gh issue list --label conformance-weekly --state open --json number --jq '.[0].number // empty')
+          if [ -n "$existing" ]; then
+            gh issue comment "$existing" --body "New failure on $(date -u +%FT%TZ): $RUN_URL"
+          else
+            gh issue create \
+              --title '[conformance] Weekly conformance run failed' \
+              --label conformance-weekly \
+              --body "Weekly conformance against \`@modelcontextprotocol/conformance@latest\` failed.
+
+          - Run: $RUN_URL
+          - Triggered: $(date -u +%FT%TZ)
+
+          Upstream likely published a release whose scenarios the SDK does not satisfy. Either fix the SDK, update the conformance fixtures, or add the new failure to \`tests/Conformance/conformance-baseline.yml\`."
+          fi
