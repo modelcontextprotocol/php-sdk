@@ -618,5 +618,5 @@ $server = Server::builder()
 | `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, ... | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
-| `addPrompt()` | handler, name?, description? | Register prompt |
+| `addPrompt()` | handler, name?, title?, description?, icons?, meta? | Register prompt |
 | `build()` | - | Create the server instance |
