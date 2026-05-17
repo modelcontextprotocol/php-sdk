@@ -11,7 +11,6 @@
 
 namespace Mcp\Capability;
 
-use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
@@ -35,21 +34,25 @@ use Mcp\Schema\Tool;
 interface RegistryInterface
 {
     /**
-     * Registers a tool with its handler.
+     * Registers a tool with its handler. Overwrites any prior registration of the same name.
+     * Returns the stored reference, whose identity callers may track to detect later overwrites.
      *
      * @param Handler $handler
      */
-    public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void;
+    public function registerTool(Tool $tool, callable|array|string $handler): ToolReference;
 
     /**
-     * Registers a resource with its handler.
+     * Registers a resource with its handler. Overwrites any prior registration of the same URI.
+     * Returns the stored reference, whose identity callers may track to detect later overwrites.
      *
      * @param Handler $handler
      */
-    public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void;
+    public function registerResource(Resource $resource, callable|array|string $handler): ResourceReference;
 
     /**
      * Registers a resource template with its handler and completion providers.
+     * Overwrites any prior registration of the same URI template.
+     * Returns the stored reference, whose identity callers may track to detect later overwrites.
      *
      * @param Handler                            $handler
      * @param array<string, class-string|object> $completionProviders
@@ -58,11 +61,12 @@ interface RegistryInterface
         ResourceTemplate $template,
         callable|array|string $handler,
         array $completionProviders = [],
-        bool $isManual = false,
-    ): void;
+    ): ResourceTemplateReference;
 
     /**
      * Registers a prompt with its handler and completion providers.
+     * Overwrites any prior registration of the same name.
+     * Returns the stored reference, whose identity callers may track to detect later overwrites.
      *
      * @param Handler                            $handler
      * @param array<string, class-string|object> $completionProviders
@@ -71,24 +75,35 @@ interface RegistryInterface
         Prompt $prompt,
         callable|array|string $handler,
         array $completionProviders = [],
-        bool $isManual = false,
-    ): void;
+    ): PromptReference;
 
     /**
-     * Clear discovered elements from registry.
+     * Removes a tool by name. No-op if absent.
      */
-    public function clear(): void;
+    public function unregisterTool(string $name): void;
 
     /**
-     * Get the current discovery state (only discovered elements, not manual ones).
+     * Removes a resource by URI. No-op if absent.
      */
-    public function getDiscoveryState(): DiscoveryState;
+    public function unregisterResource(string $uri): void;
 
     /**
-     * Set discovery state, replacing all discovered elements.
-     * Manual elements are preserved.
+     * Removes a resource template by URI template. No-op if absent.
      */
-    public function setDiscoveryState(DiscoveryState $state): void;
+    public function unregisterResourceTemplate(string $uriTemplate): void;
+
+    /**
+     * Removes a prompt by name. No-op if absent.
+     */
+    public function unregisterPrompt(string $name): void;
+
+    public function hasTool(string $name): bool;
+
+    public function hasResource(string $uri): bool;
+
+    public function hasResourceTemplate(string $uriTemplate): bool;
+
+    public function hasPrompt(string $name): bool;
 
     /**
      * @return bool true if any tools are registered

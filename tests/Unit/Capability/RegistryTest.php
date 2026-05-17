@@ -82,48 +82,18 @@ class RegistryTest extends TestCase
         $this->assertInstanceOf(ToolReference::class, $toolRef);
         $this->assertEquals($tool->name, $toolRef->tool->name);
         $this->assertEquals($handler, $toolRef->handler);
-        $this->assertFalse($toolRef->isManual);
     }
 
-    public function testRegisterToolWithManualFlag(): void
+    public function testRegisterToolOverwritesPriorRegistration(): void
     {
-        $tool = $this->createValidTool('test_tool');
-        $handler = static fn () => 'result';
+        $first = $this->createValidTool('test_tool');
+        $second = $this->createValidTool('test_tool');
 
-        $this->registry->registerTool($tool, $handler, true);
+        $this->registry->registerTool($first, static fn () => 'first');
+        $this->registry->registerTool($second, static fn () => 'second');
 
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertTrue($toolRef->isManual);
-    }
-
-    public function testRegisterToolIgnoresDiscoveredWhenManualExists(): void
-    {
-        $manualTool = $this->createValidTool('test_tool');
-        $discoveredTool = $this->createValidTool('test_tool');
-
-        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-
-        $this->logger
-            ->expects($this->once())
-            ->method('debug')
-            ->with('Ignoring discovered tool "test_tool" as it conflicts with a manually registered one.');
-
-        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
-
-        $toolRef = $this->registry->getTool('test_tool');
-        $this->assertTrue($toolRef->isManual);
-    }
-
-    public function testRegisterToolOverridesDiscoveredWithManual(): void
-    {
-        $discoveredTool = $this->createValidTool('test_tool');
-        $manualTool = $this->createValidTool('test_tool');
-
-        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
-        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-
-        $toolRef = $this->registry->getTool('test_tool');
-        $this->assertTrue($toolRef->isManual);
+        $this->assertEquals('second', ($toolRef->handler)());
     }
 
     public function testGetToolThrowsExceptionForUnregisteredTool(): void
@@ -169,36 +139,18 @@ class RegistryTest extends TestCase
         $this->assertInstanceOf(ResourceReference::class, $resourceRef);
         $this->assertEquals($resource->uri, $resourceRef->resource->uri);
         $this->assertEquals($handler, $resourceRef->handler);
-        $this->assertFalse($resourceRef->isManual);
     }
 
-    public function testRegisterResourceWithManualFlag(): void
+    public function testRegisterResourceOverwritesPriorRegistration(): void
     {
-        $resource = $this->createValidResource('test://resource');
-        $handler = static fn () => 'content';
+        $first = $this->createValidResource('test://resource');
+        $second = $this->createValidResource('test://resource');
 
-        $this->registry->registerResource($resource, $handler, true);
+        $this->registry->registerResource($first, static fn () => 'first');
+        $this->registry->registerResource($second, static fn () => 'second');
 
         $resourceRef = $this->registry->getResource('test://resource');
-        $this->assertTrue($resourceRef->isManual);
-    }
-
-    public function testRegisterResourceIgnoresDiscoveredWhenManualExists(): void
-    {
-        $manualResource = $this->createValidResource('test://resource');
-        $discoveredResource = $this->createValidResource('test://resource');
-
-        $this->registry->registerResource($manualResource, static fn () => 'manual', true);
-
-        $this->logger
-            ->expects($this->once())
-            ->method('debug')
-            ->with('Ignoring discovered resource "test://resource" as it conflicts with a manually registered one.');
-
-        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
-
-        $resourceRef = $this->registry->getResource('test://resource');
-        $this->assertTrue($resourceRef->isManual);
+        $this->assertEquals('second', ($resourceRef->handler)());
     }
 
     public function testGetResourceThrowsExceptionForUnregisteredResource(): void
@@ -244,7 +196,6 @@ class RegistryTest extends TestCase
         $this->assertInstanceOf(ResourceTemplateReference::class, $templateRef);
         $this->assertEquals($template->uriTemplate, $templateRef->resourceTemplate->uriTemplate);
         $this->assertEquals($handler, $templateRef->handler);
-        $this->assertFalse($templateRef->isManual);
     }
 
     public function testGetResourcePrefersDirectResourceOverTemplate(): void
@@ -300,22 +251,16 @@ class RegistryTest extends TestCase
         $this->assertEquals($completionProviders, $templateRef->completionProviders);
     }
 
-    public function testRegisterResourceTemplateIgnoresDiscoveredWhenManualExists(): void
+    public function testRegisterResourceTemplateOverwritesPriorRegistration(): void
     {
-        $manualTemplate = $this->createValidResourceTemplate('test://{id}');
-        $discoveredTemplate = $this->createValidResourceTemplate('test://{id}');
+        $first = $this->createValidResourceTemplate('test://{id}');
+        $second = $this->createValidResourceTemplate('test://{id}');
 
-        $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
-
-        $this->logger
-            ->expects($this->once())
-            ->method('debug')
-            ->with('Ignoring discovered template "test://{id}" as it conflicts with a manually registered one.');
-
-        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
+        $this->registry->registerResourceTemplate($first, static fn () => 'first');
+        $this->registry->registerResourceTemplate($second, static fn () => 'second');
 
         $templateRef = $this->registry->getResourceTemplate('test://{id}');
-        $this->assertTrue($templateRef->isManual);
+        $this->assertEquals('second', ($templateRef->handler)());
     }
 
     public function testResourceTemplateMatchingPrefersMoreSpecificMatches(): void
@@ -375,7 +320,6 @@ class RegistryTest extends TestCase
         $this->assertInstanceOf(PromptReference::class, $promptRef);
         $this->assertEquals($prompt->name, $promptRef->prompt->name);
         $this->assertEquals($handler, $promptRef->handler);
-        $this->assertFalse($promptRef->isManual);
     }
 
     public function testRegisterPromptWithCompletionProviders(): void
@@ -389,22 +333,16 @@ class RegistryTest extends TestCase
         $this->assertEquals($completionProviders, $promptRef->completionProviders);
     }
 
-    public function testRegisterPromptIgnoresDiscoveredWhenManualExists(): void
+    public function testRegisterPromptOverwritesPriorRegistration(): void
     {
-        $manualPrompt = $this->createValidPrompt('test_prompt');
-        $discoveredPrompt = $this->createValidPrompt('test_prompt');
+        $first = $this->createValidPrompt('test_prompt');
+        $second = $this->createValidPrompt('test_prompt');
 
-        $this->registry->registerPrompt($manualPrompt, static fn () => 'manual', [], true);
-
-        $this->logger
-            ->expects($this->once())
-            ->method('debug')
-            ->with('Ignoring discovered prompt "test_prompt" as it conflicts with a manually registered one.');
-
-        $this->registry->registerPrompt($discoveredPrompt, static fn () => 'discovered');
+        $this->registry->registerPrompt($first, static fn () => 'first');
+        $this->registry->registerPrompt($second, static fn () => 'second');
 
         $promptRef = $this->registry->getPrompt('test_prompt');
-        $this->assertTrue($promptRef->isManual);
+        $this->assertEquals('second', ($promptRef->handler)());
     }
 
     public function testGetPromptThrowsExceptionForUnregisteredPrompt(): void
@@ -415,70 +353,55 @@ class RegistryTest extends TestCase
         $this->registry->getPrompt('non_existent_prompt');
     }
 
-    public function testClearRemovesOnlyDiscoveredElements(): void
+    public function testUnregisterToolRemovesRegisteredTool(): void
     {
-        $manualTool = $this->createValidTool('manual_tool');
-        $discoveredTool = $this->createValidTool('discovered_tool');
-        $manualResource = $this->createValidResource('test://manual');
-        $discoveredResource = $this->createValidResource('test://discovered');
-        $manualPrompt = $this->createValidPrompt('manual_prompt');
-        $discoveredPrompt = $this->createValidPrompt('discovered_prompt');
-        $manualTemplate = $this->createValidResourceTemplate('manual://{id}');
-        $discoveredTemplate = $this->createValidResourceTemplate('discovered://{id}');
+        $tool = $this->createValidTool('test_tool');
+        $this->registry->registerTool($tool, static fn () => 'result');
 
-        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
-        $this->registry->registerTool($discoveredTool, static fn () => 'discovered');
-        $this->registry->registerResource($manualResource, static fn () => 'manual', true);
-        $this->registry->registerResource($discoveredResource, static fn () => 'discovered');
-        $this->registry->registerPrompt($manualPrompt, static fn () => [], [], true);
-        $this->registry->registerPrompt($discoveredPrompt, static fn () => []);
-        $this->registry->registerResourceTemplate($manualTemplate, static fn () => 'manual', [], true);
-        $this->registry->registerResourceTemplate($discoveredTemplate, static fn () => 'discovered');
+        $this->registry->unregisterTool('test_tool');
 
-        // Test that all elements exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
-        $this->registry->getTool('discovered_tool');
-        $this->registry->getResource('test://discovered');
-        $this->registry->getPrompt('discovered_prompt');
-        $this->registry->getResourceTemplate('discovered://{id}');
-
-        $this->registry->clear();
-
-        // Manual elements should still exist
-        $this->registry->getTool('manual_tool');
-        $this->registry->getResource('test://manual');
-        $this->registry->getPrompt('manual_prompt');
-        $this->registry->getResourceTemplate('manual://{id}');
-
-        // Test that all discovered elements throw exceptions
         $this->expectException(ToolNotFoundException::class);
-        $this->registry->getTool('discovered_tool');
-
-        $this->expectException(ResourceNotFoundException::class);
-        $this->registry->getResource('test://discovered');
-
-        $this->expectException(PromptNotFoundException::class);
-        $this->registry->getPrompt('discovered_prompt');
-
-        $this->expectException(ResourceNotFoundException::class);
-        $this->registry->getResourceTemplate('discovered://{id}');
+        $this->registry->getTool('test_tool');
     }
 
-    public function testClearLogsNothingWhenNoDiscoveredElements(): void
+    public function testUnregisterToolIsIdempotentForAbsentName(): void
     {
-        $manualTool = $this->createValidTool('manual_tool');
-        $this->registry->registerTool($manualTool, static fn () => 'manual', true);
+        $this->registry->unregisterTool('never_registered');
 
-        $this->logger
-            ->expects($this->never())
-            ->method('debug');
+        $this->assertFalse($this->registry->hasTools());
+    }
 
-        $this->registry->clear();
+    public function testUnregisterResourceRemovesRegisteredResource(): void
+    {
+        $resource = $this->createValidResource('test://resource');
+        $this->registry->registerResource($resource, static fn () => 'content');
 
-        $this->registry->getTool('manual_tool');
+        $this->registry->unregisterResource('test://resource');
+
+        $this->expectException(ResourceNotFoundException::class);
+        $this->registry->getResource('test://resource', false);
+    }
+
+    public function testUnregisterResourceTemplateRemovesRegisteredTemplate(): void
+    {
+        $template = $this->createValidResourceTemplate('test://{id}');
+        $this->registry->registerResourceTemplate($template, static fn () => 'content');
+
+        $this->registry->unregisterResourceTemplate('test://{id}');
+
+        $this->expectException(ResourceNotFoundException::class);
+        $this->registry->getResourceTemplate('test://{id}');
+    }
+
+    public function testUnregisterPromptRemovesRegisteredPrompt(): void
+    {
+        $prompt = $this->createValidPrompt('test_prompt');
+        $this->registry->registerPrompt($prompt, static fn () => []);
+
+        $this->registry->unregisterPrompt('test_prompt');
+
+        $this->expectException(PromptNotFoundException::class);
+        $this->registry->getPrompt('test_prompt');
     }
 
     public function testRegisterToolHandlesStringHandler(): void

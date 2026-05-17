@@ -241,7 +241,7 @@ final class Discoverer implements DiscovererInterface
                         meta: $instance->meta,
                         outputSchema: $outputSchema,
                     );
-                    $tools[$name] = new ToolReference($tool, [$className, $methodName], false);
+                    $tools[$name] = new ToolReference($tool, [$className, $methodName]);
                     ++$discoveredCount['tools'];
                     break;
 
@@ -259,7 +259,7 @@ final class Discoverer implements DiscovererInterface
                         $instance->icons,
                         $instance->meta,
                     );
-                    $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName], false);
+                    $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName]);
 
                     ++$discoveredCount['resources'];
                     break;
@@ -280,7 +280,7 @@ final class Discoverer implements DiscovererInterface
                     }
                     $prompt = new Prompt($name, $instance->title, $description, $arguments, $instance->icons, $instance->meta);
                     $completionProviders = $this->getCompletionProviders($method);
-                    $prompts[$name] = new PromptReference($prompt, [$className, $methodName], false, $completionProviders);
+                    $prompts[$name] = new PromptReference($prompt, [$className, $methodName], $completionProviders);
                     ++$discoveredCount['prompts'];
                     break;
 
@@ -293,7 +293,7 @@ final class Discoverer implements DiscovererInterface
                     $meta = $instance->meta ?? null;
                     $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations, $meta);
                     $completionProviders = $this->getCompletionProviders($method);
-                    $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], false, $completionProviders);
+                    $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], $completionProviders);
                     ++$discoveredCount['resourceTemplates'];
                     break;
             }

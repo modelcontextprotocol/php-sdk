@@ -11,7 +11,6 @@
 
 namespace Mcp\Capability;
 
-use Mcp\Capability\Discovery\DiscoveryState;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
@@ -68,129 +67,120 @@ final class Registry implements RegistryInterface
     ) {
     }
 
-    public function registerTool(Tool $tool, callable|array|string $handler, bool $isManual = false): void
+    public function registerTool(Tool $tool, callable|array|string $handler): ToolReference
     {
-        $toolName = $tool->name;
-        $existing = $this->tools[$toolName] ?? null;
-
-        if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug(
-                \sprintf('Ignoring discovered tool "%s" as it conflicts with a manually registered one.', $toolName),
-            );
-
-            return;
-        }
-
-        if (!$this->nameValidator->isValid($toolName)) {
+        if (!$this->nameValidator->isValid($tool->name)) {
             $this->logger->warning(
-                \sprintf('Tool name "%s" is invalid. Tool names should only contain letters (a-z, A-Z), numbers, dots, hyphens, underscores, and forward slashes.', $toolName),
+                \sprintf('Tool name "%s" is invalid. Tool names should only contain letters (a-z, A-Z), numbers, dots, hyphens, underscores, and forward slashes.', $tool->name),
             );
         }
 
-        $this->tools[$toolName] = new ToolReference($tool, $handler, $isManual);
+        $reference = new ToolReference($tool, $handler);
+        $this->tools[$tool->name] = $reference;
 
         $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+
+        return $reference;
     }
 
-    public function registerResource(Resource $resource, callable|array|string $handler, bool $isManual = false): void
+    public function registerResource(Resource $resource, callable|array|string $handler): ResourceReference
     {
-        $uri = $resource->uri;
-        $existing = $this->resources[$uri] ?? null;
-
-        if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug(
-                \sprintf('Ignoring discovered resource "%s" as it conflicts with a manually registered one.', $uri),
-            );
-
-            return;
-        }
-
-        $this->resources[$uri] = new ResourceReference($resource, $handler, $isManual);
+        $reference = new ResourceReference($resource, $handler);
+        $this->resources[$resource->uri] = $reference;
 
         $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+
+        return $reference;
     }
 
     public function registerResourceTemplate(
         ResourceTemplate $template,
         callable|array|string $handler,
         array $completionProviders = [],
-        bool $isManual = false,
-    ): void {
-        $uriTemplate = $template->uriTemplate;
-        $existing = $this->resourceTemplates[$uriTemplate] ?? null;
-
-        if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug(
-                \sprintf('Ignoring discovered template "%s" as it conflicts with a manually registered one.', $uriTemplate),
-            );
-
-            return;
-        }
-
-        $this->resourceTemplates[$uriTemplate] = new ResourceTemplateReference(
-            $template,
-            $handler,
-            $isManual,
-            $completionProviders,
-        );
+    ): ResourceTemplateReference {
+        $reference = new ResourceTemplateReference($template, $handler, $completionProviders);
+        $this->resourceTemplates[$template->uriTemplate] = $reference;
 
         $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+
+        return $reference;
     }
 
     public function registerPrompt(
         Prompt $prompt,
         callable|array|string $handler,
         array $completionProviders = [],
-        bool $isManual = false,
-    ): void {
-        $promptName = $prompt->name;
-        $existing = $this->prompts[$promptName] ?? null;
+    ): PromptReference {
+        $reference = new PromptReference($prompt, $handler, $completionProviders);
+        $this->prompts[$prompt->name] = $reference;
 
-        if ($existing && !$isManual && $existing->isManual) {
-            $this->logger->debug(
-                \sprintf('Ignoring discovered prompt "%s" as it conflicts with a manually registered one.', $promptName),
-            );
+        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
 
+        return $reference;
+    }
+
+    public function unregisterTool(string $name): void
+    {
+        if (!isset($this->tools[$name])) {
             return;
         }
 
-        $this->prompts[$promptName] = new PromptReference($prompt, $handler, $isManual, $completionProviders);
+        unset($this->tools[$name]);
+
+        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+    }
+
+    public function unregisterResource(string $uri): void
+    {
+        if (!isset($this->resources[$uri])) {
+            return;
+        }
+
+        unset($this->resources[$uri]);
+
+        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+    }
+
+    public function unregisterResourceTemplate(string $uriTemplate): void
+    {
+        if (!isset($this->resourceTemplates[$uriTemplate])) {
+            return;
+        }
+
+        unset($this->resourceTemplates[$uriTemplate]);
+
+        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+    }
+
+    public function unregisterPrompt(string $name): void
+    {
+        if (!isset($this->prompts[$name])) {
+            return;
+        }
+
+        unset($this->prompts[$name]);
 
         $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
     }
 
-    public function clear(): void
+    public function hasTool(string $name): bool
     {
-        $clearCount = 0;
+        return isset($this->tools[$name]);
+    }
 
-        foreach ($this->tools as $name => $tool) {
-            if (!$tool->isManual) {
-                unset($this->tools[$name]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->resources as $uri => $resource) {
-            if (!$resource->isManual) {
-                unset($this->resources[$uri]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->prompts as $name => $prompt) {
-            if (!$prompt->isManual) {
-                unset($this->prompts[$name]);
-                ++$clearCount;
-            }
-        }
-        foreach ($this->resourceTemplates as $uriTemplate => $template) {
-            if (!$template->isManual) {
-                unset($this->resourceTemplates[$uriTemplate]);
-                ++$clearCount;
-            }
-        }
+    public function hasResource(string $uri): bool
+    {
+        return isset($this->resources[$uri]);
+    }
 
-        if ($clearCount > 0) {
-            $this->logger->debug(\sprintf('Removed %d discovered elements from internal registry.', $clearCount));
-        }
+    public function hasResourceTemplate(string $uriTemplate): bool
+    {
+        return isset($this->resourceTemplates[$uriTemplate]);
+    }
+
+    public function hasPrompt(string $name): bool
+    {
+        return isset($this->prompts[$name]);
     }
 
     public function hasTools(): bool
@@ -336,59 +326,6 @@ final class Registry implements RegistryInterface
     public function getPrompt(string $name): PromptReference
     {
         return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
-    }
-
-    /**
-     * Get the current discovery state (only discovered elements, not manual ones).
-     */
-    public function getDiscoveryState(): DiscoveryState
-    {
-        return new DiscoveryState(
-            tools: array_filter($this->tools, static fn ($tool) => !$tool->isManual),
-            resources: array_filter($this->resources, static fn ($resource) => !$resource->isManual),
-            prompts: array_filter($this->prompts, static fn ($prompt) => !$prompt->isManual),
-            resourceTemplates: array_filter($this->resourceTemplates, static fn ($template) => !$template->isManual),
-        );
-    }
-
-    /**
-     * Set the discovery state, replacing all discovered elements.
-     * Manual elements are preserved.
-     */
-    public function setDiscoveryState(DiscoveryState $state): void
-    {
-        // Clear existing discovered elements
-        $this->clear();
-
-        // Import new discovered elements
-        foreach ($state->getTools() as $name => $tool) {
-            $this->tools[$name] = $tool;
-        }
-
-        foreach ($state->getResources() as $uri => $resource) {
-            $this->resources[$uri] = $resource;
-        }
-
-        foreach ($state->getPrompts() as $name => $prompt) {
-            $this->prompts[$name] = $prompt;
-        }
-
-        foreach ($state->getResourceTemplates() as $uriTemplate => $template) {
-            $this->resourceTemplates[$uriTemplate] = $template;
-        }
-
-        // Dispatch events for the imported elements
-        if ($this->eventDispatcher instanceof EventDispatcherInterface) {
-            if (!empty($state->getTools())) {
-                $this->eventDispatcher->dispatch(new ToolListChangedEvent());
-            }
-            if (!empty($state->getResources()) || !empty($state->getResourceTemplates())) {
-                $this->eventDispatcher->dispatch(new ResourceListChangedEvent());
-            }
-            if (!empty($state->getPrompts())) {
-                $this->eventDispatcher->dispatch(new PromptListChangedEvent());
-            }
-        }
     }
 
     /**
