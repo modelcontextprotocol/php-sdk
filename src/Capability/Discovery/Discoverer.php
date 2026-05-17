@@ -252,6 +252,7 @@ final class Discoverer implements DiscovererInterface
                     $resource = new Resource(
                         $instance->uri,
                         $name,
+                        $instance->title,
                         $description,
                         $instance->mimeType,
                         $instance->annotations,
@@ -291,7 +292,7 @@ final class Discoverer implements DiscovererInterface
                     $mimeType = $instance->mimeType;
                     $annotations = $instance->annotations;
                     $meta = $instance->meta ?? null;
-                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $description, $mimeType, $annotations, $meta);
+                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $instance->title, $description, $mimeType, $annotations, $meta);
                     $completionProviders = $this->getCompletionProviders($method);
                     $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], $completionProviders);
                     ++$discoveredCount['resourceTemplates'];
