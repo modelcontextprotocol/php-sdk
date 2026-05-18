@@ -56,6 +56,7 @@ final class ArrayLoader implements LoaderInterface
      *     handler: Handler,
      *     uri: string,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     mimeType: ?string,
      *     size: int|null,
@@ -67,6 +68,7 @@ final class ArrayLoader implements LoaderInterface
      *     handler: Handler,
      *     uriTemplate: string,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
@@ -157,6 +159,7 @@ final class ArrayLoader implements LoaderInterface
                 $resource = new Resource(
                     uri: $data['uri'],
                     name: $name,
+                    title: $data['title'] ?? null,
                     description: $description,
                     mimeType: $data['mimeType'] ?? null,
                     annotations: $data['annotations'] ?? null,
@@ -197,6 +200,7 @@ final class ArrayLoader implements LoaderInterface
                 $template = new ResourceTemplate(
                     uriTemplate: $data['uriTemplate'],
                     name: $name,
+                    title: $data['title'] ?? null,
                     description: $description,
                     mimeType: $data['mimeType'] ?? null,
                     annotations: $data['annotations'] ?? null,

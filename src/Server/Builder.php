@@ -119,6 +119,7 @@ final class Builder
      *     handler: Handler,
      *     uri: string,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     mimeType: ?string,
      *     size: int|null,
@@ -134,6 +135,7 @@ final class Builder
      *     handler: Handler,
      *     uriTemplate: string,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     mimeType: ?string,
      *     annotations: ?Annotations,
@@ -433,6 +435,7 @@ final class Builder
      * Manually registers a resource handler.
      *
      * @param Handler                   $handler
+     * @param ?string                   $title   Optional human-readable title for display in UI
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      */
@@ -440,6 +443,7 @@ final class Builder
         \Closure|array|string $handler,
         string $uri,
         ?string $name = null,
+        ?string $title = null,
         ?string $description = null,
         ?string $mimeType = null,
         ?int $size = null,
@@ -451,6 +455,7 @@ final class Builder
             'handler',
             'uri',
             'name',
+            'title',
             'description',
             'mimeType',
             'size',
@@ -466,12 +471,14 @@ final class Builder
      * Manually registers a resource template handler.
      *
      * @param Handler                   $handler
+     * @param ?string                   $title   Optional human-readable title for display in UI
      * @param array<string, mixed>|null $meta
      */
     public function addResourceTemplate(
         \Closure|array|string $handler,
         string $uriTemplate,
         ?string $name = null,
+        ?string $title = null,
         ?string $description = null,
         ?string $mimeType = null,
         ?Annotations $annotations = null,
@@ -481,6 +488,7 @@ final class Builder
             'handler',
             'uriTemplate',
             'name',
+            'title',
             'description',
             'mimeType',
             'annotations',
