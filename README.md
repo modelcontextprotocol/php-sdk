@@ -1,5 +1,16 @@
 # MCP PHP SDK
 
+<div align="center">
+
+[![Latest Version](https://img.shields.io/packagist/v/mcp/sdk.svg)](https://packagist.org/packages/mcp/sdk)
+[![CI](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml)
+[![PHP Version](https://img.shields.io/packagist/php-v/mcp/sdk.svg)](https://packagist.org/packages/mcp/sdk)
+[![License](https://img.shields.io/packagist/l/mcp/sdk.svg)](LICENSE)
+[![Server Conformance](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+[![Client Conformance](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+
+</div>
+
 The official PHP SDK for Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP servers
 and clients in PHP.
 
@@ -277,9 +288,14 @@ $client->connect($transport);
 
 ## PHP Libraries Using the MCP SDK
 
-- [pronskiy/mcp](https://github.com/pronskiy/mcp) — Additional developer experience layer
+- [api-platform/mcp](https://github.com/api-platform/mcp) — MCP integration for API Platform
+- [bnomei/kirby-mcp](https://github.com/bnomei/kirby-mcp) — MCP server for the Kirby CMS
+- [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) — CakePHP plugin exposing application functionality over MCP
+- [nette/mcp-inspector](https://github.com/nette/mcp-inspector) — MCP server for introspecting Nette applications
+- [symfony/ai-mate](https://github.com/symfony/ai-mate) — AI development assistant MCP server for Symfony projects
 - [symfony/mcp-bundle](https://github.com/symfony/mcp-bundle) — Symfony integration bundle
-- [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) — CakePHP integration plugin
+
+Building something on top of the SDK? Open a pull request to add it to this list.
 
 ## Contributing
 
