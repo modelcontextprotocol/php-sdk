@@ -24,7 +24,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
-use Psr\Log\AbstractLogger;
+use Psr\Log\LoggerInterface;
 
 final class StreamableHttpTransportTest extends TestCase
 {
@@ -93,7 +93,10 @@ final class StreamableHttpTransportTest extends TestCase
             ->withHeader('Host', 'evil.example.com')
             ->withHeader('Origin', 'http://evil.example.com');
 
-        $logger = $this->collectingLogger();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with($this->stringContains('empty middleware list'));
 
         $transport = new StreamableHttpTransport(
             $request,
@@ -109,11 +112,6 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertNotSame(403, $response->getStatusCode());
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
-
-        // Warning was emitted so an operator can spot the bypass in logs.
-        $warnings = array_filter($logger->records, static fn (array $r): bool => 'warning' === $r['level']);
-        $this->assertNotEmpty($warnings, 'Expected a warning log for the bypassed defaults.');
-        $this->assertStringContainsString('empty middleware list', reset($warnings)['message']);
     }
 
     #[TestDox('null middleware does not trigger the empty-list warning')]
@@ -123,13 +121,11 @@ final class StreamableHttpTransportTest extends TestCase
             ->createServerRequest('OPTIONS', 'http://localhost/')
             ->withHeader('Host', 'localhost');
 
-        $logger = $this->collectingLogger();
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('warning');
 
         $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, $logger);
         $transport->listen();
-
-        $warnings = array_filter($logger->records, static fn (array $r): bool => 'warning' === $r['level']);
-        $this->assertEmpty($warnings);
     }
 
     #[TestDox('custom middleware composes with default stack via spread')]
@@ -275,19 +271,6 @@ final class StreamableHttpTransportTest extends TestCase
             public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
             {
                 return $this->factory->createResponse(401);
-            }
-        };
-    }
-
-    private function collectingLogger(): object
-    {
-        return new class extends AbstractLogger {
-            /** @var list<array{level: string, message: string}> */
-            public array $records = [];
-
-            public function log($level, \Stringable|string $message, array $context = []): void
-            {
-                $this->records[] = ['level' => (string) $level, 'message' => (string) $message];
             }
         };
     }
