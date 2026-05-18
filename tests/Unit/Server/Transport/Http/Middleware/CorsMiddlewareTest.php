@@ -11,8 +11,10 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use PHPUnit\Framework\Attributes\TestDox;
+use Psr\Http\Message\ServerRequestInterface;
 
 final class CorsMiddlewareTest extends MiddlewareTestCase
 {
@@ -26,9 +28,35 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
         $response = $middleware->process($request, $this->passthroughHandler);
 
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Methods'));
-        $this->assertTrue($response->hasHeader('Access-Control-Allow-Headers'));
         $this->assertTrue($response->hasHeader('Access-Control-Expose-Headers'));
+        // Non-preflight: Methods/Headers must NOT be emitted per CORS spec.
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Headers'));
+    }
+
+    #[TestDox('preflight request receives Access-Control-Allow-Methods and Access-Control-Allow-Headers')]
+    public function testPreflightReceivesMethodAndHeaderAdvertisements(): void
+    {
+        $middleware = new CorsMiddleware(allowedOrigins: ['https://app.example.com']);
+        $request = $this->preflightRequest('https://app.example.com');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+        $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
+    }
+
+    #[TestDox('non-preflight OPTIONS request does not receive Methods/Headers advertisements')]
+    public function testPlainOptionsIsNotTreatedAsPreflight(): void
+    {
+        $middleware = new CorsMiddleware(allowedOrigins: ['*']);
+        // OPTIONS without `Access-Control-Request-Method` is not a CORS preflight.
+        $request = $this->factory->createServerRequest('OPTIONS', 'https://example.com');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Headers'));
     }
 
     #[TestDox('wildcard allowedOrigins sets Access-Control-Allow-Origin to *')]
@@ -77,7 +105,7 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
         ]);
 
         $middleware = new CorsMiddleware(allowedOrigins: ['*']);
-        $request = $this->factory->createServerRequest('POST', 'https://example.com');
+        $request = $this->preflightRequest();
 
         $response = $middleware->process($request, $inner);
 
@@ -172,5 +200,70 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
         $response = $middleware->process($request, $inner);
 
         $this->assertSame('Accept-Encoding, Origin', $response->getHeaderLine('Vary'));
+    }
+
+    #[TestDox('does not treat a substring match like Origin-Other as the Origin token')]
+    public function testVarySubstringDoesNotPreventAppending(): void
+    {
+        // `Origin-Resource-Policy` contains the substring "origin" but is a different token —
+        // tokenized comparison must still treat the response as missing the `Origin` value.
+        $inner = $this->handlerReturning(200, ['Vary' => 'Origin-Resource-Policy']);
+
+        $middleware = new CorsMiddleware(allowedOrigins: ['https://app.example.com']);
+        $request = $this->factory->createServerRequest('POST', 'https://example.com')
+            ->withHeader('Origin', 'https://app.example.com');
+
+        $response = $middleware->process($request, $inner);
+
+        $this->assertSame('Origin-Resource-Policy, Origin', $response->getHeaderLine('Vary'));
+    }
+
+    #[TestDox('allowCredentials emits Access-Control-Allow-Credentials when an origin matches')]
+    public function testAllowCredentialsHeaderEmitted(): void
+    {
+        $middleware = new CorsMiddleware(
+            allowedOrigins: ['https://app.example.com'],
+            allowCredentials: true,
+        );
+        $request = $this->factory->createServerRequest('POST', 'https://example.com')
+            ->withHeader('Origin', 'https://app.example.com');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertSame('https://app.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
+        $this->assertSame('true', $response->getHeaderLine('Access-Control-Allow-Credentials'));
+    }
+
+    #[TestDox('allowCredentials does not emit credentials header when no origin matches')]
+    public function testAllowCredentialsSkippedWhenOriginUnmatched(): void
+    {
+        $middleware = new CorsMiddleware(
+            allowedOrigins: ['https://app.example.com'],
+            allowCredentials: true,
+        );
+        $request = $this->factory->createServerRequest('POST', 'https://example.com')
+            ->withHeader('Origin', 'https://evil.example.com');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Credentials'));
+    }
+
+    #[TestDox('combining wildcard origin with allowCredentials throws')]
+    public function testWildcardWithCredentialsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new CorsMiddleware(allowedOrigins: ['*'], allowCredentials: true);
+    }
+
+    private function preflightRequest(string $origin = 'https://app.example.com'): ServerRequestInterface
+    {
+        return $this->factory
+            ->createServerRequest('OPTIONS', 'https://example.com')
+            ->withHeader('Origin', $origin)
+            ->withHeader('Access-Control-Request-Method', 'POST')
+            ->withHeader('Access-Control-Request-Headers', 'Content-Type');
     }
 }

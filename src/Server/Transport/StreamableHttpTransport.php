@@ -60,7 +60,14 @@ class StreamableHttpTransport extends BaseTransport
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
-        $this->middleware = self::normalizeMiddleware($middleware ?? self::defaultMiddleware());
+        if (null === $middleware) {
+            $this->middleware = self::defaultMiddleware();
+        } else {
+            $this->middleware = self::normalizeMiddleware($middleware);
+            if ([] === $this->middleware) {
+                $this->logger->warning('Streamable HTTP transport started with an empty middleware list. Default security protections (CORS, DNS rebinding, protocol version validation) are disabled. Pass null (or omit the argument) to use the secure defaults, or include them via [...StreamableHttpTransport::defaultMiddleware(), $yourMiddleware].');
+            }
+        }
     }
 
     /**

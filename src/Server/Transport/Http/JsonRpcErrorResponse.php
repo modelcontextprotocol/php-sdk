@@ -17,10 +17,9 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 
 /**
- * Builds the canonical JSON-RPC error response used by the HTTP transport
- * and its middleware: a PSR-7 response with the given HTTP status, a
- * `Content-Type: application/json` header, and a body containing a single
- * `Error::forInvalidRequest($message)` payload.
+ * Builds a PSR-7 response with the given HTTP status and a JSON-RPC
+ * `Error` payload as body. Caller decides which `Error::for*` factory
+ * to use so the JSON-RPC error code matches the failure semantics.
  *
  * @internal
  */
@@ -30,9 +29,9 @@ final class JsonRpcErrorResponse
         ResponseFactoryInterface $responseFactory,
         StreamFactoryInterface $streamFactory,
         int $statusCode,
-        string $message,
+        Error $error,
     ): ResponseInterface {
-        $body = json_encode(Error::forInvalidRequest($message), \JSON_THROW_ON_ERROR);
+        $body = json_encode($error, \JSON_THROW_ON_ERROR);
 
         return $responseFactory
             ->createResponse($statusCode)

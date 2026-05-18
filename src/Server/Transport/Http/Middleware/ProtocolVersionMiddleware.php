@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Transport\Http\JsonRpcErrorResponse;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -92,6 +93,6 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
                 implode(', ', $this->supportedVersions),
             );
 
-        return JsonRpcErrorResponse::create($this->responseFactory, $this->streamFactory, 400, $message);
+        return JsonRpcErrorResponse::create($this->responseFactory, $this->streamFactory, 400, Error::forInvalidParams($message));
     }
 }

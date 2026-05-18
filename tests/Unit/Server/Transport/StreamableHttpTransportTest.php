@@ -24,6 +24,7 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\AbstractLogger;
 
 final class StreamableHttpTransportTest extends TestCase
 {
@@ -37,17 +38,18 @@ final class StreamableHttpTransportTest extends TestCase
     #[TestDox('default middleware is applied when none is passed')]
     public function testDefaultMiddlewareIsAppliedWhenOmitted(): void
     {
+        // Preflight: OPTIONS + Access-Control-Request-Method — CorsMiddleware advertises Methods/Headers only on preflight.
         $request = $this->factory
             ->createServerRequest('OPTIONS', 'http://localhost/')
-            ->withHeader('Host', 'localhost');
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Access-Control-Request-Method', 'POST');
 
         $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
 
         $response = $transport->listen();
 
-        // Default CORS middleware exposes Methods/Headers/Expose but no Allow-Origin (secure-by-default).
         $this->assertSame(204, $response->getStatusCode());
-        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin')); // secure-by-default
         $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Expose-Headers'));
@@ -83,19 +85,21 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
-    #[TestDox('explicit empty middleware list disables all defaults')]
-    public function testEmptyMiddlewareListDisablesDefaults(): void
+    #[TestDox('explicit empty middleware list disables defaults and emits a warning log')]
+    public function testEmptyMiddlewareListDisablesDefaultsAndWarns(): void
     {
         $request = $this->factory
             ->createServerRequest('POST', 'http://localhost/')
             ->withHeader('Host', 'evil.example.com')
             ->withHeader('Origin', 'http://evil.example.com');
 
+        $logger = $this->collectingLogger();
+
         $transport = new StreamableHttpTransport(
             $request,
             $this->factory,
             $this->factory,
-            null,
+            $logger,
             [],
         );
 
@@ -105,6 +109,27 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertNotSame(403, $response->getStatusCode());
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
+
+        // Warning was emitted so an operator can spot the bypass in logs.
+        $warnings = array_filter($logger->records, static fn (array $r): bool => 'warning' === $r['level']);
+        $this->assertNotEmpty($warnings, 'Expected a warning log for the bypassed defaults.');
+        $this->assertStringContainsString('empty middleware list', reset($warnings)['message']);
+    }
+
+    #[TestDox('null middleware does not trigger the empty-list warning')]
+    public function testNullMiddlewareDoesNotWarn(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('OPTIONS', 'http://localhost/')
+            ->withHeader('Host', 'localhost');
+
+        $logger = $this->collectingLogger();
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, $logger);
+        $transport->listen();
+
+        $warnings = array_filter($logger->records, static fn (array $r): bool => 'warning' === $r['level']);
+        $this->assertEmpty($warnings);
     }
 
     #[TestDox('custom middleware composes with default stack via spread')]
@@ -114,17 +139,6 @@ final class StreamableHttpTransportTest extends TestCase
             ->createServerRequest('POST', 'http://localhost/')
             ->withHeader('Host', 'localhost');
 
-        $authStub = new class($this->factory) implements MiddlewareInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                return $this->factory->createResponse(401);
-            }
-        };
-
         $transport = new StreamableHttpTransport(
             $request,
             $this->factory,
@@ -132,15 +146,15 @@ final class StreamableHttpTransportTest extends TestCase
             null,
             [
                 ...StreamableHttpTransport::defaultMiddleware(),
-                $authStub,
+                $this->stubAuth401(),
             ],
         );
 
         $response = $transport->listen();
 
         $this->assertSame(401, $response->getStatusCode());
-        // CORS middleware is outermost — its headers must still be applied to the 401.
-        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+        // CORS middleware is outermost — Expose-Headers is emitted on all responses, including 401.
+        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('defaults can be filtered to drop DNS rebinding for proxy deployments')]
@@ -153,21 +167,6 @@ final class StreamableHttpTransportTest extends TestCase
             ->withHeader('Host', 'api.myapp.com')
             ->withHeader('Origin', 'https://myapp.com');
 
-        $authStub = new class($this->factory) implements MiddlewareInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-            {
-                if ('' === $request->getHeaderLine('Authorization')) {
-                    return $this->factory->createResponse(401);
-                }
-
-                return $handler->handle($request);
-            }
-        };
-
         $transport = new StreamableHttpTransport(
             $request,
             $this->factory,
@@ -178,7 +177,7 @@ final class StreamableHttpTransportTest extends TestCase
                     StreamableHttpTransport::defaultMiddleware(),
                     static fn (MiddlewareInterface $m): bool => !$m instanceof DnsRebindingProtectionMiddleware,
                 ),
-                $authStub,
+                $this->stubAuth401(),
             ],
         );
 
@@ -186,9 +185,8 @@ final class StreamableHttpTransportTest extends TestCase
 
         // Auth short-circuits with 401 — proves DNS rebinding didn't reject the request first.
         $this->assertSame(401, $response->getStatusCode());
-        // CORS middleware is still in the chain — Methods header attached to the 401.
-        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
-        // ProtocolVersionMiddleware also still in the chain — would have rejected a bad header.
+        // CORS middleware is still in the chain — Expose-Headers attached to the 401.
+        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('configured CorsMiddleware reflects matching Origin')]
@@ -265,5 +263,32 @@ final class StreamableHttpTransportTest extends TestCase
             null,
             [new \stdClass()], // @phpstan-ignore-line argument.type
         );
+    }
+
+    private function stubAuth401(): MiddlewareInterface
+    {
+        return new class($this->factory) implements MiddlewareInterface {
+            public function __construct(private ResponseFactoryInterface $factory)
+            {
+            }
+
+            public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+            {
+                return $this->factory->createResponse(401);
+            }
+        };
+    }
+
+    private function collectingLogger(): object
+    {
+        return new class extends AbstractLogger {
+            /** @var list<array{level: string, message: string}> */
+            public array $records = [];
+
+            public function log($level, \Stringable|string $message, array $context = []): void
+            {
+                $this->records[] = ['level' => (string) $level, 'message' => (string) $message];
+            }
+        };
     }
 }

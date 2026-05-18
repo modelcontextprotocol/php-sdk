@@ -12,7 +12,6 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Server\Transport\Http\JsonRpcErrorResponse;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -44,11 +43,12 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
 
     /**
      * @param list<string>                  $allowedHosts    Hostnames (without port) that are permitted. Defaults to localhost variants.
+     *                                                       IPv6 addresses must be bracketed (e.g. `[::1]`) — that is the canonical form returned by `parse_url`.
      * @param ResponseFactoryInterface|null $responseFactory PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory   PSR-17 stream factory (auto-discovered if null)
      */
     public function __construct(
-        array $allowedHosts = ['localhost', '127.0.0.1', '[::1]', '::1'],
+        array $allowedHosts = ['localhost', '127.0.0.1', '[::1]'],
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
@@ -78,12 +78,12 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
 
     private function isAllowedOrigin(string $origin): bool
     {
-        $parsed = parse_url($origin);
-        if (false === $parsed || !isset($parsed['host'])) {
+        $host = parse_url($origin, \PHP_URL_HOST);
+        if (!\is_string($host) || '' === $host) {
             return false;
         }
 
-        return \in_array(strtolower($parsed['host']), $this->allowedHosts, true);
+        return \in_array(strtolower($host), $this->allowedHosts, true);
     }
 
     private function isAllowedHost(string $host): bool
@@ -103,6 +103,9 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
 
     private function createForbiddenResponse(string $message): ResponseInterface
     {
-        return JsonRpcErrorResponse::create($this->responseFactory, $this->streamFactory, 403, $message);
+        return $this->responseFactory
+            ->createResponse(403)
+            ->withHeader('Content-Type', 'text/plain')
+            ->withBody($this->streamFactory->createStream($message));
     }
 }

@@ -47,7 +47,8 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
         $response = $middleware->process($request, $this->passthroughHandler);
 
         $this->assertSame(403, $response->getStatusCode());
-        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('text/plain', $response->getHeaderLine('Content-Type'));
+        $this->assertStringContainsString('Origin', (string) $response->getBody());
     }
 
     #[TestDox('Origin header takes precedence over Host')]
