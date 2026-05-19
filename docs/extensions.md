@@ -65,7 +65,7 @@ $server = Server::builder()
         'my_tool',
         meta: ['ui' => new UiToolMeta(
             resourceUri: 'ui://my-app',
-            visibility: [ToolVisibility::Model->value, ToolVisibility::App->value],
+            visibility: [ToolVisibility::Model, ToolVisibility::App],
         )],
     )
     ->build();

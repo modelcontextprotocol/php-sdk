@@ -39,7 +39,7 @@ $server = Server::builder()
         description: 'Get current weather for a city',
         meta: ['ui' => new UiToolMeta(
             resourceUri: 'ui://weather-app',
-            visibility: [ToolVisibility::Model->value, ToolVisibility::App->value],
+            visibility: [ToolVisibility::Model, ToolVisibility::App],
         )],
     )
     ->build();

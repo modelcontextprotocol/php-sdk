@@ -24,8 +24,9 @@ namespace Mcp\Schema\Extension\Apps;
 final class UiToolMeta implements \JsonSerializable
 {
     /**
-     * @param ?string   $resourceUri the ui:// URI of the linked UI resource
-     * @param ?string[] $visibility  who can see/call this tool: 'model', 'app', or both (default: ['model', 'app'])
+     * @param ?string               $resourceUri the ui:// URI of the linked UI resource
+     * @param ?list<ToolVisibility> $visibility  who can see/call this tool; when omitted the host
+     *                                           defaults to both {@see ToolVisibility::Model} and {@see ToolVisibility::App}
      */
     public function __construct(
         public readonly ?string $resourceUri = null,
@@ -40,7 +41,7 @@ final class UiToolMeta implements \JsonSerializable
     {
         return new self(
             resourceUri: $data['resourceUri'] ?? null,
-            visibility: $data['visibility'] ?? null,
+            visibility: isset($data['visibility']) ? array_map(ToolVisibility::from(...), $data['visibility']) : null,
         );
     }
 
@@ -55,7 +56,7 @@ final class UiToolMeta implements \JsonSerializable
             $data['resourceUri'] = $this->resourceUri;
         }
         if (null !== $this->visibility) {
-            $data['visibility'] = $this->visibility;
+            $data['visibility'] = array_map(static fn (ToolVisibility $v): string => $v->value, $this->visibility);
         }
 
         return $data;

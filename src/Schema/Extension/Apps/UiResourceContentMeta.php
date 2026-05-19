@@ -52,7 +52,12 @@ final class UiResourceContentMeta implements \JsonSerializable
     }
 
     /**
-     * @return UiResourceContentMetaData
+     * @return array{
+     *     csp?: UiResourceCsp,
+     *     permissions?: UiResourcePermissions,
+     *     domain?: string,
+     *     prefersBorder?: bool
+     * }
      */
     public function jsonSerialize(): array
     {

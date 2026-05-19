@@ -166,7 +166,7 @@ class McpAppsTest extends TestCase
     {
         $meta = new UiToolMeta(
             resourceUri: 'ui://my-app',
-            visibility: [ToolVisibility::Model->value, ToolVisibility::App->value],
+            visibility: [ToolVisibility::Model, ToolVisibility::App],
         );
 
         $serialized = $meta->jsonSerialize();
@@ -193,7 +193,7 @@ class McpAppsTest extends TestCase
         ]);
 
         $this->assertSame('ui://my-app', $meta->resourceUri);
-        $this->assertSame(['app'], $meta->visibility);
+        $this->assertSame([ToolVisibility::App], $meta->visibility);
     }
 
     public function testToolVisibilityEnum(): void
