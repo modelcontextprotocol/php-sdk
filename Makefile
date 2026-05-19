@@ -27,11 +27,15 @@ conformance-server:
 	docker compose -f tests/Conformance/Fixtures/docker-compose.yml up -d
 	@echo "Waiting for server to start..."
 	@sleep 5
-	cd tests/Conformance && npx @modelcontextprotocol/conformance server --url http://localhost:8000/ || true
+	rm -rf tests/Conformance/results
+	cd tests/Conformance && npx @modelcontextprotocol/conformance server --url http://localhost:8000/ --output-dir results || true
+	php tests/Conformance/score.php server
 	docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
 
 conformance-client:
-	cd tests/Conformance && npx @modelcontextprotocol/conformance client --command "php $(CURDIR)/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml || true
+	rm -rf tests/Conformance/results
+	cd tests/Conformance && npx @modelcontextprotocol/conformance client --command "php $(CURDIR)/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml --output-dir results || true
+	php tests/Conformance/score.php client
 
 coverage:
 	XDEBUG_MODE=coverage vendor/bin/phpunit --testsuite=unit --coverage-html=coverage

@@ -68,17 +68,20 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
                 continue;
             }
 
-            ++$total;
-
             foreach ($checks as $check) {
-                if ('FAILURE' === ($check['status'] ?? null)) {
-                    $failures[] = $file->getRelativePath();
-
-                    continue 2;
+                switch ($check['status'] ?? null) {
+                    case 'FAILURE':
+                        $failures[] = $file->getRelativePath();
+                        break;
+                    case 'SUCCESS':
+                        ++$passed;
+                        break;
+                    default:
+                        continue 2;
                 }
-            }
 
-            ++$passed;
+                ++$total;
+            }
         }
 
         $pct = $total > 0 ? (int) round($passed / $total * 100) : 0;
