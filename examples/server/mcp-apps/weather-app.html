@@ -127,7 +127,6 @@
         // MCP Apps protocol: postMessage with JSONRPCMessage objects between iframe (View) and host.
         // Spec: https://github.com/modelcontextprotocol/ext-apps
         let requestId = 0;
-        let initialized = false;
         const pending = new Map();
 
         function post(msg) { window.parent.postMessage(msg, '*'); }
@@ -176,7 +175,6 @@
                     clientInfo: { name: 'weather-app', version: '1.0.0' },
                 });
             } catch { /* degrade gracefully on non-conforming hosts */ }
-            initialized = true;
             sendNotification('ui/notifications/initialized', {});
             reportSize();
         })();

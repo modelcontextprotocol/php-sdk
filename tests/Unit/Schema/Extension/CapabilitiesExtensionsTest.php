@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Schema\Extension\Apps;
+namespace Mcp\Tests\Unit\Schema\Extension;
 
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Extension\Apps\McpApps;

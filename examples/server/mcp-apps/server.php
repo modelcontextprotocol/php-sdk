@@ -31,6 +31,9 @@ $server = Server::builder()
         'weather-app',
         description: 'Interactive weather dashboard',
         mimeType: McpApps::MIME_TYPE,
+        // Empty `ui` marker on the resource descriptor flags it as an MCP App in
+        // resources/list. The CSP/permissions live on the resource *content* (_meta.ui
+        // in resources/read), set via UiResourceContentMeta in WeatherApp::getWeatherApp().
         meta: ['ui' => new stdClass()],
     )
     ->addTool(
