@@ -60,8 +60,14 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  */
 final class SchemaGenerator implements SchemaGeneratorInterface
 {
+    /**
+     * @param iterable<PropertyDescriberInterface> $propertyDescribers Consulted, in order, before
+     *                                                                 generic class inspection;
+     *                                                                 first non-null result wins
+     */
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
+        private readonly iterable $propertyDescribers = [],
     ) {
     }
 
@@ -253,12 +259,21 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      */
     private function buildInferredParameterSchema(array $paramInfo): array
     {
-        $paramSchema = [];
-
         // Variadic parameters are handled separately
         if ($paramInfo['is_variadic']) {
             return [];
         }
+
+        // Consult property describers for class-typed parameters first; the
+        // first describer that claims the class (returns non-null) wins. This
+        // lets callers teach the generator about value-object types like
+        // DateTime, Uuid, Money, etc. without subclassing the generator.
+        $describedSchema = $this->describeClassType($paramInfo);
+        if (null !== $describedSchema) {
+            return $this->applyParameterMetadata($describedSchema, $paramInfo);
+        }
+
+        $paramSchema = [];
 
         // Infer JSON Schema types
         $jsonTypes = $this->inferParameterTypes($paramInfo);
@@ -347,6 +362,65 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         return $jsonTypes;
+    }
+
+    /**
+     * Looks for a matching describer when the parameter's PHP type is a
+     * concrete class. Returns the first non-null describer result, or null
+     * if no describer claimed the type. Union and intersection types are
+     * not dispatched — describers see only single named, non-builtin types.
+     *
+     * @param ParameterInfo $paramInfo
+     *
+     * @return array<string, mixed>|null
+     */
+    private function describeClassType(array $paramInfo): ?array
+    {
+        $reflectionType = $paramInfo['reflection_type_object'];
+        if (!$reflectionType instanceof \ReflectionNamedType || $reflectionType->isBuiltin()) {
+            return null;
+        }
+
+        $className = $reflectionType->getName();
+        foreach ($this->propertyDescribers as $describer) {
+            $described = $describer->describe($className);
+            if (null !== $described) {
+                return $described;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * Layers parameter-level metadata (description, default, nullable) onto
+     * a describer-provided schema fragment without overwriting fields the
+     * describer already set.
+     *
+     * @param array<string, mixed> $schema
+     * @param ParameterInfo        $paramInfo
+     *
+     * @return array<string, mixed>
+     */
+    private function applyParameterMetadata(array $schema, array $paramInfo): array
+    {
+        if ($paramInfo['description'] && !isset($schema['description'])) {
+            $schema['description'] = $paramInfo['description'];
+        }
+
+        if ($paramInfo['has_default'] && !isset($schema['default'])) {
+            $schema['default'] = $paramInfo['default_value'];
+        }
+
+        if ($paramInfo['allows_null'] && isset($schema['type'])) {
+            $types = \is_array($schema['type']) ? $schema['type'] : [$schema['type']];
+            if (!\in_array('null', $types, true)) {
+                array_unshift($types, 'null');
+            }
+            $schema['type'] = 1 === \count($types) ? $types[0] : $types;
+        }
+
+        return $schema;
     }
 
     /**

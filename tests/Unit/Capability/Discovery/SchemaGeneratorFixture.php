@@ -438,6 +438,37 @@ class SchemaGeneratorFixture
     {
     }
 
+    // ===== PROPERTY DESCRIBER FIXTURES =====
+
+    public function dateTimeParam(\DateTimeImmutable $createdAt): void
+    {
+    }
+
+    /**
+     * @param \DateTimeInterface $until The cutoff timestamp
+     */
+    public function dateTimeWithDescription(\DateTimeInterface $until): void
+    {
+    }
+
+    public function nullableDateTimeParam(?\DateTimeImmutable $finishedAt = null): void
+    {
+    }
+
+    public function uuidParam(\Symfony\Component\Uid\Uuid $bookingId): void
+    {
+    }
+
+    public function unrelatedObjectParam(\stdClass $config): void
+    {
+    }
+
+    public function dateTimeWithSchemaAttributeOverride(
+        #[Schema(description: 'explicit attribute description')]
+        \DateTimeImmutable $deadline,
+    ): void {
+    }
+
     // ===== OUTPUT SCHEMA FIXTURES =====
     #[McpTool(
         outputSchema: [
