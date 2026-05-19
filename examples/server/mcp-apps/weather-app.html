@@ -129,6 +129,8 @@
         let requestId = 0;
         const pending = new Map();
 
+        // Target origin is '*' because the iframe cannot know its parent's origin
+        // upfront; the host is responsible for validating event.origin on its side.
         function post(msg) { window.parent.postMessage(msg, '*'); }
 
         function sendRpc(method, params) {

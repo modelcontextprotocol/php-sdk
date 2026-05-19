@@ -43,4 +43,16 @@ final class McpApps implements ServerExtensionInterface
     {
         return ['mimeTypes' => [self::MIME_TYPE]];
     }
+
+    /**
+     * The marker value for the `_meta.ui` field on a UI resource *descriptor*
+     * (its `resources/list` entry), flagging the resource as an MCP App.
+     *
+     * The structured CSP/permissions metadata instead belongs on the resource
+     * *content* (the `resources/read` payload) via {@see UiResourceContentMeta}.
+     */
+    public static function resourceMarker(): \stdClass
+    {
+        return new \stdClass();
+    }
 }

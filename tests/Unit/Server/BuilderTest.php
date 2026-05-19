@@ -13,10 +13,12 @@ namespace Mcp\Tests\Unit\Server;
 
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
@@ -81,12 +83,12 @@ final class BuilderTest extends TestCase
         $this->assertSame('intercepted', $result);
     }
 
-    #[TestDox('enableExtension() registers an extension by class name')]
-    public function testEnableExtensionByClassName(): void
+    #[TestDox('enableExtension() registers an extension and announces its capability payload')]
+    public function testEnableExtensionRegistersExtension(): void
     {
         $server = Server::builder()
             ->setServerInfo('test', '1.0.0')
-            ->enableExtension(McpApps::class)
+            ->enableExtension(new McpApps())
             ->build();
 
         $capabilities = $this->extractServerCapabilities($server);
@@ -96,20 +98,31 @@ final class BuilderTest extends TestCase
         $this->assertSame(['mimeTypes' => [McpApps::MIME_TYPE]], $capabilities->extensions[McpApps::EXTENSION_ID]);
     }
 
-    #[TestDox('enableExtension() registers an extension by instance')]
-    public function testEnableExtensionByInstance(): void
+    #[TestDox('enableExtension() throws when the same extension is enabled twice')]
+    public function testEnableExtensionRejectsDuplicate(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(McpApps::EXTENSION_ID);
+
+        Server::builder()->enableExtension(new McpApps(), new McpApps());
+    }
+
+    #[TestDox('enableExtension() extensions are merged into capabilities set via setCapabilities()')]
+    public function testEnableExtensionMergesIntoCustomCapabilities(): void
     {
         $server = Server::builder()
             ->setServerInfo('test', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(tools: true))
             ->enableExtension(new McpApps())
             ->build();
 
         $capabilities = $this->extractServerCapabilities($server);
 
-        $this->assertArrayHasKey(McpApps::EXTENSION_ID, $capabilities->extensions ?? []);
+        $this->assertNotNull($capabilities->extensions);
+        $this->assertArrayHasKey(McpApps::EXTENSION_ID, $capabilities->extensions);
     }
 
-    private function extractServerCapabilities(Server $server): \Mcp\Schema\ServerCapabilities
+    private function extractServerCapabilities(Server $server): ServerCapabilities
     {
         $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);
         $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);

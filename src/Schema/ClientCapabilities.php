@@ -71,8 +71,8 @@ class ClientCapabilities implements \JsonSerializable
             $rootsListChanged,
             $sampling,
             $elicitation,
-            $data['experimental'] ?? null,
-            $data['extensions'] ?? null,
+            \is_array($data['experimental'] ?? null) ? $data['experimental'] : null,
+            \is_array($data['extensions'] ?? null) ? $data['extensions'] : null,
         );
     }
 

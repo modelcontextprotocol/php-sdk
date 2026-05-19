@@ -9,17 +9,18 @@ use Mcp\Server;
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
-    ->enableExtension(McpApps::class) // or pre-built instances
+    ->enableExtension(new McpApps())
     ->build();
 ```
 
-Pass either a class string (the extension is instantiated with no arguments) or
-a pre-built `ServerExtensionInterface` instance. Multiple extensions can be
-enabled in a single call.
+Pass one or more `ServerExtensionInterface` instances; multiple extensions can
+be enabled in a single call. Enabling the same extension twice throws a
+`LogicException`.
 
-> Note: calling `setCapabilities()` overrides automatic capability detection,
-> so it also overrides the `extensions` field. If you set your own
-> `ServerCapabilities`, include the extensions you want yourself.
+> Note: extensions enabled via `enableExtension()` are merged into the
+> `extensions` capability even when you supply your own `ServerCapabilities` via
+> `setCapabilities()`. An enabled extension overrides any entry under the same
+> id already present in those capabilities.
 
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
@@ -44,7 +45,7 @@ use Mcp\Schema\Extension\Apps\UiResourcePermissions;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
 
 $server = Server::builder()
-    ->enableExtension(McpApps::class)
+    ->enableExtension(new McpApps())
     ->addResource(
         fn () => new TextResourceContents(
             uri: 'ui://my-app',
@@ -58,7 +59,7 @@ $server = Server::builder()
         ),
         'ui://my-app',
         mimeType: McpApps::MIME_TYPE,
-        meta: ['ui' => new \stdClass()],
+        meta: ['ui' => McpApps::resourceMarker()],
     )
     ->addTool(
         $myToolHandler,
@@ -70,6 +71,12 @@ $server = Server::builder()
     )
     ->build();
 ```
+
+Note the two distinct `_meta.ui` shapes: the resource *descriptor* (its
+`resources/list` entry) carries only an empty marker — `McpApps::resourceMarker()` —
+flagging it as an MCP App, while the resource *content* returned by `resources/read`
+carries the structured `UiResourceContentMeta` with the actual CSP and permission
+configuration.
 
 ### Server-side DTOs
 

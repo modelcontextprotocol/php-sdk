@@ -62,16 +62,18 @@ final class UiResourceCsp implements \JsonSerializable
     {
         $data = [];
 
-        if (null !== $this->connectDomains) {
+        // The MCP Apps spec (2026-01-26) defines "empty or omitted" identically
+        // for every CSP allow-list, so empty arrays are dropped, not emitted as `[]`.
+        if ($this->connectDomains) {
             $data['connectDomains'] = $this->connectDomains;
         }
-        if (null !== $this->resourceDomains) {
+        if ($this->resourceDomains) {
             $data['resourceDomains'] = $this->resourceDomains;
         }
-        if (null !== $this->frameDomains) {
+        if ($this->frameDomains) {
             $data['frameDomains'] = $this->frameDomains;
         }
-        if (null !== $this->baseUriDomains) {
+        if ($this->baseUriDomains) {
             $data['baseUriDomains'] = $this->baseUriDomains;
         }
 

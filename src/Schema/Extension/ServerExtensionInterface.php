@@ -30,6 +30,10 @@ interface ServerExtensionInterface
     /**
      * The capability payload announced for this extension.
      *
+     * The returned array is cast to an object and embedded under
+     * `capabilities.extensions[<id>]` in the initialize response, so every value
+     * must be JSON-serializable (scalars, arrays, or `JsonSerializable` objects).
+     *
      * @return array<string, mixed>
      */
     public function getCapabilities(): array;

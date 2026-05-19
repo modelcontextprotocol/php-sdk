@@ -90,6 +90,21 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertNull($caps->extensions);
     }
 
+    public function testServerCapabilitiesWithExtensionsMerges(): void
+    {
+        $caps = new ServerCapabilities(
+            tools: true,
+            extensions: ['a' => ['x' => 1], 'b' => ['y' => 2]],
+        );
+
+        $merged = $caps->withExtensions(['b' => ['y' => 99], 'c' => ['z' => 3]]);
+
+        $this->assertSame(['x' => 1], $merged->extensions['a']);
+        $this->assertSame(['y' => 99], $merged->extensions['b'], 'new entry overrides existing id');
+        $this->assertSame(['z' => 3], $merged->extensions['c']);
+        $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
+    }
+
     public function testClientCapabilitiesWithExtensions(): void
     {
         $extensions = [

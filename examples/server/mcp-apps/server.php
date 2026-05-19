@@ -24,17 +24,14 @@ logger()->info('Starting MCP Apps Example Server...');
 $server = Server::builder()
     ->setServerInfo('MCP Apps Weather Example', '1.0.0')
     ->setLogger(logger())
-    ->enableExtension(McpApps::class)
+    ->enableExtension(new McpApps())
     ->addResource(
         [WeatherApp::class, 'getWeatherApp'],
         'ui://weather-app',
         'weather-app',
         description: 'Interactive weather dashboard',
         mimeType: McpApps::MIME_TYPE,
-        // Empty `ui` marker on the resource descriptor flags it as an MCP App in
-        // resources/list. The CSP/permissions live on the resource *content* (_meta.ui
-        // in resources/read), set via UiResourceContentMeta in WeatherApp::getWeatherApp().
-        meta: ['ui' => new stdClass()],
+        meta: ['ui' => McpApps::resourceMarker()],
     )
     ->addTool(
         [WeatherApp::class, 'getWeather'],

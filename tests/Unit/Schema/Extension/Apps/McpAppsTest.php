@@ -201,4 +201,12 @@ class McpAppsTest extends TestCase
         $this->assertSame('model', ToolVisibility::Model->value);
         $this->assertSame('app', ToolVisibility::App->value);
     }
+
+    public function testResourceMarkerSerializesToEmptyObject(): void
+    {
+        $marker = McpApps::resourceMarker();
+
+        $this->assertEquals(new \stdClass(), $marker);
+        $this->assertSame('{}', json_encode($marker));
+    }
 }

@@ -41,11 +41,13 @@ final class UiResourcePermissions implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
+        // A permission is requested when its key is present with the spec's `{}`
+        // marker; isset() accepts that (array/object forms) and rejects a stray null.
         return new self(
-            camera: \array_key_exists('camera', $data),
-            microphone: \array_key_exists('microphone', $data),
-            geolocation: \array_key_exists('geolocation', $data),
-            clipboardWrite: \array_key_exists('clipboardWrite', $data),
+            camera: isset($data['camera']),
+            microphone: isset($data['microphone']),
+            geolocation: isset($data['geolocation']),
+            clipboardWrite: isset($data['clipboardWrite']),
         );
     }
 

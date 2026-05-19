@@ -109,8 +109,32 @@ class ServerCapabilities implements \JsonSerializable
             promptsListChanged: $promptsListChanged,
             logging: $loggingEnabled,
             completions: $completionsEnabled,
-            experimental: $data['experimental'] ?? null,
-            extensions: $data['extensions'] ?? null,
+            experimental: \is_array($data['experimental'] ?? null) ? $data['experimental'] : null,
+            extensions: \is_array($data['extensions'] ?? null) ? $data['extensions'] : null,
+        );
+    }
+
+    /**
+     * Returns a copy with the given protocol extensions merged into the existing ones.
+     *
+     * Entries in $extensions override existing ones sharing the same id.
+     *
+     * @param array<string, array<string, mixed>> $extensions
+     */
+    public function withExtensions(array $extensions): self
+    {
+        return new self(
+            $this->tools,
+            $this->toolsListChanged,
+            $this->resources,
+            $this->resourcesSubscribe,
+            $this->resourcesListChanged,
+            $this->prompts,
+            $this->promptsListChanged,
+            $this->logging,
+            $this->completions,
+            $this->experimental,
+            [...$this->extensions ?? [], ...$extensions],
         );
     }
 

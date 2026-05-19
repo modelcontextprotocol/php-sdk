@@ -26,6 +26,7 @@ use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\LogicException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -240,22 +241,18 @@ final class Builder
      * Enable one or more MCP protocol extensions, announced to clients under
      * `capabilities.extensions` during the initialize handshake.
      *
-     * Pass either fully qualified class names (instantiated with no arguments) or
-     * pre-built instances.
-     *
-     * @param class-string<ServerExtensionInterface>|ServerExtensionInterface ...$extensions
+     * @throws LogicException if the same extension is enabled more than once
      */
-    public function enableExtension(string|ServerExtensionInterface ...$extensions): self
+    public function enableExtension(ServerExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
-            if (\is_string($extension)) {
-                if (!is_subclass_of($extension, ServerExtensionInterface::class)) {
-                    throw new InvalidArgumentException(\sprintf('Extension class "%s" must implement "%s".', $extension, ServerExtensionInterface::class));
-                }
-                $extension = new $extension();
+            $id = $extension->getId();
+
+            if (isset($this->extensions[$id])) {
+                throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
             }
 
-            $this->extensions[$extension->getId()] = $extension->getCapabilities();
+            $this->extensions[$id] = $extension->getCapabilities();
         }
 
         return $this;
@@ -620,6 +617,12 @@ final class Builder
             completions: true,
             extensions: [] !== $this->extensions ? $this->extensions : null,
         );
+
+        // Extensions enabled via enableExtension() are folded into caller-supplied
+        // capabilities too, so setCapabilities() does not silently drop them.
+        if (null !== $this->serverCapabilities && [] !== $this->extensions) {
+            $capabilities = $capabilities->withExtensions($this->extensions);
+        }
 
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
