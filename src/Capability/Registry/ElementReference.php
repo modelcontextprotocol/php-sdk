@@ -12,8 +12,7 @@
 namespace Mcp\Capability\Registry;
 
 /**
- * @phpstan-type CallableHandler \Closure|array{0: object|string, 1: string}|string
- * @phpstan-type Handler CallableHandler
+ * @phpstan-type Handler \Closure|array{0: object|string, 1: string}|string
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */

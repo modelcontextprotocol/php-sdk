@@ -60,7 +60,6 @@ use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Finder\Finder;
 
 /**
- * @phpstan-import-type CallableHandler from ElementReference
  * @phpstan-import-type Handler from ElementReference
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -113,7 +112,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: CallableHandler,
+     *     handler: Handler,
      *     name: ?string,
      *     title: ?string,
      *     description: ?string,
@@ -128,7 +127,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: CallableHandler,
+     *     handler: Handler,
      *     uri: string,
      *     name: ?string,
      *     title: ?string,
@@ -144,7 +143,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: CallableHandler,
+     *     handler: Handler,
      *     uriTemplate: string,
      *     name: ?string,
      *     title: ?string,
@@ -158,7 +157,7 @@ final class Builder
 
     /**
      * @var array{
-     *     handler: CallableHandler,
+     *     handler: Handler,
      *     name: ?string,
      *     title: ?string,
      *     description: ?string,
@@ -431,7 +430,7 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param CallableHandler           $handler
+     * @param Handler           $handler
      * @param ?string                   $title        Optional human-readable title for display in UI
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
@@ -467,7 +466,7 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param CallableHandler           $handler
+     * @param Handler           $handler
      * @param ?string                   $title   Optional human-readable title for display in UI
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
@@ -503,7 +502,7 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param CallableHandler           $handler
+     * @param Handler           $handler
      * @param ?string                   $title   Optional human-readable title for display in UI
      * @param array<string, mixed>|null $meta
      */
@@ -534,7 +533,7 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param CallableHandler           $handler
+     * @param Handler           $handler
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      */
