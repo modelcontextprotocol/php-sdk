@@ -10,7 +10,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `ExplicitElementLoader` that wraps explicit-handler instances in closures before registration.
 * [BC Break] Renamed `Mcp\Schema\Resource` to `Mcp\Schema\ResourceDefinition`. No alias.
 * [BC Break] Renamed `Mcp\Capability\Registry\Loader\ArrayLoader` to `Mcp\Capability\Registry\Loader\ReflectedElementLoader`.
-* [BC Break] `Builder::add()` throws `Mcp\Exception\InvalidArgumentException` (not `\TypeError`) on mismatched `definition` / `handler` pairings.
 * [BC Break] Bump default protocol version to `2025-11-25`
 * Allow overriding the default name pattern for Discovery
 * Add configurable session garbage collection (`gcProbability`/`gcDivisor`)

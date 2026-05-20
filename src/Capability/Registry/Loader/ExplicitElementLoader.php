@@ -25,11 +25,6 @@ use Mcp\Server\Handler\ToolHandlerInterface;
 /**
  * Translates `Builder::add()` definition+handler pairs into Registry entries.
  *
- * Wraps each handler instance in a closure that matches the callable contract the
- * `ReferenceHandler` already invokes, so per-interface dispatch knowledge is confined
- * to this loader. Manual-over-discovered precedence is preserved by loader ordering
- * (this loader runs before the `DiscoveryLoader`).
- *
  * @author Mateu Aguiló Bosch <mateu.aguilo.bosch@gmail.com>
  */
 final class ExplicitElementLoader implements LoaderInterface

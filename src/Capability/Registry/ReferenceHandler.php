@@ -24,7 +24,7 @@ use Psr\Container\ContainerInterface;
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
     private const RESERVED_ARGUMENT_KEYS = ['_session', '_request'];
-    private const SPLAT_PARAMETER_NAMES = ['arguments', 'variables'];
+    private const ARGUMENT_BAG_PARAMETERS = ['arguments', 'variables'];
 
     public function __construct(
         private readonly ?ContainerInterface $container = null,
@@ -128,7 +128,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             } elseif (
                 $type instanceof \ReflectionNamedType
                 && 'array' === $type->getName()
-                && \in_array($paramName, self::SPLAT_PARAMETER_NAMES, true)
+                && \in_array($paramName, self::ARGUMENT_BAG_PARAMETERS, true)
             ) {
                 $skipKeys = array_merge(
                     self::RESERVED_ARGUMENT_KEYS,

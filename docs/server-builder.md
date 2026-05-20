@@ -87,17 +87,12 @@ Provide hints to help AI models understand how to use your server:
 
 ```php
 $server = Server::builder()
-    ->setInstructions(
-        'This calculator supports basic arithmetic operations. Use the calculate tool for math operations '
-        .'and check the config resource for current settings.'
-    );
+    ->setInstructions('This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.');
 ```
 
 ## Discovery Configuration
 
-**Required when using MCP attributes.** If you're using PHP attributes (`#[McpTool]`, `#[McpResource]`,
-`#[McpResourceTemplate]`, `#[McpPrompt]`) to define your MCP elements, you **MUST** configure discovery to tell the
-server where to look for these attributes.
+**Required when using MCP attributes.** If you're using PHP attributes (`#[McpTool]`, `#[McpResource]`, `#[McpResourceTemplate]`, `#[McpPrompt]`) to define your MCP elements, you **MUST** configure discovery to tell the server where to look for these attributes.
 
 ```php
 $server = Server::builder()
@@ -112,8 +107,7 @@ $server = Server::builder()
 
 **Parameters:**
 - `$basePath` (string): Base directory for discovery (typically `__DIR__`)
-- `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are
-  included. (default: `['.', 'src']`)
+- `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are included. (default: `['.', 'src']`)
 - `$excludeDirs` (array): Directory names to exclude **within** the scanned directories during recursive scanning
 - `$cache` (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance
 - `$namePatterns` (array): Optional list of patterns (regexp, glob, or string) for file names (default: `['*.php']`)
@@ -276,19 +270,16 @@ class RedisSessionStore implements SessionStoreInterface
 
 ## Manual Capability Registration
 
-Register MCP elements programmatically without using attributes. The handler is the most important parameter and can be
-any PHP callable.
+Register MCP elements programmatically without using attributes. The handler is the most important parameter and can be any PHP callable.
 
 ### Handler Types
 
 **Handler** can be any PHP callable:
 
 1. **Closure**: `function(int $a, int $b): int { return $a + $b; }`
-2. **Class and method name pair**: `[ClassName::class, 'methodName']` - class must be constructable through the
-   container
+2. **Class and method name pair**: `[ClassName::class, 'methodName']` - class must be constructable through the container
 3. **Class instance and method name**: `[$instance, 'methodName']`
-4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have
-   `__invoke` method
+4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
 ### Manual Tool Registration
 
@@ -467,8 +458,8 @@ docblock.
 
 ### Container
 
-The container is used to resolve handlers and their dependencies when handlers inject dependencies in their
-constructors. The SDK includes a basic container with simple auto-wiring capabilities.
+The container is used to resolve handlers and their dependencies when handlers inject dependencies in their constructors.
+The SDK includes a basic container with simple auto-wiring capabilities.
 
 ```php
 use Mcp\Capability\Registry\Container;
@@ -494,8 +485,7 @@ You can also use any PSR-11 compatible container (Symfony DI, PHP-DI, Laravel Co
 
 ### Logger
 
-Provide a PSR-3 logger instance for internal server logging (request/response processing, errors, session management,
-transport events):
+Provide a PSR-3 logger instance for internal server logging (request/response processing, errors, session management, transport events):
 
 ```php
 use Monolog\Logger;
@@ -519,9 +509,9 @@ $server = Server::builder()
 
 ## Custom Message Handlers
 
-**Low-level escape hatch.** Custom message handlers run before the SDK's built-in handlers and give you total control
-over individual JSON-RPC messages. They do not receive the builder's registry, container, or discovery output unless
-you pass those dependencies in yourself.
+**Low-level escape hatch.** Custom message handlers run before the SDK's built-in handlers and give you total control over
+individual JSON-RPC messages. They do not receive the builder's registry, container, or discovery output unless you pass
+those dependencies in yourself.
 
 > **Warning**: Custom message handlers bypass discovery, manual capability registration, and container lookups (unless
 > you explicitly pass them). Tools, resources, and prompts you register elsewhere will not show up unless your handler
@@ -603,10 +593,10 @@ interface NotificationHandlerInterface
 
 ### Key Differences
 
-| Handler Type    | Interface                      | Returns           | Use Case                                  |
-|-----------------|--------------------------------|-------------------|-------------------------------------------|
-| Request         | `RequestHandlerInterface`      | `Response\|Error` | Requests needing responses (`tools/call`) |
-| Notification    | `NotificationHandlerInterface` | `void`            | Fire-and-forget (`notifications/*`)       |
+| Handler Type | Interface | Returns | Use Case |
+|-------------|-----------|---------|----------|
+| Request Handler | `RequestHandlerInterface` | `Response\|Error` | Handle requests that need responses (e.g., `tools/list`, `tools/call`) |
+| Notification Handler | `NotificationHandlerInterface` | `void` | Handle fire-and-forget notifications (e.g., `notifications/initialized`, `notifications/progress`) |
 
 ### Example
 
@@ -683,7 +673,7 @@ $server = Server::builder()
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
 | `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, ... | Register tool |
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
-| `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register a template |
+| `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
 | `add()` | definition, handler | Register an element from a schema VO + handler pair |
 | `build()` | - | Create the server instance |
