@@ -128,11 +128,11 @@ jobs:
     if: ${{ !cancelled() && github.repository == 'modelcontextprotocol/php-sdk' }}
     steps:
       - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: server-badge
           path: badges-in
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: client-badge
           path: badges-in
