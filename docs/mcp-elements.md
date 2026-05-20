@@ -32,7 +32,8 @@ Each capability can be registered using two methods:
 1. **Attribute-Based Discovery**: Use PHP attributes (`#[McpTool]`, `#[McpResource]`, etc.) on methods or classes. The
    server automatically discovers and registers them.
 
-2. **Manual Registration**: Explicitly register capabilities using `ServerBuilder` methods (`addTool()`, `addResource()`, etc.).
+2. **Manual Registration**: Explicitly register capabilities using `ServerBuilder` methods (`addTool()`,
+   `addResource()`, etc.).
 
 **Priority**: Manual registrations **always override** discovered elements with the same identifier:
 - **Tools**: Same `name`
@@ -40,12 +41,12 @@ Each capability can be registered using two methods:
 - **Resource Templates**: Same `uriTemplate`  
 - **Prompts**: Same `name`
 
-For manual registration details, see [Server Builder Manual Registration](server-builder.md#manual-capability-registration).
+For manual registration details, see
+[Server Builder Manual Registration](server-builder.md#manual-capability-registration).
 
-For runtime, config-driven elements whose shape is not known at compile time
-(e.g. bridging configuration entities into MCP elements), see [Explicit
-element registration](server-builder.md#explicit-element-registration) in the
-Server Builder docs.
+For runtime, config-driven elements whose shape is not known at compile time (e.g. bridging configuration entities into
+MCP elements), see [Explicit element registration](server-builder.md#explicit-element-registration) in the Server
+Builder docs.
 
 ## Tools
 
@@ -76,14 +77,16 @@ class Calculator
 ### Parameters
 
 - **`name`** (optional): Tool identifier. Defaults to method name if not provided.
-- **`description`** (optional): Tool description. Defaults to docblock summary if not provided, otherwise uses method name.
+- **`description`** (optional): Tool description. Defaults to docblock summary if not provided, otherwise uses method
+  name.
 - **`annotations`** (optional): `ToolAnnotations` object for additional metadata.
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
 **Priority for name/description**: Attribute parameters → DocBlock content → Method name
 
-For tool parameter validation and JSON schema generation, see [Schema Generation and Validation](#schema-generation-and-validation).
+For tool parameter validation and JSON schema generation, see
+[Schema Generation and Validation](#schema-generation-and-validation).
 
 ### Tool Return Values
 
@@ -164,7 +167,8 @@ public function getMultipleContent(): array
 
 Tool handlers can throw any exception, but the type determines how it's handled:
 
-- **`ToolCallException`**: Converted to JSON-RPC response with `CallToolResult` where `isError: true`, allowing the LLM to see the error message and self-correct
+- **`ToolCallException`**: Converted to JSON-RPC response with `CallToolResult` where `isError: true`, allowing the LLM
+  to see the error message and self-correct
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
@@ -191,7 +195,8 @@ public function processFile(string $filename): string
 }
 ```
 
-**Recommendation**: Use `ToolCallException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `ToolCallException` when you want to communicate specific errors to clients. Any other
+exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 
 ## Resources
@@ -220,7 +225,8 @@ class ConfigProvider
 
 ### Parameters
 
-- **`uri`** (required): Unique resource identifier. Must comply with [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
+- **`uri`** (required): Unique resource identifier. Must comply with
+  [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 - **`name`** (optional): Human-readable name. Defaults to method name if not provided.
 - **`description`** (optional): Resource description. Defaults to docblock summary if not provided.
 - **`mimeType`** (optional): MIME type of the resource content.
@@ -234,7 +240,8 @@ class ConfigProvider
 
 ### Resource Return Values
 
-Resource handlers can return various data types that are automatically formatted into appropriate MCP resource content types.
+Resource handlers can return various data types that are automatically formatted into appropriate MCP resource content
+types.
 
 #### Supported Return Types
 
@@ -338,12 +345,14 @@ public function getFile(string $path): string
 }
 ```
 
-**Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other
+exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 ## Resource Templates
 
 Resource templates are **dynamic resources** that use parameterized URIs with variables. They follow all the same rules
-as static resources (URI schemas, return values, MIME types, etc.) but accept variables using [RFC 6570 URI template syntax](https://datatracker.ietf.org/doc/html/rfc6570).
+as static resources (URI schemas, return values, MIME types, etc.) but accept variables using
+[RFC 6570 URI template syntax](https://datatracker.ietf.org/doc/html/rfc6570).
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
@@ -400,7 +409,10 @@ class PromptGenerator
     {
         return [
             ['role' => 'system', 'content' => 'You are an expert code reviewer.'],
-            ['role' => 'user', 'content' => "Review this {$language} code focusing on {$focus}:\n\n```{$language}\n{$code}\n```"]
+            [
+                'role' => 'user',
+                'content' => "Review this {$language} code focusing on {$focus}:\n\n```{$language}\n{$code}\n```",
+            ],
         ];
     }
 }
@@ -475,7 +487,8 @@ public function explicitMessages(): array
 }
 ```
 
-The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP prompt message format.
+The SDK automatically validates that all messages have valid roles and converts the result into the appropriate MCP
+prompt message format.
 
 #### Valid Message Roles
 
@@ -508,7 +521,8 @@ public function generatePrompt(string $topic, string $style): array
 }
 ```
 
-**Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+**Recommendation**: Use `PromptGetException` when you want to communicate specific errors to clients. Any other
+exception will still be converted to JSON-RPC compliant errors but with generic error messages.
 
 ## Logging
 
@@ -539,7 +553,9 @@ public function processData(string $input, RequestContext $context): array {
 
 ## Completion Providers
 
-Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike Tools and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts have dynamic parameters that benefit from completion hints.
+Completion providers help MCP clients offer auto-completion suggestions for Resource Templates and Prompts. Unlike
+Tools and static Resources (which can be listed via `tools/list` and `resources/list`), Resource Templates and Prompts
+have dynamic parameters that benefit from completion hints.
 
 ### Completion Provider Types
 
