@@ -37,34 +37,33 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     public function handle(ElementReference $reference, array $arguments): mixed
     {
         $session = $arguments['_session'];
-        $handler = $reference->handler;
 
-        if (\is_string($handler)) {
-            if (class_exists($handler) && method_exists($handler, '__invoke')) {
-                $reflection = new \ReflectionMethod($handler, '__invoke');
-                $instance = $this->getClassInstance($handler);
+        if (\is_string($reference->handler)) {
+            if (class_exists($reference->handler) && method_exists($reference->handler, '__invoke')) {
+                $reflection = new \ReflectionMethod($reference->handler, '__invoke');
+                $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
                 return \call_user_func($instance, ...$arguments);
             }
 
-            if (\function_exists($handler)) {
-                $reflection = new \ReflectionFunction($handler);
+            if (\function_exists($reference->handler)) {
+                $reflection = new \ReflectionFunction($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
-                return \call_user_func($handler, ...$arguments);
+                return \call_user_func($reference->handler, ...$arguments);
             }
         }
 
-        if (\is_callable($handler)) {
-            $reflection = $this->getReflectionForCallable($handler, $session);
+        if (\is_callable($reference->handler)) {
+            $reflection = $this->getReflectionForCallable($reference->handler, $session);
             $arguments = $this->prepareArguments($reflection, $arguments);
 
-            return \call_user_func($handler, ...$arguments);
+            return \call_user_func($reference->handler, ...$arguments);
         }
 
-        if (\is_array($handler)) {
-            [$className, $methodName] = $handler;
+        if (\is_array($reference->handler)) {
+            [$className, $methodName] = $reference->handler;
             $reflection = new \ReflectionMethod($className, $methodName);
             $instance = $this->getClassInstance($className);
             $arguments = $this->prepareArguments($reflection, $arguments);
