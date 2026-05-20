@@ -44,7 +44,7 @@ jobs:
         run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml logs
       - name: Upload conformance results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-server-results
           path: |
@@ -52,7 +52,7 @@ jobs:
             tests/Conformance/results
       - name: Upload score badge
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: server-badge
           path: tests/Conformance/server-conformance.json
@@ -79,7 +79,7 @@ jobs:
         run: php tests/Conformance/score.php client
       - name: Upload conformance results
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: conformance-client-results
           path: |
@@ -87,7 +87,7 @@ jobs:
             tests/Conformance/results
       - name: Upload score badge
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: client-badge
           path: tests/Conformance/client-conformance.json
