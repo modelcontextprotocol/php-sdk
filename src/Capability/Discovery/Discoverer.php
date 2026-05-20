@@ -27,7 +27,7 @@ use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Psr\Log\LoggerInterface;
@@ -249,7 +249,7 @@ final class Discoverer implements DiscovererInterface
                     $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
                     $name = $instance->name ?? ('__invoke' === $methodName ? $classShortName : $methodName);
                     $description = $instance->description ?? $this->docBlockParser->getDescription($docBlock) ?? null;
-                    $resource = new Resource(
+                    $resource = new ResourceDefinition(
                         $instance->uri,
                         $name,
                         $instance->title,

@@ -21,7 +21,7 @@ use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -124,8 +124,8 @@ class RegistryTest extends TestCase
         $this->assertCount(2, $resources);
         $this->assertArrayHasKey('test://resource1', $resources->references);
         $this->assertArrayHasKey('test://resource2', $resources->references);
-        $this->assertInstanceOf(Resource::class, $resources->references['test://resource1']);
-        $this->assertInstanceOf(Resource::class, $resources->references['test://resource2']);
+        $this->assertInstanceOf(ResourceDefinition::class, $resources->references['test://resource1']);
+        $this->assertInstanceOf(ResourceDefinition::class, $resources->references['test://resource2']);
     }
 
     public function testGetResourceReturnsRegisteredResource(): void
@@ -554,9 +554,9 @@ class RegistryTest extends TestCase
         );
     }
 
-    private function createValidResource(string $uri): Resource
+    private function createValidResource(string $uri): ResourceDefinition
     {
-        return new Resource(
+        return new ResourceDefinition(
             uri: $uri,
             name: 'test_resource',
             description: 'Test resource',

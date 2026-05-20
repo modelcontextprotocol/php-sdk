@@ -12,10 +12,10 @@
 namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 
 use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\Loader\ArrayLoader;
+use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
 use PHPUnit\Framework\TestCase;
 
-class ArrayLoaderResourceTitleTest extends TestCase
+class ReflectedElementLoaderResourceTitleTest extends TestCase
 {
     public function testLoadPropagatesResourceTitleToRegisteredResource(): void
     {
@@ -34,7 +34,7 @@ class ArrayLoaderResourceTitleTest extends TestCase
             ],
         ];
 
-        $loader = new ArrayLoader([], $resources);
+        $loader = new ReflectedElementLoader([], $resources);
         $registry = new Registry();
 
         $loader->load($registry);
@@ -58,7 +58,7 @@ class ArrayLoaderResourceTitleTest extends TestCase
             ],
         ];
 
-        $loader = new ArrayLoader([], [], $resourceTemplates);
+        $loader = new ReflectedElementLoader([], [], $resourceTemplates);
         $registry = new Registry();
 
         $loader->load($registry);

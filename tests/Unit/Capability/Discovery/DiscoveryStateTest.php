@@ -17,7 +17,7 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\TestCase;
@@ -141,7 +141,7 @@ class DiscoveryStateTest extends TestCase
     private function resource(string $uri): ResourceReference
     {
         return new ResourceReference(
-            new Resource(uri: $uri, name: 'r', description: null, mimeType: 'text/plain'),
+            new ResourceDefinition(uri: $uri, name: 'r', description: null, mimeType: 'text/plain'),
             static fn () => null,
         );
     }

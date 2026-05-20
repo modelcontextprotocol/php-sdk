@@ -26,7 +26,7 @@ use Mcp\Schema\Annotations;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\PromptArgument;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
@@ -39,7 +39,7 @@ use Psr\Log\NullLogger;
  *
  * @phpstan-import-type CallableHandler from ElementReference
  */
-final class ArrayLoader implements LoaderInterface
+final class ReflectedElementLoader implements LoaderInterface
 {
     /**
      * @param array{
@@ -156,7 +156,7 @@ final class ArrayLoader implements LoaderInterface
                     $description = $data['description'] ?? $docBlockParser->getDescription($docBlock) ?? null;
                 }
 
-                $resource = new Resource(
+                $resource = new ResourceDefinition(
                     uri: $data['uri'],
                     name: $name,
                     title: $data['title'] ?? null,

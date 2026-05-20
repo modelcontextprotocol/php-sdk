@@ -24,7 +24,7 @@ use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Tests\Unit\Capability\Registry\Loader\Stub\MutableDiscoverer;
@@ -267,9 +267,9 @@ class DiscoveryLoaderTest extends TestCase
         );
     }
 
-    private function makeResource(string $uri): Resource
+    private function makeResource(string $uri): ResourceDefinition
     {
-        return new Resource(uri: $uri, name: 'r', description: null, mimeType: 'text/plain');
+        return new ResourceDefinition(uri: $uri, name: 'r', description: null, mimeType: 'text/plain');
     }
 
     private function makePrompt(string $name): Prompt

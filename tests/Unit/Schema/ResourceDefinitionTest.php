@@ -12,11 +12,11 @@
 namespace Mcp\Tests\Unit\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-class ResourceTest extends TestCase
+class ResourceDefinitionTest extends TestCase
 {
     private const VALID_URI = 'https://example.com/list-books';
 
@@ -24,12 +24,12 @@ class ResourceTest extends TestCase
     {
         $uri = self::VALID_URI;
 
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: $uri,
             name: 'list-books',
         );
 
-        $this->assertInstanceOf(Resource::class, $resource);
+        $this->assertInstanceOf(ResourceDefinition::class, $resource);
         $this->assertSame($uri, $resource->uri);
     }
 
@@ -40,7 +40,7 @@ class ResourceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid resource URI: "/list-books" must be a valid URI with a scheme and optional path.');
 
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: $uri,
             name: 'list-books',
         );
@@ -49,12 +49,12 @@ class ResourceTest extends TestCase
     #[DataProvider('provideValidUris')]
     public function testConstructorAcceptsUris(string $uri): void
     {
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: $uri,
             name: 'test-resource',
         );
 
-        $this->assertInstanceOf(Resource::class, $resource);
+        $this->assertInstanceOf(ResourceDefinition::class, $resource);
         $this->assertSame($uri, $resource->uri);
     }
 
@@ -69,12 +69,12 @@ class ResourceTest extends TestCase
 
     public function testFromArrayValid(): void
     {
-        $resource = Resource::fromArray([
+        $resource = ResourceDefinition::fromArray([
             'uri' => self::VALID_URI,
             'name' => 'list-books',
         ]);
 
-        $this->assertInstanceOf(Resource::class, $resource);
+        $this->assertInstanceOf(ResourceDefinition::class, $resource);
         $this->assertSame(self::VALID_URI, $resource->uri);
         $this->assertSame('list-books', $resource->name);
         $this->assertNull($resource->title);
@@ -84,7 +84,7 @@ class ResourceTest extends TestCase
 
     public function testTitleFromArray(): void
     {
-        $resource = Resource::fromArray([
+        $resource = ResourceDefinition::fromArray([
             'uri' => self::VALID_URI,
             'name' => 'list-books',
             'title' => 'Book Listing',
@@ -95,7 +95,7 @@ class ResourceTest extends TestCase
 
     public function testTitleSerialization(): void
     {
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: self::VALID_URI,
             name: 'list-books',
             title: 'Book Listing',
@@ -107,7 +107,7 @@ class ResourceTest extends TestCase
 
     public function testTitleOmittedWhenNull(): void
     {
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: self::VALID_URI,
             name: 'list-books',
         );
@@ -122,15 +122,15 @@ class ResourceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage($expectedExceptionMessage);
 
-        Resource::fromArray($input);
+        ResourceDefinition::fromArray($input);
     }
 
     public static function provideInvalidResources(): iterable
     {
-        yield 'missing uri' => [[], 'Invalid or missing "uri" in Resource data.'];
+        yield 'missing uri' => [[], 'Invalid or missing "uri" in ResourceDefinition data.'];
         yield 'missing name' => [
             ['uri' => self::VALID_URI],
-            'Invalid or missing "name" in Resource data.',
+            'Invalid or missing "name" in ResourceDefinition data.',
         ];
         yield 'meta' => [
             [
@@ -138,7 +138,7 @@ class ResourceTest extends TestCase
                 'name' => 'list-books',
                 '_meta' => 'foo',
             ],
-            'Invalid "_meta" in Resource data.',
+            'Invalid "_meta" in ResourceDefinition data.',
         ];
     }
 }

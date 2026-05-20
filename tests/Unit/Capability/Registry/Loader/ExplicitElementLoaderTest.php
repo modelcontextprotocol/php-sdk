@@ -14,8 +14,9 @@ namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Mcp\Server;
@@ -76,7 +77,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
     public function testAddResourceRegistersDefinitionAndDispatchesToHandler(): void
     {
-        $resource = new Resource(
+        $resource = new ResourceDefinition(
             uri: 'config://demo',
             name: 'demo',
             description: 'A demo resource',
@@ -200,6 +201,45 @@ final class ExplicitElementLoaderTest extends TestCase
         $this->assertSame('prompt-ok', $result);
         $this->assertSame(['topic' => 'php'], $handler->receivedArguments);
         $this->assertInstanceOf(ClientGateway::class, $handler->receivedGateway);
+    }
+
+    public function testMismatchedDefinitionAndHandlerThrowsInvalidArgumentException(): void
+    {
+        $prompt = new Prompt(name: 'mismatched', title: null, description: null);
+        $toolHandler = new class implements ToolHandlerInterface {
+            public function execute(array $arguments, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+
+        $this->expectException(InvalidArgumentException::class);
+
+        Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->add($prompt, $toolHandler);
+    }
+
+    public function testLoaderRegistersClosuresRatherThanHandlerInstances(): void
+    {
+        $tool = new Tool(
+            name: 'closure_check',
+            title: null,
+            inputSchema: ['type' => 'object', 'properties' => [], 'required' => []],
+            description: null,
+            annotations: null,
+        );
+        $handler = new class implements ToolHandlerInterface {
+            public function execute(array $arguments, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+
+        $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->add($tool, $handler));
+
+        $reference = $registry->getTool('closure_check');
+        $this->assertInstanceOf(\Closure::class, $reference->handler);
     }
 
     /**

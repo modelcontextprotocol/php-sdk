@@ -18,7 +18,7 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ResourceUnsubscribeRequest;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\Result\EmptyResult;
 use Mcp\Server\Handler\Request\ResourceUnsubscribeHandler;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
@@ -53,7 +53,7 @@ class ResourceUnsubscribeTest extends TestCase
         $uri = 'file://documents/readme.txt';
         $request = $this->createResourceUnsubscribeRequest($uri);
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
         $this->registry
@@ -82,7 +82,7 @@ class ResourceUnsubscribeTest extends TestCase
         $uri = 'file://documents/readme.txt';
         $request = $this->createResourceUnsubscribeRequest($uri);
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
         $this->registry

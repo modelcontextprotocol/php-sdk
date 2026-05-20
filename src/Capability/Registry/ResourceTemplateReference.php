@@ -14,7 +14,6 @@ namespace Mcp\Capability\Registry;
 use Mcp\Capability\Formatter\ResourceResultFormatter;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\ResourceTemplate;
-use Mcp\Server\Handler\ElementHandlerInterface;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -36,7 +35,7 @@ class ResourceTemplateReference extends ElementReference
      */
     public function __construct(
         public readonly ResourceTemplate $resourceTemplate,
-        callable|array|string|ElementHandlerInterface $handler,
+        callable|array|string $handler,
         public readonly array $completionProviders = [],
     ) {
         parent::__construct($handler);

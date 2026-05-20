@@ -14,11 +14,6 @@ namespace Mcp\Capability\Registry;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Handler\ElementHandlerInterface;
-use Mcp\Server\Handler\PromptHandlerInterface;
-use Mcp\Server\Handler\ResourceHandlerInterface;
-use Mcp\Server\Handler\ResourceTemplateHandlerInterface;
-use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
@@ -28,6 +23,9 @@ use Psr\Container\ContainerInterface;
  */
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
+    private const RESERVED_ARGUMENT_KEYS = ['_session', '_request'];
+    private const SPLAT_PARAMETER_NAMES = ['arguments', 'variables'];
+
     public function __construct(
         private readonly ?ContainerInterface $container = null,
     ) {
@@ -40,26 +38,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     {
         $session = $arguments['_session'];
         $handler = $reference->handler;
-
-        if ($handler instanceof ElementHandlerInterface) {
-            $client = new ClientGateway($session);
-            $callArgs = array_diff_key($arguments, array_flip(['_session', '_request']));
-
-            return match (true) {
-                $handler instanceof ToolHandlerInterface => $handler->execute($callArgs, $client),
-                $handler instanceof PromptHandlerInterface => $handler->get($callArgs, $client),
-                $handler instanceof ResourceHandlerInterface => $handler->read(
-                    $arguments['uri'] ?? throw new InvalidArgumentException('Resource dispatch requires a "uri" argument.'),
-                    $client,
-                ),
-                $handler instanceof ResourceTemplateHandlerInterface => $handler->read(
-                    $arguments['uri'] ?? throw new InvalidArgumentException('Resource template dispatch requires a "uri" argument.'),
-                    array_diff_key($callArgs, ['uri' => null]),
-                    $client,
-                ),
-                default => throw new InvalidArgumentException(\sprintf('Unsupported %s implementation: %s.', ElementHandlerInterface::class, $handler::class)),
-            };
-        }
 
         if (\is_string($handler)) {
             if (class_exists($handler) && method_exists($handler, '__invoke')) {
@@ -114,8 +92,10 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments): array
     {
         $finalArgs = [];
+        $parameters = $reflection->getParameters();
+        $allParamNames = array_map(static fn (\ReflectionParameter $p) => $p->getName(), $parameters);
 
-        foreach ($reflection->getParameters() as $parameter) {
+        foreach ($parameters as $parameter) {
             // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
@@ -129,6 +109,11 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                     $finalArgs[$paramPosition] = new RequestContext($arguments['_session'], $arguments['_request']);
                     continue;
                 }
+
+                if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
+                    $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                    continue;
+                }
             }
 
             if (isset($arguments[$paramName])) {
@@ -140,6 +125,16 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 } catch (\Throwable $e) {
                     throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
                 }
+            } elseif (
+                $type instanceof \ReflectionNamedType
+                && 'array' === $type->getName()
+                && \in_array($paramName, self::SPLAT_PARAMETER_NAMES, true)
+            ) {
+                $skipKeys = array_merge(
+                    self::RESERVED_ARGUMENT_KEYS,
+                    array_values(array_diff($allParamNames, [$paramName])),
+                );
+                $finalArgs[$paramPosition] = array_diff_key($arguments, array_flip($skipKeys));
             } elseif ($parameter->isDefaultValueAvailable()) {
                 $finalArgs[$paramPosition] = $parameter->getDefaultValue();
             } elseif ($parameter->allowsNull()) {

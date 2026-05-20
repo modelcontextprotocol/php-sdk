@@ -18,11 +18,11 @@ use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\ChainLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Capability\Registry\Loader\ExplicitElementLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
@@ -33,7 +33,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
@@ -174,7 +174,7 @@ final class Builder
     private array $explicitTools = [];
 
     /**
-     * @var list<array{definition: \Mcp\Schema\Resource, handler: ResourceHandlerInterface}>
+     * @var list<array{definition: ResourceDefinition, handler: ResourceHandlerInterface}>
      */
     private array $explicitResources = [];
 
@@ -559,18 +559,19 @@ final class Builder
      * `addTool/addResource/addResourceTemplate/addPrompt`, which can derive metadata from
      * reflection of the handler.
      *
-     * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise `\TypeError`.
+     * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise
+     * `Mcp\Exception\InvalidArgumentException`.
      */
     public function add(
-        Tool|Resource|ResourceTemplate|Prompt $definition,
+        Tool|ResourceDefinition|ResourceTemplate|Prompt $definition,
         ElementHandlerInterface $handler,
     ): self {
         match (true) {
             $definition instanceof Tool && $handler instanceof ToolHandlerInterface => $this->explicitTools[] = ['definition' => $definition, 'handler' => $handler],
-            $definition instanceof Resource && $handler instanceof ResourceHandlerInterface => $this->explicitResources[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof ResourceDefinition && $handler instanceof ResourceHandlerInterface => $this->explicitResources[] = ['definition' => $definition, 'handler' => $handler],
             $definition instanceof ResourceTemplate && $handler instanceof ResourceTemplateHandlerInterface => $this->explicitResourceTemplates[] = ['definition' => $definition, 'handler' => $handler],
             $definition instanceof Prompt && $handler instanceof PromptHandlerInterface => $this->explicitPrompts[] = ['definition' => $definition, 'handler' => $handler],
-            default => throw new \TypeError(\sprintf('%s definition cannot be paired with %s; expected the matching handler interface.', $definition::class, $handler::class)),
+            default => throw new InvalidArgumentException(\sprintf('%s definition cannot be paired with %s; expected the matching handler interface.', $definition::class, $handler::class)),
         };
 
         return $this;
@@ -614,8 +615,8 @@ final class Builder
             $this->gcDivisor,
         );
 
-        // ArrayLoader runs before DiscoveryLoader so manual entries are seen first; DiscoveryLoader's
-        // identity check then preserves them against same-name discovered entries.
+        // ReflectedElementLoader runs before DiscoveryLoader so manual entries are seen first;
+        // DiscoveryLoader's identity check then preserves them against same-name discovered entries.
         $loaders = [
             ...$this->loaders,
             new ExplicitElementLoader(
@@ -624,7 +625,7 @@ final class Builder
                 $this->explicitResourceTemplates,
                 $this->explicitPrompts,
             ),
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
+            new ReflectedElementLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 
         if (null !== $this->discoveryBasePath) {

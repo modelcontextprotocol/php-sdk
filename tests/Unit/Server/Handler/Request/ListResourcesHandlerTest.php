@@ -14,7 +14,7 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry;
 use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Request\ListResourcesRequest;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Server\Handler\Request\ListResourcesHandler;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -221,7 +221,7 @@ class ListResourcesHandlerTest extends TestCase
     private function addResourcesToRegistry(int $count): void
     {
         for ($i = 0; $i < $count; ++$i) {
-            $resource = new Resource(
+            $resource = new ResourceDefinition(
                 uri: "resource://test/resource_$i",
                 name: "resource_$i",
                 description: "Test resource $i"

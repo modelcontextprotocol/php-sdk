@@ -23,7 +23,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class ReferenceHandlerTest extends TestCase
 {
-    public function testHandleDispatchesToToolHandlerAndForwardsClientGateway(): void
+    public function testHandleDispatchesToToolClosureAndForwardsClientGateway(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
@@ -42,7 +42,8 @@ final class ReferenceHandlerTest extends TestCase
             }
         };
 
-        $reference = new ElementReference($toolHandler);
+        $closure = static fn (array $arguments, ClientGateway $client) => $toolHandler->execute($arguments, $client);
+        $reference = new ElementReference($closure);
         $referenceHandler = new ReferenceHandler();
 
         $request = new \stdClass();
@@ -61,35 +62,7 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertInstanceOf(ClientGateway::class, $toolHandler->receivedGateway);
     }
 
-    public function testToolHandlerTakesPriorityOverInvokeAndCallableDetection(): void
-    {
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn(Uuid::v4());
-
-        $toolHandler = new class implements ToolHandlerInterface {
-            public bool $executed = false;
-
-            public function __invoke(): string
-            {
-                throw new \LogicException('__invoke must not be called when ToolHandlerInterface is implemented');
-            }
-
-            public function execute(array $arguments, ClientGateway $gateway): mixed
-            {
-                $this->executed = true;
-
-                return 'priority-ok';
-            }
-        };
-
-        $reference = new ElementReference($toolHandler);
-        $referenceHandler = new ReferenceHandler();
-
-        $this->assertSame('priority-ok', $referenceHandler->handle($reference, ['_session' => $session]));
-        $this->assertTrue($toolHandler->executed);
-    }
-
-    public function testHandleDispatchesToResourceHandlerAndForwardsClientGateway(): void
+    public function testHandleDispatchesToResourceClosureAndForwardsClientGateway(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
@@ -107,7 +80,8 @@ final class ReferenceHandlerTest extends TestCase
             }
         };
 
-        $reference = new ElementReference($resourceHandler);
+        $closure = static fn (string $uri, ClientGateway $client) => $resourceHandler->read($uri, $client);
+        $reference = new ElementReference($closure);
         $referenceHandler = new ReferenceHandler();
 
         $request = new \stdClass();
