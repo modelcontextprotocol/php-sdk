@@ -430,7 +430,7 @@ final class Builder
     /**
      * Manually registers a tool handler.
      *
-     * @param Handler           $handler
+     * @param Handler                   $handler
      * @param ?string                   $title        Optional human-readable title for display in UI
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
@@ -466,7 +466,7 @@ final class Builder
     /**
      * Manually registers a resource handler.
      *
-     * @param Handler           $handler
+     * @param Handler                   $handler
      * @param ?string                   $title   Optional human-readable title for display in UI
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
@@ -502,7 +502,7 @@ final class Builder
     /**
      * Manually registers a resource template handler.
      *
-     * @param Handler           $handler
+     * @param Handler                   $handler
      * @param ?string                   $title   Optional human-readable title for display in UI
      * @param array<string, mixed>|null $meta
      */
@@ -533,7 +533,7 @@ final class Builder
     /**
      * Manually registers a prompt handler.
      *
-     * @param Handler           $handler
+     * @param Handler                   $handler
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      */
