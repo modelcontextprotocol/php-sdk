@@ -23,9 +23,6 @@ use Psr\Container\ContainerInterface;
  */
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
-    private const RESERVED_ARGUMENT_KEYS = ['_session', '_request'];
-    private const ARGUMENT_BAG_PARAMETERS = ['arguments', 'variables'];
-
     public function __construct(
         private readonly ?ContainerInterface $container = null,
     ) {
@@ -36,6 +33,15 @@ final class ReferenceHandler implements ReferenceHandlerInterface
      */
     public function handle(ElementReference $reference, array $arguments): mixed
     {
+        // Closures bound to this class as their scope consume the raw argument bag
+        // directly. Used by ExplicitElementLoader so reflection + name-based parameter
+        // mapping is bypassed for explicitly registered handler interfaces.
+        if ($reference->handler instanceof \Closure
+            && self::class === (new \ReflectionFunction($reference->handler))->getClosureScopeClass()?->getName()
+        ) {
+            return ($reference->handler)($arguments);
+        }
+
         $session = $arguments['_session'];
 
         if (\is_string($reference->handler)) {
@@ -91,10 +97,8 @@ final class ReferenceHandler implements ReferenceHandlerInterface
     private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments): array
     {
         $finalArgs = [];
-        $parameters = $reflection->getParameters();
-        $allParamNames = array_map(static fn (\ReflectionParameter $p) => $p->getName(), $parameters);
 
-        foreach ($parameters as $parameter) {
+        foreach ($reflection->getParameters() as $parameter) {
             // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
@@ -124,16 +128,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 } catch (\Throwable $e) {
                     throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
                 }
-            } elseif (
-                $type instanceof \ReflectionNamedType
-                && 'array' === $type->getName()
-                && \in_array($paramName, self::ARGUMENT_BAG_PARAMETERS, true)
-            ) {
-                $skipKeys = array_merge(
-                    self::RESERVED_ARGUMENT_KEYS,
-                    array_values(array_diff($allParamNames, [$paramName])),
-                );
-                $finalArgs[$paramPosition] = array_diff_key($arguments, array_flip($skipKeys));
             } elseif ($parameter->isDefaultValueAvailable()) {
                 $finalArgs[$paramPosition] = $parameter->getDefaultValue();
             } elseif ($parameter->allowsNull()) {

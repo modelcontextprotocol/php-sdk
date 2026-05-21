@@ -23,7 +23,7 @@ use Symfony\Component\Uid\Uuid;
 
 final class ReferenceHandlerTest extends TestCase
 {
-    public function testHandleDispatchesToToolClosureAndForwardsClientGateway(): void
+    public function testHandleDispatchesToBoundToolClosureWithRawArgumentBag(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
@@ -42,14 +42,21 @@ final class ReferenceHandlerTest extends TestCase
             }
         };
 
-        $closure = static fn (array $arguments, ClientGateway $client) => $toolHandler->execute($arguments, $client);
-        $reference = new ElementReference($closure);
-        $referenceHandler = new ReferenceHandler();
+        $closure = \Closure::bind(
+            static function (array $arguments) use ($toolHandler): mixed {
+                $gateway = new ClientGateway($arguments['_session']);
+                unset($arguments['_session'], $arguments['_request']);
 
-        $request = new \stdClass();
-        $result = $referenceHandler->handle($reference, [
+                return $toolHandler->execute($arguments, $gateway);
+            },
+            null,
+            ReferenceHandler::class,
+        );
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => $request,
+            '_request' => new \stdClass(),
             'kept' => 'value',
             'other' => 'value2',
         ]);
@@ -62,7 +69,7 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertInstanceOf(ClientGateway::class, $toolHandler->receivedGateway);
     }
 
-    public function testHandleDispatchesToResourceClosureAndForwardsClientGateway(): void
+    public function testHandleDispatchesToBoundResourceClosureWithRawArgumentBag(): void
     {
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
@@ -80,20 +87,48 @@ final class ReferenceHandlerTest extends TestCase
             }
         };
 
-        $closure = static fn (string $uri, ClientGateway $client) => $resourceHandler->read($uri, $client);
+        $closure = \Closure::bind(
+            static fn (array $arguments): mixed => $resourceHandler->read(
+                $arguments['uri'],
+                new ClientGateway($arguments['_session']),
+            ),
+            null,
+            ReferenceHandler::class,
+        );
         $reference = new ElementReference($closure);
-        $referenceHandler = new ReferenceHandler();
 
-        $request = new \stdClass();
-        $result = $referenceHandler->handle($reference, [
+        $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => $request,
+            '_request' => new \stdClass(),
             'uri' => 'config://x',
         ]);
 
         $this->assertSame(['contents' => 'r-ok'], $result);
         $this->assertSame('config://x', $resourceHandler->receivedUri);
         $this->assertInstanceOf(ClientGateway::class, $resourceHandler->receivedGateway);
+    }
+
+    public function testHandleStillReflectsOrdinaryClosuresAndDoesNotInjectArgumentBag(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $captured = null;
+        $closure = static function (string $kept) use (&$captured): string {
+            $captured = $kept;
+
+            return $kept;
+        };
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $session,
+            '_request' => new \stdClass(),
+            'kept' => 'value',
+        ]);
+
+        $this->assertSame('value', $result);
+        $this->assertSame('value', $captured);
     }
 
     public function testHandleThrowsForStringHandlerThatIsNeitherFunctionNorClass(): void

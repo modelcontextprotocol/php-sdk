@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\RegistryInterface;
@@ -201,6 +202,131 @@ final class ExplicitElementLoaderTest extends TestCase
         $this->assertSame('prompt-ok', $result);
         $this->assertSame(['topic' => 'php'], $handler->receivedArguments);
         $this->assertInstanceOf(ClientGateway::class, $handler->receivedGateway);
+    }
+
+    public function testAddPromptForwardsCompletionProvidersToRegistry(): void
+    {
+        $prompt = new Prompt(name: 'greet', title: null, description: null);
+        $handler = new class implements PromptHandlerInterface {
+            public function get(array $arguments, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+        $provider = new class implements ProviderInterface {
+            public function getCompletions(string $currentValue): array
+            {
+                return ['alice', 'bob'];
+            }
+        };
+
+        $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->add(
+            $prompt,
+            $handler,
+            ['name' => $provider],
+        ));
+
+        $reference = $registry->getPrompt('greet');
+        $this->assertSame(['name' => $provider], $reference->completionProviders);
+    }
+
+    public function testAddResourceTemplateForwardsCompletionProvidersToRegistry(): void
+    {
+        $template = new ResourceTemplate(
+            uriTemplate: 'config://{key}',
+            name: 'config_template',
+            description: null,
+        );
+        $handler = new class implements ResourceTemplateHandlerInterface {
+            public function read(string $uri, array $variables, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+        $provider = new class implements ProviderInterface {
+            public function getCompletions(string $currentValue): array
+            {
+                return ['alpha', 'beta'];
+            }
+        };
+
+        $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->add(
+            $template,
+            $handler,
+            ['key' => $provider],
+        ));
+
+        $reference = $registry->getResourceTemplate('config://{key}');
+        $this->assertSame(['key' => $provider], $reference->completionProviders);
+    }
+
+    public function testAddPromptWithoutCompletionProvidersDefaultsToEmptyArray(): void
+    {
+        $prompt = new Prompt(name: 'no_completion', title: null, description: null);
+        $handler = new class implements PromptHandlerInterface {
+            public function get(array $arguments, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+
+        $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->add($prompt, $handler));
+
+        $this->assertSame([], $registry->getPrompt('no_completion')->completionProviders);
+    }
+
+    public function testAddToolWithCompletionProvidersThrows(): void
+    {
+        $tool = new Tool(
+            name: 'noop',
+            title: null,
+            inputSchema: ['type' => 'object', 'properties' => [], 'required' => []],
+            description: null,
+            annotations: null,
+        );
+        $handler = new class implements ToolHandlerInterface {
+            public function execute(array $arguments, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+        $provider = new class implements ProviderInterface {
+            public function getCompletions(string $currentValue): array
+            {
+                return [];
+            }
+        };
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Completion providers are only supported on Prompt and ResourceTemplate');
+
+        Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->add($tool, $handler, ['foo' => $provider]);
+    }
+
+    public function testAddResourceWithCompletionProvidersThrows(): void
+    {
+        $resource = new ResourceDefinition(uri: 'config://demo', name: 'demo');
+        $handler = new class implements ResourceHandlerInterface {
+            public function read(string $uri, ClientGateway $gateway): mixed
+            {
+                return null;
+            }
+        };
+        $provider = new class implements ProviderInterface {
+            public function getCompletions(string $currentValue): array
+            {
+                return [];
+            }
+        };
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Completion providers are only supported on Prompt and ResourceTemplate');
+
+        Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->add($resource, $handler, ['foo' => $provider]);
     }
 
     public function testMismatchedDefinitionAndHandlerThrowsInvalidArgumentException(): void

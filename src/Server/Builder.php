@@ -11,6 +11,7 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
@@ -178,12 +179,12 @@ final class Builder
     private array $explicitResources = [];
 
     /**
-     * @var list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface}>
+     * @var list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface, completionProviders: array<string, ProviderInterface>}>
      */
     private array $explicitResourceTemplates = [];
 
     /**
-     * @var list<array{definition: Prompt, handler: PromptHandlerInterface}>
+     * @var list<array{definition: Prompt, handler: PromptHandlerInterface, completionProviders: array<string, ProviderInterface>}>
      */
     private array $explicitPrompts = [];
 
@@ -559,17 +560,26 @@ final class Builder
      * reflection of the handler.
      *
      * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise
-     * `Mcp\Exception\InvalidArgumentException`.
+     * `Mcp\Exception\InvalidArgumentException`. Completion providers are only supported on
+     * `Prompt` and `ResourceTemplate` definitions; supplying them with `Tool` or
+     * `ResourceDefinition` raises the same exception.
+     *
+     * @param array<string, ProviderInterface> $completionProviders Keyed by argument/variable name
      */
     public function add(
         Tool|ResourceDefinition|ResourceTemplate|Prompt $definition,
         ElementHandlerInterface $handler,
+        array $completionProviders = [],
     ): self {
+        if ([] !== $completionProviders && ($definition instanceof Tool || $definition instanceof ResourceDefinition)) {
+            throw new InvalidArgumentException(\sprintf('Completion providers are only supported on Prompt and ResourceTemplate definitions, got %s.', $definition::class));
+        }
+
         match (true) {
             $definition instanceof Tool && $handler instanceof ToolHandlerInterface => $this->explicitTools[] = ['definition' => $definition, 'handler' => $handler],
             $definition instanceof ResourceDefinition && $handler instanceof ResourceHandlerInterface => $this->explicitResources[] = ['definition' => $definition, 'handler' => $handler],
-            $definition instanceof ResourceTemplate && $handler instanceof ResourceTemplateHandlerInterface => $this->explicitResourceTemplates[] = ['definition' => $definition, 'handler' => $handler],
-            $definition instanceof Prompt && $handler instanceof PromptHandlerInterface => $this->explicitPrompts[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof ResourceTemplate && $handler instanceof ResourceTemplateHandlerInterface => $this->explicitResourceTemplates[] = ['definition' => $definition, 'handler' => $handler, 'completionProviders' => $completionProviders],
+            $definition instanceof Prompt && $handler instanceof PromptHandlerInterface => $this->explicitPrompts[] = ['definition' => $definition, 'handler' => $handler, 'completionProviders' => $completionProviders],
             default => throw new InvalidArgumentException(\sprintf('%s definition cannot be paired with %s; expected the matching handler interface.', $definition::class, $handler::class)),
         };
 
@@ -614,7 +624,7 @@ final class Builder
             $this->gcDivisor,
         );
 
-        // ReflectedElementLoader runs before DiscoveryLoader so manual entries are seen first;
+        // ExplicitElementLoader and ReflectedElementLoader run before DiscoveryLoader so manual entries are seen first;
         // DiscoveryLoader's identity check then preserves them against same-name discovered entries.
         $loaders = [
             ...$this->loaders,

@@ -400,9 +400,8 @@ For more details on MCP elements, handlers, and attribute-based discovery, see [
 
 ### Explicit element registration
 
-When an element's name, schema, or description is only known at runtime (for example, the Drupal `mcp` module exposing
-configuration or database entities as MCP elements), pair an `Mcp\Schema\*` value object with one of the four handler
-interfaces below and register it through `Builder::add()`.
+When an element's name, schema, or description is only known at runtime, pair an `Mcp\Schema\*` value object with one of
+the four handler interfaces below and register it through `Builder::add()`.
 
 | Element kind      | Handler interface                                     |
 |-------------------|-------------------------------------------------------|
