@@ -42,7 +42,7 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
 
         $response = $middleware->process($request, $this->passthroughHandler);
 
-        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+        $this->assertSame('GET, POST, DELETE', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
     }
 

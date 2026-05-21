@@ -50,7 +50,7 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame(204, $response->getStatusCode());
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin')); // secure-by-default
-        $this->assertSame('GET, POST, DELETE, OPTIONS', $response->getHeaderLine('Access-Control-Allow-Methods'));
+        $this->assertSame('GET, POST, DELETE', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
