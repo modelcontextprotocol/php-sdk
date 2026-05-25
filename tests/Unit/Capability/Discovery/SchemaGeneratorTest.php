@@ -442,16 +442,17 @@ final class SchemaGeneratorTest extends TestCase
         );
     }
 
-    public function testFirstNonNullDescriberWins(): void
+    public function testFirstMatchingDescriberWins(): void
     {
         $loudDescriber = new class implements PropertyDescriberInterface {
-            public function describe(string $className): ?array
+            public static function supportedClass(): string
             {
-                if (is_a($className, \DateTimeInterface::class, true)) {
-                    return ['type' => 'string', 'format' => 'custom-loud'];
-                }
+                return \DateTimeInterface::class;
+            }
 
-                return null;
+            public function describe(): array
+            {
+                return ['type' => 'string', 'format' => 'custom-loud'];
             }
         };
 

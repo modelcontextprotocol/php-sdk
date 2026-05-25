@@ -19,12 +19,13 @@ use Mcp\Capability\Discovery\PropertyDescriberInterface;
  */
 final class DateTimePropertyDescriber implements PropertyDescriberInterface
 {
-    public function describe(string $className): ?array
+    public static function supportedClass(): string
     {
-        if (!is_a($className, \DateTimeInterface::class, true)) {
-            return null;
-        }
+        return \DateTimeInterface::class;
+    }
 
+    public function describe(): array
+    {
         return ['type' => 'string', 'format' => 'date-time'];
     }
 }

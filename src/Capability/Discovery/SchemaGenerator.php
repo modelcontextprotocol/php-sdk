@@ -61,14 +61,32 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
 final class SchemaGenerator implements SchemaGeneratorInterface
 {
     /**
-     * @param iterable<PropertyDescriberInterface> $propertyDescribers Consulted, in order, before
-     *                                                                 generic class inspection;
-     *                                                                 first non-null result wins
+     * @var list<PropertyDescriberInterface> Consulted in registration order before generic class
+     *                                       inspection; the first matching describer wins
+     */
+    private readonly array $propertyDescribers;
+
+    /**
+     * Memoizes describer resolution per concrete class. Holds the matching
+     * describer or `false` when none matched, so repeated parameter types —
+     * and the common "no describer" case — are resolved at most once.
+     *
+     * @var array<class-string, PropertyDescriberInterface|false>
+     */
+    private array $describerCache = [];
+
+    /**
+     * @param iterable<PropertyDescriberInterface> $propertyDescribers Consulted in order before
+     *                                                                 generic class inspection; the
+     *                                                                 first matching describer wins
      */
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
-        private readonly iterable $propertyDescribers = [],
+        iterable $propertyDescribers = [],
     ) {
+        $this->propertyDescribers = \is_array($propertyDescribers)
+            ? array_values($propertyDescribers)
+            : iterator_to_array($propertyDescribers, false);
     }
 
     /**
@@ -265,7 +283,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         // Consult property describers for class-typed parameters first; the
-        // first describer that claims the class (returns non-null) wins. This
+        // first registered describer whose supported class matches wins. This
         // lets callers teach the generator about value-object types like
         // DateTime, Uuid, Money, etc. without subclassing the generator.
         $describedSchema = $this->describeClassType($paramInfo);
@@ -365,10 +383,9 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     }
 
     /**
-     * Looks for a matching describer when the parameter's PHP type is a
-     * concrete class. Returns the first non-null describer result, or null
-     * if no describer claimed the type. Union and intersection types are
-     * not dispatched — describers see only single named, non-builtin types.
+     * Describes the parameter when its PHP type is a concrete class claimed by
+     * a registered describer, or null otherwise. Union and intersection types
+     * are not dispatched — describers see only single named, non-builtin types.
      *
      * @param ParameterInfo $paramInfo
      *
@@ -381,11 +398,31 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return null;
         }
 
-        $className = $reflectionType->getName();
+        return $this->resolveDescriber($reflectionType->getName())?->describe();
+    }
+
+    /**
+     * Resolves the describer for a concrete class, matching against each
+     * describer's {@see PropertyDescriberInterface::supportedClass()} (the
+     * class itself or any subtype). Results are memoized per class.
+     *
+     * @param class-string $className
+     */
+    private function resolveDescriber(string $className): ?PropertyDescriberInterface
+    {
+        $cached = $this->describerCache[$className] ??= $this->findDescriber($className) ?? false;
+
+        return $cached ?: null;
+    }
+
+    /**
+     * @param class-string $className
+     */
+    private function findDescriber(string $className): ?PropertyDescriberInterface
+    {
         foreach ($this->propertyDescribers as $describer) {
-            $described = $describer->describe($className);
-            if (null !== $described) {
-                return $described;
+            if (is_a($className, $describer::supportedClass(), true)) {
+                return $describer;
             }
         }
 

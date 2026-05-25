@@ -16,6 +16,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedStringEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\UnitEnum;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Comprehensive fixture for testing SchemaGenerator with various scenarios.
@@ -455,7 +456,7 @@ class SchemaGeneratorFixture
     {
     }
 
-    public function uuidParam(\Symfony\Component\Uid\Uuid $bookingId): void
+    public function uuidParam(Uuid $bookingId): void
     {
     }
 

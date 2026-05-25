@@ -20,12 +20,13 @@ use Symfony\Component\Uid\Uuid;
  */
 final class UuidPropertyDescriber implements PropertyDescriberInterface
 {
-    public function describe(string $className): ?array
+    public static function supportedClass(): string
     {
-        if (!is_a($className, Uuid::class, true)) {
-            return null;
-        }
+        return Uuid::class;
+    }
 
+    public function describe(): array
+    {
         return ['type' => 'string', 'format' => 'uuid'];
     }
 }

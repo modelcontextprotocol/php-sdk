@@ -23,29 +23,16 @@ final class DateTimePropertyDescriberTest extends TestCase
         $this->describer = new DateTimePropertyDescriber();
     }
 
-    public function testDescribesDateTimeInterfaceAsIsoDateTimeString(): void
+    public function testSupportsDateTimeInterface(): void
     {
-        $this->assertSame(
-            ['type' => 'string', 'format' => 'date-time'],
-            $this->describer->describe(\DateTimeInterface::class),
-        );
+        $this->assertSame(\DateTimeInterface::class, DateTimePropertyDescriber::supportedClass());
     }
 
-    public function testDescribesDateTimeImplementations(): void
+    public function testDescribesAsIsoDateTimeString(): void
     {
         $this->assertSame(
             ['type' => 'string', 'format' => 'date-time'],
-            $this->describer->describe(\DateTime::class),
+            $this->describer->describe(),
         );
-        $this->assertSame(
-            ['type' => 'string', 'format' => 'date-time'],
-            $this->describer->describe(\DateTimeImmutable::class),
-        );
-    }
-
-    public function testPassesOnUnrelatedClass(): void
-    {
-        $this->assertNull($this->describer->describe(\stdClass::class));
-        $this->assertNull($this->describer->describe(\Exception::class));
     }
 }

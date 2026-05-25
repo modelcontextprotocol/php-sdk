@@ -619,4 +619,5 @@ $server = Server::builder()
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
+| `addPropertyDescriber()` | describer | Register a [property describer](mcp-elements.md#custom-type-describers) for class-typed parameters |
 | `build()` | - | Create the server instance |

@@ -745,6 +745,78 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
 **Warning:** Only use complete schema override if you're well-versed with JSON Schema specification and have complex
 validation requirements that cannot be achieved through the priority system.
 
+### Custom Type Describers
+
+When a tool parameter is type-hinted with a class, the generator falls back to `{type: "object"}` — which tells the
+LLM nothing about the expected shape. For value-object types (timestamps, identifiers, money, …) you can register a
+**property describer** that maps the class to a targeted JSON Schema fragment.
+
+A describer declares the class (or base class / interface) it handles and the fragment to emit:
+
+```php
+interface PropertyDescriberInterface
+{
+    /** @return class-string The class/interface this describer handles (subtypes match too) */
+    public static function supportedClass(): string;
+
+    /** @return array<string, mixed> JSON Schema fragment for the supported type */
+    public function describe(): array;
+}
+```
+
+A parameter is dispatched to a describer when its type is `supportedClass()` **or any subtype of it** — so a describer
+for `\DateTimeInterface` also covers `\DateTimeImmutable`, and one for `Uuid` covers `UuidV4`, `UuidV7`, etc.
+
+Two describers ship with the SDK (both opt-in):
+
+| Describer | Handles | Emits |
+| --- | --- | --- |
+| `Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber` | any `\DateTimeInterface` | `{type: "string", format: "date-time"}` |
+| `Mcp\Capability\Discovery\PropertyDescriber\UuidPropertyDescriber` | `Symfony\Component\Uid\Uuid` (and subclasses) | `{type: "string", format: "uuid"}` |
+
+Register them — and your own — on the builder. Describers are consulted in **registration order**; the first one whose
+supported class matches the parameter wins:
+
+```php
+use Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber;
+use Mcp\Capability\Discovery\PropertyDescriber\UuidPropertyDescriber;
+
+$server = Server::builder()
+    ->setServerInfo('my-server', '1.0.0')
+    ->addPropertyDescriber(new DateTimePropertyDescriber())
+    ->addPropertyDescriber(new UuidPropertyDescriber())
+    ->build();
+```
+
+Now `public function schedule(\DateTimeImmutable $until)` generates `{type: "string", format: "date-time"}` for
+`$until` instead of `{type: "object"}`. Docblock descriptions, defaults and nullability are still layered on top of the
+describer's fragment.
+
+Writing a custom describer for a domain value object:
+
+```php
+use Mcp\Capability\Discovery\PropertyDescriberInterface;
+
+final class MoneyPropertyDescriber implements PropertyDescriberInterface
+{
+    public static function supportedClass(): string
+    {
+        return \App\Money::class;
+    }
+
+    public function describe(): array
+    {
+        return ['type' => 'string', 'pattern' => '^\d+(\.\d{2})? [A-Z]{3}$'];
+    }
+}
+
+$builder->addPropertyDescriber(new MoneyPropertyDescriber());
+```
+
+To override a shipped describer, register your own for the same class **before** it — the first matching describer
+wins. Note that `addPropertyDescriber()` cannot be combined with `setSchemaGenerator()` — if you supply your own
+`SchemaGeneratorInterface`, configure the describers on that generator directly.
+
 ## Discovery vs Manual Registration
 
 ### Attribute-Based Discovery

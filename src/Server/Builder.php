@@ -14,6 +14,9 @@ namespace Mcp\Server;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
+use Mcp\Capability\Discovery\DocBlockParser;
+use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
@@ -178,6 +181,11 @@ final class Builder
      * @var LoaderInterface[]
      */
     private array $loaders = [];
+
+    /**
+     * @var array<int, PropertyDescriberInterface>
+     */
+    private array $propertyDescribers = [];
 
     /**
      * Sets the server's identity. Required.
@@ -541,6 +549,22 @@ final class Builder
     }
 
     /**
+     * Registers a property describer that teaches the schema generator how to
+     * render a value-object class (e.g. DateTime, Uuid) as a targeted JSON
+     * Schema fragment instead of a generic `{type: "object"}`.
+     *
+     * Describers are consulted in registration order; the first one whose
+     * supported class matches the parameter wins. Cannot be combined with a
+     * generator set via setSchemaGenerator().
+     */
+    public function addPropertyDescriber(PropertyDescriberInterface $describer): self
+    {
+        $this->propertyDescribers[] = $describer;
+
+        return $this;
+    }
+
+    /**
      * Builds the fully configured Server instance.
      */
     public function build(): Server
@@ -556,16 +580,18 @@ final class Builder
             $this->gcDivisor,
         );
 
+        $schemaGenerator = $this->resolveSchemaGenerator($logger);
+
         // ArrayLoader runs before DiscoveryLoader so manual entries are seen first; DiscoveryLoader's
         // identity check then preserves them against same-name discovered entries.
         $loaders = [
             ...$this->loaders,
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
+            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $schemaGenerator),
         ];
 
         if (null !== $this->discoveryBasePath) {
             if (null !== $this->discoverer || class_exists(Finder::class)) {
-                $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
+                $discoverer = $this->discoverer ?? $this->createDiscoverer($logger, $schemaGenerator);
                 $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
             } else {
                 $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
@@ -625,14 +651,32 @@ final class Builder
         return new Server($protocol, $logger);
     }
 
-    private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
+    private function createDiscoverer(LoggerInterface $logger, ?SchemaGeneratorInterface $schemaGenerator): DiscovererInterface
     {
-        $discoverer = new Discoverer($logger, null, $this->schemaGenerator);
+        $discoverer = new Discoverer($logger, null, $schemaGenerator);
 
         if (null !== $this->discoveryCache) {
             return new CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
         }
 
         return $discoverer;
+    }
+
+    /**
+     * Builds the schema generator from registered property describers, or
+     * returns the explicitly configured one. The two are mutually exclusive:
+     * describers belong on the explicit generator if one is set.
+     */
+    private function resolveSchemaGenerator(LoggerInterface $logger): ?SchemaGeneratorInterface
+    {
+        if ([] === $this->propertyDescribers) {
+            return $this->schemaGenerator;
+        }
+
+        if (null !== $this->schemaGenerator) {
+            throw new InvalidArgumentException('Cannot combine addPropertyDescriber() with a generator set via setSchemaGenerator(). Configure the describers on that generator instead.');
+        }
+
+        return new SchemaGenerator(new DocBlockParser(logger: $logger), $this->propertyDescribers);
     }
 }
