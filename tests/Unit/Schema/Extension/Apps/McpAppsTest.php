@@ -116,6 +116,17 @@ class McpAppsTest extends TestCase
         $this->assertTrue($perms->clipboardWrite);
     }
 
+    public function testUiResourcePermissionsFromArrayTreatsNullAsNotRequested(): void
+    {
+        // isset() rejects null values, so 'camera' => null must read as "not requested",
+        // not as "requested with a null marker".
+        // @phpstan-ignore-next-line — intentionally off-spec payload
+        $perms = UiResourcePermissions::fromArray(['camera' => null, 'geolocation' => []]);
+
+        $this->assertFalse($perms->camera);
+        $this->assertTrue($perms->geolocation);
+    }
+
     public function testUiResourceContentMetaSerialization(): void
     {
         $meta = new UiResourceContentMeta(

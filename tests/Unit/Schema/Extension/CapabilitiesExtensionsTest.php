@@ -90,6 +90,14 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertNull($caps->extensions);
     }
 
+    public function testServerCapabilitiesFromArrayRejectsNonArrayExtensions(): void
+    {
+        // @phpstan-ignore-next-line — intentionally malformed payload
+        $caps = ServerCapabilities::fromArray(['tools' => new \stdClass(), 'extensions' => 'not-an-array']);
+
+        $this->assertNull($caps->extensions);
+    }
+
     public function testServerCapabilitiesWithExtensionsMerges(): void
     {
         $caps = new ServerCapabilities(
@@ -173,6 +181,14 @@ class CapabilitiesExtensionsTest extends TestCase
     public function testClientCapabilitiesFromArrayWithoutExtensions(): void
     {
         $caps = ClientCapabilities::fromArray(['roots' => ['listChanged' => true]]);
+
+        $this->assertNull($caps->extensions);
+    }
+
+    public function testClientCapabilitiesFromArrayRejectsNonArrayExtensions(): void
+    {
+        // @phpstan-ignore-next-line — intentionally malformed payload
+        $caps = ClientCapabilities::fromArray(['roots' => ['listChanged' => true], 'extensions' => 'not-an-array']);
 
         $this->assertNull($caps->extensions);
     }

@@ -615,7 +615,7 @@ final class Builder
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             logging: true,
             completions: true,
-            extensions: [] !== $this->extensions ? $this->extensions : null,
+            extensions: $this->extensions ?: null,
         );
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
