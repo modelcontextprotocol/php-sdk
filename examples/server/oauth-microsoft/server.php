@@ -81,7 +81,13 @@ $server = Server::builder()
 $transport = new StreamableHttpTransport(
     (new Psr17Factory())->createServerRequestFromGlobals(),
     logger: logger(),
-    middleware: [$oauthProxyMiddleware, $metadataMiddleware, $authMiddleware, new OAuthRequestMetaMiddleware()],
+    middleware: [
+        ...StreamableHttpTransport::defaultMiddleware(),
+        $oauthProxyMiddleware,
+        $metadataMiddleware,
+        $authMiddleware,
+        new OAuthRequestMetaMiddleware(),
+    ],
 );
 
 $response = $server->run($transport);

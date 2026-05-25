@@ -110,8 +110,8 @@ $transport = new StreamableHttpTransport(
 - **`request`** (required): `ServerRequestInterface` - The incoming PSR-7 HTTP request
 - **`responseFactory`** (optional): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses. Auto-discovered if not provided.
 - **`streamFactory`** (optional): `StreamFactoryInterface` - PSR-17 factory for creating response body streams. Auto-discovered if not provided.
-- **`corsHeaders`** (optional): `array` - Custom CORS headers to override defaults. Merges with secure defaults. Defaults to `[]`.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
+- **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). `[]` disables all defaults — useful when the surrounding application already handles CORS, host validation, etc.
 
 ### PSR-17 Auto-Discovery
 
@@ -137,56 +137,109 @@ $psr17Factory = new Psr17Factory();
 $transport = new StreamableHttpTransport($request, $psr17Factory, $psr17Factory);
 ```
 
-### CORS Configuration
+### Default Middleware
 
-The transport sets secure CORS defaults that can be customized or disabled:
+When the `middleware` argument is omitted (or set to `null`), the transport installs a secure default stack:
+
+| Order | Middleware | Purpose |
+|-------|------------|---------|
+| 1     | `CorsMiddleware`                    | Applies CORS headers to every response. By default does **not** set `Access-Control-Allow-Origin` (cross-origin requests are blocked). |
+| 2     | `DnsRebindingProtectionMiddleware`  | Validates `Origin`/`Host` against an allowlist. Defaults to localhost variants only. |
+| 3     | `ProtocolVersionMiddleware`         | Rejects requests carrying an unsupported `MCP-Protocol-Version` header with `400 Bad Request`. |
 
 ```php
-// Default CORS headers (backward compatible)
-$transport = new StreamableHttpTransport($request, $responseFactory, $streamFactory);
+// Zero-config, secure-by-default — local servers get full protection automatically.
+$transport = new StreamableHttpTransport($request);
+```
 
-// Restrict to specific origin
+The default stack can be inspected and recomposed via the public factory:
+
+```php
+$middleware = StreamableHttpTransport::defaultMiddleware();
+```
+
+### CORS Configuration
+
+CORS is handled by `CorsMiddleware`. To enable cross-origin browser requests, configure it explicitly and pass it
+in place of (or alongside) the defaults:
+
+```php
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+// Reflect a specific origin
 $transport = new StreamableHttpTransport(
     $request,
-    $responseFactory,
-    $streamFactory,
-    ['Access-Control-Allow-Origin' => 'https://myapp.com']
-);
-
-// Disable CORS for proxy scenarios
-$transport = new StreamableHttpTransport(
-    $request,
-    $responseFactory,
-    $streamFactory,
-    ['Access-Control-Allow-Origin' => '']
-);
-
-// Custom headers with logger
-$transport = new StreamableHttpTransport(
-    $request,
-    $responseFactory,
-    $streamFactory,
-    [
-        'Access-Control-Allow-Origin' => 'https://api.example.com',
-        'Access-Control-Max-Age' => '86400'
+    middleware: [
+        new CorsMiddleware(allowedOrigins: ['https://myapp.com']),
+        new DnsRebindingProtectionMiddleware(),
+        new ProtocolVersionMiddleware(),
     ],
-    $logger
+);
+
+// Allow all origins (development only)
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [
+        new CorsMiddleware(allowedOrigins: ['*']),
+        new DnsRebindingProtectionMiddleware(),
+        new ProtocolVersionMiddleware(),
+    ],
 );
 ```
 
-Default CORS headers:
-- `Access-Control-Allow-Origin: *`
-- `Access-Control-Allow-Methods: GET, POST, DELETE, OPTIONS`
-- `Access-Control-Allow-Headers: Content-Type, Mcp-Session-Id, Mcp-Protocol-Version, Last-Event-ID, Authorization, Accept`
+When the allowlist is a concrete set of origins (not `['*']`), `CorsMiddleware` automatically adds `Vary: Origin`
+so shared caches/CDNs do not serve a response generated for one origin to a request from another.
 
-### PSR-15 Middleware
+Headers already present on a response (e.g. set by inner middleware) are preserved — `CorsMiddleware` only adds
+defaults when they are absent.
 
-`StreamableHttpTransport` can run a PSR-15 middleware chain before it processes the request. Middleware can log,
-enforce auth, or short-circuit with a response for any HTTP method.
+> [!IMPORTANT]
+> `Access-Control-Allow-Origin: *` is incompatible with credentialed browser requests (those carrying
+> `Authorization`, cookies, or client certificates). If your MCP server runs OAuth/Bearer auth and serves
+> a browser client, configure `allowedOrigins` with the explicit origin(s) you trust rather than `['*']`.
+> The middleware reflects the matching origin verbatim, which is the form browsers accept with credentials.
+
+### DNS Rebinding Protection
+
+`DnsRebindingProtectionMiddleware` validates the `Origin` header against an allowlist (falling back to `Host`
+when `Origin` is absent). The default allowlist is localhost-only:
+
+```php
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+
+new DnsRebindingProtectionMiddleware(allowedHosts: ['myapp.local', 'mcp.internal']);
+```
+
+If the server is fronted by a reverse proxy that already validates `Host`, drop this middleware from the chain
+or supply a permissive allowlist.
+
+### Protocol Version Validation
+
+`ProtocolVersionMiddleware` rejects requests whose `MCP-Protocol-Version` header is not in the SDK's supported
+set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
+legacy clients do not send it.
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
+
+// Only accept the latest spec version
+new ProtocolVersionMiddleware(supportedVersions: [ProtocolVersion::V2025_11_25]);
+```
+
+### Custom PSR-15 Middleware
+
+`StreamableHttpTransport` accepts any PSR-15 middleware chain. To extend the defaults, spread them and append
+your own middleware — the defaults stay outermost so CORS headers are applied to every response, including
+short-circuited ones:
 
 ```php
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ResponseFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
@@ -197,7 +250,7 @@ final class AuthMiddleware implements MiddlewareInterface
     {
     }
 
-    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler)
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         if (!$request->hasHeader('Authorization')) {
             return $this->responses->createResponse(401);
@@ -209,15 +262,40 @@ final class AuthMiddleware implements MiddlewareInterface
 
 $transport = new StreamableHttpTransport(
     $request,
-    $responseFactory,
-    $streamFactory,
-    [],
-    $logger,
-    [new AuthMiddleware($responseFactory)],
+    logger: $logger,
+    middleware: [
+        ...StreamableHttpTransport::defaultMiddleware(),
+        new AuthMiddleware($responseFactory),
+    ],
 );
 ```
 
-If middleware returns a response, the transport will still ensure CORS headers are present unless you set them yourself.
+To selectively drop one default (for example DNS rebinding when running behind a proxy), filter the default list:
+
+```php
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [
+        ...array_filter(
+            StreamableHttpTransport::defaultMiddleware(),
+            fn ($m) => !$m instanceof DnsRebindingProtectionMiddleware,
+        ),
+        new AuthMiddleware($responseFactory),
+    ],
+);
+```
+
+Pass `middleware: []` to disable every default and run only your own chain:
+
+```php
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [new AuthMiddleware($responseFactory)],
+);
+```
 
 ### Architecture
 
