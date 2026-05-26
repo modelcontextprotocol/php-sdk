@@ -11,14 +11,18 @@
 
 namespace Mcp\Capability\Discovery\PropertyDescriber;
 
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
 use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * Describes Symfony UID {@see Uuid} (and subclasses like `UuidV4`, `UuidV7`)
- * as a uuid-format string.
+ * Handles Symfony UID {@see Uuid} (and subclasses like `UuidV4`, `UuidV7`):
+ * describes it as a uuid-format string, upcasts an incoming string into a
+ * {@see Uuid} instance, and renders a returned instance back to its RFC 4122
+ * string form.
  */
-final class UuidPropertyDescriber implements PropertyDescriberInterface
+final class UuidPropertyDescriber implements PropertyDescriberInterface, PropertyDenormalizerInterface, PropertyNormalizerInterface
 {
     public static function supportedClass(): string
     {
@@ -28,5 +32,22 @@ final class UuidPropertyDescriber implements PropertyDescriberInterface
     public function describe(): array
     {
         return ['type' => 'string', 'format' => 'uuid'];
+    }
+
+    public function denormalize(mixed $value, string $class): Uuid
+    {
+        if ($value instanceof Uuid) {
+            return $value;
+        }
+
+        // Uuid::fromString detects the version and returns the matching subtype.
+        return Uuid::fromString((string) $value);
+    }
+
+    public function normalize(object $value): string
+    {
+        \assert($value instanceof Uuid);
+
+        return (string) $value;
     }
 }

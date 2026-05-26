@@ -15,7 +15,10 @@ use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\DocBlockParser;
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
 use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\PropertyHandlerInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
@@ -183,9 +186,9 @@ final class Builder
     private array $loaders = [];
 
     /**
-     * @var array<int, PropertyDescriberInterface>
+     * @var array<int, PropertyHandlerInterface>
      */
-    private array $propertyDescribers = [];
+    private array $propertyHandlers = [];
 
     /**
      * Sets the server's identity. Required.
@@ -549,17 +552,22 @@ final class Builder
     }
 
     /**
-     * Registers a property describer that teaches the schema generator how to
-     * render a value-object class (e.g. DateTime, Uuid) as a targeted JSON
-     * Schema fragment instead of a generic `{type: "object"}`.
+     * Registers a property handler for a value-object class (e.g. DateTime, Uuid).
+     * Depending on the interfaces it implements, a handler teaches the SDK how to
+     * render the class in the JSON Schema ({@see PropertyDescriberInterface}),
+     * upcast incoming client input into an instance
+     * ({@see PropertyDenormalizerInterface}) and/or normalize a returned instance
+     * back to JSON ({@see PropertyNormalizerInterface}). A single class may
+     * implement any combination of them.
      *
-     * Describers are consulted in registration order; the first one whose
-     * supported class matches the parameter wins. Cannot be combined with a
-     * generator set via setSchemaGenerator().
+     * Handlers are consulted in registration order; the first one whose supported
+     * class matches the type wins. Describing cannot be combined with a generator
+     * set via setSchemaGenerator(), nor denormalization with a handler set via
+     * setReferenceHandler().
      */
-    public function addPropertyDescriber(PropertyDescriberInterface $describer): self
+    public function addPropertyDescriber(PropertyHandlerInterface $handler): self
     {
-        $this->propertyDescribers[] = $describer;
+        $this->propertyHandlers[] = $handler;
 
         return $this;
     }
@@ -617,10 +625,14 @@ final class Builder
 
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
-        $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
+
+        if ([] !== $this->propertyHandlers && null !== $this->referenceHandler) {
+            throw new InvalidArgumentException('Cannot combine addPropertyDescriber() with a handler set via setReferenceHandler(). Configure the property handlers on that handler instead.');
+        }
+        $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container, $this->propertyHandlers);
 
         $requestHandlers = array_merge($this->requestHandlers, [
-            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger, propertyHandlers: $this->propertyHandlers),
             new Handler\Request\CompletionCompleteHandler($registry, $container),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
             new Handler\Request\InitializeHandler($configuration),
@@ -663,13 +675,13 @@ final class Builder
     }
 
     /**
-     * Builds the schema generator from registered property describers, or
+     * Builds the schema generator from registered property handlers, or
      * returns the explicitly configured one. The two are mutually exclusive:
-     * describers belong on the explicit generator if one is set.
+     * handlers belong on the explicit generator if one is set.
      */
     private function resolveSchemaGenerator(LoggerInterface $logger): ?SchemaGeneratorInterface
     {
-        if ([] === $this->propertyDescribers) {
+        if ([] === $this->propertyHandlers) {
             return $this->schemaGenerator;
         }
 
@@ -677,6 +689,6 @@ final class Builder
             throw new InvalidArgumentException('Cannot combine addPropertyDescriber() with a generator set via setSchemaGenerator(). Configure the describers on that generator instead.');
         }
 
-        return new SchemaGenerator(new DocBlockParser(logger: $logger), $this->propertyDescribers);
+        return new SchemaGenerator(new DocBlockParser(logger: $logger), $this->propertyHandlers);
     }
 }

@@ -391,6 +391,54 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema);
     }
 
+    public function testScalarReturnTypeDescriberProducesNoOutputSchema(): void
+    {
+        // A uuid/date-time return is normalized to a string in the result content,
+        // but a scalar fragment is not a valid output schema (which must be an
+        // object), so none is advertised.
+        $generator = new SchemaGenerator(new DocBlockParser(), [new UuidPropertyDescriber()]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuid');
+        $this->assertNull($generator->generateOutputSchema($method));
+    }
+
+    public function testObjectReturningDescriberProducesOutputSchema(): void
+    {
+        $describer = new class implements PropertyDescriberInterface {
+            public static function supportedClass(): string
+            {
+                return \stdClass::class;
+            }
+
+            public function describe(): array
+            {
+                return ['type' => 'object', 'properties' => ['ok' => ['type' => 'boolean']]];
+            }
+        };
+
+        $generator = new SchemaGenerator(new DocBlockParser(), [$describer]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsStdClass');
+        $this->assertSame(
+            ['type' => 'object', 'properties' => ['ok' => ['type' => 'boolean']]],
+            $generator->generateOutputSchema($method),
+        );
+    }
+
+    public function testExplicitOutputSchemaWinsOverReturnTypeDescriber(): void
+    {
+        $generator = new SchemaGenerator(new DocBlockParser(), [new UuidPropertyDescriber()]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuidWithExplicitOutputSchema');
+        $this->assertSame(
+            ['type' => 'object', 'properties' => ['id' => ['type' => 'string', 'format' => 'explicit']]],
+            $generator->generateOutputSchema($method),
+        );
+    }
+
+    public function testGenerateOutputSchemaIsNullForClassReturnTypeWithoutDescriber(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuid');
+        $this->assertNull($this->schemaGenerator->generateOutputSchema($method));
+    }
+
     // ===== PROPERTY DESCRIBER INTEGRATION =====
 
     public function testFallsBackToObjectWhenNoDescriberClaimsClassType(): void

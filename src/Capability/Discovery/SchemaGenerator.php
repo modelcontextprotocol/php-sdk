@@ -60,33 +60,18 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  */
 final class SchemaGenerator implements SchemaGeneratorInterface
 {
-    /**
-     * @var list<PropertyDescriberInterface> Consulted in registration order before generic class
-     *                                       inspection; the first matching describer wins
-     */
-    private readonly array $propertyDescribers;
+    private readonly PropertyHandlerResolver $handlerResolver;
 
     /**
-     * Memoizes describer resolution per concrete class. Holds the matching
-     * describer or `false` when none matched, so repeated parameter types —
-     * and the common "no describer" case — are resolved at most once.
-     *
-     * @var array<class-string, PropertyDescriberInterface|false>
-     */
-    private array $describerCache = [];
-
-    /**
-     * @param iterable<PropertyDescriberInterface> $propertyDescribers Consulted in order before
-     *                                                                 generic class inspection; the
-     *                                                                 first matching describer wins
+     * @param iterable<PropertyHandlerInterface> $propertyHandlers Consulted in registration order;
+     *                                                             the first whose supported class
+     *                                                             matches a type wins
      */
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
-        iterable $propertyDescribers = [],
+        iterable $propertyHandlers = [],
     ) {
-        $this->propertyDescribers = \is_array($propertyDescribers)
-            ? array_values($propertyDescribers)
-            : iterator_to_array($propertyDescribers, false);
+        $this->handlerResolver = new PropertyHandlerResolver($propertyHandlers);
     }
 
     /**
@@ -133,15 +118,29 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
         }
 
-        // Only return outputSchema if explicitly provided in McpTool attribute
+        // An explicit outputSchema on the McpTool attribute always wins.
         $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
         if ($mcpToolAttrs) {
-            $mcpToolInstance = $mcpToolAttrs[0]->newInstance();
-
-            return $mcpToolInstance->outputSchema;
+            $explicit = $mcpToolAttrs[0]->newInstance()->outputSchema;
+            if (null !== $explicit) {
+                return $explicit;
+            }
         }
 
-        return null;
+        // Otherwise fall back to a describer registered for the return type.
+        $returnType = $reflection->getReturnType();
+        if (!$returnType instanceof \ReflectionNamedType || $returnType->isBuiltin()) {
+            return null;
+        }
+
+        $schema = $this->handlerResolver->resolve($returnType->getName(), PropertyDescriberInterface::class)?->describe();
+
+        // An output schema describes a tool's structuredContent, which is a JSON
+        // object. A scalar describer fragment (e.g. a uuid-format string) is valid
+        // as an input property but not as a top-level output schema — emitting it
+        // would violate the spec and Tool::fromArray. Such returns are surfaced as
+        // text content only (after normalization), with no output schema.
+        return isset($schema['type']) && 'object' === $schema['type'] ? $schema : null;
     }
 
     /**
@@ -398,35 +397,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return null;
         }
 
-        return $this->resolveDescriber($reflectionType->getName())?->describe();
-    }
-
-    /**
-     * Resolves the describer for a concrete class, matching against each
-     * describer's {@see PropertyDescriberInterface::supportedClass()} (the
-     * class itself or any subtype). Results are memoized per class.
-     *
-     * @param class-string $className
-     */
-    private function resolveDescriber(string $className): ?PropertyDescriberInterface
-    {
-        $cached = $this->describerCache[$className] ??= $this->findDescriber($className) ?? false;
-
-        return $cached ?: null;
-    }
-
-    /**
-     * @param class-string $className
-     */
-    private function findDescriber(string $className): ?PropertyDescriberInterface
-    {
-        foreach ($this->propertyDescribers as $describer) {
-            if (is_a($className, $describer::supportedClass(), true)) {
-                return $describer;
-            }
-        }
-
-        return null;
+        return $this->handlerResolver->resolve($reflectionType->getName(), PropertyDescriberInterface::class)?->describe();
     }
 
     /**

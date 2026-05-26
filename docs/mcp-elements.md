@@ -747,35 +747,47 @@ validation requirements that cannot be achieved through the priority system.
 
 ### Custom Type Describers
 
-When a tool parameter is type-hinted with a class, the generator falls back to `{type: "object"}` — which tells the
-LLM nothing about the expected shape. For value-object types (timestamps, identifiers, money, …) you can register a
-**property describer** that maps the class to a targeted JSON Schema fragment.
-
-A describer declares the class (or base class / interface) it handles and the fragment to emit:
+When a tool parameter or return value is type-hinted with a class, the generator falls back to `{type: "object"}` and
+the SDK has no idea how to turn the client's JSON into that class (or that class back into JSON). For value-object types
+(timestamps, identifiers, money, whole DTOs, …) you register a **property handler** that teaches the SDK about the type
+in up to three directions. Each direction is its own interface, so a handler opts into only what it needs; a single
+class may implement any combination:
 
 ```php
-interface PropertyDescriberInterface
-{
-    /** @return class-string The class/interface this describer handles (subtypes match too) */
-    public static function supportedClass(): string;
+use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 
-    /** @return array<string, mixed> JSON Schema fragment for the supported type */
+// All three share PropertyHandlerInterface::supportedClass(): class-string
+
+interface PropertyDescriberInterface       // type → JSON Schema (input + output schema)
+{
     public function describe(): array;
+}
+
+interface PropertyDenormalizerInterface    // client input → instance (tool arguments)
+{
+    public function denormalize(mixed $value, string $class): mixed;
+}
+
+interface PropertyNormalizerInterface      // instance → JSON (tool results)
+{
+    public function normalize(object $value): mixed;
 }
 ```
 
-A parameter is dispatched to a describer when its type is `supportedClass()` **or any subtype of it** — so a describer
-for `\DateTimeInterface` also covers `\DateTimeImmutable`, and one for `Uuid` covers `UuidV4`, `UuidV7`, etc.
+A type is dispatched to a handler when it is `supportedClass()` **or any subtype of it** — so a handler for
+`\DateTimeInterface` also covers `\DateTimeImmutable`, and one for `Uuid` covers `UuidV4`, `UuidV7`, etc. Handlers are
+consulted in **registration order**; the first whose supported class matches wins.
 
-Two describers ship with the SDK (both opt-in):
+Two handlers ship with the SDK (both opt-in), each implementing all three directions:
 
-| Describer | Handles | Emits |
-| --- | --- | --- |
-| `Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber` | any `\DateTimeInterface` | `{type: "string", format: "date-time"}` |
-| `Mcp\Capability\Discovery\PropertyDescriber\UuidPropertyDescriber` | `Symfony\Component\Uid\Uuid` (and subclasses) | `{type: "string", format: "uuid"}` |
+| Handler | Handles | Schema | Upcasts / normalizes |
+| --- | --- | --- | --- |
+| `Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber` | any `\DateTimeInterface` | `{type: "string", format: "date-time"}` | string ⇄ `\DateTime(Immutable)` (ISO-8601) |
+| `Mcp\Capability\Discovery\PropertyDescriber\UuidPropertyDescriber` | `Symfony\Component\Uid\Uuid` (and subclasses) | `{type: "string", format: "uuid"}` | string ⇄ `Uuid` (RFC 4122) |
 
-Register them — and your own — on the builder. Describers are consulted in **registration order**; the first one whose
-supported class matches the parameter wins:
+Register them — and your own — on the builder:
 
 ```php
 use Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber;
@@ -788,16 +800,33 @@ $server = Server::builder()
     ->build();
 ```
 
-Now `public function schedule(\DateTimeImmutable $until)` generates `{type: "string", format: "date-time"}` for
-`$until` instead of `{type: "object"}`. Docblock descriptions, defaults and nullability are still layered on top of the
-describer's fragment.
+With these registered, a tool like:
 
-Writing a custom describer for a domain value object:
+```php
+public function getTownShopList(Uuid $id): \DateTimeImmutable
+```
+
+generates `{type: "string", format: "uuid"}` for `$id`, upcasts the client's `"id"` string into a real `Uuid` before the
+method is called, and normalizes the returned `\DateTimeImmutable` to an ISO-8601 string in the result content. Docblock
+descriptions, defaults and nullability are still layered on top of the describer's schema fragment for input parameters.
+
+**Schema vs. value — and the object rule.** A describer fragment is used directly as a tool's `outputSchema` **only when
+it is an `object` schema**, because per the MCP spec an `outputSchema` describes the object-typed `structuredContent`.
+A scalar fragment (uuid/date-time strings) is therefore *not* advertised as an output schema; such a return is
+normalized to a string and carried in the result's text `content` instead. This is what makes the **DTO** case the
+primary use of output schemas: a handler whose `describe()` returns `{type: "object", properties: {...}}` for your DTO
+class gets that emitted as the tool's `outputSchema`, while its `normalize()` produces the matching
+`structuredContent`. Note that normalization is applied to the **top-level** returned value; values nested inside a DTO
+are the registered DTO handler's responsibility (e.g. delegated to a serializer — see below).
+
+Writing a custom handler for a domain value object — implement only the directions you need:
 
 ```php
 use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 
-final class MoneyPropertyDescriber implements PropertyDescriberInterface
+final class MoneyPropertyHandler implements PropertyDescriberInterface, PropertyDenormalizerInterface, PropertyNormalizerInterface
 {
     public static function supportedClass(): string
     {
@@ -808,14 +837,63 @@ final class MoneyPropertyDescriber implements PropertyDescriberInterface
     {
         return ['type' => 'string', 'pattern' => '^\d+(\.\d{2})? [A-Z]{3}$'];
     }
+
+    public function denormalize(mixed $value, string $class): \App\Money
+    {
+        return \App\Money::fromString((string) $value);
+    }
+
+    public function normalize(object $value): string
+    {
+        return (string) $value;
+    }
 }
 
-$builder->addPropertyDescriber(new MoneyPropertyDescriber());
+$builder->addPropertyDescriber(new MoneyPropertyHandler());
 ```
 
-To override a shipped describer, register your own for the same class **before** it — the first matching describer
-wins. Note that `addPropertyDescriber()` cannot be combined with `setSchemaGenerator()` — if you supply your own
-`SchemaGeneratorInterface`, configure the describers on that generator directly.
+#### Delegating whole DTOs to a serializer
+
+Because `describe()` may return any schema fragment and `denormalize()`/`normalize()` receive the concrete class, a
+single handler registered against a DTO base class (or marker interface) can cover **all** your DTOs by delegating to a
+serializer you already use — e.g. `symfony/serializer` — instead of the SDK reflecting your objects:
+
+```php
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\DenormalizerInterface;
+use Symfony\Component\Serializer\Normalizer\NormalizerInterface;
+
+final class SerializerDtoHandler implements PropertyDenormalizerInterface, PropertyNormalizerInterface
+{
+    public function __construct(private NormalizerInterface&DenormalizerInterface $serializer)
+    {
+    }
+
+    public static function supportedClass(): string
+    {
+        return \App\Dto\AbstractDto::class;
+    }
+
+    public function denormalize(mixed $value, string $class): object
+    {
+        return $this->serializer->denormalize($value, $class);
+    }
+
+    public function normalize(object $value): mixed
+    {
+        return $this->serializer->normalize($value);
+    }
+}
+```
+
+(For the output **schema** of such DTOs, also implement `PropertyDescriberInterface` and return the nested schema —
+assembled however you like, e.g. via `symfony/property-info` or `api-platform/json-schema`. The SDK itself does not
+reflect class properties.)
+
+To override a shipped handler, register your own for the same class **before** it — the first match wins. Note that
+`addPropertyDescriber()` cannot be combined with `setSchemaGenerator()` (configure describers on your own generator
+instead) nor with `setReferenceHandler()` (wire the handlers onto your own reference handler instead).
 
 ## Discovery vs Manual Registration
 

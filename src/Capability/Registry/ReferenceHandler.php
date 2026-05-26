@@ -11,6 +11,9 @@
 
 namespace Mcp\Capability\Registry;
 
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
+use Mcp\Capability\Discovery\PropertyHandlerInterface;
+use Mcp\Capability\Discovery\PropertyHandlerResolver;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
 use Mcp\Server\RequestContext;
@@ -22,9 +25,17 @@ use Psr\Container\ContainerInterface;
  */
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
+    private readonly PropertyHandlerResolver $handlerResolver;
+
+    /**
+     * @param iterable<PropertyHandlerInterface> $propertyHandlers Consulted to upcast class-typed
+     *                                                             arguments into instances
+     */
     public function __construct(
         private readonly ?ContainerInterface $container = null,
+        iterable $propertyHandlers = [],
     ) {
+        $this->handlerResolver = new PropertyHandlerResolver($propertyHandlers);
     }
 
     /**
@@ -196,6 +207,34 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 throw new InvalidArgumentException("Invalid value '{$argument}' for unit enum {$typeName}. Expected one of: ".implode(', ', $validNames).'.');
             }
             throw new InvalidArgumentException("Invalid value type '{$argument}' for unit enum {$typeName}. Expected a string matching a case name.");
+        }
+
+        if (!$type->isBuiltin()) {
+            if ($argument instanceof $typeName) {
+                return $argument;
+            }
+
+            $denormalizer = $this->handlerResolver->resolve($typeName, PropertyDenormalizerInterface::class);
+            if (null === $denormalizer) {
+                return $argument;
+            }
+
+            try {
+                $denormalized = $denormalizer->denormalize($argument, $typeName);
+            } catch (InvalidArgumentException $e) {
+                throw $e;
+            } catch (\Throwable $e) {
+                throw new InvalidArgumentException(\sprintf('Value could not be denormalized into `%s`: %s', $typeName, $e->getMessage()), 0, $e);
+            }
+
+            // Guard against a denormalizer that produces the wrong concrete type
+            // (e.g. a UuidV7 for a `UuidV4` parameter) so it surfaces as invalid
+            // input rather than a TypeError at call time reported as an internal error.
+            if (!$denormalized instanceof $typeName) {
+                throw new InvalidArgumentException(\sprintf('Denormalized value for `%s` is not an instance of that type.', $typeName));
+            }
+
+            return $denormalized;
         }
 
         try {

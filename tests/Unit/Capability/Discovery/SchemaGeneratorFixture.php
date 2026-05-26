@@ -485,4 +485,27 @@ class SchemaGeneratorFixture
     {
         return ['message' => 'result'];
     }
+
+    public function returnsUuid(): Uuid
+    {
+        return Uuid::v4();
+    }
+
+    public function returnsStdClass(): \stdClass
+    {
+        return new \stdClass();
+    }
+
+    #[McpTool(
+        outputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'id' => ['type' => 'string', 'format' => 'explicit'],
+            ],
+        ]
+    )]
+    public function returnsUuidWithExplicitOutputSchema(): Uuid
+    {
+        return Uuid::v4();
+    }
 }

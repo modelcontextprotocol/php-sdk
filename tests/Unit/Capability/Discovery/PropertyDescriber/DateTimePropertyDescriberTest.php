@@ -35,4 +35,33 @@ final class DateTimePropertyDescriberTest extends TestCase
             $this->describer->describe(),
         );
     }
+
+    public function testDenormalizesStringIntoDateTimeImmutableByDefault(): void
+    {
+        $date = $this->describer->denormalize('2026-05-26T10:00:00+00:00', \DateTimeInterface::class);
+
+        $this->assertInstanceOf(\DateTimeImmutable::class, $date);
+        $this->assertSame('2026-05-26T10:00:00+00:00', $date->format(\DateTimeInterface::ATOM));
+    }
+
+    public function testDenormalizesIntoConcreteMutableDateTimeWhenTargeted(): void
+    {
+        $date = $this->describer->denormalize('2026-05-26T10:00:00+00:00', \DateTime::class);
+
+        $this->assertInstanceOf(\DateTime::class, $date);
+    }
+
+    public function testDenormalizePassesThroughExistingInstance(): void
+    {
+        $date = new \DateTimeImmutable('2026-05-26T10:00:00+00:00');
+
+        $this->assertSame($date, $this->describer->denormalize($date, \DateTimeInterface::class));
+    }
+
+    public function testNormalizesInstanceToIso8601String(): void
+    {
+        $date = new \DateTimeImmutable('2026-05-26T10:00:00+00:00');
+
+        $this->assertSame('2026-05-26T10:00:00+00:00', $this->describer->normalize($date));
+    }
 }

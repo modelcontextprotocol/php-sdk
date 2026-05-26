@@ -11,13 +11,17 @@
 
 namespace Mcp\Capability\Discovery\PropertyDescriber;
 
+use Mcp\Capability\Discovery\PropertyDenormalizerInterface;
 use Mcp\Capability\Discovery\PropertyDescriberInterface;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 
 /**
- * Describes any {@see \DateTimeInterface} implementation as an ISO-8601
- * date-time string.
+ * Handles any {@see \DateTimeInterface} implementation: describes it as an
+ * ISO-8601 date-time string, parses an incoming string into a date-time
+ * instance (honoring a concrete `\DateTime` vs `\DateTimeImmutable` target),
+ * and renders a returned instance back to an ISO-8601 string.
  */
-final class DateTimePropertyDescriber implements PropertyDescriberInterface
+final class DateTimePropertyDescriber implements PropertyDescriberInterface, PropertyDenormalizerInterface, PropertyNormalizerInterface
 {
     public static function supportedClass(): string
     {
@@ -27,5 +31,23 @@ final class DateTimePropertyDescriber implements PropertyDescriberInterface
     public function describe(): array
     {
         return ['type' => 'string', 'format' => 'date-time'];
+    }
+
+    public function denormalize(mixed $value, string $class): \DateTimeInterface
+    {
+        if ($value instanceof \DateTimeInterface) {
+            return $value;
+        }
+
+        return \DateTime::class === $class
+            ? new \DateTime((string) $value)
+            : new \DateTimeImmutable((string) $value);
+    }
+
+    public function normalize(object $value): string
+    {
+        \assert($value instanceof \DateTimeInterface);
+
+        return $value->format(\DateTimeInterface::ATOM);
     }
 }
