@@ -619,4 +619,5 @@ $server = Server::builder()
 | `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
 | `addPrompt()` | handler, name?, description? | Register prompt |
+| `addPropertyDescriber()` | handler | Register a [property handler](mcp-elements.md#custom-type-describers) (schema / input upcasting / output normalization) for a class-typed value object |
 | `build()` | - | Create the server instance |

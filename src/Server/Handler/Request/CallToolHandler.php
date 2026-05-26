@@ -11,11 +11,15 @@
 
 namespace Mcp\Server\Handler\Request;
 
+use Mcp\Capability\Discovery\PropertyHandlerInterface;
+use Mcp\Capability\Discovery\PropertyHandlerResolver;
+use Mcp\Capability\Discovery\PropertyNormalizerInterface;
 use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -35,14 +39,21 @@ use Psr\Log\NullLogger;
 final class CallToolHandler implements RequestHandlerInterface
 {
     private SchemaValidator $schemaValidator;
+    private PropertyHandlerResolver $handlerResolver;
 
+    /**
+     * @param iterable<PropertyHandlerInterface> $propertyHandlers Consulted to normalize a class-typed
+     *                                                             tool result before it is encoded
+     */
     public function __construct(
         private readonly RegistryInterface $registry,
         private readonly ReferenceHandlerInterface $referenceHandler,
         private readonly LoggerInterface $logger = new NullLogger(),
         ?SchemaValidator $schemaValidator = null,
+        iterable $propertyHandlers = [],
     ) {
         $this->schemaValidator = $schemaValidator ?? new SchemaValidator($logger);
+        $this->handlerResolver = new PropertyHandlerResolver($propertyHandlers);
     }
 
     public function supports(Request $request): bool
@@ -94,6 +105,13 @@ final class CallToolHandler implements RequestHandlerInterface
 
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
+
+            if (\is_object($result) && !$result instanceof CallToolResult && !$result instanceof Content) {
+                $normalizer = $this->handlerResolver->resolve($result::class, PropertyNormalizerInterface::class);
+                if (null !== $normalizer) {
+                    $result = $normalizer->normalize($result);
+                }
+            }
 
             $structuredContent = null;
             if (!$result instanceof CallToolResult) {

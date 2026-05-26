@@ -60,9 +60,18 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  */
 final class SchemaGenerator implements SchemaGeneratorInterface
 {
+    private readonly PropertyHandlerResolver $handlerResolver;
+
+    /**
+     * @param iterable<PropertyHandlerInterface> $propertyHandlers Consulted in registration order;
+     *                                                             the first whose supported class
+     *                                                             matches a type wins
+     */
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
+        iterable $propertyHandlers = [],
     ) {
+        $this->handlerResolver = new PropertyHandlerResolver($propertyHandlers);
     }
 
     /**
@@ -109,15 +118,29 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             throw new BadMethodCallException(\sprintf('Schema generation from %s is not supported. Use ReflectionMethod or ReflectionFunction instead.', $reflection::class));
         }
 
-        // Only return outputSchema if explicitly provided in McpTool attribute
+        // An explicit outputSchema on the McpTool attribute always wins.
         $mcpToolAttrs = $reflection->getAttributes(McpTool::class, \ReflectionAttribute::IS_INSTANCEOF);
         if ($mcpToolAttrs) {
-            $mcpToolInstance = $mcpToolAttrs[0]->newInstance();
-
-            return $mcpToolInstance->outputSchema;
+            $explicit = $mcpToolAttrs[0]->newInstance()->outputSchema;
+            if (null !== $explicit) {
+                return $explicit;
+            }
         }
 
-        return null;
+        // Otherwise fall back to a describer registered for the return type.
+        $returnType = $reflection->getReturnType();
+        if (!$returnType instanceof \ReflectionNamedType || $returnType->isBuiltin()) {
+            return null;
+        }
+
+        $schema = $this->handlerResolver->resolve($returnType->getName(), PropertyDescriberInterface::class)?->describe();
+
+        // An output schema describes a tool's structuredContent, which is a JSON
+        // object. A scalar describer fragment (e.g. a uuid-format string) is valid
+        // as an input property but not as a top-level output schema — emitting it
+        // would violate the spec and Tool::fromArray. Such returns are surfaced as
+        // text content only (after normalization), with no output schema.
+        return isset($schema['type']) && 'object' === $schema['type'] ? $schema : null;
     }
 
     /**
@@ -253,12 +276,21 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      */
     private function buildInferredParameterSchema(array $paramInfo): array
     {
-        $paramSchema = [];
-
         // Variadic parameters are handled separately
         if ($paramInfo['is_variadic']) {
             return [];
         }
+
+        // Consult property describers for class-typed parameters first; the
+        // first registered describer whose supported class matches wins. This
+        // lets callers teach the generator about value-object types like
+        // DateTime, Uuid, Money, etc. without subclassing the generator.
+        $describedSchema = $this->describeClassType($paramInfo);
+        if (null !== $describedSchema) {
+            return $this->applyParameterMetadata($describedSchema, $paramInfo);
+        }
+
+        $paramSchema = [];
 
         // Infer JSON Schema types
         $jsonTypes = $this->inferParameterTypes($paramInfo);
@@ -347,6 +379,56 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         return $jsonTypes;
+    }
+
+    /**
+     * Describes the parameter when its PHP type is a concrete class claimed by
+     * a registered describer, or null otherwise. Union and intersection types
+     * are not dispatched — describers see only single named, non-builtin types.
+     *
+     * @param ParameterInfo $paramInfo
+     *
+     * @return array<string, mixed>|null
+     */
+    private function describeClassType(array $paramInfo): ?array
+    {
+        $reflectionType = $paramInfo['reflection_type_object'];
+        if (!$reflectionType instanceof \ReflectionNamedType || $reflectionType->isBuiltin()) {
+            return null;
+        }
+
+        return $this->handlerResolver->resolve($reflectionType->getName(), PropertyDescriberInterface::class)?->describe();
+    }
+
+    /**
+     * Layers parameter-level metadata (description, default, nullable) onto
+     * a describer-provided schema fragment without overwriting fields the
+     * describer already set.
+     *
+     * @param array<string, mixed> $schema
+     * @param ParameterInfo        $paramInfo
+     *
+     * @return array<string, mixed>
+     */
+    private function applyParameterMetadata(array $schema, array $paramInfo): array
+    {
+        if ($paramInfo['description'] && !isset($schema['description'])) {
+            $schema['description'] = $paramInfo['description'];
+        }
+
+        if ($paramInfo['has_default'] && !isset($schema['default'])) {
+            $schema['default'] = $paramInfo['default_value'];
+        }
+
+        if ($paramInfo['allows_null'] && isset($schema['type'])) {
+            $types = \is_array($schema['type']) ? $schema['type'] : [$schema['type']];
+            if (!\in_array('null', $types, true)) {
+                array_unshift($types, 'null');
+            }
+            $schema['type'] = 1 === \count($types) ? $types[0] : $types;
+        }
+
+        return $schema;
     }
 
     /**

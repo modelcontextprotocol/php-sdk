@@ -12,6 +12,9 @@
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Discovery\DocBlockParser;
+use Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber;
+use Mcp\Capability\Discovery\PropertyDescriber\UuidPropertyDescriber;
+use Mcp\Capability\Discovery\PropertyDescriberInterface;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -386,5 +389,169 @@ final class SchemaGeneratorTest extends TestCase
             'type' => 'object',
             'additionalProperties' => true,
         ], $schema);
+    }
+
+    public function testScalarReturnTypeDescriberProducesNoOutputSchema(): void
+    {
+        // A uuid/date-time return is normalized to a string in the result content,
+        // but a scalar fragment is not a valid output schema (which must be an
+        // object), so none is advertised.
+        $generator = new SchemaGenerator(new DocBlockParser(), [new UuidPropertyDescriber()]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuid');
+        $this->assertNull($generator->generateOutputSchema($method));
+    }
+
+    public function testObjectReturningDescriberProducesOutputSchema(): void
+    {
+        $describer = new class implements PropertyDescriberInterface {
+            public static function supportedClass(): string
+            {
+                return \stdClass::class;
+            }
+
+            public function describe(): array
+            {
+                return ['type' => 'object', 'properties' => ['ok' => ['type' => 'boolean']]];
+            }
+        };
+
+        $generator = new SchemaGenerator(new DocBlockParser(), [$describer]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsStdClass');
+        $this->assertSame(
+            ['type' => 'object', 'properties' => ['ok' => ['type' => 'boolean']]],
+            $generator->generateOutputSchema($method),
+        );
+    }
+
+    public function testExplicitOutputSchemaWinsOverReturnTypeDescriber(): void
+    {
+        $generator = new SchemaGenerator(new DocBlockParser(), [new UuidPropertyDescriber()]);
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuidWithExplicitOutputSchema');
+        $this->assertSame(
+            ['type' => 'object', 'properties' => ['id' => ['type' => 'string', 'format' => 'explicit']]],
+            $generator->generateOutputSchema($method),
+        );
+    }
+
+    public function testGenerateOutputSchemaIsNullForClassReturnTypeWithoutDescriber(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'returnsUuid');
+        $this->assertNull($this->schemaGenerator->generateOutputSchema($method));
+    }
+
+    // ===== PROPERTY DESCRIBER INTEGRATION =====
+
+    public function testFallsBackToObjectWhenNoDescriberClaimsClassType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'dateTimeParam');
+        $schema = $this->schemaGenerator->generate($method);
+        $this->assertSame(['type' => 'object'], $schema['properties']['createdAt']);
+    }
+
+    public function testDescriberOverridesGenericObjectInferenceForKnownClass(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new DateTimePropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'dateTimeParam');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => 'string', 'format' => 'date-time'],
+            $schema['properties']['createdAt'],
+        );
+    }
+
+    public function testDescribedSchemaLayersDocBlockDescription(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new DateTimePropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'dateTimeWithDescription');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => 'string', 'format' => 'date-time', 'description' => 'The cutoff timestamp'],
+            $schema['properties']['until'],
+        );
+    }
+
+    public function testDescribedSchemaPicksUpNullableAndDefault(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new DateTimePropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableDateTimeParam');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => ['null', 'string'], 'format' => 'date-time', 'default' => null],
+            $schema['properties']['finishedAt'],
+        );
+    }
+
+    public function testFirstMatchingDescriberWins(): void
+    {
+        $loudDescriber = new class implements PropertyDescriberInterface {
+            public static function supportedClass(): string
+            {
+                return \DateTimeInterface::class;
+            }
+
+            public function describe(): array
+            {
+                return ['type' => 'string', 'format' => 'custom-loud'];
+            }
+        };
+
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [$loudDescriber, new DateTimePropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'dateTimeParam');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => 'string', 'format' => 'custom-loud'],
+            $schema['properties']['createdAt'],
+        );
+    }
+
+    public function testUuidDescriberClaimsUuidClass(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new UuidPropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'uuidParam');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => 'string', 'format' => 'uuid'],
+            $schema['properties']['bookingId'],
+        );
+    }
+
+    public function testDescribersDoNotInterceptUnrelatedClassTypes(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new DateTimePropertyDescriber(), new UuidPropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'unrelatedObjectParam');
+        $schema = $generator->generate($method);
+        $this->assertSame(['type' => 'object'], $schema['properties']['config']);
+    }
+
+    public function testParameterLevelSchemaAttributeOverridesDescribedSchema(): void
+    {
+        $generator = new SchemaGenerator(
+            new DocBlockParser(),
+            [new DateTimePropertyDescriber()],
+        );
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'dateTimeWithSchemaAttributeOverride');
+        $schema = $generator->generate($method);
+        $this->assertSame(
+            ['type' => 'string', 'format' => 'date-time', 'description' => 'explicit attribute description'],
+            $schema['properties']['deadline'],
+        );
     }
 }

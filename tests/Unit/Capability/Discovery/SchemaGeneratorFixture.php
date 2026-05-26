@@ -16,6 +16,7 @@ use Mcp\Capability\Attribute\Schema;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedStringEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\UnitEnum;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Comprehensive fixture for testing SchemaGenerator with various scenarios.
@@ -438,6 +439,37 @@ class SchemaGeneratorFixture
     {
     }
 
+    // ===== PROPERTY DESCRIBER FIXTURES =====
+
+    public function dateTimeParam(\DateTimeImmutable $createdAt): void
+    {
+    }
+
+    /**
+     * @param \DateTimeInterface $until The cutoff timestamp
+     */
+    public function dateTimeWithDescription(\DateTimeInterface $until): void
+    {
+    }
+
+    public function nullableDateTimeParam(?\DateTimeImmutable $finishedAt = null): void
+    {
+    }
+
+    public function uuidParam(Uuid $bookingId): void
+    {
+    }
+
+    public function unrelatedObjectParam(\stdClass $config): void
+    {
+    }
+
+    public function dateTimeWithSchemaAttributeOverride(
+        #[Schema(description: 'explicit attribute description')]
+        \DateTimeImmutable $deadline,
+    ): void {
+    }
+
     // ===== OUTPUT SCHEMA FIXTURES =====
     #[McpTool(
         outputSchema: [
@@ -452,5 +484,28 @@ class SchemaGeneratorFixture
     public function returnWithExplicitOutputSchema(): array
     {
         return ['message' => 'result'];
+    }
+
+    public function returnsUuid(): Uuid
+    {
+        return Uuid::v4();
+    }
+
+    public function returnsStdClass(): \stdClass
+    {
+        return new \stdClass();
+    }
+
+    #[McpTool(
+        outputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'id' => ['type' => 'string', 'format' => 'explicit'],
+            ],
+        ]
+    )]
+    public function returnsUuidWithExplicitOutputSchema(): Uuid
+    {
+        return Uuid::v4();
     }
 }

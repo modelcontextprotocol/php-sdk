@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
+use Mcp\Capability\Discovery\PropertyDescriber\DateTimePropertyDescriber;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
@@ -512,6 +513,41 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+    }
+
+    public function testHandleNormalizesClassTypedResultBeforeFormatting(): void
+    {
+        $request = $this->createCallToolRequest('when_tool', []);
+        $schema = ['type' => 'object', 'properties' => ['example' => ['type' => 'string']], 'required' => []];
+        $tool = new Tool('when_tool', null, $schema, null, null);
+        $toolReference = new ToolReference($tool, static fn (): \DateTimeImmutable => new \DateTimeImmutable('2026-05-26T10:00:00+00:00'));
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('when_tool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->willReturn(new \DateTimeImmutable('2026-05-26T10:00:00+00:00'));
+
+        $handler = new CallToolHandler(
+            $this->registry,
+            $this->referenceHandler,
+            $this->logger,
+            propertyHandlers: [new DateTimePropertyDescriber()],
+        );
+
+        $response = $handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $result = $response->result;
+        $this->assertInstanceOf(CallToolResult::class, $result);
+        $this->assertCount(1, $result->content);
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('2026-05-26T10:00:00+00:00', $result->content[0]->text);
     }
 
     /**

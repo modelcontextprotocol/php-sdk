@@ -115,6 +115,7 @@ final class ArrayLoader implements LoaderInterface
                 }
 
                 $inputSchema = $data['inputSchema'] ?? $schemaGenerator->generate($reflection);
+                $outputSchema = $data['outputSchema'] ?? $schemaGenerator->generateOutputSchema($reflection);
 
                 $tool = new Tool(
                     name: $name,
@@ -124,7 +125,7 @@ final class ArrayLoader implements LoaderInterface
                     annotations: $data['annotations'] ?? null,
                     icons: $data['icons'] ?? null,
                     meta: $data['meta'] ?? null,
-                    outputSchema: $data['outputSchema'] ?? null,
+                    outputSchema: $outputSchema,
                 );
                 $registry->registerTool($tool, $data['handler']);
 
