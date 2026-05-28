@@ -35,10 +35,10 @@ use Mcp\Server\Handler\ToolHandlerInterface;
 final class ExplicitElementLoader implements LoaderInterface
 {
     /**
-     * @param list<array{definition: Tool, handler: ToolHandlerInterface}>                                                                                        $tools
-     * @param list<array{definition: ResourceDefinition, handler: ResourceHandlerInterface}>                                                                      $resources
-     * @param list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface, completionProviders: array<string, ProviderInterface>}>         $resourceTemplates
-     * @param list<array{definition: Prompt, handler: PromptHandlerInterface, completionProviders: array<string, ProviderInterface>}>                             $prompts
+     * @param list<array{definition: Tool, handler: ToolHandlerInterface}>                                                                                $tools
+     * @param list<array{definition: ResourceDefinition, handler: ResourceHandlerInterface}>                                                              $resources
+     * @param list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface, completionProviders: array<string, ProviderInterface>}> $resourceTemplates
+     * @param list<array{definition: Prompt, handler: PromptHandlerInterface, completionProviders: array<string, ProviderInterface>}>                     $prompts
      */
     public function __construct(
         private readonly array $tools = [],
