@@ -13,6 +13,7 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
@@ -32,6 +33,15 @@ final class ReferenceHandler implements ReferenceHandlerInterface
      */
     public function handle(ElementReference $reference, array $arguments): mixed
     {
+        // Closures bound to this class as their scope consume the raw argument bag
+        // directly. Used by ExplicitElementLoader so reflection + name-based parameter
+        // mapping is bypassed for explicitly registered handler interfaces.
+        if ($reference->handler instanceof \Closure
+            && self::class === (new \ReflectionFunction($reference->handler))->getClosureScopeClass()?->getName()
+        ) {
+            return ($reference->handler)($arguments);
+        }
+
         $session = $arguments['_session'];
 
         if (\is_string($reference->handler)) {
@@ -100,6 +110,11 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
                 if (RequestContext::class === $typeName && isset($arguments['_session'], $arguments['_request'])) {
                     $finalArgs[$paramPosition] = new RequestContext($arguments['_session'], $arguments['_request']);
+                    continue;
+                }
+
+                if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
+                    $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
                     continue;
                 }
             }

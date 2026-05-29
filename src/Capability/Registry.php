@@ -26,7 +26,7 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Page;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -83,7 +83,7 @@ final class Registry implements RegistryInterface
         return $reference;
     }
 
-    public function registerResource(Resource $resource, callable|array|string $handler): ResourceReference
+    public function registerResource(ResourceDefinition $resource, callable|array|string $handler): ResourceReference
     {
         $reference = new ResourceReference($resource, $handler);
         $this->resources[$resource->uri] = $reference;

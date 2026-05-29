@@ -21,7 +21,7 @@ use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\Handler\Request\ReadResourceHandler;
 use Mcp\Server\Session\SessionInterface;
@@ -66,7 +66,7 @@ class ReadResourceHandlerTest extends TestCase
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
         $this->registry
@@ -106,7 +106,7 @@ class ReadResourceHandlerTest extends TestCase
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'image/png'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'image/png'), []])
             ->getMock();
 
         $this->registry
@@ -150,7 +150,7 @@ class ReadResourceHandlerTest extends TestCase
         $expectedResult = new ReadResourceResult([$textContent, $blobContent]);
 
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'application/octet-stream'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'application/octet-stream'), []])
             ->getMock();
 
         $this->registry
@@ -273,7 +273,7 @@ class ReadResourceHandlerTest extends TestCase
             $expectedResult = new ReadResourceResult([$expectedContent]);
 
             $resourceReference = $this->getMockBuilder(ResourceReference::class)
-                ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+                ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'text/plain'), []])
                 ->getMock();
 
             $this->registry
@@ -318,7 +318,7 @@ class ReadResourceHandlerTest extends TestCase
         $expectedResult = new ReadResourceResult([$expectedContent]);
 
         $resourceReference = $this->getMockBuilder(ResourceReference::class)
-            ->setConstructorArgs([new Resource($uri, 'test', mimeType: 'text/plain'), []])
+            ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: 'text/plain'), []])
             ->getMock();
 
         $this->registry
@@ -380,7 +380,7 @@ class ReadResourceHandlerTest extends TestCase
             $expectedResult = new ReadResourceResult([$expectedContent]);
 
             $resourceReference = $this->getMockBuilder(ResourceReference::class)
-                ->setConstructorArgs([new Resource($uri, 'test', mimeType: $mimeType), []])
+                ->setConstructorArgs([new ResourceDefinition($uri, 'test', mimeType: $mimeType), []])
                 ->getMock();
 
             $this->registry

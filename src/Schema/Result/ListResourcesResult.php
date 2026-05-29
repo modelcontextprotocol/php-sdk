@@ -14,20 +14,20 @@ namespace Mcp\Schema\Result;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
-use Mcp\Schema\Resource as ResourceSchema;
+use Mcp\Schema\ResourceDefinition;
 
 /**
  * The server's response to a resources/list request from the client.
  *
- * @phpstan-import-type ResourceData from ResourceSchema
+ * @phpstan-import-type ResourceDefinitionData from ResourceDefinition
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class ListResourcesResult implements ResultInterface
 {
     /**
-     * @param array<ResourceSchema> $resources  the list of resource definitions
-     * @param string|null           $nextCursor An opaque token representing the pagination position after the last returned result.
+     * @param array<ResourceDefinition> $resources  the list of resource definitions
+     * @param string|null               $nextCursor An opaque token representing the pagination position after the last returned result.
      *
      * If present, there may be more results available.
      */
@@ -39,7 +39,7 @@ class ListResourcesResult implements ResultInterface
 
     /**
      * @param array{
-     *     resources: array<ResourceData>,
+     *     resources: array<ResourceDefinitionData>,
      *     nextCursor?: string,
      * } $data
      */
@@ -50,14 +50,14 @@ class ListResourcesResult implements ResultInterface
         }
 
         return new self(
-            array_map(static fn (array $resource) => ResourceSchema::fromArray($resource), $data['resources']),
+            array_map(static fn (array $resource) => ResourceDefinition::fromArray($resource), $data['resources']),
             $data['nextCursor'] ?? null
         );
     }
 
     /**
      * @return array{
-     *     resources: array<ResourceSchema>,
+     *     resources: array<ResourceDefinition>,
      *     nextCursor?: string,
      * }
      */

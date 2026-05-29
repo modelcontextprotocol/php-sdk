@@ -12,10 +12,10 @@
 namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 
 use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\Loader\ArrayLoader;
+use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
 use PHPUnit\Framework\TestCase;
 
-class ArrayLoaderToolTitleTest extends TestCase
+class ReflectedElementLoaderToolTitleTest extends TestCase
 {
     public function testLoadPropagatesToolTitleToRegisteredTool(): void
     {
@@ -37,7 +37,7 @@ class ArrayLoaderToolTitleTest extends TestCase
             ],
         ];
 
-        $loader = new ArrayLoader($tools);
+        $loader = new ReflectedElementLoader($tools);
         $registry = new Registry();
 
         $loader->load($registry);

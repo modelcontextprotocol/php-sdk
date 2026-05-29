@@ -21,7 +21,7 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Page;
 use Mcp\Schema\Prompt;
-use Mcp\Schema\Resource;
+use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 
@@ -47,7 +47,7 @@ interface RegistryInterface
      *
      * @param Handler $handler
      */
-    public function registerResource(Resource $resource, callable|array|string $handler): ResourceReference;
+    public function registerResource(ResourceDefinition $resource, callable|array|string $handler): ResourceReference;
 
     /**
      * Registers a resource template with its handler and completion providers.

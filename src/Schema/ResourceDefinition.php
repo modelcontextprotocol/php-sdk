@@ -19,7 +19,7 @@ use Mcp\Exception\InvalidArgumentException;
  * @phpstan-import-type AnnotationsData from Annotations
  * @phpstan-import-type IconData from Icon
  *
- * @phpstan-type ResourceData array{
+ * @phpstan-type ResourceDefinitionData array{
  *     uri: string,
  *     name: string,
  *     title?: string,
@@ -33,7 +33,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class Resource implements \JsonSerializable
+class ResourceDefinition implements \JsonSerializable
 {
     /**
      * Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.
@@ -77,19 +77,19 @@ class Resource implements \JsonSerializable
     }
 
     /**
-     * @param ResourceData $data
+     * @param ResourceDefinitionData $data
      */
     public static function fromArray(array $data): self
     {
         if (empty($data['uri']) || !\is_string($data['uri'])) {
-            throw new InvalidArgumentException('Invalid or missing "uri" in Resource data.');
+            throw new InvalidArgumentException('Invalid or missing "uri" in ResourceDefinition data.');
         }
         if (empty($data['name']) || !\is_string($data['name'])) {
-            throw new InvalidArgumentException('Invalid or missing "name" in Resource data.');
+            throw new InvalidArgumentException('Invalid or missing "name" in ResourceDefinition data.');
         }
 
         if (!empty($data['_meta']) && !\is_array($data['_meta'])) {
-            throw new InvalidArgumentException('Invalid "_meta" in Resource data.');
+            throw new InvalidArgumentException('Invalid "_meta" in ResourceDefinition data.');
         }
 
         return new self(

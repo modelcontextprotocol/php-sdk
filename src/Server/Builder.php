@@ -11,6 +11,7 @@
 
 namespace Mcp\Server;
 
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
@@ -18,10 +19,11 @@ use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\Loader\ArrayLoader;
 use Mcp\Capability\Registry\Loader\ChainLoader;
 use Mcp\Capability\Registry\Loader\DiscoveryLoader;
+use Mcp\Capability\Registry\Loader\ExplicitElementLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
@@ -31,11 +33,20 @@ use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
+use Mcp\Schema\Prompt;
+use Mcp\Schema\ResourceDefinition;
+use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Handler\ElementHandlerInterface;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
+use Mcp\Server\Handler\PromptHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Handler\ResourceHandlerInterface;
+use Mcp\Server\Handler\ResourceTemplateHandlerInterface;
+use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -107,6 +118,7 @@ final class Builder
      *     title: ?string,
      *     description: ?string,
      *     annotations: ?ToolAnnotations,
+     *     inputSchema: ?array<string, mixed>,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>,
      *     outputSchema: ?array<string, mixed>,
@@ -148,12 +160,33 @@ final class Builder
      * @var array{
      *     handler: Handler,
      *     name: ?string,
+     *     title: ?string,
      *     description: ?string,
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>
      * }[]
      */
     private array $prompts = [];
+
+    /**
+     * @var list<array{definition: Tool, handler: ToolHandlerInterface}>
+     */
+    private array $explicitTools = [];
+
+    /**
+     * @var list<array{definition: ResourceDefinition, handler: ResourceHandlerInterface}>
+     */
+    private array $explicitResources = [];
+
+    /**
+     * @var list<array{definition: ResourceTemplate, handler: ResourceTemplateHandlerInterface, completionProviders: array<string, ProviderInterface>}>
+     */
+    private array $explicitResourceTemplates = [];
+
+    /**
+     * @var list<array{definition: Prompt, handler: PromptHandlerInterface, completionProviders: array<string, ProviderInterface>}>
+     */
+    private array $explicitPrompts = [];
 
     private ?string $discoveryBasePath = null;
 
@@ -519,6 +552,41 @@ final class Builder
     }
 
     /**
+     * Registers an element using an explicit schema value object paired with a handler interface.
+     *
+     * Use this entry point when an element's name, schema, or description is only known at
+     * runtime (e.g. config-driven integrations). For statically-known elements, prefer
+     * `addTool/addResource/addResourceTemplate/addPrompt`, which can derive metadata from
+     * reflection of the handler.
+     *
+     * Mismatched pairings (e.g. a `Tool` with a `PromptHandlerInterface`) raise
+     * `Mcp\Exception\InvalidArgumentException`. Completion providers are only supported on
+     * `Prompt` and `ResourceTemplate` definitions; supplying them with `Tool` or
+     * `ResourceDefinition` raises the same exception.
+     *
+     * @param array<string, ProviderInterface> $completionProviders Keyed by argument/variable name
+     */
+    public function add(
+        Tool|ResourceDefinition|ResourceTemplate|Prompt $definition,
+        ElementHandlerInterface $handler,
+        array $completionProviders = [],
+    ): self {
+        if ([] !== $completionProviders && ($definition instanceof Tool || $definition instanceof ResourceDefinition)) {
+            throw new InvalidArgumentException(\sprintf('Completion providers are only supported on Prompt and ResourceTemplate definitions, got %s.', $definition::class));
+        }
+
+        match (true) {
+            $definition instanceof Tool && $handler instanceof ToolHandlerInterface => $this->explicitTools[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof ResourceDefinition && $handler instanceof ResourceHandlerInterface => $this->explicitResources[] = ['definition' => $definition, 'handler' => $handler],
+            $definition instanceof ResourceTemplate && $handler instanceof ResourceTemplateHandlerInterface => $this->explicitResourceTemplates[] = ['definition' => $definition, 'handler' => $handler, 'completionProviders' => $completionProviders],
+            $definition instanceof Prompt && $handler instanceof PromptHandlerInterface => $this->explicitPrompts[] = ['definition' => $definition, 'handler' => $handler, 'completionProviders' => $completionProviders],
+            default => throw new InvalidArgumentException(\sprintf('%s definition cannot be paired with %s; expected the matching handler interface.', $definition::class, $handler::class)),
+        };
+
+        return $this;
+    }
+
+    /**
      * Register a single custom loader.
      */
     public function addLoader(LoaderInterface $loader): self
@@ -556,11 +624,17 @@ final class Builder
             $this->gcDivisor,
         );
 
-        // ArrayLoader runs before DiscoveryLoader so manual entries are seen first; DiscoveryLoader's
-        // identity check then preserves them against same-name discovered entries.
+        // ExplicitElementLoader and ReflectedElementLoader run before DiscoveryLoader so manual entries are seen first;
+        // DiscoveryLoader's identity check then preserves them against same-name discovered entries.
         $loaders = [
             ...$this->loaders,
-            new ArrayLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
+            new ExplicitElementLoader(
+                $this->explicitTools,
+                $this->explicitResources,
+                $this->explicitResourceTemplates,
+                $this->explicitPrompts,
+            ),
+            new ReflectedElementLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
         ];
 
         if (null !== $this->discoveryBasePath) {

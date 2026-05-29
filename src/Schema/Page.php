@@ -12,14 +12,14 @@
 namespace Mcp\Schema;
 
 /**
- * @phpstan-type PageItem Tool|Prompt|ResourceTemplate|Resource
+ * @phpstan-type PageItem Tool|Prompt|ResourceTemplate|ResourceDefinition
  *
  * @extends \ArrayObject<int|string, PageItem>
  */
 final class Page extends \ArrayObject
 {
     /**
-     * @param array<int|string, PageItem> $references Items can be Tool, Prompt, ResourceTemplate, or Resource
+     * @param array<int|string, PageItem> $references Items can be Tool, Prompt, ResourceTemplate, or ResourceDefinition
      */
     public function __construct(
         public readonly array $references,
