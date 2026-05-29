@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Weather Dashboard</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg: linear-gradient(160deg, #5b8def 0%, #93c2ff 100%);
+            --card-bg: rgba(255, 255, 255, 0.18);
+            --card-border: rgba(255, 255, 255, 0.32);
+            --text: #ffffff;
+            --text-muted: rgba(255, 255, 255, 0.78);
+        }
+        body[data-condition="sunny"]        { --bg: linear-gradient(160deg, #f9a826 0%, #ffd166 100%); }
+        body[data-condition="partly-cloudy"]{ --bg: linear-gradient(160deg, #6da6e8 0%, #b8d8ff 100%); }
+        body[data-condition="cloudy"]       { --bg: linear-gradient(160deg, #6c7a89 0%, #aab7b8 100%); }
+        body[data-condition="rainy"]        { --bg: linear-gradient(160deg, #3a506b 0%, #5c7c9e 100%); }
+        body[data-condition="clear"]        { --bg: linear-gradient(160deg, #5b8def 0%, #93c2ff 100%); }
+        html, body { background: var(--bg); transition: background 0.6s ease; }
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            padding: 1.5rem;
+        }
+        .form {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+        }
+        input {
+            flex: 1;
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.75rem 1rem;
+            font-size: 1rem;
+            color: var(--text);
+            backdrop-filter: blur(8px);
+        }
+        input::placeholder { color: var(--text-muted); }
+        input:focus { outline: 2px solid rgba(255, 255, 255, 0.5); }
+        button {
+            background: rgba(255, 255, 255, 0.95);
+            color: #2c3e50;
+            border: none;
+            border-radius: 10px;
+            padding: 0.75rem 1.25rem;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.15s ease, opacity 0.15s ease;
+        }
+        button:hover:not(:disabled) { transform: translateY(-1px); }
+        button:disabled { opacity: 0.6; cursor: wait; }
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 1.5rem;
+            backdrop-filter: blur(12px);
+            opacity: 0;
+            transform: translateY(8px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+        .card.visible { opacity: 1; transform: translateY(0); }
+        .city-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+        .city { font-size: 1.25rem; font-weight: 600; }
+        .icon { font-size: 3rem; line-height: 1; }
+        .temp { font-size: 4rem; font-weight: 700; letter-spacing: -2px; line-height: 1; }
+        .condition { color: var(--text-muted); margin-top: 0.25rem; }
+        .humidity {
+            margin-top: 1.25rem;
+            font-size: 0.875rem;
+            color: var(--text-muted);
+        }
+        .humidity-bar {
+            height: 6px;
+            background: rgba(255, 255, 255, 0.18);
+            border-radius: 3px;
+            margin-top: 0.4rem;
+            overflow: hidden;
+        }
+        .humidity-fill {
+            height: 100%;
+            background: rgba(255, 255, 255, 0.85);
+            border-radius: 3px;
+            transition: width 0.6s ease;
+        }
+    </style>
+</head>
+<body data-condition="clear">
+    <div class="form">
+        <input type="text" id="city" placeholder="Enter city name" value="London">
+        <button id="fetch-btn" onclick="fetchWeather()">Get Weather</button>
+    </div>
+    <div class="card" id="result">
+        <div class="city-row">
+            <div>
+                <div class="city" id="city-name">—</div>
+                <div class="condition" id="condition">—</div>
+            </div>
+            <div class="icon" id="icon">🌤️</div>
+        </div>
+        <div class="temp" id="temp">—</div>
+        <div class="humidity">
+            <span id="humidity-label">Humidity —</span>
+            <div class="humidity-bar"><div class="humidity-fill" id="humidity-fill" style="width:0%"></div></div>
+        </div>
+    </div>
+    <script>
+        // Map condition strings to emojis and gradient themes.
+        const THEMES = {
+            sunny:           { icon: '☀️', key: 'sunny' },
+            clear:           { icon: '🌙', key: 'clear' },
+            'partly cloudy': { icon: '⛅', key: 'partly-cloudy' },
+            cloudy:          { icon: '☁️', key: 'cloudy' },
+            rainy:           { icon: '🌧️', key: 'rainy' },
+        };
+
+        // MCP Apps protocol: postMessage with JSONRPCMessage objects between iframe (View) and host.
+        // Spec: https://github.com/modelcontextprotocol/ext-apps
+        let requestId = 0;
+        const pending = new Map();
+
+        // Target origin is '*' because the iframe cannot know its parent's origin
+        // upfront; the host is responsible for validating event.origin on its side.
+        function post(msg) { window.parent.postMessage(msg, '*'); }
+
+        function sendRpc(method, params) {
+            return new Promise((resolve, reject) => {
+                const id = ++requestId;
+                pending.set(id, { resolve, reject });
+                post({ jsonrpc: '2.0', id, method, params });
+            });
+        }
+
+        function sendNotification(method, params) {
+            post({ jsonrpc: '2.0', method, params });
+        }
+
+        window.addEventListener('message', (event) => {
+            // The MCP Apps spec exchanges JSONRPCMessage objects directly.
+            // Tolerate stringified payloads too, in case a host serializes them.
+            let msg = event.data;
+            if (typeof msg === 'string') {
+                try { msg = JSON.parse(msg); } catch { return; }
+            }
+            if (!msg || typeof msg !== 'object') return;
+
+            if (msg.id !== undefined && pending.has(msg.id)) {
+                const { resolve, reject } = pending.get(msg.id);
+                pending.delete(msg.id);
+                msg.error ? reject(msg.error) : resolve(msg.result);
+                return;
+            }
+            if (msg.method === 'ui/notifications/tool-input') {
+                document.getElementById('city').value = msg.params?.arguments?.city || '';
+            } else if (msg.method === 'ui/notifications/tool-result') {
+                displayResult(msg.params);
+            }
+        });
+
+        // Spec-mandated handshake — without it, hosts (e.g. Goose) will not forward
+        // tool-input / tool-result notifications or tools/call requests.
+        (async () => {
+            try {
+                await sendRpc('ui/initialize', {
+                    protocolVersion: '2026-01-26',
+                    capabilities: {},
+                    clientInfo: { name: 'weather-app', version: '1.0.0' },
+                });
+            } catch { /* degrade gracefully on non-conforming hosts */ }
+            sendNotification('ui/notifications/initialized', {});
+            reportSize();
+        })();
+
+        // Tell the host how tall we want the iframe to be.
+        let lastW = 0, lastH = 0;
+        function reportSize() {
+            const w = Math.ceil(document.documentElement.scrollWidth);
+            const h = Math.ceil(document.documentElement.scrollHeight);
+            if (w === lastW && h === lastH) return;
+            lastW = w; lastH = h;
+            sendNotification('ui/notifications/size-changed', { width: w, height: h });
+        }
+        new ResizeObserver(reportSize).observe(document.body);
+
+        async function fetchWeather() {
+            const btn = document.getElementById('fetch-btn');
+            const city = document.getElementById('city').value.trim();
+            if (!city) return;
+            btn.disabled = true;
+            btn.textContent = 'Loading…';
+            try {
+                const result = await sendRpc('tools/call', { name: 'get_weather', arguments: { city } });
+                if (result) displayResult(result);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Get Weather';
+            }
+        }
+
+        function displayResult(result) {
+            const text = result.content?.[0]?.text ?? '';
+            // Parse "Weather in <city>: <temp>, <condition>, Humidity: <humidity>"
+            const match = text.match(/^Weather in (.+?): (.+?), (.+?), Humidity: (.+)$/);
+            if (!match) return;
+            const [, city, temp, condition, humidity] = match;
+            const theme = THEMES[condition.toLowerCase()] ?? { icon: '🌤️', key: 'clear' };
+
+            document.body.dataset.condition = theme.key;
+            document.getElementById('icon').textContent = theme.icon;
+            document.getElementById('city-name').textContent = city;
+            document.getElementById('condition').textContent = condition;
+            document.getElementById('temp').textContent = temp;
+            document.getElementById('humidity-label').textContent = `Humidity ${humidity}`;
+            document.getElementById('humidity-fill').style.width = humidity;
+            document.getElementById('result').classList.add('visible');
+            reportSize();
+        }
+    </script>
+</body>
+</html>

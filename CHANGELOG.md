@@ -10,6 +10,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Renamed `Mcp\Schema\Resource` to `Mcp\Schema\ResourceDefinition`. No alias.
 * [BC Break] Renamed `Mcp\Capability\Registry\Loader\ArrayLoader` to `Mcp\Capability\Registry\Loader\ReflectedElementLoader`.
 * [BC Break] Bump default protocol version to `2025-11-25`
+* Add support for MCP Apps extension in schema and server
+* Add `extensions` to `ServerCapabilities` and `ClientCapabilities` and `Builder::enableExtension()`
 * Allow overriding the default name pattern for Discovery
 * Add configurable session garbage collection (`gcProbability`/`gcDivisor`)
 * Add `ChainLoader` to compose multiple `LoaderInterface` implementations via explicit ordering.
