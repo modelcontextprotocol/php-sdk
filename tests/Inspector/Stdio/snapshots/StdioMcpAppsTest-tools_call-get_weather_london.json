@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Weather in London: 15°C, Cloudy, Humidity: 78%"
+    }
+  ],
+  "isError": false
+}

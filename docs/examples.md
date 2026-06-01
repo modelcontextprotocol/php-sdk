@@ -355,6 +355,18 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
 2. **confirm_action** - Simple boolean confirmation dialog
 3. **collect_feedback** - Rating and comments form with optional fields
 
+### MCP Apps
+
+**File**: `examples/server/mcp-apps/`
+
+A weather app demonstrating the [MCP Apps extension](extensions.md): a `ui://`
+HTML resource is opened by an MCP App-aware client (e.g. Goose) and bridged to
+the `get_weather` tool. The bundled `weather-app.html` performs the
+`ui/initialize` handshake, reports its size via `ui/notifications/size-changed`,
+and calls back into the server. See the
+[ext-apps repo](https://github.com/modelcontextprotocol/ext-apps) for the
+TypeScript SDK and richer view-side patterns.
+
 ## Client Examples
 
 ### STDIO Discovery Calculator (Client)

@@ -1,0 +1,9 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Weather in Tokyo: 22°C, Partly Cloudy, Humidity: 65%"
+    }
+  ],
+  "isError": false
+}
