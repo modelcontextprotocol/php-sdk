@@ -210,6 +210,7 @@ $client->disconnect();
 - **Resource Access**: Read static and dynamic resources
 - **Prompt Management**: List and retrieve prompt templates
 - **Completion Support**: Request argument completion suggestions
+- **Sampling & Elicitation**: Respond to server-initiated LLM sampling and user-input requests
 
 ### Advanced Features
 
@@ -230,6 +231,15 @@ $samplingHandler = new SamplingRequestHandler($myCallback);
 $client = Client::builder()
     ->setCapabilities(new ClientCapabilities(sampling: true))
     ->addRequestHandler($samplingHandler)
+    ->build();
+```
+
+- **Elicitation Support**: Respond to server requests for user input
+```php
+$elicitationHandler = new ElicitationRequestHandler($myCallback);
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler($elicitationHandler)
     ->build();
 ```
 

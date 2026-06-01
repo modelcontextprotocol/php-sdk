@@ -534,6 +534,72 @@ $client = Client::builder()
 > throw new \RuntimeException('Rate limit exceeded');
 > ```
 
+### Elicitation (User Input Requests)
+
+Handle server requests to elicit additional information from the user during tool
+execution. The server sends an `elicitation/create` request describing the fields it
+needs; your callback presents them to the user and returns an `ElicitResult` with one of
+three actions — accept (with the collected content), decline, or cancel:
+
+```php
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Exception\ElicitationException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
+
+class ConsoleElicitationCallback implements ElicitationCallbackInterface
+{
+    public function __invoke(ElicitRequest $request): ElicitResult
+    {
+        echo $request->message.\PHP_EOL;
+
+        // Present $request->requestedSchema->properties to the user and collect input.
+        $content = [];
+        foreach ($request->requestedSchema->properties as $name => $definition) {
+            $answer = readline($definition->title.': ');
+
+            if (false === $answer) {
+                // No input available — let the server know the user cancelled.
+                return new ElicitResult(ElicitAction::Cancel);
+            }
+
+            $content[$name] = $answer;
+        }
+
+        return new ElicitResult(ElicitAction::Accept, $content);
+    }
+}
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler(new ElicitationRequestHandler(new ConsoleElicitationCallback))
+    ->build();
+```
+
+Return `new ElicitResult(ElicitAction::Decline)` when the user refuses to provide the
+information, and `new ElicitResult(ElicitAction::Cancel)` when they dismiss the request.
+Only the `Accept` action carries content.
+
+> [!IMPORTANT]
+> **Error Handling in Elicitation Callbacks:**
+>
+> - **Throw `ElicitationException`** to forward a specific error message to the server
+> - **Any other exception** is logged but returns a generic error to the server
+>
+> ```php
+> // Good: Server receives "No interactive console available" message
+> throw new ElicitationException('No interactive console available');
+>
+> // Bad: Server receives generic "Error while processing elicitation" message
+> throw new \RuntimeException('No interactive console available');
+> ```
+
+See `examples/client/stdio_elicitation.php` for a runnable example against the
+elicitation demo server.
+
 ## Error Handling
 
 The client throws exceptions for various error conditions:
