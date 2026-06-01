@@ -107,4 +107,83 @@ TypeScript SDK (`@modelcontextprotocol/ext-apps`), and view-side examples. A
 working minimal view is included in
 [`examples/server/mcp-apps/weather-app.html`](../examples/server/mcp-apps/weather-app.html).
 
+## Skills (`io.modelcontextprotocol/skills`)
+
+The [Skills extension][ext-skills] (SEP-2640) lets servers ship **skills** —
+multi-step workflow instructions that tell an agent *how to orchestrate* tools to
+reach a goal. Skills are served through the existing **Resources** primitive with
+zero protocol changes: each skill is a `skill://<skill-path>/SKILL.md` resource
+(plus any supporting files), and the server advertises an empty
+`io.modelcontextprotocol/skills` capability.
+
+The simplest way to expose a directory of skills is `addSkillsFromDirectory()`,
+which auto-enables the extension and registers every skill it finds:
+
+```php
+use Mcp\Server;
+
+$server = Server::builder()
+    ->setServerInfo('My Server', '1.0.0')
+    ->addSkillsFromDirectory(__DIR__.'/skills')
+    ->build();
+```
+
+Given this layout, the following `skill://` resources are registered:
+
+```
+skills/
+├── code-review/
+│   ├── SKILL.md                 → skill://code-review/SKILL.md
+│   └── references/SECURITY.md   → skill://code-review/references/SECURITY.md
+└── acme/billing/refunds/
+    └── SKILL.md                 → skill://acme/billing/refunds/SKILL.md
+```
+
+Each `SKILL.md` is served as `text/markdown`. Its YAML frontmatter supplies the
+resource `name`/`description`; any remaining frontmatter keys are exposed under the
+`io.modelcontextprotocol.skills/` `_meta` namespace. Supporting files are served
+with a MIME type guessed from their extension/content.
+
+```yaml
+---
+name: code-review
+description: Review a pull request for correctness, security, and style.
+version: 1.0.0
+tags: [review, quality]
+---
+
+# Code Review
+...
+```
+
+> The frontmatter `name` **must** equal the final segment of the skill's directory
+> path (`code-review/` → `name: code-review`); a mismatch throws an
+> `InvalidArgumentException`.
+
+By default a discovery index is also served at `skill://index.json` (an
+[Agent Skills][agent-skills] discovery document listing every skill). Skills also
+appear as normal entries in `resources/list`, so a large skill tree pages via
+`resources/list` cursors. Pass `withDiscoveryIndex: false` to skip the index.
+
+Parsing `SKILL.md` frontmatter requires the [`symfony/yaml`][symfony-yaml]
+component, which is a dependency of this SDK.
+
+### Server-side classes
+
+| Class | Purpose |
+| --- | --- |
+| `McpSkills` | Extension marker; provides `EXTENSION_ID`, `MIME_TYPE`, `URI_SCHEME`, `ENTRY_POINT`, `DISCOVERY_URI`, `META_PREFIX` constants. |
+| `SkillProvider` | Walks a directory and registers each skill (and its files) as `skill://` resources. |
+| `FrontmatterParser` | Splits a `SKILL.md` into its YAML frontmatter and markdown body. |
+| `SkillMetadata` | Value object for parsed frontmatter: `name`, `description`, `extra`. |
+| `SkillDiscoveryIndex` | The `skill://index.json` document: `$schema` + `skills`. |
+| `SkillDiscoveryEntry` | One index entry: `name`, `type`, `url`, `description`. |
+| `SkillType` | Enum: `SkillMd` (`skill-md`), `McpResourceTemplate` (`mcp-resource-template`). |
+
+A complete example lives in
+[`examples/server/skills/`](../examples/server/skills/).
+
 [ext-apps]: https://github.com/modelcontextprotocol/ext-apps
+[ext-skills]: https://github.com/modelcontextprotocol/experimental-ext-skills
+[agent-skills]: https://agentskills.io
+[symfony-yaml]: https://symfony.com/doc/current/components/yaml.html
