@@ -4,10 +4,12 @@
     <meta charset="utf-8">
             <title>MCP PHP SDK</title>
     
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -146,143 +187,69 @@
 </aside>
 
             <div class="phpdocumentor-column -nine phpdocumentor-content">
-                                        
-<section class="section " id="client-communication">
-            <h1>Client Communication</h1>
+                                <section>
+                                        <ul class="phpdocumentor-breadcrumbs">
+    </ul>
+
+    <article class="phpdocumentor-element -file">
+        <h2 class="phpdocumentor-content__title">ExplicitElementLoader.php</h2>
+
+        
+        
+        
+        
+
+
+        
+<h3 id="toc">
+    Table of Contents
+    <a href="files/src-capability-registry-loader-explicitelementloader.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h3>
+
+
+
+
+    <h4 id="toc-classes">
+        Classes
+        <a href="files/src-capability-registry-loader-explicitelementloader.html#toc-classes" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html"><abbr title="\Mcp\Capability\Registry\Loader\ExplicitElementLoader">ExplicitElementLoader</abbr></a></dt><dd>Translates `Builder::add()` definition+handler pairs into Registry entries.</dd>    </dl>
+
+
+
+
+
+
+
+
+
+        
+
+        
+        
+    </article>
+                                </section>
+                <section class="phpdocumentor-on-this-page__sidebar">
+                            
+    <section class="phpdocumentor-on-this-page__content">
+        <strong class="phpdocumentor-on-this-page__title">On this page</strong>
+
+        <ul class="phpdocumentor-list -clean">
+            <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
+            <li>
+                <ul class="phpdocumentor-list -clean">
+                                                                                                        <li><a href="files/src-capability-registry-loader-explicitelementloader.html#toc-classes">Classes</a></li>
+                                                                                                                    </ul>
+            </li>
 
             
-    <p>MCP supports various ways a server can communicate back to a server on top of the main request-response flow.</p>
-
-            <section class="section " id="table-of-contents">
-            <h2>Table of Contents</h2>
-
-            
-
-<ul>
-    <li class="dash"><a href="#client-gateway">ClientGateway</a></li>
-
-    <li class="dash"><a href="#sampling">Sampling</a></li>
-
-    <li class="dash"><a href="#logging">Logging</a></li>
-
-    <li class="dash"><a href="#notification">Notification</a></li>
-
-    <li class="dash"><a href="#progress">Progress</a></li>
-
-</ul>
-
+                    </ul>
     </section>
 
-            <section class="section " id="clientgateway">
-            <h2>ClientGateway</h2>
-
-            
-    <p>Every communication back to client is handled using the <code>Mcp\Server\ClientGateway</code>
- and its dedicated methods per operation. To use the <code>ClientGateway</code>
- in your code, you need to use method argument injection for <code>RequestContext</code>
-.</p>
-
-            
-    <p>Every reference of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the <code>RequestContext</code>
- and the SDK will take care to include the gateway in the arguments of the method call:</p>
-
-            <pre><code class="language-">use Mcp\Capability\Attribute\McpTool;
-use Mcp\Server\RequestContext;
-
-class MyService
-{
-    #[McpTool(name: &#039;my_tool&#039;, description: &#039;My Tool Description&#039;)]
-    public function myTool(RequestContext $context): string
-    {
-        $context-&gt;getClientGateway()-&gt;log(...);
-</code></pre>
-
-    </section>
-
-            <section class="section " id="sampling">
-            <h2>Sampling</h2>
-
-            
-    <p>With <a href="https://modelcontextprotocol.io/specification/2025-06-18/client/sampling">sampling</a> servers can request clients to execute &quot;completions&quot; or &quot;generations&quot; with a language model for them:</p>
-
-            <pre><code class="language-">$result = $clientGateway-&gt;sample(&#039;Roses are red, violets are&#039;, 350, 90, [&#039;temperature&#039; =&gt; 0.5]);
-</code></pre>
-
-            
-    <p>The <code>sample</code>
- method accepts four arguments:</p>
-
-            
-    
-<ol>
-    <li><code>message</code>
-, which is <strong>required</strong>
- and accepts a string, an instance of <code>Content</code>
- or an array of <code>SampleMessage</code>
- instances.</li>
-
-    <li><code>maxTokens</code>
-, which defaults to <code>1000</code>
-</li>
-
-    <li><code>timeout</code>
- in seconds, which defaults to <code>120</code>
-</li>
-
-    <li><code>options</code>
- which might include <code>system_prompt</code>
-, <code>preferences</code>
- for model choice, <code>includeContext</code>
-, <code>temperature</code>
-, <code>stopSequences</code>
- and <code>metadata</code>
-</li>
-
-</ol>
-
-            
-    <p><a href="https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#protocol-messages">Find more details to sampling payload in the specification.</a></p>
-
-    </section>
-
-            <section class="section " id="logging">
-            <h2>Logging</h2>
-
-            
-    <p>The <a href="https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging">Logging</a> utility enables servers to send structured log messages as notifcation to clients:</p>
-
-            <pre><code class="language-">use Mcp\Schema\Enum\LoggingLevel;
-
-$clientGateway-&gt;log(LoggingLevel::Warning, &#039;The end is near.&#039;);
-</code></pre>
-
-    </section>
-
-            <section class="section " id="progress">
-            <h2>Progress</h2>
-
-            
-    <p>With a <a href="https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress#progress">Progress</a> notification a server can update a client while an operation is ongoing:</p>
-
-            <pre><code class="language-">$clientGateway-&gt;progress(4.2, 10, &#039;Downloading needed images.&#039;);
-</code></pre>
-
-    </section>
-
-            <section class="section " id="notification">
-            <h2>Notification</h2>
-
-            
-    <p>Lastly, the server can push all kind of notifications, that implement the <code>Mcp\Schema\JsonRpc\Notification</code>
- interface to the client to:</p>
-
-            <pre><code class="language-">$clientGateway-&gt;notify($yourNotification);
-</code></pre>
-
-    </section>
-
-    </section>
-
+                </section>
                             </div>
             <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
     <section class="phpdocumentor-search-results__dialog">
@@ -296,7 +263,7 @@ $clientGateway-&gt;log(LoggingLevel::Warning, &#039;The end is near.&#039;);
     </section>
 </section>
         </div>
-        <a href="#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="files/src-capability-registry-loader-explicitelementloader.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

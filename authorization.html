@@ -6,8 +6,11 @@
     
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="../">
+    <base href="./">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +97,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -226,7 +268,7 @@
             <section class="section " id="quick-start">
             <h2>Quick Start</h2>
 
-            <pre><code class="language-">use Mcp\Server;
+            <pre><code class="language-php">use Mcp\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
@@ -288,7 +330,7 @@ $response = $server-&gt;run($transport);
             
     <p>The main middleware that enforces authentication:</p>
 
-            <pre><code class="language-">$middleware = new AuthorizationMiddleware(
+            <pre><code class="language-php">$middleware = new AuthorizationMiddleware(
     validator: $validator,         // AuthorizationTokenValidatorInterface
     resourceMetadata: $metadata,   // ProtectedResourceMetadata instance
     responseFactory: null,         // PSR-17 (auto-discovered)
@@ -331,7 +373,7 @@ $response = $server-&gt;run($transport);
             
     <p>Serves Protected Resource Metadata at configured well-known paths:</p>
 
-            <pre><code class="language-">$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
+            <pre><code class="language-php">$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
     metadata: $metadata,           // ProtectedResourceMetadata instance
     responseFactory: null,         // PSR-17 (auto-discovered)
     streamFactory: null,           // PSR-17 (auto-discovered)
@@ -346,7 +388,7 @@ $response = $server-&gt;run($transport);
             
     <p>Validates JWT access tokens:</p>
 
-            <pre><code class="language-">$validator = new JwtTokenValidator(
+            <pre><code class="language-php">$validator = new JwtTokenValidator(
     issuer: &#039;https://auth.example.com&#039;,  // Expected issuer claim
     audience: &#039;mcp-server&#039;,              // Expected audience (string or array)
     jwksProvider: $jwksProvider,          // JwksProviderInterface
@@ -410,7 +452,7 @@ $response = $server-&gt;run($transport);
             
     <p>Represents RFC 9728 Protected Resource Metadata:</p>
 
-            <pre><code class="language-">$metadata = new ProtectedResourceMetadata(
+            <pre><code class="language-php">$metadata = new ProtectedResourceMetadata(
     authorizationServers: [              // Required: authorization server URLs
         &#039;https://auth.example.com&#039;,
     ],
@@ -437,7 +479,7 @@ $response = $server-&gt;run($transport);
             
     <p>Discovers OAuth/OIDC server metadata:</p>
 
-            <pre><code class="language-">$discovery = new OidcDiscovery(
+            <pre><code class="language-php">$discovery = new OidcDiscovery(
     httpClient: null,      // PSR-18 (auto-discovered)
     requestFactory: null,  // PSR-17 (auto-discovered)
     cache: $cache,         // PSR-16 cache (optional)
@@ -461,7 +503,7 @@ $authEndpoint = $discovery-&gt;getAuthorizationEndpoint($issuer);
             
     <p>Fetches and caches JWKS key sets:</p>
 
-            <pre><code class="language-">$jwksProvider = new JwksProvider(
+            <pre><code class="language-php">$jwksProvider = new JwksProvider(
     discovery: $discovery,     // OidcDiscoveryInterface
     httpClient: null,          // PSR-18 (auto-discovered)
     requestFactory: null,      // PSR-17 (auto-discovered)
@@ -480,7 +522,7 @@ $authEndpoint = $discovery-&gt;getAuthorizationEndpoint($issuer);
             <section class="section " id="keycloak">
             <h3>Keycloak</h3>
 
-            <pre><code class="language-">$validator = new JwtTokenValidator(
+            <pre><code class="language-php">$validator = new JwtTokenValidator(
     issuer: &#039;https://keycloak.example.com/realms/mcp&#039;,
     audience: &#039;mcp-server&#039;,
     jwksProvider: $jwksProvider,
@@ -492,7 +534,7 @@ $authEndpoint = $discovery-&gt;getAuthorizationEndpoint($issuer);
             <section class="section " id="microsoft-entra-id-azure-ad">
             <h3>Microsoft Entra ID (Azure AD)</h3>
 
-            <pre><code class="language-">$tenantId = &#039;your-tenant-id&#039;;
+            <pre><code class="language-php">$tenantId = &#039;your-tenant-id&#039;;
 $clientId = &#039;your-client-id&#039;;
 
 $validator = new JwtTokenValidator(
@@ -507,7 +549,7 @@ $validator = new JwtTokenValidator(
             <section class="section " id="auth0">
             <h3>Auth0</h3>
 
-            <pre><code class="language-">$validator = new JwtTokenValidator(
+            <pre><code class="language-php">$validator = new JwtTokenValidator(
     issuer: &#039;https://your-tenant.auth0.com/&#039;,
     audience: &#039;https://api.example.com&#039;,
     jwksProvider: $jwksProvider,
@@ -519,7 +561,7 @@ $validator = new JwtTokenValidator(
             <section class="section " id="okta">
             <h3>Okta</h3>
 
-            <pre><code class="language-">$validator = new JwtTokenValidator(
+            <pre><code class="language-php">$validator = new JwtTokenValidator(
     issuer: &#039;https://your-org.okta.com/oauth2/default&#039;,
     audience: &#039;api://default&#039;,
     jwksProvider: $jwksProvider,
@@ -537,7 +579,7 @@ $validator = new JwtTokenValidator(
     <p>The <code>ProtectedResourceMetadataMiddleware</code>
  serves Protected Resource Metadata at configured paths, enabling clients to discover the authorization server:</p>
 
-            <pre><code class="language-">{
+            <pre><code class="language-json">{
   &quot;authorization_servers&quot;: [&quot;https://auth.example.com/realms/mcp&quot;],
   &quot;scopes_supported&quot;: [&quot;mcp:read&quot;, &quot;mcp:write&quot;],
   &quot;resource&quot;: &quot;https://mcp.example.com/mcp&quot;
@@ -569,7 +611,7 @@ $validator = new JwtTokenValidator(
     <p>Implement <code>AuthorizationTokenValidatorInterface</code>
  for custom validation:</p>
 
-            <pre><code class="language-">use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
+            <pre><code class="language-php">use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 
 final class ApiKeyValidator implements AuthorizationTokenValidatorInterface
@@ -608,7 +650,7 @@ $validator = new ApiKeyValidator([
             
     <p>Factory methods for different outcomes:</p>
 
-            <pre><code class="language-">// Allow access with attributes
+            <pre><code class="language-php">// Allow access with attributes
 AuthorizationResult::allow([&#039;user_id&#039; =&gt; &#039;123&#039;]);
 
 // Deny - missing/invalid token (401)
@@ -631,7 +673,7 @@ AuthorizationResult::badRequest(&#039;invalid_request&#039;, &#039;Malformed hea
             <section class="section " id="checking-scopes-in-handlers">
             <h3>Checking Scopes in Handlers</h3>
 
-            <pre><code class="language-">#[McpTool(name: &#039;admin_action&#039;)]
+            <pre><code class="language-php">#[McpTool(name: &#039;admin_action&#039;)]
 public function adminAction(RequestContext $context): array
 {
     $scopes = $context-&gt;getRequest()?-&gt;getAttribute(&#039;oauth.scopes&#039;) ?? [];
@@ -650,7 +692,7 @@ public function adminAction(RequestContext $context): array
             <section class="section " id="using-jwttokenvalidator-requirescopes">
             <h3>Using JwtTokenValidator::requireScopes</h3>
 
-            <pre><code class="language-">// In a custom middleware or handler
+            <pre><code class="language-php">// In a custom middleware or handler
 $result = $validator-&gt;validate($token);
 
 if ($result-&gt;isAllowed()) {
@@ -677,7 +719,7 @@ if (!$result-&gt;isAllowed()) {
             <section class="section " id="keycloak-example">
             <h3>Keycloak Example</h3>
 
-            <pre><code class="language-">cd examples/server/oauth-keycloak
+            <pre><code class="language-bash">cd examples/server/oauth-keycloak
 docker-compose up -d
 
 # Test credentials: demo / demo123
@@ -691,7 +733,7 @@ docker-compose up -d
             <section class="section " id="microsoft-entra-id-example">
             <h3>Microsoft Entra ID Example</h3>
 
-            <pre><code class="language-">cd examples/server/oauth-microsoft
+            <pre><code class="language-bash">cd examples/server/oauth-microsoft
 cp env.example .env
 # Edit .env with your Azure credentials
 docker-compose up -d

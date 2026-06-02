@@ -6,8 +6,11 @@
     
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="../">
+    <base href="./">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +97,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -255,6 +297,9 @@
             
     <p>For manual registration details, see Server Builder Manual Registration.</p>
 
+            
+    <p>For runtime, config-driven elements whose shape is not known at compile time, see Explicit element registration in the Server Builder docs.</p>
+
     </section>
 
     </section>
@@ -265,7 +310,7 @@
             
     <p>Tools are callable functions that perform actions and return results.</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\McpTool;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\McpTool;
 
 class Calculator
 {
@@ -295,6 +340,11 @@ class Calculator
     <li class="dash"><strong><code>name</code>
 </strong>
  (optional): Tool identifier. Defaults to method name if not provided.</li>
+
+    <li class="dash"><strong><code>title</code>
+</strong>
+ (optional): Human-readable display title shown in client UI. Distinct from <code>name</code>
+.</li>
 
     <li class="dash"><strong><code>description</code>
 </strong>
@@ -334,7 +384,7 @@ class Calculator
             <section class="section " id="automatic-content-wrapping">
             <h4>Automatic Content Wrapping</h4>
 
-            <pre><code class="language-">// Primitive types → TextContent
+            <pre><code class="language-php">// Primitive types → TextContent
 public function getString(): string { return &quot;Hello&quot;; }           // TextContent
 public function getNumber(): int { return 42; }                  // TextContent  
 public function getBool(): bool { return true; }                 // TextContent
@@ -353,7 +403,7 @@ public function returnVoid(): void { /* no return */ }           // Empty conten
             
     <p>For fine control over output formatting:</p>
 
-            <pre><code class="language-">use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, EmbeddedResource};
+            <pre><code class="language-php">use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, EmbeddedResource};
 
 public function getFormattedCode(): TextContent
 {
@@ -398,7 +448,7 @@ public function getEmbeddedResource(): EmbeddedResource
             
     <p>Return an array of content items:</p>
 
-            <pre><code class="language-">public function getMultipleContent(): array
+            <pre><code class="language-php">public function getMultipleContent(): array
 {
     return [
         new TextContent(&#039;Here is the analysis:&#039;),
@@ -430,7 +480,7 @@ public function getEmbeddedResource(): EmbeddedResource
 
 </ul>
 
-            <pre><code class="language-">use Mcp\Exception\ToolCallException;
+            <pre><code class="language-php">use Mcp\Exception\ToolCallException;
 
 #[McpTool]
 public function divideNumbers(float $a, float $b): float
@@ -470,7 +520,7 @@ public function processFile(string $filename): string
             
     <p>Resources provide access to static data that clients can read.</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\McpResource;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\McpResource;
 
 class ConfigProvider
 {
@@ -489,7 +539,7 @@ class ConfigProvider
 }
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-1">
             <h3>Parameters</h3>
 
             
@@ -501,7 +551,12 @@ class ConfigProvider
 
     <li class="dash"><strong><code>name</code>
 </strong>
- (optional): Human-readable name. Defaults to method name if not provided.</li>
+ (optional): Short resource identifier. Defaults to method name if not provided.</li>
+
+    <li class="dash"><strong><code>title</code>
+</strong>
+ (optional): Human-readable display title shown in client UI. Distinct from <code>name</code>
+.</li>
 
     <li class="dash"><strong><code>description</code>
 </strong>
@@ -553,7 +608,7 @@ class ConfigProvider
             <section class="section " id="supported-return-types">
             <h4>Supported Return Types</h4>
 
-            <pre><code class="language-">// String content - converted to text resource
+            <pre><code class="language-php">// String content - converted to text resource
 public function getTextFile(): string 
 {
     return &quot;File content here&quot;;
@@ -582,7 +637,7 @@ public function getFileInfo(): \SplFileInfo
     <p><strong>Explicit resource content types</strong>
 </p>
 
-            <pre><code class="language-">use Mcp\Schema\Content\{TextResourceContents, BlobResourceContents};
+            <pre><code class="language-php">use Mcp\Schema\Content\{TextResourceContents, BlobResourceContents};
 
 public function getExplicitText(): TextResourceContents
 {
@@ -607,7 +662,7 @@ public function getExplicitBlob(): BlobResourceContents
     <p><strong>Special Array Formats</strong>
 </p>
 
-            <pre><code class="language-">// Array with &#039;text&#039; key - used as text content
+            <pre><code class="language-php">// Array with &#039;text&#039; key - used as text content
 public function getTextArray(): array
 {
     return [&#039;text&#039; =&gt; &#039;Content here&#039;, &#039;mimeType&#039; =&gt; &#039;text/plain&#039;];
@@ -631,7 +686,7 @@ public function getMultipleResources(): array
 
     </section>
 
-            <section class="section " id="error-handling">
+            <section class="section " id="error-handling-1">
             <h4>Error Handling</h4>
 
             
@@ -649,7 +704,7 @@ public function getMultipleResources(): array
 
 </ul>
 
-            <pre><code class="language-">use Mcp\Exception\ResourceReadException;
+            <pre><code class="language-php">use Mcp\Exception\ResourceReadException;
 
 #[McpResource(uri: &#039;file://{path}&#039;)]
 public function getFile(string $path): string
@@ -684,7 +739,7 @@ public function getFile(string $path): string
     <p>Resource templates are <strong>dynamic resources</strong>
  that use parameterized URIs with variables. They follow all the same rules as static resources (URI schemas, return values, MIME types, etc.) but accept variables using <a href="https://datatracker.ietf.org/doc/html/rfc6570">RFC 6570 URI template syntax</a>.</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\McpResourceTemplate;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\McpResourceTemplate;
 
 class UserProvider
 {
@@ -704,7 +759,7 @@ class UserProvider
 }
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-2">
             <h3>Parameters</h3>
 
             
@@ -717,7 +772,12 @@ class UserProvider
 
     <li class="dash"><strong><code>name</code>
 </strong>
- (optional): Human-readable name. Defaults to method name if not provided.</li>
+ (optional): Short resource template identifier. Defaults to method name if not provided.</li>
+
+    <li class="dash"><strong><code>title</code>
+</strong>
+ (optional): Human-readable display title shown in client UI. Distinct from <code>name</code>
+.</li>
 
     <li class="dash"><strong><code>description</code>
 </strong>
@@ -771,14 +831,14 @@ class UserProvider
             
     <p>Prompts generate templates for AI interactions.</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\McpPrompt;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\McpPrompt;
 
 class PromptGenerator
 {
     /**
      * Generates a code review request prompt.
      */
-    #[McpPrompt(name: &#039;code_review&#039;]
+    #[McpPrompt(name: &#039;code_review&#039;)]
     public function reviewCode(string $language, string $code, string $focus = &#039;general&#039;): array
     {
         return [
@@ -789,7 +849,7 @@ class PromptGenerator
 }
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-3">
             <h3>Parameters</h3>
 
             
@@ -798,6 +858,11 @@ class PromptGenerator
     <li class="dash"><strong><code>name</code>
 </strong>
  (optional): Prompt identifier. Defaults to method name if not provided.</li>
+
+    <li class="dash"><strong><code>title</code>
+</strong>
+ (optional): Human-readable display title shown in client UI. Distinct from <code>name</code>
+.</li>
 
     <li class="dash"><strong><code>description</code>
 </strong>
@@ -825,7 +890,7 @@ class PromptGenerator
             <section class="section " id="supported-return-formats">
             <h4>Supported Return Formats</h4>
 
-            <pre><code class="language-">// Array of message objects with role and content
+            <pre><code class="language-php">// Array of message objects with role and content
 public function basicPrompt(): array
 {
     return [
@@ -903,7 +968,7 @@ public function explicitMessages(): array
 
     </section>
 
-            <section class="section " id="error-handling">
+            <section class="section " id="error-handling-2">
             <h4>Error Handling</h4>
 
             
@@ -921,7 +986,7 @@ public function explicitMessages(): array
 
 </ul>
 
-            <pre><code class="language-">use Mcp\Exception\PromptGetException;
+            <pre><code class="language-php">use Mcp\Exception\PromptGetException;
 
 #[McpPrompt]
 public function generatePrompt(string $topic, string $style): array
@@ -966,7 +1031,7 @@ public function generatePrompt(string $topic, string $style): array
  instance into handlers. This can be used to create a <code>ClientLogger</code>
 .</p>
 
-            <pre><code class="language-">use Mcp\Capability\Logger\ClientLogger;
+            <pre><code class="language-php">use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Server\RequestContext;
 
 #[McpTool]
@@ -1004,7 +1069,7 @@ public function processData(string $input, RequestContext $context): array {
             
     <p>Provide a static list of possible values:</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\CompletionProvider;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\CompletionProvider;
 
 #[McpPrompt]
 public function generateContent(
@@ -1029,7 +1094,7 @@ public function generateContent(
             
     <p>Use enum values for completion:</p>
 
-            <pre><code class="language-">enum Priority: string
+            <pre><code class="language-php">enum Priority: string
 {
     case LOW = &#039;low&#039;;
     case MEDIUM = &#039;medium&#039;;
@@ -1066,7 +1131,7 @@ public function getTask(
             
     <p>For dynamic completion logic:</p>
 
-            <pre><code class="language-">use Mcp\Capability\Prompt\Completion\ProviderInterface;
+            <pre><code class="language-php">use Mcp\Capability\Prompt\Completion\ProviderInterface;
 
 class UserIdCompletionProvider implements ProviderInterface
 {
@@ -1170,7 +1235,7 @@ public function getUserProfile(
             <section class="section " id="automatic-schema-from-php-types">
             <h3>Automatic Schema from PHP Types</h3>
 
-            <pre><code class="language-">#[McpTool]
+            <pre><code class="language-php">#[McpTool]
 public function processUser(
     string $email,           // Required string
     int $age,               // Required integer
@@ -1190,7 +1255,7 @@ public function processUser(
             
     <p>Add validation rules to specific parameters:</p>
 
-            <pre><code class="language-">use Mcp\Capability\Attribute\Schema;
+            <pre><code class="language-php">use Mcp\Capability\Attribute\Schema;
 
 #[McpTool]
 public function validateUser(
@@ -1220,7 +1285,7 @@ public function validateUser(
             
     <p>Add validation for complex object structures:</p>
 
-            <pre><code class="language-">#[McpTool]
+            <pre><code class="language-php">#[McpTool]
 #[Schema(
     properties: [
         &#039;userData&#039; =&gt; [
@@ -1251,7 +1316,7 @@ public function createUser(array $userData): array
     <p><strong>Use sparingly</strong>
  - bypasses all automatic inference:</p>
 
-            <pre><code class="language-">#[McpTool]
+            <pre><code class="language-php">#[McpTool]
 #[Schema(definition: [
     &#039;type&#039; =&gt; &#039;object&#039;,
     &#039;properties&#039; =&gt; [
@@ -1309,7 +1374,7 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
     <p><strong>Example:</strong>
 </p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setDiscovery(__DIR__, [&#039;.&#039;])  // Automatic discovery
     -&gt;build();
 </code></pre>
@@ -1340,7 +1405,7 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
     <p><strong>Example:</strong>
 </p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addTool([Calculator::class, &#039;add&#039;], &#039;add_numbers&#039;)
     -&gt;addResource([Config::class, &#039;get&#039;], &#039;config://app&#039;)
     -&gt;addPrompt([Prompts::class, &#039;email&#039;], &#039;write_email&#039;)
@@ -1358,7 +1423,7 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
             
     <p>Combine both methods for maximum flexibility:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setDiscovery(__DIR__, [&#039;.&#039;])  // Discover most capabilities
     -&gt;addTool([ExternalService::class, &#039;process&#039;], &#039;external&#039;)  // Add specific ones
     -&gt;build();

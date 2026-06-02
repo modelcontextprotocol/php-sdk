@@ -86,6 +86,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Capability-Attribute-McpResource.html#property_name"
         },                {
+            "fqsen": "\\Mcp\\Capability\\Attribute\\McpResource\u003A\u003A\u0024title",
+            "name": "title",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Attribute-McpResource.html#property_title"
+        },                {
             "fqsen": "\\Mcp\\Capability\\Attribute\\McpResource\u003A\u003A\u0024description",
             "name": "description",
             "summary": "",
@@ -135,6 +140,11 @@ Search.appendIndex(
             "name": "name",
             "summary": "",
             "url": "classes/Mcp-Capability-Attribute-McpResourceTemplate.html#property_name"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Attribute\\McpResourceTemplate\u003A\u003A\u0024title",
+            "name": "title",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Attribute-McpResourceTemplate.html#property_title"
         },                {
             "fqsen": "\\Mcp\\Capability\\Attribute\\McpResourceTemplate\u003A\u003A\u0024description",
             "name": "description",
@@ -400,6 +410,11 @@ Search.appendIndex(
             "name": "getResourceTemplates",
             "summary": "",
             "url": "classes/Mcp-Capability-Discovery-DiscoveryState.html#method_getResourceTemplates"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Discovery\\DiscoveryState\u003A\u003AobsoletedBy\u0028\u0029",
+            "name": "obsoletedBy",
+            "summary": "Returns\u0020the\u0020subset\u0020of\u0020this\u0020state\u0020whose\u0020keys\u0020are\u0020absent\u0020from\u0020\u0024next.",
+            "url": "classes/Mcp-Capability-Discovery-DiscoveryState.html#method_obsoletedBy"
         },                {
             "fqsen": "\\Mcp\\Capability\\Discovery\\DiscoveryState\u003A\u003AisEmpty\u0028\u0029",
             "name": "isEmpty",
@@ -821,65 +836,65 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Capability-Registry-ElementReference.html#property_handler"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\ElementReference\u003A\u003A\u0024isManual",
-            "name": "isManual",
-            "summary": "",
-            "url": "classes/Mcp-Capability-Registry-ElementReference.html#property_isManual"
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ChainLoader",
+            "name": "ChainLoader",
+            "summary": "Composes\u0020multiple\u0020loaders\u0020into\u0020a\u0020single\u0020one.\u0020Child\u0020loaders\u0020run\u0020in\u0020the\u0020order\u0020they\u0020were\u0020given\u003B\nfor\u0020conflicting\u0020keys,\u0020the\u0020loader\u0020that\u0020runs\u0020later\u0020wins\u0020\u0028last\u002Dwrite\u002Dwins\u0029.",
+            "url": "classes/Mcp-Capability-Registry-Loader-ChainLoader.html"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader",
-            "name": "ArrayLoader",
-            "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html"
-        },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A__construct\u0028\u0029",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ChainLoader\u003A\u003A__construct\u0028\u0029",
             "name": "__construct",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#method___construct"
+            "url": "classes/Mcp-Capability-Registry-Loader-ChainLoader.html#method___construct"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003Aload\u0028\u0029",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ChainLoader\u003A\u003Aload\u0028\u0029",
             "name": "load",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#method_load"
+            "url": "classes/Mcp-Capability-Registry-Loader-ChainLoader.html#method_load"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003AgetHandlerDescription\u0028\u0029",
-            "name": "getHandlerDescription",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ChainLoader\u003A\u003A\u0024loaders",
+            "name": "loaders",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#method_getHandlerDescription"
+            "url": "classes/Mcp-Capability-Registry-Loader-ChainLoader.html#property_loaders"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003AgetCompletionProviders\u0028\u0029",
-            "name": "getCompletionProviders",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader",
+            "name": "ExplicitElementLoader",
+            "summary": "Translates\u0020\u0060Builder\u003A\u003Aadd\u0028\u0029\u0060\u0020definition\u002Bhandler\u0020pairs\u0020into\u0020Registry\u0020entries.",
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#method_getCompletionProviders"
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#method___construct"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024tools",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003Aload\u0028\u0029",
+            "name": "load",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#method_load"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003AboundClosure\u0028\u0029",
+            "name": "boundClosure",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#method_boundClosure"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003A\u0024tools",
             "name": "tools",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_tools"
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#property_tools"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024resources",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003A\u0024resources",
             "name": "resources",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_resources"
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#property_resources"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024resourceTemplates",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003A\u0024resourceTemplates",
             "name": "resourceTemplates",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_resourceTemplates"
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#property_resourceTemplates"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024prompts",
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ExplicitElementLoader\u003A\u003A\u0024prompts",
             "name": "prompts",
             "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_prompts"
-        },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024logger",
-            "name": "logger",
-            "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_logger"
-        },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ArrayLoader\u003A\u003A\u0024schemaGenerator",
-            "name": "schemaGenerator",
-            "summary": "",
-            "url": "classes/Mcp-Capability-Registry-Loader-ArrayLoader.html#property_schemaGenerator"
+            "url": "classes/Mcp-Capability-Registry-Loader-ExplicitElementLoader.html#property_prompts"
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\LoaderInterface",
             "name": "LoaderInterface",
@@ -890,6 +905,61 @@ Search.appendIndex(
             "name": "load",
             "summary": "",
             "url": "classes/Mcp-Capability-Registry-Loader-LoaderInterface.html#method_load"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader",
+            "name": "ReflectedElementLoader",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003Aload\u0028\u0029",
+            "name": "load",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#method_load"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003AgetHandlerDescription\u0028\u0029",
+            "name": "getHandlerDescription",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#method_getHandlerDescription"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003AgetCompletionProviders\u0028\u0029",
+            "name": "getCompletionProviders",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#method_getCompletionProviders"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024tools",
+            "name": "tools",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_tools"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024resources",
+            "name": "resources",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_resources"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024resourceTemplates",
+            "name": "resourceTemplates",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_resourceTemplates"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024prompts",
+            "name": "prompts",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_prompts"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024logger",
+            "name": "logger",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_logger"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\\Loader\\ReflectedElementLoader\u003A\u003A\u0024schemaGenerator",
+            "name": "schemaGenerator",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry-Loader-ReflectedElementLoader.html#property_schemaGenerator"
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\\PromptReference",
             "name": "PromptReference",
@@ -1098,12 +1168,12 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AregisterTool\u0028\u0029",
             "name": "registerTool",
-            "summary": "Registers\u0020a\u0020tool\u0020with\u0020its\u0020handler.",
+            "summary": "Registers\u0020a\u0020tool\u0020with\u0020its\u0020handler.\u0020Overwrites\u0020any\u0020prior\u0020registration\u0020of\u0020the\u0020same\u0020name.",
             "url": "classes/Mcp-Capability-Registry.html#method_registerTool"
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AregisterResource\u0028\u0029",
             "name": "registerResource",
-            "summary": "Registers\u0020a\u0020resource\u0020with\u0020its\u0020handler.",
+            "summary": "Registers\u0020a\u0020resource\u0020with\u0020its\u0020handler.\u0020Overwrites\u0020any\u0020prior\u0020registration\u0020of\u0020the\u0020same\u0020URI.",
             "url": "classes/Mcp-Capability-Registry.html#method_registerResource"
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AregisterResourceTemplate\u0028\u0029",
@@ -1116,10 +1186,45 @@ Search.appendIndex(
             "summary": "Registers\u0020a\u0020prompt\u0020with\u0020its\u0020handler\u0020and\u0020completion\u0020providers.",
             "url": "classes/Mcp-Capability-Registry.html#method_registerPrompt"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003Aclear\u0028\u0029",
-            "name": "clear",
-            "summary": "Clear\u0020discovered\u0020elements\u0020from\u0020registry.",
-            "url": "classes/Mcp-Capability-Registry.html#method_clear"
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AunregisterTool\u0028\u0029",
+            "name": "unregisterTool",
+            "summary": "Removes\u0020a\u0020tool\u0020by\u0020name.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-Registry.html#method_unregisterTool"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AunregisterResource\u0028\u0029",
+            "name": "unregisterResource",
+            "summary": "Removes\u0020a\u0020resource\u0020by\u0020URI.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-Registry.html#method_unregisterResource"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AunregisterResourceTemplate\u0028\u0029",
+            "name": "unregisterResourceTemplate",
+            "summary": "Removes\u0020a\u0020resource\u0020template\u0020by\u0020URI\u0020template.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-Registry.html#method_unregisterResourceTemplate"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AunregisterPrompt\u0028\u0029",
+            "name": "unregisterPrompt",
+            "summary": "Removes\u0020a\u0020prompt\u0020by\u0020name.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-Registry.html#method_unregisterPrompt"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AhasTool\u0028\u0029",
+            "name": "hasTool",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#method_hasTool"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AhasResource\u0028\u0029",
+            "name": "hasResource",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#method_hasResource"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AhasResourceTemplate\u0028\u0029",
+            "name": "hasResourceTemplate",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#method_hasResourceTemplate"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AhasPrompt\u0028\u0029",
+            "name": "hasPrompt",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#method_hasPrompt"
         },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AhasTools\u0028\u0029",
             "name": "hasTools",
@@ -1181,16 +1286,6 @@ Search.appendIndex(
             "summary": "Gets\u0020a\u0020prompt\u0020reference\u0020by\u0020name.",
             "url": "classes/Mcp-Capability-Registry.html#method_getPrompt"
         },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AgetDiscoveryState\u0028\u0029",
-            "name": "getDiscoveryState",
-            "summary": "Get\u0020the\u0020current\u0020discovery\u0020state\u0020\u0028only\u0020discovered\u0020elements,\u0020not\u0020manual\u0020ones\u0029.",
-            "url": "classes/Mcp-Capability-Registry.html#method_getDiscoveryState"
-        },                {
-            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AsetDiscoveryState\u0028\u0029",
-            "name": "setDiscoveryState",
-            "summary": "Set\u0020the\u0020discovery\u0020state,\u0020replacing\u0020all\u0020discovered\u0020elements.",
-            "url": "classes/Mcp-Capability-Registry.html#method_setDiscoveryState"
-        },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AcalculateNextCursor\u0028\u0029",
             "name": "calculateNextCursor",
             "summary": "Calculate\u0020next\u0020cursor\u0020for\u0020pagination.",
@@ -1243,12 +1338,12 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AregisterTool\u0028\u0029",
             "name": "registerTool",
-            "summary": "Registers\u0020a\u0020tool\u0020with\u0020its\u0020handler.",
+            "summary": "Registers\u0020a\u0020tool\u0020with\u0020its\u0020handler.\u0020Overwrites\u0020any\u0020prior\u0020registration\u0020of\u0020the\u0020same\u0020name.",
             "url": "classes/Mcp-Capability-RegistryInterface.html#method_registerTool"
         },                {
             "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AregisterResource\u0028\u0029",
             "name": "registerResource",
-            "summary": "Registers\u0020a\u0020resource\u0020with\u0020its\u0020handler.",
+            "summary": "Registers\u0020a\u0020resource\u0020with\u0020its\u0020handler.\u0020Overwrites\u0020any\u0020prior\u0020registration\u0020of\u0020the\u0020same\u0020URI.",
             "url": "classes/Mcp-Capability-RegistryInterface.html#method_registerResource"
         },                {
             "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AregisterResourceTemplate\u0028\u0029",
@@ -1261,20 +1356,45 @@ Search.appendIndex(
             "summary": "Registers\u0020a\u0020prompt\u0020with\u0020its\u0020handler\u0020and\u0020completion\u0020providers.",
             "url": "classes/Mcp-Capability-RegistryInterface.html#method_registerPrompt"
         },                {
-            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003Aclear\u0028\u0029",
-            "name": "clear",
-            "summary": "Clear\u0020discovered\u0020elements\u0020from\u0020registry.",
-            "url": "classes/Mcp-Capability-RegistryInterface.html#method_clear"
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AunregisterTool\u0028\u0029",
+            "name": "unregisterTool",
+            "summary": "Removes\u0020a\u0020tool\u0020by\u0020name.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_unregisterTool"
         },                {
-            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AgetDiscoveryState\u0028\u0029",
-            "name": "getDiscoveryState",
-            "summary": "Get\u0020the\u0020current\u0020discovery\u0020state\u0020\u0028only\u0020discovered\u0020elements,\u0020not\u0020manual\u0020ones\u0029.",
-            "url": "classes/Mcp-Capability-RegistryInterface.html#method_getDiscoveryState"
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AunregisterResource\u0028\u0029",
+            "name": "unregisterResource",
+            "summary": "Removes\u0020a\u0020resource\u0020by\u0020URI.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_unregisterResource"
         },                {
-            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AsetDiscoveryState\u0028\u0029",
-            "name": "setDiscoveryState",
-            "summary": "Set\u0020discovery\u0020state,\u0020replacing\u0020all\u0020discovered\u0020elements.",
-            "url": "classes/Mcp-Capability-RegistryInterface.html#method_setDiscoveryState"
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AunregisterResourceTemplate\u0028\u0029",
+            "name": "unregisterResourceTemplate",
+            "summary": "Removes\u0020a\u0020resource\u0020template\u0020by\u0020URI\u0020template.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_unregisterResourceTemplate"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AunregisterPrompt\u0028\u0029",
+            "name": "unregisterPrompt",
+            "summary": "Removes\u0020a\u0020prompt\u0020by\u0020name.\u0020No\u002Dop\u0020if\u0020absent.",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_unregisterPrompt"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AhasTool\u0028\u0029",
+            "name": "hasTool",
+            "summary": "",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_hasTool"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AhasResource\u0028\u0029",
+            "name": "hasResource",
+            "summary": "",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_hasResource"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AhasResourceTemplate\u0028\u0029",
+            "name": "hasResourceTemplate",
+            "summary": "",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_hasResourceTemplate"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AhasPrompt\u0028\u0029",
+            "name": "hasPrompt",
+            "summary": "",
+            "url": "classes/Mcp-Capability-RegistryInterface.html#method_hasPrompt"
         },                {
             "fqsen": "\\Mcp\\Capability\\RegistryInterface\u003A\u003AhasTools\u0028\u0029",
             "name": "hasTools",
@@ -2886,6 +3006,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Schema-ClientCapabilities.html#property_experimental"
         },                {
+            "fqsen": "\\Mcp\\Schema\\ClientCapabilities\u003A\u003A\u0024extensions",
+            "name": "extensions",
+            "summary": "",
+            "url": "classes/Mcp-Schema-ClientCapabilities.html#property_extensions"
+        },                {
             "fqsen": "\\Mcp\\Schema\\Content\\AudioContent",
             "name": "AudioContent",
             "summary": "Represents\u0020audio\u0020content\u0020in\u0020MCP.",
@@ -3690,6 +3815,221 @@ Search.appendIndex(
             "name": "ALL_SERVERS",
             "summary": "",
             "url": "classes/Mcp-Schema-Enum-SamplingContext.html#enumcase_ALL_SERVERS"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps",
+            "name": "McpApps",
+            "summary": "The\u0020MCP\u0020Apps\u0020extension\u0020\u0028io.modelcontextprotocol\/ui\u0029.",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AgetId\u0028\u0029",
+            "name": "getId",
+            "summary": "The\u0020reverse\u002DDNS\u0020identifier\u0020used\u0020as\u0020the\u0020key\u0020under\u0020\u0060capabilities.extensions\u0060.",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#method_getId"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AgetCapabilities\u0028\u0029",
+            "name": "getCapabilities",
+            "summary": "The\u0020capability\u0020payload\u0020announced\u0020for\u0020this\u0020extension.",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#method_getCapabilities"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AresourceMarker\u0028\u0029",
+            "name": "resourceMarker",
+            "summary": "The\u0020marker\u0020value\u0020for\u0020the\u0020\u0060_meta.ui\u0060\u0020field\u0020on\u0020a\u0020UI\u0020resource\u0020\u002Adescriptor\u002A\n\u0028its\u0020\u0060resources\/list\u0060\u0020entry\u0029,\u0020flagging\u0020the\u0020resource\u0020as\u0020an\u0020MCP\u0020App.",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#method_resourceMarker"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AEXTENSION_ID",
+            "name": "EXTENSION_ID",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#constant_EXTENSION_ID"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AMIME_TYPE",
+            "name": "MIME_TYPE",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#constant_MIME_TYPE"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\McpApps\u003A\u003AURI_SCHEME",
+            "name": "URI_SCHEME",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-McpApps.html#constant_URI_SCHEME"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\ToolVisibility",
+            "name": "ToolVisibility",
+            "summary": "Controls\u0020who\u0020can\u0020see\u0020and\u0020invoke\u0020a\u0020tool\u0020linked\u0020to\u0020a\u0020UI\u0020resource\u0020in\u0020an\u0020MCP\u0020App.",
+            "url": "classes/Mcp-Schema-Extension-Apps-ToolVisibility.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\ToolVisibility\u003A\u003AModel",
+            "name": "Model",
+            "summary": "Visible\u0020to\u0020and\u0020callable\u0020by\u0020the\u0020LLM\u0020agent.",
+            "url": "classes/Mcp-Schema-Extension-Apps-ToolVisibility.html#enumcase_Model"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\ToolVisibility\u003A\u003AApp",
+            "name": "App",
+            "summary": "Callable\u0020by\u0020the\u0020MCP\u0020App\u0020\u0028HTML\u0020view\u0029\u0020only,\u0020hidden\u0020from\u0020the\u0020model\u0027s\u0020tools\/list.",
+            "url": "classes/Mcp-Schema-Extension-Apps-ToolVisibility.html#enumcase_App"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta",
+            "name": "UiResourceContentMeta",
+            "summary": "Metadata\u0020for\u0020the\u0020_meta.ui\u0020field\u0020on\u0020resource\u0020content\u0020in\u0020a\u0020resources\/read\u0020response.",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003AfromArray\u0028\u0029",
+            "name": "fromArray",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#method_fromArray"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003AjsonSerialize\u0028\u0029",
+            "name": "jsonSerialize",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#method_jsonSerialize"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003A\u0024csp",
+            "name": "csp",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#property_csp"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003A\u0024permissions",
+            "name": "permissions",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#property_permissions"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003A\u0024domain",
+            "name": "domain",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#property_domain"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceContentMeta\u003A\u003A\u0024prefersBorder",
+            "name": "prefersBorder",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceContentMeta.html#property_prefersBorder"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp",
+            "name": "UiResourceCsp",
+            "summary": "Content\u0020Security\u0020Policy\u0020configuration\u0020for\u0020MCP\u0020App\u0020resources.",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003AfromArray\u0028\u0029",
+            "name": "fromArray",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#method_fromArray"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003AjsonSerialize\u0028\u0029",
+            "name": "jsonSerialize",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#method_jsonSerialize"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003A\u0024connectDomains",
+            "name": "connectDomains",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#property_connectDomains"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003A\u0024resourceDomains",
+            "name": "resourceDomains",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#property_resourceDomains"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003A\u0024frameDomains",
+            "name": "frameDomains",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#property_frameDomains"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourceCsp\u003A\u003A\u0024baseUriDomains",
+            "name": "baseUriDomains",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourceCsp.html#property_baseUriDomains"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions",
+            "name": "UiResourcePermissions",
+            "summary": "Sandbox\u0020permissions\u0020that\u0020an\u0020MCP\u0020App\u0020resource\u0020requests\u0020from\u0020the\u0020host.",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003AfromArray\u0028\u0029",
+            "name": "fromArray",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#method_fromArray"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003AjsonSerialize\u0028\u0029",
+            "name": "jsonSerialize",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#method_jsonSerialize"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003A\u0024camera",
+            "name": "camera",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#property_camera"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003A\u0024microphone",
+            "name": "microphone",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#property_microphone"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003A\u0024geolocation",
+            "name": "geolocation",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#property_geolocation"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiResourcePermissions\u003A\u003A\u0024clipboardWrite",
+            "name": "clipboardWrite",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiResourcePermissions.html#property_clipboardWrite"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta",
+            "name": "UiToolMeta",
+            "summary": "Metadata\u0020for\u0020the\u0020_meta.ui\u0020field\u0020on\u0020a\u0020Tool,\u0020linking\u0020it\u0020to\u0020a\u0020UI\u0020resource.",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta\u003A\u003AfromArray\u0028\u0029",
+            "name": "fromArray",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html#method_fromArray"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta\u003A\u003AjsonSerialize\u0028\u0029",
+            "name": "jsonSerialize",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html#method_jsonSerialize"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta\u003A\u003A\u0024resourceUri",
+            "name": "resourceUri",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html#property_resourceUri"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps\\UiToolMeta\u003A\u003A\u0024visibility",
+            "name": "visibility",
+            "summary": "",
+            "url": "classes/Mcp-Schema-Extension-Apps-UiToolMeta.html#property_visibility"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\ServerExtensionInterface",
+            "name": "ServerExtensionInterface",
+            "summary": "A\u0020server\u002Dside\u0020MCP\u0020protocol\u0020extension\u0020advertised\u0020during\u0020capability\u0020negotiation.",
+            "url": "classes/Mcp-Schema-Extension-ServerExtensionInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\ServerExtensionInterface\u003A\u003AgetId\u0028\u0029",
+            "name": "getId",
+            "summary": "The\u0020reverse\u002DDNS\u0020identifier\u0020used\u0020as\u0020the\u0020key\u0020under\u0020\u0060capabilities.extensions\u0060.",
+            "url": "classes/Mcp-Schema-Extension-ServerExtensionInterface.html#method_getId"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\ServerExtensionInterface\u003A\u003AgetCapabilities\u0028\u0029",
+            "name": "getCapabilities",
+            "summary": "The\u0020capability\u0020payload\u0020announced\u0020for\u0020this\u0020extension.",
+            "url": "classes/Mcp-Schema-Extension-ServerExtensionInterface.html#method_getCapabilities"
         },                {
             "fqsen": "\\Mcp\\Schema\\Icon",
             "name": "Icon",
@@ -5026,75 +5366,80 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Schema-Request-SetLogLevelRequest.html#property_level"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource",
-            "name": "Resource",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition",
+            "name": "ResourceDefinition",
             "summary": "A\u0020known\u0020resource\u0020that\u0020the\u0020server\u0020is\u0020capable\u0020of\u0020reading.",
-            "url": "classes/Mcp-Schema-Resource.html"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A__construct\u0028\u0029",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A__construct\u0028\u0029",
             "name": "__construct",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#method___construct"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#method___construct"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003AfromArray\u0028\u0029",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003AfromArray\u0028\u0029",
             "name": "fromArray",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#method_fromArray"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#method_fromArray"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003AjsonSerialize\u0028\u0029",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003AjsonSerialize\u0028\u0029",
             "name": "jsonSerialize",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#method_jsonSerialize"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#method_jsonSerialize"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003ARESOURCE_NAME_PATTERN",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003ARESOURCE_NAME_PATTERN",
             "name": "RESOURCE_NAME_PATTERN",
             "summary": "Resource\u0020name\u0020pattern\u0020regex\u0020\u002D\u0020must\u0020contain\u0020only\u0020alphanumeric\u0020characters,\u0020underscores,\u0020and\u0020hyphens.",
-            "url": "classes/Mcp-Schema-Resource.html#constant_RESOURCE_NAME_PATTERN"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#constant_RESOURCE_NAME_PATTERN"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003AURI_PATTERN",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003AURI_PATTERN",
             "name": "URI_PATTERN",
-            "summary": "URI\u0020pattern\u0020regex\u0020\u002D\u0020requires\u0020a\u0020valid\u0020scheme,\u0020followed\u0020by\u0020colon\u0020and\u0020optional\u0020path.",
-            "url": "classes/Mcp-Schema-Resource.html#constant_URI_PATTERN"
+            "summary": "URI\u0020pattern\u0020regex\u0020\u002D\u0020requires\u0020a\u0020valid\u0020scheme\u0020followed\u0020by\u0020colon\u0020and\u0020optional\u0020path\u0020\u0028RFC\u00203986\u0029.",
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#constant_URI_PATTERN"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024uri",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024uri",
             "name": "uri",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_uri"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_uri"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024name",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024name",
             "name": "name",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_name"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_name"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024description",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024title",
+            "name": "title",
+            "summary": "",
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_title"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024description",
             "name": "description",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_description"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_description"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024mimeType",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024mimeType",
             "name": "mimeType",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_mimeType"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_mimeType"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024annotations",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024annotations",
             "name": "annotations",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_annotations"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_annotations"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024size",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024size",
             "name": "size",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_size"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_size"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024icons",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024icons",
             "name": "icons",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_icons"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_icons"
         },                {
-            "fqsen": "\\Mcp\\Schema\\Resource\u003A\u003A\u0024meta",
+            "fqsen": "\\Mcp\\Schema\\ResourceDefinition\u003A\u003A\u0024meta",
             "name": "meta",
             "summary": "",
-            "url": "classes/Mcp-Schema-Resource.html#property_meta"
+            "url": "classes/Mcp-Schema-ResourceDefinition.html#property_meta"
         },                {
             "fqsen": "\\Mcp\\Schema\\ResourceReference",
             "name": "ResourceReference",
@@ -5148,7 +5493,7 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Mcp\\Schema\\ResourceTemplate\u003A\u003AURI_TEMPLATE_PATTERN",
             "name": "URI_TEMPLATE_PATTERN",
-            "summary": "URI\u0020Template\u0020pattern\u0020regex\u0020\u002D\u0020requires\u0020a\u0020valid\u0020scheme,\u0020followed\u0020by\u0020colon\u0020and\u0020path\u0020with\u0020at\u0020least\u0020one\u0020placeholder.",
+            "summary": "URI\u0020Template\u0020pattern\u0020regex\u0020\u002D\u0020requires\u0020a\u0020valid\u0020scheme\u0020followed\u0020by\u0020colon\u0020and\u0020path\u0020with\u0020at\u0020least\u0020one\u0020placeholder\u0020\u0028RFC\u00203986\u0029.",
             "url": "classes/Mcp-Schema-ResourceTemplate.html#constant_URI_TEMPLATE_PATTERN"
         },                {
             "fqsen": "\\Mcp\\Schema\\ResourceTemplate\u003A\u003A\u0024uriTemplate",
@@ -5160,6 +5505,11 @@ Search.appendIndex(
             "name": "name",
             "summary": "",
             "url": "classes/Mcp-Schema-ResourceTemplate.html#property_name"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\ResourceTemplate\u003A\u003A\u0024title",
+            "name": "title",
+            "summary": "",
+            "url": "classes/Mcp-Schema-ResourceTemplate.html#property_title"
         },                {
             "fqsen": "\\Mcp\\Schema\\ResourceTemplate\u003A\u003A\u0024description",
             "name": "description",
@@ -5671,6 +6021,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Schema-ServerCapabilities.html#method_fromArray"
         },                {
+            "fqsen": "\\Mcp\\Schema\\ServerCapabilities\u003A\u003AwithExtensions\u0028\u0029",
+            "name": "withExtensions",
+            "summary": "Returns\u0020a\u0020copy\u0020with\u0020the\u0020given\u0020protocol\u0020extensions\u0020merged\u0020into\u0020the\u0020existing\u0020ones.",
+            "url": "classes/Mcp-Schema-ServerCapabilities.html#method_withExtensions"
+        },                {
             "fqsen": "\\Mcp\\Schema\\ServerCapabilities\u003A\u003AjsonSerialize\u0028\u0029",
             "name": "jsonSerialize",
             "summary": "",
@@ -5725,6 +6080,11 @@ Search.appendIndex(
             "name": "experimental",
             "summary": "",
             "url": "classes/Mcp-Schema-ServerCapabilities.html#property_experimental"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\ServerCapabilities\u003A\u003A\u0024extensions",
+            "name": "extensions",
+            "summary": "",
+            "url": "classes/Mcp-Schema-ServerCapabilities.html#property_extensions"
         },                {
             "fqsen": "\\Mcp\\Schema\\Tool",
             "name": "Tool",
@@ -5861,6 +6221,11 @@ Search.appendIndex(
             "summary": "Explicitly\u0020set\u0020server\u0020capabilities.\u0020If\u0020set,\u0020this\u0020overrides\u0020automatic\u0020detection.",
             "url": "classes/Mcp-Server-Builder.html#method_setCapabilities"
         },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AenableExtension\u0028\u0029",
+            "name": "enableExtension",
+            "summary": "Enable\u0020one\u0020or\u0020more\u0020MCP\u0020protocol\u0020extensions,\u0020announced\u0020to\u0020clients\u0020under\n\u0060capabilities.extensions\u0060\u0020during\u0020the\u0020initialize\u0020handshake.",
+            "url": "classes/Mcp-Server-Builder.html#method_enableExtension"
+        },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AaddRequestHandler\u0028\u0029",
             "name": "addRequestHandler",
             "summary": "Register\u0020a\u0020single\u0020custom\u0020method\u0020handler.",
@@ -5923,7 +6288,7 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AsetSession\u0028\u0029",
             "name": "setSession",
-            "summary": "",
+            "summary": "Configures\u0020the\u0020session\u0020layer.",
             "url": "classes/Mcp-Server-Builder.html#method_setSession"
         },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AsetDiscovery\u0028\u0029",
@@ -5955,6 +6320,11 @@ Search.appendIndex(
             "name": "addPrompt",
             "summary": "Manually\u0020registers\u0020a\u0020prompt\u0020handler.",
             "url": "classes/Mcp-Server-Builder.html#method_addPrompt"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003Aadd\u0028\u0029",
+            "name": "add",
+            "summary": "Registers\u0020an\u0020element\u0020using\u0020an\u0020explicit\u0020schema\u0020value\u0020object\u0020paired\u0020with\u0020a\u0020handler\u0020interface.",
+            "url": "classes/Mcp-Server-Builder.html#method_add"
         },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AaddLoader\u0028\u0029",
             "name": "addLoader",
@@ -6036,6 +6406,16 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#property_sessionStore"
         },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024gcProbability",
+            "name": "gcProbability",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_gcProbability"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024gcDivisor",
+            "name": "gcDivisor",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_gcDivisor"
+        },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024paginationLimit",
             "name": "paginationLimit",
             "summary": "",
@@ -6081,6 +6461,26 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#property_prompts"
         },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024explicitTools",
+            "name": "explicitTools",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_explicitTools"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024explicitResources",
+            "name": "explicitResources",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_explicitResources"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024explicitResourceTemplates",
+            "name": "explicitResourceTemplates",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_explicitResourceTemplates"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024explicitPrompts",
+            "name": "explicitPrompts",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_explicitPrompts"
+        },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024discoveryBasePath",
             "name": "discoveryBasePath",
             "summary": "",
@@ -6096,10 +6496,20 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#property_discoveryExcludeDirs"
         },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024discoveryNamePatterns",
+            "name": "discoveryNamePatterns",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_discoveryNamePatterns"
+        },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024serverCapabilities",
             "name": "serverCapabilities",
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#property_serverCapabilities"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024extensions",
+            "name": "extensions",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_extensions"
         },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024loaders",
             "name": "loaders",
@@ -6191,6 +6601,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Configuration.html#property_protocolVersion"
         },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ElementHandlerInterface",
+            "name": "ElementHandlerInterface",
+            "summary": "Marker\u0020contract\u0020shared\u0020by\u0020all\u0020explicit\u0020element\u0020handler\u0020interfaces\u0020\u0028tool,\nresource,\u0020resource\u0020template,\u0020prompt\u0029.\u0020Used\u0020as\u0020a\u0020single\u0020type\u0020hint\u0020where\u0020any\nelement\u0020handler\u0020is\u0020acceptable.",
+            "url": "classes/Mcp-Server-Handler-ElementHandlerInterface.html"
+        },                {
             "fqsen": "\\Mcp\\Server\\Handler\\Notification\\InitializedHandler",
             "name": "InitializedHandler",
             "summary": "",
@@ -6220,6 +6635,16 @@ Search.appendIndex(
             "name": "handle",
             "summary": "",
             "url": "classes/Mcp-Server-Handler-Notification-NotificationHandlerInterface.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\PromptHandlerInterface",
+            "name": "PromptHandlerInterface",
+            "summary": "Contract\u0020for\u0020explicit\u0020prompt\u0020handlers\u0020paired\u0020with\u0020an\u0020\u0060Mcp\\Schema\\Prompt\u0060\u0020definition\nvia\u0020\u0060Mcp\\Server\\Builder\u003A\u003Aadd\u0028\u0029\u0060.",
+            "url": "classes/Mcp-Server-Handler-PromptHandlerInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\PromptHandlerInterface\u003A\u003Aget\u0028\u0029",
+            "name": "get",
+            "summary": "",
+            "url": "classes/Mcp-Server-Handler-PromptHandlerInterface.html#method_get"
         },                {
             "fqsen": "\\Mcp\\Server\\Handler\\Request\\CallToolHandler",
             "name": "CallToolHandler",
@@ -6620,6 +7045,36 @@ Search.appendIndex(
             "name": "handle",
             "summary": "",
             "url": "classes/Mcp-Server-Handler-Request-SetLogLevelHandler.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ResourceHandlerInterface",
+            "name": "ResourceHandlerInterface",
+            "summary": "Contract\u0020for\u0020explicit\u0020resource\u0020handlers\u0020paired\u0020with\u0020an\u0020\u0060Mcp\\Schema\\ResourceDefinition\u0060\ndefinition\u0020via\u0020\u0060Mcp\\Server\\Builder\u003A\u003Aadd\u0028\u0029\u0060.",
+            "url": "classes/Mcp-Server-Handler-ResourceHandlerInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ResourceHandlerInterface\u003A\u003Aread\u0028\u0029",
+            "name": "read",
+            "summary": "",
+            "url": "classes/Mcp-Server-Handler-ResourceHandlerInterface.html#method_read"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ResourceTemplateHandlerInterface",
+            "name": "ResourceTemplateHandlerInterface",
+            "summary": "Contract\u0020for\u0020explicit\u0020resource\u002Dtemplate\u0020handlers\u0020paired\u0020with\u0020an\n\u0060Mcp\\Schema\\ResourceTemplate\u0060\u0020definition\u0020via\u0020\u0060Mcp\\Server\\Builder\u003A\u003Aadd\u0028\u0029\u0060.",
+            "url": "classes/Mcp-Server-Handler-ResourceTemplateHandlerInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ResourceTemplateHandlerInterface\u003A\u003Aread\u0028\u0029",
+            "name": "read",
+            "summary": "",
+            "url": "classes/Mcp-Server-Handler-ResourceTemplateHandlerInterface.html#method_read"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ToolHandlerInterface",
+            "name": "ToolHandlerInterface",
+            "summary": "Contract\u0020for\u0020explicit\u0020tool\u0020handlers\u0020paired\u0020with\u0020an\u0020\u0060Mcp\\Schema\\Tool\u0060\u0020definition\nvia\u0020\u0060Mcp\\Server\\Builder\u003A\u003Aadd\u0028\u0029\u0060.",
+            "url": "classes/Mcp-Server-Handler-ToolHandlerInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\ToolHandlerInterface\u003A\u003Aexecute\u0028\u0029",
+            "name": "execute",
+            "summary": "",
+            "url": "classes/Mcp-Server-Handler-ToolHandlerInterface.html#method_execute"
         },                {
             "fqsen": "\\Mcp\\Server\\NativeClock",
             "name": "NativeClock",
@@ -7246,6 +7701,16 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Session-SessionManager.html#property_logger"
         },                {
+            "fqsen": "\\Mcp\\Server\\Session\\SessionManager\u003A\u003A\u0024gcProbability",
+            "name": "gcProbability",
+            "summary": "",
+            "url": "classes/Mcp-Server-Session-SessionManager.html#property_gcProbability"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Session\\SessionManager\u003A\u003A\u0024gcDivisor",
+            "name": "gcDivisor",
+            "summary": "",
+            "url": "classes/Mcp-Server-Session-SessionManager.html#property_gcDivisor"
+        },                {
             "fqsen": "\\Mcp\\Server\\Session\\SessionManagerInterface",
             "name": "SessionManagerInterface",
             "summary": "Factory\u0020interface\u0020for\u0020creating\u0020session\u0020instances.",
@@ -7616,6 +8081,116 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-Http-Middleware-ClientRegistrationMiddleware.html#property_localBaseUrl"
         },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware",
+            "name": "CorsMiddleware",
+            "summary": "Applies\u0020CORS\u0020headers\u0020to\u0020responses\u0020produced\u0020by\u0020the\u0020inner\u0020pipeline.",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003Aprocess\u0028\u0029",
+            "name": "process",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#method_process"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003AisPreflight\u0028\u0029",
+            "name": "isPreflight",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#method_isPreflight"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003AresolveAllowedOrigin\u0028\u0029",
+            "name": "resolveAllowedOrigin",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#method_resolveAllowedOrigin"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003AensureVaryOrigin\u0028\u0029",
+            "name": "ensureVaryOrigin",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#method_ensureVaryOrigin"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024isWildcard",
+            "name": "isWildcard",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_isWildcard"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024varyOnOrigin",
+            "name": "varyOnOrigin",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_varyOnOrigin"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024allowedMethodsHeader",
+            "name": "allowedMethodsHeader",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_allowedMethodsHeader"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024allowedHeadersHeader",
+            "name": "allowedHeadersHeader",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_allowedHeadersHeader"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024exposedHeadersHeader",
+            "name": "exposedHeadersHeader",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_exposedHeadersHeader"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024allowedOrigins",
+            "name": "allowedOrigins",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_allowedOrigins"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\CorsMiddleware\u003A\u003A\u0024allowCredentials",
+            "name": "allowCredentials",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-CorsMiddleware.html#property_allowCredentials"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware",
+            "name": "DnsRebindingProtectionMiddleware",
+            "summary": "Protects\u0020local\u0020MCP\u0020servers\u0020against\u0020DNS\u0020rebinding\u0020attacks.",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003Aprocess\u0028\u0029",
+            "name": "process",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#method_process"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003AisAllowedOrigin\u0028\u0029",
+            "name": "isAllowedOrigin",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#method_isAllowedOrigin"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003AisAllowedHost\u0028\u0029",
+            "name": "isAllowedHost",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#method_isAllowedHost"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003AcreateForbiddenResponse\u0028\u0029",
+            "name": "createForbiddenResponse",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#method_createForbiddenResponse"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003A\u0024responseFactory",
+            "name": "responseFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#property_responseFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003A\u0024streamFactory",
+            "name": "streamFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#property_streamFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\DnsRebindingProtectionMiddleware\u003A\u003A\u0024allowedHosts",
+            "name": "allowedHosts",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-DnsRebindingProtectionMiddleware.html#property_allowedHosts"
+        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\OAuthProxyMiddleware",
             "name": "OAuthProxyMiddleware",
             "summary": "Proxies\u0020OAuth\u0020authorization\u0020requests\u0020to\u0020an\u0020upstream\u0020authorization\u0020server.",
@@ -7780,6 +8355,36 @@ Search.appendIndex(
             "name": "metadata",
             "summary": "",
             "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadata"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware",
+            "name": "ProtocolVersionMiddleware",
+            "summary": "Validates\u0020the\u0020\u0060MCP\u002DProtocol\u002DVersion\u0060\u0020header\u0020against\u0020the\u0020SDK\u0027s\u0020supported\u0020set.",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware\u003A\u003Aprocess\u0028\u0029",
+            "name": "process",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html#method_process"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware\u003A\u003A\u0024responseFactory",
+            "name": "responseFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html#property_responseFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware\u003A\u003A\u0024streamFactory",
+            "name": "streamFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html#property_streamFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtocolVersionMiddleware\u003A\u003A\u0024supportedVersions",
+            "name": "supportedVersions",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtocolVersionMiddleware.html#property_supportedVersions"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\AuthorizationResult",
             "name": "AuthorizationResult",
@@ -8486,6 +9091,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method___construct"
         },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AdefaultMiddleware\u0028\u0029",
+            "name": "defaultMiddleware",
+            "summary": "Secure\u0020default\u0020middleware\u0020stack\u0020applied\u0020when\u0020no\u0020\u0060\u0024middleware\u0060\u0020is\u0020provided\u0020to\u0020the\u0020constructor.",
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_defaultMiddleware"
+        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003Asend\u0028\u0029",
             "name": "send",
             "summary": "Send\u0020a\u0020message\u0020to\u0020the\u0020client\u0020immediately\u0020\u0028bypassing\u0020session\u0020queue\u0029.",
@@ -8536,10 +9146,10 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_createErrorResponse"
         },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AwithCorsHeaders\u0028\u0029",
-            "name": "withCorsHeaders",
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AnormalizeMiddleware\u0028\u0029",
+            "name": "normalizeMiddleware",
             "summary": "",
-            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_withCorsHeaders"
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_normalizeMiddleware"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AhandleRequest\u0028\u0029",
             "name": "handleRequest",
@@ -8551,10 +9161,10 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_SESSION_HEADER"
         },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AALLOWED_HEADER",
-            "name": "ALLOWED_HEADER",
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003APROTOCOL_VERSION_HEADER",
+            "name": "PROTOCOL_VERSION_HEADER",
             "summary": "",
-            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_ALLOWED_HEADER"
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_PROTOCOL_VERSION_HEADER"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003A\u0024responseFactory",
             "name": "responseFactory",
@@ -8575,11 +9185,6 @@ Search.appendIndex(
             "name": "immediateStatusCode",
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_immediateStatusCode"
-        },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003A\u0024corsHeaders",
-            "name": "corsHeaders",
-            "summary": "",
-            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_corsHeaders"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003A\u0024middleware",
             "name": "middleware",
@@ -8806,6 +9411,16 @@ Search.appendIndex(
             "summary": "",
             "url": "namespaces/mcp-schema-enum.html"
         },                {
+            "fqsen": "\\Mcp\\Schema\\Extension\\Apps",
+            "name": "Apps",
+            "summary": "",
+            "url": "namespaces/mcp-schema-extension-apps.html"
+        },                {
+            "fqsen": "\\Mcp\\Schema\\Extension",
+            "name": "Extension",
+            "summary": "",
+            "url": "namespaces/mcp-schema-extension.html"
+        },                {
             "fqsen": "\\Mcp\\Schema\\JsonRpc",
             "name": "JsonRpc",
             "summary": "",
@@ -8831,15 +9446,15 @@ Search.appendIndex(
             "summary": "",
             "url": "namespaces/mcp-server.html"
         },                {
-            "fqsen": "\\Mcp\\Server\\Handler\\Notification",
-            "name": "Notification",
-            "summary": "",
-            "url": "namespaces/mcp-server-handler-notification.html"
-        },                {
             "fqsen": "\\Mcp\\Server\\Handler",
             "name": "Handler",
             "summary": "",
             "url": "namespaces/mcp-server-handler.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\Notification",
+            "name": "Notification",
+            "summary": "",
+            "url": "namespaces/mcp-server-handler-notification.html"
         },                {
             "fqsen": "\\Mcp\\Server\\Handler\\Request",
             "name": "Request",
@@ -8861,15 +9476,15 @@ Search.appendIndex(
             "summary": "",
             "url": "namespaces/mcp-server-transport.html"
         },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware",
-            "name": "Middleware",
-            "summary": "",
-            "url": "namespaces/mcp-server-transport-http-middleware.html"
-        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http",
             "name": "Http",
             "summary": "",
             "url": "namespaces/mcp-server-transport-http.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware",
+            "name": "Middleware",
+            "summary": "",
+            "url": "namespaces/mcp-server-transport-http-middleware.html"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth",
             "name": "OAuth",

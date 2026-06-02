@@ -6,8 +6,11 @@
     
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="../">
+    <base href="./">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +97,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -191,7 +233,7 @@
             
     <p>The client follows a builder pattern for configuration and provides a synchronous API for all operations:</p>
 
-            <pre><code class="language-">use Mcp\Client;
+            <pre><code class="language-php">use Mcp\Client;
 use Mcp\Client\Transport\StdioTransport;
 
 // Build and configure the client
@@ -225,7 +267,7 @@ $client-&gt;disconnect();
             <section class="section " id="basic-configuration">
             <h3>Basic Configuration</h3>
 
-            <pre><code class="language-">use Mcp\Client;
+            <pre><code class="language-php">use Mcp\Client;
 
 $client = Client::builder()
     -&gt;setClientInfo(&#039;My Application&#039;, &#039;1.0.0&#039;, &#039;Description of my client&#039;)
@@ -243,7 +285,7 @@ $client = Client::builder()
             
     <p>Set the client&#039;s identity reported to servers during initialization:</p>
 
-            <pre><code class="language-">$client = Client::builder()
+            <pre><code class="language-php">$client = Client::builder()
     -&gt;setClientInfo(
         name: &#039;AI Assistant Client&#039;,
         version: &#039;2.1.0&#039;,
@@ -260,10 +302,10 @@ $client = Client::builder()
             
     <p>Specify the MCP protocol version (defaults to latest):</p>
 
-            <pre><code class="language-">use Mcp\Schema\Enum\ProtocolVersion;
+            <pre><code class="language-php">use Mcp\Schema\Enum\ProtocolVersion;
 
 $client = Client::builder()
-    -&gt;setProtocolVersion(ProtocolVersion::V2025_06_18)
+    -&gt;setProtocolVersion(ProtocolVersion::V2025_11_25)
     -&gt;build();
 </code></pre>
 
@@ -275,7 +317,7 @@ $client = Client::builder()
             
     <p>Declare client capabilities to enable server features:</p>
 
-            <pre><code class="language-">use Mcp\Schema\ClientCapabilities;
+            <pre><code class="language-php">use Mcp\Schema\ClientCapabilities;
 
 $client = Client::builder()
     -&gt;setCapabilities(new ClientCapabilities(
@@ -293,7 +335,7 @@ $client = Client::builder()
             
     <p>Register handlers for server-initiated notifications:</p>
 
-            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+            <pre><code class="language-php">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 
 $loggingHandler = new LoggingNotificationHandler(
@@ -315,7 +357,7 @@ $client = Client::builder()
             
     <p>Register handlers for server-initiated requests (e.g., sampling):</p>
 
-            <pre><code class="language-">use Mcp\Client\Handler\Request\SamplingRequestHandler;
+            <pre><code class="language-php">use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
@@ -340,7 +382,7 @@ $client = Client::builder()
             
     <p>Configure PSR-3 logging for debugging:</p>
 
-            <pre><code class="language-">use Monolog\Logger;
+            <pre><code class="language-php">use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
 $logger = new Logger(&#039;mcp-client&#039;);
@@ -367,7 +409,7 @@ $client = Client::builder()
             
     <p>Spawns a server process and communicates via standard input/output:</p>
 
-            <pre><code class="language-">use Mcp\Client\Transport\StdioTransport;
+            <pre><code class="language-php">use Mcp\Client\Transport\StdioTransport;
 
 $transport = new StdioTransport(
     command: &#039;php&#039;,
@@ -409,7 +451,7 @@ $transport = new StdioTransport(
             
     <p>Communicates with remote MCP servers over HTTP:</p>
 
-            <pre><code class="language-">use Mcp\Client\Transport\HttpTransport;
+            <pre><code class="language-php">use Mcp\Client\Transport\HttpTransport;
 
 $transport = new HttpTransport(
     endpoint: &#039;http://localhost:8000&#039;,
@@ -467,7 +509,7 @@ $transport = new HttpTransport(
 
 </ul>
 
-            <pre><code class="language-"># Install any PSR-18 client - discovery works automatically
+            <pre><code class="language-bash"># Install any PSR-18 client - discovery works automatically
 composer require php-http/guzzle7-adapter
 </code></pre>
 
@@ -481,7 +523,7 @@ composer require php-http/guzzle7-adapter
             <section class="section " id="establishing-connection">
             <h3>Establishing Connection</h3>
 
-            <pre><code class="language-">$client-&gt;connect($transport);
+            <pre><code class="language-php">$client-&gt;connect($transport);
 </code></pre>
 
             
@@ -504,8 +546,10 @@ composer require php-http/guzzle7-adapter
             <div class="phpdocumentor-admonition important">
         <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <article>
-         Always wrap connection in try/catch to handle <code>ConnectionException</code>
- for failed connections.
+        
+    <p> Always wrap connection in try/catch to handle <code>ConnectionException</code>
+ for failed connections.</p>
+
     </article>
 </div>
 
@@ -514,7 +558,7 @@ composer require php-http/guzzle7-adapter
             <section class="section " id="checking-connection-state">
             <h3>Checking Connection State</h3>
 
-            <pre><code class="language-">if ($client-&gt;isConnected()) {
+            <pre><code class="language-php">if ($client-&gt;isConnected()) {
     // Client is connected and initialized
 }
 </code></pre>
@@ -524,13 +568,13 @@ composer require php-http/guzzle7-adapter
             <section class="section " id="disconnecting">
             <h3>Disconnecting</h3>
 
-            <pre><code class="language-">$client-&gt;disconnect();
+            <pre><code class="language-php">$client-&gt;disconnect();
 </code></pre>
 
             
     <p>Always disconnect when finished to clean up resources:</p>
 
-            <pre><code class="language-">try {
+            <pre><code class="language-php">try {
     $client-&gt;connect($transport);
     // ... use the client ...
 } finally {
@@ -548,7 +592,7 @@ composer require php-http/guzzle7-adapter
             
     <p>After successful connection, retrieve server metadata:</p>
 
-            <pre><code class="language-">// Get server implementation info
+            <pre><code class="language-php">// Get server implementation info
 $serverInfo = $client-&gt;getServerInfo();
 echo &quot;Server: {$serverInfo-&gt;name} v{$serverInfo-&gt;version}\n&quot;;
 
@@ -567,7 +611,7 @@ if ($instructions) {
             <section class="section " id="listing-tools">
             <h3>Listing Tools</h3>
 
-            <pre><code class="language-">$toolsResult = $client-&gt;listTools();
+            <pre><code class="language-php">$toolsResult = $client-&gt;listTools();
 
 foreach ($toolsResult-&gt;tools as $tool) {
     echo &quot;- {$tool-&gt;name}: {$tool-&gt;description}\n&quot;;
@@ -584,7 +628,7 @@ if ($toolsResult-&gt;nextCursor) {
             <section class="section " id="calling-tools">
             <h3>Calling Tools</h3>
 
-            <pre><code class="language-">$result = $client-&gt;callTool(
+            <pre><code class="language-php">$result = $client-&gt;callTool(
     name: &#039;calculate&#039;,
     arguments: [&#039;a&#039; =&gt; 5, &#039;b&#039; =&gt; 3, &#039;operation&#039; =&gt; &#039;add&#039;],
 );
@@ -605,7 +649,7 @@ foreach ($result-&gt;content as $content) {
             
     <p>Hook into tool execution progress (if server supports it):</p>
 
-            <pre><code class="language-">$result = $client-&gt;callTool(
+            <pre><code class="language-php">$result = $client-&gt;callTool(
     name: &#039;long_running_task&#039;,
     arguments: [&#039;data&#039; =&gt; &#039;large_dataset&#039;],
     onProgress: static function (float $progress, ?float $total, ?string $message) {
@@ -618,7 +662,9 @@ foreach ($result-&gt;content as $content) {
             <div class="phpdocumentor-admonition note">
             <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
                     <article>
-         Progress notifications are only received if the server sends them. The callback will not be invoked if the server doesn&#039;t support or send progress updates.
+        
+    <p> Progress notifications are only received if the server sends them. The callback will not be invoked if the server doesn&#039;t support or send progress updates.</p>
+
     </article>
 </div>
 
@@ -632,7 +678,7 @@ foreach ($result-&gt;content as $content) {
             <section class="section " id="listing-resources">
             <h3>Listing Resources</h3>
 
-            <pre><code class="language-">$resourcesResult = $client-&gt;listResources();
+            <pre><code class="language-php">$resourcesResult = $client-&gt;listResources();
 
 foreach ($resourcesResult-&gt;resources as $resource) {
     echo &quot;- {$resource-&gt;uri}: {$resource-&gt;name}\n&quot;;
@@ -644,7 +690,7 @@ foreach ($resourcesResult-&gt;resources as $resource) {
             <section class="section " id="listing-resource-templates">
             <h3>Listing Resource Templates</h3>
 
-            <pre><code class="language-">$templatesResult = $client-&gt;listResourceTemplates();
+            <pre><code class="language-php">$templatesResult = $client-&gt;listResourceTemplates();
 
 foreach ($templatesResult-&gt;resourceTemplates as $template) {
     echo &quot;- {$template-&gt;uriTemplate}: {$template-&gt;name}\n&quot;;
@@ -656,7 +702,7 @@ foreach ($templatesResult-&gt;resourceTemplates as $template) {
             <section class="section " id="reading-resources">
             <h3>Reading Resources</h3>
 
-            <pre><code class="language-">$resourceResult = $client-&gt;readResource(&#039;config://app/settings&#039;);
+            <pre><code class="language-php">$resourceResult = $client-&gt;readResource(&#039;config://app/settings&#039;);
 
 foreach ($resourceResult-&gt;contents as $content) {
     if ($content instanceof TextResourceContents) {
@@ -670,7 +716,7 @@ foreach ($resourceResult-&gt;contents as $content) {
             
     <p>Resources also support progress notifications:</p>
 
-            <pre><code class="language-">$result = $client-&gt;readResource(
+            <pre><code class="language-php">$result = $client-&gt;readResource(
     uri: &#039;file://large-file.bin&#039;,
     onProgress: static function (float $progress, ?float $total, ?string $message) {
         echo &quot;Reading: {$progress}/{$total} bytes\n&quot;;
@@ -688,7 +734,7 @@ foreach ($resourceResult-&gt;contents as $content) {
             <section class="section " id="listing-prompts">
             <h3>Listing Prompts</h3>
 
-            <pre><code class="language-">$promptsResult = $client-&gt;listPrompts();
+            <pre><code class="language-php">$promptsResult = $client-&gt;listPrompts();
 
 foreach ($promptsResult-&gt;prompts as $prompt) {
     echo &quot;- {$prompt-&gt;name}: {$prompt-&gt;description}\n&quot;;
@@ -700,7 +746,7 @@ foreach ($promptsResult-&gt;prompts as $prompt) {
             <section class="section " id="getting-prompts">
             <h3>Getting Prompts</h3>
 
-            <pre><code class="language-">$promptResult = $client-&gt;getPrompt(
+            <pre><code class="language-php">$promptResult = $client-&gt;getPrompt(
     name: &#039;code_review&#039;,
     arguments: [&#039;language&#039; =&gt; &#039;php&#039;, &#039;code&#039; =&gt; &#039;...&#039;],
 );
@@ -713,7 +759,7 @@ foreach ($promptResult-&gt;messages as $message) {
             
     <p>Prompts also support progress notifications:</p>
 
-            <pre><code class="language-">$result = $client-&gt;getPrompt(
+            <pre><code class="language-php">$result = $client-&gt;getPrompt(
     name: &#039;generate_report&#039;,
     arguments: [&#039;topic&#039; =&gt; &#039;quarterly_analysis&#039;],
     onProgress: static function (float $progress, ?float $total, ?string $message) {
@@ -730,7 +776,7 @@ foreach ($promptResult-&gt;messages as $message) {
             
     <p>Request auto-completion suggestions for prompt or resource arguments:</p>
 
-            <pre><code class="language-">use Mcp\Schema\PromptReference;
+            <pre><code class="language-php">use Mcp\Schema\PromptReference;
 
 $completionResult = $client-&gt;complete(
     ref: new PromptReference(&#039;code_review&#039;),
@@ -758,7 +804,7 @@ foreach ($completionResult-&gt;values as $value) {
             
     <p>Receive structured log messages from the server:</p>
 
-            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+            <pre><code class="language-php">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Enum\LoggingLevel;
 
@@ -794,7 +840,7 @@ $client-&gt;setLoggingLevel(LoggingLevel::Info);
             
     <p>Handle server requests for LLM completions:</p>
 
-            <pre><code class="language-">use Mcp\Client\Handler\Request\SamplingRequestHandler;
+            <pre><code class="language-php">use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Exception\SamplingException;
 use Mcp\Schema\ClientCapabilities;
@@ -841,7 +887,30 @@ $client = Client::builder()
             <div class="phpdocumentor-admonition important">
         <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         <article>
-         <strong>Error Handling in Sampling Callbacks:</strong>
+        
+    <p> <strong>Error Handling in Sampling Callbacks:</strong>
+</p>
+
+    <p>When implementing sampling callbacks, error handling is critical:</p>
+
+
+<ul>
+    <li class="dash"><strong>Throw <code>SamplingException</code>
+</strong>
+ to forward specific error messages to the server</li>
+
+    <li class="dash"><strong>Any other exception</strong>
+ will be logged but return a generic error to the server</li>
+
+</ul>
+
+    <p>This distinction allows you to control what error information the server receives:</p>
+<pre><code class="language-php">// Good: Server receives &quot;Rate limit exceeded&quot; message
+throw new SamplingException(&#039;Rate limit exceeded. Retry after 60 seconds.&#039;);
+
+// Bad: Server receives generic &quot;Error while sampling LLM&quot; message
+throw new \RuntimeException(&#039;Rate limit exceeded&#039;);
+</code></pre>
 
     </article>
 </div>
@@ -862,7 +931,7 @@ $client = Client::builder()
             
     <p>Thrown when connection or initialization fails:</p>
 
-            <pre><code class="language-">use Mcp\Exception\ConnectionException;
+            <pre><code class="language-php">use Mcp\Exception\ConnectionException;
 
 try {
     $client-&gt;connect($transport);
@@ -879,7 +948,7 @@ try {
             
     <p>Thrown when a request returns an error response:</p>
 
-            <pre><code class="language-">use Mcp\Exception\RequestException;
+            <pre><code class="language-php">use Mcp\Exception\RequestException;
 
 try {
     $result = $client-&gt;callTool(&#039;unknown_tool&#039;, []);
@@ -899,7 +968,7 @@ try {
             
     <p>Here&#039;s a comprehensive example demonstrating client usage:</p>
 
-            <pre><code class="language-">&lt;?php
+            <pre><code class="language-php">&lt;?php
 
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;

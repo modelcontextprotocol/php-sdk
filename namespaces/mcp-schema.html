@@ -6,7 +6,10 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -93,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -170,6 +212,7 @@
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-content.html"><abbr title="\Mcp\Schema\Content">Content</abbr></a></dt>
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-elicitation.html"><abbr title="\Mcp\Schema\Elicitation">Elicitation</abbr></a></dt>
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-enum.html"><abbr title="\Mcp\Schema\Enum">Enum</abbr></a></dt>
+            <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-extension.html"><abbr title="\Mcp\Schema\Extension">Extension</abbr></a></dt>
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-jsonrpc.html"><abbr title="\Mcp\Schema\JsonRpc">JsonRpc</abbr></a></dt>
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-notification.html"><abbr title="\Mcp\Schema\Notification">Notification</abbr></a></dt>
             <dt class="phpdocumentor-table-of-contents__entry -namespace"><a href="namespaces/mcp-schema-request.html"><abbr title="\Mcp\Schema\Request">Request</abbr></a></dt>
@@ -185,7 +228,7 @@
     <dl class="phpdocumentor-table-of-contents">
                     <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Annotations.html"><abbr title="\Mcp\Schema\Annotations">Annotations</abbr></a></dt><dd>Optional annotations for the client. The client can use annotations
 to inform how objects are used or displayed.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ClientCapabilities.html"><abbr title="\Mcp\Schema\ClientCapabilities">ClientCapabilities</abbr></a></dt><dd>Capabilities a client may support. Known capabilities are defined here, in this schema, but this is not a closed set:
-any client can define its own, additional capabilities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a></dt><dd>A url pointing to an icon URL or a base64-encoded data URI.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Implementation.html"><abbr title="\Mcp\Schema\Implementation">Implementation</abbr></a></dt><dd>Describes the name and version of an MCP implementation.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ModelHint.html"><abbr title="\Mcp\Schema\ModelHint">ModelHint</abbr></a></dt><dd>Hints to use for model selection.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ModelPreferences.html"><abbr title="\Mcp\Schema\ModelPreferences">ModelPreferences</abbr></a></dt><dd>The server&#039;s preferences for model selection, requested of the client during sampling.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Page.html"><abbr title="\Mcp\Schema\Page">Page</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Prompt.html"><abbr title="\Mcp\Schema\Prompt">Prompt</abbr></a></dt><dd>A prompt or prompt template that the server offers.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-PromptArgument.html"><abbr title="\Mcp\Schema\PromptArgument">PromptArgument</abbr></a></dt><dd>Describes an argument that a prompt can accept.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-PromptReference.html"><abbr title="\Mcp\Schema\PromptReference">PromptReference</abbr></a></dt><dd>Identifies a prompt.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Resource.html"><abbr title="\Mcp\Schema\Resource">Resource</abbr></a></dt><dd>A known resource that the server is capable of reading.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ResourceReference.html"><abbr title="\Mcp\Schema\ResourceReference">ResourceReference</abbr></a></dt><dd>A reference to a resource or resource template definition.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ResourceTemplate.html"><abbr title="\Mcp\Schema\ResourceTemplate">ResourceTemplate</abbr></a></dt><dd>A template description for resources available on the server.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Root.html"><abbr title="\Mcp\Schema\Root">Root</abbr></a></dt><dd>Represents a root directory or file that the server can operate on.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ServerCapabilities.html"><abbr title="\Mcp\Schema\ServerCapabilities">ServerCapabilities</abbr></a></dt><dd>Capabilities that a server may support. Known capabilities are defined here, in this schema, but this is not a closed
+any client can define its own, additional capabilities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Icon.html"><abbr title="\Mcp\Schema\Icon">Icon</abbr></a></dt><dd>A url pointing to an icon URL or a base64-encoded data URI.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Implementation.html"><abbr title="\Mcp\Schema\Implementation">Implementation</abbr></a></dt><dd>Describes the name and version of an MCP implementation.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ModelHint.html"><abbr title="\Mcp\Schema\ModelHint">ModelHint</abbr></a></dt><dd>Hints to use for model selection.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ModelPreferences.html"><abbr title="\Mcp\Schema\ModelPreferences">ModelPreferences</abbr></a></dt><dd>The server&#039;s preferences for model selection, requested of the client during sampling.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Page.html"><abbr title="\Mcp\Schema\Page">Page</abbr></a></dt>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Prompt.html"><abbr title="\Mcp\Schema\Prompt">Prompt</abbr></a></dt><dd>A prompt or prompt template that the server offers.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-PromptArgument.html"><abbr title="\Mcp\Schema\PromptArgument">PromptArgument</abbr></a></dt><dd>Describes an argument that a prompt can accept.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-PromptReference.html"><abbr title="\Mcp\Schema\PromptReference">PromptReference</abbr></a></dt><dd>Identifies a prompt.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ResourceDefinition.html"><abbr title="\Mcp\Schema\ResourceDefinition">ResourceDefinition</abbr></a></dt><dd>A known resource that the server is capable of reading.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ResourceReference.html"><abbr title="\Mcp\Schema\ResourceReference">ResourceReference</abbr></a></dt><dd>A reference to a resource or resource template definition.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ResourceTemplate.html"><abbr title="\Mcp\Schema\ResourceTemplate">ResourceTemplate</abbr></a></dt><dd>A template description for resources available on the server.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Root.html"><abbr title="\Mcp\Schema\Root">Root</abbr></a></dt><dd>Represents a root directory or file that the server can operate on.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ServerCapabilities.html"><abbr title="\Mcp\Schema\ServerCapabilities">ServerCapabilities</abbr></a></dt><dd>Capabilities that a server may support. Known capabilities are defined here, in this schema, but this is not a closed
 set: any server can define its own, additional capabilities.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-Tool.html"><abbr title="\Mcp\Schema\Tool">Tool</abbr></a></dt><dd>Definition for a tool the client can call.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Schema-ToolAnnotations.html"><abbr title="\Mcp\Schema\ToolAnnotations">ToolAnnotations</abbr></a></dt><dd>Additional properties describing a Tool to clients.</dd>    </dl>
 
 
@@ -198,100 +241,7 @@ set: any server can define its own, additional capabilities.</dd>            <dt
         
 
         
-        <div class="phpdocumentor-modal" id="source-view">
-    <div class="phpdocumentor-modal-bg" data-exit-button></div>
-    <div class="phpdocumentor-modal-container">
-        <div class="phpdocumentor-modal-content">
-            <pre style="max-height: 500px; overflow-y: scroll" data-src="" class="language-php line-numbers linkable-line-numbers"></pre>
-        </div>
-        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
-    </div>
-</div>
-
-    <script type="text/javascript">
-        (function () {
-            function loadExternalCodeSnippet(el, url, line) {
-                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
-                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
-                    const language = 'php';
-
-                    const code = document.createElement('code');
-                    code.className = 'language-' + language;
-                    pre.textContent = '';
-                    pre.setAttribute('data-line', line)
-                    code.textContent = 'Loading…';
-                    pre.appendChild(code);
-
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.open('GET', src, true);
-
-                    xhr.onreadystatechange = function () {
-                        if (xhr.readyState !== 4) {
-                            return;
-                        }
-
-                        if (xhr.status < 400 && xhr.responseText) {
-                            code.textContent = xhr.responseText;
-                            Prism.highlightElement(code);
-                            d=document.getElementsByClassName("line-numbers");
-                            d[0].scrollTop = d[0].children[1].offsetTop;
-                            return;
-                        }
-
-                        if (xhr.status === 404) {
-                            code.textContent = '✖ Error: File could not be found';
-                            return;
-                        }
-
-                        if (xhr.status >= 400) {
-                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
-                            return;
-                        }
-
-                        code.textContent = '✖ Error: An unknown error occurred';
-                    };
-
-                    xhr.send(null);
-                });
-            }
-
-            const modalButtons = document.querySelectorAll("[data-modal]");
-            const openedAsLocalFile = window.location.protocol === 'file:';
-            if (modalButtons.length > 0 && openedAsLocalFile) {
-                console.warn(
-                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
-                    'browsers block XHR requests when a page is opened this way'
-                );
-            }
-
-            modalButtons.forEach(function (trigger) {
-                if (openedAsLocalFile) {
-                    trigger.setAttribute("hidden", "hidden");
-                }
-
-                trigger.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    const modal = document.getElementById(trigger.dataset.modal);
-                    if (!modal) {
-                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
-                        return;
-                    }
-                    modal.classList.add("phpdocumentor-modal__open");
-
-                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
-                    const exits = modal.querySelectorAll("[data-exit-button]");
-                    exits.forEach(function (exit) {
-                        exit.addEventListener("click", function (event) {
-                            event.preventDefault();
-                            modal.classList.remove("phpdocumentor-modal__open");
-                        });
-                    });
-                });
-            });
-        })();
-    </script>
-
+        
     </article>
                                 </section>
                 <section class="phpdocumentor-on-this-page__sidebar">

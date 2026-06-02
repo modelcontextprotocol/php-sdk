@@ -4,10 +4,12 @@
     <meta charset="utf-8">
             <title>MCP PHP SDK</title>
     
-
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -146,254 +187,70 @@
 </aside>
 
             <div class="phpdocumentor-column -nine phpdocumentor-content">
-                                        
-<section class="section " id="events">
-            <h1>Events</h1>
+                                <section>
+                                        <ul class="phpdocumentor-breadcrumbs">
+    </ul>
+
+    <article class="phpdocumentor-element -file">
+        <h2 class="phpdocumentor-content__title">ResourceHandlerInterface.php</h2>
+
+        
+        
+        
+        
+
+
+        
+<h3 id="toc">
+    Table of Contents
+    <a href="files/src-server-handler-resourcehandlerinterface.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h3>
+
+
+
+    <h4 id="toc-interfaces">
+        Interfaces
+        <a href="files/src-server-handler-resourcehandlerinterface.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <dl class="phpdocumentor-table-of-contents">
+                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Handler-ResourceHandlerInterface.html"><abbr title="\Mcp\Server\Handler\ResourceHandlerInterface">ResourceHandlerInterface</abbr></a></dt><dd>Contract for explicit resource handlers paired with an `Mcp\Schema\ResourceDefinition`
+definition via `Mcp\Server\Builder::add()`.</dd>    </dl>
+
+
+
+
+
+
+
+
+
+
+        
+
+        
+        
+    </article>
+                                </section>
+                <section class="phpdocumentor-on-this-page__sidebar">
+                            
+    <section class="phpdocumentor-on-this-page__content">
+        <strong class="phpdocumentor-on-this-page__title">On this page</strong>
+
+        <ul class="phpdocumentor-list -clean">
+            <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
+            <li>
+                <ul class="phpdocumentor-list -clean">
+                                                                                    <li><a href="files/src-server-handler-resourcehandlerinterface.html#toc-interfaces">Interfaces</a></li>
+                                                                                                                                        </ul>
+            </li>
 
             
-    <p>The MCP SDK provides a PSR-14 compatible event system that allows you to hook into the server&#039;s lifecycle. Events enable request/response modification, and other user-defined behaviors.</p>
-
-            <section class="section " id="table-of-contents">
-            <h2>Table of Contents</h2>
-
-            
-
-<ul>
-    <li class="dash"><a href="#setup">Setup</a></li>
-
-    <li class="dash">
-    <p><a href="#protocol-events">Protocol Events</a></p>
-
-
-<ul>
-    <li class="dash"><a href="#requestevent">RequestEvent</a></li>
-
-    <li class="dash"><a href="#responseevent">ResponseEvent</a></li>
-
-    <li class="dash"><a href="#errorevent">ErrorEvent</a></li>
-
-    <li class="dash"><a href="#notificationevent">NotificationEvent</a></li>
-
-</ul>
-</li>
-
-    <li class="dash"><a href="#list-change-events">List Change Events</a></li>
-
-</ul>
-
+                    </ul>
     </section>
 
-            <section class="section " id="setup">
-            <h2>Setup</h2>
-
-            
-    <p>Configure an event dispatcher when building your server:</p>
-
-            <pre><code class="language-">use Mcp\Server;
-use Symfony\Component\EventDispatcher\EventDispatcher;
-
-$dispatcher = new EventDispatcher();
-
-// Register your listeners
-$dispatcher-&gt;addListener(RequestEvent::class, function (RequestEvent $event) {
-    // Handle any incoming request
-    if ($event-&gt;getMethod() === &#039;tools/call&#039;) {
-        // Handle tool call requests specifically
-    }
-});
-
-$server = Server::builder()
-    -&gt;setEventDispatcher($dispatcher)
-    -&gt;build();
-</code></pre>
-
-    </section>
-
-            <section class="section " id="protocol-events">
-            <h2>Protocol Events</h2>
-
-            
-    <p>The SDK dispatches 4 broad event types at the protocol level, allowing you to observe and modify all server operations:</p>
-
-            <section class="section " id="requestevent">
-            <h3>RequestEvent</h3>
-
-            
-    <p><strong>Dispatched</strong>
-: When any request is received from the client, before it&#039;s processed by handlers.</p>
-
-            
-    <p><strong>Properties</strong>
-:</p>
-
-            
-
-<ul>
-    <li class="dash"><code>getRequest(): Request</code>
- - The incoming request</li>
-
-    <li class="dash"><code>setRequest(Request $request): void</code>
- - Modify the request before processing</li>
-
-    <li class="dash"><code>getSession(): SessionInterface</code>
- - The current session</li>
-
-    <li class="dash"><code>getMethod(): string</code>
- - Convenience method to get the request method</li>
-
-</ul>
-
-    </section>
-
-            <section class="section " id="responseevent">
-            <h3>ResponseEvent</h3>
-
-            
-    <p><strong>Dispatched</strong>
-: When a successful response is ready to be sent to the client, after handler execution.</p>
-
-            
-    <p><strong>Properties</strong>
-:</p>
-
-            
-
-<ul>
-    <li class="dash"><code>getResponse(): Response</code>
- - The response being sent</li>
-
-    <li class="dash"><code>setResponse(Response $response): void</code>
- - Modify the response before sending</li>
-
-    <li class="dash"><code>getRequest(): Request</code>
- - The original request</li>
-
-    <li class="dash"><code>getSession(): SessionInterface</code>
- - The current session</li>
-
-    <li class="dash"><code>getMethod(): string</code>
- - Convenience method to get the request method</li>
-
-</ul>
-
-    </section>
-
-            <section class="section " id="errorevent">
-            <h3>ErrorEvent</h3>
-
-            
-    <p><strong>Dispatched</strong>
-: When an error occurs during request processing.</p>
-
-            
-    <p><strong>Properties</strong>
-:</p>
-
-            
-
-<ul>
-    <li class="dash"><code>getError(): Error</code>
- - The error being sent</li>
-
-    <li class="dash"><code>setError(Error $error): void</code>
- - Modify the error before sending</li>
-
-    <li class="dash"><code>getRequest(): Request</code>
- - The original request (null for parse errors)</li>
-
-    <li class="dash"><code>getThrowable(): ?\Throwable</code>
- - The exception that caused the error (if any)</li>
-
-    <li class="dash"><code>getSession(): SessionInterface</code>
- - The current session</li>
-
-</ul>
-
-    </section>
-
-            <section class="section " id="notificationevent">
-            <h3>NotificationEvent</h3>
-
-            
-    <p><strong>Dispatched</strong>
-: When a notification is received from the client, before it&#039;s processed by handlers.</p>
-
-            
-    <p><strong>Properties</strong>
-:</p>
-
-            
-
-<ul>
-    <li class="dash"><code>getNotification(): Notification</code>
- - The incoming notification</li>
-
-    <li class="dash"><code>setNotification(Notification $notification): void</code>
- - Modify the notification before processing</li>
-
-    <li class="dash"><code>getSession(): SessionInterface</code>
- - The current session</li>
-
-    <li class="dash"><code>getMethod(): string</code>
- - Convenience method to get the notification method</li>
-
-</ul>
-
-    </section>
-
-    </section>
-
-            <section class="section " id="list-change-events">
-            <h2>List Change Events</h2>
-
-            
-    <p>These events are dispatched when the lists of available capabilities change:</p>
-
-            <table>
-                <thead>
-            <tr>
-                            <th>Event</th>
-                            <th>Description</th>
-                    </tr>
-        </thead>
-    <tbody>
-    <tr>
-            <td><code>ToolListChangedEvent</code>
-</td>
-            <td>Dispatched when the list of available tools changes</td>
-    </tr>
-    <tr>
-            <td><code>ResourceListChangedEvent</code>
-</td>
-            <td>Dispatched when the list of available resources changes</td>
-    </tr>
-    <tr>
-            <td><code>ResourceTemplateListChangedEvent</code>
-</td>
-            <td>Dispatched when the list of available resource templates changes</td>
-    </tr>
-    <tr>
-            <td><code>PromptListChangedEvent</code>
-</td>
-            <td>Dispatched when the list of available prompts changes</td>
-    </tr>
-</tbody>
-</table>
-
-            
-    <p>These events carry no data and are used to notify clients that they should refresh their capability lists.</p>
-
-            <pre><code class="language-">use Mcp\Event\ToolListChangedEvent;
-
-$dispatcher-&gt;addListener(ToolListChangedEvent::class, function (ToolListChangedEvent $event) {
-    $logger-&gt;info(&#039;Tool list has changed, clients should refresh&#039;);
-});
-</code></pre>
-
-    </section>
-
-    </section>
-
+                </section>
                             </div>
             <section data-search-results class="phpdocumentor-search-results phpdocumentor-search-results--hidden">
     <section class="phpdocumentor-search-results__dialog">
@@ -407,7 +264,7 @@ $dispatcher-&gt;addListener(ToolListChangedEvent::class, function (ToolListChang
     </section>
 </section>
         </div>
-        <a href="#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="files/src-server-handler-resourcehandlerinterface.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

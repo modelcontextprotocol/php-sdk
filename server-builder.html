@@ -6,8 +6,11 @@
     
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="../">
+    <base href="./">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +97,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -191,7 +233,7 @@
             <section class="section " id="method-1-static-builder-method-recommended">
             <h3>Method 1: Static Builder Method (Recommended)</h3>
 
-            <pre><code class="language-">use Mcp\Server;
+            <pre><code class="language-php">use Mcp\Server;
 
 $server = Server::builder()
     -&gt;setServerInfo(&#039;My MCP Server&#039;, &#039;1.0.0&#039;)
@@ -204,7 +246,7 @@ $server = Server::builder()
             <section class="section " id="method-2-direct-instantiation">
             <h3>Method 2: Direct Instantiation</h3>
 
-            <pre><code class="language-">use Mcp\Server\Builder;
+            <pre><code class="language-php">use Mcp\Server\Builder;
 
 $server = (new Builder())
     -&gt;setServerInfo(&#039;My MCP Server&#039;, &#039;1.0.0&#039;)
@@ -231,7 +273,7 @@ $server = (new Builder())
             
     <p>Set the server&#039;s identity with name, version, and optional description:</p>
 
-            <pre><code class="language-">use Mcp\Schema\Icon;
+            <pre><code class="language-php">use Mcp\Schema\Icon;
 use Mcp\Server;
 
 $server = Server::builder()
@@ -276,7 +318,7 @@ $server = Server::builder()
             
     <p>Configure the maximum number of items returned in paginated responses:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setPaginationLimit(100); // Default: 50
 </code></pre>
 
@@ -288,7 +330,7 @@ $server = Server::builder()
             
     <p>Provide hints to help AI models understand how to use your server:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setInstructions(&#039;This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.&#039;);
 </code></pre>
 
@@ -308,12 +350,13 @@ $server = Server::builder()
 ) to define your MCP elements, you <strong>MUST</strong>
  configure discovery to tell the server where to look for these attributes.</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setDiscovery(
         basePath: __DIR__,
         scanDirs: [&#039;.&#039;, &#039;src&#039;, &#039;lib&#039;],           // Where to look for MCP attributes
-        excludeDirs: [&#039;vendor&#039;, &#039;tests&#039;],        // Where NOT to look 
-        cache: $cacheInstance                    // Optional: cache discovered elements
+        excludeDirs: [&#039;vendor&#039;, &#039;tests&#039;],        // Where NOT to look
+        cache: $cacheInstance,                   // Optional: cache discovered elements
+        namePatterns: [&#039;*.php&#039;, &#039;*.inc&#039;],        // Optional: list of filename patterns to match
     );
 </code></pre>
 
@@ -341,6 +384,10 @@ $server = Server::builder()
     <li class="dash"><code>$cache</code>
  (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance</li>
 
+    <li class="dash"><code>$namePatterns</code>
+ (array): Optional list of patterns (regexp, glob, or string) for file names (default: <code>[&#039;*.php&#039;]</code>
+)</li>
+
 </ul>
 
             
@@ -348,7 +395,7 @@ $server = Server::builder()
 ):</strong>
 </p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setDiscovery(__DIR__)  // Minimal setup
     -&gt;build();
 </code></pre>
@@ -357,7 +404,7 @@ $server = Server::builder()
     <p><strong>Production Setup with Caching:</strong>
 </p>
 
-            <pre><code class="language-">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+            <pre><code class="language-php">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
 // Cache discovered elements to avoid filesystem scanning on every server start
@@ -411,16 +458,11 @@ $server = Server::builder()
     <p>Configure session storage and lifecycle. By default, the SDK uses <code>InMemorySessionStore</code>
 :</p>
 
-            <pre><code class="language-">use Mcp\Server\Session\FileSessionStore;
+            <pre><code class="language-php">use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
-
-// Use default in-memory sessions with custom TTL
-$server = Server::builder()
-    -&gt;setSession(ttl: 7200) // 2 hours
-    -&gt;build();
 
 // Override with file-based storage
 $server = Server::builder()
@@ -449,6 +491,67 @@ $server = Server::builder()
     -&gt;build();
 </code></pre>
 
+            <section class="section " id="garbage-collection-configuration">
+            <h3>Garbage Collection Configuration</h3>
+
+            
+    <p>The SDK periodically runs garbage collection to clean up expired sessions, similar to PHP&#039;s native <code>session.gc_probability</code>
+ and <code>session.gc_divisor</code>
+ settings. The probability that GC runs on any given request is <code>gcProbability / gcDivisor</code>
+.</p>
+
+            <pre><code class="language-php">// Default: 1/100 (1% chance per request)
+$server = Server::builder()
+    -&gt;setSession(new FileSessionStore(__DIR__ . &#039;/sessions&#039;))
+    -&gt;build();
+
+// Higher frequency: 1/10 (10% chance per request)
+$server = Server::builder()
+    -&gt;setSession(
+        new FileSessionStore(__DIR__ . &#039;/sessions&#039;),
+        gcProbability: 1,
+        gcDivisor: 10,
+    )
+    -&gt;build();
+
+// Run GC on every request
+$server = Server::builder()
+    -&gt;setSession(gcProbability: 1, gcDivisor: 1)
+    -&gt;build();
+
+// Disable GC entirely (e.g. when using an external cleanup process)
+$server = Server::builder()
+    -&gt;setSession(gcProbability: 0)
+    -&gt;build();
+</code></pre>
+
+            
+    <p><strong>Parameters:</strong>
+</p>
+
+            
+
+<ul>
+    <li class="dash"><code>$gcProbability</code>
+ (int): The numerator of the GC probability fraction (default: <code>1</code>
+). Set to <code>0</code>
+ to disable GC.</li>
+
+    <li class="dash"><code>$gcDivisor</code>
+ (int): The denominator of the GC probability fraction (default: <code>100</code>
+). Must be &gt;= 1.</li>
+
+</ul>
+
+            <blockquote>
+    <p><strong>Note</strong>
+: When providing a custom <code>SessionManagerInterface</code>
+ via the <code>$sessionManager</code>
+ parameter, the <code>gcProbability</code>
+ and <code>gcDivisor</code>
+ settings are ignored — you control GC behavior in your own implementation.</p>
+</blockquote>
+
             
     <p><strong>Available Session Stores:</strong>
 </p>
@@ -475,7 +578,7 @@ $server = Server::builder()
     <p>Implement <code>SessionStoreInterface</code>
  to create custom session storage:</p>
 
-            <pre><code class="language-">use Mcp\Server\Session\SessionStoreInterface;
+            <pre><code class="language-php">use Mcp\Server\Session\SessionStoreInterface;
 use Symfony\Component\Uid\Uuid;
 
 class RedisSessionStore implements SessionStoreInterface
@@ -510,6 +613,8 @@ class RedisSessionStore implements SessionStoreInterface
     }
 }
 </code></pre>
+
+    </section>
 
     </section>
 
@@ -553,26 +658,26 @@ class RedisSessionStore implements SessionStoreInterface
             <section class="section " id="manual-tool-registration">
             <h3>Manual Tool Registration</h3>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     // Using closure
     -&gt;addTool(
         handler: function(int $a, int $b): int { return $a + $b; },
         name: &#039;add_numbers&#039;,
         description: &#039;Adds two numbers together&#039;
     )
-    
+
     // Using class method pair
     -&gt;addTool(
         handler: [Calculator::class, &#039;multiply&#039;],
         name: &#039;multiply_numbers&#039;
         // name and description are optional - derived from method name and docblock
     )
-    
+
     // Using instance method
     -&gt;addTool(
         handler: [$calculatorInstance, &#039;divide&#039;]
     )
-    
+
     // Using invokable class
     -&gt;addTool(
         handler: InvokableCalculator::class
@@ -621,7 +726,7 @@ class RedisSessionStore implements SessionStoreInterface
             
     <p>Register static resources:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addResource(
         handler: [Config::class, &#039;getSettings&#039;],
         uri: &#039;config://app/settings&#039;,
@@ -631,7 +736,7 @@ class RedisSessionStore implements SessionStoreInterface
     );
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-1">
             <h4>Parameters</h4>
 
             
@@ -676,7 +781,7 @@ class RedisSessionStore implements SessionStoreInterface
             
     <p>Register dynamic resources with URI templates:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addResourceTemplate(
         handler: [UserService::class, &#039;getUserProfile&#039;],
         uriTemplate: &#039;user://{userId}/profile&#039;,
@@ -686,7 +791,7 @@ class RedisSessionStore implements SessionStoreInterface
     );
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-2">
             <h4>Parameters</h4>
 
             
@@ -722,7 +827,7 @@ class RedisSessionStore implements SessionStoreInterface
             
     <p>Register prompt generators:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addPrompt(
         handler: [PromptService::class, &#039;generatePrompt&#039;],
         name: &#039;custom_prompt&#039;,
@@ -730,7 +835,7 @@ class RedisSessionStore implements SessionStoreInterface
     );
 </code></pre>
 
-            <section class="section " id="parameters">
+            <section class="section " id="parameters-3">
             <h4>Parameters</h4>
 
             
@@ -760,9 +865,97 @@ class RedisSessionStore implements SessionStoreInterface
  are optional for all manual registrations. If not provided, they will be derived from the handler&#039;s method name and docblock.</p>
 
             
-    <p>For more details on MCP elements, handlers, and attribute-based discovery, see <a href="docs/mcp-elements.html#mcp-elements">MCP Elements</a>.</p>
+    <p>For more details on MCP elements, handlers, and attribute-based discovery, see <a href="mcp-elements.html#mcp-elements">MCP Elements</a>.</p>
 
     </section>
+
+    </section>
+
+            <section class="section " id="explicit-element-registration">
+            <h3>Explicit element registration</h3>
+
+            
+    <p>When an element&#039;s name, schema, or description is only known at runtime, pair an <code>Mcp\Schema\*</code>
+ value object with one of the four handler interfaces below and register it through <code>Builder::add()</code>
+.</p>
+
+            <table>
+                <thead>
+            <tr>
+                            <th>Element kind</th>
+                            <th>Handler interface</th>
+                    </tr>
+        </thead>
+    <tbody>
+    <tr>
+            <td>Tool</td>
+            <td><code>Mcp\Server\Handler\ToolHandlerInterface</code>
+</td>
+    </tr>
+    <tr>
+            <td>Resource</td>
+            <td><code>Mcp\Server\Handler\ResourceHandlerInterface</code>
+</td>
+    </tr>
+    <tr>
+            <td>Resource template</td>
+            <td><code>Mcp\Server\Handler\ResourceTemplateHandlerInterface</code>
+</td>
+    </tr>
+    <tr>
+            <td>Prompt</td>
+            <td><code>Mcp\Server\Handler\PromptHandlerInterface</code>
+</td>
+    </tr>
+</tbody>
+</table>
+
+            
+    <p>Each handler interface declares a single execution method. Tool and prompt handlers receive an arguments map and a <code>ClientGateway</code>
+. Resource handlers receive the requested URI; resource template handlers additionally receive the parsed template variables.</p>
+
+            <pre><code class="language-php">use Mcp\Schema\Tool;
+use Mcp\Server;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\Handler\ToolHandlerInterface;
+
+final class WeatherHandler implements ToolHandlerInterface
+{
+    public function execute(array $arguments, ClientGateway $gateway): mixed
+    {
+        return [&#039;temperature&#039; =&gt; 21, &#039;unit&#039; =&gt; &#039;C&#039;];
+    }
+}
+
+$tool = new Tool(
+    name: &#039;get_weather&#039;,
+    title: null,
+    inputSchema: [
+        &#039;type&#039; =&gt; &#039;object&#039;,
+        &#039;properties&#039; =&gt; [&#039;city&#039; =&gt; [&#039;type&#039; =&gt; &#039;string&#039;]],
+        &#039;required&#039; =&gt; [&#039;city&#039;],
+    ],
+    description: &#039;Returns the current weather for a city.&#039;,
+    annotations: null,
+);
+
+$server = Server::builder()
+    -&gt;add($tool, new WeatherHandler())
+    -&gt;build();
+</code></pre>
+
+            
+    <p><code>Builder::add()</code>
+ validates the pairing at registration time. Pairing a <code>Tool</code>
+ definition with, for example, a <code>PromptHandlerInterface</code>
+ raises <code>Mcp\Exception\InvalidArgumentException</code>
+. The schema value object validates its own inputs (name pattern, schema shape, etc.), so passing an incomplete definition fails before <code>add()</code>
+ returns.</p>
+
+            
+    <p>Use <code>add()</code>
+ when the metadata cannot be inferred from a handler class via reflection. For statically-known elements, prefer <code>addTool/addResource/addResourceTemplate/addPrompt</code>
+, which can derive metadata from the handler&#039;s signature and docblock.</p>
 
     </section>
 
@@ -777,7 +970,7 @@ class RedisSessionStore implements SessionStoreInterface
             
     <p>The container is used to resolve handlers and their dependencies when handlers inject dependencies in their constructors. The SDK includes a basic container with simple auto-wiring capabilities.</p>
 
-            <pre><code class="language-">use Mcp\Capability\Registry\Container;
+            <pre><code class="language-php">use Mcp\Capability\Registry\Container;
 
 // Use the default basic container
 $container = new Container();
@@ -819,7 +1012,7 @@ $server = Server::builder()
             
     <p>Provide a PSR-3 logger instance for internal server logging (request/response processing, errors, session management, transport events):</p>
 
-            <pre><code class="language-">use Monolog\Logger;
+            <pre><code class="language-php">use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
 $logger = new Logger(&#039;mcp-server&#039;);
@@ -837,7 +1030,7 @@ $server = Server::builder()
             
     <p>Configure event dispatching:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setEventDispatcher($eventDispatcher);
 </code></pre>
 
@@ -872,7 +1065,7 @@ $server = Server::builder()
  (single) or <code>addRequestHandlers()</code>
  (multiple). You can call these methods as many times as needed; each call prepends the handlers so they execute before the defaults:</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addRequestHandler(new CustomListToolsHandler())
     -&gt;addRequestHandlers([
         new CustomCallToolHandler(),
@@ -885,7 +1078,7 @@ $server = Server::builder()
     <p>Request handlers implement <code>RequestHandlerInterface</code>
 :</p>
 
-            <pre><code class="language-">use Mcp\Schema\JsonRpc\Error;
+            <pre><code class="language-php">use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
@@ -928,7 +1121,7 @@ interface RequestHandlerInterface
  (single) or <code>addNotificationHandlers()</code>
  (multiple):</p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addNotificationHandler(new LoggingNotificationHandler())
     -&gt;addNotificationHandlers([
         new InitializedNotificationHandler(),
@@ -941,7 +1134,7 @@ interface RequestHandlerInterface
     <p>Notification handlers implement <code>NotificationHandlerInterface</code>
 :</p>
 
-            <pre><code class="language-">use Mcp\Schema\JsonRpc\Notification;
+            <pre><code class="language-php">use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 
@@ -1024,7 +1217,7 @@ interface NotificationHandlerInterface
             
     <p>Here&#039;s a comprehensive example showing all major configuration options:</p>
 
-            <pre><code class="language-">use Mcp\Server;
+            <pre><code class="language-php">use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Capability\Registry\Container;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
@@ -1048,25 +1241,25 @@ $container-&gt;set(DatabaseService::class, new DatabaseService($container-&gt;ge
 $server = Server::builder()
     // Server identity
     -&gt;setServerInfo(&#039;Advanced Calculator&#039;, &#039;2.1.0&#039;)
-    
+
     // Performance and behavior
     -&gt;setPaginationLimit(100)
     -&gt;setInstructions(&#039;Use calculate tool for math operations. Check config resource for current settings.&#039;)
-    
+
     // Discovery with caching
     -&gt;setDiscovery(__DIR__, [&#039;src&#039;], [&#039;vendor&#039;, &#039;tests&#039;], $cache)
-    
+
     // Session management
     -&gt;setSession($sessionStore)
-    
+
     // Services
     -&gt;setLogger($logger)
     -&gt;setContainer($container)
-    
+
     // Manual capability registration
     -&gt;addTool([Calculator::class, &#039;advancedCalculation&#039;], &#039;advanced_calc&#039;)
     -&gt;addResource([Config::class, &#039;getSettings&#039;], &#039;config://app/settings&#039;, &#039;app_settings&#039;)
-    
+
     // Build the server
     -&gt;build();
 </code></pre>
@@ -1112,7 +1305,7 @@ $server = Server::builder()
     <tr>
             <td><code>setSession()</code>
 </td>
-            <td>store?, factory?, ttl?</td>
+            <td>sessionStore?, sessionManager?, gcProbability?, gcDivisor?</td>
             <td>Configure session management</td>
     </tr>
     <tr>
@@ -1166,20 +1359,26 @@ $server = Server::builder()
     <tr>
             <td><code>addResource()</code>
 </td>
-            <td>handler, uri, name?, description?, mimeType?, size?, annotations?</td>
+            <td>handler, uri, name?, title?, description?, mimeType?, size?, annotations?, icons?, meta?</td>
             <td>Register resource</td>
     </tr>
     <tr>
             <td><code>addResourceTemplate()</code>
 </td>
-            <td>handler, uriTemplate, name?, description?, mimeType?, annotations?</td>
+            <td>handler, uriTemplate, name?, title?, description?, mimeType?, annotations?, meta?</td>
             <td>Register resource template</td>
     </tr>
     <tr>
             <td><code>addPrompt()</code>
 </td>
-            <td>handler, name?, description?</td>
+            <td>handler, name?, title?, description?, icons?, meta?</td>
             <td>Register prompt</td>
+    </tr>
+    <tr>
+            <td><code>add()</code>
+</td>
+            <td>definition, handler</td>
+            <td>Register an element from a schema VO + handler pair</td>
     </tr>
     <tr>
             <td><code>build()</code>

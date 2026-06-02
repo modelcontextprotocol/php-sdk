@@ -6,7 +6,10 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -93,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -173,7 +215,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">42</span>
+    <span class="phpdocumentor-element-found-in__line">41</span>
 
     </aside>
 
@@ -188,16 +230,15 @@
 
     </h5>
     <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">author</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
+                    <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">author</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
 </section>
 
                                     </dd>
-                                            </dl>
+                        </dl>
 
     
     
@@ -285,20 +326,6 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Capability-Registry.html#method_clear">clear()</a>
-    <span>
-                                &nbsp;: void    </span>
-</dt>
-<dd>Clear discovered elements from registry.</dd>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Capability-Registry.html#method_getDiscoveryState">getDiscoveryState()</a>
-    <span>
-                                &nbsp;: <a href="classes/Mcp-Capability-Discovery-DiscoveryState.html"><abbr title="\Mcp\Capability\Discovery\DiscoveryState">DiscoveryState</abbr></a>    </span>
-</dt>
-<dd>Get the current discovery state (only discovered elements, not manual ones).</dd>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_getPrompt">getPrompt()</a>
     <span>
                                 &nbsp;: <a href="classes/Mcp-Capability-Registry-PromptReference.html"><abbr title="\Mcp\Capability\Registry\PromptReference">PromptReference</abbr></a>    </span>
@@ -355,7 +382,19 @@
 <dd>Gets all registered tools.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_hasPrompt">hasPrompt()</a>
+    <span>
+                                &nbsp;: bool    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_hasPrompts">hasPrompts()</a>
+    <span>
+                                &nbsp;: bool    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_hasResource">hasResource()</a>
     <span>
                                 &nbsp;: bool    </span>
 </dt>
@@ -367,7 +406,19 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplate">hasResourceTemplate()</a>
+    <span>
+                                &nbsp;: bool    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplates">hasResourceTemplates()</a>
+    <span>
+                                &nbsp;: bool    </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_hasTool">hasTool()</a>
     <span>
                                 &nbsp;: bool    </span>
 </dt>
@@ -381,37 +432,58 @@
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_registerPrompt">registerPrompt()</a>
     <span>
-                                &nbsp;: void    </span>
+                                &nbsp;: <a href="classes/Mcp-Capability-Registry-PromptReference.html"><abbr title="\Mcp\Capability\Registry\PromptReference">PromptReference</abbr></a>    </span>
 </dt>
 <dd>Registers a prompt with its handler and completion providers.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_registerResource">registerResource()</a>
     <span>
-                                &nbsp;: void    </span>
+                                &nbsp;: <a href="classes/Mcp-Capability-Registry-ResourceReference.html"><abbr title="\Mcp\Capability\Registry\ResourceReference">ResourceReference</abbr></a>    </span>
 </dt>
-<dd>Registers a resource with its handler.</dd>
+<dd>Registers a resource with its handler. Overwrites any prior registration of the same URI.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_registerResourceTemplate">registerResourceTemplate()</a>
     <span>
-                                &nbsp;: void    </span>
+                                &nbsp;: <a href="classes/Mcp-Capability-Registry-ResourceTemplateReference.html"><abbr title="\Mcp\Capability\Registry\ResourceTemplateReference">ResourceTemplateReference</abbr></a>    </span>
 </dt>
 <dd>Registers a resource template with its handler and completion providers.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_registerTool">registerTool()</a>
     <span>
-                                &nbsp;: void    </span>
+                                &nbsp;: <a href="classes/Mcp-Capability-Registry-ToolReference.html"><abbr title="\Mcp\Capability\Registry\ToolReference">ToolReference</abbr></a>    </span>
 </dt>
-<dd>Registers a tool with its handler.</dd>
+<dd>Registers a tool with its handler. Overwrites any prior registration of the same name.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Capability-Registry.html#method_setDiscoveryState">setDiscoveryState()</a>
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_unregisterPrompt">unregisterPrompt()</a>
     <span>
                                 &nbsp;: void    </span>
 </dt>
-<dd>Set the discovery state, replacing all discovered elements.</dd>
+<dd>Removes a prompt by name. No-op if absent.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_unregisterResource">unregisterResource()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Removes a resource by URI. No-op if absent.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_unregisterResourceTemplate">unregisterResourceTemplate()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Removes a resource template by URI template. No-op if absent.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_unregisterTool">unregisterTool()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Removes a tool by name. No-op if absent.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -private">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_calculateNextCursor">calculateNextCursor()</a>
@@ -457,7 +529,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">65</span>
+    <span class="phpdocumentor-element-found-in__line">64</span>
 
     </aside>
 
@@ -494,7 +566,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">66</span>
+    <span class="phpdocumentor-element-found-in__line">65</span>
 
     </aside>
 
@@ -531,7 +603,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">67</span>
+    <span class="phpdocumentor-element-found-in__line">66</span>
 
     </aside>
 
@@ -568,7 +640,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">57</span>
+    <span class="phpdocumentor-element-found-in__line">56</span>
 
     </aside>
 
@@ -605,7 +677,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">52</span>
+    <span class="phpdocumentor-element-found-in__line">51</span>
 
     </aside>
 
@@ -642,7 +714,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">62</span>
+    <span class="phpdocumentor-element-found-in__line">61</span>
 
     </aside>
 
@@ -679,7 +751,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">47</span>
+    <span class="phpdocumentor-element-found-in__line">46</span>
 
     </aside>
 
@@ -721,7 +793,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">64</span>
+    <span class="phpdocumentor-element-found-in__line">63</span>
 
     </aside>
 
@@ -771,80 +843,6 @@
             -public
                                                         "
 >
-    <h4 class="phpdocumentor-element__name" id="method_clear">
-        clear()
-        <a href="classes/Mcp-Capability-Registry.html#method_clear" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">162</span>
-
-    </aside>
-
-        <p class="phpdocumentor-summary">Clear discovered elements from registry.</p>
-
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">clear</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-    
-    
-    
-
-        
-    
-    
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -public
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_getDiscoveryState">
-        getDiscoveryState()
-        <a href="classes/Mcp-Capability-Registry.html#method_getDiscoveryState" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">344</span>
-
-    </aside>
-
-        <p class="phpdocumentor-summary">Get the current discovery state (only discovered elements, not manual ones).</p>
-
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">getDiscoveryState</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Discovery-DiscoveryState.html"><abbr title="\Mcp\Capability\Discovery\DiscoveryState">DiscoveryState</abbr></a></span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-    
-    
-    
-
-        
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Discovery-DiscoveryState.html"><abbr title="\Mcp\Capability\Discovery\DiscoveryState">DiscoveryState</abbr></a></span>
-            </section>
-
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -public
-                                                        "
->
     <h4 class="phpdocumentor-element__name" id="method_getPrompt">
         getPrompt()
         <a href="classes/Mcp-Capability-Registry.html#method_getPrompt" class="headerlink"><i class="fas fa-link"></i></a>
@@ -853,7 +851,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">336</span>
+    <span class="phpdocumentor-element-found-in__line">326</span>
 
     </aside>
 
@@ -902,7 +900,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">314</span>
+    <span class="phpdocumentor-element-found-in__line">304</span>
 
     </aside>
 
@@ -958,7 +956,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">255</span>
+    <span class="phpdocumentor-element-found-in__line">245</span>
 
     </aside>
 
@@ -1014,7 +1012,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">233</span>
+    <span class="phpdocumentor-element-found-in__line">223</span>
 
     </aside>
 
@@ -1070,7 +1068,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">304</span>
+    <span class="phpdocumentor-element-found-in__line">294</span>
 
     </aside>
 
@@ -1119,7 +1117,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">282</span>
+    <span class="phpdocumentor-element-found-in__line">272</span>
 
     </aside>
 
@@ -1175,7 +1173,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">223</span>
+    <span class="phpdocumentor-element-found-in__line">213</span>
 
     </aside>
 
@@ -1224,7 +1222,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">201</span>
+    <span class="phpdocumentor-element-found-in__line">191</span>
 
     </aside>
 
@@ -1272,6 +1270,54 @@
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_hasPrompt">
+        hasPrompt()
+        <a href="classes/Mcp-Capability-Registry.html#method_hasPrompt" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">181</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">hasPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">bool</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_hasPrompts">
         hasPrompts()
         <a href="classes/Mcp-Capability-Registry.html#method_hasPrompts" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1280,7 +1326,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">309</span>
+    <span class="phpdocumentor-element-found-in__line">299</span>
 
     </aside>
 
@@ -1314,6 +1360,54 @@
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_hasResource">
+        hasResource()
+        <a href="classes/Mcp-Capability-Registry.html#method_hasResource" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">171</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">hasResource</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uri</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$uri</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">bool</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_hasResources">
         hasResources()
         <a href="classes/Mcp-Capability-Registry.html#method_hasResources" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1322,7 +1416,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">228</span>
+    <span class="phpdocumentor-element-found-in__line">218</span>
 
     </aside>
 
@@ -1356,6 +1450,54 @@
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_hasResourceTemplate">
+        hasResourceTemplate()
+        <a href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplate" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">176</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">hasResourceTemplate</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uriTemplate</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$uriTemplate</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">bool</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_hasResourceTemplates">
         hasResourceTemplates()
         <a href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplates" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1364,7 +1506,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">277</span>
+    <span class="phpdocumentor-element-found-in__line">267</span>
 
     </aside>
 
@@ -1398,6 +1540,54 @@
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_hasTool">
+        hasTool()
+        <a href="classes/Mcp-Capability-Registry.html#method_hasTool" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">166</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">hasTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">bool</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_hasTools">
         hasTools()
         <a href="classes/Mcp-Capability-Registry.html#method_hasTools" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1406,7 +1596,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">196</span>
+    <span class="phpdocumentor-element-found-in__line">186</span>
 
     </aside>
 
@@ -1448,7 +1638,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">140</span>
+    <span class="phpdocumentor-element-found-in__line">109</span>
 
     </aside>
 
@@ -1456,12 +1646,15 @@
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">registerPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Prompt.html"><abbr title="\Mcp\Schema\Prompt">Prompt</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$prompt</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$completionProviders</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">bool&nbsp;</span><span class="phpdocumentor-signature__argument__name">$isManual</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">false</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+                    <span class="phpdocumentor-signature__name">registerPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Prompt.html"><abbr title="\Mcp\Schema\Prompt">Prompt</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$prompt</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$completionProviders</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-PromptReference.html"><abbr title="\Mcp\Capability\Registry\PromptReference">PromptReference</abbr></a></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
-    
+        <section class="phpdocumentor-description"><p>Overwrites any prior registration of the same name.
+Returns the stored reference, whose identity callers may track to detect later overwrites.</p>
+</section>
+
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
@@ -1485,20 +1678,17 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$isManual</span>
-                : <span class="phpdocumentor-argument-list__argument__type">bool</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">false</span>            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
             </dl>
 
     
 
         
     
-    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-PromptReference.html"><abbr title="\Mcp\Capability\Registry\PromptReference">PromptReference</abbr></a></span>
+            </section>
+
 </article>
                     <article
         class="phpdocumentor-element
@@ -1514,25 +1704,27 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">95</span>
+    <span class="phpdocumentor-element-found-in__line">86</span>
 
     </aside>
 
-        <p class="phpdocumentor-summary">Registers a resource with its handler.</p>
+        <p class="phpdocumentor-summary">Registers a resource with its handler. Overwrites any prior registration of the same URI.</p>
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">registerResource</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Resource.html"><abbr title="\Mcp\Schema\Resource">Resource</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$resource</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">bool&nbsp;</span><span class="phpdocumentor-signature__argument__name">$isManual</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">false</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+                    <span class="phpdocumentor-signature__name">registerResource</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-ResourceDefinition.html"><abbr title="\Mcp\Schema\ResourceDefinition">ResourceDefinition</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$resource</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ResourceReference.html"><abbr title="\Mcp\Capability\Registry\ResourceReference">ResourceReference</abbr></a></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
-    
+        <section class="phpdocumentor-description"><p>Returns the stored reference, whose identity callers may track to detect later overwrites.</p>
+</section>
+
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$resource</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-Resource.html"><abbr title="\Mcp\Schema\Resource">Resource</abbr></a></span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Schema-ResourceDefinition.html"><abbr title="\Mcp\Schema\ResourceDefinition">ResourceDefinition</abbr></a></span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
@@ -1544,20 +1736,17 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$isManual</span>
-                : <span class="phpdocumentor-argument-list__argument__type">bool</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">false</span>            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
             </dl>
 
     
 
         
     
-    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ResourceReference.html"><abbr title="\Mcp\Capability\Registry\ResourceReference">ResourceReference</abbr></a></span>
+            </section>
+
 </article>
                     <article
         class="phpdocumentor-element
@@ -1573,7 +1762,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">113</span>
+    <span class="phpdocumentor-element-found-in__line">96</span>
 
     </aside>
 
@@ -1581,12 +1770,15 @@
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">registerResourceTemplate</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-ResourceTemplate.html"><abbr title="\Mcp\Schema\ResourceTemplate">ResourceTemplate</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$template</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$completionProviders</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">bool&nbsp;</span><span class="phpdocumentor-signature__argument__name">$isManual</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">false</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+                    <span class="phpdocumentor-signature__name">registerResourceTemplate</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-ResourceTemplate.html"><abbr title="\Mcp\Schema\ResourceTemplate">ResourceTemplate</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$template</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string|int, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$completionProviders</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ResourceTemplateReference.html"><abbr title="\Mcp\Capability\Registry\ResourceTemplateReference">ResourceTemplateReference</abbr></a></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
-    
+        <section class="phpdocumentor-description"><p>Overwrites any prior registration of the same URI template.
+Returns the stored reference, whose identity callers may track to detect later overwrites.</p>
+</section>
+
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
@@ -1610,20 +1802,17 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$isManual</span>
-                : <span class="phpdocumentor-argument-list__argument__type">bool</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">false</span>            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
             </dl>
 
     
 
         
     
-    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ResourceTemplateReference.html"><abbr title="\Mcp\Capability\Registry\ResourceTemplateReference">ResourceTemplateReference</abbr></a></span>
+            </section>
+
 </article>
                     <article
         class="phpdocumentor-element
@@ -1639,20 +1828,22 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">71</span>
+    <span class="phpdocumentor-element-found-in__line">70</span>
 
     </aside>
 
-        <p class="phpdocumentor-summary">Registers a tool with its handler.</p>
+        <p class="phpdocumentor-summary">Registers a tool with its handler. Overwrites any prior registration of the same name.</p>
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">registerTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Tool.html"><abbr title="\Mcp\Schema\Tool">Tool</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$tool</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">bool&nbsp;</span><span class="phpdocumentor-signature__argument__name">$isManual</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">false</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+                    <span class="phpdocumentor-signature__name">registerTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Tool.html"><abbr title="\Mcp\Schema\Tool">Tool</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$tool</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">callable|array&lt;string|int, mixed&gt;|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ToolReference.html"><abbr title="\Mcp\Capability\Registry\ToolReference">ToolReference</abbr></a></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
-    
+        <section class="phpdocumentor-description"><p>Returns the stored reference, whose identity callers may track to detect later overwrites.</p>
+</section>
+
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
@@ -1669,10 +1860,52 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Capability-Registry-ToolReference.html"><abbr title="\Mcp\Capability\Registry\ToolReference">ToolReference</abbr></a></span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_unregisterPrompt">
+        unregisterPrompt()
+        <a href="classes/Mcp-Capability-Registry.html#method_unregisterPrompt" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">155</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Removes a prompt by name. No-op if absent.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">unregisterPrompt</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$isManual</span>
-                : <span class="phpdocumentor-argument-list__argument__type">bool</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">false</span>            </dt>
+                <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
@@ -1690,35 +1923,123 @@
             -public
                                                         "
 >
-    <h4 class="phpdocumentor-element__name" id="method_setDiscoveryState">
-        setDiscoveryState()
-        <a href="classes/Mcp-Capability-Registry.html#method_setDiscoveryState" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="method_unregisterResource">
+        unregisterResource()
+        <a href="classes/Mcp-Capability-Registry.html#method_unregisterResource" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">358</span>
+    <span class="phpdocumentor-element-found-in__line">133</span>
 
     </aside>
 
-        <p class="phpdocumentor-summary">Set the discovery state, replacing all discovered elements.</p>
+        <p class="phpdocumentor-summary">Removes a resource by URI. No-op if absent.</p>
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">setDiscoveryState</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-Discovery-DiscoveryState.html"><abbr title="\Mcp\Capability\Discovery\DiscoveryState">DiscoveryState</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$state</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+                    <span class="phpdocumentor-signature__name">unregisterResource</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uri</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
-        <section class="phpdocumentor-description"><p>Manual elements are preserved.</p>
-</section>
-
+    
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$state</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Capability-Discovery-DiscoveryState.html"><abbr title="\Mcp\Capability\Discovery\DiscoveryState">DiscoveryState</abbr></a></span>
+                <span class="phpdocumentor-argument-list__argument__name">$uri</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_unregisterResourceTemplate">
+        unregisterResourceTemplate()
+        <a href="classes/Mcp-Capability-Registry.html#method_unregisterResourceTemplate" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">144</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Removes a resource template by URI template. No-op if absent.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">unregisterResourceTemplate</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uriTemplate</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$uriTemplate</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_unregisterTool">
+        unregisterTool()
+        <a href="classes/Mcp-Capability-Registry.html#method_unregisterTool" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">122</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Removes a tool by name. No-op if absent.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">unregisterTool</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$name</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
@@ -1745,7 +2066,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">401</span>
+    <span class="phpdocumentor-element-found-in__line">338</span>
 
     </aside>
 
@@ -1814,7 +2135,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">432</span>
+    <span class="phpdocumentor-element-found-in__line">369</span>
 
     </aside>
 
@@ -1860,23 +2181,22 @@
             </dl>
 
     
-    <h5 class="phpdocumentor-tag-list__heading" id="tags">
+    <h5 class="phpdocumentor-tag-list__heading" id="method_paginateResults_tags">
         Tags
-        <a href="classes/Mcp-Capability-Registry.html#method_paginateResults#tags" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Capability-Registry.html#method_paginateResults_tags" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h5>
     <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">throws</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
+                    <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">throws</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
                                                                 <span class="phpdocumentor-tag-link"><a href="classes/Mcp-Exception-InvalidCursorException.html"><abbr title="\Mcp\Exception\InvalidCursorException">InvalidCursorException</abbr></a></span>
-                                                            
-                                                 <section class="phpdocumentor-description"><p>When cursor is invalid (MCP error code -32602)</p>
+                                                                                        <section class="phpdocumentor-description"><p>When cursor is invalid (MCP error code -32602)</p>
 </section>
 
                                     </dd>
-                                            </dl>
+                        </dl>
 
         
     
@@ -1892,100 +2212,7 @@
 </article>
             </section>
 
-        <div class="phpdocumentor-modal" id="source-view">
-    <div class="phpdocumentor-modal-bg" data-exit-button></div>
-    <div class="phpdocumentor-modal-container">
-        <div class="phpdocumentor-modal-content">
-            <pre style="max-height: 500px; overflow-y: scroll" data-src="files/src/Capability/Registry.php.txt" class="language-php line-numbers linkable-line-numbers"></pre>
-        </div>
-        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
-    </div>
-</div>
-
-    <script type="text/javascript">
-        (function () {
-            function loadExternalCodeSnippet(el, url, line) {
-                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
-                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
-                    const language = 'php';
-
-                    const code = document.createElement('code');
-                    code.className = 'language-' + language;
-                    pre.textContent = '';
-                    pre.setAttribute('data-line', line)
-                    code.textContent = 'Loading…';
-                    pre.appendChild(code);
-
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.open('GET', src, true);
-
-                    xhr.onreadystatechange = function () {
-                        if (xhr.readyState !== 4) {
-                            return;
-                        }
-
-                        if (xhr.status < 400 && xhr.responseText) {
-                            code.textContent = xhr.responseText;
-                            Prism.highlightElement(code);
-                            d=document.getElementsByClassName("line-numbers");
-                            d[0].scrollTop = d[0].children[1].offsetTop;
-                            return;
-                        }
-
-                        if (xhr.status === 404) {
-                            code.textContent = '✖ Error: File could not be found';
-                            return;
-                        }
-
-                        if (xhr.status >= 400) {
-                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
-                            return;
-                        }
-
-                        code.textContent = '✖ Error: An unknown error occurred';
-                    };
-
-                    xhr.send(null);
-                });
-            }
-
-            const modalButtons = document.querySelectorAll("[data-modal]");
-            const openedAsLocalFile = window.location.protocol === 'file:';
-            if (modalButtons.length > 0 && openedAsLocalFile) {
-                console.warn(
-                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
-                    'browsers block XHR requests when a page is opened this way'
-                );
-            }
-
-            modalButtons.forEach(function (trigger) {
-                if (openedAsLocalFile) {
-                    trigger.setAttribute("hidden", "hidden");
-                }
-
-                trigger.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    const modal = document.getElementById(trigger.dataset.modal);
-                    if (!modal) {
-                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
-                        return;
-                    }
-                    modal.classList.add("phpdocumentor-modal__open");
-
-                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
-                    const exits = modal.querySelectorAll("[data-exit-button]");
-                    exits.forEach(function (exit) {
-                        exit.addEventListener("click", function (event) {
-                            event.preventDefault();
-                            modal.classList.remove("phpdocumentor-modal__open");
-                        });
-                    });
-                });
-            });
-        })();
-    </script>
-
+        
     </article>
                                 </section>
                 <section class="phpdocumentor-on-this-page__sidebar">
@@ -2019,8 +2246,6 @@
             <li>
                 <ul class="phpdocumentor-list -clean">
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method___construct">__construct()</a></li>
-                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_clear">clear()</a></li>
-                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getDiscoveryState">getDiscoveryState()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getPrompt">getPrompt()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getPrompts">getPrompts()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getResource">getResource()</a></li>
@@ -2029,15 +2254,22 @@
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getResourceTemplates">getResourceTemplates()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getTool">getTool()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_getTools">getTools()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasPrompt">hasPrompt()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasPrompts">hasPrompts()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasResource">hasResource()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasResources">hasResources()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplate">hasResourceTemplate()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplates">hasResourceTemplates()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasTool">hasTool()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasTools">hasTools()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerPrompt">registerPrompt()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerResource">registerResource()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerResourceTemplate">registerResourceTemplate()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerTool">registerTool()</a></li>
-                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_setDiscoveryState">setDiscoveryState()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_unregisterPrompt">unregisterPrompt()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_unregisterResource">unregisterResource()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_unregisterResourceTemplate">unregisterResourceTemplate()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_unregisterTool">unregisterTool()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_calculateNextCursor">calculateNextCursor()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_paginateResults">paginateResults()</a></li>
                                     </ul>

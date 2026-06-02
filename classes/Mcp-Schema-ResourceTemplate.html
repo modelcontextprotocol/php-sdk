@@ -6,7 +6,10 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -93,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -171,7 +213,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">32</span>
+    <span class="phpdocumentor-element-found-in__line">33</span>
 
     </aside>
 
@@ -186,25 +228,23 @@
 
     </h5>
     <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">phpstan-import-type</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>AnnotationsData from Annotations</p>
+                    <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">phpstan-import-type</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>AnnotationsData from Annotations</p>
 </section>
 
                                     </dd>
-                                                <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">author</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
+                                <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">author</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
 </section>
 
                                     </dd>
-                                            </dl>
+                        </dl>
 
     
     
@@ -236,16 +276,16 @@
             <dt class="phpdocumentor-table-of-contents__entry -constant -private">
     <a class="" href="classes/Mcp-Schema-ResourceTemplate.html#constant_RESOURCE_NAME_PATTERN">RESOURCE_NAME_PATTERN</a>
     <span>
-        &nbsp;= &#039;/^[a-zA-Z0-9_-]+$/&#039;                            </span>
+        &nbsp;: mixed&nbsp;= &#039;/^[a-zA-Z0-9_-]+$/&#039;                            </span>
 </dt>
 <dd>Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -constant -private">
     <a class="" href="classes/Mcp-Schema-ResourceTemplate.html#constant_URI_TEMPLATE_PATTERN">URI_TEMPLATE_PATTERN</a>
     <span>
-        &nbsp;= &#039;/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/&#039;                            </span>
+        &nbsp;: mixed&nbsp;= &#039;/^[a-zA-Z][a-zA-Z0-9+.-]*:.*{[^{}]+}.*/&#039;                            </span>
 </dt>
-<dd>URI Template pattern regex - requires a valid scheme, followed by colon and path with at least one placeholder.</dd>
+<dd>URI Template pattern regex - requires a valid scheme followed by colon and path with at least one placeholder (RFC 3986).</dd>
 
     </dl>
 
@@ -287,6 +327,12 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -public">
+    <a class="" href="classes/Mcp-Schema-ResourceTemplate.html#property_title">$title</a>
+    <span>
+                        &nbsp;: string|null            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -public">
     <a class="" href="classes/Mcp-Schema-ResourceTemplate.html#property_uriTemplate">$uriTemplate</a>
     <span>
                         &nbsp;: string            </span>
@@ -315,7 +361,7 @@
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Schema-ResourceTemplate.html#method_jsonSerialize">jsonSerialize()</a>
     <span>
-                                &nbsp;: <abbr title="array{uriTemplate: string, name: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr>    </span>
+                                &nbsp;: <abbr title="array{uriTemplate: string, name: string, title?: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr>    </span>
 </dt>
 
     </dl>
@@ -339,7 +385,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">37</span>
+    <span class="phpdocumentor-element-found-in__line">38</span>
 
     </aside>
 
@@ -370,22 +416,22 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">43</span>
+    <span class="phpdocumentor-element-found-in__line">44</span>
 
     </aside>
 
-        <p class="phpdocumentor-summary">URI Template pattern regex - requires a valid scheme, followed by colon and path with at least one placeholder.</p>
+        <p class="phpdocumentor-summary">URI Template pattern regex - requires a valid scheme followed by colon and path with at least one placeholder (RFC 3986).</p>
 
     
     <code class="phpdocumentor-signature phpdocumentor-code ">
     <span class="phpdocumentor-signature__visibility">private</span>
         <span class="phpdocumentor-signature__type">mixed</span>
     <span class="phpdocumentor-signature__name">URI_TEMPLATE_PATTERN</span>
-    = <span class="phpdocumentor-signature__default-value">&#039;/^[a-zA-Z][a-zA-Z0-9+.-]*:\/\/.*{[^{}]+}.*/&#039;</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;/^[a-zA-Z][a-zA-Z0-9+.-]*:.*{[^{}]+}.*/&#039;</span>
 </code>
 
 
-        <section class="phpdocumentor-description"><p>Example patterns: config://{key}, file://{path}/contents.txt, db://{table}/{id}, etc.</p>
+        <section class="phpdocumentor-description"><p>Example patterns: file://{path}/contents.txt, db://{table}/{id}, config:{key}, etc.</p>
 </section>
 
     
@@ -419,7 +465,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">58</span>
+    <span class="phpdocumentor-element-found-in__line">61</span>
 
     </aside>
 
@@ -456,7 +502,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">56</span>
+    <span class="phpdocumentor-element-found-in__line">59</span>
 
     </aside>
 
@@ -493,7 +539,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">59</span>
+    <span class="phpdocumentor-element-found-in__line">62</span>
 
     </aside>
 
@@ -530,7 +576,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">57</span>
+    <span class="phpdocumentor-element-found-in__line">60</span>
 
     </aside>
 
@@ -567,7 +613,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">55</span>
+    <span class="phpdocumentor-element-found-in__line">57</span>
 
     </aside>
 
@@ -594,6 +640,43 @@
             -public
                                                 -read-only                    "
 >
+    <h4 class="phpdocumentor-element__name" id="property_title">
+        $title
+        <a href="classes/Mcp-Schema-ResourceTemplate.html#property_title" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">58</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">public</span>
+            <span class="phpdocumentor-signature__type">string|null</span>
+    <span class="phpdocumentor-signature__name">$title</span>
+     = <span class="phpdocumentor-signature__default-value">null</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -public
+                                                -read-only                    "
+>
     <h4 class="phpdocumentor-element__name" id="property_uriTemplate">
         $uriTemplate
         <a href="classes/Mcp-Schema-ResourceTemplate.html#property_uriTemplate" class="headerlink"><i class="fas fa-link"></i></a>
@@ -604,7 +687,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">54</span>
+    <span class="phpdocumentor-element-found-in__line">56</span>
 
     </aside>
 
@@ -646,14 +729,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">53</span>
+    <span class="phpdocumentor-element-found-in__line">55</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uriTemplate</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$mimeType</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Annotations.html"><abbr title="\Mcp\Schema\Annotations">Annotations</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$annotations</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uriTemplate</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$name</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$title</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$description</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">string|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$mimeType</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-Annotations.html"><abbr title="\Mcp\Schema\Annotations">Annotations</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$annotations</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$meta</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -675,7 +758,16 @@
                 : <span class="phpdocumentor-argument-list__argument__type">string</span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
-                    <section class="phpdocumentor-description"><p>A human-readable name for the type of resource this template refers to. This can be used by clients to populate UI elements.</p>
+                    <section class="phpdocumentor-description"><p>a short identifier for this resource template type</p>
+</section>
+
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$title</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>optional human-readable title for display in UI</p>
 </section>
 
             </dd>
@@ -684,7 +776,7 @@
                 : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
-                    <section class="phpdocumentor-description"><p>This can be used by clients to improve the LLM's understanding of available resources. It can be thought of like a &quot;hint&quot; to the model.</p>
+                    <section class="phpdocumentor-description"><p>a description to help the LLM understand available resources</p>
 </section>
 
             </dd>
@@ -693,7 +785,7 @@
                 : <span class="phpdocumentor-argument-list__argument__type">string|null</span>
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
-                    <section class="phpdocumentor-description"><p>The MIME type for all resources that match this template. This should only be included if all resources matching this template have the same type.</p>
+                    <section class="phpdocumentor-description"><p>the MIME type for all resources that match this template, if uniform</p>
 </section>
 
             </dd>
@@ -711,7 +803,7 @@
                 : <span class="phpdocumentor-argument-list__argument__type">array&lt;string, mixed&gt;|null</span>
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
-                    <section class="phpdocumentor-description"><p>Optional metadata</p>
+                    <section class="phpdocumentor-description"><p>optional metadata</p>
 </section>
 
             </dd>
@@ -737,7 +829,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">72</span>
+    <span class="phpdocumentor-element-found-in__line">75</span>
 
     </aside>
 
@@ -785,14 +877,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Schema/ResourceTemplate.php"><a href="files/src-schema-resourcetemplate.html"><abbr title="src/Schema/ResourceTemplate.php">ResourceTemplate.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">105</span>
+    <span class="phpdocumentor-element-found-in__line">110</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">jsonSerialize</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="array{uriTemplate: string, name: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr></span></code>
+                    <span class="phpdocumentor-signature__name">jsonSerialize</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="array{uriTemplate: string, name: string, title?: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -805,106 +897,13 @@
     
             <section>
         <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><abbr title="array{uriTemplate: string, name: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr></span>
+        <span class="phpdocumentor-signature__response_type"><abbr title="array{uriTemplate: string, name: string, title?: string, description?: string, mimeType?: string, annotations?: \Mcp\Schema\Annotations, _meta?: array<string,mixed>}">Annotations, _meta?: array<string,mixed>}</abbr></span>
             </section>
 
 </article>
             </section>
 
-        <div class="phpdocumentor-modal" id="source-view">
-    <div class="phpdocumentor-modal-bg" data-exit-button></div>
-    <div class="phpdocumentor-modal-container">
-        <div class="phpdocumentor-modal-content">
-            <pre style="max-height: 500px; overflow-y: scroll" data-src="files/src/Schema/ResourceTemplate.php.txt" class="language-php line-numbers linkable-line-numbers"></pre>
-        </div>
-        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
-    </div>
-</div>
-
-    <script type="text/javascript">
-        (function () {
-            function loadExternalCodeSnippet(el, url, line) {
-                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
-                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
-                    const language = 'php';
-
-                    const code = document.createElement('code');
-                    code.className = 'language-' + language;
-                    pre.textContent = '';
-                    pre.setAttribute('data-line', line)
-                    code.textContent = 'Loading…';
-                    pre.appendChild(code);
-
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.open('GET', src, true);
-
-                    xhr.onreadystatechange = function () {
-                        if (xhr.readyState !== 4) {
-                            return;
-                        }
-
-                        if (xhr.status < 400 && xhr.responseText) {
-                            code.textContent = xhr.responseText;
-                            Prism.highlightElement(code);
-                            d=document.getElementsByClassName("line-numbers");
-                            d[0].scrollTop = d[0].children[1].offsetTop;
-                            return;
-                        }
-
-                        if (xhr.status === 404) {
-                            code.textContent = '✖ Error: File could not be found';
-                            return;
-                        }
-
-                        if (xhr.status >= 400) {
-                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
-                            return;
-                        }
-
-                        code.textContent = '✖ Error: An unknown error occurred';
-                    };
-
-                    xhr.send(null);
-                });
-            }
-
-            const modalButtons = document.querySelectorAll("[data-modal]");
-            const openedAsLocalFile = window.location.protocol === 'file:';
-            if (modalButtons.length > 0 && openedAsLocalFile) {
-                console.warn(
-                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
-                    'browsers block XHR requests when a page is opened this way'
-                );
-            }
-
-            modalButtons.forEach(function (trigger) {
-                if (openedAsLocalFile) {
-                    trigger.setAttribute("hidden", "hidden");
-                }
-
-                trigger.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    const modal = document.getElementById(trigger.dataset.modal);
-                    if (!modal) {
-                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
-                        return;
-                    }
-                    modal.classList.add("phpdocumentor-modal__open");
-
-                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
-                    const exits = modal.querySelectorAll("[data-exit-button]");
-                    exits.forEach(function (exit) {
-                        exit.addEventListener("click", function (event) {
-                            event.preventDefault();
-                            modal.classList.remove("phpdocumentor-modal__open");
-                        });
-                    });
-                });
-            });
-        })();
-    </script>
-
+        
     </article>
                                 </section>
                 <section class="phpdocumentor-on-this-page__sidebar">
@@ -937,6 +936,7 @@
                                                     <li class=""><a href="classes/Mcp-Schema-ResourceTemplate.html#property_meta">$meta</a></li>
                                                     <li class=""><a href="classes/Mcp-Schema-ResourceTemplate.html#property_mimeType">$mimeType</a></li>
                                                     <li class=""><a href="classes/Mcp-Schema-ResourceTemplate.html#property_name">$name</a></li>
+                                                    <li class=""><a href="classes/Mcp-Schema-ResourceTemplate.html#property_title">$title</a></li>
                                                     <li class=""><a href="classes/Mcp-Schema-ResourceTemplate.html#property_uriTemplate">$uriTemplate</a></li>
                                             </ul>
                 </li>

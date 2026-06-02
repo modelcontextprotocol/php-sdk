@@ -6,7 +6,10 @@
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <base href="../">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -93,7 +96,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -172,7 +214,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">31</span>
+    <span class="phpdocumentor-element-found-in__line">34</span>
 
     </aside>
 
@@ -188,16 +230,15 @@ the effort required to implement this interface.</p>
 
     </h5>
     <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">author</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
+                    <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">author</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
 </section>
 
                                     </dd>
-                                            </dl>
+                        </dl>
 
     
     
@@ -219,16 +260,16 @@ the effort required to implement this interface.</p>
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
-            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
-    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_ALLOWED_HEADER">ALLOWED_HEADER</a>
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_PROTOCOL_VERSION_HEADER">PROTOCOL_VERSION_HEADER</a>
     <span>
-        &nbsp;= [&#039;Accept&#039;, &#039;Authorization&#039;, &#039;Content-Type&#039;, &#039;Last-Event-ID&#039;, &#039;Mcp-Protocol-Version&#039;, self::SESSION_HEADER]                            </span>
+        &nbsp;: mixed&nbsp;= &#039;Mcp-Protocol-Version&#039;                            </span>
 </dt>
 
-            <dt class="phpdocumentor-table-of-contents__entry -constant -private">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
     <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_SESSION_HEADER">SESSION_HEADER</a>
     <span>
-        &nbsp;= &#039;Mcp-Session-Id&#039;                            </span>
+        &nbsp;: mixed&nbsp;= &#039;Mcp-Session-Id&#039;                            </span>
 </dt>
 
     </dl>
@@ -295,12 +336,6 @@ the effort required to implement this interface.</p>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_corsHeaders">$corsHeaders</a>
-    <span>
-                        &nbsp;: array&lt;string, string&gt;            </span>
-</dt>
-
-            <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_immediateResponse">$immediateResponse</a>
     <span>
                         &nbsp;: string|null            </span>
@@ -362,6 +397,13 @@ the effort required to implement this interface.</p>
                                 &nbsp;: void    </span>
 </dt>
 <dd>Closes the transport and cleans up any resources.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_defaultMiddleware">defaultMiddleware()</a>
+    <span>
+                                &nbsp;: array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;    </span>
+</dt>
+<dd>Secure default middleware stack applied when no `$middleware` is provided to the constructor.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Server-Transport-BaseTransport.html#method_initialize">initialize()</a>
@@ -511,16 +553,16 @@ the effort required to implement this interface.</p>
                                 &nbsp;: void    </span>
 </dt>
 
-            <dt class="phpdocumentor-table-of-contents__entry -method -protected">
-    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_withCorsHeaders">withCorsHeaders()</a>
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_handleRequest">handleRequest()</a>
     <span>
                                 &nbsp;: <abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr>    </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -private">
-    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_handleRequest">handleRequest()</a>
+    <a class="" href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_normalizeMiddleware">normalizeMiddleware()</a>
     <span>
-                                &nbsp;: <abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr>    </span>
+                                &nbsp;: array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;    </span>
 </dt>
 
     </dl>
@@ -534,27 +576,27 @@ the effort required to implement this interface.</p>
             <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
-                    <article class="phpdocumentor-element -constant -private ">
-    <h4 class="phpdocumentor-element__name" id="constant_ALLOWED_HEADER">
-        ALLOWED_HEADER
-        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_ALLOWED_HEADER" class="headerlink"><i class="fas fa-link"></i></a>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_PROTOCOL_VERSION_HEADER">
+        PROTOCOL_VERSION_HEADER
+        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_PROTOCOL_VERSION_HEADER" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
 
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">35</span>
+    <span class="phpdocumentor-element-found-in__line">37</span>
 
     </aside>
 
     
     
     <code class="phpdocumentor-signature phpdocumentor-code ">
-    <span class="phpdocumentor-signature__visibility">private</span>
+    <span class="phpdocumentor-signature__visibility">public</span>
         <span class="phpdocumentor-signature__type">mixed</span>
-    <span class="phpdocumentor-signature__name">ALLOWED_HEADER</span>
-    = <span class="phpdocumentor-signature__default-value">[&#039;Accept&#039;, &#039;Authorization&#039;, &#039;Content-Type&#039;, &#039;Last-Event-ID&#039;, &#039;Mcp-Protocol-Version&#039;, self::SESSION_HEADER]</span>
+    <span class="phpdocumentor-signature__name">PROTOCOL_VERSION_HEADER</span>
+    = <span class="phpdocumentor-signature__default-value">&#039;Mcp-Protocol-Version&#039;</span>
 </code>
 
 
@@ -564,7 +606,7 @@ the effort required to implement this interface.</p>
 
         
     </article>
-                    <article class="phpdocumentor-element -constant -private ">
+                    <article class="phpdocumentor-element -constant -public ">
     <h4 class="phpdocumentor-element__name" id="constant_SESSION_HEADER">
         SESSION_HEADER
         <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_SESSION_HEADER" class="headerlink"><i class="fas fa-link"></i></a>
@@ -574,14 +616,14 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">33</span>
+    <span class="phpdocumentor-element-found-in__line">36</span>
 
     </aside>
 
     
     
     <code class="phpdocumentor-signature phpdocumentor-code ">
-    <span class="phpdocumentor-signature__visibility">private</span>
+    <span class="phpdocumentor-signature__visibility">public</span>
         <span class="phpdocumentor-signature__type">mixed</span>
     <span class="phpdocumentor-signature__name">SESSION_HEADER</span>
     = <span class="phpdocumentor-signature__default-value">&#039;Mcp-Session-Id&#039;</span>
@@ -943,43 +985,6 @@ the effort required to implement this interface.</p>
             -private
                                                                     "
 >
-    <h4 class="phpdocumentor-element__name" id="property_corsHeaders">
-        $corsHeaders
-        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_corsHeaders" class="headerlink"><i class="fas fa-link"></i></a>
-
-        <span class="phpdocumentor-element__modifiers">
-                                            </span>
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">51</span>
-
-    </aside>
-
-    
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-        <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type">array&lt;string, string&gt;</span>
-    <span class="phpdocumentor-signature__name">$corsHeaders</span>
-    </code>
-
-    
-    
-    
-
-        
-        
-
-</article>
-                    <article
-        class="
-            phpdocumentor-element
-            -property
-            -private
-                                                                    "
->
     <h4 class="phpdocumentor-element__name" id="property_immediateResponse">
         $immediateResponse
         <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_immediateResponse" class="headerlink"><i class="fas fa-link"></i></a>
@@ -990,7 +995,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">47</span>
+    <span class="phpdocumentor-element-found-in__line">42</span>
 
     </aside>
 
@@ -1027,7 +1032,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">48</span>
+    <span class="phpdocumentor-element-found-in__line">43</span>
 
     </aside>
 
@@ -1064,7 +1069,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">54</span>
+    <span class="phpdocumentor-element-found-in__line">46</span>
 
     </aside>
 
@@ -1074,7 +1079,7 @@ the effort required to implement this interface.</p>
         <span class="phpdocumentor-signature__visibility">private</span>
             <span class="phpdocumentor-signature__type">array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span>
     <span class="phpdocumentor-signature__name">$middleware</span>
-     = <span class="phpdocumentor-signature__default-value">[]</span></code>
+    </code>
 
     
     
@@ -1101,7 +1106,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">52</span>
 
     </aside>
 
@@ -1138,7 +1143,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">44</span>
+    <span class="phpdocumentor-element-found-in__line">39</span>
 
     </aside>
 
@@ -1175,7 +1180,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">45</span>
+    <span class="phpdocumentor-element-found-in__line">40</span>
 
     </aside>
 
@@ -1217,14 +1222,14 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">60</span>
+    <span class="phpdocumentor-element-found-in__line">51</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ResponseFactoryInterface">ResponseFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$responseFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$streamFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, string&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$corsHeaders</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$middleware</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ResponseFactoryInterface">ResponseFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$responseFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$streamFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$middleware</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -1254,13 +1259,6 @@ the effort required to implement this interface.</p>
                 
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$corsHeaders</span>
-                : <span class="phpdocumentor-argument-list__argument__type">array&lt;string, string&gt;</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">[]</span>            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$logger</span>
                 : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null</span>
                  = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
@@ -1269,10 +1267,12 @@ the effort required to implement this interface.</p>
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$middleware</span>
-                : <span class="phpdocumentor-argument-list__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">[]</span>            </dt>
+                : <span class="phpdocumentor-argument-list__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
-                
+                    <section class="phpdocumentor-description"><p><code class="prettyprint">null</code> installs <abbr title="\Mcp\Server\Transport\self::defaultMiddleware()">self::defaultMiddleware()</abbr>; <code class="prettyprint">[]</code> disables all middleware</p>
+</section>
+
             </dd>
             </dl>
 
@@ -1372,6 +1372,45 @@ the effort required to implement this interface.</p>
         class="phpdocumentor-element
             -method
             -public
+                                    -static                    "
+>
+    <h4 class="phpdocumentor-element__name" id="method_defaultMiddleware">
+        defaultMiddleware()
+        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_defaultMiddleware" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">78</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Secure default middleware stack applied when no `$middleware` is provided to the constructor.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">defaultMiddleware</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+    
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
                                                         "
 >
     <h4 class="phpdocumentor-element__name" id="method_initialize">
@@ -1417,7 +1456,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">94</span>
+    <span class="phpdocumentor-element-found-in__line">93</span>
 
     </aside>
 
@@ -1554,7 +1593,7 @@ and return a result (e.g., a PSR-7 Response) to be sent to the client.</li>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">88</span>
+    <span class="phpdocumentor-element-found-in__line">87</span>
 
     </aside>
 
@@ -1871,22 +1910,21 @@ The transport decides HOW to send based on context.</p>
             </dl>
 
     
-    <h5 class="phpdocumentor-tag-list__heading" id="tags">
+    <h5 class="phpdocumentor-tag-list__heading" id="method_checkForResponse_tags">
         Tags
-        <a href="classes/Mcp-Server-Transport-BaseTransport.html#method_checkForResponse#tags" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Server-Transport-BaseTransport.html#method_checkForResponse_tags" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h5>
     <dl class="phpdocumentor-tag-list">
-                                    <dt class="phpdocumentor-tag-list__entry">
-                    <span class="phpdocumentor-tag__name">phpstan-return</span>
-                </dt>
-                <dd class="phpdocumentor-tag-list__definition">
-                                                                                
-                                                 <section class="phpdocumentor-description"><p>FiberResume</p>
+                    <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">phpstan-return</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>FiberResume</p>
 </section>
 
                                     </dd>
-                                            </dl>
+                        </dl>
 
         
     
@@ -1965,7 +2003,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">142</span>
+    <span class="phpdocumentor-element-found-in__line">141</span>
 
     </aside>
 
@@ -2181,7 +2219,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">131</span>
+    <span class="phpdocumentor-element-found-in__line">130</span>
 
     </aside>
 
@@ -2355,7 +2393,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">104</span>
+    <span class="phpdocumentor-element-found-in__line">103</span>
 
     </aside>
 
@@ -2393,7 +2431,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">109</span>
+    <span class="phpdocumentor-element-found-in__line">108</span>
 
     </aside>
 
@@ -2464,54 +2502,6 @@ The transport decides HOW to send based on context.</p>
                     <article
         class="phpdocumentor-element
             -method
-            -protected
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_withCorsHeaders">
-        withCorsHeaders()
-        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_withCorsHeaders" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">276</span>
-
-    </aside>
-
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">protected</span>
-                    <span class="phpdocumentor-signature__name">withCorsHeaders</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$response</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-    
-        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
-    <dl class="phpdocumentor-argument-list">
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$response</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-            </dl>
-
-    
-
-        
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span>
-            </section>
-
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
             -private
                                                         "
 >
@@ -2523,7 +2513,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">287</span>
+    <span class="phpdocumentor-element-found-in__line">294</span>
 
     </aside>
 
@@ -2557,102 +2547,57 @@ The transport decides HOW to send based on context.</p>
             </section>
 
 </article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                    -static                    "
+>
+    <h4 class="phpdocumentor-element__name" id="method_normalizeMiddleware">
+        normalizeMiddleware()
+        <a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_normalizeMiddleware" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StreamableHttpTransport.php"><a href="files/src-server-transport-streamablehttptransport.html"><abbr title="src/Server/Transport/StreamableHttpTransport.php">StreamableHttpTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">281</span>
+
+    </aside>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">normalizeMiddleware</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$middleware</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$middleware</span>
+                : <span class="phpdocumentor-argument-list__argument__type">iterable&lt;string|int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">array&lt;int, <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>&gt;</span>
             </section>
 
-        <div class="phpdocumentor-modal" id="source-view">
-    <div class="phpdocumentor-modal-bg" data-exit-button></div>
-    <div class="phpdocumentor-modal-container">
-        <div class="phpdocumentor-modal-content">
-            <pre style="max-height: 500px; overflow-y: scroll" data-src="files/src/Server/Transport/StreamableHttpTransport.php.txt" class="language-php line-numbers linkable-line-numbers"></pre>
-        </div>
-        <button data-exit-button class="phpdocumentor-modal__close">&times;</button>
-    </div>
-</div>
+</article>
+            </section>
 
-    <script type="text/javascript">
-        (function () {
-            function loadExternalCodeSnippet(el, url, line) {
-                Array.prototype.slice.call(el.querySelectorAll('pre[data-src]')).forEach((pre) => {
-                    const src = url || pre.getAttribute('data-src').replace(/\\/g, '/');
-                    const language = 'php';
-
-                    const code = document.createElement('code');
-                    code.className = 'language-' + language;
-                    pre.textContent = '';
-                    pre.setAttribute('data-line', line)
-                    code.textContent = 'Loading…';
-                    pre.appendChild(code);
-
-                    var xhr = new XMLHttpRequest();
-
-                    xhr.open('GET', src, true);
-
-                    xhr.onreadystatechange = function () {
-                        if (xhr.readyState !== 4) {
-                            return;
-                        }
-
-                        if (xhr.status < 400 && xhr.responseText) {
-                            code.textContent = xhr.responseText;
-                            Prism.highlightElement(code);
-                            d=document.getElementsByClassName("line-numbers");
-                            d[0].scrollTop = d[0].children[1].offsetTop;
-                            return;
-                        }
-
-                        if (xhr.status === 404) {
-                            code.textContent = '✖ Error: File could not be found';
-                            return;
-                        }
-
-                        if (xhr.status >= 400) {
-                            code.textContent = '✖ Error ' + xhr.status + ' while fetching file: ' + xhr.statusText;
-                            return;
-                        }
-
-                        code.textContent = '✖ Error: An unknown error occurred';
-                    };
-
-                    xhr.send(null);
-                });
-            }
-
-            const modalButtons = document.querySelectorAll("[data-modal]");
-            const openedAsLocalFile = window.location.protocol === 'file:';
-            if (modalButtons.length > 0 && openedAsLocalFile) {
-                console.warn(
-                    'Viewing the source code is unavailable because you are opening this page from the file:// scheme; ' +
-                    'browsers block XHR requests when a page is opened this way'
-                );
-            }
-
-            modalButtons.forEach(function (trigger) {
-                if (openedAsLocalFile) {
-                    trigger.setAttribute("hidden", "hidden");
-                }
-
-                trigger.addEventListener("click", function (event) {
-                    event.preventDefault();
-                    const modal = document.getElementById(trigger.dataset.modal);
-                    if (!modal) {
-                        console.error(`Modal with id "${trigger.dataset.modal}" could not be found`);
-                        return;
-                    }
-                    modal.classList.add("phpdocumentor-modal__open");
-
-                    loadExternalCodeSnippet(modal, trigger.dataset.src || null, trigger.dataset.line)
-                    const exits = modal.querySelectorAll("[data-exit-button]");
-                    exits.forEach(function (exit) {
-                        exit.addEventListener("click", function (event) {
-                            event.preventDefault();
-                            modal.classList.remove("phpdocumentor-modal__open");
-                        });
-                    });
-                });
-            });
-        })();
-    </script>
-
+        
     </article>
                                 </section>
                 <section class="phpdocumentor-on-this-page__sidebar">
@@ -2672,7 +2617,7 @@ The transport decides HOW to send based on context.</p>
                             <li class="phpdocumentor-on-this-page-section__title">Constants</li>
                 <li>
                     <ul class="phpdocumentor-list -clean">
-                                                    <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_ALLOWED_HEADER">ALLOWED_HEADER</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_PROTOCOL_VERSION_HEADER">PROTOCOL_VERSION_HEADER</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_SESSION_HEADER">SESSION_HEADER</a></li>
                                             </ul>
                 </li>
@@ -2689,7 +2634,6 @@ The transport decides HOW to send based on context.</p>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-ManagesTransportCallbacks.html#property_sessionEndListener">$sessionEndListener</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#property_sessionFiber">$sessionFiber</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#property_sessionId">$sessionId</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_corsHeaders">$corsHeaders</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_immediateResponse">$immediateResponse</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_immediateStatusCode">$immediateStatusCode</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_middleware">$middleware</a></li>
@@ -2705,6 +2649,7 @@ The transport decides HOW to send based on context.</p>
                                             <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method___construct">__construct()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#method_attachFiberToSession">attachFiberToSession()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#method_close">close()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_defaultMiddleware">defaultMiddleware()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#method_initialize">initialize()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_listen">listen()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-ManagesTransportCallbacks.html#method_onMessage">onMessage()</a></li>
@@ -2729,8 +2674,8 @@ The transport decides HOW to send based on context.</p>
                                             <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_handleOptionsRequest">handleOptionsRequest()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_handlePostRequest">handlePostRequest()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#method_handleSessionEnd">handleSessionEnd()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_withCorsHeaders">withCorsHeaders()</a></li>
                                             <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_handleRequest">handleRequest()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_normalizeMiddleware">normalizeMiddleware()</a></li>
                                     </ul>
             </li>
                     </ul>

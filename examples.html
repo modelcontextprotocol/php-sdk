@@ -6,8 +6,11 @@
     
 
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <base href="../">
+    <base href="./">
+    <link rel="icon" type="image/png" sizes="32x32" href="images/favicon-32x32.png"/>
+    <link rel="icon" type="image/png" sizes="16x16" href="images/favicon-16x16.png"/>
     <link rel="icon" href="images/favicon.ico"/>
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png"/>
     <link rel="stylesheet" href="css/normalize.css">
     <link rel="stylesheet" href="css/base.css">
             <link rel="preconnect" href="https://fonts.gstatic.com">
@@ -94,7 +97,46 @@
     Menu
 </label>
 <aside class="phpdocumentor-column -three phpdocumentor-sidebar">
-                    <section class="phpdocumentor-sidebar__category -namespaces">
+                    <section class="phpdocumentor-sidebar__category -mcp-php-sdk-guides">
+            <h2 class="phpdocumentor-sidebar__category-header">Mcp-Php-Sdk-Guides</h2>
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/authorization.html#authorization" class="">Authorization</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/client.html#client" class="">Client</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/events.html#events" class="">Events</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/examples.html#examples" class="">Examples</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/extensions.html#protocol-extensions" class="">Protocol Extensions</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/mcp-elements.html#mcp-elements" class="">MCP Elements</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-builder.html#server-builder" class="">Server Builder</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/server-client-communication.html#client-communication" class="">Client Communication</a>
+</h4>
+
+                                    <h4 class="phpdocumentor-sidebar__root-namespace">
+    <a href="/transports.html#transports" class="">Transports</a>
+</h4>
+
+                        </section>
+                <section class="phpdocumentor-sidebar__category -namespaces">
             <h2 class="phpdocumentor-sidebar__category-header">Namespaces</h2>
                                     <h4 class="phpdocumentor-sidebar__root-namespace">
     <a href="namespaces/mcp.html" class="">Mcp</a>
@@ -181,7 +223,7 @@
             <section class="section " id="prerequisites">
             <h3>Prerequisites</h3>
 
-            <pre><code class="language-"># Install dependencies (in project root)
+            <pre><code class="language-bash"># Install dependencies (in project root)
 composer install
 </code></pre>
 
@@ -201,7 +243,7 @@ composer install
             
     <p>The STDIO transport will use standard input/output for communication:</p>
 
-            <pre><code class="language-"># Interactive testing with MCP Inspector
+            <pre><code class="language-bash"># Interactive testing with MCP Inspector
 npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 
 # Run with debugging enabled
@@ -219,7 +261,7 @@ npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discov
             
     <p>The Streamable HTTP transport will be chosen if running examples with a web servers:</p>
 
-            <pre><code class="language-"># Start the server
+            <pre><code class="language-bash"># Start the server
 php -S localhost:8000 examples/discovery-userprofile/server.php
 
 # Test with MCP Inspector
@@ -270,7 +312,7 @@ curl -X POST http://localhost:8000 \
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">#[McpTool(name: &#039;calculate&#039;)]
+            <pre><code class="language-php">#[McpTool(name: &#039;calculate&#039;)]
 public function calculate(float $a, float $b, string $operation): float|string
 
 #[McpResource(
@@ -285,7 +327,7 @@ public function getConfiguration(): array
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Interactive testing
+            <pre><code class="language-bash"># Interactive testing
 npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
 
 # Or configure in MCP client: php examples/discovery-calculator/server.php
@@ -320,7 +362,7 @@ npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;addTool([SimpleHandlers::class, &#039;echoText&#039;], &#039;echo_text&#039;)
     -&gt;addResource([SimpleHandlers::class, &#039;getAppVersion&#039;], &#039;app://version&#039;)
     -&gt;addPrompt([SimpleHandlers::class, &#039;greetingPrompt&#039;], &#039;personalized_greeting&#039;)
@@ -397,7 +439,7 @@ npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">$container-&gt;set(TaskRepositoryInterface::class, $taskRepo);
+            <pre><code class="language-php">$container-&gt;set(TaskRepositoryInterface::class, $taskRepo);
 $container-&gt;set(StatsServiceInterface::class, $statsService);
 
 $server = Server::builder()
@@ -434,7 +476,7 @@ $server = Server::builder()
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+            <pre><code class="language-php">use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
 $cache = new Psr16Cache(new FilesystemAdapter(&#039;mcp-discovery&#039;));
@@ -503,7 +545,7 @@ $server = Server::builder()
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">#[McpResourceTemplate(
+            <pre><code class="language-php">#[McpResourceTemplate(
     uriTemplate: &#039;user://{userId}/profile&#039;,
     name: &#039;user_profile&#039;,
     mimeType: &#039;application/json&#039;
@@ -521,7 +563,7 @@ public function generateBio(string $userId, string $tone = &#039;professional&#0
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Start the HTTP server
+            <pre><code class="language-bash"># Start the HTTP server
 php -S localhost:8000 examples/discovery-userprofile/server.php
 
 # Test with MCP Inspector
@@ -559,7 +601,7 @@ npx @modelcontextprotocol/inspector http://localhost:8000
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">$server = Server::builder()
+            <pre><code class="language-php">$server = Server::builder()
     -&gt;setDiscovery(__DIR__, [&#039;.&#039;])  // Automatic discovery
     -&gt;addTool([ManualHandlers::class, &#039;manualGreeter&#039;])  // Manual registration
     -&gt;addResource([ManualHandlers::class, &#039;getPriorityConfig&#039;], &#039;config://priority&#039;)
@@ -596,7 +638,7 @@ npx @modelcontextprotocol/inspector http://localhost:8000
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">#[Schema(definition: [
+            <pre><code class="language-php">#[Schema(definition: [
     &#039;type&#039; =&gt; &#039;object&#039;,
     &#039;properties&#039; =&gt; [
         &#039;title&#039; =&gt; [&#039;type&#039; =&gt; &#039;string&#039;, &#039;minLength&#039; =&gt; 1, &#039;maxLength&#039; =&gt; 100],
@@ -640,7 +682,7 @@ public function scheduleEvent(array $eventData): array
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">#[McpTool]
+            <pre><code class="language-php">#[McpTool]
 public function formatText(
     #[Schema(
         type: &#039;string&#039;,
@@ -692,7 +734,7 @@ public function formatText(
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">// Check client support before eliciting
+            <pre><code class="language-php">// Check client support before eliciting
 if (!$context-&gt;getClientGateway()-&gt;supportsElicitation()) {
     return [&#039;status&#039; =&gt; &#039;error&#039;, &#039;message&#039; =&gt; &#039;Client does not support elicitation&#039;];
 }
@@ -758,7 +800,7 @@ if ($result-&gt;isAccepted()) {
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Interactive testing with MCP client that supports elicitation
+            <pre><code class="language-bash"># Interactive testing with MCP client that supports elicitation
 npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
 
 # Test with Goose (confirmed working by reviewer)
@@ -782,6 +824,24 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
  - Rating and comments form with optional fields</li>
 
 </ol>
+
+    </section>
+
+            <section class="section " id="mcp-apps">
+            <h3>MCP Apps</h3>
+
+            
+    <p><strong>File</strong>
+: <code>examples/server/mcp-apps/</code>
+</p>
+
+            
+    <p>A weather app demonstrating the <a href="extensions.html">MCP Apps extension</a>: a <code>ui://</code>
+ HTML resource is opened by an MCP App-aware client (e.g. Goose) and bridged to the <code>get_weather</code>
+ tool. The bundled <code>weather-app.html</code>
+ performs the <code>ui/initialize</code>
+ handshake, reports its size via <code>ui/notifications/size-changed</code>
+, and calls back into the server. See the <a href="https://github.com/modelcontextprotocol/ext-apps">ext-apps repo</a> for the TypeScript SDK and richer view-side patterns.</p>
 
     </section>
 
@@ -819,7 +879,7 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">$client = Client::builder()
+            <pre><code class="language-php">$client = Client::builder()
     -&gt;setClientInfo(&#039;STDIO Example Client&#039;, &#039;1.0.0&#039;)
     -&gt;setInitTimeout(30)
     -&gt;setRequestTimeout(60)
@@ -840,7 +900,7 @@ $resourceContent = $client-&gt;readResource(&#039;config://calculator/settings&#
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Run the client (automatically starts the server)
+            <pre><code class="language-bash"># Run the client (automatically starts the server)
 php examples/client/stdio_discovery_calculator.php
 </code></pre>
 
@@ -873,7 +933,7 @@ php examples/client/stdio_discovery_calculator.php
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">$transport = new HttpTransport(&#039;http://localhost:8000&#039;);
+            <pre><code class="language-php">$transport = new HttpTransport(&#039;http://localhost:8000&#039;);
 $client-&gt;connect($transport);
 
 $tools = $client-&gt;listTools();
@@ -885,7 +945,7 @@ $prompts = $client-&gt;listPrompts();
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Start the server first
+            <pre><code class="language-bash"># Start the server first
 php -S localhost:8000 examples/server/http-discovery-calculator/server.php
 
 # Then run the client
@@ -923,7 +983,7 @@ php examples/client/http_discovery_calculator.php
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+            <pre><code class="language-php">use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Schema\ClientCapabilities;
@@ -962,7 +1022,7 @@ $result = $client-&gt;callTool(
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Run the client (automatically starts the communication server)
+            <pre><code class="language-bash"># Run the client (automatically starts the communication server)
 php examples/client/stdio_client_communication.php
 </code></pre>
 
@@ -1014,7 +1074,7 @@ php examples/client/stdio_client_communication.php
     <p><strong>Usage:</strong>
 </p>
 
-            <pre><code class="language-"># Start the server
+            <pre><code class="language-bash"># Start the server
 php -S 127.0.0.1:8000 examples/server/client-communication/server.php
 
 # Run the client
@@ -1024,7 +1084,9 @@ php examples/client/http_client_communication.php
             <div class="phpdocumentor-admonition note">
             <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3l-4 4z"></path></svg>
                     <article>
-         For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP&#039;s built-in development server cannot handle the concurrent requests required for sampling.
+        
+    <p> For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP&#039;s built-in development server cannot handle the concurrent requests required for sampling.</p>
+
     </article>
 </div>
 
