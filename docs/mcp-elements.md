@@ -74,6 +74,7 @@ class Calculator
 ### Parameters
 
 - **`name`** (optional): Tool identifier. Defaults to method name if not provided.
+- **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Tool description. Defaults to docblock summary if not provided, otherwise uses method name.
 - **`annotations`** (optional): `ToolAnnotations` object for additional metadata.
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
@@ -219,7 +220,8 @@ class ConfigProvider
 ### Parameters
 
 - **`uri`** (required): Unique resource identifier. Must comply with [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
-- **`name`** (optional): Human-readable name. Defaults to method name if not provided.
+- **`name`** (optional): Short resource identifier. Defaults to method name if not provided.
+- **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Resource description. Defaults to docblock summary if not provided.
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`size`** (optional): Size in bytes if known.
@@ -367,7 +369,8 @@ class UserProvider
 ### Parameters
 
 - **`uriTemplate`** (required): URI template with `{variables}` using RFC 6570 syntax. Must comply with RFC 3986.
-- **`name`** (optional): Human-readable name. Defaults to method name if not provided.
+- **`name`** (optional): Short resource template identifier. Defaults to method name if not provided.
+- **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Template description. Defaults to docblock summary if not provided.
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`annotations`** (optional): Additional metadata.
@@ -393,7 +396,7 @@ class PromptGenerator
     /**
      * Generates a code review request prompt.
      */
-    #[McpPrompt(name: 'code_review']
+    #[McpPrompt(name: 'code_review')]
     public function reviewCode(string $language, string $code, string $focus = 'general'): array
     {
         return [
@@ -407,6 +410,7 @@ class PromptGenerator
 ### Parameters
 
 - **`name`** (optional): Prompt identifier. Defaults to method name if not provided.
+- **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Prompt description. Defaults to docblock summary if not provided.
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.

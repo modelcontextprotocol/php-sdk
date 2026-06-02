@@ -671,8 +671,8 @@ $server = Server::builder()
 | `addNotificationHandler()` | handler | Prepend a single custom notification handler |
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
 | `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, ... | Register tool |
-| `addResource()` | handler, uri, name?, description?, mimeType?, size?, annotations? | Register resource |
-| `addResourceTemplate()` | handler, uriTemplate, name?, description?, mimeType?, annotations? | Register resource template |
-| `addPrompt()` | handler, name?, description? | Register prompt |
+| `addResource()` | handler, uri, name?, title?, description?, mimeType?, size?, annotations?, icons?, meta? | Register resource |
+| `addResourceTemplate()` | handler, uriTemplate, name?, title?, description?, mimeType?, annotations?, meta? | Register resource template |
+| `addPrompt()` | handler, name?, title?, description?, icons?, meta? | Register prompt |
 | `add()` | definition, handler | Register an element from a schema VO + handler pair |
 | `build()` | - | Create the server instance |
