@@ -77,6 +77,7 @@
       "Mcp\\Example\\Server\\EnvVariables\\": "examples/server/env-variables/",
       "Mcp\\Example\\Server\\ExplicitRegistration\\": "examples/server/explicit-registration/",
       "Mcp\\Example\\Server\\McpApps\\": "examples/server/mcp-apps/",
+      "Mcp\\Example\\Server\\OAuthAuthorizationServer\\": "examples/server/oauth-authorization-server/",
       "Mcp\\Example\\Server\\OAuthKeycloak\\": "examples/server/oauth-keycloak/",
       "Mcp\\Example\\Server\\OAuthMicrosoft\\": "examples/server/oauth-microsoft/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
