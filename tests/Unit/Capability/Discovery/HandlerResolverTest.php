@@ -38,6 +38,15 @@ class HandlerResolverTest extends TestCase
         $this->assertEquals(ValidHandlerClass::class, $resolved->getDeclaringClass()->getName());
     }
 
+    public function testResolvesValidInstanceArrayHandler(): void
+    {
+        $handler = [new ValidHandlerClass(), 'publicMethod'];
+        $resolved = HandlerResolver::resolve($handler);
+        $this->assertInstanceOf(\ReflectionMethod::class, $resolved);
+        $this->assertEquals('publicMethod', $resolved->getName());
+        $this->assertEquals(ValidHandlerClass::class, $resolved->getDeclaringClass()->getName());
+    }
+
     public function testResolvesValidInvokableClassStringHandler(): void
     {
         $handler = ValidInvokableClass::class;
@@ -59,14 +68,14 @@ class HandlerResolverTest extends TestCase
     public function testThrowsForInvalidArrayHandlerFormatCount(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Invalid array handler format. Expected [ClassName::class, 'methodName'].");
+        $this->expectExceptionMessage('Invalid array handler format. Expected [ClassName::class, \'methodName\'] or [$instance, \'methodName\'].');
         HandlerResolver::resolve([ValidHandlerClass::class]); /* @phpstan-ignore argument.type */
     }
 
     public function testThrowsForInvalidArrayHandlerFormatTypes(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Invalid array handler format. Expected [ClassName::class, 'methodName'].");
+        $this->expectExceptionMessage('Invalid array handler format. Expected [ClassName::class, \'methodName\'] or [$instance, \'methodName\'].');
         HandlerResolver::resolve([ValidHandlerClass::class, 123]); /* @phpstan-ignore argument.type */
     }
 
