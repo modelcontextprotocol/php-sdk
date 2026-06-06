@@ -48,7 +48,10 @@
               "null"
             ],
             "description": "an optional list of attendee email addresses",
-            "default": null
+            "default": null,
+            "items": {
+              "type": "string"
+            }
           },
           "sendInvites": {
             "type": "boolean",
