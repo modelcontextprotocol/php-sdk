@@ -297,6 +297,45 @@ final class ProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('Unrecoverable parse error does not fabricate an empty-string id')]
+    public function testParseErrorDoesNotFabricateEmptyStringId(): void
+    {
+        $sentPayload = null;
+        $this->transport->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function ($data) use (&$sentPayload) {
+                $sentPayload = $data;
+            });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        // Well-formed JSON nested past PHP's json_decode() depth limit (512), mirroring
+        // issue #333: json_decode() throws "Maximum stack depth exceeded" so the request
+        // carries a real numeric id (900512) that cannot be recovered once decoding fails.
+        $deeplyNested = str_repeat('[', 600).str_repeat(']', 600);
+        $input = '{"jsonrpc":"2.0","id":900512,"method":"initialize","params":'.$deeplyNested.'}';
+
+        $protocol->processInput($this->transport, $input, null);
+
+        $this->assertNotNull($sentPayload);
+        $decoded = json_decode($sentPayload, true);
+        $this->assertSame(Error::PARSE_ERROR, $decoded['error']['code']);
+        // The original id is genuinely unrecoverable after a parse failure: the response
+        // must be null or omit the id, never a fabricated empty string.
+        $this->assertNotSame('', $decoded['id'] ?? null, 'Parse error must not fabricate an empty-string id');
+        // isset() is false for both an absent key and a null value, so this asserts the id is
+        // null or omitted (never a fabricated empty string).
+        $this->assertFalse(
+            isset($decoded['id']),
+            'Unrecoverable parse error id should be null or omitted',
+        );
+    }
+
     #[TestDox('Invalid message structure returns error')]
     public function testInvalidMessageStructureReturnsError(): void
     {
@@ -347,6 +386,55 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
+    }
+
+    #[TestDox('Invalid but parseable message preserves its recoverable id')]
+    public function testInvalidMessagePreservesRecoverableId(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        // Configure session mock for queue operations (mirrors testInvalidMessageStructureReturnsError).
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                return $queue;
+            }
+
+            return $default;
+        });
+
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $sessionId = Uuid::v4();
+        // Valid JSON carrying a real numeric id but missing method/result/error: the message
+        // is structurally invalid, yet its id (42) IS recoverable from the decoded payload.
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 42, "params": {}}',
+            $sessionId
+        );
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+
+        $message = json_decode($outgoing[0]['message'], true);
+        $this->assertArrayHasKey('error', $message);
+        $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
+        $this->assertSame(42, $message['id'], 'Invalid-but-parseable message must preserve its recoverable id, not return ""');
     }
 
     #[TestDox('Request without handler returns method not found error')]

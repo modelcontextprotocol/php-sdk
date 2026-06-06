@@ -42,7 +42,7 @@ class Error implements MessageInterface
      * @param mixed|null $data    additional information about the error
      */
     public function __construct(
-        public readonly string|int $id,
+        public readonly string|int|null $id,
         public readonly int $code,
         public readonly string $message,
         public readonly mixed $data = null,
@@ -76,12 +76,12 @@ class Error implements MessageInterface
         return new self($data['id'], $data['error']['code'], $data['error']['message'], $data['error']['data'] ?? null);
     }
 
-    final public static function forParseError(string $message, string|int $id = ''): self
+    final public static function forParseError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::PARSE_ERROR, $message);
     }
 
-    final public static function forInvalidRequest(string $message, string|int $id = ''): self
+    final public static function forInvalidRequest(string $message, string|int|null $id = null): self
     {
         return new self($id, self::INVALID_REQUEST, $message);
     }
@@ -111,7 +111,7 @@ class Error implements MessageInterface
         return new self($id, self::RESOURCE_NOT_FOUND, $message);
     }
 
-    public function getId(): string|int
+    public function getId(): string|int|null
     {
         return $this->id;
     }
@@ -119,7 +119,7 @@ class Error implements MessageInterface
     /**
      * @return array{
      *     jsonrpc: string,
-     *     id: string|int,
+     *     id: string|int|null,
      *     error: array{
      *         code: int,
      *         message: string,
