@@ -16,4 +16,17 @@ namespace Mcp\Exception;
  */
 class InvalidInputMessageException extends \InvalidArgumentException implements ExceptionInterface
 {
+    private string|int|null $requestId = null;
+
+    public function getRequestId(): string|int|null
+    {
+        return $this->requestId;
+    }
+
+    public function setRequestId(string|int|null $requestId): self
+    {
+        $this->requestId = $requestId;
+
+        return $this;
+    }
 }

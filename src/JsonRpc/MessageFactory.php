@@ -148,6 +148,9 @@ final class MessageFactory
 
                 $messages[] = $this->createMessage($message);
             } catch (InvalidInputMessageException $e) {
+                if (\is_array($message) && isset($message['id']) && (\is_string($message['id']) || \is_int($message['id']))) {
+                    $e->setRequestId($message['id']);
+                }
                 $messages[] = $e;
             }
         }
