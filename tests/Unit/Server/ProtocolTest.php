@@ -325,15 +325,11 @@ final class ProtocolTest extends TestCase
         $this->assertNotNull($sentPayload);
         $decoded = json_decode($sentPayload, true);
         $this->assertSame(Error::PARSE_ERROR, $decoded['error']['code']);
-        // The original id is genuinely unrecoverable after a parse failure: the response
-        // must be null or omit the id, never a fabricated empty string.
-        $this->assertNotSame('', $decoded['id'] ?? null, 'Parse error must not fabricate an empty-string id');
-        // isset() is false for both an absent key and a null value, so this asserts the id is
-        // null or omitted (never a fabricated empty string).
-        $this->assertFalse(
-            isset($decoded['id']),
-            'Unrecoverable parse error id should be null or omitted',
-        );
+        // The original id is genuinely unrecoverable after a parse failure: per JSON-RPC 2.0
+        // the response must emit id: null, never a fabricated empty string and never a dropped
+        // key (clients that strictly validate the JSON-RPC shape rely on the key being present).
+        $this->assertArrayHasKey('id', $decoded);
+        $this->assertNull($decoded['id'], 'Unrecoverable parse error must emit id: null');
     }
 
     #[TestDox('Invalid message structure returns error')]
