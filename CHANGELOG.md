@@ -5,7 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.6.1
 -----
 
-* Allow registering an element handler as a pre-built object instance (`[$instance, 'methodName']`) via `Builder::addTool()`, `addResource()`, `addResourceTemplate()`, and `addPrompt()`. `HandlerResolver` previously rejected instances with "Invalid array handler format" even though the `Handler` type already permitted them — this unblocks handler objects with constructor dependencies that the container-less fallback cannot build.
+* Allow `[$instance, 'methodName']` as an element handler in `Builder::addTool()`, `addResource()`, `addResourceTemplate()`, and `addPrompt()`. Unblocks handlers with constructor dependencies that the container-less `new $className()` fallback cannot build.
 
 0.6.0
 -----

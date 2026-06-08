@@ -45,7 +45,13 @@ class HandlerResolver
         }
 
         if (\is_array($handler)) {
-            if (2 !== \count($handler) || !isset($handler[0]) || !isset($handler[1]) || !(\is_string($handler[0]) || \is_object($handler[0])) || !\is_string($handler[1])) {
+            // A Closure in slot 0 must fall through to the format error rather than
+            // be treated as an instance, where "$closure::class" would yield the
+            // misleading class name "Closure".
+            $target = $handler[0] ?? null;
+            $hasValidTarget = (\is_string($target) || \is_object($target)) && !$target instanceof \Closure;
+
+            if (2 !== \count($handler) || !$hasValidTarget || !isset($handler[1]) || !\is_string($handler[1])) {
                 throw new InvalidArgumentException('Invalid array handler format. Expected [ClassName::class, \'methodName\'] or [$instance, \'methodName\'].');
             }
             [$classOrObject, $methodName] = $handler;
@@ -75,7 +81,7 @@ class HandlerResolver
                 throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" must be public.', $className, $methodName));
             }
             if ($reflectionMethod->isAbstract()) {
-                throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" must be abstract.', $className, $methodName));
+                throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" must not be abstract.', $className, $methodName));
             }
             if ($reflectionMethod->isConstructor() || $reflectionMethod->isDestructor()) {
                 throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" cannot be a constructor or destructor.', $className, $methodName));

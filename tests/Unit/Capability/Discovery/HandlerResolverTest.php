@@ -79,6 +79,13 @@ class HandlerResolverTest extends TestCase
         HandlerResolver::resolve([ValidHandlerClass::class, 123]); /* @phpstan-ignore argument.type */
     }
 
+    public function testThrowsForClosureInArrayHandler(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid array handler format. Expected [ClassName::class, \'methodName\'] or [$instance, \'methodName\'].');
+        HandlerResolver::resolve([static fn () => null, 'method']);
+    }
+
     public function testThrowsForNonExistentClassInArrayHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -138,7 +145,7 @@ class HandlerResolverTest extends TestCase
     public function testThrowsForAbstractMethodHandler(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Handler method "Mcp\Tests\Unit\Capability\Discovery\AbstractHandlerClass::abstractMethod" must be abstract.');
+        $this->expectExceptionMessage('Handler method "Mcp\Tests\Unit\Capability\Discovery\AbstractHandlerClass::abstractMethod" must not be abstract.');
         HandlerResolver::resolve([AbstractHandlerClass::class, 'abstractMethod']);
     }
 
