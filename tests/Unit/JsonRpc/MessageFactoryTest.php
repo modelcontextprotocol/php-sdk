@@ -346,9 +346,23 @@ final class MessageFactoryTest extends TestCase
         $this->assertStringContainsString('id', $results[0]->getMessage());
     }
 
+    public function testErrorWithNullIdIsAccepted(): void
+    {
+        // JSON-RPC 2.0 mandates id: null on an error response when the request id
+        // could not be determined (parse error / invalid request), so an incoming
+        // error with a null id must deserialize, not be rejected.
+        $json = '{"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "Parse error"}}';
+
+        $results = $this->factory->create($json);
+
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(Error::class, $results[0]);
+        $this->assertNull($results[0]->getId());
+    }
+
     public function testErrorWithInvalidIdType(): void
     {
-        $json = '{"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid"}}';
+        $json = '{"jsonrpc": "2.0", "id": true, "error": {"code": -32600, "message": "Invalid"}}';
 
         $results = $this->factory->create($json);
 

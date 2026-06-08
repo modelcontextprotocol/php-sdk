@@ -18,7 +18,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @phpstan-type ErrorData array{
  *     jsonrpc: string,
- *     id: string|int,
+ *     id: string|int|null,
  *     code: int,
  *     message: string,
  *     data?: mixed,
@@ -57,10 +57,13 @@ class Error implements MessageInterface
         if (!isset($data['jsonrpc']) || MessageInterface::JSONRPC_VERSION !== $data['jsonrpc']) {
             throw new InvalidArgumentException('Invalid or missing "jsonrpc" in Error data.');
         }
-        if (!isset($data['id'])) {
+        // JSON-RPC requires the "id" key on a response, but its value may be null
+        // (parse error / invalid request where the id could not be determined), so the
+        // key must be present yet allowed to hold null alongside string|int.
+        if (!\array_key_exists('id', $data)) {
             throw new InvalidArgumentException('Invalid or missing "id" in Error data.');
         }
-        if (!\is_string($data['id']) && !\is_int($data['id'])) {
+        if (null !== $data['id'] && !\is_string($data['id']) && !\is_int($data['id'])) {
             throw new InvalidArgumentException('Invalid "id" type in Error data.');
         }
         if (!isset($data['error']) || !\is_array($data['error'])) {
@@ -86,27 +89,27 @@ class Error implements MessageInterface
         return new self($id, self::INVALID_REQUEST, $message);
     }
 
-    final public static function forMethodNotFound(string $message, string|int $id = ''): self
+    final public static function forMethodNotFound(string $message, string|int|null $id = null): self
     {
         return new self($id, self::METHOD_NOT_FOUND, $message);
     }
 
-    final public static function forInvalidParams(string $message, string|int $id = '', mixed $data = null): self
+    final public static function forInvalidParams(string $message, string|int|null $id = null, mixed $data = null): self
     {
         return new self($id, self::INVALID_PARAMS, $message, $data);
     }
 
-    final public static function forInternalError(string $message, string|int $id = ''): self
+    final public static function forInternalError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::INTERNAL_ERROR, $message);
     }
 
-    final public static function forServerError(string $message, string|int $id = ''): self
+    final public static function forServerError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::SERVER_ERROR, $message);
     }
 
-    final public static function forResourceNotFound(string $message, string|int $id = ''): self
+    final public static function forResourceNotFound(string $message, string|int|null $id = null): self
     {
         return new self($id, self::RESOURCE_NOT_FOUND, $message);
     }
