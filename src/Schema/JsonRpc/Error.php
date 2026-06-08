@@ -20,7 +20,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
  *
  * @phpstan-type ErrorData array{
  *     jsonrpc: string,
- *     id: string|int,
+ *     id: string|int|null,
  *     code: int,
  *     message: string,
  *     data?: mixed,
