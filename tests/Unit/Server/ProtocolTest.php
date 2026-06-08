@@ -27,6 +27,7 @@ use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -384,8 +385,19 @@ final class ProtocolTest extends TestCase
         $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
     }
 
+    /**
+     * @return iterable<string, array{string, string|int}>
+     */
+    public static function recoverableIdProvider(): iterable
+    {
+        yield 'positive int' => ['{"jsonrpc": "2.0", "id": 42, "params": {}}', 42];
+        yield 'zero int (truthiness trap)' => ['{"jsonrpc": "2.0", "id": 0, "params": {}}', 0];
+        yield 'string id' => ['{"jsonrpc": "2.0", "id": "req-1", "params": {}}', 'req-1'];
+    }
+
+    #[DataProvider('recoverableIdProvider')]
     #[TestDox('Invalid but parseable message preserves its recoverable id')]
-    public function testInvalidMessagePreservesRecoverableId(): void
+    public function testInvalidMessagePreservesRecoverableId(string $input, string|int $expectedId): void
     {
         $session = $this->createMock(SessionInterface::class);
 
@@ -416,11 +428,11 @@ final class ProtocolTest extends TestCase
         );
 
         $sessionId = Uuid::v4();
-        // Valid JSON carrying a real numeric id but missing method/result/error: the message
-        // is structurally invalid, yet its id (42) IS recoverable from the decoded payload.
+        // Valid JSON carrying a real id but missing method/result/error: the message is
+        // structurally invalid, yet its id IS recoverable from the decoded payload.
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": 42, "params": {}}',
+            $input,
             $sessionId
         );
 
@@ -430,7 +442,7 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
-        $this->assertSame(42, $message['id'], 'Invalid-but-parseable message must preserve its recoverable id, not return ""');
+        $this->assertSame($expectedId, $message['id'], 'Invalid-but-parseable message must preserve its recoverable id, not return ""');
     }
 
     #[TestDox('Request without handler returns method not found error')]
