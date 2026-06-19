@@ -2,7 +2,7 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
-0.6.1
+0.7.0
 -----
 
 * Allow `[$instance, 'methodName']` as an element handler in `Builder::addTool()`, `addResource()`, `addResourceTemplate()`, and `addPrompt()`. Unblocks handlers with constructor dependencies that the container-less `new $className()` fallback cannot build.
