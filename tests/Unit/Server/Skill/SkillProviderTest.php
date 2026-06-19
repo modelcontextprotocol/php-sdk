@@ -124,6 +124,74 @@ class SkillProviderTest extends TestCase
         $this->assertArrayHasKey(McpSkills::EXTENSION_ID, $extensions);
     }
 
+    public function testNoArchivesByDefault(): void
+    {
+        $builder = Server::builder();
+
+        $entries = (new SkillProvider())->registerInto($builder, self::FIXTURES);
+
+        $uris = array_column($this->registeredResources($builder), 'uri');
+        $this->assertNotContains('skill://code-review.tar.gz', $uris);
+        foreach ($entries as $entry) {
+            $this->assertSame([], $entry->archives);
+        }
+    }
+
+    public function testArchivesAreRegisteredAndListedWhenRequested(): void
+    {
+        $builder = Server::builder();
+
+        $entries = (new SkillProvider())->registerInto($builder, self::FIXTURES, archiveFormats: ['application/gzip']);
+
+        $uris = array_column($this->registeredResources($builder), 'uri');
+        $this->assertContains('skill://code-review.tar.gz', $uris);
+        $this->assertContains('skill://acme/billing/refunds.tar.gz', $uris);
+
+        foreach ($entries as $entry) {
+            $this->assertCount(1, $entry->archives);
+            $archive = $entry->archives[0];
+            $this->assertSame('application/gzip', $archive->mimeType);
+            $this->assertStringStartsWith('sha256:', $archive->digest);
+            $this->assertStringEndsWith('.tar.gz', $archive->url);
+        }
+    }
+
+    public function testArchiveDigestMatchesServedBytes(): void
+    {
+        $builder = Server::builder();
+
+        $entries = (new SkillProvider())->registerInto($builder, self::FIXTURES, archiveFormats: ['application/gzip']);
+
+        $archive = $entries[0]->archives[0];
+        $resource = $this->resourceByUri($builder, $archive->url);
+
+        $this->assertSame('application/gzip', $resource['mimeType']);
+
+        $served = base64_decode(($resource['handler'])()['blob']);
+        $this->assertSame('sha256:'.hash('sha256', $served), $archive->digest);
+    }
+
+    public function testArchiveUnpacksToSkillFiles(): void
+    {
+        $builder = Server::builder();
+
+        (new SkillProvider())->registerInto($builder, self::FIXTURES, archiveFormats: ['application/gzip']);
+
+        $resource = $this->resourceByUri($builder, 'skill://code-review.tar.gz');
+        $tar = gzdecode(base64_decode(($resource['handler'])()['blob']));
+
+        $this->assertNotFalse($tar);
+        $this->assertStringContainsString('SKILL.md', $tar);
+        $this->assertStringContainsString('references/SECURITY.md', $tar);
+    }
+
+    public function testUnsupportedArchiveFormatThrows(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        (new SkillProvider())->registerInto(Server::builder(), self::FIXTURES, archiveFormats: ['application/zip']);
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */

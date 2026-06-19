@@ -13,6 +13,7 @@ namespace Mcp\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Extension\Skills\McpSkills;
+use Mcp\Schema\Extension\Skills\SkillArchive;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryEntry;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryIndex;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
@@ -41,6 +42,7 @@ final class SkillProvider
 
     public function __construct(
         private readonly FrontmatterParser $frontmatter = new FrontmatterParser(),
+        private readonly SkillArchiver $archiver = new SkillArchiver(),
     ) {
     }
 
@@ -48,11 +50,18 @@ final class SkillProvider
      * Walks $baseDirectory and registers every discovered skill (and its supporting files) as
      * `skill://` resources on $builder, optionally serving a `skill://index.json` discovery index.
      *
+     * When $archiveFormats is non-empty, each skill is additionally packed into one resource per
+     * format (e.g. `skill://<skill-path>.tar.gz`) and the discovery index lists those archives, so
+     * a host can fetch the whole skill in a single `resources/read`.
+     *
+     * @param string[] $archiveFormats archive MIME types to emit (see {@see SkillArchiver::FORMATS})
+     *
      * @return SkillDiscoveryEntry[] the discovered skills
      *
-     * @throws InvalidArgumentException if the directory is missing, or a skill violates the spec
+     * @throws InvalidArgumentException if the directory is missing, an archive format is
+     *                                  unsupported, or a skill violates the spec
      */
-    public function registerInto(Builder $builder, string $baseDirectory, bool $withDiscoveryIndex = true): array
+    public function registerInto(Builder $builder, string $baseDirectory, bool $withDiscoveryIndex = true, array $archiveFormats = []): array
     {
         $base = realpath($baseDirectory);
         if (false === $base || !is_dir($base)) {
@@ -63,7 +72,7 @@ final class SkillProvider
         $entries = [];
 
         foreach ($this->findSkillManifests($base) as $manifestPath) {
-            $entries[] = $this->registerSkill($builder, $base, $manifestPath);
+            $entries[] = $this->registerSkill($builder, $base, $manifestPath, $archiveFormats);
         }
 
         if ($withDiscoveryIndex) {
@@ -82,7 +91,10 @@ final class SkillProvider
         return $entries;
     }
 
-    private function registerSkill(Builder $builder, string $base, string $manifestPath): SkillDiscoveryEntry
+    /**
+     * @param string[] $archiveFormats
+     */
+    private function registerSkill(Builder $builder, string $base, string $manifestPath, array $archiveFormats): SkillDiscoveryEntry
     {
         $skillDir = \dirname($manifestPath);
         $skillPath = $this->relativePath($base, $skillDir);
@@ -99,11 +111,23 @@ final class SkillProvider
         $entryUri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $skillPath, McpSkills::ENTRY_POINT);
         $this->registerFile($builder, $base, $manifestPath, $entryUri, McpSkills::MIME_TYPE, $metadata);
 
+        // Collect file contents (SKILL.md at the archive root) when archives are requested.
+        $files = [] !== $archiveFormats ? [McpSkills::ENTRY_POINT => $content] : [];
+
         // Register all supporting files within the skill directory.
         foreach ($this->findSupportingFiles($skillDir, $manifestPath) as $filePath) {
             $relative = $this->relativePath($skillDir, $filePath);
             $uri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $skillPath, $relative);
             $this->registerFile($builder, $base, $filePath, $uri, $this->guessMimeType($filePath), null);
+
+            if ([] !== $archiveFormats) {
+                $files[$relative] = (string) file_get_contents($filePath);
+            }
+        }
+
+        $archives = [];
+        foreach ($archiveFormats as $format) {
+            $archives[] = $this->registerArchive($builder, $skillPath, $files, $format);
         }
 
         // The index mirrors the SKILL.md frontmatter verbatim and carries the file's content digest.
@@ -111,7 +135,33 @@ final class SkillProvider
             frontmatter: $metadata,
             url: $entryUri,
             digest: 'sha256:'.hash('sha256', $content),
+            archives: $archives,
         );
+    }
+
+    /**
+     * Packs the skill's files into one archive resource and returns the matching index entry.
+     *
+     * The archive is built once here so its `digest` matches the bytes served on `resources/read`.
+     *
+     * @param array<string, string> $files relative path => content
+     */
+    private function registerArchive(Builder $builder, string $skillPath, array $files, string $format): SkillArchive
+    {
+        $bytes = $this->archiver->pack($files, $format);
+        $uri = \sprintf('%s://%s.%s', McpSkills::URI_SCHEME, $skillPath, $this->archiver->extension($format));
+        $blob = base64_encode($bytes);
+
+        $builder->addResource(
+            static fn (): array => ['blob' => $blob, 'mimeType' => $format],
+            $uri,
+            name: $this->uniqueResourceName($uri),
+            title: \sprintf('%s skill archive', basename($skillPath)),
+            description: \sprintf('Packed archive of the "%s" skill (SKILL.md and all supporting files).', basename($skillPath)),
+            mimeType: $format,
+        );
+
+        return new SkillArchive($uri, $format, 'sha256:'.hash('sha256', $bytes));
     }
 
     private function registerFile(Builder $builder, string $base, string $filePath, string $uri, string $mimeType, ?SkillMetadata $metadata): void

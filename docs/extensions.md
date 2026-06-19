@@ -168,6 +168,20 @@ read of the index without fetching each `SKILL.md`. Skills also appear as normal
 entries in `resources/list`, so a large skill tree pages via `resources/list`
 cursors. Pass `withDiscoveryIndex: false` to skip the index.
 
+To let a host fetch a whole multi-file skill in one `resources/read`, pass one or
+more archive MIME types; each skill is then also served as a packed resource (e.g.
+`skill://code-review.tar.gz`) and listed under the index entry's `archives`:
+
+```php
+$server = Server::builder()
+    ->setServerInfo('My Server', '1.0.0')
+    ->addSkillsFromDirectory(__DIR__.'/skills', archiveFormats: ['application/gzip'])
+    ->build();
+```
+
+Archives are built deterministically (`SKILL.md` at the archive root) so the index
+`digest` matches the served bytes. `application/gzip` (`.tar.gz`) is supported today.
+
 Parsing `SKILL.md` frontmatter requires the [`symfony/yaml`][symfony-yaml]
 component, which is a dependency of this SDK.
 
@@ -177,6 +191,7 @@ component, which is a dependency of this SDK.
 | --- | --- |
 | `McpSkills` | Extension marker; provides `EXTENSION_ID`, `MIME_TYPE`, `URI_SCHEME`, `ENTRY_POINT`, `DISCOVERY_URI`, `META_PREFIX` constants. |
 | `SkillProvider` | Walks a directory and registers each skill (and its files) as `skill://` resources. |
+| `SkillArchiver` | Packs a skill's files into an archive (`application/gzip` → `.tar.gz`). |
 | `FrontmatterParser` | Splits a `SKILL.md` into its YAML frontmatter and markdown body. |
 | `SkillMetadata` | Value object for parsed frontmatter: `name`, `description`, `extra`. |
 | `SkillDiscoveryIndex` | The `skill://index.json` document: a `skills` array. |
