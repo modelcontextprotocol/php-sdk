@@ -33,3 +33,4 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./.phpdoc/build
           enable_jekyll: false
+          cname: php.sdk.modelcontextprotocol.io
