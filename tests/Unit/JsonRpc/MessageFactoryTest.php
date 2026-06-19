@@ -17,6 +17,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\PingRequest;
 use PHPUnit\Framework\TestCase;
@@ -333,6 +334,22 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(PingRequest::class, $results[0]);
+    }
+
+    public function testMakeFactoryParsesElicitationCreate(): void
+    {
+        $factory = MessageFactory::make();
+        $json = '{"jsonrpc": "2.0", "method": "elicitation/create", "id": 1, "params": {"message": "Your name?", "requestedSchema": {"type": "object", "properties": {"name": {"type": "string", "title": "Name"}}, "required": ["name"]}}}';
+
+        $results = $factory->create($json);
+
+        $this->assertCount(1, $results);
+        /** @var ElicitRequest $result */
+        $result = $results[0];
+        $this->assertInstanceOf(ElicitRequest::class, $result);
+        $this->assertSame('elicitation/create', $result::getMethod());
+        $this->assertSame('Your name?', $result->message);
+        $this->assertSame(1, $result->getId());
     }
 
     public function testResponseWithInvalidIdType(): void

@@ -53,6 +53,7 @@ final class MessageFactory
         Schema\Request\CallToolRequest::class,
         Schema\Request\CompletionCompleteRequest::class,
         Schema\Request\CreateSamplingMessageRequest::class,
+        Schema\Request\ElicitRequest::class,
         Schema\Request\GetPromptRequest::class,
         Schema\Request\InitializeRequest::class,
         Schema\Request\ListPromptsRequest::class,
