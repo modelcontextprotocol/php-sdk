@@ -161,9 +161,12 @@ tags: [review, quality]
 > `InvalidArgumentException`.
 
 By default a discovery index is also served at `skill://index.json` (an
-[Agent Skills][agent-skills] discovery document listing every skill). Skills also
-appear as normal entries in `resources/list`, so a large skill tree pages via
-`resources/list` cursors. Pass `withDiscoveryIndex: false` to skip the index.
+[Agent Skills][agent-skills] discovery document listing every skill). Each entry
+mirrors the skill's `SKILL.md` frontmatter verbatim and carries the `SKILL.md`
+`url` plus its SHA-256 `digest`, so a host builds its skill registry from a single
+read of the index without fetching each `SKILL.md`. Skills also appear as normal
+entries in `resources/list`, so a large skill tree pages via `resources/list`
+cursors. Pass `withDiscoveryIndex: false` to skip the index.
 
 Parsing `SKILL.md` frontmatter requires the [`symfony/yaml`][symfony-yaml]
 component, which is a dependency of this SDK.
@@ -176,9 +179,9 @@ component, which is a dependency of this SDK.
 | `SkillProvider` | Walks a directory and registers each skill (and its files) as `skill://` resources. |
 | `FrontmatterParser` | Splits a `SKILL.md` into its YAML frontmatter and markdown body. |
 | `SkillMetadata` | Value object for parsed frontmatter: `name`, `description`, `extra`. |
-| `SkillDiscoveryIndex` | The `skill://index.json` document: `$schema` + `skills`. |
-| `SkillDiscoveryEntry` | One index entry: `name`, `type`, `url`, `description`. |
-| `SkillType` | Enum: `SkillMd` (`skill-md`), `McpResourceTemplate` (`mcp-resource-template`). |
+| `SkillDiscoveryIndex` | The `skill://index.json` document: a `skills` array. |
+| `SkillDiscoveryEntry` | One index entry: verbatim `frontmatter`, optional `url` + `digest`, optional `archives`. |
+| `SkillArchive` | One archive form of a skill: `url`, `mimeType`, `digest`. |
 
 A complete example lives in
 [`examples/server/skills/`](../examples/server/skills/).

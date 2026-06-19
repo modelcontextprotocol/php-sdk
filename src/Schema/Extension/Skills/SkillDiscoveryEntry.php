@@ -16,18 +16,42 @@ use Mcp\Exception\InvalidArgumentException;
 /**
  * A single entry in the Agent Skills discovery index served at `skill://index.json`.
  *
- * @phpstan-type SkillDiscoveryEntryData array{name: string, type: string, description?: string, url: string}
+ * An entry mirrors the skill's `SKILL.md` frontmatter verbatim and points at the skill via a
+ * direct `url` (the `SKILL.md` resource, with its content `digest`), one or more `archives`, or
+ * both. Every entry MUST provide a `url`, a non-empty `archives`, or both; a `digest` is present
+ * exactly when `url` is.
+ *
+ * @phpstan-import-type SkillArchiveData from SkillArchive
+ *
+ * @phpstan-type SkillDiscoveryEntryData array{
+ *     frontmatter: array<string, mixed>,
+ *     url?: string,
+ *     digest?: string,
+ *     archives?: SkillArchiveData[],
+ * }
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
 final class SkillDiscoveryEntry implements \JsonSerializable
 {
+    /**
+     * @param SkillArchive[] $archives
+     */
     public function __construct(
-        public readonly string $name,
-        public readonly SkillType $type,
-        public readonly string $url,
-        public readonly ?string $description = null,
+        public readonly SkillMetadata $frontmatter,
+        public readonly ?string $url = null,
+        public readonly ?string $digest = null,
+        public readonly array $archives = [],
     ) {
+        if (null !== $this->url && null === $this->digest) {
+            throw new InvalidArgumentException('A skill discovery entry with a "url" must also carry its "digest".');
+        }
+        if (null === $this->url && null !== $this->digest) {
+            throw new InvalidArgumentException('A skill discovery entry "digest" is only valid alongside a "url".');
+        }
+        if (null === $this->url && [] === $this->archives) {
+            throw new InvalidArgumentException('A skill discovery entry must provide a "url", a non-empty "archives", or both.');
+        }
     }
 
     /**
@@ -35,37 +59,37 @@ final class SkillDiscoveryEntry implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data['name']) || !\is_string($data['name'])) {
-            throw new InvalidArgumentException('Invalid or missing "name" in skill discovery entry.');
+        if (!isset($data['frontmatter']) || !\is_array($data['frontmatter'])) {
+            throw new InvalidArgumentException('Invalid or missing "frontmatter" in skill discovery entry.');
         }
-        if (empty($data['type']) || !\is_string($data['type'])) {
-            throw new InvalidArgumentException('Invalid or missing "type" in skill discovery entry.');
-        }
-        if (empty($data['url']) || !\is_string($data['url'])) {
-            throw new InvalidArgumentException('Invalid or missing "url" in skill discovery entry.');
+
+        $archives = [];
+        foreach ($data['archives'] ?? [] as $archive) {
+            $archives[] = SkillArchive::fromArray($archive);
         }
 
         return new self(
-            name: $data['name'],
-            type: SkillType::from($data['type']),
-            url: $data['url'],
-            description: isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
+            frontmatter: SkillMetadata::fromArray($data['frontmatter']),
+            url: isset($data['url']) && \is_string($data['url']) ? $data['url'] : null,
+            digest: isset($data['digest']) && \is_string($data['digest']) ? $data['digest'] : null,
+            archives: $archives,
         );
     }
 
     /**
-     * @return SkillDiscoveryEntryData
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $data = [
-            'name' => $this->name,
-            'type' => $this->type->value,
-        ];
-        if (null !== $this->description) {
-            $data['description'] = $this->description;
+        $data = [];
+        if (null !== $this->url) {
+            $data['url'] = $this->url;
+            $data['digest'] = $this->digest;
         }
-        $data['url'] = $this->url;
+        $data['frontmatter'] = $this->frontmatter;
+        if ([] !== $this->archives) {
+            $data['archives'] = $this->archives;
+        }
 
         return $data;
     }

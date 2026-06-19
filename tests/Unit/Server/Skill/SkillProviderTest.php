@@ -13,7 +13,6 @@ namespace Mcp\Tests\Unit\Server\Skill;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Extension\Skills\McpSkills;
-use Mcp\Schema\Extension\Skills\SkillType;
 use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\Skill\SkillProvider;
@@ -74,9 +73,10 @@ class SkillProviderTest extends TestCase
 
         $this->assertCount(2, $entries);
         foreach ($entries as $entry) {
-            $this->assertSame(SkillType::SkillMd, $entry->type);
+            $this->assertNotNull($entry->url);
+            $this->assertStringStartsWith('sha256:', (string) $entry->digest);
         }
-        $names = array_map(static fn ($e) => $e->name, $entries);
+        $names = array_map(static fn ($e) => $e->frontmatter->name, $entries);
         $this->assertContains('code-review', $names);
         $this->assertContains('refunds', $names);
     }

@@ -12,10 +12,10 @@
 namespace Mcp\Tests\Unit\Schema\Extension\Skills;
 
 use Mcp\Schema\Extension\Skills\McpSkills;
+use Mcp\Schema\Extension\Skills\SkillArchive;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryEntry;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryIndex;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
-use Mcp\Schema\Extension\Skills\SkillType;
 use Mcp\Schema\ServerCapabilities;
 use PHPUnit\Framework\TestCase;
 
@@ -40,62 +40,87 @@ class McpSkillsTest extends TestCase
         $this->assertStringNotContainsString('"io.modelcontextprotocol/skills":[]', $json);
     }
 
-    public function testSkillTypeEnum(): void
-    {
-        $this->assertSame('skill-md', SkillType::SkillMd->value);
-        $this->assertSame('mcp-resource-template', SkillType::McpResourceTemplate->value);
-    }
-
     public function testSkillDiscoveryEntrySerialization(): void
     {
         $entry = new SkillDiscoveryEntry(
-            name: 'code-review',
-            type: SkillType::SkillMd,
+            frontmatter: new SkillMetadata('code-review', 'Review a pull request.'),
             url: 'skill://code-review/SKILL.md',
-            description: 'Review a pull request.',
+            digest: 'sha256:abc123',
         );
 
         $serialized = $entry->jsonSerialize();
 
-        $this->assertSame('code-review', $serialized['name']);
-        $this->assertSame('skill-md', $serialized['type']);
-        $this->assertSame('Review a pull request.', $serialized['description']);
         $this->assertSame('skill://code-review/SKILL.md', $serialized['url']);
+        $this->assertSame('sha256:abc123', $serialized['digest']);
+        $this->assertInstanceOf(SkillMetadata::class, $serialized['frontmatter']);
+        $this->assertArrayNotHasKey('archives', $serialized);
     }
 
-    public function testSkillDiscoveryEntryOmitsNullDescription(): void
+    public function testSkillDiscoveryEntryArchiveOnlyOmitsUrlAndDigest(): void
     {
-        $entry = new SkillDiscoveryEntry('refunds', SkillType::SkillMd, 'skill://refunds/SKILL.md');
+        $entry = new SkillDiscoveryEntry(
+            frontmatter: new SkillMetadata('pdf-processing', 'Process PDFs.'),
+            archives: [new SkillArchive('skill://pdf-processing.tar.gz', 'application/gzip', 'sha256:def456')],
+        );
 
         $serialized = $entry->jsonSerialize();
 
-        $this->assertArrayNotHasKey('description', $serialized);
-        $this->assertSame('skill://refunds/SKILL.md', $serialized['url']);
+        $this->assertArrayNotHasKey('url', $serialized);
+        $this->assertArrayNotHasKey('digest', $serialized);
+        $this->assertCount(1, $serialized['archives']);
+    }
+
+    public function testSkillDiscoveryEntryUrlRequiresDigest(): void
+    {
+        $this->expectException(\Mcp\Exception\InvalidArgumentException::class);
+
+        new SkillDiscoveryEntry(new SkillMetadata('refunds'), url: 'skill://refunds/SKILL.md');
+    }
+
+    public function testSkillDiscoveryEntryRequiresUrlOrArchives(): void
+    {
+        $this->expectException(\Mcp\Exception\InvalidArgumentException::class);
+
+        new SkillDiscoveryEntry(new SkillMetadata('refunds'));
     }
 
     public function testSkillDiscoveryEntryFromArray(): void
     {
         $entry = SkillDiscoveryEntry::fromArray([
-            'name' => 'code-review',
-            'type' => 'skill-md',
             'url' => 'skill://code-review/SKILL.md',
+            'digest' => 'sha256:abc123',
+            'frontmatter' => ['name' => 'code-review', 'description' => 'Review a pull request.'],
         ]);
 
-        $this->assertSame('code-review', $entry->name);
-        $this->assertSame(SkillType::SkillMd, $entry->type);
         $this->assertSame('skill://code-review/SKILL.md', $entry->url);
-        $this->assertNull($entry->description);
+        $this->assertSame('sha256:abc123', $entry->digest);
+        $this->assertSame('code-review', $entry->frontmatter->name);
+    }
+
+    public function testSkillArchiveRoundTrip(): void
+    {
+        $archive = SkillArchive::fromArray([
+            'url' => 'skill://pdf-processing.tar.gz',
+            'mimeType' => 'application/gzip',
+            'digest' => 'sha256:def456',
+        ]);
+
+        $this->assertSame([
+            'url' => 'skill://pdf-processing.tar.gz',
+            'mimeType' => 'application/gzip',
+            'digest' => 'sha256:def456',
+        ], $archive->jsonSerialize());
     }
 
     public function testSkillDiscoveryIndexSerialization(): void
     {
         $index = new SkillDiscoveryIndex([
-            new SkillDiscoveryEntry('code-review', SkillType::SkillMd, 'skill://code-review/SKILL.md'),
+            new SkillDiscoveryEntry(new SkillMetadata('code-review', 'Review a pull request.'), 'skill://code-review/SKILL.md', 'sha256:abc123'),
         ]);
 
         $serialized = $index->jsonSerialize();
 
-        $this->assertSame(SkillDiscoveryIndex::SCHEMA_URL, $serialized['$schema']);
+        $this->assertArrayNotHasKey('$schema', $serialized);
         $this->assertCount(1, $serialized['skills']);
         $this->assertInstanceOf(SkillDiscoveryEntry::class, $serialized['skills'][0]);
     }
@@ -103,14 +128,17 @@ class McpSkillsTest extends TestCase
     public function testSkillDiscoveryIndexRoundTrip(): void
     {
         $index = SkillDiscoveryIndex::fromArray([
-            '$schema' => SkillDiscoveryIndex::SCHEMA_URL,
             'skills' => [
-                ['name' => 'refunds', 'type' => 'skill-md', 'url' => 'skill://acme/billing/refunds/SKILL.md'],
+                [
+                    'url' => 'skill://acme/billing/refunds/SKILL.md',
+                    'digest' => 'sha256:abc123',
+                    'frontmatter' => ['name' => 'refunds', 'description' => 'Process refunds.'],
+                ],
             ],
         ]);
 
         $this->assertCount(1, $index->skills);
-        $this->assertSame('refunds', $index->skills[0]->name);
+        $this->assertSame('refunds', $index->skills[0]->frontmatter->name);
         $this->assertSame('skill://acme/billing/refunds/SKILL.md', $index->skills[0]->url);
     }
 

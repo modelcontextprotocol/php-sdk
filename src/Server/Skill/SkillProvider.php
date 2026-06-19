@@ -16,7 +16,6 @@ use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryEntry;
 use Mcp\Schema\Extension\Skills\SkillDiscoveryIndex;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
-use Mcp\Schema\Extension\Skills\SkillType;
 use Mcp\Server\Builder;
 use Symfony\Component\Finder\Finder;
 
@@ -88,7 +87,8 @@ final class SkillProvider
         $skillDir = \dirname($manifestPath);
         $skillPath = $this->relativePath($base, $skillDir);
 
-        $metadata = $this->frontmatter->parseMetadata((string) file_get_contents($manifestPath));
+        $content = (string) file_get_contents($manifestPath);
+        $metadata = $this->frontmatter->parseMetadata($content);
 
         $lastSegment = basename($skillPath);
         if ($lastSegment !== $metadata->name) {
@@ -106,11 +106,11 @@ final class SkillProvider
             $this->registerFile($builder, $base, $filePath, $uri, $this->guessMimeType($filePath), null);
         }
 
+        // The index mirrors the SKILL.md frontmatter verbatim and carries the file's content digest.
         return new SkillDiscoveryEntry(
-            name: $metadata->name,
-            type: SkillType::SkillMd,
+            frontmatter: $metadata,
             url: $entryUri,
-            description: $metadata->description,
+            digest: 'sha256:'.hash('sha256', $content),
         );
     }
 
