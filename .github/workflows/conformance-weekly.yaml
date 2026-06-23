@@ -22,7 +22,7 @@ jobs:
     name: conformance / server (latest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v6
         with:
           node-version: '22'
@@ -61,7 +61,7 @@ jobs:
     name: conformance / client (latest)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
         with:
           php-version: '8.4'
@@ -127,7 +127,7 @@ jobs:
     # skip on forks, which cannot push the `badges` branch.
     if: ${{ !cancelled() && github.repository == 'modelcontextprotocol/php-sdk' }}
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
           name: server-badge
