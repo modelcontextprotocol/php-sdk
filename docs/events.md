@@ -10,6 +10,8 @@ The MCP SDK provides a PSR-14 compatible event system that allows you to hook in
   - [ResponseEvent](#responseevent)
   - [ErrorEvent](#errorevent)
   - [NotificationEvent](#notificationevent)
+  - [OutgoingRequestEvent](#outgoingrequestevent)
+  - [ClientResponseEvent](#clientresponseevent)
 - [List Change Events](#list-change-events)
 
 ## Setup
@@ -37,7 +39,7 @@ $server = Server::builder()
 
 ## Protocol Events
 
-The SDK dispatches 4 broad event types at the protocol level, allowing you to observe and modify all server operations:
+The SDK dispatches 6 broad event types at the protocol level, allowing you to observe and modify all server operations:
 
 ### RequestEvent
 
@@ -51,7 +53,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 
 ### ResponseEvent
 
-**Dispatched**: When a successful response is ready to be sent to the client, after handler execution.
+**Dispatched**: When a successful response is ready to be sent to the client, after handler execution. Also dispatched when a suspended Fiber completes (e.g. after elicitation or sampling).
 
 **Properties**:
 - `getResponse(): Response` - The response being sent
@@ -62,7 +64,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 
 ### ErrorEvent
 
-**Dispatched**: When an error occurs during request processing.
+**Dispatched**: When an error occurs during request processing. Also dispatched when a suspended Fiber completes with an error.
 
 **Properties**:
 - `getError(): Error` - The error being sent
@@ -80,6 +82,26 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 - `setNotification(Notification $notification): void` - Modify the notification before processing
 - `getSession(): SessionInterface` - The current session
 - `getMethod(): string` - Convenience method to get the notification method
+
+### OutgoingRequestEvent
+
+**Dispatched**: When the server sends a request to the client (e.g. `elicitation/create`, `sampling/create`).
+
+**Properties**:
+- `getRequest(): Request` - The outgoing request (with server-assigned ID)
+- `getSession(): SessionInterface` - The current session
+- `getTimeout(): int` - Maximum time to wait for the client response (seconds)
+- `getMethod(): string` - Convenience method to get the request method
+
+### ClientResponseEvent
+
+**Dispatched**: When the server receives a client response to a prior outgoing request.
+
+**Properties**:
+- `getResponse(): Response|Error` - The client's reply
+- `getSession(): SessionInterface` - The current session
+- `getId(): string|int` - The JSON-RPC message ID
+- `isError(): bool` - Whether the client returned a JSON-RPC error
 
 ## List Change Events
 

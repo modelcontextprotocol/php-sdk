@@ -11,8 +11,10 @@
 
 namespace Mcp\Server;
 
+use Mcp\Event\ClientResponseEvent;
 use Mcp\Event\ErrorEvent;
 use Mcp\Event\NotificationEvent;
+use Mcp\Event\OutgoingRequestEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
@@ -56,6 +58,9 @@ class Protocol
     /** Session key for outgoing message queue */
     private const SESSION_OUTGOING_QUEUE = '_mcp.outgoing_queue';
 
+    /** Session key for the client request that started a suspended Fiber */
+    private const SESSION_FIBER_PARENT_REQUEST = '_mcp.fiber_parent_request';
+
     /** Session key for active request meta */
     public const SESSION_ACTIVE_REQUEST_META = '_mcp.active_request_meta';
 
@@ -95,6 +100,8 @@ class Protocol
         $transport->setResponseFinder($this->checkResponse(...));
 
         $transport->setFiberYieldHandler($this->handleFiberYield(...));
+
+        $transport->setFiberTerminationHandler($this->handleFiberTermination(...));
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
     }
@@ -199,6 +206,8 @@ class Protocol
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
+                    $session->set(self::SESSION_FIBER_PARENT_REQUEST, $request->jsonSerialize());
+
                     if (\is_array($result) && isset($result['type'])) {
                         if ('notification' === $result['type']) {
                             $notification = $result['notification'];
@@ -262,6 +271,8 @@ class Protocol
     {
         $this->logger->info('Handling response from client.', ['response' => $response]);
 
+        $this->dispatchEvent(new ClientResponseEvent($response, $session));
+
         $messageId = $response->getId();
 
         $session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
@@ -302,6 +313,8 @@ class Protocol
         $session->set(self::SESSION_REQUEST_ID_COUNTER, $counter);
 
         $requestWithId = $request->withId($requestId);
+
+        $this->dispatchEvent(new OutgoingRequestEvent($requestWithId, $timeout, $session));
 
         $this->logger->info('Queueing server request to client', [
             'request_id' => $requestId,
@@ -538,6 +551,57 @@ class Protocol
         } finally {
             $session->save();
         }
+    }
+
+    /**
+     * Handle the final result of a suspended Fiber when it completes.
+     *
+     * Dispatches ResponseEvent or ErrorEvent for the original client request that
+     * started the Fiber, allowing listeners to observe deferred responses.
+     *
+     * @phpstan-param Response<mixed>|Error $finalResult
+     *
+     * @phpstan-return Response<mixed>|Error
+     */
+    public function handleFiberTermination(Response|Error $finalResult, Uuid $sessionId): Response|Error
+    {
+        $session = $this->sessionManager->createWithId($sessionId);
+        $parentRequest = $this->resolveFiberParentRequest(
+            $session->pull(self::SESSION_FIBER_PARENT_REQUEST)
+        );
+
+        if (!$parentRequest) {
+            $session->save();
+
+            return $finalResult;
+        }
+
+        if ($finalResult instanceof Response) {
+            $responseEvent = $this->dispatchEvent(new ResponseEvent($finalResult, $parentRequest, $session));
+            $finalResult = $responseEvent->getResponse();
+        } else {
+            $errorEvent = $this->dispatchEvent(new ErrorEvent($finalResult, $parentRequest, $session, null));
+            $finalResult = $errorEvent->getError();
+        }
+
+        $session->save();
+
+        return $finalResult;
+    }
+
+    private function resolveFiberParentRequest(mixed $data): ?Request
+    {
+        if (!\is_array($data)) {
+            return null;
+        }
+
+        try {
+            $message = $this->messageFactory->createFromArray($data);
+        } catch (\Throwable) {
+            return null;
+        }
+
+        return $message instanceof Request ? $message : null;
     }
 
     /**
