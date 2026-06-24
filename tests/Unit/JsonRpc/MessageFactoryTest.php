@@ -35,6 +35,18 @@ final class MessageFactoryTest extends TestCase
         ]);
     }
 
+    public function testCreateFromArrayRequest(): void
+    {
+        $message = $this->factory->createFromArray([
+            'jsonrpc' => '2.0',
+            'method' => 'ping',
+            'id' => 1,
+        ]);
+
+        $this->assertInstanceOf(PingRequest::class, $message);
+        $this->assertSame(1, $message->getId());
+    }
+
     public function testCreateRequestWithIntegerId(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "prompts/get", "params": {"name": "create_story"}, "id": 123}';

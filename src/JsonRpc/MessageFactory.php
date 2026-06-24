@@ -119,6 +119,16 @@ final class MessageFactory
     }
 
     /**
+     * @param array<string, mixed> $data
+     *
+     * @throws InvalidInputMessageException
+     */
+    public function createFromArray(array $data): MessageInterface
+    {
+        return $this->createMessage($data);
+    }
+
+    /**
      * Creates a single message object from parsed JSON data.
      *
      * @param array<string, mixed> $data
