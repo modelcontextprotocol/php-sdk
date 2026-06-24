@@ -111,6 +111,11 @@ final class MessageFactory
             try {
                 $messages[] = $this->createMessage($message);
             } catch (InvalidInputMessageException $e) {
+                // Recover the id only when it's a valid JSON-RPC scalar;
+                // a null or malformed id is left at the exception's null default.
+                if (\is_array($message) && isset($message['id']) && (\is_string($message['id']) || \is_int($message['id']))) {
+                    $e->setRequestId($message['id']);
+                }
                 $messages[] = $e;
             }
         }
