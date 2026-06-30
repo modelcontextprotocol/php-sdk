@@ -266,6 +266,18 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * Nullable typed arrays should still recover their element type.
+     *
+     * @param string[]|null   $nullableStrings Nullable list of strings
+     * @param array<int>|null $nullableInts    Nullable list of integers
+     */
+    public function nullableTypedArrays(
+        ?array $nullableStrings,
+        ?array $nullableInts = null,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**
@@ -305,6 +317,15 @@ class SchemaGeneratorFixture
      * @param string ...$items Variadic strings
      */
     public function variadicStrings(string ...$items): void
+    {
+    }
+
+    /**
+     * Variadic parameter without a type hint.
+     *
+     * @param mixed ...$values Variadic values
+     */
+    public function untypedVariadic(...$values): void
     {
     }
 
