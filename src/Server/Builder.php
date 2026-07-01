@@ -33,6 +33,7 @@ use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\ServerExtensionInterface;
+use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -55,6 +56,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Skill\SkillProvider;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -287,6 +289,30 @@ final class Builder
 
             $this->extensions[$id] = $extension->getCapabilities();
         }
+
+        return $this;
+    }
+
+    /**
+     * Expose a directory of skills (SEP-2640) as `skill://` resources.
+     *
+     * Enables the {@see McpSkills} extension (unless already enabled) and registers every
+     * `SKILL.md` found under $directory — together with its supporting files — as resources.
+     * When $withDiscoveryIndex is true, a `skill://index.json` discovery resource is served too.
+     * When $archiveFormats is non-empty, each skill is also served as a packed archive resource
+     * (e.g. `skill://<skill-path>.tar.gz`) listed in the discovery index.
+     *
+     * @param string[] $archiveFormats archive MIME types to emit (see {@see Skill\SkillArchiver::FORMATS})
+     *
+     * @see SkillProvider
+     */
+    public function addSkillsFromDirectory(string $directory, bool $withDiscoveryIndex = true, ?SkillProvider $provider = null, array $archiveFormats = []): self
+    {
+        if (!isset($this->extensions[McpSkills::EXTENSION_ID])) {
+            $this->enableExtension(new McpSkills());
+        }
+
+        ($provider ?? new SkillProvider())->registerInto($this, $directory, $withDiscoveryIndex, $archiveFormats);
 
         return $this;
     }
