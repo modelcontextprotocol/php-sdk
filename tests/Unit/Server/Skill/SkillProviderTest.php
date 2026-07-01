@@ -189,7 +189,7 @@ class SkillProviderTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        (new SkillProvider())->registerInto(Server::builder(), self::FIXTURES, archiveFormats: ['application/zip']);
+        (new SkillProvider())->registerInto(Server::builder(), self::FIXTURES, archiveFormats: ['application/x-7z-compressed']);
     }
 
     /**

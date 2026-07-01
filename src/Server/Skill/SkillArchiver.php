@@ -20,8 +20,8 @@ use Mcp\Exception\RuntimeException;
  * archive layout. Produced without temp files and with zeroed file metadata, so the same input
  * yields the same bytes (and therefore a stable digest).
  *
- * Currently emits gzip-compressed tar (`application/gzip`), which the SEP lists as one of the two
- * formats every conforming host is expected to support.
+ * Emits gzip-compressed tar (`application/gzip`) and ZIP (`application/zip`) — the two formats
+ * the SEP expects every conforming host to support.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
@@ -32,6 +32,7 @@ final class SkillArchiver
      */
     public const FORMATS = [
         'application/gzip' => 'tar.gz',
+        'application/zip' => 'zip',
     ];
 
     /**
@@ -46,12 +47,10 @@ final class SkillArchiver
             throw new InvalidArgumentException(\sprintf('Unsupported skill archive format "%s". Supported: %s.', $mimeType, implode(', ', array_keys(self::FORMATS))));
         }
 
-        $gzip = gzencode($this->tar($files), 9);
-        if (false === $gzip) {
-            throw new RuntimeException('Failed to gzip skill archive.');
-        }
-
-        return $gzip;
+        return match ($mimeType) {
+            'application/gzip' => $this->gzipTar($files),
+            'application/zip' => $this->zip($files),
+        };
     }
 
     /**
@@ -64,6 +63,72 @@ final class SkillArchiver
         }
 
         return self::FORMATS[$mimeType];
+    }
+
+    /**
+     * @param array<string, string> $files
+     *
+     * @throws RuntimeException if compression fails
+     */
+    private function gzipTar(array $files): string
+    {
+        $gzip = gzencode($this->tar($files), 9);
+        if (false === $gzip) {
+            throw new RuntimeException('Failed to gzip skill archive.');
+        }
+
+        return $gzip;
+    }
+
+    /**
+     * Builds a deterministic ZIP archive: sorted entries, DEFLATE (method 8), and a fixed
+     * 1980-01-01 timestamp so the same input yields the same bytes.
+     *
+     * @param array<string, string> $files
+     *
+     * @throws RuntimeException if compression fails
+     */
+    private function zip(array $files): string
+    {
+        ksort($files);
+
+        $local = '';
+        $central = '';
+        $offset = 0;
+        $count = 0;
+
+        foreach ($files as $path => $content) {
+            $compressed = gzdeflate($content, 9);
+            if (false === $compressed) {
+                throw new RuntimeException(\sprintf('Failed to deflate skill file "%s".', $path));
+            }
+
+            $crc = crc32($content) & 0xFFFFFFFF;
+
+            // version needed, flags, method (8 = deflate), mod time (0), mod date (0x0021 = 1980-01-01),
+            // crc32, compressed size, uncompressed size, name length, extra length.
+            $shared = pack('vvvvv', 20, 0, 8, 0, 0x0021)
+                .pack('VVV', $crc, \strlen($compressed), \strlen($content))
+                .pack('vv', \strlen($path), 0);
+
+            $localEntry = "PK\x03\x04".$shared.$path.$compressed;
+            $local .= $localEntry;
+
+            $central .= "PK\x01\x02"
+                .pack('v', 20)                  // version made by (MS-DOS, 2.0)
+                .$shared                        // version needed .. extra length
+                .pack('vvv', 0, 0, 0)           // comment length, disk number start, internal attributes
+                .pack('VV', 0, $offset)         // external attributes, relative offset of local header
+                .$path;
+
+            $offset += \strlen($localEntry);
+            ++$count;
+        }
+
+        return $local.$central."PK\x05\x06"
+            .pack('vvvv', 0, 0, $count, $count)
+            .pack('VV', \strlen($central), $offset)
+            .pack('v', 0);
     }
 
     /**

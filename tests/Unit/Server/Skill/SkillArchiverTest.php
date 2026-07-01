@@ -49,13 +49,36 @@ class SkillArchiverTest extends TestCase
     public function testExtensionForSupportedFormat(): void
     {
         $this->assertSame('tar.gz', (new SkillArchiver())->extension('application/gzip'));
+        $this->assertSame('zip', (new SkillArchiver())->extension('application/zip'));
+    }
+
+    public function testPackProducesReadableZip(): void
+    {
+        $files = $this->extractZip((new SkillArchiver())->pack([
+            'SKILL.md' => "# Skill\n",
+            'references/SECURITY.md' => "# Security\n",
+        ], 'application/zip'));
+
+        $this->assertSame("# Skill\n", $files['SKILL.md'] ?? null);
+        $this->assertSame("# Security\n", $files['references/SECURITY.md'] ?? null);
+    }
+
+    public function testPackZipIsDeterministic(): void
+    {
+        $archiver = new SkillArchiver();
+        $files = ['SKILL.md' => 'hello', 'a/b.txt' => 'world'];
+
+        $this->assertSame(
+            $archiver->pack($files, 'application/zip'),
+            $archiver->pack($files, 'application/zip'),
+        );
     }
 
     public function testPackRejectsUnsupportedFormat(): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        (new SkillArchiver())->pack(['SKILL.md' => 'x'], 'application/zip');
+        (new SkillArchiver())->pack(['SKILL.md' => 'x'], 'application/x-7z-compressed');
     }
 
     /**
@@ -85,6 +108,31 @@ class SkillArchiverTest extends TestCase
         } finally {
             $this->removeDirectory($extractDir);
             @unlink($archivePath);
+        }
+    }
+
+    /**
+     * @return array<string, string> relative path => content
+     */
+    private function extractZip(string $zip): array
+    {
+        $path = sys_get_temp_dir().'/skill-archiver-'.bin2hex(random_bytes(6)).'.zip';
+        file_put_contents($path, $zip);
+
+        try {
+            $archive = new \ZipArchive();
+            $this->assertTrue(true === $archive->open($path), 'Produced bytes are a readable ZIP archive');
+
+            $files = [];
+            for ($i = 0; $i < $archive->numFiles; ++$i) {
+                $name = (string) $archive->getNameIndex($i);
+                $files[$name] = (string) $archive->getFromIndex($i);
+            }
+            $archive->close();
+
+            return $files;
+        } finally {
+            @unlink($path);
         }
     }
 
