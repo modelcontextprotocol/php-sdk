@@ -16,6 +16,7 @@ use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
+use Mcp\Capability\LazyRegistry;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -219,6 +220,8 @@ final class Builder
      */
     private array $loaders = [];
 
+    private bool $hasCustomRegistry = false;
+
     /**
      * Sets the server's identity. Required.
      *
@@ -344,6 +347,7 @@ final class Builder
     public function setRegistry(RegistryInterface $registry): self
     {
         $this->registry = $registry;
+        $this->hasCustomRegistry = true;
 
         return $this;
     }
@@ -674,18 +678,22 @@ final class Builder
             }
         }
 
-        $loader = new ChainLoader($loaders);
-        $loader->load($registry);
+        // Defer loading to the first registry read (request time) instead of eagerly here. @see LazyRegistry
+        $registry = new LazyRegistry($registry, new ChainLoader($loaders));
 
         $messageFactory = MessageFactory::make();
 
+        // Advertise from configured sources, not the now-lazy registry, so initialize does not force a load.
+        // Opaque sources (custom loaders, discovery, a caller registry) advertise all kinds; over-advertising is harmless.
+        $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath || $this->hasCustomRegistry;
+
         $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
-            tools: $registry->hasTools(),
+            tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,
             toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            resources: $registry->hasResources() || $registry->hasResourceTemplates(),
-            resourcesSubscribe: $registry->hasResources() || $registry->hasResourceTemplates(),
+            resources: [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources,
+            resourcesSubscribe: [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources,
             resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            prompts: $registry->hasPrompts(),
+            prompts: [] !== $this->prompts || [] !== $this->explicitPrompts || $hasOpaqueSources,
             promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
             logging: true,
             completions: true,
