@@ -23,6 +23,7 @@ use Mcp\Schema\Tool;
 use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\PromptHandlerInterface;
+use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ResourceTemplateHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
@@ -373,12 +374,22 @@ final class ExplicitElementLoaderTest extends TestCase
      */
     private function buildAndGetRegistry(callable $configure): RegistryInterface
     {
-        $registry = new Registry();
         $builder = Server::builder()
             ->setServerInfo('test', '1.0.0')
-            ->setRegistry($registry);
-        $configure($builder)->build();
+            ->setRegistry(new Registry());
+        $server = $configure($builder)->build();
 
-        return $registry;
+        // build() wraps the registry in a LazyRegistry that loads on first read; read through the
+        // server's registry rather than the injected instance so the deferred load runs.
+        $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);
+        $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);
+
+        foreach ($requestHandlers as $handler) {
+            if ($handler instanceof CallToolHandler) {
+                return (new \ReflectionClass($handler))->getProperty('registry')->getValue($handler);
+            }
+        }
+
+        $this->fail('CallToolHandler not found in request handlers');
     }
 }
