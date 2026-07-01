@@ -11,7 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server;
 
+use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
+use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
@@ -19,6 +21,7 @@ use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\ServerCapabilities;
+use Mcp\Schema\Tool;
 use Mcp\Server;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
@@ -120,6 +123,68 @@ final class BuilderTest extends TestCase
 
         $this->assertNotNull($capabilities->extensions);
         $this->assertArrayHasKey(McpApps::EXTENSION_ID, $capabilities->extensions);
+    }
+
+    #[TestDox('build() advertises tools capability for a pre-populated registry set via setRegistry()')]
+    public function testBuildAdvertisesToolsForPreloadedCustomRegistry(): void
+    {
+        $registry = new Registry();
+        $registry->registerTool(
+            new Tool(name: 'test_tool', title: null, inputSchema: ['type' => 'object', 'properties' => [], 'required' => null], description: 'A test tool', annotations: null),
+            static fn (): string => 'result',
+        );
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry($registry)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('setLazyLoading() returns the builder for fluent chaining')]
+    public function testSetLazyLoadingReturnsSelf(): void
+    {
+        $builder = Server::builder();
+
+        $this->assertSame($builder, $builder->setLazyLoading(false));
+    }
+
+    #[TestDox('Lazy loading (default) advertises tools from configured sources without running loaders')]
+    public function testLazyLoadingAdvertisesFromConfiguredSourcesWithoutLoading(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->never())->method('load');
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->addLoader($loader)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        // A custom loader is opaque, so its presence advertises tools even though it never ran.
+        $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('Eager loading runs the loaders at build time and advertises from the loaded registry')]
+    public function testEagerLoadingAdvertisesFromLoadedRegistry(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->once())->method('load');
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setLazyLoading(false)
+            ->addLoader($loader)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        // The loader ran but registered nothing, so the loaded registry advertises no tools.
+        $this->assertFalse($capabilities->tools);
     }
 
     private function extractServerCapabilities(Server $server): ServerCapabilities
