@@ -261,6 +261,42 @@ final class StreamableHttpTransportTest extends TestCase
         );
     }
 
+    public function testPostBodyExceedingMaxBytesReturns413(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withBody($this->factory->createStream(str_repeat('a', 64)));
+
+        // Empty middleware bypasses the default security stack to isolate body-size handling.
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 16);
+
+        $response = $transport->listen();
+
+        $this->assertSame(413, $response->getStatusCode());
+    }
+
+    public function testPostBodyWithinMaxBytesIsNotRejected(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withBody($this->factory->createStream('{}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 1024);
+
+        $response = $transport->listen();
+
+        $this->assertNotSame(413, $response->getStatusCode());
+    }
+
+    public function testNonPositiveMaxBodyBytesThrows(): void
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://localhost/');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 0);
+    }
+
     private function stubAuth401(): MiddlewareInterface
     {
         return new class($this->factory) implements MiddlewareInterface {
