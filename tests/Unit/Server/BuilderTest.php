@@ -83,6 +83,25 @@ final class BuilderTest extends TestCase
         $this->assertSame('intercepted', $result);
     }
 
+    #[TestDox('A pre-built instance handler with constructor dependencies is registered and invoked on that instance')]
+    public function testPreBuiltInstanceHandlerIsInvokedOnTheGivenInstance(): void
+    {
+        // The handler's constructor requires an argument the container-less
+        // `new $className()` fallback can never satisfy. If the tool call
+        // succeeds, it can only be because the pre-built instance — carrying
+        // its injected dependency — was the one invoked.
+        $handler = new GreetingService('World');
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->addTool(handler: [$handler, 'greet'], name: 'greet', description: 'Greets using the injected name')
+            ->build();
+
+        $result = $this->callTool($server, 'greet');
+
+        $this->assertSame('Hello, World', $result);
+    }
+
     #[TestDox('enableExtension() registers an extension and announces its capability payload')]
     public function testEnableExtensionRegistersExtension(): void
     {
@@ -164,5 +183,22 @@ final class BuilderTest extends TestCase
         }
 
         $this->fail('CallToolHandler not found in request handlers');
+    }
+}
+
+/**
+ * A handler whose constructor dependency cannot be satisfied by the
+ * container-less `new $className()` fallback, so it must be registered as a
+ * pre-built instance.
+ */
+final class GreetingService
+{
+    public function __construct(private string $name)
+    {
+    }
+
+    public function greet(): string
+    {
+        return 'Hello, '.$this->name;
     }
 }
