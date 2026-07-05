@@ -217,14 +217,20 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 **What it demonstrates:**
 - Mixing attribute discovery with manual registration
 - HTTP server with both discovered and manual capabilities
-- Flexible registration patterns
+- All three handler styles: discovered, `[Class::class, 'method']`, and a pre-built `[$instance, 'method']`
+- Pre-built instance handlers for classes the container cannot auto-wire (e.g. constructor scalars)
 
 **Key Features:**
 ```php
+// Built here so its constructor dependencies are injected before registration;
+// the SDK invokes this very instance instead of constructing one itself.
+$preconfiguredGreeter = new PreconfiguredGreeter('Willkommen', logger());
+
 $server = Server::builder()
-    ->setDiscovery(__DIR__, ['.'])  // Automatic discovery
-    ->addTool([ManualHandlers::class, 'manualGreeter'])  // Manual registration
-    ->addResource([ManualHandlers::class, 'getPriorityConfig'], 'config://priority')
+    ->setDiscovery(__DIR__, ['.'])                         // Automatic discovery
+    ->addTool([ManualHandlers::class, 'manualGreeter'])    // Manual class-string handler
+    ->addTool([$preconfiguredGreeter, 'greet'], 'instance_greeter')  // Pre-built instance handler
+    ->addResource([ManualHandlers::class, 'getPriorityConfigManual'], 'config://priority')
 ```
 
 ### Complex Tool Schema

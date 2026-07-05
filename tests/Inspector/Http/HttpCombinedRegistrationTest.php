@@ -25,6 +25,14 @@ final class HttpCombinedRegistrationTest extends HttpInspectorSnapshotTestCase
                 ],
                 'testName' => 'manual_greeter',
             ],
+            'Instance Greeter Tool (pre-built object handler)' => [
+                'method' => 'tools/call',
+                'options' => [
+                    'toolName' => 'instance_greeter',
+                    'toolArgs' => ['name' => 'HTTP Test User'],
+                ],
+                'testName' => 'instance_greeter',
+            ],
             'Discovered Status Check Tool' => [
                 'method' => 'tools/call',
                 'options' => [
