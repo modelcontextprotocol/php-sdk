@@ -372,11 +372,6 @@ $response = $server->run($transport);
 
 ### Framework Integration
 
-> **OAuth endpoints as controllers:** The examples below convert the framework request to
-> PSR-7 and hand it to the MCP transport. The SDK's endpoint-style OAuth pieces (e.g. the RFC
-> 9728 metadata endpoint) can be mounted the same way as plain callable controllers, without
-> the transport — see [Serving the metadata endpoint as a controller](authorization.md#serving-the-metadata-endpoint-as-a-controller).
-
 #### Symfony Integration
 
 First install the required PSR libraries:
