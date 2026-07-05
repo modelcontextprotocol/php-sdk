@@ -5,6 +5,7 @@ The PHP MCP SDK provides OAuth 2.1 authorization support for HTTP transports, im
 
 ## Table of Contents
 
+- [Scope: what this SDK does and does not do](#scope-what-this-sdk-does-and-does-not-do)
 - [Overview](#overview)
 - [Quick Start](#quick-start)
 - [Components](#components)
@@ -14,13 +15,30 @@ The PHP MCP SDK provides OAuth 2.1 authorization support for HTTP transports, im
 - [Scope-Based Access Control](#scope-based-access-control)
 - [Examples](#examples)
 
+## Scope: what this SDK does and does not do
+
+The MCP server is an OAuth 2.1 **Resource Server**. It validates the tokens it receives and may
+delegate the OAuth flow to your upstream Identity Provider. **It is not an authorization server
+and it does not issue tokens.**
+
+| Role | What it does | Status | Scope |
+|------|--------------|--------|-------|
+| Resource Server | Validates incoming bearer tokens, serves Protected Resource Metadata (RFC 9728), emits `WWW-Authenticate` | Supported (`AuthorizationMiddleware`, `JwtTokenValidator`, `ProtectedResourceMetadata`) | **In scope** |
+| Delegation / proxy to an upstream AS | Forwards `/authorize` and `/token` to your existing IdP | Supported (`OAuthProxyMiddleware`) | **In scope — delegation only** |
+| Authorization Server / Identity Provider | Mints its own tokens, registers clients, runs login and consent | Not implemented | **Out of scope: being an authorization server / issuing tokens is out of scope** |
+
+To issue tokens, front the MCP server with an external IdP (Keycloak, Auth0, Microsoft Entra
+ID, Okta) or run `league/oauth2-server` in your own application, and let the MCP server
+validate those tokens as a Resource Server. See
+[adr/0001-oauth-authorization-server-out-of-scope.md](../adr/0001-oauth-authorization-server-out-of-scope.md).
+
 ## Overview
 
 Authorization in MCP is implemented at the transport level using PSR-15 middleware. The SDK provides:
 
 - **AuthorizationMiddleware** - PSR-15 middleware that enforces bearer token authentication
 - **ProtectedResourceMetadataMiddleware** - Serves RFC 9728 metadata at well-known endpoints
-- **OAuthProxyMiddleware** - Proxies OAuth flows to upstream authorization servers
+- **OAuthProxyMiddleware** - Delegates OAuth flows (`/authorize`, `/token`) to your upstream IdP; the SDK never issues tokens itself
 - **OAuthRequestMetaMiddleware** - Bridges HTTP OAuth attributes to JSON-RPC request meta
 - **JwtTokenValidator** - Validates JWT tokens using JWKS from OAuth 2.0 / OIDC providers
 - **OidcDiscovery** - Discovers authorization server metadata from well-known endpoints

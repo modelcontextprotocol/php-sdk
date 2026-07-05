@@ -26,15 +26,20 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Proxies OAuth authorization requests to an upstream authorization server.
+ * Delegates OAuth flows to an upstream authorization server so you do NOT have to build one.
  *
- * This middleware implements the OAuth proxy pattern for MCP servers that
- * delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.).
+ * This middleware exists precisely so the MCP server does not become an authorization server:
+ * it forwards the OAuth endpoints to your existing upstream Identity Provider (Microsoft Entra
+ * ID, Keycloak, Auth0, Okta, league/oauth2-server, etc.) instead of issuing tokens itself.
  *
- * It handles:
- * - /authorize: Redirects to the upstream authorization server
- * - /token: Proxies token requests to the upstream token endpoint
- * - /.well-known/oauth-authorization-server: Serves authorization server metadata
+ * It delegates:
+ * - /authorize: Redirects the user agent to the upstream authorization endpoint
+ * - /token: Proxies the token request to the upstream token endpoint and returns its response
+ * - /.well-known/oauth-authorization-server: Serves metadata pointing at this delegating proxy
+ *
+ * Non-goals: this middleware never issues, mints, signs, stores, or rotates tokens, and the SDK
+ * is not an OAuth authorization server / Identity Provider. See
+ * adr/0001-oauth-authorization-server-out-of-scope.md.
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
