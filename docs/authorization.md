@@ -309,46 +309,82 @@ already owns routing you can mount the handler directly instead of routing the w
 `GET` through the MCP transport. The handler decides *what* to return; your router decides
 *when* to call it.
 
-```php
-use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
-use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
+Register the handler once in your container and inject it into the controller.
 
-$handler = new ProtectedResourceMetadataHandler(new ProtectedResourceMetadata(
-    authorizationServers: ['https://auth.example.com'],
-    scopesSupported: ['mcp:read', 'mcp:write'],
-    resource: 'https://mcp.example.com/mcp',
-));
-```
-
-**Symfony** — convert the request to PSR-7 and the response back with
+**Symfony** — register the handler as a service (`config/services.yaml`), then constructor-inject
+it and convert to/from PSR-7 with
 [`symfony/psr-http-message-bridge`](https://symfony.com/doc/current/components/psr7.html):
 
+```yaml
+# config/services.yaml
+services:
+    Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata:
+        arguments:
+            $authorizationServers: ['https://auth.example.com']
+            $scopesSupported: ['mcp:read', 'mcp:write']
+            $resource: 'https://mcp.example.com/mcp'
+
+    # Autowired from the ProtectedResourceMetadata service above.
+    Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler: ~
+```
+
 ```php
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
 use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
 use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 
-#[Route('/.well-known/oauth-protected-resource', methods: ['GET'])]
-public function metadata(Request $request): Response
+final class MetadataController
 {
-    $psrRequest = (new PsrHttpFactory())->createRequest($request);
+    public function __construct(
+        private readonly ProtectedResourceMetadataHandler $handler,
+    ) {}
 
-    return (new HttpFoundationFactory())->createResponse($this->handler->handle($psrRequest));
+    #[Route('/.well-known/oauth-protected-resource', methods: ['GET'])]
+    public function metadata(Request $request): Response
+    {
+        $psrRequest = (new PsrHttpFactory())->createRequest($request);
+
+        return (new HttpFoundationFactory())->createResponse($this->handler->handle($psrRequest));
+    }
 }
 ```
 
-**Laravel** — type-hint the PSR-7 request and return the PSR-7 response directly:
+**Laravel** — bind the handler in a service provider, then constructor-inject it and return the
+PSR-7 response directly (Laravel type-hints resolve PSR-7 requests via the same bridge):
 
 ```php
+// In a service provider's register():
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
+
+$this->app->singleton(ProtectedResourceMetadataHandler::class, fn () => new ProtectedResourceMetadataHandler(
+    new ProtectedResourceMetadata(
+        authorizationServers: ['https://auth.example.com'],
+        scopesSupported: ['mcp:read', 'mcp:write'],
+        resource: 'https://mcp.example.com/mcp',
+    ),
+));
+```
+
+```php
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 
 // Route::get('/.well-known/oauth-protected-resource', [MetadataController::class, 'metadata']);
-public function metadata(ServerRequestInterface $request): ResponseInterface
+final class MetadataController
 {
-    return $this->handler->handle($request);
+    public function __construct(
+        private readonly ProtectedResourceMetadataHandler $handler,
+    ) {}
+
+    public function metadata(ServerRequestInterface $request): ResponseInterface
+    {
+        return $this->handler->handle($request);
+    }
 }
 ```
 
