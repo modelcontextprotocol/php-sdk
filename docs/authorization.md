@@ -299,6 +299,64 @@ WWW-Authenticate: Bearer resource_metadata="https://mcp.example.com/.well-known/
                          scope="mcp:read mcp:write"
 ```
 
+### Serving the metadata endpoint as a controller
+
+`ProtectedResourceMetadataMiddleware` is a thin path-guard adapter over
+`ProtectedResourceMetadataHandler`, a plain PSR-15
+`RequestHandlerInterface` (`handle(ServerRequestInterface): ResponseInterface`). That
+signature is the same shape as a Symfony/Laravel callable controller, so if your framework
+already owns routing you can mount the handler directly instead of routing the well-known
+`GET` through the MCP transport. The handler decides *what* to return; your router decides
+*when* to call it.
+
+```php
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
+
+$handler = new ProtectedResourceMetadataHandler(new ProtectedResourceMetadata(
+    authorizationServers: ['https://auth.example.com'],
+    scopesSupported: ['mcp:read', 'mcp:write'],
+    resource: 'https://mcp.example.com/mcp',
+));
+```
+
+**Symfony** — convert the request to PSR-7 and the response back with
+[`symfony/psr-http-message-bridge`](https://symfony.com/doc/current/components/psr7.html):
+
+```php
+use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
+use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+#[Route('/.well-known/oauth-protected-resource', methods: ['GET'])]
+public function metadata(Request $request): Response
+{
+    $psrRequest = (new PsrHttpFactory())->createRequest($request);
+
+    return (new HttpFoundationFactory())->createResponse($this->handler->handle($psrRequest));
+}
+```
+
+**Laravel** — type-hint the PSR-7 request and return the PSR-7 response directly:
+
+```php
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+
+// Route::get('/.well-known/oauth-protected-resource', [MetadataController::class, 'metadata']);
+public function metadata(ServerRequestInterface $request): ResponseInterface
+{
+    return $this->handler->handle($request);
+}
+```
+
+The same pattern applies to the other endpoint-style OAuth middleware
+(`ClientRegistrationMiddleware`, `OAuthProxyMiddleware`), which likewise self-select on a path
+and short-circuit — they can be exposed as handlers the same way. See the framework-agnostic
+[`oauth-resource-metadata`](../examples/server/oauth-resource-metadata/) example.
+
 ## Custom Token Validators
 
 Implement `AuthorizationTokenValidatorInterface` for custom validation:
