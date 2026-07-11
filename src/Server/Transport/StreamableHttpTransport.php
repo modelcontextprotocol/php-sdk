@@ -24,7 +24,6 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\Uid\Exception\InvalidArgumentException as UidInvalidArgumentException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -304,7 +303,8 @@ class StreamableHttpTransport extends BaseTransport
 
         try {
             $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
-        } catch (UidInvalidArgumentException) {
+            // Symfony UID 5.4/6.4 throw the global parent; newer versions throw a namespaced subclass.
+        } catch (\InvalidArgumentException) {
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
         }
 
