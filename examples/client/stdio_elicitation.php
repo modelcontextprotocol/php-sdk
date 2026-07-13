@@ -29,6 +29,7 @@ use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Elicitation\AbstractSchemaDefinition;
 use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
 use Mcp\Schema\Elicitation\NumberSchemaDefinition;
@@ -45,7 +46,7 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
         $content = [];
         foreach ($request->requestedSchema->properties as $name => $definition) {
             $default = $this->defaultFor($definition);
-            $label = $this->labelFor($definition, $name);
+            $label = $this->labelFor($definition);
 
             if (null !== $default) {
                 $display = is_bool($default) ? ($default ? 'true' : 'false') : (string) $default;
@@ -75,17 +76,9 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
         };
     }
 
-    private function labelFor(object $definition, string $name): string
+    private function labelFor(AbstractSchemaDefinition $definition): string
     {
-        $title = match (true) {
-            $definition instanceof EnumSchemaDefinition => $definition->title,
-            $definition instanceof NumberSchemaDefinition => $definition->title,
-            $definition instanceof BooleanSchemaDefinition => $definition->title,
-            $definition instanceof StringSchemaDefinition => $definition->title,
-            default => null,
-        };
-
-        return $title ?? $name;
+        return $definition->title;
     }
 
     private function cast(object $definition, string $input): mixed
