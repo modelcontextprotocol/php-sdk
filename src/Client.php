@@ -22,6 +22,7 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\RootsListChangedNotification;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
@@ -242,6 +243,16 @@ class Client
         $request = new SetLogLevelRequest($level);
 
         $this->sendRequest($request);
+    }
+
+    /**
+     * Notify the server that the client's list of roots has changed.
+     *
+     * The server should react by requesting an updated list via roots/list.
+     */
+    public function sendRootsListChanged(): void
+    {
+        $this->protocol->sendNotification(new RootsListChangedNotification());
     }
 
     /**

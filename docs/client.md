@@ -600,6 +600,44 @@ Only the `Accept` action carries content.
 See `examples/client/stdio_elicitation.php` for a runnable example against the
 elicitation demo server.
 
+### Roots
+
+Roots let the client expose a list of `file://` "workspace folders" that the server
+is allowed to operate on. Advertise the `roots` capability and register a handler
+that answers server `roots/list` requests:
+
+```php
+use Mcp\Client\Handler\Request\ListRootsRequestHandler;
+use Mcp\Client\Handler\Request\RootsCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\ListRootsResult;
+use Mcp\Schema\Root;
+
+class WorkspaceRootsCallback implements RootsCallbackInterface
+{
+    public function __invoke(ListRootsRequest $request): ListRootsResult
+    {
+        return new ListRootsResult([
+            new Root('file:///home/user/projects/app', 'Application'),
+            new Root('file:///home/user/projects/library', 'Library'),
+        ]);
+    }
+}
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(roots: true))
+    ->addRequestHandler(new ListRootsRequestHandler(new WorkspaceRootsCallback))
+    ->build();
+```
+
+When the client's roots change, notify the server so it can request the updated
+list via `roots/list`:
+
+```php
+$client->sendRootsListChanged();
+```
+
 ## Error Handling
 
 The client throws exceptions for various error conditions:

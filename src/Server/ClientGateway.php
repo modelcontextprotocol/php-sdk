@@ -32,8 +32,10 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use Mcp\Schema\Result\ElicitResult;
+use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\Session\SessionInterface;
 
 /**
@@ -186,6 +188,49 @@ class ClientGateway
         }
 
         return ElicitResult::fromArray($response->result);
+    }
+
+    /**
+     * Request the list of filesystem roots exposed by the client.
+     *
+     * Roots are the client's "workspace folders" — the directories or files the
+     * server is allowed to operate on. The client answers the roots/list request
+     * with a list of file:// URIs.
+     *
+     * @param int $timeout The timeout in seconds
+     *
+     * @return ListRootsResult The roots exposed by the client
+     *
+     * @throws ClientException if the client request results in an error message
+     */
+    public function listRoots(int $timeout = 120): ListRootsResult
+    {
+        $request = new ListRootsRequest();
+
+        $response = $this->request($request, $timeout);
+
+        if ($response instanceof Error) {
+            throw new ClientException($response);
+        }
+
+        return ListRootsResult::fromArray($response->result);
+    }
+
+    /**
+     * Check if the connected client supports roots.
+     *
+     * Roots allow servers to ask the client for the set of directories or files
+     * it is permitted to operate on. This method checks the client's advertised
+     * capabilities to determine if roots/list requests are supported.
+     *
+     * @return bool True if the client supports roots, false otherwise
+     */
+    public function supportsRoots(): bool
+    {
+        $capabilities = $this->session->get('client_capabilities', []);
+
+        // MCP spec: capability presence indicates support (value is typically {} or [])
+        return \array_key_exists('roots', $capabilities);
     }
 
     /**
