@@ -247,7 +247,7 @@ $client = Client::builder()
 ```php
 $rootsHandler = new ListRootsRequestHandler($myCallback);
 $client = Client::builder()
-    ->setCapabilities(new ClientCapabilities(roots: true))
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
     ->addRequestHandler($rootsHandler)
     ->build();
 ```

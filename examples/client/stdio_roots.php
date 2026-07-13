@@ -48,7 +48,7 @@ $client = Client::builder()
     ->setClientInfo('STDIO Roots Test', '1.0.0')
     ->setInitTimeout(30)
     ->setRequestTimeout(120)
-    ->setCapabilities(new ClientCapabilities(roots: true))
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
     ->addRequestHandler($rootsRequestHandler)
     ->build();
 

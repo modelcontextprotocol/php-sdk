@@ -227,7 +227,7 @@ class ClientGateway
      */
     public function supportsRoots(): bool
     {
-        $capabilities = $this->session->get('client_capabilities', []);
+        $capabilities = (array) $this->session->get('client_capabilities', []);
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('roots', $capabilities);
@@ -244,7 +244,7 @@ class ClientGateway
      */
     public function supportsElicitation(): bool
     {
-        $capabilities = $this->session->get('client_capabilities', []);
+        $capabilities = (array) $this->session->get('client_capabilities', []);
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('elicitation', $capabilities);

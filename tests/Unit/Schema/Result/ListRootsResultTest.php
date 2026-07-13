@@ -63,6 +63,16 @@ final class ListRootsResultTest extends TestCase
         ListRootsResult::fromArray([]);
     }
 
+    public function testFromArrayRejectsNonFileUri(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('must start with "file://"');
+
+        ListRootsResult::fromArray([
+            'roots' => [['uri' => 'https://example.com']],
+        ]);
+    }
+
     public function testFromArrayRoundTrip(): void
     {
         $data = [

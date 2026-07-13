@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Client\Handler\Request;
 
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
+use Mcp\Exception\RootsException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListRootsRequest;
@@ -69,6 +70,23 @@ final class ListRootsRequestHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertSame('req-2', $response->getId());
         $this->assertSame('Error while listing roots', $response->message);
+    }
+
+    public function testHandleForwardsRootsExceptionMessage(): void
+    {
+        $handler = new ListRootsRequestHandler(new class implements RootsCallbackInterface {
+            public function __invoke(ListRootsRequest $request): ListRootsResult
+            {
+                throw new RootsException('permission denied');
+            }
+        });
+
+        $request = (new ListRootsRequest())->withId('req-3');
+        $response = $handler->handle($request);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertSame('req-3', $response->getId());
+        $this->assertSame('permission denied', $response->message);
     }
 
     private function createCallback(ListRootsResult $result): RootsCallbackInterface

@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Handler\Request;
 
+use Mcp\Exception\RootsException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -54,6 +55,10 @@ class ListRootsRequestHandler implements RequestHandlerInterface
             $result = $this->callback->__invoke($request);
 
             return new Response($request->getId(), $result);
+        } catch (RootsException $e) {
+            $this->logger->error('Listing roots failed: '.$e->getMessage(), ['exception' => $e]);
+
+            return Error::forInternalError($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Unexpected error while listing roots', ['exception' => $e]);
 

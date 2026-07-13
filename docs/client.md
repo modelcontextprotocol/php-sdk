@@ -626,13 +626,15 @@ class WorkspaceRootsCallback implements RootsCallbackInterface
 }
 
 $client = Client::builder()
-    ->setCapabilities(new ClientCapabilities(roots: true))
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
     ->addRequestHandler(new ListRootsRequestHandler(new WorkspaceRootsCallback))
     ->build();
 ```
 
 When the client's roots change, notify the server so it can request the updated
-list via `roots/list`:
+list via `roots/list`. This requires advertising the `roots.listChanged`
+capability (`rootsListChanged: true` above); otherwise `sendRootsListChanged()`
+throws a `RuntimeException`:
 
 ```php
 $client->sendRootsListChanged();
