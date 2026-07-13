@@ -15,11 +15,11 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `maxBodyBytes` (default 4 MiB) to `StreamableHttpTransport` — POST bodies exceeding the cap are rejected with `413`. Unknown-size/chunked bodies are read incrementally and stopped at the cap so they cannot exhaust memory.
 * Reject malformed `Mcp-Session-Id` headers with a `400` response: a repeated header or a value that is not a valid UUID is now rejected up front instead of surfacing as an uncaught `Uuid::fromString()` error.
 * Extract RFC 9728 metadata serving into `ProtectedResourceMetadataHandler`, a transport-neutral PSR-15 `RequestHandlerInterface` that can be mounted directly as a Symfony/Laravel controller; `ProtectedResourceMetadataMiddleware` now delegates to it (no BC break).
+* Add client-side `roots/list` handler (`ListRootsRequestHandler` + `RootsCallbackInterface`) and `Client::sendRootsListChanged()`, plus server-side `ClientGateway::listRoots()` / `supportsRoots()` and `ListRootsResult::fromArray()`.
 
 0.6.0
 -----
 
-* Add client-side `roots/list` handler (`ListRootsRequestHandler` + `RootsCallbackInterface`) and `Client::sendRootsListChanged()`, plus server-side `ClientGateway::listRoots()` / `supportsRoots()` and `ListRootsResult::fromArray()`.
 * Add `Builder::add(Tool|ResourceDefinition|ResourceTemplate|Prompt $definition, ElementHandlerInterface $handler)` for explicit registration of elements whose schema is only known at runtime.
 * Add handler interfaces `ToolHandlerInterface`, `ResourceHandlerInterface`, `ResourceTemplateHandlerInterface`, `PromptHandlerInterface`, and the `ElementHandlerInterface` marker.
 * [BC Break] Renamed `Mcp\Schema\Resource` to `Mcp\Schema\ResourceDefinition`. No alias.
