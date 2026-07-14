@@ -343,8 +343,19 @@ class StreamableHttpTransport extends BaseTransport
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         $this->request = $request;
-        $sessionIdString = $request->getHeaderLine(self::SESSION_HEADER);
-        $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+        $sessionIdHeaders = $request->getHeader(self::SESSION_HEADER);
+        if (\count($sessionIdHeaders) > 1) {
+            return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must not be repeated.'), 400);
+        }
+
+        $sessionIdString = $sessionIdHeaders[0] ?? '';
+
+        try {
+            $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+            // Symfony UID 5.4/6.4 throw the global parent; newer versions throw a namespaced subclass.
+        } catch (\InvalidArgumentException) {
+            return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
+        }
 
         return match ($request->getMethod()) {
             'OPTIONS' => $this->handleOptionsRequest(),

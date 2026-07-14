@@ -85,6 +85,39 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
+    #[TestDox('malformed MCP session IDs are rejected as bad requests')]
+    public function testMalformedSessionIdHeaderReturnsBadRequest(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, '{"not":"a-token"}');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertStringContainsString(StreamableHttpTransport::SESSION_HEADER, (string) $response->getBody());
+    }
+
+    #[TestDox('duplicate MCP session ID headers are rejected as bad requests')]
+    public function testDuplicateSessionIdHeadersReturnBadRequest(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, '2fb587fc-593f-47ce-9d9a-9c06f2b907a3')
+            ->withAddedHeader(StreamableHttpTransport::SESSION_HEADER, '5e583da8-a677-4446-b723-4ddbe00fda62');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
+    }
+
     #[TestDox('explicit empty middleware list disables defaults and emits a warning log')]
     public function testEmptyMiddlewareListDisablesDefaultsAndWarns(): void
     {
