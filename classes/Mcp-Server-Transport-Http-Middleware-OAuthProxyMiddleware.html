@@ -218,21 +218,25 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">41</span>
+    <span class="phpdocumentor-element-found-in__line">46</span>
 
     </aside>
 
-            <p class="phpdocumentor-summary">Proxies OAuth authorization requests to an upstream authorization server.</p>
+            <p class="phpdocumentor-summary">Delegates OAuth flows to an upstream authorization server so you do NOT have to build one.</p>
 
 
-    <section class="phpdocumentor-description"><p>This middleware implements the OAuth proxy pattern for MCP servers that
-delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.).</p>
-<p>It handles:</p>
+    <section class="phpdocumentor-description"><p>This middleware exists precisely so the MCP server does not become an authorization server:
+it forwards the OAuth endpoints to your existing upstream Identity Provider (Microsoft Entra
+ID, Keycloak, Auth0, Okta, league/oauth2-server, etc.) instead of issuing tokens itself.</p>
+<p>It delegates:</p>
 <ul>
-<li>/authorize: Redirects to the upstream authorization server</li>
-<li>/token: Proxies token requests to the upstream token endpoint</li>
-<li>/.well-known/oauth-authorization-server: Serves authorization server metadata</li>
+<li>/authorize: Redirects the user agent to the upstream authorization endpoint</li>
+<li>/token: Proxies the token request to the upstream token endpoint and returns its response</li>
+<li>/.well-known/oauth-authorization-server: Serves metadata pointing at this delegating proxy</li>
 </ul>
+<p>Non-goals: this middleware never issues, mints, signs, stores, or rotates tokens, and the SDK
+is not an OAuth authorization server / Identity Provider. See
+adr/0001-oauth-authorization-server-out-of-scope.md.</p>
 </section>
 
 
@@ -425,7 +429,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">43</span>
+    <span class="phpdocumentor-element-found-in__line">48</span>
 
     </aside>
 
@@ -455,7 +459,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">44</span>
+    <span class="phpdocumentor-element-found-in__line">49</span>
 
     </aside>
 
@@ -501,7 +505,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">66</span>
 
     </aside>
 
@@ -538,7 +542,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">60</span>
+    <span class="phpdocumentor-element-found-in__line">65</span>
 
     </aside>
 
@@ -575,7 +579,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">46</span>
+    <span class="phpdocumentor-element-found-in__line">51</span>
 
     </aside>
 
@@ -612,7 +616,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">59</span>
+    <span class="phpdocumentor-element-found-in__line">64</span>
 
     </aside>
 
@@ -649,7 +653,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">47</span>
+    <span class="phpdocumentor-element-found-in__line">52</span>
 
     </aside>
 
@@ -686,7 +690,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">48</span>
+    <span class="phpdocumentor-element-found-in__line">53</span>
 
     </aside>
 
@@ -723,7 +727,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">49</span>
+    <span class="phpdocumentor-element-found-in__line">54</span>
 
     </aside>
 
@@ -760,7 +764,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">58</span>
+    <span class="phpdocumentor-element-found-in__line">63</span>
 
     </aside>
 
@@ -802,7 +806,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">57</span>
+    <span class="phpdocumentor-element-found-in__line">62</span>
 
     </aside>
 
@@ -903,7 +907,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">73</span>
+    <span class="phpdocumentor-element-found-in__line">78</span>
 
     </aside>
 
@@ -958,7 +962,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">169</span>
+    <span class="phpdocumentor-element-found-in__line">174</span>
 
     </aside>
 
@@ -996,7 +1000,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">206</span>
+    <span class="phpdocumentor-element-found-in__line">211</span>
 
     </aside>
 
@@ -1051,7 +1055,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">234</span>
+    <span class="phpdocumentor-element-found-in__line">239</span>
 
     </aside>
 
@@ -1089,7 +1093,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">92</span>
+    <span class="phpdocumentor-element-found-in__line">97</span>
 
     </aside>
 
@@ -1137,7 +1141,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">112</span>
+    <span class="phpdocumentor-element-found-in__line">117</span>
 
     </aside>
 
@@ -1185,7 +1189,7 @@ delegate authorization to third-party OAuth providers (Microsoft, Keycloak, etc.
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php"><a href="files/src-server-transport-http-middleware-oauthproxymiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/OAuthProxyMiddleware.php">OAuthProxyMiddleware.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">216</span>
+    <span class="phpdocumentor-element-found-in__line">221</span>
 
     </aside>
 

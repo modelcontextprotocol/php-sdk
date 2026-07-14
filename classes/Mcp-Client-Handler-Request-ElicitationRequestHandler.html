@@ -190,45 +190,47 @@
                                 <section>
                                         <ul class="phpdocumentor-breadcrumbs">
             <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp.html">Mcp</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server.html">Server</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-handler.html">Handler</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-handler-request.html">Request</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-client.html">Client</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-client-handler.html">Handler</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-client-handler-request.html">Request</a></li>
     </ul>
 
     <article class="phpdocumentor-element -class">
         <h2 class="phpdocumentor-content__title">
-    CompletionCompleteHandler
+    ElicitationRequestHandler
 
     
     
             <span class="phpdocumentor-element__implements">
             implements
-                            <a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>                    </span>
+                            <a href="classes/Mcp-Client-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Client\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a>                    </span>
     
     </h2>
 
 <div class="phpdocumentor-label-line">
 
-    <div class="phpdocumentor-label phpdocumentor-label--success"><span>Final</span><span>Yes</span></div>
-
 
 </div>
 
         <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">36</span>
+    <span class="phpdocumentor-element-found-in__line">34</span>
 
     </aside>
 
-            <p class="phpdocumentor-summary">Handles completion/complete requests.</p>
+            <p class="phpdocumentor-summary">Handler for elicitation requests from the server.</p>
 
 
+    <section class="phpdocumentor-description"><p>The MCP server may request additional information from the user during tool
+execution. This handler wraps a user-provided callback that presents the
+requested schema to the user and returns their response.</p>
+</section>
 
 
     <h5 class="phpdocumentor-tag-list__heading" id="tags">
         Tags
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h5>
     <dl class="phpdocumentor-tag-list">
@@ -236,7 +238,7 @@
                 <span class="phpdocumentor-tag__name">author</span>
             </dt>
                             <dd class="phpdocumentor-tag-list__definition">
-                                                                                                            <section class="phpdocumentor-description"><p>Kyrian Obikwelu <a href="mailto:koshnawaza@gmail.com">koshnawaza@gmail.com</a></p>
+                                                                                                            <section class="phpdocumentor-description"><p>Johannes Wachter <a href="mailto:johannes@sulu.io">johannes@sulu.io</a></p>
 </section>
 
                                     </dd>
@@ -246,7 +248,7 @@
     
 <h3 id="toc">
     Table of Contents
-    <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h3>
 
@@ -254,11 +256,11 @@
 
     <h4 id="toc-interfaces">
         Interfaces
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <dl class="phpdocumentor-table-of-contents">
-                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Server\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a></dt>    </dl>
+                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Client-Handler-Request-RequestHandlerInterface.html"><abbr title="\Mcp\Client\Handler\Request\RequestHandlerInterface">RequestHandlerInterface</abbr></a></dt><dd>Interface for handling requests from the server.</dd>    </dl>
 
 
 
@@ -267,53 +269,49 @@
 
 <h4 id="toc-properties">
     Properties
-    <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc-properties" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc-properties" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_container">$container</a>
+    <a class="" href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_callback">$callback</a>
     <span>
-                        &nbsp;: <abbr title="\Psr\Container\ContainerInterface">ContainerInterface</abbr>|null            </span>
+                        &nbsp;: <a href="classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html"><abbr title="\Mcp\Client\Handler\Request\ElicitationCallbackInterface">ElicitationCallbackInterface</abbr></a>            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_registry">$registry</a>
+    <a class="" href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_logger">$logger</a>
     <span>
-                        &nbsp;: <a href="classes/Mcp-Capability-RegistryInterface.html"><abbr title="\Mcp\Capability\RegistryInterface">RegistryInterface</abbr></a>            </span>
+                        &nbsp;: <abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>            </span>
 </dt>
 
     </dl>
 
 <h4 id="toc-methods">
     Methods
-    <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method___construct">__construct()</a>
+    <a class="" href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method___construct">__construct()</a>
     <span>
                                 &nbsp;: mixed    </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_handle">handle()</a>
+    <a class="" href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_handle">handle()</a>
     <span>
-                                &nbsp;: <a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-CompletionCompleteResult.html"><abbr title="\Mcp\Schema\Result\CompletionCompleteResult">CompletionCompleteResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>    </span>
+                                &nbsp;: <a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-ElicitResult.html"><abbr title="\Mcp\Schema\Result\ElicitResult">ElicitResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a>    </span>
 </dt>
+<dd>Handle the request and return a response or error.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_supports">supports()</a>
+    <a class="" href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_supports">supports()</a>
     <span>
                                 &nbsp;: bool    </span>
 </dt>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -private">
-    <a class="" href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_resourceCompletionProviders">resourceCompletionProviders()</a>
-    <span>
-                                &nbsp;: array&lt;string, class-string|object&gt;    </span>
-</dt>
+<dd>Check if this handler supports the given request.</dd>
 
     </dl>
 
@@ -325,7 +323,7 @@
     <section class="phpdocumentor-properties">
         <h3 class="phpdocumentor-elements__header" id="properties">
             Properties
-            <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#properties" class="headerlink"><i class="fas fa-link"></i></a>
+            <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#properties" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
                     <article
@@ -335,17 +333,17 @@
             -private
                                                 -read-only                    "
 >
-    <h4 class="phpdocumentor-element__name" id="property_container">
-        $container
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_container" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="property_callback">
+        $callback
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_callback" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                         <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">40</span>
+    <span class="phpdocumentor-element-found-in__line">37</span>
 
     </aside>
 
@@ -353,9 +351,9 @@
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><abbr title="\Psr\Container\ContainerInterface">ContainerInterface</abbr>|null</span>
-    <span class="phpdocumentor-signature__name">$container</span>
-     = <span class="phpdocumentor-signature__default-value">null</span></code>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html"><abbr title="\Mcp\Client\Handler\Request\ElicitationCallbackInterface">ElicitationCallbackInterface</abbr></a></span>
+    <span class="phpdocumentor-signature__name">$callback</span>
+    </code>
 
     
     
@@ -372,17 +370,17 @@
             -private
                                                 -read-only                    "
 >
-    <h4 class="phpdocumentor-element__name" id="property_registry">
-        $registry
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_registry" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="property_logger">
+        $logger
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_logger" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                         <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">39</span>
+    <span class="phpdocumentor-element-found-in__line">38</span>
 
     </aside>
 
@@ -390,9 +388,9 @@
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Capability-RegistryInterface.html"><abbr title="\Mcp\Capability\RegistryInterface">RegistryInterface</abbr></a></span>
-    <span class="phpdocumentor-signature__name">$registry</span>
-    </code>
+            <span class="phpdocumentor-signature__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr></span>
+    <span class="phpdocumentor-signature__name">$logger</span>
+     = <span class="phpdocumentor-signature__default-value">new NullLogger()</span></code>
 
     
     
@@ -407,7 +405,7 @@
             <section class="phpdocumentor-methods">
         <h3 class="phpdocumentor-elements__header" id="methods">
             Methods
-            <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
+            <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
                     <article
@@ -418,20 +416,20 @@
 >
     <h4 class="phpdocumentor-element__name" id="method___construct">
         __construct()
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method___construct" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method___construct" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">38</span>
+    <span class="phpdocumentor-element-found-in__line">36</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-RegistryInterface.html"><abbr title="\Mcp\Capability\RegistryInterface">RegistryInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$registry</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Container\ContainerInterface">ContainerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$container</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html"><abbr title="\Mcp\Client\Handler\Request\ElicitationCallbackInterface">ElicitationCallbackInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$callback</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -440,16 +438,16 @@
         <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$registry</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Capability-RegistryInterface.html"><abbr title="\Mcp\Capability\RegistryInterface">RegistryInterface</abbr></a></span>
+                <span class="phpdocumentor-argument-list__argument__name">$callback</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html"><abbr title="\Mcp\Client\Handler\Request\ElicitationCallbackInterface">ElicitationCallbackInterface</abbr></a></span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
                     <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$container</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Container\ContainerInterface">ContainerInterface</abbr>|null</span>
-                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+                <span class="phpdocumentor-argument-list__argument__name">$logger</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr></span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
@@ -469,20 +467,21 @@
 >
     <h4 class="phpdocumentor-element__name" id="method_handle">
         handle()
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_handle" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_handle" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">52</span>
+    <span class="phpdocumentor-element-found-in__line">50</span>
 
     </aside>
 
-    
+        <p class="phpdocumentor-summary">Handle the request and return a response or error.</p>
+
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">handle</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$session</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-CompletionCompleteResult.html"><abbr title="\Mcp\Schema\Result\CompletionCompleteResult">CompletionCompleteResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span></code>
+                    <span class="phpdocumentor-signature__name">handle</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-ElicitResult.html"><abbr title="\Mcp\Schema\Result\ElicitResult">ElicitResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -497,13 +496,6 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$session</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Server-Session-SessionInterface.html"><abbr title="\Mcp\Server\Session\SessionInterface">SessionInterface</abbr></a></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
             </dl>
 
     
@@ -512,7 +504,7 @@
     
             <section>
         <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-CompletionCompleteResult.html"><abbr title="\Mcp\Schema\Result\CompletionCompleteResult">CompletionCompleteResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span>
+        <span class="phpdocumentor-signature__response_type"><a href="classes/Mcp-Schema-JsonRpc-Response.html"><abbr title="\Mcp\Schema\JsonRpc\Response">Response</abbr></a>&lt;string|int, <a href="classes/Mcp-Schema-Result-ElicitResult.html"><abbr title="\Mcp\Schema\Result\ElicitResult">ElicitResult</abbr></a>&gt;|<a href="classes/Mcp-Schema-JsonRpc-Error.html"><abbr title="\Mcp\Schema\JsonRpc\Error">Error</abbr></a></span>
             </section>
 
 </article>
@@ -524,17 +516,18 @@
 >
     <h4 class="phpdocumentor-element__name" id="method_supports">
         supports()
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_supports" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_supports" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Handler/Request/ElicitationRequestHandler.php"><a href="files/src-client-handler-request-elicitationrequesthandler.html"><abbr title="src/Client/Handler/Request/ElicitationRequestHandler.php">ElicitationRequestHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">44</span>
+    <span class="phpdocumentor-element-found-in__line">42</span>
 
     </aside>
 
-    
+        <p class="phpdocumentor-summary">Check if this handler supports the given request.</p>
+
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
                     <span class="phpdocumentor-signature__name">supports</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Schema-JsonRpc-Request.html"><abbr title="\Mcp\Schema\JsonRpc\Request">Request</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
@@ -564,54 +557,6 @@
             </section>
 
 </article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -private
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_resourceCompletionProviders">
-        resourceCompletionProviders()
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_resourceCompletionProviders" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Handler/Request/CompletionCompleteHandler.php"><a href="files/src-server-handler-request-completioncompletehandler.html"><abbr title="src/Server/Handler/Request/CompletionCompleteHandler.php">CompletionCompleteHandler.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">97</span>
-
-    </aside>
-
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">private</span>
-                    <span class="phpdocumentor-signature__name">resourceCompletionProviders</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$uri</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;string, class-string|object&gt;</span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-    
-        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
-    <dl class="phpdocumentor-argument-list">
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$uri</span>
-                : <span class="phpdocumentor-argument-list__argument__type">string</span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-            </dl>
-
-    
-
-        
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type">array&lt;string, class-string|object&gt;</span>
-            </section>
-
-</article>
             </section>
 
         
@@ -626,26 +571,25 @@
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                                                            <li><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc-properties">Properties</a></li>
-                                                            <li><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#toc-methods">Methods</a></li>
+                                                            <li><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc-properties">Properties</a></li>
+                                                            <li><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#toc-methods">Methods</a></li>
                                     </ul>
             </li>
             
                             <li class="phpdocumentor-on-this-page-section__title">Properties</li>
                 <li>
                     <ul class="phpdocumentor-list -clean">
-                                                    <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_container">$container</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#property_registry">$registry</a></li>
+                                                    <li class=""><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_callback">$callback</a></li>
+                                                    <li class=""><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_logger">$logger</a></li>
                                             </ul>
                 </li>
             
                         <li class="phpdocumentor-on-this-page-section__title">Methods</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                                            <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method___construct">__construct()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_handle">handle()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_supports">supports()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_resourceCompletionProviders">resourceCompletionProviders()</a></li>
+                                            <li class=""><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method___construct">__construct()</a></li>
+                                            <li class=""><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_handle">handle()</a></li>
+                                            <li class=""><a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_supports">supports()</a></li>
                                     </ul>
             </li>
                     </ul>
@@ -665,7 +609,7 @@
     </section>
 </section>
         </div>
-        <a href="classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

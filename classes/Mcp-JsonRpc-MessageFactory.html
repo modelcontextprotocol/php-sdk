@@ -270,6 +270,14 @@
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-JsonRpc-MessageFactory.html#constant_DEFAULT_MAX_BATCH_SIZE">DEFAULT_MAX_BATCH_SIZE</a>
+    <span>
+        &nbsp;: mixed&nbsp;= 100                            </span>
+</dt>
+<dd>Upper bound on the number of messages accepted in a single batch, guarding
+against amplification where one small request expands into many operations.</dd>
+
             <dt class="phpdocumentor-table-of-contents__entry -constant -private">
     <a class="" href="classes/Mcp-JsonRpc-MessageFactory.html#constant_REGISTERED_MESSAGES">REGISTERED_MESSAGES</a>
     <span>
@@ -286,6 +294,12 @@
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-JsonRpc-MessageFactory.html#property_maxBatchSize">$maxBatchSize</a>
+    <span>
+                        &nbsp;: int            </span>
+</dt>
+
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-JsonRpc-MessageFactory.html#property_registeredMessages">$registeredMessages</a>
     <span>
@@ -345,6 +359,38 @@
             <a href="classes/Mcp-JsonRpc-MessageFactory.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_DEFAULT_MAX_BATCH_SIZE">
+        DEFAULT_MAX_BATCH_SIZE
+        <a href="classes/Mcp-JsonRpc-MessageFactory.html#constant_DEFAULT_MAX_BATCH_SIZE" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">75</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Upper bound on the number of messages accepted in a single batch, guarding
+against amplification where one small request expands into many operations.</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">DEFAULT_MAX_BATCH_SIZE</span>
+    = <span class="phpdocumentor-signature__default-value">100</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
                     <article class="phpdocumentor-element -constant -private ">
     <h4 class="phpdocumentor-element__name" id="constant_REGISTERED_MESSAGES">
         REGISTERED_MESSAGES
@@ -366,7 +412,7 @@
     <span class="phpdocumentor-signature__visibility">private</span>
         <span class="phpdocumentor-signature__type">array&lt;int, <abbr title="class-string<\Mcp\Schema\JsonRpc\Request>">Request></abbr>|<abbr title="class-string<\Mcp\Schema\JsonRpc\Notification>">Notification></abbr>&gt;</span>
     <span class="phpdocumentor-signature__name">REGISTERED_MESSAGES</span>
-    = <span class="phpdocumentor-signature__default-value">[\Mcp\Schema\Notification\CancelledNotification::class, \Mcp\Schema\Notification\InitializedNotification::class, \Mcp\Schema\Notification\LoggingMessageNotification::class, \Mcp\Schema\Notification\ProgressNotification::class, \Mcp\Schema\Notification\PromptListChangedNotification::class, \Mcp\Schema\Notification\ResourceListChangedNotification::class, \Mcp\Schema\Notification\ResourceUpdatedNotification::class, \Mcp\Schema\Notification\RootsListChangedNotification::class, \Mcp\Schema\Notification\ToolListChangedNotification::class, \Mcp\Schema\Request\CallToolRequest::class, \Mcp\Schema\Request\CompletionCompleteRequest::class, \Mcp\Schema\Request\CreateSamplingMessageRequest::class, \Mcp\Schema\Request\GetPromptRequest::class, \Mcp\Schema\Request\InitializeRequest::class, \Mcp\Schema\Request\ListPromptsRequest::class, \Mcp\Schema\Request\ListResourcesRequest::class, \Mcp\Schema\Request\ListResourceTemplatesRequest::class, \Mcp\Schema\Request\ListRootsRequest::class, \Mcp\Schema\Request\ListToolsRequest::class, \Mcp\Schema\Request\PingRequest::class, \Mcp\Schema\Request\ReadResourceRequest::class, \Mcp\Schema\Request\ResourceSubscribeRequest::class, \Mcp\Schema\Request\ResourceUnsubscribeRequest::class, \Mcp\Schema\Request\SetLogLevelRequest::class]</span>
+    = <span class="phpdocumentor-signature__default-value">[\Mcp\Schema\Notification\CancelledNotification::class, \Mcp\Schema\Notification\InitializedNotification::class, \Mcp\Schema\Notification\LoggingMessageNotification::class, \Mcp\Schema\Notification\ProgressNotification::class, \Mcp\Schema\Notification\PromptListChangedNotification::class, \Mcp\Schema\Notification\ResourceListChangedNotification::class, \Mcp\Schema\Notification\ResourceUpdatedNotification::class, \Mcp\Schema\Notification\RootsListChangedNotification::class, \Mcp\Schema\Notification\ToolListChangedNotification::class, \Mcp\Schema\Request\CallToolRequest::class, \Mcp\Schema\Request\CompletionCompleteRequest::class, \Mcp\Schema\Request\CreateSamplingMessageRequest::class, \Mcp\Schema\Request\ElicitRequest::class, \Mcp\Schema\Request\GetPromptRequest::class, \Mcp\Schema\Request\InitializeRequest::class, \Mcp\Schema\Request\ListPromptsRequest::class, \Mcp\Schema\Request\ListResourcesRequest::class, \Mcp\Schema\Request\ListResourceTemplatesRequest::class, \Mcp\Schema\Request\ListRootsRequest::class, \Mcp\Schema\Request\ListToolsRequest::class, \Mcp\Schema\Request\PingRequest::class, \Mcp\Schema\Request\ReadResourceRequest::class, \Mcp\Schema\Request\ResourceSubscribeRequest::class, \Mcp\Schema\Request\ResourceUnsubscribeRequest::class, \Mcp\Schema\Request\SetLogLevelRequest::class]</span>
 </code>
 
 
@@ -392,6 +438,43 @@
             -private
                                                 -read-only                    "
 >
+    <h4 class="phpdocumentor-element__name" id="property_maxBatchSize">
+        $maxBatchSize
+        <a href="classes/Mcp-JsonRpc-MessageFactory.html#property_maxBatchSize" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">83</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">int</span>
+    <span class="phpdocumentor-signature__name">$maxBatchSize</span>
+     = <span class="phpdocumentor-signature__default-value">self::DEFAULT_MAX_BATCH_SIZE</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
     <h4 class="phpdocumentor-element__name" id="property_registeredMessages">
         $registeredMessages
         <a href="classes/Mcp-JsonRpc-MessageFactory.html#property_registeredMessages" class="headerlink"><i class="fas fa-link"></i></a>
@@ -402,7 +485,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">74</span>
+    <span class="phpdocumentor-element-found-in__line">82</span>
 
     </aside>
 
@@ -444,14 +527,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">73</span>
+    <span class="phpdocumentor-element-found-in__line">81</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, <abbr title="class-string<\Mcp\Schema\JsonRpc\Request>">Request></abbr>|<abbr title="class-string<\Mcp\Schema\JsonRpc\Notification>">Notification></abbr>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$registeredMessages</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;int, <abbr title="class-string<\Mcp\Schema\JsonRpc\Request>">Request></abbr>|<abbr title="class-string<\Mcp\Schema\JsonRpc\Notification>">Notification></abbr>&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$registeredMessages</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$maxBatchSize</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\self::DEFAULT_MAX_BATCH_SIZE">self::DEFAULT_MAX_BATCH_SIZE</abbr></span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -465,6 +548,15 @@
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$maxBatchSize</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value"><abbr title="\self::DEFAULT_MAX_BATCH_SIZE">self::DEFAULT_MAX_BATCH_SIZE</abbr></span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>Maximum number of messages accepted in a single JSON-RPC batch</p>
+</section>
+
             </dd>
             </dl>
 
@@ -488,7 +580,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">101</span>
+    <span class="phpdocumentor-element-found-in__line">114</span>
 
     </aside>
 
@@ -556,7 +648,7 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">86</span>
+    <span class="phpdocumentor-element-found-in__line">99</span>
 
     </aside>
 
@@ -564,13 +656,23 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">make</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
+            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">make</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$maxBatchSize</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\self::DEFAULT_MAX_BATCH_SIZE">self::DEFAULT_MAX_BATCH_SIZE</abbr></span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">self</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
     
     
-    
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$maxBatchSize</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value"><abbr title="\self::DEFAULT_MAX_BATCH_SIZE">self::DEFAULT_MAX_BATCH_SIZE</abbr></span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
     
 
         
@@ -595,7 +697,7 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">128</span>
+    <span class="phpdocumentor-element-found-in__line">165</span>
 
     </aside>
 
@@ -658,7 +760,7 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/JsonRpc/MessageFactory.php"><a href="files/src-jsonrpc-messagefactory.html"><abbr title="src/JsonRpc/MessageFactory.php">MessageFactory.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">158</span>
+    <span class="phpdocumentor-element-found-in__line">195</span>
 
     </aside>
 
@@ -729,6 +831,7 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
                             <li class="phpdocumentor-on-this-page-section__title">Constants</li>
                 <li>
                     <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-JsonRpc-MessageFactory.html#constant_DEFAULT_MAX_BATCH_SIZE">DEFAULT_MAX_BATCH_SIZE</a></li>
                                                     <li class=""><a href="classes/Mcp-JsonRpc-MessageFactory.html#constant_REGISTERED_MESSAGES">REGISTERED_MESSAGES</a></li>
                                             </ul>
                 </li>
@@ -736,6 +839,7 @@ MessageInterface objects or InvalidInputMessageException instances for invalid m
                             <li class="phpdocumentor-on-this-page-section__title">Properties</li>
                 <li>
                     <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-JsonRpc-MessageFactory.html#property_maxBatchSize">$maxBatchSize</a></li>
                                                     <li class=""><a href="classes/Mcp-JsonRpc-MessageFactory.html#property_registeredMessages">$registeredMessages</a></li>
                                             </ul>
                 </li>

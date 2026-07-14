@@ -640,11 +640,11 @@ class RedisSessionStore implements SessionStoreInterface
 
     <li><strong>Class and method name pair</strong>
 : <code>[ClassName::class, &#039;methodName&#039;]</code>
- - class must be constructable through the container</li>
+ - the class is instantiated lazily on first call, so it must be constructable through the container (or have a no-arg constructor)</li>
 
     <li><strong>Class instance and method name</strong>
 : <code>[$instance, &#039;methodName&#039;]</code>
-</li>
+ - the given, already-constructed object is invoked as-is. Use this for handlers the container cannot build, e.g. those with scalar constructor arguments or dependencies wired at runtime</li>
 
     <li><strong>Invokable class name</strong>
 : <code>InvokableClass::class</code>

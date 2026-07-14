@@ -193,18 +193,18 @@
             <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server.html">Server</a></li>
             <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport.html">Transport</a></li>
             <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport-http.html">Http</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport-http-middleware.html">Middleware</a></li>
+            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport-http-oauth.html">OAuth</a></li>
     </ul>
 
     <article class="phpdocumentor-element -class">
         <h2 class="phpdocumentor-content__title">
-    ProtectedResourceMetadataMiddleware
+    ProtectedResourceMetadataHandler
 
     
     
             <span class="phpdocumentor-element__implements">
             implements
-                            <abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr>                    </span>
+                            <abbr title="\Psr\Http\Server\RequestHandlerInterface">RequestHandlerInterface</abbr>                    </span>
     
     </h2>
 
@@ -216,25 +216,31 @@
 </div>
 
         <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">35</span>
+    <span class="phpdocumentor-element-found-in__line">39</span>
 
     </aside>
 
-            <p class="phpdocumentor-summary">Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) at well-known endpoints.</p>
+            <p class="phpdocumentor-summary">Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) as a standalone request handler.</p>
 
 
-    <section class="phpdocumentor-description"><p>This is a thin path-guard adapter: it decides <em>when</em> the metadata endpoint applies
-(a GET to one of the configured well-known paths) and delegates the <em>what</em> to
-<a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler">ProtectedResourceMetadataHandler</abbr></a>, the reusable request handler that can also be
-mounted directly as a framework controller.</p>
+    <section class="phpdocumentor-description"><p>This is a plain PSR-15 <abbr title="\Psr\Http\Server\RequestHandlerInterface">RequestHandlerInterface</abbr> — the &quot;controller&quot; that decides <em>what</em>
+to return, independent of <em>when</em>. It can be used three ways from a single instance:</p>
+<ul>
+<li>inside the MCP transport, wrapped by <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html"><abbr title="\Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware">ProtectedResourceMetadataMiddleware</abbr></a>;</li>
+<li>as a bare PSR-7 handler in a hand-rolled front controller;</li>
+<li>as a framework callable controller (Symfony/Laravel), by converting the framework
+request to PSR-7 and the returned PSR-7 response back — see docs/authorization.md.</li>
+</ul>
+<p>It performs no path or method matching: routing is the caller's responsibility (the
+middleware's guard, or the framework router).</p>
 </section>
 
 
     <h5 class="phpdocumentor-tag-list__heading" id="tags">
         Tags
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#tags" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h5>
     <dl class="phpdocumentor-tag-list">
@@ -259,7 +265,7 @@ mounted directly as a framework controller.</p>
     
 <h3 id="toc">
     Table of Contents
-    <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h3>
 
@@ -267,11 +273,11 @@ mounted directly as a framework controller.</p>
 
     <h4 id="toc-interfaces">
         Interfaces
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <dl class="phpdocumentor-table-of-contents">
-                    <dt class="phpdocumentor-table-of-contents__entry -interface"><abbr title="\Psr\Http\Server\MiddlewareInterface">MiddlewareInterface</abbr></dt>    </dl>
+                    <dt class="phpdocumentor-table-of-contents__entry -interface"><abbr title="\Psr\Http\Server\RequestHandlerInterface">RequestHandlerInterface</abbr></dt>    </dl>
 
 
 
@@ -280,46 +286,46 @@ mounted directly as a framework controller.</p>
 
 <h4 id="toc-properties">
     Properties
-    <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc-properties" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc-properties" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadata">$metadata</a>
+    <a class="" href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_metadata">$metadata</a>
     <span>
                         &nbsp;: <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadata.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata">ProtectedResourceMetadata</abbr></a>            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
-    <a class="" href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadataHandler">$metadataHandler</a>
+    <a class="" href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_responseFactory">$responseFactory</a>
     <span>
-                        &nbsp;: <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler">ProtectedResourceMetadataHandler</abbr></a>            </span>
+                        &nbsp;: <abbr title="\Psr\Http\Message\ResponseFactoryInterface">ResponseFactoryInterface</abbr>            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_streamFactory">$streamFactory</a>
+    <span>
+                        &nbsp;: <abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr>            </span>
 </dt>
 
     </dl>
 
 <h4 id="toc-methods">
     Methods
-    <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc-methods" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h4>
 <dl class="phpdocumentor-table-of-contents">
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method___construct">__construct()</a>
+    <a class="" href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method___construct">__construct()</a>
     <span>
                                 &nbsp;: mixed    </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
-    <a class="" href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_process">process()</a>
+    <a class="" href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method_handle">handle()</a>
     <span>
                                 &nbsp;: <abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr>    </span>
-</dt>
-
-            <dt class="phpdocumentor-table-of-contents__entry -method -private">
-    <a class="" href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_isMetadataRequest">isMetadataRequest()</a>
-    <span>
-                                &nbsp;: bool    </span>
 </dt>
 
     </dl>
@@ -332,7 +338,7 @@ mounted directly as a framework controller.</p>
     <section class="phpdocumentor-properties">
         <h3 class="phpdocumentor-elements__header" id="properties">
             Properties
-            <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#properties" class="headerlink"><i class="fas fa-link"></i></a>
+            <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#properties" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
                     <article
@@ -344,15 +350,15 @@ mounted directly as a framework controller.</p>
 >
     <h4 class="phpdocumentor-element__name" id="property_metadata">
         $metadata
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadata" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_metadata" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                         <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">40</span>
+    <span class="phpdocumentor-element-found-in__line">45</span>
 
     </aside>
 
@@ -379,17 +385,17 @@ mounted directly as a framework controller.</p>
             -private
                                                                     "
 >
-    <h4 class="phpdocumentor-element__name" id="property_metadataHandler">
-        $metadataHandler
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadataHandler" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="property_responseFactory">
+        $responseFactory
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_responseFactory" class="headerlink"><i class="fas fa-link"></i></a>
 
         <span class="phpdocumentor-element__modifiers">
                                             </span>
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">37</span>
+    <span class="phpdocumentor-element-found-in__line">41</span>
 
     </aside>
 
@@ -397,8 +403,45 @@ mounted directly as a framework controller.</p>
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
         <span class="phpdocumentor-signature__visibility">private</span>
-            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler">ProtectedResourceMetadataHandler</abbr></a></span>
-    <span class="phpdocumentor-signature__name">$metadataHandler</span>
+            <span class="phpdocumentor-signature__type"><abbr title="\Psr\Http\Message\ResponseFactoryInterface">ResponseFactoryInterface</abbr></span>
+    <span class="phpdocumentor-signature__name">$responseFactory</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_streamFactory">
+        $streamFactory
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_streamFactory" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                                            </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">42</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr></span>
+    <span class="phpdocumentor-signature__name">$streamFactory</span>
     </code>
 
     
@@ -414,7 +457,7 @@ mounted directly as a framework controller.</p>
             <section class="phpdocumentor-methods">
         <h3 class="phpdocumentor-elements__header" id="methods">
             Methods
-            <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
+            <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#methods" class="headerlink"><i class="fas fa-link"></i></a>
 
         </h3>
                     <article
@@ -425,13 +468,13 @@ mounted directly as a framework controller.</p>
 >
     <h4 class="phpdocumentor-element__name" id="method___construct">
         __construct()
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method___construct" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method___construct" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">39</span>
+    <span class="phpdocumentor-element-found-in__line">44</span>
 
     </aside>
 
@@ -481,22 +524,22 @@ mounted directly as a framework controller.</p>
             -public
                                                         "
 >
-    <h4 class="phpdocumentor-element__name" id="method_process">
-        process()
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_process" class="headerlink"><i class="fas fa-link"></i></a>
+    <h4 class="phpdocumentor-element__name" id="method_handle">
+        handle()
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method_handle" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php"><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html"><abbr title="src/Server/Transport/Http/OAuth/ProtectedResourceMetadataHandler.php">ProtectedResourceMetadataHandler.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">47</span>
+    <span class="phpdocumentor-element-found-in__line">53</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">process</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span class="phpdocumentor-signature__argument"><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Server\RequestHandlerInterface">RequestHandlerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span></code>
+                    <span class="phpdocumentor-signature__name">handle</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -507,13 +550,6 @@ mounted directly as a framework controller.</p>
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$request</span>
                 : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$handler</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Http\Server\RequestHandlerInterface">RequestHandlerInterface</abbr></span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
@@ -527,54 +563,6 @@ mounted directly as a framework controller.</p>
             <section>
         <h5 class="phpdocumentor-return-value__heading">Return values</h5>
         <span class="phpdocumentor-signature__response_type"><abbr title="\Psr\Http\Message\ResponseInterface">ResponseInterface</abbr></span>
-            </section>
-
-</article>
-                    <article
-        class="phpdocumentor-element
-            -method
-            -private
-                                                        "
->
-    <h4 class="phpdocumentor-element__name" id="method_isMetadataRequest">
-        isMetadataRequest()
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_isMetadataRequest" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <aside class="phpdocumentor-element-found-in">
-    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php"><a href="files/src-server-transport-http-middleware-protectedresourcemetadatamiddleware.html"><abbr title="src/Server/Transport/Http/Middleware/ProtectedResourceMetadataMiddleware.php">ProtectedResourceMetadataMiddleware.php</abbr></a></abbr>
-    :
-    <span class="phpdocumentor-element-found-in__line">56</span>
-
-    </aside>
-
-    
-    <code class="phpdocumentor-code phpdocumentor-signature ">
-    <span class="phpdocumentor-signature__visibility">private</span>
-                    <span class="phpdocumentor-signature__name">isMetadataRequest</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$request</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">bool</span></code>
-
-    <div class="phpdocumentor-label-line">
-        </div>
-    
-    
-        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
-    <dl class="phpdocumentor-argument-list">
-                    <dt class="phpdocumentor-argument-list__entry">
-                <span class="phpdocumentor-argument-list__argument__name">$request</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Psr\Http\Message\ServerRequestInterface">ServerRequestInterface</abbr></span>
-                            </dt>
-            <dd class="phpdocumentor-argument-list__definition">
-                
-            </dd>
-            </dl>
-
-    
-
-        
-    
-            <section>
-        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
-        <span class="phpdocumentor-signature__response_type">bool</span>
             </section>
 
 </article>
@@ -592,25 +580,25 @@ mounted directly as a framework controller.</p>
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                                                            <li><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc-properties">Properties</a></li>
-                                                            <li><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#toc-methods">Methods</a></li>
+                                                            <li><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc-properties">Properties</a></li>
+                                                            <li><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#toc-methods">Methods</a></li>
                                     </ul>
             </li>
             
                             <li class="phpdocumentor-on-this-page-section__title">Properties</li>
                 <li>
                     <ul class="phpdocumentor-list -clean">
-                                                    <li class=""><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadata">$metadata</a></li>
-                                                    <li class=""><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadataHandler">$metadataHandler</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_metadata">$metadata</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_responseFactory">$responseFactory</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_streamFactory">$streamFactory</a></li>
                                             </ul>
                 </li>
             
                         <li class="phpdocumentor-on-this-page-section__title">Methods</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                                            <li class=""><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method___construct">__construct()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_process">process()</a></li>
-                                            <li class=""><a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_isMetadataRequest">isMetadataRequest()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method___construct">__construct()</a></li>
+                                            <li class=""><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method_handle">handle()</a></li>
                                     </ul>
             </li>
                     </ul>
@@ -630,7 +618,7 @@ mounted directly as a framework controller.</p>
     </section>
 </section>
         </div>
-        <a href="classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

@@ -546,6 +546,11 @@ Search.appendIndex(
             "summary": "Builds\u0020the\u0020final\u0020schema\u0020for\u0020a\u0020single\u0020parameter\u0020by\u0020merging\u0020all\u0020three\u0020levels.",
             "url": "classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_buildParameterSchema"
         },                {
+            "fqsen": "\\Mcp\\Capability\\Discovery\\SchemaGenerator\u003A\u003AensureArrayItems\u0028\u0029",
+            "name": "ensureArrayItems",
+            "summary": "Guarantees\u0020an\u0020array\u002Dtyped\u0020schema\u0020always\u0020declares\u0020\u0060items\u0060.",
+            "url": "classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_ensureArrayItems"
+        },                {
             "fqsen": "\\Mcp\\Capability\\Discovery\\SchemaGenerator\u003A\u003AbuildInferredParameterSchema\u0028\u0029",
             "name": "buildInferredParameterSchema",
             "summary": "Builds\u0020parameter\u0020schema\u0020from\u0020inferred\u0020type\u0020and\u0020docblock\u0020information\u0020only.",
@@ -1166,6 +1171,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Capability-Registry.html#method___construct"
         },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003Aload\u0028\u0029",
+            "name": "load",
+            "summary": "Runs\u0020the\u0020configured\u0020loader\u0020once,\u0020on\u0020demand.\u0020Reads\u0020trigger\u0020this\u0020automatically,\u0020so\u0020element\nloading\u0020is\u0020deferred\u0020to\u0020the\u0020first\u0020read\u0020\u0028request\u0020time\u0029\u0020rather\u0020than\u0020eager\u0020at\u0020build\u0020time\u0020\u2014\u0020under\u0020a\npersistent\u0020runtime\u0020a\u0020source\u0020not\u0020yet\u0020ready\u0020at\u0020build\u0020no\u0020longer\u0020freezes\u0020the\u0020registry\u0020empty.",
+            "url": "classes/Mcp-Capability-Registry.html#method_load"
+        },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003AregisterTool\u0028\u0029",
             "name": "registerTool",
             "summary": "Registers\u0020a\u0020tool\u0020with\u0020its\u0020handler.\u0020Overwrites\u0020any\u0020prior\u0020registration\u0020of\u0020the\u0020same\u0020name.",
@@ -1316,6 +1326,16 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Capability-Registry.html#property_resourceTemplates"
         },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003A\u0024loaded",
+            "name": "loaded",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#property_loaded"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003A\u0024loading",
+            "name": "loading",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#property_loading"
+        },                {
             "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003A\u0024eventDispatcher",
             "name": "eventDispatcher",
             "summary": "",
@@ -1330,6 +1350,11 @@ Search.appendIndex(
             "name": "nameValidator",
             "summary": "",
             "url": "classes/Mcp-Capability-Registry.html#property_nameValidator"
+        },                {
+            "fqsen": "\\Mcp\\Capability\\Registry\u003A\u003A\u0024loader",
+            "name": "loader",
+            "summary": "",
+            "url": "classes/Mcp-Capability-Registry.html#property_loader"
         },                {
             "fqsen": "\\Mcp\\Capability\\RegistryInterface",
             "name": "RegistryInterface",
@@ -1655,6 +1680,46 @@ Search.appendIndex(
             "name": "handle",
             "summary": "Handle\u0020the\u0020notification.",
             "url": "classes/Mcp-Client-Handler-Notification-NotificationHandlerInterface.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationCallbackInterface",
+            "name": "ElicitationCallbackInterface",
+            "summary": "Contract\u0020for\u0020callbacks\u0020used\u0020by\u0020ElicitationRequestHandler.",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationCallbackInterface\u003A\u003A__invoke\u0028\u0029",
+            "name": "__invoke",
+            "summary": "",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationCallbackInterface.html#method___invoke"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler",
+            "name": "ElicitationRequestHandler",
+            "summary": "Handler\u0020for\u0020elicitation\u0020requests\u0020from\u0020the\u0020server.",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler\u003A\u003Asupports\u0028\u0029",
+            "name": "supports",
+            "summary": "Check\u0020if\u0020this\u0020handler\u0020supports\u0020the\u0020given\u0020request.",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_supports"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler\u003A\u003Ahandle\u0028\u0029",
+            "name": "handle",
+            "summary": "Handle\u0020the\u0020request\u0020and\u0020return\u0020a\u0020response\u0020or\u0020error.",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler\u003A\u003A\u0024callback",
+            "name": "callback",
+            "summary": "",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_callback"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Handler\\Request\\ElicitationRequestHandler\u003A\u003A\u0024logger",
+            "name": "logger",
+            "summary": "",
+            "url": "classes/Mcp-Client-Handler-Request-ElicitationRequestHandler.html#property_logger"
         },                {
             "fqsen": "\\Mcp\\Client\\Handler\\Request\\RequestHandlerInterface",
             "name": "RequestHandlerInterface",
@@ -2721,6 +2786,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Exception-ContainerException.html"
         },                {
+            "fqsen": "\\Mcp\\Exception\\ElicitationException",
+            "name": "ElicitationException",
+            "summary": "Exception\u0020thrown\u0020when\u0020an\u0020elicitation\u0020request\u0020fails.",
+            "url": "classes/Mcp-Exception-ElicitationException.html"
+        },                {
             "fqsen": "\\Mcp\\Exception\\Exception",
             "name": "Exception",
             "summary": "",
@@ -2926,10 +2996,20 @@ Search.appendIndex(
             "summary": "Registry\u0020of\u0020all\u0020known\u0020message\u0020classes\u0020that\u0020have\u0020methods.",
             "url": "classes/Mcp-JsonRpc-MessageFactory.html#constant_REGISTERED_MESSAGES"
         },                {
+            "fqsen": "\\Mcp\\JsonRpc\\MessageFactory\u003A\u003ADEFAULT_MAX_BATCH_SIZE",
+            "name": "DEFAULT_MAX_BATCH_SIZE",
+            "summary": "Upper\u0020bound\u0020on\u0020the\u0020number\u0020of\u0020messages\u0020accepted\u0020in\u0020a\u0020single\u0020batch,\u0020guarding\nagainst\u0020amplification\u0020where\u0020one\u0020small\u0020request\u0020expands\u0020into\u0020many\u0020operations.",
+            "url": "classes/Mcp-JsonRpc-MessageFactory.html#constant_DEFAULT_MAX_BATCH_SIZE"
+        },                {
             "fqsen": "\\Mcp\\JsonRpc\\MessageFactory\u003A\u003A\u0024registeredMessages",
             "name": "registeredMessages",
             "summary": "",
             "url": "classes/Mcp-JsonRpc-MessageFactory.html#property_registeredMessages"
+        },                {
+            "fqsen": "\\Mcp\\JsonRpc\\MessageFactory\u003A\u003A\u0024maxBatchSize",
+            "name": "maxBatchSize",
+            "summary": "",
+            "url": "classes/Mcp-JsonRpc-MessageFactory.html#property_maxBatchSize"
         },                {
             "fqsen": "\\Mcp\\Schema\\Annotations",
             "name": "Annotations",
@@ -6251,6 +6331,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#method_setRegistry"
         },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AsetLazyLoading\u0028\u0029",
+            "name": "setLazyLoading",
+            "summary": "Controls\u0020when\u0020configured\u0020loaders\u0020\u0028manual\u0020elements,\u0020discovery,\u0020custom\u0020loaders\u0029\u0020run.",
+            "url": "classes/Mcp-Server-Builder.html#method_setLazyLoading"
+        },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AsetLogger\u0028\u0029",
             "name": "setLogger",
             "summary": "Provides\u0020a\u0020PSR\u002D3\u0020logger\u0020instance.\u0020Defaults\u0020to\u0020NullLogger.",
@@ -6340,6 +6425,11 @@ Search.appendIndex(
             "name": "build",
             "summary": "Builds\u0020the\u0020fully\u0020configured\u0020Server\u0020instance.",
             "url": "classes/Mcp-Server-Builder.html#method_build"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AdetectCapabilities\u0028\u0029",
+            "name": "detectCapabilities",
+            "summary": "When\u0020loaded,\u0020capabilities\u0020are\u0020read\u0020from\u0020the\u0020registry.\u0020When\u0020deferred,\u0020reading\u0020it\u0020would\u0020force\nthe\u0020load,\u0020so\u0020they\u0020are\u0020advertised\u0020from\u0020the\u0020configured\u0020sources\u0020instead\u0020\u2014\u0020opaque\u0020sources\u0020\u0028custom\nloaders,\u0020discovery\u0029\u0020advertise\u0020all\u0020kinds,\u0020and\u0020over\u002Dadvertising\u0020is\u0020harmless\u0020per\u0020MCP\u0020semantics.",
+            "url": "classes/Mcp-Server-Builder.html#method_detectCapabilities"
         },                {
             "fqsen": "\\Mcp\\Server\\Builder\u003A\u003AcreateDiscoverer\u0028\u0029",
             "name": "createDiscoverer",
@@ -6515,6 +6605,16 @@ Search.appendIndex(
             "name": "loaders",
             "summary": "",
             "url": "classes/Mcp-Server-Builder.html#property_loaders"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024hasCustomRegistry",
+            "name": "hasCustomRegistry",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_hasCustomRegistry"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Builder\u003A\u003A\u0024lazyLoading",
+            "name": "lazyLoading",
+            "summary": "",
+            "url": "classes/Mcp-Server-Builder.html#property_lazyLoading"
         },                {
             "fqsen": "\\Mcp\\Server\\ClientGateway",
             "name": "ClientGateway",
@@ -6705,6 +6805,11 @@ Search.appendIndex(
             "name": "handle",
             "summary": "",
             "url": "classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Handler\\Request\\CompletionCompleteHandler\u003A\u003AresourceCompletionProviders\u0028\u0029",
+            "name": "resourceCompletionProviders",
+            "summary": "",
+            "url": "classes/Mcp-Server-Handler-Request-CompletionCompleteHandler.html#method_resourceCompletionProviders"
         },                {
             "fqsen": "\\Mcp\\Server\\Handler\\Request\\CompletionCompleteHandler\u003A\u003A\u0024registry",
             "name": "registry",
@@ -8193,7 +8298,7 @@ Search.appendIndex(
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\OAuthProxyMiddleware",
             "name": "OAuthProxyMiddleware",
-            "summary": "Proxies\u0020OAuth\u0020authorization\u0020requests\u0020to\u0020an\u0020upstream\u0020authorization\u0020server.",
+            "summary": "Delegates\u0020OAuth\u0020flows\u0020to\u0020an\u0020upstream\u0020authorization\u0020server\u0020so\u0020you\u0020do\u0020NOT\u0020have\u0020to\u0020build\u0020one.",
             "url": "classes/Mcp-Server-Transport-Http-Middleware-OAuthProxyMiddleware.html"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\OAuthProxyMiddleware\u003A\u003A__construct\u0028\u0029",
@@ -8341,15 +8446,10 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#method_isMetadataRequest"
         },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtectedResourceMetadataMiddleware\u003A\u003A\u0024responseFactory",
-            "name": "responseFactory",
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtectedResourceMetadataMiddleware\u003A\u003A\u0024metadataHandler",
+            "name": "metadataHandler",
             "summary": "",
-            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_responseFactory"
-        },                {
-            "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtectedResourceMetadataMiddleware\u003A\u003A\u0024streamFactory",
-            "name": "streamFactory",
-            "summary": "",
-            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_streamFactory"
+            "url": "classes/Mcp-Server-Transport-Http-Middleware-ProtectedResourceMetadataMiddleware.html#property_metadataHandler"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\Middleware\\ProtectedResourceMetadataMiddleware\u003A\u003A\u0024metadata",
             "name": "metadata",
@@ -8856,6 +8956,36 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadata.html#property_resourceTosUri"
         },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler",
+            "name": "ProtectedResourceMetadataHandler",
+            "summary": "Serves\u0020OAuth\u00202.0\u0020Protected\u0020Resource\u0020Metadata\u0020\u0028RFC\u00209728\u0029\u0020as\u0020a\u0020standalone\u0020request\u0020handler.",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler\u003A\u003A__construct\u0028\u0029",
+            "name": "__construct",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method___construct"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler\u003A\u003Ahandle\u0028\u0029",
+            "name": "handle",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#method_handle"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler\u003A\u003A\u0024responseFactory",
+            "name": "responseFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_responseFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler\u003A\u003A\u0024streamFactory",
+            "name": "streamFactory",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_streamFactory"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\ProtectedResourceMetadataHandler\u003A\u003A\u0024metadata",
+            "name": "metadata",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html#property_metadata"
+        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\Http\\OAuth\\StrictOidcDiscoveryMetadataPolicy",
             "name": "StrictOidcDiscoveryMetadataPolicy",
             "summary": "Default\u0020strict\u0020policy\u0020for\u0020OIDC\u0020discovery\u0020metadata\u0020validation.",
@@ -9146,6 +9276,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_createErrorResponse"
         },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AreadBody\u0028\u0029",
+            "name": "readBody",
+            "summary": "Reads\u0020the\u0020request\u0020body,\u0020bounded\u0020by\u0020\u007B\u0040see\u0020self\u003A\u003A\u0024maxBodyBytes\u007D.",
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#method_readBody"
+        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003AnormalizeMiddleware\u0028\u0029",
             "name": "normalizeMiddleware",
             "summary": "",
@@ -9165,6 +9300,11 @@ Search.appendIndex(
             "name": "PROTOCOL_VERSION_HEADER",
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_PROTOCOL_VERSION_HEADER"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003ADEFAULT_MAX_BODY_BYTES",
+            "name": "DEFAULT_MAX_BODY_BYTES",
+            "summary": "Upper\u0020bound\u0020on\u0020the\u0020request\u0020body\u0020read\u0020for\u0020a\u0020POST,\u0020guarding\u0020against\u0020memory\nexhaustion\u0020from\u0020an\u0020oversized\u0020\u0028or\u0020unbounded\u0020chunked\u0029\u0020payload.",
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#constant_DEFAULT_MAX_BODY_BYTES"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003A\u0024responseFactory",
             "name": "responseFactory",
@@ -9195,6 +9335,11 @@ Search.appendIndex(
             "name": "request",
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_request"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport\u003A\u003A\u0024maxBodyBytes",
+            "name": "maxBodyBytes",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-StreamableHttpTransport.html#property_maxBodyBytes"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\TransportInterface",
             "name": "TransportInterface",

@@ -201,6 +201,8 @@
             
 
 <ul>
+    <li class="dash"><a href="#scope-what-this-sdk-does-and-does-not-do">Scope: what this SDK does and does not do</a></li>
+
     <li class="dash"><a href="#overview">Overview</a></li>
 
     <li class="dash"><a href="#quick-start">Quick Start</a></li>
@@ -221,6 +223,61 @@
 
     </section>
 
+            <section class="section " id="scope-what-this-sdk-does-and-does-not-do">
+            <h2>Scope: what this SDK does and does not do</h2>
+
+            
+    <p>The MCP server is an OAuth 2.1 <strong>Resource Server</strong>
+. It validates the tokens it receives and may delegate the OAuth flow to your upstream Identity Provider. <strong>It is not an authorization server and it does not issue tokens.</strong>
+</p>
+
+            <table>
+                <thead>
+            <tr>
+                            <th>Role</th>
+                            <th>What it does</th>
+                            <th>Status</th>
+                            <th>Scope</th>
+                    </tr>
+        </thead>
+    <tbody>
+    <tr>
+            <td>Resource Server</td>
+            <td>Validates incoming bearer tokens, serves Protected Resource Metadata (RFC 9728), emits <code>WWW-Authenticate</code>
+</td>
+            <td>Supported (<code>AuthorizationMiddleware</code>
+, <code>JwtTokenValidator</code>
+, <code>ProtectedResourceMetadata</code>
+)</td>
+            <td><strong>In scope</strong>
+</td>
+    </tr>
+    <tr>
+            <td>Delegation / proxy to an upstream AS</td>
+            <td>Forwards <code>/authorize</code>
+ and <code>/token</code>
+ to your existing IdP</td>
+            <td>Supported (<code>OAuthProxyMiddleware</code>
+)</td>
+            <td><strong>In scope — delegation only</strong>
+</td>
+    </tr>
+    <tr>
+            <td>Authorization Server / Identity Provider</td>
+            <td>Mints its own tokens, registers clients, runs login and consent</td>
+            <td>Not implemented</td>
+            <td><strong>Out of scope: being an authorization server / issuing tokens is out of scope</strong>
+</td>
+    </tr>
+</tbody>
+</table>
+
+            
+    <p>To issue tokens, front the MCP server with an external IdP (Keycloak, Auth0, Microsoft Entra ID, Okta) or run <code>league/oauth2-server</code>
+ in your own application, and let the MCP server validate those tokens as a Resource Server. See adr/0001-oauth-authorization-server-out-of-scope.md.</p>
+
+    </section>
+
             <section class="section " id="overview">
             <h2>Overview</h2>
 
@@ -237,7 +294,9 @@
  - Serves RFC 9728 metadata at well-known endpoints</li>
 
     <li class="dash"><strong>OAuthProxyMiddleware</strong>
- - Proxies OAuth flows to upstream authorization servers</li>
+ - Delegates OAuth flows (<code>/authorize</code>
+, <code>/token</code>
+) to your upstream IdP; the SDK never issues tokens itself</li>
 
     <li class="dash"><strong>OAuthRequestMetaMiddleware</strong>
  - Bridges HTTP OAuth attributes to JSON-RPC request meta</li>

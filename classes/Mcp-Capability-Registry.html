@@ -215,7 +215,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">41</span>
+    <span class="phpdocumentor-element-found-in__line">42</span>
 
     </aside>
 
@@ -273,6 +273,24 @@
     <a class="" href="classes/Mcp-Capability-Registry.html#property_eventDispatcher">$eventDispatcher</a>
     <span>
                         &nbsp;: <abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Capability-Registry.html#property_loaded">$loaded</a>
+    <span>
+                        &nbsp;: bool            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Capability-Registry.html#property_loader">$loader</a>
+    <span>
+                        &nbsp;: <a href="classes/Mcp-Capability-Registry-Loader-LoaderInterface.html"><abbr title="\Mcp\Capability\Registry\Loader\LoaderInterface">LoaderInterface</abbr></a>|null            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Capability-Registry.html#property_loading">$loading</a>
+    <span>
+                        &nbsp;: bool            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
@@ -430,6 +448,15 @@
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -public">
+    <a class="" href="classes/Mcp-Capability-Registry.html#method_load">load()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Runs the configured loader once, on demand. Reads trigger this automatically, so element
+loading is deferred to the first read (request time) rather than eager at build time — under a
+persistent runtime a source not yet ready at build no longer freezes the registry empty.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -public">
     <a class="" href="classes/Mcp-Capability-Registry.html#method_registerPrompt">registerPrompt()</a>
     <span>
                                 &nbsp;: <a href="classes/Mcp-Capability-Registry-PromptReference.html"><abbr title="\Mcp\Capability\Registry\PromptReference">PromptReference</abbr></a>    </span>
@@ -529,7 +556,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">64</span>
+    <span class="phpdocumentor-element-found-in__line">69</span>
 
     </aside>
 
@@ -540,6 +567,117 @@
             <span class="phpdocumentor-signature__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null</span>
     <span class="phpdocumentor-signature__name">$eventDispatcher</span>
      = <span class="phpdocumentor-signature__default-value">null</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_loaded">
+        $loaded
+        <a href="classes/Mcp-Capability-Registry.html#property_loaded" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                                            </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">64</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">bool</span>
+    <span class="phpdocumentor-signature__name">$loaded</span>
+     = <span class="phpdocumentor-signature__default-value">false</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_loader">
+        $loader
+        <a href="classes/Mcp-Capability-Registry.html#property_loader" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">72</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type"><a href="classes/Mcp-Capability-Registry-Loader-LoaderInterface.html"><abbr title="\Mcp\Capability\Registry\Loader\LoaderInterface">LoaderInterface</abbr></a>|null</span>
+    <span class="phpdocumentor-signature__name">$loader</span>
+     = <span class="phpdocumentor-signature__default-value">null</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_loading">
+        $loading
+        <a href="classes/Mcp-Capability-Registry.html#property_loading" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                                            </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">66</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">bool</span>
+    <span class="phpdocumentor-signature__name">$loading</span>
+     = <span class="phpdocumentor-signature__default-value">false</span></code>
 
     
     
@@ -566,7 +704,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">65</span>
+    <span class="phpdocumentor-element-found-in__line">70</span>
 
     </aside>
 
@@ -603,7 +741,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">66</span>
+    <span class="phpdocumentor-element-found-in__line">71</span>
 
     </aside>
 
@@ -640,7 +778,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">56</span>
+    <span class="phpdocumentor-element-found-in__line">57</span>
 
     </aside>
 
@@ -677,7 +815,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">51</span>
+    <span class="phpdocumentor-element-found-in__line">52</span>
 
     </aside>
 
@@ -714,7 +852,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">62</span>
 
     </aside>
 
@@ -751,7 +889,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">46</span>
+    <span class="phpdocumentor-element-found-in__line">47</span>
 
     </aside>
 
@@ -793,14 +931,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">63</span>
+    <span class="phpdocumentor-element-found-in__line">68</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$eventDispatcher</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-Tool-NameValidator.html"><abbr title="\Mcp\Capability\Tool\NameValidator">NameValidator</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$nameValidator</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <a href="classes/Mcp-Capability-Tool-NameValidator.html"><abbr title="\Mcp\Capability\Tool\NameValidator">NameValidator</abbr></a>()</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\EventDispatcher\EventDispatcherInterface">EventDispatcherInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$eventDispatcher</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <abbr title="\Psr\Log\NullLogger">NullLogger</abbr>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-Tool-NameValidator.html"><abbr title="\Mcp\Capability\Tool\NameValidator">NameValidator</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$nameValidator</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <a href="classes/Mcp-Capability-Tool-NameValidator.html"><abbr title="\Mcp\Capability\Tool\NameValidator">NameValidator</abbr></a>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Capability-Registry-Loader-LoaderInterface.html"><abbr title="\Mcp\Capability\Registry\Loader\LoaderInterface">LoaderInterface</abbr></a>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$loader</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -829,6 +967,13 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$loader</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><a href="classes/Mcp-Capability-Registry-Loader-LoaderInterface.html"><abbr title="\Mcp\Capability\Registry\Loader\LoaderInterface">LoaderInterface</abbr></a>|null</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value">null</span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
             </dl>
 
     
@@ -851,7 +996,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">326</span>
+    <span class="phpdocumentor-element-found-in__line">386</span>
 
     </aside>
 
@@ -900,7 +1045,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">304</span>
+    <span class="phpdocumentor-element-found-in__line">362</span>
 
     </aside>
 
@@ -956,7 +1101,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">245</span>
+    <span class="phpdocumentor-element-found-in__line">293</span>
 
     </aside>
 
@@ -1012,7 +1157,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">223</span>
+    <span class="phpdocumentor-element-found-in__line">269</span>
 
     </aside>
 
@@ -1068,7 +1213,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">294</span>
+    <span class="phpdocumentor-element-found-in__line">348</span>
 
     </aside>
 
@@ -1117,7 +1262,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">272</span>
+    <span class="phpdocumentor-element-found-in__line">324</span>
 
     </aside>
 
@@ -1173,7 +1318,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">213</span>
+    <span class="phpdocumentor-element-found-in__line">255</span>
 
     </aside>
 
@@ -1222,7 +1367,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">191</span>
+    <span class="phpdocumentor-element-found-in__line">231</span>
 
     </aside>
 
@@ -1278,7 +1423,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">181</span>
+    <span class="phpdocumentor-element-found-in__line">217</span>
 
     </aside>
 
@@ -1326,7 +1471,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">299</span>
+    <span class="phpdocumentor-element-found-in__line">355</span>
 
     </aside>
 
@@ -1368,7 +1513,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">171</span>
+    <span class="phpdocumentor-element-found-in__line">203</span>
 
     </aside>
 
@@ -1416,7 +1561,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">218</span>
+    <span class="phpdocumentor-element-found-in__line">262</span>
 
     </aside>
 
@@ -1458,7 +1603,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">176</span>
+    <span class="phpdocumentor-element-found-in__line">210</span>
 
     </aside>
 
@@ -1506,7 +1651,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">267</span>
+    <span class="phpdocumentor-element-found-in__line">317</span>
 
     </aside>
 
@@ -1548,7 +1693,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">166</span>
+    <span class="phpdocumentor-element-found-in__line">196</span>
 
     </aside>
 
@@ -1596,7 +1741,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">186</span>
+    <span class="phpdocumentor-element-found-in__line">224</span>
 
     </aside>
 
@@ -1630,6 +1775,47 @@
             -public
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_load">
+        load()
+        <a href="classes/Mcp-Capability-Registry.html#method_load" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">85</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Runs the configured loader once, on demand. Reads trigger this automatically, so element
+loading is deferred to the first read (request time) rather than eager at build time — under a
+persistent runtime a source not yet ready at build no longer freezes the registry empty.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+                    <span class="phpdocumentor-signature__name">load</span><span>(</span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p><code class="prettyprint">loaded</code> is set only after success, so a transient failure is retried on the next read. The
+<code class="prettyprint">loading</code> guard lets a loader read the registry during its own run (e.g. discovery's identity
+check) without re-entering the load.</p>
+</section>
+
+    
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -public
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_registerPrompt">
         registerPrompt()
         <a href="classes/Mcp-Capability-Registry.html#method_registerPrompt" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1638,7 +1824,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">109</span>
+    <span class="phpdocumentor-element-found-in__line">139</span>
 
     </aside>
 
@@ -1704,7 +1890,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">86</span>
+    <span class="phpdocumentor-element-found-in__line">116</span>
 
     </aside>
 
@@ -1762,7 +1948,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">96</span>
+    <span class="phpdocumentor-element-found-in__line">126</span>
 
     </aside>
 
@@ -1828,7 +2014,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">70</span>
+    <span class="phpdocumentor-element-found-in__line">100</span>
 
     </aside>
 
@@ -1886,7 +2072,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">155</span>
+    <span class="phpdocumentor-element-found-in__line">185</span>
 
     </aside>
 
@@ -1931,7 +2117,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">133</span>
+    <span class="phpdocumentor-element-found-in__line">163</span>
 
     </aside>
 
@@ -1976,7 +2162,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">144</span>
+    <span class="phpdocumentor-element-found-in__line">174</span>
 
     </aside>
 
@@ -2021,7 +2207,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">122</span>
+    <span class="phpdocumentor-element-found-in__line">152</span>
 
     </aside>
 
@@ -2066,7 +2252,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">338</span>
+    <span class="phpdocumentor-element-found-in__line">400</span>
 
     </aside>
 
@@ -2135,7 +2321,7 @@ Returns the stored reference, whose identity callers may track to detect later o
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Registry.php"><a href="files/src-capability-registry.html"><abbr title="src/Capability/Registry.php">Registry.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">369</span>
+    <span class="phpdocumentor-element-found-in__line">431</span>
 
     </aside>
 
@@ -2233,6 +2419,9 @@ Returns the stored reference, whose identity callers may track to detect later o
                 <li>
                     <ul class="phpdocumentor-list -clean">
                                                     <li class=""><a href="classes/Mcp-Capability-Registry.html#property_eventDispatcher">$eventDispatcher</a></li>
+                                                    <li class=""><a href="classes/Mcp-Capability-Registry.html#property_loaded">$loaded</a></li>
+                                                    <li class=""><a href="classes/Mcp-Capability-Registry.html#property_loader">$loader</a></li>
+                                                    <li class=""><a href="classes/Mcp-Capability-Registry.html#property_loading">$loading</a></li>
                                                     <li class=""><a href="classes/Mcp-Capability-Registry.html#property_logger">$logger</a></li>
                                                     <li class=""><a href="classes/Mcp-Capability-Registry.html#property_nameValidator">$nameValidator</a></li>
                                                     <li class=""><a href="classes/Mcp-Capability-Registry.html#property_prompts">$prompts</a></li>
@@ -2262,6 +2451,7 @@ Returns the stored reference, whose identity callers may track to detect later o
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasResourceTemplates">hasResourceTemplates()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasTool">hasTool()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_hasTools">hasTools()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Registry.html#method_load">load()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerPrompt">registerPrompt()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerResource">registerResource()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Registry.html#method_registerResourceTemplate">registerResourceTemplate()</a></li>

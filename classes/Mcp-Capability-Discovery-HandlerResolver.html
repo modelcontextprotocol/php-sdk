@@ -211,7 +211,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/HandlerResolver.php"><a href="files/src-capability-discovery-handlerresolver.html"><abbr title="src/Capability/Discovery/HandlerResolver.php">HandlerResolver.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">21</span>
+    <span class="phpdocumentor-element-found-in__line">24</span>
 
     </aside>
 
@@ -227,6 +227,14 @@
     </h5>
     <dl class="phpdocumentor-tag-list">
                     <dt class="phpdocumentor-tag-list__entry">
+                <span class="phpdocumentor-tag__name">phpstan-import-type</span>
+            </dt>
+                            <dd class="phpdocumentor-tag-list__definition">
+                                                                                                            <section class="phpdocumentor-description"><p>Handler from ElementReference</p>
+</section>
+
+                                    </dd>
+                                <dt class="phpdocumentor-tag-list__entry">
                 <span class="phpdocumentor-tag__name">author</span>
             </dt>
                             <dd class="phpdocumentor-tag-list__definition">
@@ -294,7 +302,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/HandlerResolver.php"><a href="files/src-capability-discovery-handlerresolver.html"><abbr title="src/Capability/Discovery/HandlerResolver.php">HandlerResolver.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">37</span>
+    <span class="phpdocumentor-element-found-in__line">41</span>
 
     </aside>
 
@@ -302,7 +310,7 @@
 
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">resolve</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Closure">Closure</abbr>|array{0: string, 1: string}|string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\ReflectionMethod">ReflectionMethod</abbr>|<abbr title="\ReflectionFunction">ReflectionFunction</abbr></span></code>
+            <span class="phpdocumentor-signature__static">static</span>        <span class="phpdocumentor-signature__name">resolve</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type"><abbr title="\Mcp\Capability\Discovery\Handler">Handler</abbr>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$handler</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type"><abbr title="\ReflectionMethod">ReflectionMethod</abbr>|<abbr title="\ReflectionFunction">ReflectionFunction</abbr></span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -310,7 +318,8 @@
         <section class="phpdocumentor-description"><p>A handler can be:</p>
 <ul>
 <li>A Closure: function() { ... }</li>
-<li>An array: [ClassName::class, 'methodName'] (instance method)</li>
+<li>An array: [ClassName::class, 'methodName'] (resolved on a new or container-provided instance)</li>
+<li>An array: [$instance, 'methodName'] (method on a pre-built object instance)</li>
 <li>An array: [ClassName::class, 'staticMethod'] (static method, if callable)</li>
 <li>A string: InvokableClassName::class (which will resolve to its '__invoke' method)</li>
 </ul>
@@ -320,7 +329,7 @@
     <dl class="phpdocumentor-argument-list">
                     <dt class="phpdocumentor-argument-list__entry">
                 <span class="phpdocumentor-argument-list__argument__name">$handler</span>
-                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Closure">Closure</abbr>|array{0: string, 1: string}|string</span>
+                : <span class="phpdocumentor-argument-list__argument__type"><abbr title="\Mcp\Capability\Discovery\Handler">Handler</abbr></span>
                             </dt>
             <dd class="phpdocumentor-argument-list__definition">
                     <section class="phpdocumentor-description"><p>the handler to resolve</p>

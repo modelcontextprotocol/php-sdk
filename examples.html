@@ -593,7 +593,11 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 
     <li class="dash">HTTP server with both discovered and manual capabilities</li>
 
-    <li class="dash">Flexible registration patterns</li>
+    <li class="dash">All three handler styles: discovered, <code>[Class::class, &#039;method&#039;]</code>
+, and a pre-built <code>[$instance, &#039;method&#039;]</code>
+</li>
+
+    <li class="dash">Pre-built instance handlers for classes the container cannot auto-wire (e.g. constructor scalars)</li>
 
 </ul>
 
@@ -601,10 +605,15 @@ npx @modelcontextprotocol/inspector http://localhost:8000
     <p><strong>Key Features:</strong>
 </p>
 
-            <pre><code class="language-php">$server = Server::builder()
-    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])  // Automatic discovery
-    -&gt;addTool([ManualHandlers::class, &#039;manualGreeter&#039;])  // Manual registration
-    -&gt;addResource([ManualHandlers::class, &#039;getPriorityConfig&#039;], &#039;config://priority&#039;)
+            <pre><code class="language-php">// Built here so its constructor dependencies are injected before registration;
+// the SDK invokes this very instance instead of constructing one itself.
+$preconfiguredGreeter = new PreconfiguredGreeter(&#039;Willkommen&#039;, logger());
+
+$server = Server::builder()
+    -&gt;setDiscovery(__DIR__, [&#039;.&#039;])                         // Automatic discovery
+    -&gt;addTool([ManualHandlers::class, &#039;manualGreeter&#039;])    // Manual class-string handler
+    -&gt;addTool([$preconfiguredGreeter, &#039;greet&#039;], &#039;instance_greeter&#039;)  // Pre-built instance handler
+    -&gt;addResource([ManualHandlers::class, &#039;getPriorityConfigManual&#039;], &#039;config://priority&#039;)
 </code></pre>
 
     </section>

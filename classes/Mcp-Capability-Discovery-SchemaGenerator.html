@@ -362,6 +362,13 @@
 <dd>Builds schema for variadic parameters.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_ensureArrayItems">ensureArrayItems()</a>
+    <span>
+                                &nbsp;: array&lt;string, mixed&gt;    </span>
+</dt>
+<dd>Guarantees an array-typed schema always declares `items`.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
     <a class="" href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_extractMethodLevelSchema">extractMethodLevelSchema()</a>
     <span>
                                 &nbsp;: <abbr title="\Mcp\Capability\Discovery\SchemaAttributeData">SchemaAttributeData</abbr>    </span>
@@ -655,7 +662,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">400</span>
+    <span class="phpdocumentor-element-found-in__line">427</span>
 
     </aside>
 
@@ -711,7 +718,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">355</span>
+    <span class="phpdocumentor-element-found-in__line">382</span>
 
     </aside>
 
@@ -767,7 +774,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">254</span>
+    <span class="phpdocumentor-element-found-in__line">281</span>
 
     </aside>
 
@@ -930,7 +937,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">296</span>
+    <span class="phpdocumentor-element-found-in__line">323</span>
 
     </aside>
 
@@ -962,6 +969,60 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
             <section>
         <h5 class="phpdocumentor-return-value__heading">Return values</h5>
         <span class="phpdocumentor-signature__response_type"><abbr title="\Mcp\Capability\Discovery\VariadicParameterSchema">VariadicParameterSchema</abbr></span>
+            </section>
+
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
+    <h4 class="phpdocumentor-element__name" id="method_ensureArrayItems">
+        ensureArrayItems()
+        <a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_ensureArrayItems" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">261</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Guarantees an array-typed schema always declares `items`.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">ensureArrayItems</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">array&lt;string, mixed&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$schema</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">array&lt;string, mixed&gt;</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p><code class="prettyprint">items</code> is optional in JSON Schema, but some strict clients reject an array schema
+without it. When no element type could be inferred, default to the empty schema <code class="prettyprint">}</code>
+(matches anything) — represented as <code class="prettyprint">new \stdClass()</code> so it serializes to <code class="prettyprint">}</code> rather
+than <code class="prettyprint">[]</code>.</p>
+</section>
+
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$schema</span>
+                : <span class="phpdocumentor-argument-list__argument__type">array&lt;string, mixed&gt;</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+            <section>
+        <h5 class="phpdocumentor-return-value__heading">Return values</h5>
+        <span class="phpdocumentor-signature__response_type">array&lt;string, mixed&gt;</span>
             </section>
 
 </article>
@@ -1077,7 +1138,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">518</span>
+    <span class="phpdocumentor-element-found-in__line">545</span>
 
     </aside>
 
@@ -1133,7 +1194,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">567</span>
+    <span class="phpdocumentor-element-found-in__line">594</span>
 
     </aside>
 
@@ -1189,7 +1250,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">692</span>
+    <span class="phpdocumentor-element-found-in__line">719</span>
 
     </aside>
 
@@ -1238,7 +1299,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">329</span>
+    <span class="phpdocumentor-element-found-in__line">356</span>
 
     </aside>
 
@@ -1287,7 +1348,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">636</span>
+    <span class="phpdocumentor-element-found-in__line">663</span>
 
     </aside>
 
@@ -1336,7 +1397,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">830</span>
+    <span class="phpdocumentor-element-found-in__line">862</span>
 
     </aside>
 
@@ -1385,7 +1446,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">743</span>
+    <span class="phpdocumentor-element-found-in__line">775</span>
 
     </aside>
 
@@ -1434,7 +1495,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">447</span>
+    <span class="phpdocumentor-element-found-in__line">474</span>
 
     </aside>
 
@@ -1483,7 +1544,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Capability/Discovery/SchemaGenerator.php"><a href="files/src-capability-discovery-schemagenerator.html"><abbr title="src/Capability/Discovery/SchemaGenerator.php">SchemaGenerator.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">792</span>
+    <span class="phpdocumentor-element-found-in__line">824</span>
 
     </aside>
 
@@ -1566,6 +1627,7 @@ Per MCP spec, outputSchema should only be present when explicitly provided.</p>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_buildParameterSchema">buildParameterSchema()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_buildSchemaFromParameters">buildSchemaFromParameters()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_buildVariadicParameterSchema">buildVariadicParameterSchema()</a></li>
+                                            <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_ensureArrayItems">ensureArrayItems()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_extractMethodLevelSchema">extractMethodLevelSchema()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_extractParameterLevelSchema">extractParameterLevelSchema()</a></li>
                                             <li class=""><a href="classes/Mcp-Capability-Discovery-SchemaGenerator.html#method_getParameterTypeString">getParameterTypeString()</a></li>

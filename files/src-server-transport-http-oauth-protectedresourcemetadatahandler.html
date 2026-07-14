@@ -189,41 +189,35 @@
             <div class="phpdocumentor-column -nine phpdocumentor-content">
                                 <section>
                                         <ul class="phpdocumentor-breadcrumbs">
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp.html">Mcp</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server.html">Server</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport.html">Transport</a></li>
-            <li class="phpdocumentor-breadcrumb"><a href="namespaces/mcp-server-transport-http.html">Http</a></li>
     </ul>
 
-    <article class="phpdocumentor-element -namespace">
-        <h2 class="phpdocumentor-content__title">OAuth</h2>
+    <article class="phpdocumentor-element -file">
+        <h2 class="phpdocumentor-content__title">ProtectedResourceMetadataHandler.php</h2>
+
+        
+        
+        
+        
+
 
         
 <h3 id="toc">
     Table of Contents
-    <a href="namespaces/mcp-server-transport-http-oauth.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
+    <a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html#toc" class="headerlink"><i class="fas fa-link"></i></a>
 
 </h3>
 
 
 
-    <h4 id="toc-interfaces">
-        Interfaces
-        <a href="namespaces/mcp-server-transport-http-oauth.html#toc-interfaces" class="headerlink"><i class="fas fa-link"></i></a>
-
-    </h4>
-    <dl class="phpdocumentor-table-of-contents">
-                    <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Transport-Http-OAuth-AuthorizationTokenValidatorInterface.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface">AuthorizationTokenValidatorInterface</abbr></a></dt><dd>Validates bearer tokens for HTTP transports.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Transport-Http-OAuth-ClientRegistrarInterface.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ClientRegistrarInterface">ClientRegistrarInterface</abbr></a></dt><dd>Interface for OAuth 2.0 Dynamic Client Registration (RFC 7591).</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Transport-Http-OAuth-JwksProviderInterface.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\JwksProviderInterface">JwksProviderInterface</abbr></a></dt><dd>Contract for loading JWKS key sets used for JWT signature verification.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Transport-Http-OAuth-OidcDiscoveryInterface.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface">OidcDiscoveryInterface</abbr></a></dt><dd>Contract for resolving OAuth/OIDC endpoint metadata from an issuer.</dd>            <dt class="phpdocumentor-table-of-contents__entry -interface"><a href="classes/Mcp-Server-Transport-Http-OAuth-OidcDiscoveryMetadataPolicyInterface.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\OidcDiscoveryMetadataPolicyInterface">OidcDiscoveryMetadataPolicyInterface</abbr></a></dt><dd>Validation policy for OIDC discovery metadata.</dd>    </dl>
 
     <h4 id="toc-classes">
         Classes
-        <a href="namespaces/mcp-server-transport-http-oauth.html#toc-classes" class="headerlink"><i class="fas fa-link"></i></a>
+        <a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html#toc-classes" class="headerlink"><i class="fas fa-link"></i></a>
 
     </h4>
     <dl class="phpdocumentor-table-of-contents">
-                    <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-AuthorizationResult.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\AuthorizationResult">AuthorizationResult</abbr></a></dt><dd>Describes the outcome of an authorization decision.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-JwksProvider.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\JwksProvider">JwksProvider</abbr></a></dt><dd>Loads JWKS key sets from explicit URI or discovered issuer metadata.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-JwtTokenValidator.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\JwtTokenValidator">JwtTokenValidator</abbr></a></dt><dd>Validates JWT access tokens using JWKS from an OAuth 2.0 / OpenID Connect provider.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-LenientOidcDiscoveryMetadataPolicy.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\LenientOidcDiscoveryMetadataPolicy">LenientOidcDiscoveryMetadataPolicy</abbr></a></dt><dd>Lenient metadata policy for identity providers that omit
-code_challenge_methods_supported from their OIDC discovery response
-despite supporting PKCE (e.g. FusionAuth, Microsoft Entra ID).</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-OidcDiscovery.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\OidcDiscovery">OidcDiscovery</abbr></a></dt><dd>Discovers OAuth 2.0 / OpenID Connect authorization server metadata.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadata.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata">ProtectedResourceMetadata</abbr></a></dt><dd>OAuth 2.0 Protected Resource Metadata (RFC 9728).</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler">ProtectedResourceMetadataHandler</abbr></a></dt><dd>Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) as a standalone request handler.</dd>            <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-StrictOidcDiscoveryMetadataPolicy.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\StrictOidcDiscoveryMetadataPolicy">StrictOidcDiscoveryMetadataPolicy</abbr></a></dt><dd>Default strict policy for OIDC discovery metadata validation.</dd>    </dl>
+                    <dt class="phpdocumentor-table-of-contents__entry -class"><a href="classes/Mcp-Server-Transport-Http-OAuth-ProtectedResourceMetadataHandler.html"><abbr title="\Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler">ProtectedResourceMetadataHandler</abbr></a></dt><dd>Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) as a standalone request handler.</dd>    </dl>
+
 
 
 
@@ -247,8 +241,7 @@ despite supporting PKCE (e.g. FusionAuth, Microsoft Entra ID).</dd>            <
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
-                                                                                <li><a href="namespaces/mcp-server-transport-http-oauth.html#toc-interfaces">Interfaces</a></li>
-                                                            <li><a href="namespaces/mcp-server-transport-http-oauth.html#toc-classes">Classes</a></li>
+                                                                                                        <li><a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html#toc-classes">Classes</a></li>
                                                                                                                     </ul>
             </li>
 
@@ -270,7 +263,7 @@ despite supporting PKCE (e.g. FusionAuth, Microsoft Entra ID).</dd>            <
     </section>
 </section>
         </div>
-        <a href="namespaces/mcp-server-transport-http-oauth.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
+        <a href="files/src-server-transport-http-oauth-protectedresourcemetadatahandler.html#top" class="phpdocumentor-back-to-top"><i class="fas fa-chevron-circle-up"></i></a>
 
     </main>
 

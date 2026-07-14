@@ -917,6 +917,90 @@ throw new \RuntimeException(&#039;Rate limit exceeded&#039;);
 
     </section>
 
+            <section class="section " id="elicitation-user-input-requests">
+            <h3>Elicitation (User Input Requests)</h3>
+
+            
+    <p>Handle server requests to elicit additional information from the user during tool execution. The server sends an <code>elicitation/create</code>
+ request describing the fields it needs; your callback presents them to the user and returns an <code>ElicitResult</code>
+ with one of three actions — accept (with the collected content), decline, or cancel:</p>
+
+            <pre><code class="language-php">use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Exception\ElicitationException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
+
+class ConsoleElicitationCallback implements ElicitationCallbackInterface
+{
+    public function __invoke(ElicitRequest $request): ElicitResult
+    {
+        echo $request-&gt;message.\PHP_EOL;
+
+        // Present $request-&gt;requestedSchema-&gt;properties to the user and collect input.
+        $content = [];
+        foreach ($request-&gt;requestedSchema-&gt;properties as $name =&gt; $definition) {
+            $answer = readline($definition-&gt;title.&#039;: &#039;);
+
+            if (false === $answer) {
+                // No input available — let the server know the user cancelled.
+                return new ElicitResult(ElicitAction::Cancel);
+            }
+
+            $content[$name] = $answer;
+        }
+
+        return new ElicitResult(ElicitAction::Accept, $content);
+    }
+}
+
+$client = Client::builder()
+    -&gt;setCapabilities(new ClientCapabilities(elicitation: true))
+    -&gt;addRequestHandler(new ElicitationRequestHandler(new ConsoleElicitationCallback))
+    -&gt;build();
+</code></pre>
+
+            
+    <p>Return <code>new ElicitResult(ElicitAction::Decline)</code>
+ when the user refuses to provide the information, and <code>new ElicitResult(ElicitAction::Cancel)</code>
+ when they dismiss the request. Only the <code>Accept</code>
+ action carries content.</p>
+
+            <div class="phpdocumentor-admonition important">
+        <svg class="phpdocumentor-admonition__icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        <article>
+        
+    <p> <strong>Error Handling in Elicitation Callbacks:</strong>
+</p>
+
+
+<ul>
+    <li class="dash"><strong>Throw <code>ElicitationException</code>
+</strong>
+ to forward a specific error message to the server</li>
+
+    <li class="dash"><strong>Any other exception</strong>
+ is logged but returns a generic error to the server</li>
+
+</ul>
+<pre><code class="language-php">// Good: Server receives &quot;No interactive console available&quot; message
+throw new ElicitationException(&#039;No interactive console available&#039;);
+
+// Bad: Server receives generic &quot;Error while processing elicitation&quot; message
+throw new \RuntimeException(&#039;No interactive console available&#039;);
+</code></pre>
+
+    </article>
+</div>
+
+            
+    <p>See <code>examples/client/stdio_elicitation.php</code>
+ for a runnable example against the elicitation demo server.</p>
+
+    </section>
+
     </section>
 
             <section class="section " id="error-handling">
