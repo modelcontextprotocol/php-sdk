@@ -1,0 +1,9 @@
+{
+  "contents": [
+    {
+      "uri": "skill://code-review/references/SECURITY.md",
+      "mimeType": "text/markdown",
+      "text": "# Security Review Checklist\n\nApply this checklist to every change that touches authentication, input parsing, or external I/O.\n\n- **Input validation**: All external input is validated and normalized before use.\n- **Injection**: Queries, shell commands, and templates use parameterization — never string concatenation.\n- **AuthZ**: Every privileged action re-checks the caller's authorization server-side.\n- **Secrets**: No credentials, tokens, or keys are logged or committed.\n- **Output encoding**: Data rendered into HTML, URLs, or headers is contextually encoded.\n- **Dependencies**: New dependencies are pinned and free of known advisories.\n"
+    }
+  ]
+}
