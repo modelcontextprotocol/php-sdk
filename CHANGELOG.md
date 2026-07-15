@@ -45,6 +45,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `ResourceDefinition::__construct()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * [BC Break] `ResourceTemplate::__construct()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * [BC Break] `McpResource` and `McpResourceTemplate` attribute signatures changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
+* Fix JSON-RPC error responses fabricating an empty-string `id`. Unrecoverable parse errors (`-32700`) now return `id: null` per JSON-RPC 2.0, and invalid-but-parseable requests (`-32600`) preserve the original request `id`. `Error::$id` / `Error::getId()` and the `$id` parameter of `Error::forParseError()` / `Error::forInvalidRequest()` are widened to `string|int|null`; `InvalidInputMessageException` now carries the recoverable request id via `getRequestId()`/`setRequestId()`.
 
 0.5.0
 -----
