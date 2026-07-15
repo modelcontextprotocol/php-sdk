@@ -240,6 +240,17 @@ class Protocol
     {
         $requestId = $response->getId();
 
+        if (null === $requestId) {
+            // Only an Error may carry id: null (the server could not determine the
+            // request id, e.g. it failed to parse our request). Pending requests are
+            // keyed by non-null ids, so there is nothing to correlate it with.
+            $this->logger->warning('Received error response with null id, unable to correlate it to a pending request.', [
+                'response' => $response->jsonSerialize(),
+            ]);
+
+            return;
+        }
+
         $this->logger->debug('Handling response', ['id' => $requestId]);
 
         $this->state->storeResponse($requestId, $response->jsonSerialize());
