@@ -54,7 +54,7 @@ final class ProtocolTest extends TestCase
             /** @var list<array{level: string, message: string, context: array<string, mixed>}> */
             public array $records = [];
 
-            public function log($level, \Stringable|string $message, array $context = []): void
+            public function log($level, mixed $message, array $context = []): void
             {
                 $this->records[] = ['level' => (string) $level, 'message' => (string) $message, 'context' => $context];
             }
