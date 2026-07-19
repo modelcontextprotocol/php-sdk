@@ -18,6 +18,7 @@ use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\PromptMessage;
+use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\Role;
@@ -142,18 +143,19 @@ final class PromptResultFormatter
     /**
      * Formats content into a proper Content object.
      */
-    private function formatContent(mixed $content, ?int $index = null): TextContent|ImageContent|AudioContent|EmbeddedResource
+    private function formatContent(mixed $content, ?int $index = null): TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
     {
         $indexStr = null !== $index ? " at index {$index}" : '';
 
         if ($content instanceof Content) {
             if (
                 $content instanceof TextContent || $content instanceof ImageContent
-                || $content instanceof AudioContent || $content instanceof EmbeddedResource
+                || $content instanceof AudioContent || $content instanceof ResourceLink
+                || $content instanceof EmbeddedResource
             ) {
                 return $content;
             }
-            throw new RuntimeException("Invalid Content type{$indexStr}. PromptMessage only supports TextContent, ImageContent, AudioContent, or EmbeddedResource.");
+            throw new RuntimeException("Invalid Content type{$indexStr}. PromptMessage only supports TextContent, ImageContent, AudioContent, ResourceLink, or EmbeddedResource.");
         }
 
         if (\is_string($content)) {
@@ -180,7 +182,7 @@ final class PromptResultFormatter
      *
      * @param array<string, mixed> $content
      */
-    private function formatTypedContent(array $content, ?int $index = null): TextContent|ImageContent|AudioContent|EmbeddedResource
+    private function formatTypedContent(array $content, ?int $index = null): TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
     {
         $indexStr = null !== $index ? " at index {$index}" : '';
         $type = $content['type'];
@@ -190,6 +192,7 @@ final class PromptResultFormatter
             'image' => $this->formatImageContent($content, $indexStr),
             'audio' => $this->formatAudioContent($content, $indexStr),
             'resource' => $this->formatResourceContent($content, $indexStr),
+            'resource_link' => $this->formatResourceLinkContent($content, $indexStr),
             default => throw new RuntimeException("Invalid content type '{$type}'{$indexStr}."),
         };
     }
@@ -263,5 +266,20 @@ final class PromptResultFormatter
         }
 
         return new EmbeddedResource($resourceObj);
+    }
+
+    /**
+     * @param array<string, mixed> $content
+     */
+    private function formatResourceLinkContent(array $content, string $indexStr): ResourceLink
+    {
+        if (!isset($content['uri']) || !\is_string($content['uri'])) {
+            throw new RuntimeException("Invalid 'resource_link' content{$indexStr}: Missing or invalid 'uri' string.");
+        }
+        if (!isset($content['name']) || !\is_string($content['name'])) {
+            throw new RuntimeException("Invalid 'resource_link' content{$indexStr}: Missing or invalid 'name' string.");
+        }
+
+        return new ResourceLink($content['uri'], $content['name']);
     }
 }

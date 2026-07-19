@@ -20,11 +20,12 @@ use Mcp\Schema\Enum\Role;
  * @phpstan-import-type TextContentData from TextContent
  * @phpstan-import-type ImageContentData from ImageContent
  * @phpstan-import-type AudioContentData from AudioContent
+ * @phpstan-import-type ResourceLinkData from ResourceLink
  * @phpstan-import-type EmbeddedResourceData from EmbeddedResource
  *
  * @phpstan-type PromptMessageData array{
  *     role: string,
- *     content: TextContentData|ImageContentData|AudioContentData|EmbeddedResourceData,
+ *     content: TextContentData|ImageContentData|AudioContentData|ResourceLinkData|EmbeddedResourceData,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -34,12 +35,12 @@ class PromptMessage extends Content
     /**
      * Create a new PromptMessage instance.
      *
-     * @param Role                                                   $role    The role of the message
-     * @param TextContent|ImageContent|AudioContent|EmbeddedResource $content The content of the message
+     * @param Role                                                                $role    The role of the message
+     * @param TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource $content The content of the message
      */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent|EmbeddedResource $content,
+        public readonly TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource $content,
     ) {
         parent::__construct('prompt');
     }
@@ -64,6 +65,7 @@ class PromptMessage extends Content
             'image' => ImageContent::fromArray($contentData),
             'audio' => AudioContent::fromArray($contentData),
             'resource' => EmbeddedResource::fromArray($contentData),
+            'resource_link' => ResourceLink::fromArray($contentData),
             default => throw new InvalidArgumentException(\sprintf('Invalid content type "%s" for PromptMessage.', $contentType)),
         };
 
@@ -75,7 +77,7 @@ class PromptMessage extends Content
      *
      * @return array{
      *     role: string,
-     *     content: TextContent|ImageContent|AudioContent|EmbeddedResource
+     *     content: TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
      * }
      */
     public function jsonSerialize(): array

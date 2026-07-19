@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.8.0
+-----
+
+* Add `Mcp\Schema\Content\ResourceLink` for the spec's `resource_link` content block (protocol revision 2025-06-18+), letting tool results and prompt messages reference a resource by URI/name without embedding its contents. Accepted anywhere `resource` (`EmbeddedResource`) content is (de)serialized: `CallToolResult::fromArray()`, `PromptMessage::fromArray()`, and `PromptResultFormatter`.
+
 0.7.0
 -----
 
