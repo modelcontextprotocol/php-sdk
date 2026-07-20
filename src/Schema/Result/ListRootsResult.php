@@ -46,10 +46,14 @@ class ListRootsResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "roots" in ListRootsResult data.');
         }
 
-        $roots = array_map(
-            static fn (array $root): Root => Root::fromArray($root),
-            array_values($data['roots']),
-        );
+        $roots = [];
+        foreach ($data['roots'] as $root) {
+            if (!\is_array($root)) {
+                throw new InvalidArgumentException('Invalid root in ListRootsResult data, expected an array.');
+            }
+
+            $roots[] = Root::fromArray($root);
+        }
 
         $meta = isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null;
 
