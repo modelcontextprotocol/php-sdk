@@ -11,6 +11,7 @@
 
 namespace Mcp\Schema\Result;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Root;
 
@@ -31,6 +32,32 @@ class ListRootsResult implements ResultInterface
         public readonly array $roots,
         public readonly ?array $meta = null,
     ) {
+    }
+
+    /**
+     * @param array{
+     *     roots: array<array{uri: string, name?: string}>,
+     *     _meta?: ?array<string, mixed>
+     * } $data
+     */
+    public static function fromArray(array $data): self
+    {
+        if (!isset($data['roots']) || !\is_array($data['roots'])) {
+            throw new InvalidArgumentException('Missing or invalid "roots" in ListRootsResult data.');
+        }
+
+        $roots = [];
+        foreach ($data['roots'] as $root) {
+            if (!\is_array($root)) {
+                throw new InvalidArgumentException('Invalid root in ListRootsResult data, expected an array.');
+            }
+
+            $roots[] = Root::fromArray($root);
+        }
+
+        $meta = isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null;
+
+        return new self($roots, $meta);
     }
 
     /**

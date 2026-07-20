@@ -17,11 +17,13 @@ use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\RootsListChangedNotification;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
@@ -242,6 +244,22 @@ class Client
         $request = new SetLogLevelRequest($level);
 
         $this->sendRequest($request);
+    }
+
+    /**
+     * Notify the server that the client's list of roots has changed.
+     *
+     * The server should react by requesting an updated list via roots/list.
+     *
+     * @throws RuntimeException if the client did not advertise the `roots.listChanged` capability
+     */
+    public function sendRootsListChanged(): void
+    {
+        if (true !== $this->config->capabilities->rootsListChanged) {
+            throw new RuntimeException('Cannot send a "roots/list_changed" notification without advertising the "roots.listChanged" capability. Build the client with new ClientCapabilities(roots: true, rootsListChanged: true).');
+        }
+
+        $this->protocol->sendNotification(new RootsListChangedNotification());
     }
 
     /**

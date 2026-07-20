@@ -243,6 +243,15 @@ $client = Client::builder()
     ->build();
 ```
 
+- **Roots Support**: Expose `file://` workspace folders to the server
+```php
+$rootsHandler = new ListRootsRequestHandler($myCallback);
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
+    ->addRequestHandler($rootsHandler)
+    ->build();
+```
+
 - **Logging Notifications**: Receive server log messages
 ```php
 $loggingHandler = new LoggingNotificationHandler($myCallback);
