@@ -18,6 +18,9 @@ use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\ResourceReadException;
+use Mcp\Schema\Content\Content;
+use Mcp\Schema\Content\ResourceLink;
+use Mcp\Schema\Content\TextContent;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -85,6 +88,44 @@ final class McpElements
         $this->logger->info('Reading resource: user ID list');
 
         return array_keys($this->users);
+    }
+
+    /**
+     * Looks up a user and returns a reference to their profile resource.
+     *
+     * Rather than embedding the full profile (as `resources/read` on
+     * `user://{userId}/profile` would), this returns a `resource_link` block
+     * pointing at that resource template so the caller can fetch it
+     * separately if needed. This mirrors how a tool like a search returning
+     * many hits would reference each matching resource by URI instead of
+     * inlining every one of them.
+     *
+     * @param string $userId the ID of the user to look up
+     *
+     * @return Content[] a short summary plus a resource_link to the user's profile
+     */
+    #[McpTool(name: 'lookup_user')]
+    public function lookupUser(
+        #[CompletionProvider(values: ['101', '102', '103'])]
+        string $userId,
+    ): array {
+        $this->logger->info('Executing tool: lookup_user', ['userId' => $userId]);
+
+        if (!isset($this->users[$userId])) {
+            return [new TextContent("User ID {$userId} not found.")];
+        }
+
+        $user = $this->users[$userId];
+
+        return [
+            new TextContent("Found user {$user['name']} ({$user['role']})."),
+            new ResourceLink(
+                uri: "user://{$userId}/profile",
+                name: 'user_profile',
+                description: "Full profile for {$user['name']}.",
+                mimeType: 'application/json',
+            ),
+        ];
     }
 
     /**

@@ -22,6 +22,8 @@ use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Content\ResourceLink;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
@@ -534,6 +536,20 @@ class RegistryTest extends TestCase
             ['foo' => 'bar'],
             ['foo' => 'bar'],
         ], $structuredContent);
+    }
+
+    public function testExtractStructuredContentReturnsNullForArrayOfContentItems(): void
+    {
+        $tool = $this->createValidTool('lookup_thing', null);
+        $toolReturnValue = [
+            new TextContent('Found it.'),
+            new ResourceLink(uri: 'thing://1', name: 'thing_1'),
+        ];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('lookup_thing');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
     }
 
     public function testConfiguredLoaderIsNotRunUntilFirstRead(): void

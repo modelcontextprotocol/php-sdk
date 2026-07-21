@@ -107,7 +107,7 @@ public function returnVoid(): void { /* no return */ }           // Empty conten
 For fine control over output formatting:
 
 ```php
-use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, EmbeddedResource};
+use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, ResourceLink, EmbeddedResource};
 
 public function getFormattedCode(): TextContent
 {
@@ -140,6 +140,17 @@ public function getEmbeddedResource(): EmbeddedResource
     return new EmbeddedResource(
         type: 'resource',
         resource: ['uri' => 'file://data.json', 'text' => 'File content']
+    );
+}
+
+public function getResourceLink(): ResourceLink
+{
+    // Reference a resource by URI without embedding its contents, e.g. when
+    // a tool result would otherwise need to inline many or large resources.
+    return new ResourceLink(
+        uri: 'file://data.json',
+        name: 'data.json',
+        mimeType: 'application/json'
     );
 }
 ```

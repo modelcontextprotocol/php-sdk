@@ -16,6 +16,7 @@ use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
+use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
@@ -100,6 +101,7 @@ class CallToolResult implements ResultInterface
                 'image' => ImageContent::fromArray($item),
                 'audio' => AudioContent::fromArray($item),
                 'resource' => EmbeddedResource::fromArray($item),
+                'resource_link' => ResourceLink::fromArray($item),
                 default => throw new InvalidArgumentException(\sprintf('Invalid content type in CallToolResult data: "%s".', $item['type'] ?? null)),
             };
         }

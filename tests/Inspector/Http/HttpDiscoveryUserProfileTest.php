@@ -17,6 +17,22 @@ final class HttpDiscoveryUserProfileTest extends HttpInspectorSnapshotTestCase
     {
         return [
             ...parent::provideMethods(),
+            'Lookup User Tool' => [
+                'method' => 'tools/call',
+                'options' => [
+                    'toolName' => 'lookup_user',
+                    'toolArgs' => ['userId' => '"101"'],
+                ],
+                'testName' => 'lookup_user',
+            ],
+            'Lookup User Tool (Not Found)' => [
+                'method' => 'tools/call',
+                'options' => [
+                    'toolName' => 'lookup_user',
+                    'toolArgs' => ['userId' => '"999"'],
+                ],
+                'testName' => 'lookup_user_not_found',
+            ],
             'Send Welcome Tool' => [
                 'method' => 'tools/call',
                 'options' => [
