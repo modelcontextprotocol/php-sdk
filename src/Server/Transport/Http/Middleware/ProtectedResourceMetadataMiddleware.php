@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Transport\Http\Middleware;
 
-use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -23,22 +23,25 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) at well-known endpoints.
  *
+ * This is a thin path-guard adapter: it decides *when* the metadata endpoint applies
+ * (a GET to one of the configured well-known paths) and delegates the *what* to
+ * {@see ProtectedResourceMetadataHandler}, the reusable request handler that can also be
+ * mounted directly as a framework controller.
+ *
  * @see https://datatracker.ietf.org/doc/html/rfc9728
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
 final class ProtectedResourceMetadataMiddleware implements MiddlewareInterface
 {
-    private ResponseFactoryInterface $responseFactory;
-    private StreamFactoryInterface $streamFactory;
+    private ProtectedResourceMetadataHandler $metadataHandler;
 
     public function __construct(
         private readonly ProtectedResourceMetadata $metadata,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
-        $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
-        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+        $this->metadataHandler = new ProtectedResourceMetadataHandler($metadata, $responseFactory, $streamFactory);
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
@@ -47,10 +50,7 @@ final class ProtectedResourceMetadataMiddleware implements MiddlewareInterface
             return $handler->handle($request);
         }
 
-        return $this->responseFactory
-            ->createResponse(200)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream(json_encode($this->metadata, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)));
+        return $this->metadataHandler->handle($request);
     }
 
     private function isMetadataRequest(ServerRequestInterface $request): bool

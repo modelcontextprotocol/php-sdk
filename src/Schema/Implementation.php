@@ -45,10 +45,10 @@ class Implementation implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data['name']) || !\is_string($data['name'])) {
+        if (!isset($data['name']) || !\is_string($data['name']) || '' === $data['name']) {
             throw new InvalidArgumentException('Invalid or missing "name" in Implementation data.');
         }
-        if (empty($data['version']) || !\is_string($data['version'])) {
+        if (!isset($data['version']) || !\is_string($data['version']) || '' === $data['version']) {
             throw new InvalidArgumentException('Invalid or missing "version" in Implementation data.');
         }
 

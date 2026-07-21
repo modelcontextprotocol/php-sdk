@@ -112,6 +112,7 @@ $transport = new StreamableHttpTransport(
 - **`streamFactory`** (optional): `StreamFactoryInterface` - PSR-17 factory for creating response body streams. Auto-discovered if not provided.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
 - **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). `[]` disables all defaults — useful when the surrounding application already handles CORS, host validation, etc.
+- **`maxBodyBytes`** (optional): `int` - Upper bound on the POST request body read, in bytes. Defaults to 4 MiB (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). See [Request Body Size Limit](#request-body-size-limit).
 
 ### PSR-17 Auto-Discovery
 
@@ -229,6 +230,40 @@ use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 // Only accept the latest spec version
 new ProtocolVersionMiddleware(supportedVersions: [ProtocolVersion::V2025_11_25]);
 ```
+
+### Request Body Size Limit
+
+`StreamableHttpTransport` caps the POST body it reads to guard against memory exhaustion from an oversized or
+unbounded (chunked) payload. The default cap is 4 MiB. A body over the cap is rejected with `413` and never reaches
+message parsing.
+
+```php
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+// Raise the cap to 16 MiB
+$transport = new StreamableHttpTransport($request, maxBodyBytes: 16 * 1024 * 1024);
+```
+
+When the request stream advertises a size, the transport rejects it up-front. Otherwise (e.g. chunked transfer with
+unknown size) the body is read incrementally and aborted as soon as it crosses the cap, so an unbounded stream cannot
+exhaust memory. A value below `1` throws `InvalidArgumentException`.
+
+### JSON-RPC Batch Size Limit
+
+A JSON-RPC batch (top-level array) is capped at 100 messages by default. Oversized batches are rejected before any
+message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap lives on
+`MessageFactory`:
+
+```php
+use Mcp\JsonRpc\MessageFactory;
+
+$factory = MessageFactory::make(maxBatchSize: 50);
+```
+
+Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON array
+is a batch. Scalars, empty payloads, and non-object batch elements are returned as `InvalidInputMessageException`
+entries (the existing per-message error contract), not parse errors or crashes. A `maxBatchSize` below `1` throws
+`InvalidArgumentException`.
 
 ### Custom PSR-15 Middleware
 

@@ -373,11 +373,9 @@ final class ExplicitElementLoaderTest extends TestCase
      */
     private function buildAndGetRegistry(callable $configure): RegistryInterface
     {
+        // A caller-supplied registry is loaded eagerly at build, so it is populated once build() returns.
         $registry = new Registry();
-        $builder = Server::builder()
-            ->setServerInfo('test', '1.0.0')
-            ->setRegistry($registry);
-        $configure($builder)->build();
+        $configure(Server::builder()->setServerInfo('test', '1.0.0')->setRegistry($registry))->build();
 
         return $registry;
     }

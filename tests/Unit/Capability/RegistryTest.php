@@ -13,10 +13,12 @@ namespace Mcp\Tests\Unit\Capability;
 
 use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Registry;
+use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
@@ -532,6 +534,113 @@ class RegistryTest extends TestCase
             ['foo' => 'bar'],
             ['foo' => 'bar'],
         ], $structuredContent);
+    }
+
+    public function testConfiguredLoaderIsNotRunUntilFirstRead(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->never())->method('load');
+
+        // Constructing (and registering) must not trigger the loader.
+        $registry = new Registry(null, $this->logger, loader: $loader);
+        $registry->registerTool($this->createValidTool('manual'), 'handler');
+    }
+
+    public function testConfiguredLoaderRunsOnFirstReadAndPopulatesTheRegistry(): void
+    {
+        $loader = $this->toolLoader($this->createValidTool('loaded'));
+        $registry = new Registry(null, $this->logger, loader: $loader);
+
+        $this->assertTrue($registry->hasTools());
+        $this->assertArrayHasKey('loaded', $registry->getTools()->references);
+    }
+
+    public function testConfiguredLoaderRunsExactlyOnceAcrossManyReads(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->once())->method('load');
+
+        $registry = new Registry(null, $this->logger, loader: $loader);
+        $registry->hasTools();
+        $registry->getTools();
+        $registry->hasResources();
+        $registry->getPrompts();
+    }
+
+    public function testRuntimeRegistrationsSurviveTheDeferredLoad(): void
+    {
+        $loader = $this->toolLoader($this->createValidTool('loaded'));
+        $registry = new Registry(null, $this->logger, loader: $loader);
+        // Registered before the first read; the deferred load must be additive, not replacing.
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
+
+        $tools = $registry->getTools()->references;
+        $this->assertArrayHasKey('runtime', $tools);
+        $this->assertArrayHasKey('loaded', $tools);
+    }
+
+    public function testConfiguredLoaderRetriesAfterAFailedLoad(): void
+    {
+        $tool = $this->createValidTool('loaded');
+        $loader = new class($tool) implements LoaderInterface {
+            private int $calls = 0;
+
+            public function __construct(private readonly Tool $tool)
+            {
+            }
+
+            public function load(RegistryInterface $registry): void
+            {
+                ++$this->calls;
+                if (1 === $this->calls) {
+                    throw new \RuntimeException('data source not ready');
+                }
+
+                $registry->registerTool($this->tool, 'handler');
+            }
+        };
+
+        $registry = new Registry(null, $this->logger, loader: $loader);
+
+        try {
+            $registry->hasTools();
+            $this->fail('Expected the first load to throw.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('data source not ready', $e->getMessage());
+        }
+
+        $this->assertArrayHasKey('loaded', $registry->getTools()->references);
+    }
+
+    public function testLoadRunsTheConfiguredLoaderEagerly(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->once())->method('load');
+
+        $registry = new Registry(null, $this->logger, loader: $loader);
+        $registry->load();
+    }
+
+    public function testLoadIsANoopWithoutAConfiguredLoader(): void
+    {
+        $registry = new Registry(null, $this->logger);
+        $registry->load();
+
+        $this->assertFalse($registry->hasTools());
+    }
+
+    private function toolLoader(Tool $tool): LoaderInterface
+    {
+        return new class($tool) implements LoaderInterface {
+            public function __construct(private readonly Tool $tool)
+            {
+            }
+
+            public function load(RegistryInterface $registry): void
+            {
+                $registry->registerTool($this->tool, 'handler');
+            }
+        };
     }
 
     private function createValidTool(string $name, ?array $outputSchema = null): Tool

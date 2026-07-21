@@ -277,8 +277,8 @@ Register MCP elements programmatically without using attributes. The handler is 
 **Handler** can be any PHP callable:
 
 1. **Closure**: `function(int $a, int $b): int { return $a + $b; }`
-2. **Class and method name pair**: `[ClassName::class, 'methodName']` - class must be constructable through the container
-3. **Class instance and method name**: `[$instance, 'methodName']`
+2. **Class and method name pair**: `[ClassName::class, 'methodName']` - the class is instantiated lazily on first call, so it must be constructable through the container (or have a no-arg constructor)
+3. **Class instance and method name**: `[$instance, 'methodName']` - the given, already-constructed object is invoked as-is. Use this for handlers the container cannot build, e.g. those with scalar constructor arguments or dependencies wired at runtime
 4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
 ### Manual Tool Registration

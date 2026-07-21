@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability;
 
+use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
@@ -60,11 +61,40 @@ final class Registry implements RegistryInterface
      */
     private array $resourceTemplates = [];
 
+    private bool $loaded = false;
+
+    private bool $loading = false;
+
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly NameValidator $nameValidator = new NameValidator(),
+        private readonly ?LoaderInterface $loader = null,
     ) {
+    }
+
+    /**
+     * Runs the configured loader once, on demand. Reads trigger this automatically, so element
+     * loading is deferred to the first read (request time) rather than eager at build time — under a
+     * persistent runtime a source not yet ready at build no longer freezes the registry empty.
+     *
+     * `loaded` is set only after success, so a transient failure is retried on the next read. The
+     * `loading` guard lets a loader read the registry during its own run (e.g. discovery's identity
+     * check) without re-entering the load.
+     */
+    public function load(): void
+    {
+        if ($this->loaded || $this->loading || null === $this->loader) {
+            return;
+        }
+
+        $this->loading = true;
+        try {
+            $this->loader->load($this);
+            $this->loaded = true;
+        } finally {
+            $this->loading = false;
+        }
     }
 
     public function registerTool(Tool $tool, callable|array|string $handler): ToolReference
@@ -165,31 +195,43 @@ final class Registry implements RegistryInterface
 
     public function hasTool(string $name): bool
     {
+        $this->load();
+
         return isset($this->tools[$name]);
     }
 
     public function hasResource(string $uri): bool
     {
+        $this->load();
+
         return isset($this->resources[$uri]);
     }
 
     public function hasResourceTemplate(string $uriTemplate): bool
     {
+        $this->load();
+
         return isset($this->resourceTemplates[$uriTemplate]);
     }
 
     public function hasPrompt(string $name): bool
     {
+        $this->load();
+
         return isset($this->prompts[$name]);
     }
 
     public function hasTools(): bool
     {
+        $this->load();
+
         return [] !== $this->tools;
     }
 
     public function getTools(?int $limit = null, ?string $cursor = null): Page
     {
+        $this->load();
+
         $tools = [];
         foreach ($this->tools as $toolReference) {
             $tools[$toolReference->tool->name] = $toolReference->tool;
@@ -212,16 +254,22 @@ final class Registry implements RegistryInterface
 
     public function getTool(string $name): ToolReference
     {
+        $this->load();
+
         return $this->tools[$name] ?? throw new ToolNotFoundException($name);
     }
 
     public function hasResources(): bool
     {
+        $this->load();
+
         return [] !== $this->resources;
     }
 
     public function getResources(?int $limit = null, ?string $cursor = null): Page
     {
+        $this->load();
+
         $resources = [];
         foreach ($this->resources as $resourceReference) {
             $resources[$resourceReference->resource->uri] = $resourceReference->resource;
@@ -246,6 +294,8 @@ final class Registry implements RegistryInterface
         string $uri,
         bool $includeTemplates = true,
     ): ResourceReference|ResourceTemplateReference {
+        $this->load();
+
         $registration = $this->resources[$uri] ?? null;
         if ($registration) {
             return $registration;
@@ -266,11 +316,15 @@ final class Registry implements RegistryInterface
 
     public function hasResourceTemplates(): bool
     {
+        $this->load();
+
         return [] !== $this->resourceTemplates;
     }
 
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
     {
+        $this->load();
+
         $templates = [];
         foreach ($this->resourceTemplates as $templateReference) {
             $templates[$templateReference->resourceTemplate->uriTemplate] = $templateReference->resourceTemplate;
@@ -293,16 +347,22 @@ final class Registry implements RegistryInterface
 
     public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference
     {
+        $this->load();
+
         return $this->resourceTemplates[$uriTemplate] ?? throw new ResourceNotFoundException($uriTemplate);
     }
 
     public function hasPrompts(): bool
     {
+        $this->load();
+
         return [] !== $this->prompts;
     }
 
     public function getPrompts(?int $limit = null, ?string $cursor = null): Page
     {
+        $this->load();
+
         $prompts = [];
         foreach ($this->prompts as $promptReference) {
             $prompts[$promptReference->prompt->name] = $promptReference->prompt;
@@ -325,6 +385,8 @@ final class Registry implements RegistryInterface
 
     public function getPrompt(string $name): PromptReference
     {
+        $this->load();
+
         return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
     }
 

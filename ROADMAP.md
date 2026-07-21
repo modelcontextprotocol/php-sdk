@@ -5,7 +5,7 @@ This roadmap is a living document that outlines the planned features and improve
 ## Goals for the First Major Release
 
 - **Server**
-- [ ] Implement full support for elicitations
+- [x] Implement full support for elicitations
 - [ ] Implement OAuth2 authentication for server
 - **Client**
 - [x] Implement client-side support

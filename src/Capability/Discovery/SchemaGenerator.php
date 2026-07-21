@@ -223,7 +223,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     private function buildParameterSchema(array $paramInfo, ?array $methodLevelParamSchema): array
     {
         if ($paramInfo['is_variadic']) {
-            return $this->buildVariadicParameterSchema($paramInfo);
+            return $this->ensureArrayItems($this->buildVariadicParameterSchema($paramInfo));
         }
 
         $inferredSchema = $this->buildInferredParameterSchema($paramInfo);
@@ -240,7 +240,34 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
         }
 
-        return $mergedSchema;
+        // Run after all merges so that when a Schema attribute reshapes the parameter
+        // (e.g. to `object`), the array `items` invariant is only enforced on what is
+        // genuinely still an array.
+        return $this->ensureArrayItems($mergedSchema);
+    }
+
+    /**
+     * Guarantees an array-typed schema always declares `items`.
+     *
+     * `items` is optional in JSON Schema, but some strict clients reject an array schema
+     * without it. When no element type could be inferred, default to the empty schema `{}`
+     * (matches anything) — represented as `new \stdClass()` so it serializes to `{}` rather
+     * than `[]`.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private function ensureArrayItems(array $schema): array
+    {
+        $type = $schema['type'] ?? null;
+        $isArray = 'array' === $type || (\is_array($type) && \in_array('array', $type, true));
+
+        if ($isArray && !isset($schema['items'])) {
+            $schema['items'] = new \stdClass();
+        }
+
+        return $schema;
     }
 
     /**
@@ -692,6 +719,11 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     private function inferArrayItemsType(string $phpTypeString): string|array
     {
         $normalizedType = trim($phpTypeString);
+
+        // Strip a top-level nullable union (e.g. `string[]|null`, `null|int[]`) so the
+        // element type is still recovered; array nullability is handled separately via
+        // `allows_null`. Internal unions such as `array<int|string>` are left untouched.
+        $normalizedType = trim((string) preg_replace('/^null\s*\|\s*|\s*\|\s*null$/i', '', $normalizedType));
 
         // Case 1: Simple T[] syntax (e.g., string[], int[], bool[], etc.)
         if (preg_match('/^(\\??)([\w\\\\]+)\\s*\\[\\]$/i', $normalizedType, $matches)) {

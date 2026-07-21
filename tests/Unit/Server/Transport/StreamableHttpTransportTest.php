@@ -85,6 +85,39 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
+    #[TestDox('malformed MCP session IDs are rejected as bad requests')]
+    public function testMalformedSessionIdHeaderReturnsBadRequest(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, '{"not":"a-token"}');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertStringContainsString(StreamableHttpTransport::SESSION_HEADER, (string) $response->getBody());
+    }
+
+    #[TestDox('duplicate MCP session ID headers are rejected as bad requests')]
+    public function testDuplicateSessionIdHeadersReturnBadRequest(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, '2fb587fc-593f-47ce-9d9a-9c06f2b907a3')
+            ->withAddedHeader(StreamableHttpTransport::SESSION_HEADER, '5e583da8-a677-4446-b723-4ddbe00fda62');
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $response = $transport->listen();
+
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
+    }
+
     #[TestDox('explicit empty middleware list disables defaults and emits a warning log')]
     public function testEmptyMiddlewareListDisablesDefaultsAndWarns(): void
     {
@@ -259,6 +292,42 @@ final class StreamableHttpTransportTest extends TestCase
             null,
             [new \stdClass()], // @phpstan-ignore-line argument.type
         );
+    }
+
+    public function testPostBodyExceedingMaxBytesReturns413(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withBody($this->factory->createStream(str_repeat('a', 64)));
+
+        // Empty middleware bypasses the default security stack to isolate body-size handling.
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 16);
+
+        $response = $transport->listen();
+
+        $this->assertSame(413, $response->getStatusCode());
+    }
+
+    public function testPostBodyWithinMaxBytesIsNotRejected(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withBody($this->factory->createStream('{}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 1024);
+
+        $response = $transport->listen();
+
+        $this->assertNotSame(413, $response->getStatusCode());
+    }
+
+    public function testNonPositiveMaxBodyBytesThrows(): void
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://localhost/');
+
+        $this->expectException(InvalidArgumentException::class);
+
+        new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 0);
     }
 
     private function stubAuth401(): MiddlewareInterface

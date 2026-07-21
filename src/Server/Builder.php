@@ -219,6 +219,10 @@ final class Builder
      */
     private array $loaders = [];
 
+    private bool $hasCustomRegistry = false;
+
+    private bool $lazyLoading = true;
+
     /**
      * Sets the server's identity. Required.
      *
@@ -344,6 +348,21 @@ final class Builder
     public function setRegistry(RegistryInterface $registry): self
     {
         $this->registry = $registry;
+        $this->hasCustomRegistry = true;
+
+        return $this;
+    }
+
+    /**
+     * Controls when configured loaders (manual elements, discovery, custom loaders) run.
+     *
+     * Lazy (the default) defers loading to the first registry read so a persistent runtime does not
+     * freeze the registry to a source not yet ready at build time. Disable to load eagerly at build.
+     * A registry supplied via setRegistry() is always loaded eagerly.
+     */
+    public function setLazyLoading(bool $lazyLoading = true): self
+    {
+        $this->lazyLoading = $lazyLoading;
 
         return $this;
     }
@@ -643,7 +662,6 @@ final class Builder
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
-        $registry = $this->registry ?? new Registry($this->eventDispatcher, $logger);
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
         $sessionManager = $this->sessionManager ?? new SessionManager(
             $this->sessionStore ?? new InMemorySessionStore(),
@@ -674,23 +692,24 @@ final class Builder
             }
         }
 
-        $loader = new ChainLoader($loaders);
-        $loader->load($registry);
+        $chainLoader = new ChainLoader($loaders);
+
+        if ($this->hasCustomRegistry) {
+            // Builder can't inject the loader into an already-constructed instance, so load it eagerly.
+            $registry = $this->registry;
+            $chainLoader->load($registry);
+            $eagerlyLoaded = true;
+        } else {
+            $registry = new Registry($this->eventDispatcher, $logger, loader: $chainLoader);
+            if (!$this->lazyLoading) {
+                $registry->load();
+            }
+            $eagerlyLoaded = !$this->lazyLoading;
+        }
 
         $messageFactory = MessageFactory::make();
 
-        $capabilities = $this->serverCapabilities ?? new ServerCapabilities(
-            tools: $registry->hasTools(),
-            toolsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            resources: $registry->hasResources() || $registry->hasResourceTemplates(),
-            resourcesSubscribe: $registry->hasResources() || $registry->hasResourceTemplates(),
-            resourcesListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            prompts: $registry->hasPrompts(),
-            promptsListChanged: $this->eventDispatcher instanceof EventDispatcherInterface,
-            logging: true,
-            completions: true,
-            extensions: $this->extensions ?: null,
-        );
+        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
@@ -732,6 +751,49 @@ final class Builder
         );
 
         return new Server($protocol, $logger);
+    }
+
+    /**
+     * When loaded, capabilities are read from the registry. When deferred, reading it would force
+     * the load, so they are advertised from the configured sources instead — opaque sources (custom
+     * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
+     */
+    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
+    {
+        $listChanged = $this->eventDispatcher instanceof EventDispatcherInterface;
+
+        if ($eagerlyLoaded) {
+            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();
+
+            return new ServerCapabilities(
+                tools: $registry->hasTools(),
+                toolsListChanged: $listChanged,
+                resources: $hasResources,
+                resourcesSubscribe: $hasResources,
+                resourcesListChanged: $listChanged,
+                prompts: $registry->hasPrompts(),
+                promptsListChanged: $listChanged,
+                logging: true,
+                completions: true,
+                extensions: $this->extensions ?: null,
+            );
+        }
+
+        $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
+        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources;
+
+        return new ServerCapabilities(
+            tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,
+            toolsListChanged: $listChanged,
+            resources: $hasResources,
+            resourcesSubscribe: $hasResources,
+            resourcesListChanged: $listChanged,
+            prompts: [] !== $this->prompts || [] !== $this->explicitPrompts || $hasOpaqueSources,
+            promptsListChanged: $listChanged,
+            logging: true,
+            completions: true,
+            extensions: $this->extensions ?: null,
+        );
     }
 
     private function createDiscoverer(LoggerInterface $logger): DiscovererInterface

@@ -44,7 +44,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => 'string'], $schema['properties']['name']);
         $this->assertEquals(['type' => 'integer'], $schema['properties']['age']);
         $this->assertEquals(['type' => 'boolean'], $schema['properties']['active']);
-        $this->assertEquals(['type' => 'array'], $schema['properties']['tags']);
+        $this->assertEquals(['type' => 'array', 'items' => new \stdClass()], $schema['properties']['tags']);
         $this->assertEquals(['type' => ['null', 'object'], 'default' => null], $schema['properties']['config']);
         $this->assertEqualsCanonicalizing(['name', 'age', 'active', 'tags'], $schema['required']);
     }
@@ -56,7 +56,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => 'string', 'description' => 'The username'], $schema['properties']['username']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Number of items'], $schema['properties']['count']);
         $this->assertEquals(['type' => 'boolean', 'description' => 'Whether enabled'], $schema['properties']['enabled']);
-        $this->assertEquals(['type' => 'array', 'description' => 'Some data'], $schema['properties']['data']);
+        $this->assertEquals(['type' => 'array', 'description' => 'Some data', 'items' => new \stdClass()], $schema['properties']['data']);
         $this->assertEqualsCanonicalizing(['username', 'count', 'enabled', 'data'], $schema['required']);
     }
 
@@ -206,16 +206,29 @@ final class SchemaGeneratorTest extends TestCase
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'arrayTypeScenarios');
         $schema = $this->schemaGenerator->generate($method);
-        $this->assertEquals(['type' => 'array', 'description' => 'Generic array'], $schema['properties']['genericArray']);
+        $this->assertEquals(['type' => 'array', 'description' => 'Generic array', 'items' => new \stdClass()], $schema['properties']['genericArray']);
+        // An untyped array must still declare `items`, serialized as the empty schema `{}`
+        // (not `[]`) so strict clients accept it.
+        $this->assertSame('{}', json_encode($schema['properties']['genericArray']['items']));
         $this->assertEquals(['type' => 'array', 'description' => 'Array of strings', 'items' => ['type' => 'string']], $schema['properties']['stringArray']);
         $this->assertEquals(['type' => 'array', 'description' => 'Array of integers', 'items' => ['type' => 'integer']], $schema['properties']['intArray']);
-        $this->assertEquals(['type' => 'array', 'description' => 'Mixed array map'], $schema['properties']['mixedMap']);
+        $this->assertEquals(['type' => 'array', 'description' => 'Mixed array map', 'items' => new \stdClass()], $schema['properties']['mixedMap']);
         $this->assertArrayHasKey('type', $schema['properties']['objectLikeArray']);
         $this->assertEquals('object', $schema['properties']['objectLikeArray']['type']);
         $this->assertArrayHasKey('properties', $schema['properties']['objectLikeArray']);
         $this->assertArrayHasKey('name', $schema['properties']['objectLikeArray']['properties']);
         $this->assertArrayHasKey('age', $schema['properties']['objectLikeArray']['properties']);
         $this->assertEqualsCanonicalizing(['genericArray', 'stringArray', 'intArray', 'mixedMap', 'objectLikeArray', 'nestedObjectArray'], $schema['required']);
+    }
+
+    public function testRecoversItemsTypeForNullableTypedArrays(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableTypedArrays');
+        $schema = $this->schemaGenerator->generate($method);
+        // A `|null` suffix must not erase the element type: `string[]|null` keeps `items: {type: string}`.
+        $this->assertEquals(['type' => ['array', 'null'], 'description' => 'Nullable list of strings', 'items' => ['type' => 'string']], $schema['properties']['nullableStrings']);
+        $this->assertEquals(['type' => ['array', 'null'], 'description' => 'Nullable list of integers', 'default' => null, 'items' => ['type' => 'integer']], $schema['properties']['nullableInts']);
+        $this->assertEqualsCanonicalizing(['nullableStrings'], $schema['required']);
     }
 
     public function testHandlesNullableTypeHintsAndOptionalParameters(): void
@@ -226,7 +239,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => ['null', 'integer'], 'description' => 'Nullable integer', 'default' => null], $schema['properties']['nullableInt']);
         $this->assertEquals(['type' => 'string', 'default' => 'default'], $schema['properties']['optionalString']);
         $this->assertEquals(['type' => 'boolean', 'default' => true], $schema['properties']['optionalBool']);
-        $this->assertEquals(['type' => 'array', 'default' => []], $schema['properties']['optionalArray']);
+        $this->assertEquals(['type' => 'array', 'default' => [], 'items' => new \stdClass()], $schema['properties']['optionalArray']);
         $this->assertEqualsCanonicalizing(['nullableString'], $schema['required']);
     }
 
@@ -253,6 +266,14 @@ final class SchemaGeneratorTest extends TestCase
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['items' => ['type' => 'integer', 'minimum' => 0], 'type' => 'array', 'description' => 'Variadic integers'], $schema['properties']['numbers']);
         $this->assertArrayNotHasKey('required', $schema);
+    }
+
+    public function testUntypedVariadicStillDeclaresItems(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'untypedVariadic');
+        $schema = $this->schemaGenerator->generate($method);
+        $this->assertEquals(['type' => 'array', 'description' => 'Variadic values', 'items' => new \stdClass()], $schema['properties']['values']);
+        $this->assertSame('{}', json_encode($schema['properties']['values']['items']));
     }
 
     public function testHandlesMixedTypeHintsOmittingExplicitType(): void

@@ -17,6 +17,22 @@
       }
     },
     {
+      "name": "instance_greeter",
+      "description": "A tool registered as a pre-built object instance.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "the name to greet"
+          }
+        },
+        "required": [
+          "name"
+        ]
+      }
+    },
+    {
       "name": "discovered_status_check",
       "description": "A tool discovered via attributes.",
       "inputSchema": {

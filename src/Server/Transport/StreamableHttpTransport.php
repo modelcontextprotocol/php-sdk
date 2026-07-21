@@ -22,6 +22,7 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
+use Psr\Http\Message\StreamInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
@@ -35,6 +36,12 @@ class StreamableHttpTransport extends BaseTransport
 {
     public const SESSION_HEADER = 'Mcp-Session-Id';
     public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
+
+    /**
+     * Upper bound on the request body read for a POST, guarding against memory
+     * exhaustion from an oversized (or unbounded chunked) payload.
+     */
+    public const DEFAULT_MAX_BODY_BYTES = 4 * 1024 * 1024;
 
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
@@ -54,8 +61,13 @@ class StreamableHttpTransport extends BaseTransport
         ?StreamFactoryInterface $streamFactory = null,
         ?LoggerInterface $logger = null,
         ?iterable $middleware = null,
+        private readonly int $maxBodyBytes = self::DEFAULT_MAX_BODY_BYTES,
     ) {
         parent::__construct($logger);
+
+        if ($this->maxBodyBytes < 1) {
+            throw new InvalidArgumentException('maxBodyBytes must be at least 1.');
+        }
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -107,7 +119,13 @@ class StreamableHttpTransport extends BaseTransport
 
     protected function handlePostRequest(): ResponseInterface
     {
-        $body = $this->request->getBody()->getContents();
+        $body = $this->readBody($this->request->getBody());
+        if (null === $body) {
+            $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
+
+            return $this->createErrorResponse(Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)), 413);
+        }
+
         $this->handleMessage($body, $this->sessionId);
 
         if (null !== $this->immediateResponse) {
@@ -276,6 +294,37 @@ class StreamableHttpTransport extends BaseTransport
     }
 
     /**
+     * Reads the request body, bounded by {@see self::$maxBodyBytes}.
+     *
+     * Returns the body contents, or `null` when the payload exceeds the cap. When
+     * the stream advertises a size we reject up-front; otherwise (e.g. chunked
+     * transfer with unknown size) we read incrementally and stop at the cap so an
+     * unbounded stream cannot exhaust memory.
+     */
+    private function readBody(StreamInterface $body): ?string
+    {
+        $size = $body->getSize();
+        if (null !== $size && $size > $this->maxBodyBytes) {
+            return null;
+        }
+
+        $contents = '';
+        while (!$body->eof()) {
+            $chunk = $body->read(8192);
+            if ('' === $chunk) {
+                break;
+            }
+
+            $contents .= $chunk;
+            if (\strlen($contents) > $this->maxBodyBytes) {
+                return null;
+            }
+        }
+
+        return $contents;
+    }
+
+    /**
      * @param iterable<MiddlewareInterface> $middleware
      *
      * @return list<MiddlewareInterface>
@@ -296,8 +345,19 @@ class StreamableHttpTransport extends BaseTransport
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         $this->request = $request;
-        $sessionIdString = $request->getHeaderLine(self::SESSION_HEADER);
-        $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+        $sessionIdHeaders = $request->getHeader(self::SESSION_HEADER);
+        if (\count($sessionIdHeaders) > 1) {
+            return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must not be repeated.'), 400);
+        }
+
+        $sessionIdString = $sessionIdHeaders[0] ?? '';
+
+        try {
+            $this->sessionId = $sessionIdString ? Uuid::fromString($sessionIdString) : null;
+            // Symfony UID 5.4/6.4 throw the global parent; newer versions throw a namespaced subclass.
+        } catch (\InvalidArgumentException) {
+            return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
+        }
 
         return match ($request->getMethod()) {
             'OPTIONS' => $this->handleOptionsRequest(),
