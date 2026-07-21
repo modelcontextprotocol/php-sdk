@@ -109,7 +109,7 @@ final class MessageFactory
         $messages = [];
         foreach ($data as $message) {
             try {
-                $messages[] = $this->createMessage($message);
+                $messages[] = $this->createFromArray($message);
             } catch (InvalidInputMessageException $e) {
                 $messages[] = $e;
             }
@@ -119,23 +119,13 @@ final class MessageFactory
     }
 
     /**
-     * @param array<string, mixed> $data
-     *
-     * @throws InvalidInputMessageException
-     */
-    public function createFromArray(array $data): MessageInterface
-    {
-        return $this->createMessage($data);
-    }
-
-    /**
      * Creates a single message object from parsed JSON data.
      *
      * @param array<string, mixed> $data
      *
      * @throws InvalidInputMessageException
      */
-    private function createMessage(array $data): MessageInterface
+    public function createFromArray(array $data): MessageInterface
     {
         try {
             if (isset($data['error'])) {

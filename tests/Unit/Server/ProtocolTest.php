@@ -14,7 +14,7 @@ namespace Mcp\Tests\Unit\Server;
 use Mcp\Event\ClientResponseEvent;
 use Mcp\Event\ErrorEvent;
 use Mcp\Event\NotificationEvent;
-use Mcp\Event\OutgoingRequestEvent;
+use Mcp\Event\ServerRequestEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\JsonRpc\MessageFactory;
@@ -1318,8 +1318,8 @@ final class ProtocolTest extends TestCase
         );
     }
 
-    #[TestDox('OutgoingRequestEvent is dispatched when server sends a request to the client')]
-    public function testOutgoingRequestEventIsDispatched(): void
+    #[TestDox('ServerRequestEvent is dispatched when server sends a request to the client')]
+    public function testServerRequestEventIsDispatched(): void
     {
         $capturedEvent = null;
 
@@ -1330,7 +1330,7 @@ final class ProtocolTest extends TestCase
             ->with($this->callback(static function ($event) use (&$capturedEvent) {
                 $capturedEvent = $event;
 
-                return $event instanceof OutgoingRequestEvent;
+                return $event instanceof ServerRequestEvent;
             }))
             ->willReturnArgument(0);
 
@@ -1360,7 +1360,7 @@ final class ProtocolTest extends TestCase
 
         $protocol->sendRequest($request, 60, $session);
 
-        $this->assertInstanceOf(OutgoingRequestEvent::class, $capturedEvent);
+        $this->assertInstanceOf(ServerRequestEvent::class, $capturedEvent);
         $this->assertSame($session, $capturedEvent->getSession());
         $this->assertSame(60, $capturedEvent->getTimeout());
         $this->assertSame('ping', $capturedEvent->getMethod());

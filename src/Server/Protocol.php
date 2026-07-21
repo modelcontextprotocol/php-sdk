@@ -14,7 +14,7 @@ namespace Mcp\Server;
 use Mcp\Event\ClientResponseEvent;
 use Mcp\Event\ErrorEvent;
 use Mcp\Event\NotificationEvent;
-use Mcp\Event\OutgoingRequestEvent;
+use Mcp\Event\ServerRequestEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
@@ -314,7 +314,7 @@ class Protocol
 
         $requestWithId = $request->withId($requestId);
 
-        $this->dispatchEvent(new OutgoingRequestEvent($requestWithId, $timeout, $session));
+        $this->dispatchEvent(new ServerRequestEvent($requestWithId, $timeout, $session));
 
         $this->logger->info('Queueing server request to client', [
             'request_id' => $requestId,
@@ -591,11 +591,7 @@ class Protocol
             return null;
         }
 
-        try {
-            $message = $this->messageFactory->createFromArray($data);
-        } catch (\Throwable) {
-            return null;
-        }
+        $message = $this->messageFactory->createFromArray($data);
 
         return $message instanceof Request ? $message : null;
     }

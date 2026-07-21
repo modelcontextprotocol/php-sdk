@@ -19,7 +19,7 @@ use Mcp\Server\Session\SessionInterface;
  *
  * @author Olivier Mouren <mouren.olivier@gmail.com>
  */
-final class OutgoingRequestEvent
+final class ServerRequestEvent
 {
     public function __construct(
         private readonly Request $request,

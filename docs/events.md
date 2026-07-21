@@ -10,7 +10,7 @@ The MCP SDK provides a PSR-14 compatible event system that allows you to hook in
   - [ResponseEvent](#responseevent)
   - [ErrorEvent](#errorevent)
   - [NotificationEvent](#notificationevent)
-  - [OutgoingRequestEvent](#outgoingrequestevent)
+  - [ServerRequestEvent](#serverRequestEvent)
   - [ClientResponseEvent](#clientresponseevent)
 - [List Change Events](#list-change-events)
 
@@ -83,7 +83,7 @@ The SDK dispatches 6 broad event types at the protocol level, allowing you to ob
 - `getSession(): SessionInterface` - The current session
 - `getMethod(): string` - Convenience method to get the notification method
 
-### OutgoingRequestEvent
+### ServerRequestEvent
 
 **Dispatched**: When the server sends a request to the client (e.g. `elicitation/create`, `sampling/create`).
 
