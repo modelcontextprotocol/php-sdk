@@ -570,18 +570,14 @@ class Protocol
             $session->pull(self::SESSION_FIBER_PARENT_REQUEST)
         );
 
-        if (!$parentRequest) {
-            $session->save();
-
-            return $finalResult;
-        }
-
-        if ($finalResult instanceof Response) {
-            $responseEvent = $this->dispatchEvent(new ResponseEvent($finalResult, $parentRequest, $session));
-            $finalResult = $responseEvent->getResponse();
-        } else {
-            $errorEvent = $this->dispatchEvent(new ErrorEvent($finalResult, $parentRequest, $session, null));
-            $finalResult = $errorEvent->getError();
+        if (null !== $parentRequest) {
+            if ($finalResult instanceof Response) {
+                $responseEvent = $this->dispatchEvent(new ResponseEvent($finalResult, $parentRequest, $session));
+                $finalResult = $responseEvent->getResponse();
+            } else {
+                $errorEvent = $this->dispatchEvent(new ErrorEvent($finalResult, $parentRequest, $session, null));
+                $finalResult = $errorEvent->getError();
+            }
         }
 
         $session->save();
