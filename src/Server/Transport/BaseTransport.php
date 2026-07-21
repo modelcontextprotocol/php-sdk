@@ -127,6 +127,27 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
+    /**
+     * @phpstan-param FiberReturn $finalResult
+     *
+     * @phpstan-return FiberReturn
+     */
+    protected function handleFiberTerminationResult(Response|Error $finalResult): Response|Error
+    {
+        if ($this->sessionId && \is_callable($this->fiberTerminationHandler)) {
+            try {
+                return ($this->fiberTerminationHandler)($finalResult, $this->sessionId);
+            } catch (\Throwable $e) {
+                $this->logger->error('Fiber termination handler failed.', [
+                    'exception' => $e,
+                    'sessionId' => $this->sessionId->toRfc4122(),
+                ]);
+            }
+        }
+
+        return $finalResult;
+    }
+
     protected function handleMessage(string $payload, ?Uuid $sessionId): void
     {
         if (\is_callable($this->messageListener)) {
