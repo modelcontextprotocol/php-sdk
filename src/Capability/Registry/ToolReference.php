@@ -68,6 +68,17 @@ class ToolReference extends ElementReference
     public function extractStructuredContent(mixed $toolExecutionResult): ?array
     {
         if (\is_array($toolExecutionResult)) {
+            foreach ($toolExecutionResult as $item) {
+                if ($item instanceof Content) {
+                    // Content items are already reflected in the result's `content`
+                    // array; a raw array holding one or more of them isn't
+                    // structured data and, if it were serialized as-is, could
+                    // produce a `structuredContent` value that isn't a JSON object
+                    // (e.g. a list), which the spec doesn't allow.
+                    return null;
+                }
+            }
+
             return $toolExecutionResult;
         }
 

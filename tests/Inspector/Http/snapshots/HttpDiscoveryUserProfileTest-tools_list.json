@@ -24,6 +24,22 @@
       }
     },
     {
+      "name": "lookup_user",
+      "description": "Looks up a user and returns a reference to their profile resource.\n\nRather than embedding the full profile (as `resources/read` on\n`user://{userId}/profile` would), this returns a `resource_link` block\npointing at that resource template so the caller can fetch it\nseparately if needed. This mirrors how a tool like a search returning\nmany hits would reference each matching resource by URI instead of\ninlining every one of them.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "description": "the ID of the user to look up"
+          }
+        },
+        "required": [
+          "userId"
+        ]
+      }
+    },
+    {
       "name": "send_welcome",
       "description": "Sends a welcome message to a user.\n\n(This is a placeholder - in a real app, it might queue an email).",
       "inputSchema": {
