@@ -26,7 +26,7 @@ final class StdioTransportTest extends TestCase
 
         $this->pumpToEof($transport);
 
-        self::assertSame([], $messages, 'the over-length line must never be dispatched');
+        $this->assertSame([], $messages, 'the over-length line must never be dispatched');
     }
 
     #[TestDox('processing resumes with the next line after an over-length line is discarded')]
@@ -37,7 +37,7 @@ final class StdioTransportTest extends TestCase
 
         $this->pumpToEof($transport);
 
-        self::assertSame(['{"valid":1}'], $messages);
+        $this->assertSame(['{"valid":1}'], $messages);
     }
 
     #[TestDox('a normal line within the cap is dispatched')]
@@ -48,7 +48,7 @@ final class StdioTransportTest extends TestCase
 
         $this->pumpToEof($transport);
 
-        self::assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
+        $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
     }
 
     #[TestDox('the line byte cap must be a positive number of bytes')]
