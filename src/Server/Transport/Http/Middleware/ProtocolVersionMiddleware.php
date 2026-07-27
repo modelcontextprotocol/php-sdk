@@ -48,7 +48,7 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
     private readonly array $supportedVersions;
 
     /**
-     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to all values of {@see ProtocolVersion}.
+     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()} — the modern revisions are excluded because this server cannot serve their per-request negotiation yet.
      * @param ResponseFactoryInterface|null $responseFactory   PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory     PSR-17 stream factory (auto-discovered if null)
      */
@@ -57,7 +57,7 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
-        $versions = $supportedVersions ?? ProtocolVersion::cases();
+        $versions = $supportedVersions ?? ProtocolVersion::handshakeVersions();
         $this->supportedVersions = array_values(array_map(static fn (ProtocolVersion $v): string => $v->value, $versions));
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -70,10 +70,10 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
         // Spec backwards-compat: when the header is absent, the server SHOULD assume
         // protocol version 2025-03-26 — the release in which Streamable HTTP and the
         // header itself were introduced. This is deliberately lower than the SDK's
-        // own default (V2025_06_18) so clients predating the header convention still
-        // get a deterministic protocol version applied. Servers that whitelist only
-        // newer versions in $supportedVersions will reject such requests with 400.
-        $version = '' === $headerValue ? ProtocolVersion::V2025_03_26->value : $headerValue;
+        // own default so clients predating the header convention still get a
+        // deterministic protocol version applied. Servers that whitelist only newer
+        // versions in $supportedVersions will reject such requests with 400.
+        $version = '' === $headerValue ? ProtocolVersion::DEFAULT_NEGOTIATED_VERSION->value : $headerValue;
 
         if (\in_array($version, $this->supportedVersions, true)) {
             return $handler->handle($request);

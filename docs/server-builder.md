@@ -8,6 +8,7 @@ various aspects of the server behavior.
 
 - [Basic Usage](#basic-usage)
 - [Server Configuration](#server-configuration)
+- [Protocol Version Negotiation](#protocol-version-negotiation)
 - [Discovery Configuration](#discovery-configuration)
 - [Session Management](#session-management)
 - [Manual Capability Registration](#manual-capability-registration)
@@ -89,6 +90,71 @@ Provide hints to help AI models understand how to use your server:
 $server = Server::builder()
     ->setInstructions('This calculator supports basic arithmetic operations. Use the calculate tool for math operations and check the config resource for current settings.');
 ```
+
+### Protocol Version
+
+By default the server negotiates the protocol revision with each client during the `initialize` handshake, and you do
+not need to configure anything. See [Protocol Version Negotiation](#protocol-version-negotiation) below for how that
+negotiation resolves, and for what `setProtocolVersion()` changes:
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
+$server = Server::builder()
+    ->setProtocolVersion(ProtocolVersion::V2025_06_18);
+```
+
+## Protocol Version Negotiation
+
+MCP revisions are identified by a date string such as `2025-11-25`. The client names the revision it wants to speak in
+its `initialize` request, and the server answers with the revision the connection will actually use. Both sides
+disconnect if they cannot agree. This follows the
+[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+section of the specification.
+
+The SDK's known revisions live in `Mcp\Schema\Enum\ProtocolVersion`, declared oldest to newest:
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
+ProtocolVersion::latestHandshake();   // newest revision reachable via `initialize`
+ProtocolVersion::handshakeVersions(); // every revision the server will negotiate, oldest first
+ProtocolVersion::V2025_11_25->isAtLeast(ProtocolVersion::V2025_06_18); // true
+```
+
+Comparisons go through declaration order rather than string collation. The identifiers happen to be ISO dates today,
+but they are an enumerated set rather than an ordered scalar, so nothing should assume they sort chronologically.
+
+### How the server answers
+
+| Client requests | Server responds with |
+| --- | --- |
+| A revision the server supports | That same revision |
+| An unknown or malformed revision | `ProtocolVersion::latestHandshake()` as a counter-offer |
+| A modern revision such as `2026-07-28` | `ProtocolVersion::latestHandshake()` as a counter-offer |
+
+A counter-offer is not an error: the client decides whether it can continue on the offered revision or must close the
+connection. The negotiated revision is stored on the session under `protocol_version`.
+
+The last row is not a rejection of an unknown revision — the SDK knows `2026-07-28`, it just cannot be reached through
+this handshake. The modern era replaced `initialize` with per-request metadata, so answering with one of its revisions
+would leave a connection neither side could use. Serving that era is separate work; today the server only knows not to
+mis-negotiate it.
+
+This table is mirrored by the `provideNegotiationTable()` data provider in
+`tests/Unit/Server/Handler/Request/InitializeHandlerTest.php`, which drives its supported-revision rows off the enum so
+a newly declared revision is covered automatically.
+
+### Pinning a revision
+
+`setProtocolVersion()` pins the handshake to exactly one revision instead of negotiating across the supported set. The
+pin wins over the client's request, so a client asking for anything else receives the pinned revision as a
+counter-offer and has to decide whether to continue. Leave it unset unless you have a reason to refuse other revisions.
+
+> [!NOTE]
+> On the Streamable HTTP transport, every request after the handshake also carries an `MCP-Protocol-Version` header,
+> which is validated separately by `ProtocolVersionMiddleware`. See
+> [Protocol Version Validation](transports.md#protocol-version-validation).
 
 ## Discovery Configuration
 
@@ -661,6 +727,7 @@ $server = Server::builder()
 | `setServerInfo()` | name, version, description? | Set server identity |
 | `setPaginationLimit()` | limit | Set max items per page |
 | `setInstructions()` | instructions | Set usage instructions |
+| `setProtocolVersion()` | protocolVersion | Pin the handshake to one protocol revision |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |
 | `setLogger()` | logger | Set PSR-3 logger |

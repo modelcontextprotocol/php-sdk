@@ -231,6 +231,15 @@ use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 new ProtocolVersionMiddleware(supportedVersions: [ProtocolVersion::V2025_11_25]);
 ```
 
+The default set is `ProtocolVersion::handshakeVersions()` — every revision the server can actually negotiate over
+`initialize`, rather than every revision the enum declares. A request without the header is treated as
+`ProtocolVersion::DEFAULT_NEGOTIATED_VERSION` (`2025-03-26`), the revision that introduced both Streamable HTTP and the
+header itself, so a header-less request cannot be newer than that.
+
+This header check is separate from, and happens after, the handshake itself. See
+[Protocol Version Negotiation](server-builder.md#protocol-version-negotiation) for how the revision is agreed in the
+first place.
+
 ### Request Body Size Limit
 
 `StreamableHttpTransport` caps the POST body it reads to guard against memory exhaustion from an oversized or

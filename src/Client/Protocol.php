@@ -18,6 +18,7 @@ use Mcp\Client\State\ClientState;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
@@ -98,8 +99,15 @@ class Protocol
      */
     public function initialize(Configuration $config): Response|Error
     {
+        // `initialize` only exists in the handshake era, so a client configured with
+        // a modern revision still opens with the newest handshake one. Reaching a
+        // modern revision is a separate negotiation, not this handshake.
+        $offered = $config->protocolVersion->isModern()
+            ? ProtocolVersion::latestHandshake()
+            : $config->protocolVersion;
+
         $request = new InitializeRequest(
-            $config->protocolVersion->value,
+            $offered->value,
             $config->capabilities,
             $config->clientInfo,
         );
@@ -108,6 +116,26 @@ class Protocol
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
+
+            // The server either echoes the requested version or counter-offers one
+            // of its own. A counter-offer this SDK cannot speak leaves nothing to
+            // fall back to, so the handshake fails instead of continuing on a
+            // revision neither side agrees on.
+            $negotiated = $initResult->protocolVersion;
+            if (null === $negotiated || $negotiated->isModern()) {
+                $counterOffer = $response->result['protocolVersion'] ?? null;
+
+                return Error::forInvalidParams(\sprintf(
+                    'Server responded with unsupported protocol version "%s". Supported versions: %s.',
+                    \is_string($counterOffer) ? $counterOffer : '',
+                    implode(', ', array_map(
+                        static fn (ProtocolVersion $v): string => $v->value,
+                        ProtocolVersion::handshakeVersions(),
+                    )),
+                ), $response->id);
+            }
+
+            $this->state->setProtocolVersion($negotiated);
             $this->state->setServerInfo($initResult->serverInfo);
             $this->state->setInstructions($initResult->instructions);
             $this->state->setInitialized(true);
@@ -116,6 +144,7 @@ class Protocol
 
             $this->logger->info('Initialization complete', [
                 'server' => $initResult->serverInfo->name,
+                'protocolVersion' => $negotiated->value,
             ]);
         }
 

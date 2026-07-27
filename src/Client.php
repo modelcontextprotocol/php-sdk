@@ -19,6 +19,7 @@ use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -111,6 +112,18 @@ class Client
     public function getInstructions(): ?string
     {
         return $this->protocol->getState()->getInstructions();
+    }
+
+    /**
+     * Protocol revision negotiated during the handshake.
+     *
+     * This is the version the server answered with, which is not necessarily the
+     * one configured on the builder: a server that cannot speak the requested
+     * revision counter-offers one it supports. Null until the handshake completed.
+     */
+    public function getProtocolVersion(): ?ProtocolVersion
+    {
+        return $this->protocol->getState()->getProtocolVersion();
     }
 
     /**

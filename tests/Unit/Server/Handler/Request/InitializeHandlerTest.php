@@ -20,6 +20,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Session\SessionInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -39,29 +40,18 @@ class InitializeHandlerTest extends TestCase
         $handler = new InitializeHandler($configuration);
 
         $session = $this->createMock(SessionInterface::class);
-        $session->expects($this->exactly(2))
+        $session->expects($this->exactly(3))
             ->method('set')
             ->willReturnCallback(function (string $key, mixed $value): void {
                 match ($key) {
                     'client_info' => $this->assertSame(['name' => 'client-app', 'version' => '1.0.0'], $value),
                     'client_capabilities' => $this->assertEquals(new \stdClass(), $value),
+                    'protocol_version' => $this->assertSame(ProtocolVersion::V2024_11_05->value, $value),
                     default => $this->fail("Unexpected session key: {$key}"),
                 };
             });
 
-        $request = InitializeRequest::fromArray([
-            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
-            'id' => 'request-1',
-            'method' => InitializeRequest::getMethod(),
-            'params' => [
-                'protocolVersion' => ProtocolVersion::V2024_11_05->value,
-                'capabilities' => [],
-                'clientInfo' => [
-                    'name' => 'client-app',
-                    'version' => '1.0.0',
-                ],
-            ],
-        ]);
+        $request = $this->createInitializeRequest(ProtocolVersion::V2024_11_05->value);
 
         $response = $handler->handle($request, $session);
 
@@ -75,5 +65,148 @@ class InitializeHandlerTest extends TestCase
             $customProtocolVersion->value,
             $result->jsonSerialize()['protocolVersion']
         );
+    }
+
+    #[TestDox('answers an unpinned handshake per the negotiation table')]
+    #[DataProvider('provideNegotiationTable')]
+    public function testNegotiationTable(string $requested, ProtocolVersion $expected): void
+    {
+        $handler = new InitializeHandler($this->createConfiguration());
+
+        $response = $handler->handle(
+            $this->createInitializeRequest($requested),
+            $this->createStub(SessionInterface::class),
+        );
+
+        \assert($response->result instanceof InitializeResult);
+        $this->assertNotNull($response->result->protocolVersion);
+        $this->assertSame($expected, $response->result->protocolVersion);
+
+        // No row may ever resolve to a modern revision, whatever the client sent:
+        // that era has no `initialize` at all, so answering with one would leave
+        // the connection unusable for both sides.
+        $this->assertFalse($response->result->protocolVersion->isModern());
+    }
+
+    /**
+     * The negotiation table from docs/server-builder.md, one data set per case a
+     * client can present. Keeping the rows in a single provider is what stops the
+     * documented table and the tested behaviour from drifting apart.
+     *
+     * @return iterable<string, array{string, ProtocolVersion}>
+     */
+    public static function provideNegotiationTable(): iterable
+    {
+        $counterOffer = ProtocolVersion::latestHandshake();
+
+        // A revision the server supports is echoed back unchanged. Driven off the
+        // enum rather than a literal list, so a new handshake revision is covered
+        // the moment it is declared.
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            yield \sprintf('supported %s -> echoed back', $version->value) => [$version->value, $version];
+        }
+
+        // An unknown or malformed revision draws a counter-offer instead of an error.
+        yield 'unknown future revision -> counter-offer' => ['2099-01-01', $counterOffer];
+        yield 'not a revision at all -> counter-offer' => ['banana', $counterOffer];
+        yield 'empty -> counter-offer' => ['', $counterOffer];
+
+        // A modern revision is known to the SDK but unreachable through `initialize`,
+        // so it counter-offers rather than echoing what the client asked for.
+        foreach (ProtocolVersion::modernVersions() as $version) {
+            yield \sprintf('modern %s -> counter-offer', $version->value) => [$version->value, $counterOffer];
+        }
+    }
+
+    #[TestDox('a modern version pinned in configuration cannot leak into the handshake')]
+    public function testModernConfiguredVersionFallsBackToHandshakeSet(): void
+    {
+        $handler = new InitializeHandler($this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $response = $handler->handle(
+            $this->createInitializeRequest(ProtocolVersion::V2025_06_18->value),
+            $this->createStub(SessionInterface::class),
+        );
+
+        \assert($response->result instanceof InitializeResult);
+        $this->assertSame(ProtocolVersion::V2025_06_18, $response->result->protocolVersion);
+    }
+
+    #[TestDox('a pinned version wins over a different version requested by the client')]
+    public function testPinnedVersionOverridesClientRequest(): void
+    {
+        $handler = new InitializeHandler($this->createConfiguration(ProtocolVersion::V2025_03_26));
+
+        $response = $handler->handle(
+            $this->createInitializeRequest(ProtocolVersion::V2025_11_25->value),
+            $this->createStub(SessionInterface::class),
+        );
+
+        \assert($response->result instanceof InitializeResult);
+        $this->assertSame(ProtocolVersion::V2025_03_26, $response->result->protocolVersion);
+    }
+
+    #[TestDox('stores the negotiated version on the session')]
+    public function testStoresNegotiatedVersionOnSession(): void
+    {
+        $handler = new InitializeHandler($this->createConfiguration());
+
+        $stored = [];
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('set')->willReturnCallback(static function (string $key, mixed $value) use (&$stored): void {
+            $stored[$key] = $value;
+        });
+
+        $handler->handle($this->createInitializeRequest(ProtocolVersion::V2025_06_18->value), $session);
+
+        $this->assertSame(ProtocolVersion::V2025_06_18->value, $stored['protocol_version'] ?? null);
+    }
+
+    #[TestDox('falls back to empty defaults when constructed without a configuration')]
+    public function testHandlesMissingConfiguration(): void
+    {
+        // $configuration is nullable and defaults to null, but nothing else in the
+        // suite builds the handler that way, so the fallbacks were never exercised.
+        // The reads in handle() sit on the left of ??, which has isset semantics and
+        // therefore tolerates the null without a nullsafe operator — this test is
+        // what proves that, rather than the shape of the accessor.
+        $handler = new InitializeHandler();
+
+        $response = $handler->handle(
+            $this->createInitializeRequest(ProtocolVersion::V2025_06_18->value),
+            $this->createStub(SessionInterface::class),
+        );
+
+        \assert($response->result instanceof InitializeResult);
+        $this->assertEquals(new ServerCapabilities(), $response->result->capabilities);
+        $this->assertEquals(new Implementation(), $response->result->serverInfo);
+        $this->assertNull($response->result->instructions);
+        $this->assertSame(ProtocolVersion::V2025_06_18, $response->result->protocolVersion);
+    }
+
+    private function createConfiguration(?ProtocolVersion $protocolVersion = null): Configuration
+    {
+        return new Configuration(
+            serverInfo: new Implementation('server', '1.2.3'),
+            capabilities: new ServerCapabilities(),
+            protocolVersion: $protocolVersion,
+        );
+    }
+
+    private function createInitializeRequest(string $protocolVersion): InitializeRequest
+    {
+        return InitializeRequest::fromArray([
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => 'request-1',
+            'method' => InitializeRequest::getMethod(),
+            'params' => [
+                'protocolVersion' => $protocolVersion,
+                'capabilities' => [],
+                'clientInfo' => [
+                    'name' => 'client-app',
+                    'version' => '1.0.0',
+                ],
+            ],
+        ]);
     }
 }
