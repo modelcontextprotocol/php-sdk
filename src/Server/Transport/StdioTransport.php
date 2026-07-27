@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
@@ -25,16 +26,33 @@ use Psr\Log\LoggerInterface;
 class StdioTransport extends BaseTransport
 {
     /**
+     * Default cap on the bytes read for a single input line.
+     */
+    public const DEFAULT_MAX_LINE_BYTES = 4 * 1024 * 1024;
+
+    /** Whether the current over-length line is still being drained and discarded. */
+    private bool $discardingLine = false;
+
+    /**
      * @param resource $input
      * @param resource $output
+     * @param int      $maxLineBytes Maximum bytes read for a single input line. fgets() with no length reads until a
+     *                               newline or EOF, so a peer that never sends a newline would buffer the whole stream
+     *                               into one allocation and exhaust memory; a line exceeding this cap is discarded
+     *                               instead.
      */
     public function __construct(
         private $input = \STDIN,
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
         private readonly RunnerControlInterface $runnerControl = new RunnerControl(),
+        private readonly int $maxLineBytes = self::DEFAULT_MAX_LINE_BYTES,
     ) {
         parent::__construct($logger);
+
+        if ($maxLineBytes < 1) {
+            throw new InvalidArgumentException(\sprintf('The maximum line size must be a positive number of bytes, got %d.', $maxLineBytes));
+        }
     }
 
     public function send(string $data, array $context): void
@@ -68,9 +86,32 @@ class StdioTransport extends BaseTransport
 
     protected function processInput(): void
     {
-        $line = fgets($this->input);
+        $line = fgets($this->input, $this->maxLineBytes);
         if (false === $line) {
             usleep(50000); // 50ms
+
+            return;
+        }
+
+        $lineComplete = str_ends_with($line, "\n");
+
+        // A previous over-length line is still being drained: keep discarding
+        // one bounded chunk per tick until its terminating newline is reached,
+        // so the run loop stays responsive instead of blocking on a drain loop.
+        if ($this->discardingLine) {
+            $this->discardingLine = !$lineComplete;
+
+            return;
+        }
+
+        // fgets() reads at most maxLineBytes - 1 bytes; a full read with no
+        // trailing newline means the line exceeds the cap. Discard it rather
+        // than buffering it, and keep discarding the remainder on later ticks.
+        if (!$lineComplete && \strlen($line) >= $this->maxLineBytes - 1) {
+            $this->discardingLine = true;
+            $this->logger->warning('StdioTransport discarded an input line exceeding the maximum length.', [
+                'max_line_bytes' => $this->maxLineBytes,
+            ]);
 
             return;
         }
