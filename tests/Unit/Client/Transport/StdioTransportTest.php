@@ -33,7 +33,7 @@ final class StdioTransportTest extends TestCase
 
         $this->invokeProcessInput($transport);
 
-        self::assertSame('', $this->readPrivate($transport, 'inputBuffer'), 'buffer must be cleared on abort');
+        $this->assertSame('', $this->readPrivate($transport, 'inputBuffer'), 'buffer must be cleared on abort');
     }
 
     #[TestDox('aborting the input fails the in-flight request immediately')]
@@ -49,9 +49,9 @@ final class StdioTransportTest extends TestCase
         $this->invokeProcessInput($transport);
 
         $response = $state->consumeResponse(1);
-        self::assertInstanceOf(Error::class, $response);
-        self::assertSame(Error::INTERNAL_ERROR, $response->code);
-        self::assertSame(1, $response->id);
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertSame(Error::INTERNAL_ERROR, $response->code);
+        $this->assertSame(1, $response->id);
     }
 
     #[TestDox('newline-delimited frames within the cap are parsed and dispatched')]
@@ -67,7 +67,7 @@ final class StdioTransportTest extends TestCase
 
         $this->invokeProcessInput($transport);
 
-        self::assertSame(['{"a":1}', '{"b":2}'], $messages);
+        $this->assertSame(['{"a":1}', '{"b":2}'], $messages);
     }
 
     #[TestDox('the buffer cap must be a positive number of bytes')]

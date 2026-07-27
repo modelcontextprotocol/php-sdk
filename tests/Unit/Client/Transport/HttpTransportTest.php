@@ -43,8 +43,8 @@ final class HttpTransportTest extends TestCase
 
         $this->invokeProcessSseStream($transport);
 
-        self::assertSame('', $this->readPrivate($transport, 'sseBuffer'), 'buffer must be cleared on abort');
-        self::assertNull($this->readPrivate($transport, 'activeStream'), 'stream must be released on abort');
+        $this->assertSame('', $this->readPrivate($transport, 'sseBuffer'), 'buffer must be cleared on abort');
+        $this->assertNull($this->readPrivate($transport, 'activeStream'), 'stream must be released on abort');
     }
 
     #[TestDox('aborting the SSE stream fails the in-flight request immediately instead of waiting for its timeout')]
@@ -60,9 +60,9 @@ final class HttpTransportTest extends TestCase
         $this->invokeProcessSseStream($transport);
 
         $response = $state->consumeResponse(1);
-        self::assertInstanceOf(Error::class, $response);
-        self::assertSame(Error::INTERNAL_ERROR, $response->code);
-        self::assertSame(1, $response->id);
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertSame(Error::INTERNAL_ERROR, $response->code);
+        $this->assertSame(1, $response->id);
     }
 
     #[TestDox('well-formed delimited events are parsed and dispatched')]
@@ -78,7 +78,7 @@ final class HttpTransportTest extends TestCase
 
         $this->invokeProcessSseStream($transport);
 
-        self::assertSame(['hello', 'world'], $messages);
+        $this->assertSame(['hello', 'world'], $messages);
     }
 
     #[TestDox('the buffer cap must be a positive number of bytes')]
