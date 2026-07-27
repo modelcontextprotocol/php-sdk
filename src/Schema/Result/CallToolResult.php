@@ -41,13 +41,15 @@ class CallToolResult implements ResultInterface
      *
      * @param Content[]                 $content           The content of the tool result
      * @param bool                      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
-     * @param mixed[]                   $structuredContent JSON content for `structuredContent`
+     * @param mixed                     $structuredContent Structured result of the call. Any JSON value — object, array,
+     *                                                     string, number, boolean or null — conforming to the tool's
+     *                                                     outputSchema when one is declared.
      * @param array<string, mixed>|null $meta              Optional metadata
      */
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
-        public readonly ?array $structuredContent = null,
+        public readonly mixed $structuredContent = null,
         public readonly ?array $meta = null,
     ) {
         foreach ($this->content as $item) {
@@ -84,7 +86,7 @@ class CallToolResult implements ResultInterface
      *     content: array<mixed>,
      *     isError?: bool,
      *     _meta?: array<string, mixed>,
-     *     structuredContent?: array<string, mixed>
+     *     structuredContent?: mixed
      * } $data
      */
     public static function fromArray(array $data): self
@@ -114,6 +116,9 @@ class CallToolResult implements ResultInterface
         if (isset($data['isError']) && !\is_bool($data['isError'])) {
             throw new InvalidArgumentException('Invalid "isError" in CallToolResult data.');
         }
+        // Kept object-only on the wire although the property itself now holds any
+        // JSON value, mirroring the emission gate below: no revision this SDK
+        // negotiates sends a scalar here, so one is still type-confused input.
         if (isset($data['structuredContent']) && !\is_array($data['structuredContent'])) {
             throw new InvalidArgumentException('Invalid "structuredContent" in CallToolResult data.');
         }
@@ -133,7 +138,7 @@ class CallToolResult implements ResultInterface
      * @return array{
      *     content: array<mixed>,
      *     isError: bool,
-     *     structuredContent?: array<mixed>,
+     *     structuredContent?: mixed,
      *     _meta?: array<string, mixed>,
      * }
      */
@@ -144,6 +149,11 @@ class CallToolResult implements ResultInterface
             'isError' => $this->isError,
         ];
 
+        // Deliberately a truthiness check rather than `null !==`. SEP-2106 lets
+        // structuredContent be any JSON value, but only from 2026-07-28 onward:
+        // every version this SDK currently negotiates still requires an object,
+        // and emitting `[]`, `0` or `false` to those clients is a protocol error.
+        // Emission widens once results serialize per negotiated version.
         if ($this->structuredContent) {
             $result['structuredContent'] = $this->structuredContent;
         }

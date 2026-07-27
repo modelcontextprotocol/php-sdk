@@ -25,7 +25,7 @@ use Mcp\Exception\InvalidArgumentException;
  *     required: string[]|null
  * }
  * @phpstan-type ToolOutputSchema array{
- *     type: 'object',
+ *     type?: string,
  *     properties?: array<string, mixed>|\stdClass,
  *     required?: string[]|null,
  *     additionalProperties?: bool|array<string, mixed>|\stdClass,
@@ -103,7 +103,9 @@ class Tool implements \JsonSerializable
      * @param ?ToolAnnotations      $annotations  optional additional tool information
      * @param ?Icon[]               $icons        optional icons representing the tool
      * @param ?array<string, mixed> $meta         Optional metadata
-     * @param ToolOutputSchema|null $outputSchema optional JSON Schema object (as a PHP array) defining the expected output structure
+     * @param ToolOutputSchema|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
+     *                                            structuredContent. Unlike $inputSchema its root is unconstrained —
+     *                                            it may describe an array, a primitive, or a composition.
      */
     public function __construct(
         public readonly string $name,
@@ -140,11 +142,11 @@ class Tool implements \JsonSerializable
             throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
         }
 
+        // Unlike inputSchema — whose root must stay an object, because tool
+        // arguments are always a JSON object — outputSchema may describe any
+        // JSON value, including arrays and primitives.
         $outputSchema = null;
         if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
-            if (!isset($data['outputSchema']['type']) || 'object' !== $data['outputSchema']['type']) {
-                throw new InvalidArgumentException('Tool outputSchema must be of type "object".');
-            }
             $outputSchema = $data['outputSchema'];
         }
 

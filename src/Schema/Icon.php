@@ -12,6 +12,7 @@
 namespace Mcp\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\IconTheme;
 
 /**
  * A url pointing to an icon URL or a base64-encoded data URI.
@@ -20,6 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
  *     src: string,
  *     mimeType?: string,
  *     sizes?: string[],
+ *     theme?: string,
  * }
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -27,16 +29,19 @@ use Mcp\Exception\InvalidArgumentException;
 class Icon implements \JsonSerializable
 {
     /**
-     * @param string    $src      a standard URI pointing to an icon resource
-     * @param ?string   $mimeType optional override if the server's MIME type is missing or generic
-     * @param ?string[] $sizes    optional array of strings that specify sizes at which the icon can be used.
-     *                            Each string should be in WxH format (e.g., `"48x48"`, `"96x96"`) or `"any"` for
-     *                            scalable formats like SVG.
+     * @param string     $src      a standard URI pointing to an icon resource
+     * @param ?string    $mimeType optional override if the server's MIME type is missing or generic
+     * @param ?string[]  $sizes    optional array of strings that specify sizes at which the icon can be used.
+     *                             Each string should be in WxH format (e.g., `"48x48"`, `"96x96"`) or `"any"` for
+     *                             scalable formats like SVG.
+     * @param ?IconTheme $theme    Optional background this icon is designed for. When omitted, the icon is
+     *                             assumed to work against any background.
      */
     public function __construct(
         public readonly string $src,
         public readonly ?string $mimeType = null,
         public readonly ?array $sizes = null,
+        public readonly ?IconTheme $theme = null,
     ) {
         if (empty($src)) {
             throw new InvalidArgumentException('Icon "src" must be a non-empty string.');
@@ -72,7 +77,14 @@ class Icon implements \JsonSerializable
             throw new InvalidArgumentException('Invalid "sizes" in Icon data.');
         }
 
-        return new self($data['src'], $data['mimeType'] ?? null, $data['sizes'] ?? null);
+        $theme = null;
+        if (isset($data['theme'])) {
+            if (!\is_string($data['theme']) || null === $theme = IconTheme::tryFrom($data['theme'])) {
+                throw new InvalidArgumentException('Invalid "theme" in Icon data.');
+            }
+        }
+
+        return new self($data['src'], $data['mimeType'] ?? null, $data['sizes'] ?? null, $theme);
     }
 
     /**
@@ -112,6 +124,10 @@ class Icon implements \JsonSerializable
 
         if (null !== $this->sizes) {
             $data['sizes'] = $this->sizes;
+        }
+
+        if (null !== $this->theme) {
+            $data['theme'] = $this->theme->value;
         }
 
         return $data;

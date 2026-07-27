@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\IconTheme;
 use Mcp\Schema\Icon;
 use PHPUnit\Framework\TestCase;
 
@@ -84,5 +85,20 @@ class IconTest extends TestCase
         $icon = new Icon($dataUri, 'image/png', ['48x48']);
 
         $this->assertSame($dataUri, $icon->src);
+    }
+
+    public function testFromArrayReadsTheme(): void
+    {
+        $icon = Icon::fromArray(['src' => 'https://example.com/icon.png', 'theme' => 'dark']);
+
+        $this->assertSame(IconTheme::Dark, $icon->theme);
+        $this->assertSame('dark', $icon->jsonSerialize()['theme']);
+    }
+
+    public function testFromArrayRejectsUnknownTheme(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        Icon::fromArray(['src' => 'https://example.com/icon.png', 'theme' => 'sepia']);
     }
 }

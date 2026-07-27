@@ -12,6 +12,8 @@
 namespace Mcp\Schema\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ProtocolVersion;
 
 /**
  * A response to a request that indicates an error occurred.
@@ -35,6 +37,24 @@ class Error implements MessageInterface
     public const INTERNAL_ERROR = -32603;
     public const SERVER_ERROR = -32000;
     public const RESOURCE_NOT_FOUND = -32002;
+
+    /**
+     * Values in the HTTP headers contradict the request body, or a required
+     * header is missing or malformed. Answered with `400 Bad Request`.
+     */
+    public const HEADER_MISMATCH = -32020;
+
+    /**
+     * Handling the request needs a client capability the client never declared.
+     * Answered with `400 Bad Request`.
+     */
+    public const MISSING_REQUIRED_CLIENT_CAPABILITY = -32021;
+
+    /**
+     * The request's protocol version is unknown to this server, or is a version
+     * it has chosen not to implement. Answered with `400 Bad Request`.
+     */
+    public const UNSUPPORTED_PROTOCOL_VERSION = -32022;
 
     /**
      * @param int        $code    the error type that occurred
@@ -109,6 +129,42 @@ class Error implements MessageInterface
     final public static function forResourceNotFound(string $message, string|int $id = ''): self
     {
         return new self($id, self::RESOURCE_NOT_FOUND, $message);
+    }
+
+    final public static function forHeaderMismatch(string $message, string|int $id = ''): self
+    {
+        return new self($id, self::HEADER_MISMATCH, $message);
+    }
+
+    /**
+     * @param ClientCapabilities $requiredCapabilities the capabilities the server needs to process the request
+     */
+    final public static function forMissingRequiredClientCapability(
+        string $message,
+        ClientCapabilities $requiredCapabilities,
+        string|int $id = '',
+    ): self {
+        return new self($id, self::MISSING_REQUIRED_CLIENT_CAPABILITY, $message, [
+            'requiredCapabilities' => $requiredCapabilities,
+        ]);
+    }
+
+    /**
+     * The client is expected to pick a mutually supported version out of
+     * $supported and retry, so the list travels with the error rather than
+     * only in the message.
+     *
+     * @param list<ProtocolVersion> $supported versions this server does support
+     */
+    final public static function forUnsupportedProtocolVersion(
+        string $requested,
+        array $supported,
+        string|int $id = '',
+    ): self {
+        return new self($id, self::UNSUPPORTED_PROTOCOL_VERSION, 'Unsupported protocol version', [
+            'requested' => $requested,
+            'supported' => array_values(array_map(static fn (ProtocolVersion $v): string => $v->value, $supported)),
+        ]);
     }
 
     public function getId(): string|int
