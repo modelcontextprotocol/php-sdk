@@ -12,12 +12,16 @@
 namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Annotations;
 
 /**
+ * @phpstan-import-type AnnotationsData from Annotations
+ *
  * @phpstan-type ImageContentData array{
  *     type: 'image',
  *     data: string,
- *     mimeType: string
+ *     mimeType: string,
+ *     annotations?: AnnotationsData,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -27,12 +31,14 @@ class ImageContent extends Content
     /**
      * Create a new ImageContent instance.
      *
-     * @param string $data     Base64-encoded image data
-     * @param string $mimeType The MIME type of the image
+     * @param string       $data        Base64-encoded image data
+     * @param string       $mimeType    The MIME type of the image
+     * @param ?Annotations $annotations Optional annotations describing the content
      */
     public function __construct(
         public readonly string $data,
         public readonly string $mimeType,
+        public readonly ?Annotations $annotations = null,
     ) {
         parent::__construct('image');
     }
@@ -49,18 +55,23 @@ class ImageContent extends Content
             throw new InvalidArgumentException('Missing or invalid "mimeType" in ImageContent data.');
         }
 
-        return new self($data['data'], $data['mimeType']);
+        return new self(
+            $data['data'],
+            $data['mimeType'],
+            isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null
+        );
     }
 
     /**
      * Create a new ImageContent from a file path.
      *
-     * @param string      $path     Path to the image file
-     * @param string|null $mimeType Optional MIME type override
+     * @param string       $path        Path to the image file
+     * @param string|null  $mimeType    Optional MIME type override
+     * @param ?Annotations $annotations Optional annotations describing the content
      *
      * @throws InvalidArgumentException If the file doesn't exist
      */
-    public static function fromFile(string $path, ?string $mimeType = null): self
+    public static function fromFile(string $path, ?string $mimeType = null, ?Annotations $annotations = null): self
     {
         if (!file_exists($path)) {
             throw new InvalidArgumentException(\sprintf('Image file not found: "%s".', $path));
@@ -69,25 +80,36 @@ class ImageContent extends Content
         $data = base64_encode(file_get_contents($path));
         $detectedMime = $mimeType ?? mime_content_type($path) ?: 'image/png';
 
-        return new self($data, $detectedMime);
+        return new self($data, $detectedMime, $annotations);
     }
 
-    public static function fromString(string $data, string $mimeType): self
+    public static function fromString(string $data, string $mimeType, ?Annotations $annotations = null): self
     {
-        return new self(base64_encode($data), $mimeType);
+        return new self(base64_encode($data), $mimeType, $annotations);
     }
 
     /**
      * Convert the content to an array.
      *
-     * @return ImageContentData
+     * @return array{
+     *     type: 'image',
+     *     data: string,
+     *     mimeType: string,
+     *     annotations?: Annotations,
+     * }
      */
     public function jsonSerialize(): array
     {
-        return [
+        $result = [
             'type' => $this->type,
             'data' => $this->data,
             'mimeType' => $this->mimeType,
         ];
+
+        if (null !== $this->annotations) {
+            $result['annotations'] = $this->annotations;
+        }
+
+        return $result;
     }
 }
