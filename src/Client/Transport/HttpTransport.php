@@ -14,6 +14,7 @@ namespace Mcp\Client\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Http\Client\ClientInterface;
@@ -52,11 +53,24 @@ class HttpTransport extends BaseTransport
     private string $sseBuffer = '';
 
     /**
-     * @param string                       $endpoint       The MCP server endpoint URL
-     * @param array<string, string>        $headers        Additional headers to send
-     * @param ClientInterface|null         $httpClient     PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null  $streamFactory  PSR-17 stream factory (auto-discovered if null)
+     * Default cap on the bytes buffered while waiting for a complete SSE event.
+     */
+    public const DEFAULT_MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
+
+    private readonly int $maxSseBufferBytes;
+
+    /**
+     * @param string                       $endpoint          The MCP server endpoint URL
+     * @param array<string, string>        $headers           Additional headers to send
+     * @param ClientInterface|null         $httpClient        PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null $requestFactory    PSR-17 request factory (auto-discovered if null)
+     * @param StreamFactoryInterface|null  $streamFactory     PSR-17 stream factory (auto-discovered if null)
+     * @param int                          $maxSseBufferBytes Maximum bytes buffered while waiting for a complete
+     *                                                        SSE event. A server that never sends the "\n\n" event
+     *                                                        delimiter would otherwise grow the buffer without bound
+     *                                                        and exhaust client memory; reaching the cap aborts the
+     *                                                        stream instead. Raise it for servers that legitimately
+     *                                                        emit single events larger than the default.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -65,9 +79,15 @@ class HttpTransport extends BaseTransport
         ?RequestFactoryInterface $requestFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         ?LoggerInterface $logger = null,
+        int $maxSseBufferBytes = self::DEFAULT_MAX_SSE_BUFFER_BYTES,
     ) {
         parent::__construct($logger);
 
+        if ($maxSseBufferBytes < 1) {
+            throw new InvalidArgumentException(\sprintf('The maximum SSE buffer size must be a positive number of bytes, got %d.', $maxSseBufferBytes));
+        }
+
+        $this->maxSseBufferBytes = $maxSseBufferBytes;
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -200,6 +220,12 @@ class HttpTransport extends BaseTransport
         if (!$this->activeStream->eof()) {
             $chunk = $this->activeStream->read(4096);
             if ('' !== $chunk) {
+                if (\strlen($this->sseBuffer) + \strlen($chunk) > $this->maxSseBufferBytes) {
+                    $this->abortSseStream(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', \strlen($this->sseBuffer) + \strlen($chunk), $this->maxSseBufferBytes));
+
+                    return;
+                }
+
                 $this->sseBuffer .= $chunk;
             }
         }
@@ -215,6 +241,35 @@ class HttpTransport extends BaseTransport
 
         if ($this->activeStream->eof() && empty($this->sseBuffer)) {
             $this->activeStream = null;
+        }
+    }
+
+    /**
+     * Tear down the active SSE stream and fail any in-flight request.
+     *
+     * The waiting fiber is resolved with an error immediately so the caller
+     * fails fast, rather than spinning until the request timeout elapses.
+     */
+    private function abortSseStream(string $reason): void
+    {
+        $bufferedBytes = \strlen($this->sseBuffer);
+        $this->sseBuffer = '';
+        $this->activeStream = null;
+
+        $this->logger->warning('Aborting SSE stream: '.$reason, [
+            'session_id' => $this->sessionId,
+            'buffered_bytes' => $bufferedBytes,
+            'max_sse_buffer_bytes' => $this->maxSseBufferBytes,
+        ]);
+
+        if (null === $this->state) {
+            return;
+        }
+
+        foreach ($this->state->getPendingRequests() as $pending) {
+            $requestId = $pending['request_id'];
+            $error = Error::forInternalError('SSE stream aborted: '.$reason, $requestId);
+            $this->state->storeResponse($requestId, $error->jsonSerialize());
         }
     }
 
