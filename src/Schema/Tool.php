@@ -21,12 +21,12 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @phpstan-type ToolInputSchema array{
  *     type: 'object',
- *     properties: array<string, mixed>,
+ *     properties: array<string, mixed>|\stdClass,
  *     required: string[]|null
  * }
  * @phpstan-type ToolOutputSchema array{
  *     type: 'object',
- *     properties?: array<string, mixed>,
+ *     properties?: array<string, mixed>|\stdClass,
  *     required?: string[]|null,
  *     additionalProperties?: bool|array<string, mixed>,
  *     description?: string
@@ -47,6 +47,16 @@ use Mcp\Exception\InvalidArgumentException;
 class Tool implements \JsonSerializable
 {
     /**
+     * @var ToolInputSchema
+     */
+    public readonly array $inputSchema;
+
+    /**
+     * @var ToolOutputSchema|null
+     */
+    public readonly ?array $outputSchema;
+
+    /**
      * @param string                $name         the name of the tool
      * @param ?string               $title        Optional human-readable title for display in UI
      * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
@@ -61,16 +71,21 @@ class Tool implements \JsonSerializable
     public function __construct(
         public readonly string $name,
         public readonly ?string $title,
-        public readonly array $inputSchema,
+        array $inputSchema,
         public readonly ?string $description,
         public readonly ?ToolAnnotations $annotations,
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
-        public readonly ?array $outputSchema = null,
+        ?array $outputSchema = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
         }
+
+        // Always normalize here so every construction path emits `{}` for empty
+        // object `properties` — not only SchemaGenerator / fromArray.
+        $this->inputSchema = self::normalizeSchemaProperties($inputSchema);
+        $this->outputSchema = null !== $outputSchema ? self::normalizeSchemaProperties($outputSchema) : null;
     }
 
     /**
@@ -87,20 +102,19 @@ class Tool implements \JsonSerializable
         if (!isset($data['inputSchema']['type']) || 'object' !== $data['inputSchema']['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
         }
-        $inputSchema = self::normalizeSchemaProperties($data['inputSchema']);
 
         $outputSchema = null;
         if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
             if (!isset($data['outputSchema']['type']) || 'object' !== $data['outputSchema']['type']) {
                 throw new InvalidArgumentException('Tool outputSchema must be of type "object".');
             }
-            $outputSchema = self::normalizeSchemaProperties($data['outputSchema']);
+            $outputSchema = $data['outputSchema'];
         }
 
         return new self(
             name: $data['name'],
             title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
-            inputSchema: $inputSchema,
+            inputSchema: $data['inputSchema'],
             description: isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             annotations: isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
             icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
@@ -148,7 +162,11 @@ class Tool implements \JsonSerializable
     }
 
     /**
-     * Normalize schema properties: convert an empty properties array to stdClass.
+     * Normalize schema properties: convert empty `properties` arrays to `\stdClass`
+     * so they JSON-encode as `{}` (a JSON Schema object) rather than `[]`.
+     *
+     * Walks nested property schemas recursively so nested object parameters and
+     * `outputSchema` are covered, not only the top-level `properties` map.
      *
      * @param array<string, mixed> $schema
      *
@@ -156,8 +174,45 @@ class Tool implements \JsonSerializable
      */
     private static function normalizeSchemaProperties(array $schema): array
     {
-        if (isset($schema['properties']) && \is_array($schema['properties']) && empty($schema['properties'])) {
-            $schema['properties'] = new \stdClass();
+        if (isset($schema['properties']) && \is_array($schema['properties'])) {
+            if ([] === $schema['properties']) {
+                $schema['properties'] = new \stdClass();
+            } else {
+                foreach ($schema['properties'] as $name => $propertySchema) {
+                    if (\is_array($propertySchema)) {
+                        $schema['properties'][$name] = self::normalizeSchemaProperties($propertySchema);
+                    }
+                }
+            }
+        }
+
+        if (isset($schema['items']) && \is_array($schema['items'])) {
+            // Tuple-style `items` (list of schemas) or a single item schema object.
+            if (array_is_list($schema['items'])) {
+                foreach ($schema['items'] as $index => $itemSchema) {
+                    if (\is_array($itemSchema)) {
+                        $schema['items'][$index] = self::normalizeSchemaProperties($itemSchema);
+                    }
+                }
+            } else {
+                $schema['items'] = self::normalizeSchemaProperties($schema['items']);
+            }
+        }
+
+        if (isset($schema['additionalProperties']) && \is_array($schema['additionalProperties'])) {
+            $schema['additionalProperties'] = self::normalizeSchemaProperties($schema['additionalProperties']);
+        }
+
+        foreach (['anyOf', 'oneOf', 'allOf', 'prefixItems'] as $combiner) {
+            if (!isset($schema[$combiner]) || !\is_array($schema[$combiner])) {
+                continue;
+            }
+
+            foreach ($schema[$combiner] as $index => $subSchema) {
+                if (\is_array($subSchema)) {
+                    $schema[$combiner][$index] = self::normalizeSchemaProperties($subSchema);
+                }
+            }
         }
 
         return $schema;

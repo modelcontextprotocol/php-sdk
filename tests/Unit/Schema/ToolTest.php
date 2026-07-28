@@ -97,4 +97,84 @@ class ToolTest extends TestCase
         $this->assertSame($original->name, $restored->name);
         $this->assertSame($original->description, $restored->description);
     }
+
+    public function testConstructorNormalizesEmptyInputSchemaPropertiesToObject(): void
+    {
+        $tool = new Tool(
+            name: 'no_params',
+            title: null,
+            inputSchema: ['type' => 'object', 'properties' => [], 'required' => null],
+            description: null,
+            annotations: null,
+        );
+
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertSame('{"name":"no_params","inputSchema":{"type":"object","properties":{},"required":null}}', json_encode($tool));
+    }
+
+    public function testConstructorNormalizesEmptyPropertiesAfterJsonDecodeRoundTrip(): void
+    {
+        /** @var array{type: 'object', properties: array<string, mixed>, required: null} $schema */
+        $schema = json_decode('{"type":"object","properties":{},"required":null}', true);
+        $this->assertSame([], $schema['properties']);
+
+        $tool = new Tool('t', null, $schema, null, null);
+
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertStringContainsString('"properties":{}', (string) json_encode($tool));
+    }
+
+    public function testFromArrayNormalizesNestedEmptyPropertiesRecursively(): void
+    {
+        $tool = Tool::fromArray([
+            'name' => 't',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [
+                    'filter' => ['type' => 'object', 'properties' => []],
+                ],
+                'required' => null,
+            ],
+        ]);
+
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['filter']['properties']);
+        $this->assertStringContainsString('"properties":{}', (string) json_encode($tool->inputSchema['properties']['filter']));
+    }
+
+    public function testConstructorNormalizesEmptyOutputSchemaProperties(): void
+    {
+        $tool = new Tool(
+            name: 't',
+            title: null,
+            inputSchema: ['type' => 'object', 'properties' => ['q' => ['type' => 'string']], 'required' => null],
+            description: null,
+            annotations: null,
+            outputSchema: ['type' => 'object', 'properties' => []],
+        );
+
+        $this->assertInstanceOf(\stdClass::class, $tool->outputSchema['properties']);
+        $this->assertStringContainsString('"outputSchema":{"type":"object","properties":{}}', (string) json_encode($tool));
+    }
+
+    public function testConstructorNormalizesEmptyPropertiesInsideArrayItems(): void
+    {
+        $tool = new Tool(
+            name: 't',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => [
+                    'rows' => [
+                        'type' => 'array',
+                        'items' => ['type' => 'object', 'properties' => []],
+                    ],
+                ],
+                'required' => null,
+            ],
+            description: null,
+            annotations: null,
+        );
+
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['rows']['items']['properties']);
+    }
 }
