@@ -40,10 +40,10 @@ Each capability can be registered using two methods:
 - **Resource Templates**: Same `uriTemplate`  
 - **Prompts**: Same `name`
 
-For manual registration details, see [Server Builder Manual Registration](server-builder.md#manual-capability-registration).
+For manual registration details, see [Server Builder Manual Registration](https://php.sdk.modelcontextprotocol.io/server-builder.html#manual-capability-registration).
 
 For runtime, config-driven elements whose shape is not known at compile time, see
-[Explicit element registration](server-builder.md#explicit-element-registration) in the Server Builder docs.
+[Explicit element registration](https://php.sdk.modelcontextprotocol.io/server-builder.html#explicit-element-registration) in the Server Builder docs.
 
 ## Tools
 
@@ -787,7 +787,7 @@ $server = Server::builder()
     ->build();
 ```
 
-For detailed information on manual registration, see [Server Builder](server-builder.md#manual-capability-registration).
+For detailed information on manual registration, see [Server Builder](https://php.sdk.modelcontextprotocol.io/server-builder.html#manual-capability-registration).
 
 ### Hybrid Approach
 
