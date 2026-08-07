@@ -36,6 +36,8 @@ use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
+use Mcp\Schema\Tool;
+use Mcp\Schema\ToolChoice;
 use Mcp\Server\Session\SessionInterface;
 
 /**
@@ -67,6 +69,8 @@ use Mcp\Server\Session\SessionInterface;
  *     includeContext?: SamplingContext,
  *     stopSequences?: string[],
  *     metadata?: array<string, mixed>,
+ *     tools?: Tool[],
+ *     toolChoice?: ToolChoice,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -152,6 +156,8 @@ class ClientGateway
             temperature: $options['temperature'] ?? null,
             stopSequences: $options['stopSequences'] ?? null,
             metadata: $options['metadata'] ?? null,
+            tools: $options['tools'] ?? null,
+            toolChoice: $options['toolChoice'] ?? null,
         );
 
         $response = $this->request($request, $timeout);

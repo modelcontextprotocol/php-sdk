@@ -16,6 +16,8 @@ use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Enum\SamplingContext;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\ModelPreferences;
+use Mcp\Schema\Tool;
+use Mcp\Schema\ToolChoice;
 
 /**
  * A request from the server to sample an LLM via the client. The client has full discretion over which model to select.
@@ -41,6 +43,8 @@ final class CreateSamplingMessageRequest extends Request
      * @param ?string[]             $stopSequences  A list of sequences to stop sampling at. The client MAY ignore this request.
      * @param ?array<string, mixed> $metadata       Optional metadata to pass through to the LLM provider. The format of
      *                                              this metadata is provider-specific.
+     * @param ?Tool[]               $tools          tools that the model may use during generation
+     * @param ?ToolChoice           $toolChoice     controls how the model uses tools
      */
     public function __construct(
         public readonly array $messages,
@@ -51,10 +55,17 @@ final class CreateSamplingMessageRequest extends Request
         public readonly ?float $temperature = null,
         public readonly ?array $stopSequences = null,
         public readonly ?array $metadata = null,
+        public readonly ?array $tools = null,
+        public readonly ?ToolChoice $toolChoice = null,
     ) {
         foreach ($this->messages as $message) {
             if (!$message instanceof SamplingMessage) {
                 throw new InvalidArgumentException('Messages must be instance of SamplingMessage.');
+            }
+        }
+        foreach ($this->tools ?? [] as $tool) {
+            if (!$tool instanceof Tool) {
+                throw new InvalidArgumentException('Tools must be instances of Tool.');
             }
         }
     }
@@ -122,6 +133,34 @@ final class CreateSamplingMessageRequest extends Request
             throw new InvalidArgumentException('Invalid "metadata" parameter for sampling/createMessage.');
         }
 
+        $tools = null;
+        if (isset($params['tools'])) {
+            if (!\is_array($params['tools'])) {
+                throw new InvalidArgumentException('Invalid "tools" parameter for sampling/createMessage.');
+            }
+            $tools = [];
+            foreach ($params['tools'] as $toolData) {
+                if ($toolData instanceof Tool) {
+                    $tools[] = $toolData;
+                } elseif (\is_array($toolData)) {
+                    $tools[] = Tool::fromArray($toolData);
+                } else {
+                    throw new InvalidArgumentException('Invalid tool format in sampling/createMessage.');
+                }
+            }
+        }
+
+        $toolChoice = null;
+        if (isset($params['toolChoice'])) {
+            if ($params['toolChoice'] instanceof ToolChoice) {
+                $toolChoice = $params['toolChoice'];
+            } elseif (\is_array($params['toolChoice'])) {
+                $toolChoice = ToolChoice::fromArray($params['toolChoice']);
+            } else {
+                throw new InvalidArgumentException('Invalid "toolChoice" parameter for sampling/createMessage.');
+            }
+        }
+
         return new self(
             $messages,
             $params['maxTokens'],
@@ -131,6 +170,8 @@ final class CreateSamplingMessageRequest extends Request
             isset($params['temperature']) ? (float) $params['temperature'] : null,
             $params['stopSequences'] ?? null,
             $params['metadata'] ?? null,
+            $tools,
+            $toolChoice,
         );
     }
 
@@ -143,7 +184,9 @@ final class CreateSamplingMessageRequest extends Request
      *     includeContext?: string,
      *     temperature?: float,
      *     stopSequences?: string[],
-     *     metadata?: array<string, mixed>
+     *     metadata?: array<string, mixed>,
+     *     tools?: Tool[],
+     *     toolChoice?: ToolChoice,
      * }
      */
     protected function getParams(): array
@@ -175,6 +218,14 @@ final class CreateSamplingMessageRequest extends Request
 
         if (null !== $this->metadata) {
             $params['metadata'] = $this->metadata;
+        }
+
+        if (null !== $this->tools) {
+            $params['tools'] = $this->tools;
+        }
+
+        if (null !== $this->toolChoice) {
+            $params['toolChoice'] = $this->toolChoice;
         }
 
         return $params;

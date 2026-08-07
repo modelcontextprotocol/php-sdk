@@ -30,6 +30,8 @@ class ClientCapabilities implements \JsonSerializable
         public readonly ?bool $elicitation = null,
         public readonly ?array $experimental = null,
         public readonly ?array $extensions = null,
+        public readonly ?bool $samplingContext = null,
+        public readonly ?bool $samplingTools = null,
     ) {
     }
 
@@ -38,7 +40,7 @@ class ClientCapabilities implements \JsonSerializable
      *     roots?: array{
      *         listChanged?: bool,
      *     },
-     *     sampling?: bool,
+     *     sampling?: array{context?: mixed, tools?: mixed}|object,
      *     elicitation?: bool,
      *     experimental?: array<string, mixed>,
      *     extensions?: array<string, mixed>,
@@ -57,8 +59,17 @@ class ClientCapabilities implements \JsonSerializable
         }
 
         $sampling = null;
+        $samplingContext = null;
+        $samplingTools = null;
         if (isset($data['sampling'])) {
             $sampling = true;
+            if (\is_array($data['sampling'])) {
+                $samplingContext = isset($data['sampling']['context']);
+                $samplingTools = isset($data['sampling']['tools']);
+            } elseif (\is_object($data['sampling'])) {
+                $samplingContext = property_exists($data['sampling'], 'context');
+                $samplingTools = property_exists($data['sampling'], 'tools');
+            }
         }
 
         $elicitation = null;
@@ -73,6 +84,8 @@ class ClientCapabilities implements \JsonSerializable
             $elicitation,
             \is_array($data['experimental'] ?? null) ? $data['experimental'] : null,
             \is_array($data['extensions'] ?? null) ? $data['extensions'] : null,
+            $samplingContext,
+            $samplingTools,
         );
     }
 
@@ -95,8 +108,14 @@ class ClientCapabilities implements \JsonSerializable
             }
         }
 
-        if ($this->sampling) {
+        if ($this->sampling || $this->samplingContext || $this->samplingTools) {
             $data['sampling'] = new \stdClass();
+            if ($this->samplingContext) {
+                $data['sampling']->context = new \stdClass();
+            }
+            if ($this->samplingTools) {
+                $data['sampling']->tools = new \stdClass();
+            }
         }
 
         if ($this->elicitation) {
