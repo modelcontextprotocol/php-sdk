@@ -16,6 +16,7 @@ use Mcp\Client\Builder;
 use Mcp\Client\Transport\BaseTransport;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -101,6 +102,17 @@ final class ClientTest extends TestCase
         } finally {
             $this->assertSame(1, $transport->connectCalls);
         }
+    }
+
+    #[TestDox('a negative retry count is rejected')]
+    public function testNegativeRetryCountIsRejected(): void
+    {
+        $builder = Client::builder()->setMaxRetries(-1);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The maximum number of retries must be zero or greater, got -1.');
+
+        $builder->build();
     }
 
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]

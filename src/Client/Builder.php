@@ -101,6 +101,8 @@ final class Builder
      * Counts retries, not attempts: 3 means one initial attempt plus up to three
      * retries. Pass 0 to fail on the first failure. Only applies to
      * {@see Client::connect()}; individual requests are never retried.
+     *
+     * Negative values are rejected by {@see Configuration} when building.
      */
     public function setMaxRetries(int $retries): self
     {

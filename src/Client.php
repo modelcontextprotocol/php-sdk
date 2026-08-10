@@ -97,8 +97,7 @@ class Client
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        // A negative retry count would otherwise skip the connection entirely.
-        $maxAttempts = max(1, $this->config->maxRetries + 1);
+        $maxAttempts = $this->config->maxRetries + 1;
 
         for ($attempt = 1; $attempt <= $maxAttempts; ++$attempt) {
             try {
