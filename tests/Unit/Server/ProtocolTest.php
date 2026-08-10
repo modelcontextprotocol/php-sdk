@@ -670,7 +670,8 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INTERNAL_ERROR, $message['error']['code']);
-        $this->assertStringContainsString('Unexpected error', $message['error']['message']);
+        $this->assertSame('Internal server error.', $message['error']['message']);
+        $this->assertStringNotContainsString('Unexpected error', $message['error']['message']);
     }
 
     #[TestDox('Notification handler exceptions are caught and logged')]

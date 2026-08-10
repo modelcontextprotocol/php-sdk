@@ -313,7 +313,7 @@ class Protocol
             } catch (\Throwable $e) {
                 $this->logger->error(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
 
-                $error = Error::forInternalError($e->getMessage(), $request->getId());
+                $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $request->getId());
                 $errorEvent = $this->dispatchEvent(new ErrorEvent($error, $request, $session, $e));
                 $error = $errorEvent->getError();
 
