@@ -169,7 +169,7 @@ class Tool implements \JsonSerializable
         }
 
         foreach ($schema as $key => $value) {
-            if ($key !== 'properties' && \is_array($value)) {
+            if ('properties' !== $key && \is_array($value)) {
                 $schema[$key] = self::normalizeSchemaProperties($value);
             }
         }
