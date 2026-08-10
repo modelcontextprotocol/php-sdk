@@ -118,12 +118,13 @@ final class ClientTest extends TestCase
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]
     public function testTimedOutAttemptDoesNotPoisonTheRetry(): void
     {
-        // An init timeout of 0 makes the first attempt time out instead of
-        // being answered, which is the path that used to leave the request
-        // pending forever and time out every following attempt right away.
+        // The first attempt is left unanswered so it runs into its init
+        // timeout, which is the path that used to leave the request pending
+        // forever and time out every following attempt right away. The timeout
+        // is the shortest one allowed, so this waits out about a second.
         $transport = new FakeTransport([FakeTransport::IGNORE, FakeTransport::ACCEPT]);
 
-        $client = Client::builder()->setInitTimeout(0)->setMaxRetries(1)->build();
+        $client = Client::builder()->setInitTimeout(1)->setMaxRetries(1)->build();
         $client->connect($transport);
 
         $this->assertSame(2, $transport->connectCalls);
@@ -206,8 +207,11 @@ final class FakeTransport extends BaseTransport
     {
         $fiber->start();
 
+        // Polls at the same 1ms interval as the real transports so that a
+        // request left unanswered runs into its timeout in real time, capped
+        // well above the longest timeout any test here configures.
         for ($poll = 0; !$fiber->isTerminated(); ++$poll) {
-            if ($poll > 1000) {
+            if ($poll > 5000) {
                 throw new \LogicException('The fiber never terminated, no pending request became resolvable.');
             }
 
@@ -217,6 +221,8 @@ final class FakeTransport extends BaseTransport
             $this->outbox = [];
 
             $this->resumeFiber($fiber);
+
+            usleep(1000);
         }
 
         return $fiber->getReturn();
