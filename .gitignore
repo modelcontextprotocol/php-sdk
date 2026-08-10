@@ -15,3 +15,7 @@ tests/Conformance/logs/*.log
 # phpDocumentor
 .phpdoc/build/
 .phpdoc/cache/
+
+# Documentation site (make docs)
+/site/
+/.cache/

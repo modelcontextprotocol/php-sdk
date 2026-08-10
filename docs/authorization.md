@@ -30,7 +30,7 @@ and it does not issue tokens.**
 To issue tokens, front the MCP server with an external IdP (Keycloak, Auth0, Microsoft Entra
 ID, Okta) or run `league/oauth2-server` in your own application, and let the MCP server
 validate those tokens as a Resource Server. See
-[adr/0001-oauth-authorization-server-out-of-scope.md](../adr/0001-oauth-authorization-server-out-of-scope.md).
+[adr/0001-oauth-authorization-server-out-of-scope.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/adr/0001-oauth-authorization-server-out-of-scope.md).
 
 ## Overview
 
@@ -403,7 +403,7 @@ docker-compose up -d
 # Test credentials: demo / demo123
 ```
 
-See [oauth-keycloak/README.md](../examples/server/oauth-keycloak/README.md)
+See [oauth-keycloak/README.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/oauth-keycloak/README.md)
 
 ### Microsoft Entra ID Example
 
@@ -414,7 +414,7 @@ cp env.example .env
 docker-compose up -d
 ```
 
-See [oauth-microsoft/README.md](../examples/server/oauth-microsoft/README.md)
+See [oauth-microsoft/README.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/oauth-microsoft/README.md)
 
 ## Security Considerations
 

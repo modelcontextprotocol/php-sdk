@@ -244,5 +244,7 @@ jobs:
       - name: PHPStan
         run: vendor/bin/phpstan analyse
 
+      # Only the phpDocumentor half: this job is PHP-only, and the Zensical
+      # guides are built (strictly) by the Documentation workflow.
       - name: Documentation
-        run: make docs
+        run: make docs-api

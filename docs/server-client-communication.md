@@ -11,7 +11,7 @@ MCP supports various ways a server can communicate back to a client on top of th
 
 ## Table of Contents
 
-- [ClientGateway](#client-gateway)
+- [ClientGateway](#clientgateway)
 - [Sampling](#sampling)
 - [Logging](#logging)
 - [Notification](#notification)

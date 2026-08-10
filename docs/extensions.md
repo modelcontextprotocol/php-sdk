@@ -152,6 +152,6 @@ handshake:
 See the [`ext-apps` repository][ext-apps] for the full protocol, official
 TypeScript SDK (`@modelcontextprotocol/ext-apps`), and view-side examples. A
 working minimal view is included in
-[`examples/server/mcp-apps/weather-app.html`](../examples/server/mcp-apps/weather-app.html).
+[`examples/server/mcp-apps/weather-app.html`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/mcp-apps/weather-app.html).
 
 [ext-apps]: https://github.com/modelcontextprotocol/ext-apps
