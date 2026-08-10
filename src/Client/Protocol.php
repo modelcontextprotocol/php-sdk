@@ -179,22 +179,30 @@ class Protocol
         }
 
         $this->state->addPendingRequest($requestId, $timeout);
-        $this->sendRequest($request);
 
-        $immediate = $this->state->consumeResponse($requestId);
-        if (null !== $immediate) {
-            $this->logger->debug('Received immediate response', ['id' => $requestId]);
+        try {
+            $this->sendRequest($request);
 
-            return $immediate;
+            $immediate = $this->state->consumeResponse($requestId);
+            if (null !== $immediate) {
+                $this->logger->debug('Received immediate response', ['id' => $requestId]);
+
+                return $immediate;
+            }
+
+            $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
+
+            return \Fiber::suspend([
+                'type' => 'await_response',
+                'request_id' => $requestId,
+                'timeout' => $timeout,
+            ]);
+        } finally {
+            // Only the response path clears the pending request; a request that
+            // timed out or whose send() threw would otherwise stay pending
+            // forever and immediately fail every later request as timed out.
+            $this->state->removePendingRequest($requestId);
         }
-
-        $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
-
-        return \Fiber::suspend([
-            'type' => 'await_response',
-            'request_id' => $requestId,
-            'timeout' => $timeout,
-        ]);
     }
 
     /**

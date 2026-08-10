@@ -58,6 +58,13 @@ use Psr\Log\NullLogger;
  */
 class Client
 {
+    /**
+     * Base delay between two connection attempts, in milliseconds.
+     *
+     * Scaled by the attempt number, so consecutive retries back off linearly.
+     */
+    private const RETRY_BASE_DELAY_MS = 100;
+
     private ?TransportInterface $transport = null;
 
     public function __construct(
@@ -78,16 +85,46 @@ class Client
     /**
      * Connect to an MCP server using the provided transport.
      *
-     * @throws ConnectionException If connection or initialization fails
+     * A failed attempt is retried up to the configured number of retries, see
+     * {@see Builder::setMaxRetries()}. The transport is closed between attempts,
+     * so every retry starts from a clean connection, and a short delay is waited
+     * out before each one.
+     *
+     * @throws ConnectionException If connection or initialization fails on every attempt
      */
     public function connect(TransportInterface $transport): void
     {
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        $transport->connect();
+        // A negative retry count would otherwise skip the connection entirely.
+        $maxAttempts = max(1, $this->config->maxRetries + 1);
 
-        $this->logger->info('Client connected and initialized');
+        for ($attempt = 1; $attempt <= $maxAttempts; ++$attempt) {
+            try {
+                $transport->connect();
+
+                $this->logger->info('Client connected and initialized', ['attempt' => $attempt]);
+
+                return;
+            } catch (ConnectionException $e) {
+                // Release whatever the failed attempt left behind - a spawned
+                // process, an HTTP session - so the next one starts clean.
+                $transport->close();
+
+                if ($attempt === $maxAttempts) {
+                    throw $e;
+                }
+
+                $this->logger->warning('Connection attempt failed, retrying', [
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'exception' => $e,
+                ]);
+
+                usleep($attempt * self::RETRY_BASE_DELAY_MS * 1000);
+            }
+        }
     }
 
     /**

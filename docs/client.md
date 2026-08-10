@@ -57,9 +57,31 @@ $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')
     ->setInitTimeout(30)      // Seconds to wait for initialization
     ->setRequestTimeout(120)  // Seconds to wait for request responses
-    ->setMaxRetries(3)        // Retry attempts for failed connections
+    ->setMaxRetries(3)        // Retries for failed connections
     ->build();
 ```
+
+### Connection Retries
+
+`setMaxRetries()` controls how often `connect()` retries a failed connection. It
+counts retries rather than attempts, so the default of `3` means one initial
+attempt plus up to three retries — four in total — before the `ConnectionException`
+of the last attempt is rethrown:
+
+```php
+$client = Client::builder()
+    ->setMaxRetries(0)  // Fail on the first failed attempt
+    ->build();
+```
+
+Between two attempts the transport is closed, so a retry never reuses a
+half-established connection: a `StdioTransport` spawns a fresh server process and
+an `HttpTransport` discards the session ID of the failed attempt. Each retry is
+preceded by a short, linearly growing delay (100ms, 200ms, 300ms, …).
+
+Only the connection handshake is retried. Individual requests such as
+`callTool()` are always sent once — retrying them is unsafe as tool calls are not
+necessarily idempotent.
 
 ### Client Information
 
