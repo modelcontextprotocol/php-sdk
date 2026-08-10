@@ -54,6 +54,13 @@ class TextResourceContents extends ResourceContents
             throw new InvalidArgumentException('Missing or invalid "text" for TextResourceContents.');
         }
 
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" for TextResourceContents.');
+        }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" for TextResourceContents.');
+        }
+
         return new self($data['uri'], $data['mimeType'] ?? null, $data['text'], $data['_meta'] ?? null);
     }
 

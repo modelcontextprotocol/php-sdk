@@ -57,7 +57,14 @@ class Implementation implements \JsonSerializable
                 throw new InvalidArgumentException('Invalid "icons" in Implementation data; expected an array.');
             }
 
-            $data['icons'] = array_map(Icon::fromArray(...), $data['icons']);
+            $data['icons'] = Icon::listFromArray($data['icons'], 'Implementation');
+        }
+
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in Implementation data.');
+        }
+        if (isset($data['websiteUrl']) && !\is_string($data['websiteUrl'])) {
+            throw new InvalidArgumentException('Invalid "websiteUrl" in Implementation data.');
         }
 
         return new self(

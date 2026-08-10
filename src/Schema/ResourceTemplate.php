@@ -81,8 +81,14 @@ class ResourceTemplate implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "name" in ResourceTemplate data.');
         }
 
-        if (!empty($data['_meta']) && !\is_array($data['_meta'])) {
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in ResourceTemplate data.');
+        }
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in ResourceTemplate data.');
+        }
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in ResourceTemplate data.');
         }
 
         return new self(
@@ -91,7 +97,7 @@ class ResourceTemplate implements \JsonSerializable
             title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
-            annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
+            annotations: Annotations::tryFromArray($data['annotations'] ?? null, 'ResourceTemplate'),
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }

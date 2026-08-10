@@ -65,8 +65,36 @@ class Icon implements \JsonSerializable
         if (empty($data['src']) || !\is_string($data['src'])) {
             throw new InvalidArgumentException('Invalid or missing "src" in Icon data.');
         }
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in Icon data.');
+        }
+        if (isset($data['sizes']) && !\is_array($data['sizes'])) {
+            throw new InvalidArgumentException('Invalid "sizes" in Icon data.');
+        }
 
-        return new self($data['src'], $data['mimeTypes'] ?? null, $data['sizes'] ?? null);
+        return new self($data['src'], $data['mimeType'] ?? null, $data['sizes'] ?? null);
+    }
+
+    /**
+     * Hydrates an "icons" list, rejecting entries that are not objects.
+     *
+     * @param array<mixed> $icons
+     * @param string       $context the surrounding schema type, used for the error message
+     *
+     * @return self[]
+     */
+    public static function listFromArray(array $icons, string $context): array
+    {
+        return array_map(
+            static function (mixed $icon) use ($context): self {
+                if (!\is_array($icon)) {
+                    throw new InvalidArgumentException(\sprintf('Each entry in "icons" of %s data must be an array.', $context));
+                }
+
+                return self::fromArray($icon);
+            },
+            $icons,
+        );
     }
 
     /**

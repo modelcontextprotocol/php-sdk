@@ -60,13 +60,44 @@ class Annotations implements \JsonSerializable
     {
         $audience = null;
         if (isset($data['audience']) && \is_array($data['audience'])) {
-            $audience = array_map(static fn (string $r) => Role::from($r), $data['audience']);
+            $audience = array_map(
+                static function (mixed $role): Role {
+                    if (!\is_string($role) || null === $case = Role::tryFrom($role)) {
+                        throw new InvalidArgumentException('Each entry in "audience" must be a valid role.');
+                    }
+
+                    return $case;
+                },
+                $data['audience'],
+            );
+        }
+
+        if (isset($data['priority']) && !\is_float($data['priority']) && !\is_int($data['priority'])) {
+            throw new InvalidArgumentException('Invalid "priority" in Annotations data; expected a number.');
         }
 
         return new self(
             $audience,
             isset($data['priority']) ? (float) $data['priority'] : null
         );
+    }
+
+    /**
+     * Hydrates an optional "annotations" field, rejecting a value that is present but not an object.
+     *
+     * @param string $context the surrounding schema type, used for the error message
+     */
+    public static function tryFromArray(mixed $data, string $context): ?self
+    {
+        if (null === $data) {
+            return null;
+        }
+
+        if (!\is_array($data)) {
+            throw new InvalidArgumentException(\sprintf('Invalid "annotations" in %s data; expected an array.', $context));
+        }
+
+        return self::fromArray($data);
     }
 
     /**

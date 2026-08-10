@@ -47,7 +47,14 @@ class LoggingMessageNotification extends Notification
             throw new InvalidArgumentException('Missing "data" parameter for "notifications/message" notification.');
         }
 
-        $level = LoggingLevel::from($params['level']);
+        if (null === $level = LoggingLevel::tryFrom($params['level'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "level" parameter "%s" for "notifications/message" notification.', $params['level']));
+        }
+
+        if (isset($params['logger']) && !\is_string($params['logger'])) {
+            throw new InvalidArgumentException('Invalid "logger" parameter for "notifications/message" notification.');
+        }
+
         $data = \is_string($params['data']) ? $params['data'] : json_encode($params['data']);
 
         return new self($level, $data, $params['logger'] ?? null);

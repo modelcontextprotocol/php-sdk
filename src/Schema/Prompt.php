@@ -67,11 +67,26 @@ class Prompt implements \JsonSerializable
         }
         $arguments = null;
         if (isset($data['arguments']) && \is_array($data['arguments'])) {
-            $arguments = array_map(static fn (array $argData) => PromptArgument::fromArray($argData), $data['arguments']);
+            $arguments = array_map(
+                static function (mixed $argData): PromptArgument {
+                    if (!\is_array($argData)) {
+                        throw new InvalidArgumentException('Each entry in "arguments" of Prompt data must be an array.');
+                    }
+
+                    return PromptArgument::fromArray($argData);
+                },
+                $data['arguments'],
+            );
         }
 
-        if (!empty($data['_meta']) && !\is_array($data['_meta'])) {
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in Prompt data.');
+        }
+        if (isset($data['title']) && !\is_string($data['title'])) {
+            throw new InvalidArgumentException('Invalid "title" in Prompt data.');
+        }
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in Prompt data.');
         }
 
         return new self(
@@ -79,7 +94,7 @@ class Prompt implements \JsonSerializable
             title: $data['title'] ?? null,
             description: $data['description'] ?? null,
             arguments: $arguments,
-            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'Prompt') : null,
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }

@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema\Extension\Apps;
 
+use Mcp\Exception\InvalidArgumentException;
+
 /**
  * Metadata for the _meta.ui field on resource content in a resources/read response.
  *
@@ -43,6 +45,19 @@ final class UiResourceContentMeta implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
+        if (isset($data['csp']) && !\is_array($data['csp'])) {
+            throw new InvalidArgumentException('Invalid "csp" in UiResourceContentMeta data; expected an array.');
+        }
+        if (isset($data['permissions']) && !\is_array($data['permissions'])) {
+            throw new InvalidArgumentException('Invalid "permissions" in UiResourceContentMeta data; expected an array.');
+        }
+        if (isset($data['domain']) && !\is_string($data['domain'])) {
+            throw new InvalidArgumentException('Invalid "domain" in UiResourceContentMeta data.');
+        }
+        if (isset($data['prefersBorder']) && !\is_bool($data['prefersBorder'])) {
+            throw new InvalidArgumentException('Invalid "prefersBorder" in UiResourceContentMeta data.');
+        }
+
         return new self(
             csp: isset($data['csp']) ? UiResourceCsp::fromArray($data['csp']) : null,
             permissions: isset($data['permissions']) ? UiResourcePermissions::fromArray($data['permissions']) : null,

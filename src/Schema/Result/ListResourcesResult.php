@@ -49,8 +49,21 @@ class ListResourcesResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "resources" array in ListResourcesResult data.');
         }
 
+        if (isset($data['nextCursor']) && !\is_string($data['nextCursor'])) {
+            throw new InvalidArgumentException('Invalid "nextCursor" in ListResourcesResult data.');
+        }
+
         return new self(
-            array_map(static fn (array $resource) => ResourceDefinition::fromArray($resource), $data['resources']),
+            array_map(
+                static function (mixed $entry): ResourceDefinition {
+                    if (!\is_array($entry)) {
+                        throw new InvalidArgumentException('Each entry in "resources" of ListResourcesResult data must be an array.');
+                    }
+
+                    return ResourceDefinition::fromArray($entry);
+                },
+                $data['resources'],
+            ),
             $data['nextCursor'] ?? null
         );
     }

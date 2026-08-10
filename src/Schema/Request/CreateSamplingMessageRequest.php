@@ -87,6 +87,9 @@ final class CreateSamplingMessageRequest extends Request
 
         $preferences = null;
         if (isset($params['preferences'])) {
+            if (!\is_array($params['preferences'])) {
+                throw new InvalidArgumentException('Invalid "preferences" parameter for sampling/createMessage.');
+            }
             $preferences = ModelPreferences::fromArray($params['preferences']);
         }
 
@@ -95,13 +98,37 @@ final class CreateSamplingMessageRequest extends Request
             $includeContext = SamplingContext::tryFrom($params['includeContext']);
         }
 
+        if (isset($params['systemPrompt']) && !\is_string($params['systemPrompt'])) {
+            throw new InvalidArgumentException('Invalid "systemPrompt" parameter for sampling/createMessage.');
+        }
+
+        if (isset($params['temperature']) && !\is_float($params['temperature']) && !\is_int($params['temperature'])) {
+            throw new InvalidArgumentException('Invalid "temperature" parameter for sampling/createMessage.');
+        }
+
+        if (isset($params['stopSequences'])) {
+            if (!\is_array($params['stopSequences'])) {
+                throw new InvalidArgumentException('Invalid "stopSequences" parameter for sampling/createMessage.');
+            }
+
+            foreach ($params['stopSequences'] as $stopSequence) {
+                if (!\is_string($stopSequence)) {
+                    throw new InvalidArgumentException('Each entry in "stopSequences" must be a string for sampling/createMessage.');
+                }
+            }
+        }
+
+        if (isset($params['metadata']) && !\is_array($params['metadata'])) {
+            throw new InvalidArgumentException('Invalid "metadata" parameter for sampling/createMessage.');
+        }
+
         return new self(
             $messages,
             $params['maxTokens'],
             $preferences,
             $params['systemPrompt'] ?? null,
             $includeContext,
-            $params['temperature'] ?? null,
+            isset($params['temperature']) ? (float) $params['temperature'] : null,
             $params['stopSequences'] ?? null,
             $params['metadata'] ?? null,
         );

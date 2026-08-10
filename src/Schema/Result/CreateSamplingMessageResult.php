@@ -58,7 +58,10 @@ class CreateSamplingMessageResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "model" in CreateSamplingMessageResult data.');
         }
 
-        $role = Role::from($data['role']);
+        if (null === $role = Role::tryFrom($data['role'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "role" value "%s" in CreateSamplingMessageResult data.', $data['role']));
+        }
+
         $contentPayload = $data['content'];
 
         $content = self::hydrateContent($contentPayload);

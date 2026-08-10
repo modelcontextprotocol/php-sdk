@@ -56,7 +56,7 @@ class TextContent extends Content
 
         return new self(
             $data['text'],
-            isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null
+            Annotations::tryFromArray($data['annotations'] ?? null, 'TextContent')
         );
     }
 

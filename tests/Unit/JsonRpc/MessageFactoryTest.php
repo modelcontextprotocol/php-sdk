@@ -21,6 +21,7 @@ use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\PingRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 final class MessageFactoryTest extends TestCase
@@ -449,6 +450,41 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertCount(2, $results);
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideNonStringMethods(): iterable
+    {
+        yield 'object' => ['{"evil": true}'];
+        yield 'array' => ['[1, 2, 3]'];
+        yield 'int' => ['5'];
+        yield 'bool' => ['true'];
+    }
+
+    #[DataProvider('provideNonStringMethods')]
+    public function testNonStringMethodIsRejected(string $method): void
+    {
+        $results = $this->factory->create(\sprintf('{"jsonrpc": "2.0", "id": 1, "method": %s}', $method));
+
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertStringContainsString('"method" must be a string', $results[0]->getMessage());
+    }
+
+    public function testBatchWithNonStringMethodStillYieldsTheValidMessages(): void
+    {
+        $json = '[
+            {"jsonrpc": "2.0", "method": "ping", "id": 1},
+            {"jsonrpc": "2.0", "method": {}, "id": 2}
+        ]';
+
+        $results = $this->factory->create($json);
+
+        $this->assertCount(2, $results);
+        $this->assertInstanceOf(PingRequest::class, $results[0]);
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
     }
 
