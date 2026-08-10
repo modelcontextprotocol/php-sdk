@@ -3,18 +3,6 @@
 The PHP MCP SDK provides OAuth 2.1 authorization support for HTTP transports, implementing the
 [MCP Authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
 
-## Table of Contents
-
-- [Scope: what this SDK does and does not do](#scope-what-this-sdk-does-and-does-not-do)
-- [Overview](#overview)
-- [Quick Start](#quick-start)
-- [Components](#components)
-- [JWT Token Validation](#jwt-token-validation)
-- [Protected Resource Metadata](#protected-resource-metadata)
-- [Custom Token Validators](#custom-token-validators)
-- [Scope-Based Access Control](#scope-based-access-control)
-- [Examples](#examples)
-
 ## Scope: what this SDK does and does not do
 
 The MCP server is an OAuth 2.1 **Resource Server**. It validates the tokens it receives and may
@@ -99,7 +87,14 @@ $metadataMiddleware = new ProtectedResourceMetadataMiddleware(
 // 5. Create transport with middleware
 $transport = new StreamableHttpTransport(
     $request,
-    middlewares: [$metadataMiddleware, $authMiddleware],
+    middleware: [
+        ...StreamableHttpTransport::defaultMiddleware(),
+        $metadataMiddleware,
+        $authMiddleware,
+        // Bridges the OAuth attributes onto the JSON-RPC request meta, which is
+        // what makes them reachable from a handler (see Scope-Based Access Control).
+        new OAuthRequestMetaMiddleware(),
+    ],
 );
 
 // 6. Run server
@@ -155,7 +150,7 @@ $validator = new JwtTokenValidator(
     audience: 'mcp-server',              // Expected audience (string or array)
     jwksProvider: $jwksProvider,          // JwksProviderInterface
     jwksUri: null,                       // Explicit JWKS URI (auto-discovered)
-    algorithms: ['RS256', 'RS384'],      // Allowed algorithms
+    algorithms: ['RS256', 'RS384', 'RS512'], // Allowed algorithms (this is the default)
     scopeClaim: 'scope',                 // Claim name for scopes
 );
 ```
@@ -363,7 +358,10 @@ AuthorizationResult::badRequest('invalid_request', 'Malformed header');
 #[McpTool(name: 'admin_action')]
 public function adminAction(RequestContext $context): array
 {
-    $scopes = $context->getRequest()?->getAttribute('oauth.scopes') ?? [];
+    // The OAuth attributes arrive on the request meta, under the `oauth` key.
+    // This requires OAuthRequestMetaMiddleware in the transport's middleware stack.
+    $meta = $context->getRequest()->getMeta() ?? [];
+    $scopes = $meta['oauth']['oauth.scopes'] ?? [];
 
     if (!in_array('mcp:admin', $scopes, true)) {
         throw new \RuntimeException('Admin scope required');

@@ -3,13 +3,6 @@
 The MCP PHP SDK includes comprehensive examples demonstrating different patterns and use cases. Each example showcases
 specific features and can be run independently to understand how the SDK works.
 
-## Table of Contents
-
-- [Getting Started](#getting-started)
-- [Running Examples](#running-examples)
-- [Server Examples](#server-examples)
-- [Client Examples](#client-examples)
-
 ## Getting Started
 
 All examples are located in the `examples/` directory and use the SDK dependencies from the root project. Most examples
@@ -32,13 +25,13 @@ The STDIO transport will use standard input/output for communication:
 
 ```bash
 # Interactive testing with MCP Inspector
-npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 
 # Run with debugging enabled
-npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/discovery-calculator/server.php
+npx @modelcontextprotocol/inspector -e DEBUG=1 -e FILE_LOG=1 php examples/server/discovery-calculator/server.php
 
 # Or configure the script path in your MCP client
-# Path: php examples/discovery-calculator/server.php
+# Path: php examples/server/discovery-calculator/server.php
 ```
 
 ### HTTP Transport
@@ -47,7 +40,7 @@ The Streamable HTTP transport will be chosen if running examples with a web serv
 
 ```bash
 # Start the server
-php -S localhost:8000 examples/discovery-userprofile/server.php
+php -S localhost:8000 examples/server/discovery-userprofile/server.php
 
 # Test with MCP Inspector
 npx @modelcontextprotocol/inspector http://localhost:8000
@@ -63,7 +56,7 @@ curl -X POST http://localhost:8000 \
 
 ### Discovery Calculator
 
-**File**: `examples/discovery-calculator/`
+**File**: `examples/server/discovery-calculator/`
 
 **What it demonstrates:**
 - Attribute-based discovery using `#[McpTool]` and `#[McpResource]`
@@ -87,14 +80,14 @@ public function getConfiguration(): array
 **Usage:**
 ```bash
 # Interactive testing
-npx @modelcontextprotocol/inspector php examples/discovery-calculator/server.php
+npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 
-# Or configure in MCP client: php examples/discovery-calculator/server.php
+# Or configure in MCP client: php examples/server/discovery-calculator/server.php
 ```
 
 ### Explicit Registration
 
-**File**: `examples/explicit-registration/`
+**File**: `examples/server/explicit-registration/`
 
 **What it demonstrates:**
 - Manual registration of tools, resources, and prompts
@@ -111,7 +104,7 @@ $server = Server::builder()
 
 ### Environment Variables
 
-**File**: `examples/env-variables/`
+**File**: `examples/server/env-variables/`
 
 **What it demonstrates:**
 - Environment variable integration
@@ -125,7 +118,7 @@ $server = Server::builder()
 
 ### Custom Dependencies
 
-**File**: `examples/custom-dependencies/`
+**File**: `examples/server/custom-dependencies/`
 
 **What it demonstrates:**
 - Dependency injection with PSR-11 containers
@@ -145,7 +138,7 @@ $server = Server::builder()
 
 ### Cached Discovery
 
-**File**: `examples/cached-discovery/`
+**File**: `examples/server/cached-discovery/`
 
 **What it demonstrates:**
 - Discovery caching for improved performance
@@ -165,7 +158,7 @@ $server = Server::builder()
 
 ### Client Communication
 
-**File**: `examples/client-communication/`
+**File**: `examples/server/client-communication/`
 
 **What it demonstrates:**
 - Server initiated communication back to the client
@@ -174,7 +167,7 @@ $server = Server::builder()
 
 ### Discovery User Profile
 
-**File**: `examples/discovery-userprofile/`
+**File**: `examples/server/discovery-userprofile/`
 
 **What it demonstrates:**
 - HTTP transport with StreamableHttpTransport
@@ -202,7 +195,7 @@ public function generateBio(string $userId, string $tone = 'professional'): arra
 **Usage:**
 ```bash
 # Start the HTTP server
-php -S localhost:8000 examples/discovery-userprofile/server.php
+php -S localhost:8000 examples/server/discovery-userprofile/server.php
 
 # Test with MCP Inspector
 npx @modelcontextprotocol/inspector http://localhost:8000
@@ -212,7 +205,7 @@ npx @modelcontextprotocol/inspector http://localhost:8000
 
 ### Combined Registration
 
-**File**: `examples/combined-registration/`
+**File**: `examples/server/combined-registration/`
 
 **What it demonstrates:**
 - Mixing attribute discovery with manual registration
@@ -235,7 +228,7 @@ $server = Server::builder()
 
 ### Complex Tool Schema
 
-**File**: `examples/complex-tool-schema/`
+**File**: `examples/server/complex-tool-schema/`
 
 **What it demonstrates:**
 - Advanced JSON schema definitions
@@ -258,7 +251,7 @@ public function scheduleEvent(array $eventData): array
 
 ### Schema Showcase
 
-**File**: `examples/schema-showcase/`
+**File**: `examples/server/schema-showcase/`
 
 **What it demonstrates:**
 - Comprehensive JSON schema features
@@ -365,7 +358,7 @@ npx @modelcontextprotocol/inspector php examples/server/elicitation/server.php
 
 **File**: `examples/server/mcp-apps/`
 
-A weather app demonstrating the [MCP Apps extension](extensions.md): a `ui://`
+A weather app demonstrating the [MCP Apps extension](advanced/extensions.md): a `ui://`
 HTML resource is opened by an MCP App-aware client (e.g. Goose) and bridged to
 the `get_weather` tool. The bundled `weather-app.html` performs the
 `ui/initialize` handshake, reports its size via `ui/notifications/size-changed`,
@@ -431,8 +424,9 @@ $prompts = $client->listPrompts();
 
 **Usage:**
 ```bash
-# Start the server first
-php -S localhost:8000 examples/server/http-discovery-calculator/server.php
+# Start the server first — the example picks its transport from the SAPI,
+# so running it under a web server makes it speak Streamable HTTP
+php -S localhost:8000 examples/server/discovery-calculator/server.php
 
 # Then run the client
 php examples/client/http_discovery_calculator.php
@@ -516,5 +510,5 @@ php -S 127.0.0.1:8000 examples/server/client-communication/server.php
 php examples/client/http_client_communication.php
 ```
 
-> [!NOTE]
-> For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP's built-in development server cannot handle the concurrent requests required for sampling.
+!!! note
+    For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP's built-in development server cannot handle the concurrent requests required for sampling.

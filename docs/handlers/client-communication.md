@@ -1,26 +1,14 @@
-# Client Communication
+# Talking back to the client
 
-MCP supports various ways a server can communicate back to a client on top of the main request-response flow.
-
-> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server sends its own
-> JSON-RPC requests to the client. The modern lifecycle removed that: sampling, elicitation and roots are
-> carried back inside the *result* instead, and `ClientGateway::sample()`, `elicit()` and `listRoots()`
-> raise a `LogicException` there. Logging and progress still work as described below — they simply travel
-> on the request's own response stream, and the client opts into each. See
-> [The 2026-07-28 Lifecycle](stateless-lifecycle.md).
-
-## Table of Contents
-
-- [ClientGateway](#clientgateway)
-- [Sampling](#sampling)
-- [Logging](#logging)
-- [Notification](#notification)
-- [Progress](#progress)
+MCP supports various ways a server can communicate back to a client on top of the main
+request-response flow.
 
 ## ClientGateway
 
 Every communication back to client is handled using the `Mcp\Server\ClientGateway` and its dedicated methods per
-operation. To use the `ClientGateway` in your code, you need to use method argument injection for `RequestContext`.
+operation. Reach it through method argument injection for `RequestContext`. (A `ClientGateway`-typed parameter is
+injected too, but unlike `RequestContext` it is not excluded from the generated input schema, so it would show up as
+an argument of your tool.)
 
 Every reference of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the
 `RequestContext` and the SDK will take care to include the gateway in the arguments of the method call:
@@ -50,8 +38,6 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
 
 ## Sampling
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
-
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
 
@@ -61,7 +47,7 @@ $result = $clientGateway->sample('Roses are red, violets are', 350, 90, ['temper
 
 The `sample` method accepts four arguments:
 
-1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SamplingMessage` instances.
+1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `Mcp\Schema\Content\SamplingMessage` instances.
 2. `maxTokens`, which defaults to `1000`
 3. `timeout` in seconds, which defaults to `120`
 4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
@@ -99,8 +85,6 @@ Use `$result->getContentBlocks()` to iterate the response regardless of whether 
 
 ## Logging
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
-
 The [Logging](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging) utility enables servers
 to send structured log messages as notification to clients:
 
@@ -121,7 +105,7 @@ $clientGateway->progress(4.2, 10, 'Downloading needed images.');
 
 ## Notification
 
-Lastly, the server can push all kind of notifications, that implement the `Mcp\Schema\JsonRpc\Notification` interface
+Lastly, the server can push all kind of notifications, that extend the abstract `Mcp\Schema\JsonRpc\Notification` class
 to the client to:
 
 ```php

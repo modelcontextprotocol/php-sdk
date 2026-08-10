@@ -93,5 +93,5 @@ If you need an authorization server (token issuance, client registration, login,
   validator seams. The MCP server validates the tokens it issues; it does not issue them
   itself.
 
-See [`../docs/authorization.md`](../docs/authorization.md) for the supported Resource Server
+See [`../docs/run/authorization.md`](../docs/run/authorization.md) for the supported Resource Server
 and delegation setup.
