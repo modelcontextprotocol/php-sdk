@@ -51,7 +51,7 @@ The `sample` method accepts four arguments:
 ## Logging
 
 The [Logging](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging) utility enables servers
-to send structured log messages as notifcation to clients:
+to send structured log messages as notification to clients:
 
 ```php
 use Mcp\Schema\Enum\LoggingLevel;
