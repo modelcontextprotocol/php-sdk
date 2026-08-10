@@ -21,8 +21,8 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * @phpstan-type ToolInputSchema array{
  *     type: 'object',
- *     properties: array<string, mixed>,
- *     required: string[]|null
+ *     properties?: array<string, mixed>,
+ *     required?: string[]|null
  * }
  * @phpstan-type ToolOutputSchema array{
  *     type: 'object',
