@@ -132,7 +132,7 @@ class ToolTest extends TestCase
     public function testJsonRoundTripPreservesEmptyPropertiesObject(): void
     {
         $json = '{"type":"object","properties":{}}';
-        $schema = json_decode($json, true);
+        $schema = (array) json_decode($json, true);
         $tool = new Tool('test', null, $schema, null, null);
         $serialized = $tool->jsonSerialize();
 
@@ -195,7 +195,7 @@ class ToolTest extends TestCase
                     'tags' => [
                         'type' => 'array',
                         'items' => [
-                            'type' => 'string'
+                            'type' => 'string',
                         ],
                     ],
                     'status' => [
@@ -233,7 +233,7 @@ class ToolTest extends TestCase
             outputSchema: [
                 'type' => 'object',
                 'properties' => [],
-            ]
+            ],
         );
         $serialized = $tool->jsonSerialize();
         $this->assertInstanceOf(\stdClass::class, $serialized['outputSchema']['properties']);
