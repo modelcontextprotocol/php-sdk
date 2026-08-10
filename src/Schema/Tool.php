@@ -127,7 +127,7 @@ class Tool implements \JsonSerializable
         if (null !== $this->title) {
             $data['title'] = $this->title;
         }
-        $data['inputSchema'] = $this->inputSchema;
+        $data['inputSchema'] = self::normalizeSchemaProperties($this->inputSchema);
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }
@@ -141,14 +141,14 @@ class Tool implements \JsonSerializable
             $data['_meta'] = $this->meta;
         }
         if (null !== $this->outputSchema) {
-            $data['outputSchema'] = $this->outputSchema;
+            $data['outputSchema'] = self::normalizeSchemaProperties($this->outputSchema);
         }
 
         return $data;
     }
 
     /**
-     * Normalize schema properties: convert an empty properties array to stdClass.
+     * Normalize schema properties: convert an empty properties array to stdClass recursively.
      *
      * @param array<string, mixed> $schema
      *
@@ -156,8 +156,22 @@ class Tool implements \JsonSerializable
      */
     private static function normalizeSchemaProperties(array $schema): array
     {
-        if (isset($schema['properties']) && \is_array($schema['properties']) && empty($schema['properties'])) {
-            $schema['properties'] = new \stdClass();
+        if (isset($schema['properties']) && \is_array($schema['properties'])) {
+            if (empty($schema['properties'])) {
+                $schema['properties'] = new \stdClass();
+            } else {
+                foreach ($schema['properties'] as $key => $propSchema) {
+                    if (\is_array($propSchema)) {
+                        $schema['properties'][$key] = self::normalizeSchemaProperties($propSchema);
+                    }
+                }
+            }
+        }
+
+        foreach ($schema as $key => $value) {
+            if ($key !== 'properties' && \is_array($value)) {
+                $schema[$key] = self::normalizeSchemaProperties($value);
+            }
         }
 
         return $schema;

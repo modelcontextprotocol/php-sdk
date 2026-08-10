@@ -97,4 +97,146 @@ class ToolTest extends TestCase
         $this->assertSame($original->name, $restored->name);
         $this->assertSame($original->description, $restored->description);
     }
+
+    public function testEmptyPropertiesNormalizationOnDirectConstruction(): void
+    {
+        $tool = new Tool(
+            name: 'test',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => [],
+            ],
+            description: null,
+            annotations: null,
+        );
+        $serialized = $tool->jsonSerialize();
+        $this->assertInstanceOf(\stdClass::class, $serialized['inputSchema']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{}}}', json_encode($serialized));
+    }
+
+    public function testEmptyPropertiesNormalizationOnFromArray(): void
+    {
+        $tool = Tool::fromArray([
+            'name' => 'test',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => [],
+            ],
+        ]);
+        $serialized = $tool->jsonSerialize();
+        $this->assertInstanceOf(\stdClass::class, $serialized['inputSchema']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{}}}', json_encode($serialized));
+    }
+
+    public function testJsonRoundTripPreservesEmptyPropertiesObject(): void
+    {
+        $json = '{"type":"object","properties":{}}';
+        $schema = json_decode($json, true);
+        $tool = new Tool('test', null, $schema, null, null);
+        $serialized = $tool->jsonSerialize();
+
+        $this->assertInstanceOf(\stdClass::class, $serialized['inputSchema']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{}}}', json_encode($serialized));
+    }
+
+    public function testNestedObjectEmptyPropertiesNormalization(): void
+    {
+        $tool = new Tool(
+            name: 'test',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => [
+                    'filter' => [
+                        'type' => 'object',
+                        'properties' => [],
+                    ],
+                ],
+            ],
+            description: null,
+            annotations: null,
+        );
+        $serialized = $tool->jsonSerialize();
+        $this->assertInstanceOf(\stdClass::class, $serialized['inputSchema']['properties']['filter']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{"filter":{"type":"object","properties":{}}}}}', json_encode($serialized));
+    }
+
+    public function testExistingNonEmptyPropertiesUnchanged(): void
+    {
+        $tool = new Tool(
+            name: 'test',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => [
+                    'name' => [
+                        'type' => 'string',
+                    ],
+                ],
+            ],
+            description: null,
+            annotations: null,
+        );
+        $serialized = $tool->jsonSerialize();
+        $this->assertIsArray($serialized['inputSchema']['properties']);
+        $this->assertArrayHasKey('name', $serialized['inputSchema']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{"name":{"type":"string"}}}}', json_encode($serialized));
+    }
+
+    public function testValidArraysAreNotTransformed(): void
+    {
+        $tool = new Tool(
+            name: 'test',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => [
+                    'tags' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'string'
+                        ],
+                    ],
+                    'status' => [
+                        'type' => 'string',
+                        'enum' => [],
+                    ],
+                ],
+                'required' => [],
+            ],
+            description: null,
+            annotations: null,
+        );
+        $serialized = $tool->jsonSerialize();
+        $this->assertIsArray($serialized['inputSchema']['required']);
+        $this->assertEmpty($serialized['inputSchema']['required']);
+        $this->assertIsArray($serialized['inputSchema']['properties']['tags']);
+        $this->assertIsArray($serialized['inputSchema']['properties']['status']['enum']);
+        $this->assertEmpty($serialized['inputSchema']['properties']['status']['enum']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{"tags":{"type":"array","items":{"type":"string"}},"status":{"type":"string","enum":[]}},"required":[]}}', json_encode($serialized));
+    }
+
+    public function testOutputSchemaEmptyPropertiesNormalization(): void
+    {
+        $tool = new Tool(
+            name: 'test',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => ['q' => ['type' => 'string']],
+            ],
+            description: null,
+            annotations: null,
+            icons: null,
+            meta: null,
+            outputSchema: [
+                'type' => 'object',
+                'properties' => [],
+            ]
+        );
+        $serialized = $tool->jsonSerialize();
+        $this->assertInstanceOf(\stdClass::class, $serialized['outputSchema']['properties']);
+        $this->assertSame('{"name":"test","inputSchema":{"type":"object","properties":{"q":{"type":"string"}}},"outputSchema":{"type":"object","properties":{}}}', json_encode($serialized));
+    }
 }
