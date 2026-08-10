@@ -22,8 +22,62 @@ nav:
   - Examples: examples.md
   - API Reference: https://php.sdk.modelcontextprotocol.io/api/
 
+# Look and feel is kept in sync with the Python SDK's documentation
+# (https://py.sdk.modelcontextprotocol.io/) so the language SDKs read as one
+# set of docs: same MCP mark, same black/slate palette, same navigation.
 theme:
   name: material
+  # Zensical's own look, and its default; `classic` renders the older
+  # Material for MkDocs styling instead.
+  variant: modern
+  custom_dir: docs/.overrides
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    logo: mcp
+  favicon: favicon.svg
+  palette:
+    - media: "(prefers-color-scheme)"
+      scheme: default
+      primary: black
+      accent: black
+      toggle:
+        icon: material/lightbulb
+        name: "Switch to light mode"
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: black
+      toggle:
+        icon: material/lightbulb-outline
+        name: "Switch to dark mode"
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: white
+      toggle:
+        icon: material/lightbulb-auto-outline
+        name: "Switch to system preference"
+  features:
+    - search.suggest
+    - search.highlight
+    - content.tabs.link
+    - content.code.annotate
+    - content.code.copy
+    - content.code.select
+    - navigation.footer
+    - navigation.indexes
+    - navigation.instant
+    - navigation.instant.prefetch
+    - navigation.instant.progress
+    - navigation.path
+    - navigation.prune
+    - navigation.sections
+    - navigation.top
+    - navigation.tracking
+    - toc.follow
+
 
 # Zensical natively re-implements `search`; it does not run arbitrary MkDocs
 # plugins or hooks.
@@ -32,13 +86,49 @@ plugins:
 
 markdown_extensions:
   - tables
+  - abbr
   - admonition
   - attr_list
   - def_list
+  - footnotes
   - md_in_html
-  - sane_lists
+  - sane_lists # this means you can start a list from any number
+  - pymdownx.betterem
+  - pymdownx.caret
   - pymdownx.details
   - pymdownx.inlinehilite
+  - pymdownx.mark
+  - pymdownx.tilde
   - pymdownx.highlight:
       pygments_lang_class: true
-  - pymdownx.superfences
+      # Pygments' PHP lexer only starts highlighting after a `<?php` tag, and the
+      # snippets in these docs are fragments — without this they render as one
+      # flat run of plain text.
+      extend_pygments_lang:
+        - name: php
+          lang: php
+          options:
+            startinline: true
+        # …which in turn mis-tokenizes a literal `<?php`, so the few blocks that
+        # are complete files rather than fragments use `php-file`.
+        - name: php-file
+          lang: php
+          options:
+            startinline: false
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: pymdownx.superfences.fence_code_format
+  # Zensical re-implements the emoji extension; the generator/index functions
+  # live under `zensical.extensions.emoji`, not `material.extensions.emoji`.
+  - pymdownx.emoji:
+      emoji_index: zensical.extensions.emoji.twemoji
+      emoji_generator: zensical.extensions.emoji.to_svg
+      options:
+        custom_icons:
+          - docs/.overrides/.icons
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
