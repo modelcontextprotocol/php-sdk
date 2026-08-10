@@ -77,9 +77,6 @@ final class Builder
 
     /**
      * Set initialization timeout in seconds.
-     *
-     * Must be positive; zero and negative values are rejected by
-     * {@see Configuration} when building.
      */
     public function setInitTimeout(int $seconds): self
     {
@@ -90,9 +87,6 @@ final class Builder
 
     /**
      * Set request timeout in seconds.
-     *
-     * Must be positive; zero and negative values are rejected by
-     * {@see Configuration} when building.
      */
     public function setRequestTimeout(int $seconds): self
     {
