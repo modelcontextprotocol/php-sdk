@@ -21,12 +21,14 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -347,6 +349,161 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
+    }
+
+    #[TestDox('An unexpected throwable while creating a message returns an internal error under its id')]
+    public function testUnexpectedThrowableWhileCreatingMessagesReturnsInternalError(): void
+    {
+        $sent = null;
+        $this->transport->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function ($data) use (&$sent) {
+                $sent = $data;
+            });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: new MessageFactory([ThrowingRequest::class]),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "test/throwing"}',
+            Uuid::v4()
+        );
+
+        $decoded = json_decode((string) $sent, true);
+        $this->assertSame(Error::INTERNAL_ERROR, $decoded['error']['code']);
+        $this->assertSame(1, $decoded['id'], 'The peer must be able to correlate the failure with its request.');
+        $this->assertStringNotContainsString('must not leak', $decoded['error']['message']);
+    }
+
+    #[TestDox('A batch that fails to hydrate is answered once, under the empty id')]
+    public function testBatchThatFailsToHydrateIsAnsweredOnce(): void
+    {
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function ($data) use (&$sent) {
+            $sent[] = $data;
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: new MessageFactory([PingRequest::class, ThrowingRequest::class]),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "id": 2, "method": "test/throwing"}]',
+            Uuid::v4()
+        );
+
+        $this->assertCount(1, $sent);
+
+        $decoded = json_decode($sent[0], true);
+        $this->assertSame(Error::INTERNAL_ERROR, $decoded['error']['code']);
+        $this->assertSame('', $decoded['id'], 'The failure cannot be attributed to one request of the batch.');
+    }
+
+    #[TestDox('A batch holding only notifications is not answered when processing fails')]
+    public function testBatchOfNotificationsIsNotAnsweredWhenProcessingFails(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '[{"jsonrpc": "2.0", "method": "notifications/initialized"}]',
+            Uuid::v4()
+        );
+    }
+
+    #[TestDox('An unexpected throwable while saving the session does not answer a notification')]
+    public function testUnexpectedThrowableWhileSavingSessionDoesNotEscape(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        // JSON-RPC forbids answering a notification, so the failure is only logged.
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            Uuid::v4()
+        );
+    }
+
+    #[TestDox('A failing notification event listener does not produce a response')]
+    public function testFailingNotificationListenerDoesNotProduceResponse(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            return '_mcp.outgoing_queue' === $key ? $queue : $default;
+        });
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function ($event) {
+            if ($event instanceof NotificationEvent) {
+                throw new \RuntimeException('listener blew up');
+            }
+
+            return $event;
+        });
+
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $sessionId = Uuid::v4();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            $sessionId
+        );
+
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
     }
 
     #[TestDox('Request without handler returns method not found error')]
