@@ -58,11 +58,6 @@ use Psr\Log\NullLogger;
  */
 class Client
 {
-    /**
-     * Base delay between two connection attempts, in milliseconds.
-     *
-     * Scaled by the attempt number, so consecutive retries back off linearly.
-     */
     private const RETRY_BASE_DELAY_MS = 100;
 
     private ?TransportInterface $transport = null;
@@ -85,10 +80,7 @@ class Client
     /**
      * Connect to an MCP server using the provided transport.
      *
-     * A failed attempt is retried up to the configured number of retries, see
-     * {@see Builder::setMaxRetries()}. The transport is closed between attempts,
-     * so every retry starts from a clean connection, and a short delay is waited
-     * out before each one.
+     * A failed attempt is closed and retried, see {@see Builder::setMaxRetries()}.
      *
      * @throws ConnectionException If connection or initialization fails on every attempt
      */
@@ -107,13 +99,10 @@ class Client
 
                 return;
             } catch (ConnectionException $e) {
-                // The handshake marks the session initialized before sending the
-                // initialized notification, so a failure in between would leave
-                // the client reporting a connection it no longer has.
+                // initialize() flags the session before sending the initialized
+                // notification, so a failure in between leaves the flag set.
                 $this->protocol->getState()->setInitialized(false);
 
-                // Release whatever the failed attempt left behind - a spawned
-                // process, an HTTP session - so the next one starts clean.
                 $transport->close();
 
                 if ($attempt === $maxAttempts) {

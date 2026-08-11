@@ -198,9 +198,8 @@ class Protocol
                 'timeout' => $timeout,
             ]);
         } finally {
-            // Only the response path clears the pending request; a request that
-            // timed out or whose send() threw would otherwise stay pending
-            // forever and immediately fail every later request as timed out.
+            // Only the response path clears it, so a request that timed out or
+            // whose send() threw would stay pending and fail every later one.
             $this->state->removePendingRequest($requestId);
         }
     }

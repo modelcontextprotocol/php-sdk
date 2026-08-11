@@ -118,9 +118,6 @@ final class ClientTest extends TestCase
     #[TestDox('a connection breaking after the handshake result does not leave the client connected')]
     public function testFailureAfterHandshakeResultDoesNotLeaveClientConnected(): void
     {
-        // The handshake marks the session initialized before sending the
-        // initialized notification, so a failure in between must not leave the
-        // client reporting a connection it no longer has.
         $transport = new FakeTransport([FakeTransport::BREAK_AFTER_ACCEPT]);
 
         $client = Client::builder()->setMaxRetries(0)->build();
@@ -138,10 +135,7 @@ final class ClientTest extends TestCase
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]
     public function testTimedOutAttemptDoesNotPoisonTheRetry(): void
     {
-        // The first attempt is left unanswered so it runs into its init
-        // timeout, which is the path that used to leave the request pending
-        // forever and time out every following attempt right away. The timeout
-        // is the shortest one allowed, so this waits out about a second.
+        // The shortest allowed init timeout, so this waits out about a second.
         $transport = new FakeTransport([FakeTransport::IGNORE, FakeTransport::ACCEPT]);
 
         $client = Client::builder()->setInitTimeout(1)->setMaxRetries(1)->build();
@@ -212,12 +206,11 @@ final class FakeTransport extends BaseTransport
         $message = json_decode($data, true, 512, \JSON_THROW_ON_ERROR);
 
         if (!isset($message['id'])) {
-            // The initialized notification, sent once the handshake succeeded.
             if (self::BREAK_AFTER_ACCEPT === $this->outcome) {
                 throw new ConnectionException('Connection lost');
             }
 
-            return; // Nothing to answer.
+            return; // A notification, nothing to answer.
         }
 
         $answer = self::REJECT === $this->outcome
@@ -235,9 +228,8 @@ final class FakeTransport extends BaseTransport
     {
         $fiber->start();
 
-        // Polls at the same 1ms interval as the real transports so that a
-        // request left unanswered runs into its timeout in real time, capped
-        // well above the longest timeout any test here configures.
+        // Polls at the same 1ms interval as the real transports, so a request
+        // left unanswered runs into its timeout in real time.
         for ($poll = 0; !$fiber->isTerminated(); ++$poll) {
             if ($poll > 5000) {
                 throw new \LogicException('The fiber never terminated, no pending request became resolvable.');
