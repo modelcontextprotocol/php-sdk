@@ -115,6 +115,26 @@ final class ClientTest extends TestCase
         $builder->build();
     }
 
+    #[TestDox('a connection breaking after the handshake result does not leave the client connected')]
+    public function testFailureAfterHandshakeResultDoesNotLeaveClientConnected(): void
+    {
+        // The handshake marks the session initialized before sending the
+        // initialized notification, so a failure in between must not leave the
+        // client reporting a connection it no longer has.
+        $transport = new FakeTransport([FakeTransport::BREAK_AFTER_ACCEPT]);
+
+        $client = Client::builder()->setMaxRetries(0)->build();
+
+        try {
+            $client->connect($transport);
+            $this->fail(\sprintf('Expected a "%s" to be thrown.', ConnectionException::class));
+        } catch (ConnectionException) {
+            // Expected.
+        }
+
+        $this->assertFalse($client->isConnected());
+    }
+
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]
     public function testTimedOutAttemptDoesNotPoisonTheRetry(): void
     {
@@ -152,6 +172,9 @@ final class FakeTransport extends BaseTransport
     /** The initialize request is not answered at all and has to time out. */
     public const IGNORE = 'ignore';
 
+    /** The initialize request is answered, but the connection breaks right after. */
+    public const BREAK_AFTER_ACCEPT = 'break_after_accept';
+
     public int $connectCalls = 0;
     public int $closeCalls = 0;
 
@@ -161,7 +184,7 @@ final class FakeTransport extends BaseTransport
     private array $outbox = [];
 
     /**
-     * @param list<self::ACCEPT|self::REJECT|self::IGNORE> $attempts How each successive connect() call behaves
+     * @param list<self::ACCEPT|self::REJECT|self::IGNORE|self::BREAK_AFTER_ACCEPT> $attempts How each successive connect() call behaves
      */
     public function __construct(private array $attempts = [self::ACCEPT])
     {
@@ -189,7 +212,12 @@ final class FakeTransport extends BaseTransport
         $message = json_decode($data, true, 512, \JSON_THROW_ON_ERROR);
 
         if (!isset($message['id'])) {
-            return; // A notification, nothing to answer.
+            // The initialized notification, sent once the handshake succeeded.
+            if (self::BREAK_AFTER_ACCEPT === $this->outcome) {
+                throw new ConnectionException('Connection lost');
+            }
+
+            return; // Nothing to answer.
         }
 
         $answer = self::REJECT === $this->outcome

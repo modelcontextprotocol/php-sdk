@@ -107,6 +107,11 @@ class Client
 
                 return;
             } catch (ConnectionException $e) {
+                // The handshake marks the session initialized before sending the
+                // initialized notification, so a failure in between would leave
+                // the client reporting a connection it no longer has.
+                $this->protocol->getState()->setInitialized(false);
+
                 // Release whatever the failed attempt left behind - a spawned
                 // process, an HTTP session - so the next one starts clean.
                 $transport->close();
