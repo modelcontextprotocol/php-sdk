@@ -13,7 +13,6 @@ namespace Mcp\Tests\Unit\Schema\Result;
 
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
-use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingStopReason;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use PHPUnit\Framework\TestCase;
@@ -42,13 +41,14 @@ final class CreateSamplingMessageResultTest extends TestCase
 
     public function testProviderSpecificStopReasonIsPreserved(): void
     {
-        $result = new CreateSamplingMessageResult(
-            Role::Assistant,
-            new TextContent('Done'),
-            'test-model',
-            'provider-specific',
-        );
+        $result = CreateSamplingMessageResult::fromArray([
+            'role' => 'assistant',
+            'content' => ['type' => 'text', 'text' => 'Done'],
+            'model' => 'test-model',
+            'stopReason' => 'provider-specific',
+        ]);
 
+        $this->assertSame('provider-specific', $result->stopReason);
         $this->assertSame('provider-specific', $result->jsonSerialize()['stopReason']);
     }
 }

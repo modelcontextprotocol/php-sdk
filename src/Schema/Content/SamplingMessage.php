@@ -17,6 +17,7 @@ use Mcp\Schema\Enum\Role;
 /**
  * Describes a message issued to or received from an LLM API during sampling.
  *
+ * @phpstan-type SamplingContent TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent
  * @phpstan-type SamplingMessageData = array{
  *     role: 'user'|'assistant',
  *     content: array<string, mixed>|array<array<string, mixed>>,
@@ -28,8 +29,8 @@ use Mcp\Schema\Enum\Role;
 class SamplingMessage extends Content
 {
     /**
-     * @param TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|list<TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent> $content
-     * @param ?array<string, mixed>                                                                                                                               $meta
+     * @param SamplingContent|list<SamplingContent> $content
+     * @param ?array<string, mixed>                 $meta
      */
     public function __construct(
         public readonly Role $role,
@@ -116,6 +117,8 @@ class SamplingMessage extends Content
 
     /**
      * @param array<string, mixed> $contentData
+     *
+     * @return SamplingContent
      */
     private static function hydrateContent(array $contentData): TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent
     {

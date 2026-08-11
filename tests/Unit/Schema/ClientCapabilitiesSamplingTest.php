@@ -29,4 +29,17 @@ final class ClientCapabilitiesSamplingTest extends TestCase
         $this->assertTrue($hydrated->samplingContext);
         $this->assertTrue($hydrated->samplingTools);
     }
+
+    public function testSamplingSubCapabilitiesAreHydratedFromObject(): void
+    {
+        $sampling = new \stdClass();
+        $sampling->context = new \stdClass();
+        $sampling->tools = new \stdClass();
+
+        $capabilities = ClientCapabilities::fromArray(['sampling' => $sampling]);
+
+        $this->assertTrue($capabilities->sampling);
+        $this->assertTrue($capabilities->samplingContext);
+        $this->assertTrue($capabilities->samplingTools);
+    }
 }
