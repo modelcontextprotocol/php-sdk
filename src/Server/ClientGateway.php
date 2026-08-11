@@ -128,6 +128,9 @@ class ClientGateway
      * @param int                                                            $maxTokens Maximum tokens to generate
      * @param int                                                            $timeout   The timeout in seconds
      * @param SampleOptions                                                  $options   Additional sampling options (temperature, etc.)
+     *                                                                                  Context values other than `none` require the client's
+     *                                                                                  sampling.context capability; tools and toolChoice require
+     *                                                                                  the client's sampling.tools capability.
      *
      * @return CreateSamplingMessageResult The sampling response
      *

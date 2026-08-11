@@ -65,4 +65,12 @@ final class SamplingToolContentTest extends TestCase
             new TextContent('extra'),
         ]);
     }
+
+    public function testToolResultRejectsNonStandardContentBlocks(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        new ToolResultContent('call-1', [
+            new SamplingMessage(Role::User, new TextContent('not a tool result content block')),
+        ]);
+    }
 }

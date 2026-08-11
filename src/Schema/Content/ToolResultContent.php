@@ -31,7 +31,7 @@ final class ToolResultContent extends Content
         public readonly ?array $meta = null,
     ) {
         foreach ($content as $item) {
-            if (!$item instanceof Content || $item instanceof self || $item instanceof ToolUseContent) {
+            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof EmbeddedResource) {
                 throw new InvalidArgumentException('Tool result content must contain standard content blocks.');
             }
         }

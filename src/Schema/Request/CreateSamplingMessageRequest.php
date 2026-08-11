@@ -39,6 +39,8 @@ final class CreateSamplingMessageRequest extends Request
      * @param ?SamplingContext      $includeContext A request to include context from one or more MCP servers (including
      *                                              the caller), to be attached to the prompt. The client MAY ignore this request.
      *                                              Allowed values: "none", "thisServer", "allServers"
+     *                                              Values other than "none" are soft-deprecated and SHOULD only be sent
+     *                                              when the client advertises the sampling.context capability.
      * @param ?float                $temperature    The temperature to use for sampling. The client MAY ignore this request.
      * @param ?string[]             $stopSequences  A list of sequences to stop sampling at. The client MAY ignore this request.
      * @param ?array<string, mixed> $metadata       Optional metadata to pass through to the LLM provider. The format of
