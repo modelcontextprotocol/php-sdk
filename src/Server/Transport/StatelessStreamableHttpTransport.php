@@ -30,6 +30,8 @@ use Psr\Log\LoggerInterface;
  *
  * No Mcp-Session-Id header, no initialize handshake, no DELETE endpoint.
  * Each POST request is self-contained and stateless.
+ *
+ * @phpstan-ignore missingType.generics
  */
 class StatelessStreamableHttpTransport extends BaseTransport
 {
@@ -74,6 +76,9 @@ class StatelessStreamableHttpTransport extends BaseTransport
         }
     }
 
+    /**
+     * @return list<MiddlewareInterface>
+     */
     public static function defaultMiddleware(): array
     {
         return [

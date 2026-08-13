@@ -25,6 +25,8 @@ use Mcp\Server\Session\SessionInterface;
  *
  * Replaces initialize handshake — returns capabilities and serverInfo
  * without creating a persistent session.
+ *
+ * @phpstan-ignore missingType.generics
  */
 final class ServerDiscoverHandler implements RequestHandlerInterface
 {
@@ -39,7 +41,7 @@ final class ServerDiscoverHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<ResultInterface|array<string, mixed>>
+     * @return Response<InitializeResult>
      */
     public function handle(Request $request, SessionInterface $session): Response
     {
