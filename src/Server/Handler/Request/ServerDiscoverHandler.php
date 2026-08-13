@@ -14,7 +14,6 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
-use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Configuration;

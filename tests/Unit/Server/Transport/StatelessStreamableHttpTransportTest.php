@@ -97,6 +97,7 @@ final class StatelessStreamableHttpTransportTest extends TestCase
         $response = $transport->listen();
 
         $this->assertSame(405, $response->getStatusCode());
+        $this->assertSame('POST, OPTIONS', $response->getHeaderLine('Allow'));
     }
 
     #[TestDox('default middleware blocks non-localhost Origin')]

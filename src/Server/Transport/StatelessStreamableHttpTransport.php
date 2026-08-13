@@ -267,10 +267,16 @@ class StatelessStreamableHttpTransport extends BaseTransport
     {
         $payload = json_encode($jsonRpcError, \JSON_THROW_ON_ERROR);
 
-        return $this->responseFactory
+        $response = $this->responseFactory
             ->createResponse($statusCode)
             ->withHeader('Content-Type', 'application/json')
             ->withBody($this->streamFactory->createStream($payload));
+
+        if (405 === $statusCode) {
+            $response = $response->withHeader('Allow', 'POST, OPTIONS');
+        }
+
+        return $response;
     }
 
     private function readBody(\Psr\Http\Message\StreamInterface $body): ?string
