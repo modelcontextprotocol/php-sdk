@@ -72,6 +72,7 @@ class Protocol
         private readonly SessionManagerInterface $sessionManager,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly bool $stateless = false,
     ) {
     }
 
@@ -122,9 +123,17 @@ class Protocol
             return;
         }
 
-        $session = $this->resolveSession($transport, $sessionId, $messages);
-        if (null === $session) {
-            return;
+        if ($this->stateless) {
+            $session = $this->sessionManager->create();
+            $this->logger->debug('Created new ephemeral session for stateless request', [
+                'session_id' => $session->getId()->toRfc4122(),
+            ]);
+            $transport->setSessionId($session->getId());
+        } else {
+            $session = $this->resolveSession($transport, $sessionId, $messages);
+            if (null === $session) {
+                return;
+            }
         }
 
         foreach ($messages as $message) {

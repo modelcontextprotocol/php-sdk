@@ -206,6 +206,18 @@ final class BuilderTest extends TestCase
         $this->assertFalse($capabilities->tools);
     }
 
+    public function testSetStatelessEnablesStatelessMode(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setStateless(true)
+            ->build();
+
+        // Reflection check that Protocol has stateless=true
+        $protocol = (new \ReflectionProperty($server, 'protocol'))->getValue($server);
+        $this->assertTrue((new \ReflectionProperty($protocol, 'stateless'))->getValue($protocol));
+    }
+
     private function extractServerCapabilities(Server $server): ServerCapabilities
     {
         $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);

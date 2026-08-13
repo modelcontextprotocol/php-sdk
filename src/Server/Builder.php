@@ -223,6 +223,8 @@ final class Builder
 
     private bool $lazyLoading = true;
 
+    private bool $stateless = false;
+
     /**
      * Sets the server's identity. Required.
      *
@@ -725,7 +727,6 @@ final class Builder
             new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
             new Handler\Request\CompletionCompleteHandler($registry, $container),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
-            new Handler\Request\InitializeHandler($configuration),
             new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
             new Handler\Request\ListResourcesHandler($registry, $this->paginationLimit),
             new Handler\Request\ListResourceTemplatesHandler($registry, $this->paginationLimit),
@@ -737,9 +738,14 @@ final class Builder
             new Handler\Request\SetLogLevelHandler(),
         ]);
 
-        $notificationHandlers = array_merge($this->notificationHandlers, [
-            new Handler\Notification\InitializedHandler(),
-        ]);
+        $notificationHandlers = array_merge($this->notificationHandlers, []);
+
+        if ($this->stateless) {
+            $requestHandlers[] = new Handler\Request\ServerDiscoverHandler($configuration);
+        } else {
+            array_unshift($requestHandlers, new Handler\Request\InitializeHandler($configuration));
+            $notificationHandlers[] = new Handler\Notification\InitializedHandler();
+        }
 
         $protocol = new Protocol(
             requestHandlers: $requestHandlers,
@@ -748,6 +754,7 @@ final class Builder
             sessionManager: $sessionManager,
             logger: $logger,
             eventDispatcher: $this->eventDispatcher,
+            stateless: $this->stateless,
         );
 
         return new Server($protocol, $logger);
@@ -805,5 +812,12 @@ final class Builder
         }
 
         return $discoverer;
+    }
+
+    public function setStateless(bool $stateless = true): self
+    {
+        $this->stateless = $stateless;
+
+        return $this;
     }
 }
