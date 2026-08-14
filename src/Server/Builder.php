@@ -717,6 +717,13 @@ final class Builder
             $capabilities = $capabilities->withExtensions($this->extensions);
         }
 
+        if (null !== $this->protocolVersion && $this->protocolVersion->isModern()) {
+            $logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, negotiating the handshake revisions instead.', [
+                'configured' => $this->protocolVersion->value,
+                'negotiable' => array_map(static fn (ProtocolVersion $v): string => $v->value, ProtocolVersion::handshakeVersions()),
+            ]);
+        }
+
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
