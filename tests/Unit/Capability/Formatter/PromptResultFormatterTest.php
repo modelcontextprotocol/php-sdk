@@ -55,6 +55,39 @@ class PromptResultFormatterTest extends TestCase
         $this->assertSame('a.png', $result[0]->content->name);
     }
 
+    public function testFormatTypedResourceLinkContentPreservesOptionalFields(): void
+    {
+        $result = (new PromptResultFormatter())->format([
+            [
+                'role' => 'user',
+                'content' => [
+                    'type' => 'resource_link',
+                    'uri' => 'file:///a.png',
+                    'name' => 'a.png',
+                    'title' => 'A picture',
+                    'description' => 'The first picture',
+                    'mimeType' => 'image/png',
+                    'size' => 1024,
+                    'annotations' => ['audience' => ['user'], 'priority' => 0.5],
+                    '_meta' => ['origin' => 'test'],
+                ],
+            ],
+        ]);
+
+        $content = $result[0]->content;
+        $this->assertInstanceOf(ResourceLink::class, $content);
+        $this->assertSame('file:///a.png', $content->uri);
+        $this->assertSame('a.png', $content->name);
+        $this->assertSame('A picture', $content->title);
+        $this->assertSame('The first picture', $content->description);
+        $this->assertSame('image/png', $content->mimeType);
+        $this->assertSame(1024, $content->size);
+        $this->assertNotNull($content->annotations);
+        $this->assertSame([Role::User], $content->annotations->audience);
+        $this->assertSame(0.5, $content->annotations->priority);
+        $this->assertSame(['origin' => 'test'], $content->meta);
+    }
+
     public function testFormatUserAssistantShorthand(): void
     {
         $result = (new PromptResultFormatter())->format([

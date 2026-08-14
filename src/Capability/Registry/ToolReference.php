@@ -68,13 +68,18 @@ class ToolReference extends ElementReference
     public function extractStructuredContent(mixed $toolExecutionResult): ?array
     {
         if (\is_array($toolExecutionResult)) {
+            // `structuredContent` must be a JSON object. A PHP list serializes to a
+            // JSON array, so it can never be valid structured data — strict clients
+            // reject the whole tool call when one is sent.
+            if (array_is_list($toolExecutionResult)) {
+                return null;
+            }
+
             foreach ($toolExecutionResult as $item) {
                 if ($item instanceof Content) {
                     // Content items are already reflected in the result's `content`
-                    // array; a raw array holding one or more of them isn't
-                    // structured data and, if it were serialized as-is, could
-                    // produce a `structuredContent` value that isn't a JSON object
-                    // (e.g. a list), which the spec doesn't allow.
+                    // array; an array holding one or more of them isn't structured
+                    // data, even when its keys make it serialize to a JSON object.
                     return null;
                 }
             }

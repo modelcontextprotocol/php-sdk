@@ -496,46 +496,40 @@ class RegistryTest extends TestCase
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
     }
 
-    public function testExtractStructuredContentReturnsArrayDirectlyForArrayOutputSchema(): void
+    public function testExtractStructuredContentReturnsNullForListResults(): void
     {
-        // Arrange
+        // A PHP list serializes to a JSON array, but `structuredContent` must be a
+        // JSON object — `Tool::fromArray()` enforces the matching rule by rejecting
+        // any outputSchema whose type is not "object".
         $outputSchema = [
-            'type' => 'array',
-            'items' => [
-                'type' => 'object',
-                'properties' => [
-                    'foo' => [
-                        'type' => 'string',
-                        'description' => 'A static value',
-                    ],
-                ],
-                'required' => ['foo'],
+            'type' => 'object',
+            'properties' => [
+                'foo' => ['type' => 'string'],
             ],
+            'required' => ['foo'],
         ];
 
         $tool = $this->createValidTool('list_static_data', $outputSchema);
         $toolReturnValue = [
             ['foo' => 'bar'],
             ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
         ];
 
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
-        // Act
         $toolRef = $this->registry->getTool('list_static_data');
-        $structuredContent = $toolRef->extractStructuredContent($toolReturnValue);
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+    }
 
-        // Assert
-        $this->assertNotNull($structuredContent);
-        $this->assertCount(4, $structuredContent);
-        $this->assertEquals([
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
-        ], $structuredContent);
+    public function testExtractStructuredContentReturnsNullForListOfScalars(): void
+    {
+        $tool = $this->createValidTool('list_ids', null);
+        $toolReturnValue = ['101', '102', '103'];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_ids');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
     }
 
     public function testExtractStructuredContentReturnsNullForArrayOfContentItems(): void
