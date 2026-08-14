@@ -532,6 +532,53 @@ class RegistryTest extends TestCase
         $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
     }
 
+    public function testExtractStructuredContentEncodesObjectResults(): void
+    {
+        $tool = $this->createValidTool('describe_thing', null);
+        $toolReturnValue = new \stdClass();
+        $toolReturnValue->id = 1;
+        $toolReturnValue->label = 'thing';
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('describe_thing');
+        $this->assertSame(['id' => 1, 'label' => 'thing'], $toolRef->extractStructuredContent($toolReturnValue));
+    }
+
+    public function testExtractStructuredContentReturnsNullForObjectsSerializingToAList(): void
+    {
+        // `JsonSerializable` can hand back a list just as a raw array result can,
+        // and it is no more valid as `structuredContent` for having come from an object.
+        $tool = $this->createValidTool('list_things', null);
+        $toolReturnValue = new class implements \JsonSerializable {
+            public function jsonSerialize(): array
+            {
+                return [['id' => 1], ['id' => 2]];
+            }
+        };
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_things');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+    }
+
+    public function testExtractStructuredContentReturnsNullForObjectsSerializingToAScalar(): void
+    {
+        $tool = $this->createValidTool('count_things', null);
+        $toolReturnValue = new class implements \JsonSerializable {
+            public function jsonSerialize(): int
+            {
+                return 42;
+            }
+        };
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('count_things');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+    }
+
     public function testExtractStructuredContentReturnsNullForArrayOfContentItems(): void
     {
         $tool = $this->createValidTool('lookup_thing', null);

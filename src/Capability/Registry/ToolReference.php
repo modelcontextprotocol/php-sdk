@@ -93,9 +93,18 @@ class ToolReference extends ElementReference
                 \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE
             );
 
-            return json_decode(
+            $decoded = json_decode(
                 $jsonResult, true, 512, \JSON_THROW_ON_ERROR
             );
+
+            // A plain object always encodes to a JSON object, but `JsonSerializable`
+            // can hand back anything — a list or a scalar included. Only keep what
+            // the same rule as above allows: a JSON object.
+            if (!\is_array($decoded) || array_is_list($decoded)) {
+                return null;
+            }
+
+            return $decoded;
         }
 
         return null;
