@@ -1,0 +1,16 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Found user Alice (admin)."
+    },
+    {
+      "name": "user_profile",
+      "uri": "user://101/profile",
+      "description": "Full profile for Alice.",
+      "mimeType": "application/json",
+      "type": "resource_link"
+    }
+  ],
+  "isError": false
+}
