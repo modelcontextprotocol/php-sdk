@@ -214,7 +214,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">25</span>
+    <span class="phpdocumentor-element-found-in__line">26</span>
 
     </aside>
 
@@ -254,6 +254,20 @@ the effort required to implement this interface.</p>
 
 
 
+<h4 id="toc-constants">
+    Constants
+    <a href="classes/Mcp-Server-Transport-StdioTransport.html#toc-constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-Server-Transport-StdioTransport.html#constant_DEFAULT_MAX_LINE_BYTES">DEFAULT_MAX_LINE_BYTES</a>
+    <span>
+        &nbsp;: mixed&nbsp;= 4 * 1024 * 1024                            </span>
+</dt>
+<dd>Default cap on the bytes read for a single input line.</dd>
+
+    </dl>
 
 
 <h4 id="toc-properties">
@@ -317,9 +331,22 @@ the effort required to implement this interface.</p>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Transport-StdioTransport.html#property_discardingLine">$discardingLine</a>
+    <span>
+                        &nbsp;: bool            </span>
+</dt>
+<dd>Whether the current over-length line is still being drained and discarded.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
     <a class="" href="classes/Mcp-Server-Transport-StdioTransport.html#property_input">$input</a>
     <span>
                         &nbsp;: mixed            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Server-Transport-StdioTransport.html#property_maxLineBytes">$maxLineBytes</a>
+    <span>
+                        &nbsp;: int            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
@@ -496,6 +523,44 @@ the effort required to implement this interface.</p>
 
 
         
+    <section class="phpdocumentor-constants">
+        <h3 class="phpdocumentor-elements__header" id="constants">
+            Constants
+            <a href="classes/Mcp-Server-Transport-StdioTransport.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_DEFAULT_MAX_LINE_BYTES">
+        DEFAULT_MAX_LINE_BYTES
+        <a href="classes/Mcp-Server-Transport-StdioTransport.html#constant_DEFAULT_MAX_LINE_BYTES" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">31</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Default cap on the bytes read for a single input line.</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">DEFAULT_MAX_LINE_BYTES</span>
+    = <span class="phpdocumentor-signature__default-value">4 * 1024 * 1024</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+            </section>
 
         
     <section class="phpdocumentor-properties">
@@ -844,6 +909,44 @@ the effort required to implement this interface.</p>
             -private
                                                                     "
 >
+    <h4 class="phpdocumentor-element__name" id="property_discardingLine">
+        $discardingLine
+        <a href="classes/Mcp-Server-Transport-StdioTransport.html#property_discardingLine" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                                            </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">34</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Whether the current over-length line is still being drained and discarded.</p>
+
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">bool</span>
+    <span class="phpdocumentor-signature__name">$discardingLine</span>
+     = <span class="phpdocumentor-signature__default-value">false</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                                    "
+>
     <h4 class="phpdocumentor-element__name" id="property_input">
         $input
         <a href="classes/Mcp-Server-Transport-StdioTransport.html#property_input" class="headerlink"><i class="fas fa-link"></i></a>
@@ -854,7 +957,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">32</span>
+    <span class="phpdocumentor-element-found-in__line">45</span>
 
     </aside>
 
@@ -865,6 +968,43 @@ the effort required to implement this interface.</p>
             <span class="phpdocumentor-signature__type">mixed</span>
     <span class="phpdocumentor-signature__name">$input</span>
      = <span class="phpdocumentor-signature__default-value">\STDIN</span></code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_maxLineBytes">
+        $maxLineBytes
+        <a href="classes/Mcp-Server-Transport-StdioTransport.html#property_maxLineBytes" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">49</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">int</span>
+    <span class="phpdocumentor-signature__name">$maxLineBytes</span>
+     = <span class="phpdocumentor-signature__default-value">self::DEFAULT_MAX_LINE_BYTES</span></code>
 
     
     
@@ -891,7 +1031,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">33</span>
+    <span class="phpdocumentor-element-found-in__line">46</span>
 
     </aside>
 
@@ -928,7 +1068,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">35</span>
+    <span class="phpdocumentor-element-found-in__line">48</span>
 
     </aside>
 
@@ -970,14 +1110,14 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">31</span>
+    <span class="phpdocumentor-element-found-in__line">44</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type">resource&nbsp;</span><span class="phpdocumentor-signature__argument__name">$input</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\STDIN">STDIN</abbr></span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">resource&nbsp;</span><span class="phpdocumentor-signature__argument__name">$output</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\STDOUT">STDOUT</abbr></span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-Stdio-RunnerControlInterface.html"><abbr title="\Mcp\Server\Transport\Stdio\RunnerControlInterface">RunnerControlInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$runnerControl</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <a href="classes/Mcp-Server-Transport-Stdio-RunnerControl.html"><abbr title="\Mcp\Server\Transport\Stdio\RunnerControl">RunnerControl</abbr></a>()</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span>[</span><span class="phpdocumentor-signature__argument__type">resource&nbsp;</span><span class="phpdocumentor-signature__argument__name">$input</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\STDIN">STDIN</abbr></span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">resource&nbsp;</span><span class="phpdocumentor-signature__argument__name">$output</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\STDOUT">STDOUT</abbr></span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><a href="classes/Mcp-Server-Transport-Stdio-RunnerControlInterface.html"><abbr title="\Mcp\Server\Transport\Stdio\RunnerControlInterface">RunnerControlInterface</abbr></a>&nbsp;</span><span class="phpdocumentor-signature__argument__name">$runnerControl</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">new <a href="classes/Mcp-Server-Transport-Stdio-RunnerControl.html"><abbr title="\Mcp\Server\Transport\Stdio\RunnerControl">RunnerControl</abbr></a>()</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$maxLineBytes</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\self::DEFAULT_MAX_LINE_BYTES">self::DEFAULT_MAX_LINE_BYTES</abbr></span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -1012,6 +1152,18 @@ the effort required to implement this interface.</p>
                  = <span class="phpdocumentor-argument-list__argument__default-value">new <a href="classes/Mcp-Server-Transport-Stdio-RunnerControl.html"><abbr title="\Mcp\Server\Transport\Stdio\RunnerControl">RunnerControl</abbr></a>()</span>            </dt>
             <dd class="phpdocumentor-argument-list__definition">
                 
+            </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$maxLineBytes</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value"><abbr title="\self::DEFAULT_MAX_LINE_BYTES">self::DEFAULT_MAX_LINE_BYTES</abbr></span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>Maximum bytes read for a single input line. fgets() with no length reads until a
+newline or EOF, so a peer that never sends a newline would buffer the whole stream
+into one allocation and exhaust memory; a line exceeding this cap is discarded
+instead.</p>
+</section>
+
             </dd>
             </dl>
 
@@ -1086,7 +1238,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">163</span>
+    <span class="phpdocumentor-element-found-in__line">204</span>
 
     </aside>
 
@@ -1156,7 +1308,7 @@ the effort required to implement this interface.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">49</span>
+    <span class="phpdocumentor-element-found-in__line">67</span>
 
     </aside>
 
@@ -1293,7 +1445,7 @@ and return a result (e.g., a PSR-7 Response) to be sent to the client.</li>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">40</span>
+    <span class="phpdocumentor-element-found-in__line">58</span>
 
     </aside>
 
@@ -1890,7 +2042,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">69</span>
+    <span class="phpdocumentor-element-found-in__line">87</span>
 
     </aside>
 
@@ -1924,7 +2076,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">149</span>
+    <span class="phpdocumentor-element-found-in__line">190</span>
 
     </aside>
 
@@ -1958,7 +2110,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">133</span>
+    <span class="phpdocumentor-element-found-in__line">174</span>
 
     </aside>
 
@@ -1992,7 +2144,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">84</span>
+    <span class="phpdocumentor-element-found-in__line">125</span>
 
     </aside>
 
@@ -2026,7 +2178,7 @@ The transport decides HOW to send based on context.</p>
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Server/Transport/StdioTransport.php"><a href="files/src-server-transport-stdiotransport.html"><abbr title="src/Server/Transport/StdioTransport.php">StdioTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">158</span>
+    <span class="phpdocumentor-element-found-in__line">199</span>
 
     </aside>
 
@@ -2070,10 +2222,17 @@ The transport decides HOW to send based on context.</p>
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
+                                        <li><a href="classes/Mcp-Server-Transport-StdioTransport.html#toc-constants">Constants</a></li>
                                                             <li><a href="classes/Mcp-Server-Transport-StdioTransport.html#toc-properties">Properties</a></li>
                                                             <li><a href="classes/Mcp-Server-Transport-StdioTransport.html#toc-methods">Methods</a></li>
                                     </ul>
             </li>
+                            <li class="phpdocumentor-on-this-page-section__title">Constants</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#constant_DEFAULT_MAX_LINE_BYTES">DEFAULT_MAX_LINE_BYTES</a></li>
+                                            </ul>
+                </li>
             
                             <li class="phpdocumentor-on-this-page-section__title">Properties</li>
                 <li>
@@ -2087,7 +2246,9 @@ The transport decides HOW to send based on context.</p>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-ManagesTransportCallbacks.html#property_sessionEndListener">$sessionEndListener</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#property_sessionFiber">$sessionFiber</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-BaseTransport.html#property_sessionId">$sessionId</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#property_discardingLine">$discardingLine</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#property_input">$input</a></li>
+                                                    <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#property_maxLineBytes">$maxLineBytes</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#property_output">$output</a></li>
                                                     <li class=""><a href="classes/Mcp-Server-Transport-StdioTransport.html#property_runnerControl">$runnerControl</a></li>
                                             </ul>

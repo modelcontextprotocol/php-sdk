@@ -214,7 +214,7 @@
         <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">34</span>
+    <span class="phpdocumentor-element-found-in__line">35</span>
 
     </aside>
 
@@ -263,6 +263,20 @@
 
 
 
+<h4 id="toc-constants">
+    Constants
+    <a href="classes/Mcp-Client-Transport-HttpTransport.html#toc-constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+</h4>
+<dl class="phpdocumentor-table-of-contents">
+            <dt class="phpdocumentor-table-of-contents__entry -constant -public">
+    <a class="" href="classes/Mcp-Client-Transport-HttpTransport.html#constant_DEFAULT_MAX_SSE_BUFFER_BYTES">DEFAULT_MAX_SSE_BUFFER_BYTES</a>
+    <span>
+        &nbsp;: mixed&nbsp;= 8 * 1024 * 1024                            </span>
+</dt>
+<dd>Default cap on the bytes buffered while waiting for a complete SSE event.</dd>
+
+    </dl>
 
 
 <h4 id="toc-properties">
@@ -341,6 +355,12 @@
     <a class="" href="classes/Mcp-Client-Transport-HttpTransport.html#property_httpClient">$httpClient</a>
     <span>
                         &nbsp;: <abbr title="\Psr\Http\Client\ClientInterface">ClientInterface</abbr>            </span>
+</dt>
+
+            <dt class="phpdocumentor-table-of-contents__entry -property -private">
+    <a class="" href="classes/Mcp-Client-Transport-HttpTransport.html#property_maxSseBufferBytes">$maxSseBufferBytes</a>
+    <span>
+                        &nbsp;: int            </span>
 </dt>
 
             <dt class="phpdocumentor-table-of-contents__entry -property -private">
@@ -473,6 +493,13 @@
 <dd>Handle an incoming message from the server.</dd>
 
             <dt class="phpdocumentor-table-of-contents__entry -method -private">
+    <a class="" href="classes/Mcp-Client-Transport-HttpTransport.html#method_abortSseStream">abortSseStream()</a>
+    <span>
+                                &nbsp;: void    </span>
+</dt>
+<dd>Tear down the active SSE stream and fail any in-flight request.</dd>
+
+            <dt class="phpdocumentor-table-of-contents__entry -method -private">
     <a class="" href="classes/Mcp-Client-Transport-HttpTransport.html#method_processFiber">processFiber()</a>
     <span>
                                 &nbsp;: void    </span>
@@ -510,6 +537,44 @@
 
 
         
+    <section class="phpdocumentor-constants">
+        <h3 class="phpdocumentor-elements__header" id="constants">
+            Constants
+            <a href="classes/Mcp-Client-Transport-HttpTransport.html#constants" class="headerlink"><i class="fas fa-link"></i></a>
+
+        </h3>
+                    <article class="phpdocumentor-element -constant -public ">
+    <h4 class="phpdocumentor-element__name" id="constant_DEFAULT_MAX_SSE_BUFFER_BYTES">
+        DEFAULT_MAX_SSE_BUFFER_BYTES
+        <a href="classes/Mcp-Client-Transport-HttpTransport.html#constant_DEFAULT_MAX_SSE_BUFFER_BYTES" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">58</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Default cap on the bytes buffered while waiting for a complete SSE event.</p>
+
+    
+    <code class="phpdocumentor-signature phpdocumentor-code ">
+    <span class="phpdocumentor-signature__visibility">public</span>
+        <span class="phpdocumentor-signature__type">mixed</span>
+    <span class="phpdocumentor-signature__name">DEFAULT_MAX_SSE_BUFFER_BYTES</span>
+    = <span class="phpdocumentor-signature__default-value">8 * 1024 * 1024</span>
+</code>
+
+
+    
+    
+    
+
+        
+    </article>
+            </section>
 
         
     <section class="phpdocumentor-properties">
@@ -757,7 +822,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">43</span>
+    <span class="phpdocumentor-element-found-in__line">44</span>
 
     </aside>
 
@@ -794,7 +859,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">46</span>
+    <span class="phpdocumentor-element-found-in__line">47</span>
 
     </aside>
 
@@ -831,7 +896,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">49</span>
+    <span class="phpdocumentor-element-found-in__line">50</span>
 
     </aside>
 
@@ -870,7 +935,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">62</span>
+    <span class="phpdocumentor-element-found-in__line">76</span>
 
     </aside>
 
@@ -907,7 +972,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">63</span>
+    <span class="phpdocumentor-element-found-in__line">77</span>
 
     </aside>
 
@@ -944,7 +1009,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">36</span>
+    <span class="phpdocumentor-element-found-in__line">37</span>
 
     </aside>
 
@@ -954,6 +1019,43 @@
         <span class="phpdocumentor-signature__visibility">private</span>
             <span class="phpdocumentor-signature__type"><abbr title="\Psr\Http\Client\ClientInterface">ClientInterface</abbr></span>
     <span class="phpdocumentor-signature__name">$httpClient</span>
+    </code>
+
+    
+    
+    
+
+        
+        
+
+</article>
+                    <article
+        class="
+            phpdocumentor-element
+            -property
+            -private
+                                                -read-only                    "
+>
+    <h4 class="phpdocumentor-element__name" id="property_maxSseBufferBytes">
+        $maxSseBufferBytes
+        <a href="classes/Mcp-Client-Transport-HttpTransport.html#property_maxSseBufferBytes" class="headerlink"><i class="fas fa-link"></i></a>
+
+        <span class="phpdocumentor-element__modifiers">
+                        <small class="phpdocumentor-element__modifier">read-only</small>                    </span>
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">60</span>
+
+    </aside>
+
+    
+    
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+        <span class="phpdocumentor-signature__visibility">private</span>
+            <span class="phpdocumentor-signature__type">int</span>
+    <span class="phpdocumentor-signature__name">$maxSseBufferBytes</span>
     </code>
 
     
@@ -981,7 +1083,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">37</span>
+    <span class="phpdocumentor-element-found-in__line">38</span>
 
     </aside>
 
@@ -1018,7 +1120,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">40</span>
+    <span class="phpdocumentor-element-found-in__line">41</span>
 
     </aside>
 
@@ -1055,7 +1157,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">52</span>
+    <span class="phpdocumentor-element-found-in__line">53</span>
 
     </aside>
 
@@ -1094,7 +1196,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">38</span>
+    <span class="phpdocumentor-element-found-in__line">39</span>
 
     </aside>
 
@@ -1136,14 +1238,14 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">61</span>
+    <span class="phpdocumentor-element-found-in__line">75</span>
 
     </aside>
 
     
     <code class="phpdocumentor-code phpdocumentor-signature ">
     <span class="phpdocumentor-signature__visibility">public</span>
-                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$endpoint</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, string&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$headers</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Client\ClientInterface">ClientInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$httpClient</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\RequestFactoryInterface">RequestFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$streamFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
+                    <span class="phpdocumentor-signature__name">__construct</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$endpoint</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">array&lt;string, string&gt;&nbsp;</span><span class="phpdocumentor-signature__argument__name">$headers</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">[]</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Client\ClientInterface">ClientInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$httpClient</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\RequestFactoryInterface">RequestFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$requestFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Http\Message\StreamFactoryInterface">StreamFactoryInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$streamFactory</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type"><abbr title="\Psr\Log\LoggerInterface">LoggerInterface</abbr>|null&nbsp;</span><span class="phpdocumentor-signature__argument__name">$logger</span><span> = </span><span class="phpdocumentor-signature__argument__default-value">null</span><span> ]</span></span><span class="phpdocumentor-signature__argument"><span>[</span><span>, </span><span class="phpdocumentor-signature__argument__type">int&nbsp;</span><span class="phpdocumentor-signature__argument__name">$maxSseBufferBytes</span><span> = </span><span class="phpdocumentor-signature__argument__default-value"><abbr title="\self::DEFAULT_MAX_SSE_BUFFER_BYTES">self::DEFAULT_MAX_SSE_BUFFER_BYTES</abbr></span><span> ]</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">mixed</span></code>
 
     <div class="phpdocumentor-label-line">
         </div>
@@ -1203,6 +1305,20 @@
             <dd class="phpdocumentor-argument-list__definition">
                 
             </dd>
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$maxSseBufferBytes</span>
+                : <span class="phpdocumentor-argument-list__argument__type">int</span>
+                 = <span class="phpdocumentor-argument-list__argument__default-value"><abbr title="\self::DEFAULT_MAX_SSE_BUFFER_BYTES">self::DEFAULT_MAX_SSE_BUFFER_BYTES</abbr></span>            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                    <section class="phpdocumentor-description"><p>Maximum bytes buffered while waiting for a complete
+SSE event. A server that never sends the &quot;\n\n&quot; event
+delimiter would otherwise grow the buffer without bound
+and exhaust client memory; reaching the cap aborts the
+stream instead. Raise it for servers that legitimately
+emit single events larger than the default.</p>
+</section>
+
+            </dd>
             </dl>
 
     
@@ -1225,7 +1341,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">159</span>
+    <span class="phpdocumentor-element-found-in__line">179</span>
 
     </aside>
 
@@ -1260,7 +1376,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">76</span>
+    <span class="phpdocumentor-element-found-in__line">96</span>
 
     </aside>
 
@@ -1483,7 +1599,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">142</span>
+    <span class="phpdocumentor-element-found-in__line">162</span>
 
     </aside>
 
@@ -1543,7 +1659,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">96</span>
+    <span class="phpdocumentor-element-found-in__line">116</span>
 
     </aside>
 
@@ -1821,6 +1937,54 @@
             -private
                                                         "
 >
+    <h4 class="phpdocumentor-element__name" id="method_abortSseStream">
+        abortSseStream()
+        <a href="classes/Mcp-Client-Transport-HttpTransport.html#method_abortSseStream" class="headerlink"><i class="fas fa-link"></i></a>
+
+    </h4>
+    <aside class="phpdocumentor-element-found-in">
+    <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
+    :
+    <span class="phpdocumentor-element-found-in__line">253</span>
+
+    </aside>
+
+        <p class="phpdocumentor-summary">Tear down the active SSE stream and fail any in-flight request.</p>
+
+    <code class="phpdocumentor-code phpdocumentor-signature ">
+    <span class="phpdocumentor-signature__visibility">private</span>
+                    <span class="phpdocumentor-signature__name">abortSseStream</span><span>(</span><span class="phpdocumentor-signature__argument"><span class="phpdocumentor-signature__argument__type">string&nbsp;</span><span class="phpdocumentor-signature__argument__name">$reason</span></span><span>)</span><span> : </span><span class="phpdocumentor-signature__response_type">void</span></code>
+
+    <div class="phpdocumentor-label-line">
+        </div>
+    
+        <section class="phpdocumentor-description"><p>The waiting fiber is resolved with an error immediately so the caller
+fails fast, rather than spinning until the request timeout elapses.</p>
+</section>
+
+        <h5 class="phpdocumentor-argument-list__heading">Parameters</h5>
+    <dl class="phpdocumentor-argument-list">
+                    <dt class="phpdocumentor-argument-list__entry">
+                <span class="phpdocumentor-argument-list__argument__name">$reason</span>
+                : <span class="phpdocumentor-argument-list__argument__type">string</span>
+                            </dt>
+            <dd class="phpdocumentor-argument-list__definition">
+                
+            </dd>
+            </dl>
+
+    
+
+        
+    
+    
+</article>
+                    <article
+        class="phpdocumentor-element
+            -method
+            -private
+                                                        "
+>
     <h4 class="phpdocumentor-element__name" id="method_processFiber">
         processFiber()
         <a href="classes/Mcp-Client-Transport-HttpTransport.html#method_processFiber" class="headerlink"><i class="fas fa-link"></i></a>
@@ -1829,7 +1993,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">263</span>
+    <span class="phpdocumentor-element-found-in__line">318</span>
 
     </aside>
 
@@ -1863,7 +2027,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">242</span>
+    <span class="phpdocumentor-element-found-in__line">297</span>
 
     </aside>
 
@@ -1898,7 +2062,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">224</span>
+    <span class="phpdocumentor-element-found-in__line">279</span>
 
     </aside>
 
@@ -1943,7 +2107,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">194</span>
+    <span class="phpdocumentor-element-found-in__line">214</span>
 
     </aside>
 
@@ -1978,7 +2142,7 @@
     <aside class="phpdocumentor-element-found-in">
     <abbr class="phpdocumentor-element-found-in__file" title="src/Client/Transport/HttpTransport.php"><a href="files/src-client-transport-httptransport.html"><abbr title="src/Client/Transport/HttpTransport.php">HttpTransport.php</abbr></a></abbr>
     :
-    <span class="phpdocumentor-element-found-in__line">182</span>
+    <span class="phpdocumentor-element-found-in__line">202</span>
 
     </aside>
 
@@ -2012,10 +2176,17 @@
             <li class="phpdocumentor-on-this-page-section__title">Table Of Contents</li>
             <li>
                 <ul class="phpdocumentor-list -clean">
+                                        <li><a href="classes/Mcp-Client-Transport-HttpTransport.html#toc-constants">Constants</a></li>
                                                             <li><a href="classes/Mcp-Client-Transport-HttpTransport.html#toc-properties">Properties</a></li>
                                                             <li><a href="classes/Mcp-Client-Transport-HttpTransport.html#toc-methods">Methods</a></li>
                                     </ul>
             </li>
+                            <li class="phpdocumentor-on-this-page-section__title">Constants</li>
+                <li>
+                    <ul class="phpdocumentor-list -clean">
+                                                    <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#constant_DEFAULT_MAX_SSE_BUFFER_BYTES">DEFAULT_MAX_SSE_BUFFER_BYTES</a></li>
+                                            </ul>
+                </li>
             
                             <li class="phpdocumentor-on-this-page-section__title">Properties</li>
                 <li>
@@ -2032,6 +2203,7 @@
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_endpoint">$endpoint</a></li>
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_headers">$headers</a></li>
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_httpClient">$httpClient</a></li>
+                                                    <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_maxSseBufferBytes">$maxSseBufferBytes</a></li>
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_requestFactory">$requestFactory</a></li>
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_sessionId">$sessionId</a></li>
                                                     <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#property_sseBuffer">$sseBuffer</a></li>
@@ -2056,6 +2228,7 @@
                                             <li class=""><a href="classes/Mcp-Client-Transport-BaseTransport.html#method_handleError">handleError()</a></li>
                                             <li class=""><a href="classes/Mcp-Client-Transport-BaseTransport.html#method_handleInitialize">handleInitialize()</a></li>
                                             <li class=""><a href="classes/Mcp-Client-Transport-BaseTransport.html#method_handleMessage">handleMessage()</a></li>
+                                            <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#method_abortSseStream">abortSseStream()</a></li>
                                             <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#method_processFiber">processFiber()</a></li>
                                             <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#method_processProgress">processProgress()</a></li>
                                             <li class=""><a href="classes/Mcp-Client-Transport-HttpTransport.html#method_processSSEEvent">processSSEEvent()</a></li>

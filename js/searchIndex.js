@@ -2181,6 +2181,11 @@ Search.appendIndex(
             "summary": "Read\u0020SSE\u0020data\u0020incrementally\u0020from\u0020active\u0020stream.",
             "url": "classes/Mcp-Client-Transport-HttpTransport.html#method_processSSEStream"
         },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003AabortSseStream\u0028\u0029",
+            "name": "abortSseStream",
+            "summary": "Tear\u0020down\u0020the\u0020active\u0020SSE\u0020stream\u0020and\u0020fail\u0020any\u0020in\u002Dflight\u0020request.",
+            "url": "classes/Mcp-Client-Transport-HttpTransport.html#method_abortSseStream"
+        },                {
             "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003AprocessSSEEvent\u0028\u0029",
             "name": "processSSEEvent",
             "summary": "Parse\u0020a\u0020single\u0020SSE\u0020event\u0020and\u0020handle\u0020the\u0020message.",
@@ -2195,6 +2200,11 @@ Search.appendIndex(
             "name": "processFiber",
             "summary": "",
             "url": "classes/Mcp-Client-Transport-HttpTransport.html#method_processFiber"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003ADEFAULT_MAX_SSE_BUFFER_BYTES",
+            "name": "DEFAULT_MAX_SSE_BUFFER_BYTES",
+            "summary": "Default\u0020cap\u0020on\u0020the\u0020bytes\u0020buffered\u0020while\u0020waiting\u0020for\u0020a\u0020complete\u0020SSE\u0020event.",
+            "url": "classes/Mcp-Client-Transport-HttpTransport.html#constant_DEFAULT_MAX_SSE_BUFFER_BYTES"
         },                {
             "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003A\u0024httpClient",
             "name": "httpClient",
@@ -2235,6 +2245,11 @@ Search.appendIndex(
             "name": "sseBuffer",
             "summary": "",
             "url": "classes/Mcp-Client-Transport-HttpTransport.html#property_sseBuffer"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003A\u0024maxSseBufferBytes",
+            "name": "maxSseBufferBytes",
+            "summary": "",
+            "url": "classes/Mcp-Client-Transport-HttpTransport.html#property_maxSseBufferBytes"
         },                {
             "fqsen": "\\Mcp\\Client\\Transport\\HttpTransport\u003A\u003A\u0024endpoint",
             "name": "endpoint",
@@ -2296,6 +2311,11 @@ Search.appendIndex(
             "summary": "",
             "url": "classes/Mcp-Client-Transport-StdioTransport.html#method_processInput"
         },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\StdioTransport\u003A\u003AabortInput\u0028\u0029",
+            "name": "abortInput",
+            "summary": "Discard\u0020the\u0020input\u0020buffer\u0020and\u0020fail\u0020any\u0020in\u002Dflight\u0020request.",
+            "url": "classes/Mcp-Client-Transport-StdioTransport.html#method_abortInput"
+        },                {
             "fqsen": "\\Mcp\\Client\\Transport\\StdioTransport\u003A\u003AprocessFiber\u0028\u0029",
             "name": "processFiber",
             "summary": "",
@@ -2305,6 +2325,11 @@ Search.appendIndex(
             "name": "processStderr",
             "summary": "",
             "url": "classes/Mcp-Client-Transport-StdioTransport.html#method_processStderr"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\StdioTransport\u003A\u003ADEFAULT_MAX_BUFFER_SIZE",
+            "name": "DEFAULT_MAX_BUFFER_SIZE",
+            "summary": "Default\u0020cap\u0020on\u0020the\u0020bytes\u0020buffered\u0020while\u0020waiting\u0020for\u0020a\u0020complete\u0020line.",
+            "url": "classes/Mcp-Client-Transport-StdioTransport.html#constant_DEFAULT_MAX_BUFFER_SIZE"
         },                {
             "fqsen": "\\Mcp\\Client\\Transport\\StdioTransport\u003A\u003A\u0024process",
             "name": "process",
@@ -2360,6 +2385,11 @@ Search.appendIndex(
             "name": "env",
             "summary": "",
             "url": "classes/Mcp-Client-Transport-StdioTransport.html#property_env"
+        },                {
+            "fqsen": "\\Mcp\\Client\\Transport\\StdioTransport\u003A\u003A\u0024maxBufferSize",
+            "name": "maxBufferSize",
+            "summary": "",
+            "url": "classes/Mcp-Client-Transport-StdioTransport.html#property_maxBufferSize"
         },                {
             "fqsen": "\\Mcp\\Client\\Transport\\TransportInterface",
             "name": "TransportInterface",
@@ -9196,6 +9226,16 @@ Search.appendIndex(
             "summary": "Closes\u0020the\u0020transport\u0020and\u0020cleans\u0020up\u0020any\u0020resources.",
             "url": "classes/Mcp-Server-Transport-StdioTransport.html#method_close"
         },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StdioTransport\u003A\u003ADEFAULT_MAX_LINE_BYTES",
+            "name": "DEFAULT_MAX_LINE_BYTES",
+            "summary": "Default\u0020cap\u0020on\u0020the\u0020bytes\u0020read\u0020for\u0020a\u0020single\u0020input\u0020line.",
+            "url": "classes/Mcp-Server-Transport-StdioTransport.html#constant_DEFAULT_MAX_LINE_BYTES"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StdioTransport\u003A\u003A\u0024discardingLine",
+            "name": "discardingLine",
+            "summary": "Whether\u0020the\u0020current\u0020over\u002Dlength\u0020line\u0020is\u0020still\u0020being\u0020drained\u0020and\u0020discarded.",
+            "url": "classes/Mcp-Server-Transport-StdioTransport.html#property_discardingLine"
+        },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StdioTransport\u003A\u003A\u0024input",
             "name": "input",
             "summary": "",
@@ -9210,6 +9250,11 @@ Search.appendIndex(
             "name": "runnerControl",
             "summary": "",
             "url": "classes/Mcp-Server-Transport-StdioTransport.html#property_runnerControl"
+        },                {
+            "fqsen": "\\Mcp\\Server\\Transport\\StdioTransport\u003A\u003A\u0024maxLineBytes",
+            "name": "maxLineBytes",
+            "summary": "",
+            "url": "classes/Mcp-Server-Transport-StdioTransport.html#property_maxLineBytes"
         },                {
             "fqsen": "\\Mcp\\Server\\Transport\\StreamableHttpTransport",
             "name": "StreamableHttpTransport",
