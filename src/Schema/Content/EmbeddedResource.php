@@ -62,7 +62,7 @@ class EmbeddedResource extends Content
 
         return new self(
             $resourceInstance,
-            isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
+            Annotations::tryFromArray($data['annotations'] ?? null, 'EmbeddedResource'),
         );
     }
 

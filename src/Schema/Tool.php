@@ -154,7 +154,7 @@ class Tool implements \JsonSerializable
             inputSchema: $data['inputSchema'],
             description: isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
             annotations: isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
-            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'Tool') : null,
             meta: isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
             outputSchema: $outputSchema,
         );

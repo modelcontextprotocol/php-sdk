@@ -58,6 +58,9 @@ class PromptMessage extends Content
 
         $contentData = $data['content'];
         $contentType = $contentData['type'] ?? null;
+        if (!\is_string($contentType)) {
+            throw new InvalidArgumentException('Missing or invalid content "type" for PromptMessage.');
+        }
 
         $content = match ($contentType) {
             'text' => TextContent::fromArray($contentData),
@@ -67,7 +70,11 @@ class PromptMessage extends Content
             default => throw new InvalidArgumentException(\sprintf('Invalid content type "%s" for PromptMessage.', $contentType)),
         };
 
-        return new self(Role::from($data['role']), $content);
+        if (null === $role = Role::tryFrom($data['role'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "role" value "%s" in PromptMessage data.', $data['role']));
+        }
+
+        return new self($role, $content);
     }
 
     /**

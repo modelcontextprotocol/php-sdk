@@ -43,7 +43,11 @@ final class SetLogLevelRequest extends Request
             throw new InvalidArgumentException('Missing or invalid "level" parameter for "logging/setLevel".');
         }
 
-        return new self(LoggingLevel::from($params['level']));
+        if (null === $level = LoggingLevel::tryFrom($params['level'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "level" parameter "%s" for "logging/setLevel".', $params['level']));
+        }
+
+        return new self($level);
     }
 
     /**

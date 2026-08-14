@@ -54,6 +54,13 @@ class BlobResourceContents extends ResourceContents
             throw new InvalidArgumentException('Missing or invalid "blob" for BlobResourceContents.');
         }
 
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" for BlobResourceContents.');
+        }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" for BlobResourceContents.');
+        }
+
         return new self($data['uri'], $data['mimeType'] ?? null, $data['blob'], $data['_meta'] ?? null);
     }
 

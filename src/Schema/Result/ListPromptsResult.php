@@ -49,8 +49,21 @@ class ListPromptsResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "prompts" array in ListPromptsResult data.');
         }
 
+        if (isset($data['nextCursor']) && !\is_string($data['nextCursor'])) {
+            throw new InvalidArgumentException('Invalid "nextCursor" in ListPromptsResult data.');
+        }
+
         return new self(
-            array_map(static fn (array $prompt) => Prompt::fromArray($prompt), $data['prompts']),
+            array_map(
+                static function (mixed $entry): Prompt {
+                    if (!\is_array($entry)) {
+                        throw new InvalidArgumentException('Each entry in "prompts" of ListPromptsResult data must be an array.');
+                    }
+
+                    return Prompt::fromArray($entry);
+                },
+                $data['prompts'],
+            ),
             $data['nextCursor'] ?? null
         );
     }

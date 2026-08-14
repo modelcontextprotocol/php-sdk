@@ -45,9 +45,15 @@ class SamplingMessage extends Content
             throw new InvalidArgumentException('Missing or invalid "content" in SamplingMessage data.');
         }
 
-        $role = Role::from($data['role']);
+        if (null === $role = Role::tryFrom($data['role'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "role" value "%s" in SamplingMessage data.', $data['role']));
+        }
+
         $contentData = $data['content'];
         $contentType = $contentData['type'] ?? null;
+        if (!\is_string($contentType)) {
+            throw new InvalidArgumentException('Missing or invalid content "type" for SamplingMessage.');
+        }
 
         $contentInstance = match ($contentType) {
             'text' => TextContent::fromArray($contentData),

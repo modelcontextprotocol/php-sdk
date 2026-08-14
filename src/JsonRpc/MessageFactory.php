@@ -177,6 +177,10 @@ final class MessageFactory
                 throw new InvalidInputMessageException('Invalid JSON-RPC message: missing "method", "result", or "error" field.');
             }
 
+            if (!\is_string($data['method'])) {
+                throw new InvalidInputMessageException('Invalid JSON-RPC message: "method" must be a string.');
+            }
+
             $messageClass = $this->findMessageClassByMethod($data['method']);
 
             return $messageClass::fromArray($data);

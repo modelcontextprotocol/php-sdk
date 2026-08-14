@@ -35,6 +35,9 @@ final class ElicitationSchema implements \JsonSerializable
         }
 
         foreach ($required as $name) {
+            if (!\is_string($name)) {
+                throw new InvalidArgumentException('Each entry in "required" must be a string.');
+            }
             if (!\array_key_exists($name, $properties)) {
                 throw new InvalidArgumentException(\sprintf('Required property "%s" is not defined in properties.', $name));
             }
@@ -66,6 +69,10 @@ final class ElicitationSchema implements \JsonSerializable
                 throw new InvalidArgumentException(\sprintf('Property "%s" must be an array.', $name));
             }
             $properties[$name] = self::createSchemaDefinition($propertyData);
+        }
+
+        if (isset($data['required']) && !\is_array($data['required'])) {
+            throw new InvalidArgumentException('Invalid "required" for elicitation schema; expected an array.');
         }
 
         return new self(

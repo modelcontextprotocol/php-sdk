@@ -54,6 +54,10 @@ class Root implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "uri" in Root data.');
         }
 
+        if (isset($data['name']) && !\is_string($data['name'])) {
+            throw new InvalidArgumentException('Invalid "name" in Root data.');
+        }
+
         return new self($data['uri'], $data['name'] ?? null);
     }
 

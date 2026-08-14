@@ -11,6 +11,7 @@
 
 namespace Mcp\Schema\Request;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Request;
 
 /**
@@ -37,6 +38,10 @@ final class ListResourcesRequest extends Request
 
     protected static function fromParams(?array $params): static
     {
+        if (isset($params['cursor']) && !\is_string($params['cursor'])) {
+            throw new InvalidArgumentException('Invalid "cursor" parameter for resources/list.');
+        }
+
         return new self($params['cursor'] ?? null);
     }
 

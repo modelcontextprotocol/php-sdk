@@ -44,7 +44,10 @@ final class ElicitResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "action" in ElicitResult data.');
         }
 
-        $action = ElicitAction::from($data['action']);
+        if (null === $action = ElicitAction::tryFrom($data['action'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "action" value "%s" in ElicitResult data.', $data['action']));
+        }
+
         $content = isset($data['content']) && \is_array($data['content']) ? $data['content'] : null;
 
         if (ElicitAction::Accept === $action && null === $content) {

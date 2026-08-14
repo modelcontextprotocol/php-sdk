@@ -44,18 +44,27 @@ class ProgressNotification extends Notification
 
     protected static function fromParams(?array $params): Notification
     {
-        if (!isset($params['progressToken']) || !\is_string($params['progressToken'])) {
+        // JSON numbers decode to int when they have no fractional part.
+        if (!isset($params['progressToken']) || !\is_string($params['progressToken']) && !\is_int($params['progressToken'])) {
             throw new InvalidArgumentException('Missing or invalid "progressToken" parameter for "notifications/progress" notification.');
         }
 
-        if (!isset($params['progress']) || !\is_float($params['progress'])) {
+        if (!isset($params['progress']) || !\is_float($params['progress']) && !\is_int($params['progress'])) {
             throw new InvalidArgumentException('Missing or invalid "progress" parameter for "notifications/progress" notification.');
+        }
+
+        if (isset($params['total']) && !\is_float($params['total']) && !\is_int($params['total'])) {
+            throw new InvalidArgumentException('Invalid "total" parameter for "notifications/progress" notification.');
+        }
+
+        if (isset($params['message']) && !\is_string($params['message'])) {
+            throw new InvalidArgumentException('Invalid "message" parameter for "notifications/progress" notification.');
         }
 
         return new self(
             $params['progressToken'],
-            $params['progress'],
-            $params['total'] ?? null,
+            (float) $params['progress'],
+            isset($params['total']) ? (float) $params['total'] : null,
             $params['message'] ?? null,
         );
     }

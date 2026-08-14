@@ -85,7 +85,8 @@ final class ElicitResultTest extends TestCase
 
     public function testFromArrayWithInvalidAction(): void
     {
-        $this->expectException(\ValueError::class);
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid "action" value "invalid"');
 
         ElicitResult::fromArray(['action' => 'invalid']);
     }

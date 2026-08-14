@@ -95,13 +95,28 @@ class CallToolResult implements ResultInterface
         $contents = [];
 
         foreach ($data['content'] as $item) {
-            $contents[] = match ($item['type'] ?? null) {
+            $type = \is_array($item) ? $item['type'] ?? null : null;
+            if (!\is_string($type)) {
+                throw new InvalidArgumentException('Missing or invalid content "type" in CallToolResult data.');
+            }
+
+            $contents[] = match ($type) {
                 'text' => TextContent::fromArray($item),
                 'image' => ImageContent::fromArray($item),
                 'audio' => AudioContent::fromArray($item),
                 'resource' => EmbeddedResource::fromArray($item),
-                default => throw new InvalidArgumentException(\sprintf('Invalid content type in CallToolResult data: "%s".', $item['type'] ?? null)),
+                default => throw new InvalidArgumentException(\sprintf('Invalid content type in CallToolResult data: "%s".', $type)),
             };
+        }
+
+        if (isset($data['isError']) && !\is_bool($data['isError'])) {
+            throw new InvalidArgumentException('Invalid "isError" in CallToolResult data.');
+        }
+        if (isset($data['structuredContent']) && !\is_array($data['structuredContent'])) {
+            throw new InvalidArgumentException('Invalid "structuredContent" in CallToolResult data.');
+        }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" in CallToolResult data.');
         }
 
         return new self(

@@ -88,8 +88,17 @@ class ResourceDefinition implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "name" in ResourceDefinition data.');
         }
 
-        if (!empty($data['_meta']) && !\is_array($data['_meta'])) {
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in ResourceDefinition data.');
+        }
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in ResourceDefinition data.');
+        }
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in ResourceDefinition data.');
+        }
+        if (isset($data['size']) && !\is_int($data['size'])) {
+            throw new InvalidArgumentException('Invalid "size" in ResourceDefinition data; expected an integer.');
         }
 
         return new self(
@@ -98,9 +107,9 @@ class ResourceDefinition implements \JsonSerializable
             title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
-            annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
-            size: isset($data['size']) ? (int) $data['size'] : null,
-            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
+            annotations: Annotations::tryFromArray($data['annotations'] ?? null, 'ResourceDefinition'),
+            size: $data['size'] ?? null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'ResourceDefinition') : null,
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }
