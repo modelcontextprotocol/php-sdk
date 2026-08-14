@@ -170,6 +170,73 @@ public function getMultipleContent(): array
 }
 ```
 
+#### Structured Output
+
+Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` object. Declare its
+shape with `outputSchema`, which the MCP specification requires to be a JSON Schema of type `object`:
+
+```php
+#[McpTool(
+    name: 'get_weather',
+    outputSchema: [
+        'type' => 'object',
+        'properties' => [
+            'temperature' => ['type' => 'number'],
+            'conditions' => ['type' => 'string'],
+        ],
+        'required' => ['temperature', 'conditions'],
+    ]
+)]
+public function getWeather(string $city): array
+{
+    // Sent as `structuredContent`, and JSON-encoded into `content` for clients that ignore it
+    return ['temperature' => 22.5, 'conditions' => 'sunny'];
+}
+```
+
+The same schema can be passed to manual registration:
+
+```php
+$builder->addTool([WeatherHandler::class, 'getWeather'], outputSchema: [/* ... */]);
+```
+
+Only object-shaped return values become `structuredContent`. The SDK fills it whenever the return value qualifies —
+`outputSchema` is what tells clients to expect it and lets them validate it.
+
+| Return value | `structuredContent` |
+|---|---|
+| Associative array (`['temperature' => 22.5]`) | The array |
+| Object (`stdClass`, DTO, `JsonSerializable`) that serializes to a JSON object | Its JSON representation |
+| List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted |
+| Array holding `Content` instances | Omitted (already carried in `content`) |
+| Scalars, `null`, `Content` instances | Omitted |
+
+Lists are omitted because a PHP list serializes to a JSON array, and `structuredContent` must be a JSON object — strict
+clients reject the whole tool call otherwise. Wrap the list in a key to give it structured output:
+
+```php
+// No structured content: a list can't be a JSON object
+public function listUsersFlat(): array
+{
+    return [['id' => 1], ['id' => 2]];
+}
+
+#[McpTool(outputSchema: [
+    'type' => 'object',
+    'properties' => [
+        'items' => ['type' => 'array', 'items' => ['type' => 'object']],
+    ],
+    'required' => ['items']
+])]
+public function listUsers(): array
+{
+    return ['items' => [['id' => 1], ['id' => 2]]];
+}
+```
+
+Either way the data reaches the client: a return value with no structured representation is still JSON-encoded into
+`content` as a `TextContent`.
+
 #### Error Handling
 
 Tool handlers can throw any exception, but the type determines how it's handled:
