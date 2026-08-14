@@ -102,9 +102,15 @@ class Protocol
         // `initialize` only exists in the handshake era, so a client configured with
         // a modern revision still opens with the newest handshake one. Reaching a
         // modern revision is a separate negotiation, not this handshake.
-        $offered = $config->protocolVersion->isModern()
-            ? ProtocolVersion::latestHandshake()
-            : $config->protocolVersion;
+        $offered = $config->protocolVersion;
+        if ($offered->isModern()) {
+            $offered = ProtocolVersion::latestHandshake();
+
+            $this->logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, offering the newest handshake revision instead.', [
+                'configured' => $config->protocolVersion->value,
+                'offered' => $offered->value,
+            ]);
+        }
 
         $request = new InitializeRequest(
             $offered->value,

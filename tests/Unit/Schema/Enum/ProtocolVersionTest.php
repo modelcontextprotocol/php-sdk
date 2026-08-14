@@ -57,6 +57,36 @@ class ProtocolVersionTest extends TestCase
         $this->assertSame(ProtocolVersion::cases(), [...$handshake, ...$modern]);
     }
 
+    #[TestDox('every known revision is assigned to an era on purpose')]
+    public function testEveryRevisionIsClassifiedExplicitly(): void
+    {
+        // Hand-maintained on purpose. The era is derived from declaration order,
+        // so a revision appended below FIRST_MODERN_VERSION would be classified
+        // as modern by accident — and every other assertion here would stay
+        // green while it silently vanished from the handshake negotiation.
+        $eras = [
+            '2024-11-05' => false,
+            '2025-03-26' => false,
+            '2025-06-18' => false,
+            '2025-11-25' => false,
+            '2026-07-28' => true,
+        ];
+
+        $this->assertSame(
+            array_keys($eras),
+            array_map(static fn (ProtocolVersion $version): string => $version->value, ProtocolVersion::cases()),
+            'A revision was added or removed: list it above with the era it belongs to.',
+        );
+
+        foreach (ProtocolVersion::cases() as $version) {
+            $this->assertSame(
+                $eras[$version->value],
+                $version->isModern(),
+                \sprintf('%s is in the wrong era; a handshake revision must be declared above %s.', $version->value, ProtocolVersion::FIRST_MODERN_VERSION->value),
+            );
+        }
+    }
+
     #[TestDox('2026-07-28 opens the modern era')]
     public function testModernEraStartsAt20260728(): void
     {

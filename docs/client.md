@@ -94,6 +94,10 @@ section. The client accepts any counter-offer it knows about and continues on th
 cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
 on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.
 
+Modern revisions such as `2026-07-28` replaced `initialize` with per-request metadata, so they cannot be offered here.
+Configuring one still opens the handshake with `ProtocolVersion::latestHandshake()`, and the client logs a warning
+saying so.
+
 See [Protocol Version Negotiation](server-builder.md#protocol-version-negotiation) for the server side of the exchange.
 
 ### Capabilities

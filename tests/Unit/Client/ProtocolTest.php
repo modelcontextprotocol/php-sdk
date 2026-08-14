@@ -25,6 +25,8 @@ use Mcp\Schema\JsonRpc\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 
 final class ProtocolTest extends TestCase
 {
@@ -40,16 +42,20 @@ final class ProtocolTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_06_18->value, $transport->offeredVersion);
     }
 
-    #[TestDox('never offers a modern version over the initialize handshake')]
+    #[TestDox('never offers a modern version over the initialize handshake, and warns about it')]
     public function testDoesNotOfferModernVersionOverHandshake(): void
     {
         $transport = new RecordingTransport(ProtocolVersion::latestHandshake()->value);
-        $protocol = new Protocol();
+        $protocol = new Protocol(logger: $logger = new CollectingLogger());
         $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
 
         $protocol->initialize($config);
 
         $this->assertSame(ProtocolVersion::latestHandshake()->value, $transport->offeredVersion);
+        $this->assertSame([[
+            'configured' => ProtocolVersion::V2026_07_28->value,
+            'offered' => ProtocolVersion::latestHandshake()->value,
+        ]], $logger->warnings);
     }
 
     #[TestDox('accepts a counter-offer the SDK can speak and records it as negotiated')]
@@ -171,5 +177,26 @@ final class RecordingTransport implements TransportInterface
 
     public function onClose(callable $callback): void
     {
+    }
+}
+
+/**
+ * Logger that keeps the context of every warning, so a silent fallback can be
+ * told apart from one the caller was told about.
+ */
+final class CollectingLogger extends AbstractLogger
+{
+    /** @var list<array<string, mixed>> */
+    public array $warnings = [];
+
+    /**
+     * @param string|\Stringable   $message
+     * @param array<string, mixed> $context
+     */
+    public function log($level, $message, array $context = []): void
+    {
+        if (LogLevel::WARNING === $level) {
+            $this->warnings[] = $context;
+        }
     }
 }

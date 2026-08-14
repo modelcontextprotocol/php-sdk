@@ -35,6 +35,11 @@ use Psr\Http\Server\RequestHandlerInterface;
  * the `initialize` round-trip does not carry the header, and legacy clients
  * that omit it are tolerated.
  *
+ * Validation is against a fixed set, not against the version a particular
+ * session negotiated: PSR-15 middleware runs before the transport resolves the
+ * session, so no per-connection state is reachable here. Narrow the set via
+ * `$supportedVersions` to reject revisions the server does not want to serve.
+ *
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>

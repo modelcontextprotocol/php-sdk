@@ -40,6 +40,10 @@ use Mcp\Exception\LogicException;
  */
 enum ProtocolVersion: string
 {
+    // Declaration order is also the era boundary: everything declared from
+    // FIRST_MODERN_VERSION onwards is modern. A new handshake-era revision has
+    // to be inserted above that case — appending it here would silently drop it
+    // out of the handshake negotiation.
     case V2024_11_05 = '2024-11-05';
     case V2025_03_26 = '2025-03-26';
     case V2025_06_18 = '2025-06-18';

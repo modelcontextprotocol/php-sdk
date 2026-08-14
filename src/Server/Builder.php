@@ -717,6 +717,15 @@ final class Builder
             $capabilities = $capabilities->withExtensions($this->extensions);
         }
 
+        // A modern revision has no `initialize` at all, so it cannot pin the handshake.
+        // The server keeps negotiating across its handshake revisions instead.
+        if (null !== $this->protocolVersion && $this->protocolVersion->isModern()) {
+            $logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, negotiating the handshake revisions instead.', [
+                'configured' => $this->protocolVersion->value,
+                'negotiable' => array_map(static fn (ProtocolVersion $v): string => $v->value, ProtocolVersion::handshakeVersions()),
+            ]);
+        }
+
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
         $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);

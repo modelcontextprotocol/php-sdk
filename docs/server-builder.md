@@ -153,8 +153,10 @@ counter-offer and has to decide whether to continue. Leave it unset unless you h
 
 > [!NOTE]
 > On the Streamable HTTP transport, every request after the handshake also carries an `MCP-Protocol-Version` header,
-> which is validated separately by `ProtocolVersionMiddleware`. See
-> [Protocol Version Validation](transports.md#protocol-version-validation).
+> which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach that check: the transport
+> builds the middleware without access to the server configuration, so the header keeps being accepted for every
+> revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the middleware yourself with the
+> same revision — see [Protocol Version Validation](transports.md#protocol-version-validation).
 
 ## Discovery Configuration
 
