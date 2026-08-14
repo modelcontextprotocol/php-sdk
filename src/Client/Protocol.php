@@ -99,11 +99,10 @@ class Protocol
      */
     public function initialize(Configuration $config): Response|Error
     {
-        // `initialize` only exists in the handshake era, so a client configured with
-        // a modern revision still opens with the newest handshake one. Reaching a
-        // modern revision is a separate negotiation, not this handshake.
         $offered = $config->protocolVersion;
         if ($offered->isModern()) {
+            // Only handshake era spec versions need the initialize call, so if we
+            // end up here, we fall back to the latest handshake version.
             $offered = ProtocolVersion::latestHandshake();
 
             $this->logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, offering the newest handshake revision instead.', [
@@ -123,17 +122,17 @@ class Protocol
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
 
-            // The server either echoes the requested version or counter-offers one
-            // of its own. A counter-offer this SDK cannot speak leaves nothing to
-            // fall back to, so the handshake fails instead of continuing on a
-            // revision neither side agrees on.
+            // A counter-offer this SDK cannot speak leaves nothing to fall back to,
+            // so the handshake fails rather than continuing on a revision neither
+            // side agrees on.
             $negotiated = $initResult->protocolVersion;
             if (null === $negotiated || $negotiated->isModern()) {
-                $counterOffer = $response->result['protocolVersion'] ?? null;
+                // fromArray() above already rejected a missing or non-string revision.
+                $counterOffer = (string) $response->result['protocolVersion'];
 
                 return Error::forInvalidParams(\sprintf(
                     'Server responded with unsupported protocol version "%s". Supported versions: %s.',
-                    \is_string($counterOffer) ? $counterOffer : '',
+                    $counterOffer,
                     implode(', ', array_map(
                         static fn (ProtocolVersion $v): string => $v->value,
                         ProtocolVersion::handshakeVersions(),

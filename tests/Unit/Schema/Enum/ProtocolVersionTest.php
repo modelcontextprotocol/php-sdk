@@ -23,10 +23,8 @@ class ProtocolVersionTest extends TestCase
     {
         $cases = ProtocolVersion::cases();
 
-        // Deliberately not a string sort. The values are an enumerated set rather
-        // than an ordered scalar, so asserting that they collate chronologically
-        // would bake in an assumption the enum explicitly refuses to make: a future
-        // revision that is not date-shaped must still compare correctly.
+        // Deliberately not a string sort: asserting the values collate
+        // chronologically would bake in the date shape the enum refuses to assume.
         foreach ($cases as $index => $version) {
             $this->assertTrue(
                 $version->isAtLeast($version),
@@ -52,18 +50,16 @@ class ProtocolVersionTest extends TestCase
         $handshake = ProtocolVersion::handshakeVersions();
         $modern = ProtocolVersion::modernVersions();
 
-        // Concatenating the two eras back into the full case list proves the split
-        // is a partition: every revision appears, in order, and none appears twice.
+        // A partition: every revision in exactly one era, in declaration order.
         $this->assertSame(ProtocolVersion::cases(), [...$handshake, ...$modern]);
     }
 
     #[TestDox('every known revision is assigned to an era on purpose')]
     public function testEveryRevisionIsClassifiedExplicitly(): void
     {
-        // Hand-maintained on purpose. The era is derived from declaration order,
-        // so a revision appended below FIRST_MODERN_VERSION would be classified
-        // as modern by accident — and every other assertion here would stay
-        // green while it silently vanished from the handshake negotiation.
+        // Hand-maintained on purpose: a revision appended below FIRST_MODERN_VERSION
+        // is classified modern by accident, and every other assertion in this file
+        // stays green while it vanishes from the handshake negotiation.
         $eras = [
             '2024-11-05' => false,
             '2025-03-26' => false,
@@ -99,9 +95,6 @@ class ProtocolVersionTest extends TestCase
     #[TestDox('latestHandshake() stops short of the modern era')]
     public function testLatestHandshakeStopsBeforeTheModernEra(): void
     {
-        // The counter-offer a server makes when it cannot honour the requested
-        // version, so this must never drift up into a revision the handshake
-        // cannot serve.
         $this->assertSame(ProtocolVersion::V2025_11_25, ProtocolVersion::latestHandshake());
         $this->assertFalse(ProtocolVersion::latestHandshake()->isModern());
     }
@@ -134,8 +127,8 @@ class ProtocolVersionTest extends TestCase
     }
 
     #[TestDox('the header-absent default is the revision that introduced the header')]
-    public function testDefaultNegotiatedVersion(): void
+    public function testDefaultHeaderVersion(): void
     {
-        $this->assertSame(ProtocolVersion::V2025_03_26, ProtocolVersion::DEFAULT_NEGOTIATED_VERSION);
+        $this->assertSame(ProtocolVersion::V2025_03_26, ProtocolVersion::DEFAULT_HEADER_VERSION);
     }
 }

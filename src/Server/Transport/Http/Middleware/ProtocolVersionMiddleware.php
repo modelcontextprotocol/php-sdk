@@ -35,10 +35,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  * the `initialize` round-trip does not carry the header, and legacy clients
  * that omit it are tolerated.
  *
- * Validation is against a fixed set, not against the version a particular
- * session negotiated: PSR-15 middleware runs before the transport resolves the
- * session, so no per-connection state is reachable here. Narrow the set via
- * `$supportedVersions` to reject revisions the server does not want to serve.
+ * Validation is against a fixed set, not against the version a particular session
+ * negotiated: PSR-15 middleware runs before the transport resolves the session.
  *
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header
  *
@@ -53,7 +51,7 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
     private readonly array $supportedVersions;
 
     /**
-     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()} — the modern revisions are excluded because this server cannot serve their per-request negotiation yet.
+     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()}; modern revisions are excluded as their per-request negotiation is not served yet.
      * @param ResponseFactoryInterface|null $responseFactory   PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory     PSR-17 stream factory (auto-discovered if null)
      */
@@ -78,7 +76,7 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
         // own default so clients predating the header convention still get a
         // deterministic protocol version applied. Servers that whitelist only newer
         // versions in $supportedVersions will reject such requests with 400.
-        $version = '' === $headerValue ? ProtocolVersion::DEFAULT_NEGOTIATED_VERSION->value : $headerValue;
+        $version = '' === $headerValue ? ProtocolVersion::DEFAULT_HEADER_VERSION->value : $headerValue;
 
         if (\in_array($version, $this->supportedVersions, true)) {
             return $handler->handle($request);

@@ -17,11 +17,9 @@ use Mcp\Exception\LogicException;
  * Registry of the MCP protocol revisions this SDK knows about.
  *
  * Cases are declared oldest to newest, and that declaration order — not the
- * lexicographic order of the values — is what every comparison here relies on.
- * Revision identifiers happen to be ISO dates today, but they are an enumerated
- * set rather than an ordered scalar: future identifiers are not guaranteed to be
- * date-shaped, and an unrecognized peer string must compare conservatively
- * instead of accidentally sorting above a known revision.
+ * lexicographic order of the values — is what every comparison here relies on:
+ * revision identifiers are an enumerated set, not an ordered scalar, and a
+ * future one is not guaranteed to be date-shaped.
  *
  * The revisions split into two eras:
  *
@@ -30,9 +28,6 @@ use Mcp\Exception\LogicException;
  *  - **modern** ({@see self::FIRST_MODERN_VERSION} and later) drop `initialize`
  *    entirely — every request carries its own version in `_meta`, and servers
  *    advertise what they speak through `server/discover`.
- *
- * The two lists are deliberately kept apart so that adding a revision to one era
- * can never leak a version string into the other era's negotiation.
  *
  * @see https://modelcontextprotocol.io/specification/draft/basic/versioning
  *
@@ -63,7 +58,7 @@ enum ProtocolVersion: string
      * This is the revision that introduced both Streamable HTTP and the header
      * itself, so a request without the header cannot be newer than this.
      */
-    public const DEFAULT_NEGOTIATED_VERSION = self::V2025_03_26;
+    public const DEFAULT_HEADER_VERSION = self::V2025_03_26;
 
     /**
      * Newest revision reachable through the `initialize` handshake.

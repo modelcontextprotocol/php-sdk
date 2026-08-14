@@ -82,9 +82,8 @@ class InitializeHandlerTest extends TestCase
         $this->assertNotNull($response->result->protocolVersion);
         $this->assertSame($expected, $response->result->protocolVersion);
 
-        // No row may ever resolve to a modern revision, whatever the client sent:
-        // that era has no `initialize` at all, so answering with one would leave
-        // the connection unusable for both sides.
+        // No row may resolve to a modern revision, whatever the client sent — that
+        // era has no `initialize`, so the answer would be unusable for both sides.
         $this->assertFalse($response->result->protocolVersion->isModern());
     }
 
@@ -99,20 +98,16 @@ class InitializeHandlerTest extends TestCase
     {
         $counterOffer = ProtocolVersion::latestHandshake();
 
-        // A revision the server supports is echoed back unchanged. Driven off the
-        // enum rather than a literal list, so a new handshake revision is covered
-        // the moment it is declared.
+        // Driven off the enum rather than a literal list, so a new revision is
+        // covered by the era it is declared in the moment it lands.
         foreach (ProtocolVersion::handshakeVersions() as $version) {
             yield \sprintf('supported %s -> echoed back', $version->value) => [$version->value, $version];
         }
 
-        // An unknown or malformed revision draws a counter-offer instead of an error.
         yield 'unknown future revision -> counter-offer' => ['2099-01-01', $counterOffer];
         yield 'not a revision at all -> counter-offer' => ['banana', $counterOffer];
         yield 'empty -> counter-offer' => ['', $counterOffer];
 
-        // A modern revision is known to the SDK but unreachable through `initialize`,
-        // so it counter-offers rather than echoing what the client asked for.
         foreach (ProtocolVersion::modernVersions() as $version) {
             yield \sprintf('modern %s -> counter-offer', $version->value) => [$version->value, $counterOffer];
         }
@@ -165,11 +160,9 @@ class InitializeHandlerTest extends TestCase
     #[TestDox('falls back to empty defaults when constructed without a configuration')]
     public function testHandlesMissingConfiguration(): void
     {
-        // $configuration is nullable and defaults to null, but nothing else in the
-        // suite builds the handler that way, so the fallbacks were never exercised.
         // The reads in handle() sit on the left of ??, which has isset semantics and
-        // therefore tolerates the null without a nullsafe operator — this test is
-        // what proves that, rather than the shape of the accessor.
+        // therefore tolerates the null without a nullsafe operator. This test is what
+        // proves that, rather than the shape of the accessor.
         $handler = new InitializeHandler();
 
         $response = $handler->handle(
