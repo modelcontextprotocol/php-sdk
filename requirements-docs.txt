@@ -1,8 +1,3 @@
 # Toolchain for the documentation site under `docs/`, built by `make docs`.
 #
-# Zensical is the Material for MkDocs team's successor to MkDocs: it reads the
-# same `mkdocs.yml` and renders the same Material theme, but resolves internal
-# links against the page tree instead of copying markdown through verbatim.
-#
-# Pinned exactly: Zensical is pre-1.0, so bumps should be deliberate.
 zensical==0.0.50

@@ -170,7 +170,7 @@ $server = Server::builder()
     ->build();
 ```
 
-[→ Server Documentation](https://php.sdk.modelcontextprotocol.io/run/server-builder/)
+[→ Server Documentation](docs/run/server-builder.md)
 
 ## Client SDK
 
@@ -284,7 +284,7 @@ $transport = new HttpTransport('http://localhost:8000');
 $client->connect($transport);
 ```
 
-[→ Client Documentation](https://php.sdk.modelcontextprotocol.io/client/)
+[→ Client Documentation](docs/client/index.md)
 
 ## Documentation
 
@@ -292,17 +292,17 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 
 ### Core Concepts
 
-- **[Get started](https://php.sdk.modelcontextprotocol.io/get-started/)** — Install the SDK and build your first server
-- **[Servers](https://php.sdk.modelcontextprotocol.io/servers/)** — Tools, resources, resource templates, prompts, and how to register them
-- **[Inside your handler](https://php.sdk.modelcontextprotocol.io/handlers/)** — Sampling, logging, progress, and notifications from within a handler
-- **[Running your server](https://php.sdk.modelcontextprotocol.io/run/)** — Server builder, STDIO and HTTP transports, framework integration, sessions, authorization
-- **[Clients](https://php.sdk.modelcontextprotocol.io/client/)** — Client SDK for connecting to and communicating with MCP servers
-- **[Advanced](https://php.sdk.modelcontextprotocol.io/advanced/)** — Events, protocol extensions (including MCP Apps), and custom message handlers
+- **[Get started](docs/get-started/index.md)** — Install the SDK and build your first server
+- **[Servers](docs/servers/index.md)** — Tools, resources, resource templates, prompts, and how to register them
+- **[Inside your handler](docs/handlers/index.md)** — Sampling, logging, progress, and notifications from within a handler
+- **[Running your server](docs/run/index.md)** — Server builder, STDIO and HTTP transports, framework integration, sessions, authorization
+- **[Clients](docs/client/index.md)** — Client SDK for connecting to and communicating with MCP servers
+- **[Advanced](docs/advanced/index.md)** — Events, protocol extensions (including MCP Apps), and custom message handlers
 - **[API Reference](https://php.sdk.modelcontextprotocol.io/api/)** — Generated class reference
 
 ### Learning & Examples
 
-- **[Examples](https://php.sdk.modelcontextprotocol.io/examples/)** — Comprehensive example walkthroughs for servers and clients
+- **[Examples](docs/examples.md)** — Comprehensive example walkthroughs for servers and clients
 - **[ROADMAP.md](ROADMAP.md)** — Planned features and development roadmap
 
 ## External Resources

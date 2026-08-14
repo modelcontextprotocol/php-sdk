@@ -4,33 +4,11 @@ name: Documentation
 # (see mkdocs.yml) and phpDocumentor renders the API reference into /api/.
 # Pull requests build only — the build is strict, so a broken internal link
 # fails CI instead of shipping a dead link to the site.
-#
-# NOTE: deployment uses the official GitHub Pages actions, so the repository's
-# Pages source must be set to "GitHub Actions" (Settings → Pages) instead of
-# the gh-pages branch this workflow published to before.
 
 on:
   push:
     branches: [main]
-    # GitHub Actions does not support YAML anchors, so this list is repeated
-    # for pull_request below — keep the two in sync.
-    paths:
-      - docs/**
-      - mkdocs.yml
-      - requirements-docs.txt
-      - phpdoc.dist.xml
-      - src/**
-      - Makefile
-      - .github/workflows/docs.yml
   pull_request:
-    paths:
-      - docs/**
-      - mkdocs.yml
-      - requirements-docs.txt
-      - phpdoc.dist.xml
-      - src/**
-      - Makefile
-      - .github/workflows/docs.yml
   workflow_dispatch:
 
 permissions:
@@ -57,7 +35,6 @@ jobs:
         uses: "ramsey/composer-install@v4"
 
       - name: Install uv
-        # setup-uv publishes no floating major tag; pin the exact release.
         uses: astral-sh/setup-uv@v9.0.0
         with:
           enable-cache: true
