@@ -9,6 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Prompt generators returning content as typed arrays (`['type' => 'text', ...]` etc.) no longer lose the optional fields: `annotations` on every content type, and `_meta` and an explicit `mimeType` on embedded resource contents, now carry through to the resulting `PromptMessage` instead of being silently dropped. A missing resource `mimeType` still defaults to `text/plain`/`application/octet-stream` as before.
 * Add `annotations` support to `ImageContent` (constructor, `fromArray()`, `fromFile()`, `fromString()`, `jsonSerialize()`), matching `TextContent` and `AudioContent`.
 * Add client-side `roots/list` handler (`ListRootsRequestHandler` + `RootsCallbackInterface`) and `Client::sendRootsListChanged()`, plus server-side `ClientGateway::listRoots()` / `supportsRoots()` and `ListRootsResult::fromArray()`.
+* Add `ClientGateway::supportsSampling()`, so a tool can check the client's advertised capabilities before issuing a `sampling/createMessage` request instead of asking and catching the refusal. Matches the existing `supportsRoots()` and `supportsElicitation()`.
 * Add `Mcp\Schema\Content\ResourceLink` for the spec's `resource_link` content block (protocol revision 2025-06-18+), letting tool results and prompt messages reference a resource by URI/name without embedding its contents. Accepted anywhere `resource` (`EmbeddedResource`) content is (de)serialized: `CallToolResult::fromArray()`, `PromptMessage::fromArray()`, and `PromptResultFormatter`.
 
 0.7.0

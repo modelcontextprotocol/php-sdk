@@ -251,6 +251,23 @@ class ClientGateway
     }
 
     /**
+     * Check if the connected client supports sampling.
+     *
+     * Sampling lets a server borrow the client's model during tool execution.
+     * This method checks the client's advertised capabilities to determine if
+     * sampling/createMessage requests are supported.
+     *
+     * @return bool True if the client supports sampling, false otherwise
+     */
+    public function supportsSampling(): bool
+    {
+        $capabilities = (array) $this->session->get('client_capabilities', []);
+
+        // MCP spec: capability presence indicates support (value is typically {} or [])
+        return \array_key_exists('sampling', $capabilities);
+    }
+
+    /**
      * Send a request to the client and wait for a response (blocking).
      *
      * This suspends the Fiber and waits for the client to respond. The transport
