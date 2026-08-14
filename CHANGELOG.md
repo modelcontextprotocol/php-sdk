@@ -8,6 +8,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Always emit `{}` for empty tool schemas: `Tool` recursively normalizes every empty sub-schema — `properties`, `items`, `additionalProperties`, `$defs`, combinators and the other draft-07 to 2020-12 schema keywords — in the constructor, for both `inputSchema` and `outputSchema`, so an object position is never serialized as `[]`.
 * Prompt generators returning content as typed arrays (`['type' => 'text', ...]` etc.) no longer lose the optional fields: `annotations` on every content type, and `_meta` and an explicit `mimeType` on embedded resource contents, now carry through to the resulting `PromptMessage` instead of being silently dropped. A missing resource `mimeType` still defaults to `text/plain`/`application/octet-stream` as before.
 * Add `annotations` support to `ImageContent` (constructor, `fromArray()`, `fromFile()`, `fromString()`, `jsonSerialize()`), matching `TextContent` and `AudioContent`.
+* Add client-side `roots/list` handler (`ListRootsRequestHandler` + `RootsCallbackInterface`) and `Client::sendRootsListChanged()`, plus server-side `ClientGateway::listRoots()` / `supportsRoots()` and `ListRootsResult::fromArray()`.
 
 0.7.0
 -----
