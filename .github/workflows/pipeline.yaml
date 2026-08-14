@@ -49,6 +49,9 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --testsuite=unit
 
+      - name: Integration Tests
+        run: vendor/bin/phpunit --testsuite=integration
+
   inspector:
     runs-on: ubuntu-latest
     steps:
