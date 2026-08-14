@@ -28,7 +28,7 @@ use Mcp\Exception\InvalidArgumentException;
  *     type: 'object',
  *     properties?: array<string, mixed>|\stdClass,
  *     required?: string[]|null,
- *     additionalProperties?: bool|array<string, mixed>,
+ *     additionalProperties?: bool|array<string, mixed>|\stdClass,
  *     description?: string
  * }
  * @phpstan-type ToolData array{
@@ -46,6 +46,43 @@ use Mcp\Exception\InvalidArgumentException;
  */
 class Tool implements \JsonSerializable
 {
+    /**
+     * JSON Schema keywords whose value is a single sub-schema.
+     */
+    private const SUB_SCHEMA_KEYWORDS = [
+        'additionalItems',
+        'additionalProperties',
+        'contains',
+        'else',
+        'if',
+        'not',
+        'propertyNames',
+        'then',
+        'unevaluatedItems',
+        'unevaluatedProperties',
+    ];
+
+    /**
+     * JSON Schema keywords whose value maps names to sub-schemas.
+     */
+    private const SUB_SCHEMA_MAP_KEYWORDS = [
+        '$defs',
+        'definitions',
+        'dependentSchemas',
+        'patternProperties',
+        'properties',
+    ];
+
+    /**
+     * JSON Schema keywords whose value is a list of sub-schemas.
+     */
+    private const SUB_SCHEMA_LIST_KEYWORDS = [
+        'allOf',
+        'anyOf',
+        'oneOf',
+        'prefixItems',
+    ];
+
     /**
      * @var ToolInputSchema
      */
@@ -83,9 +120,9 @@ class Tool implements \JsonSerializable
         }
 
         // Always normalize here so every construction path emits `{}` for empty
-        // object `properties` — not only SchemaGenerator / fromArray.
-        $this->inputSchema = self::normalizeSchemaProperties($inputSchema);
-        $this->outputSchema = null !== $outputSchema ? self::normalizeSchemaProperties($outputSchema) : null;
+        // sub-schemas — not only SchemaGenerator / fromArray.
+        $this->inputSchema = self::normalizeSchema($inputSchema);
+        $this->outputSchema = null !== $outputSchema ? self::normalizeSchema($outputSchema) : null;
     }
 
     /**
@@ -162,59 +199,85 @@ class Tool implements \JsonSerializable
     }
 
     /**
-     * Normalize schema properties: convert empty `properties` arrays to `\stdClass`
-     * so they JSON-encode as `{}` (a JSON Schema object) rather than `[]`.
+     * Normalize a JSON Schema so that empty sub-schemas JSON-encode as `{}` rather than `[]`.
      *
-     * Walks nested property schemas recursively so nested object parameters and
-     * `outputSchema` are covered, not only the top-level `properties` map.
+     * Once JSON is decoded into associative arrays, PHP cannot tell the empty object `{}`
+     * from the empty array `[]` — both are `[]`. Re-encoding then produces `[]`, which is
+     * invalid wherever a schema is expected (`properties`, `items`, `additionalProperties`,
+     * …), and strict clients reject it. Every empty sub-schema is therefore replaced with a
+     * `\stdClass` before serialization.
+     *
+     * The walk is recursive and covers the schema keywords of draft-07 through 2020-12, so
+     * nested object parameters, `$defs`, combinators, and `outputSchema` are all covered —
+     * not only the top-level `properties` map.
      *
      * @param array<string, mixed> $schema
      *
      * @return array<string, mixed>
      */
-    private static function normalizeSchemaProperties(array $schema): array
+    private static function normalizeSchema(array $schema): array
     {
-        if (isset($schema['properties']) && \is_array($schema['properties'])) {
-            if ([] === $schema['properties']) {
-                $schema['properties'] = new \stdClass();
-            } else {
-                foreach ($schema['properties'] as $name => $propertySchema) {
-                    if (\is_array($propertySchema)) {
-                        $schema['properties'][$name] = self::normalizeSchemaProperties($propertySchema);
-                    }
+        foreach (self::SUB_SCHEMA_KEYWORDS as $keyword) {
+            if (isset($schema[$keyword]) && \is_array($schema[$keyword])) {
+                $schema[$keyword] = self::normalizeSubSchema($schema[$keyword]);
+            }
+        }
+
+        foreach (self::SUB_SCHEMA_MAP_KEYWORDS as $keyword) {
+            if (!isset($schema[$keyword]) || !\is_array($schema[$keyword])) {
+                continue;
+            }
+
+            if ([] === $schema[$keyword]) {
+                $schema[$keyword] = new \stdClass();
+                continue;
+            }
+
+            foreach ($schema[$keyword] as $name => $subSchema) {
+                if (\is_array($subSchema)) {
+                    $schema[$keyword][$name] = self::normalizeSubSchema($subSchema);
+                }
+            }
+        }
+
+        foreach (self::SUB_SCHEMA_LIST_KEYWORDS as $keyword) {
+            if (!isset($schema[$keyword]) || !\is_array($schema[$keyword])) {
+                continue;
+            }
+
+            // An empty list stays a list — `allOf: []` is already valid JSON.
+            foreach ($schema[$keyword] as $index => $subSchema) {
+                if (\is_array($subSchema)) {
+                    $schema[$keyword][$index] = self::normalizeSubSchema($subSchema);
                 }
             }
         }
 
         if (isset($schema['items']) && \is_array($schema['items'])) {
-            // Tuple-style `items` (list of schemas) or a single item schema object.
-            if (array_is_list($schema['items'])) {
+            // `items` is a single sub-schema, or a list of them in draft-07 tuple form.
+            // An empty array is read as the empty schema `{}` — what an `items: {}` from
+            // SchemaGenerator decodes to — rather than as an empty tuple.
+            if ([] !== $schema['items'] && array_is_list($schema['items'])) {
                 foreach ($schema['items'] as $index => $itemSchema) {
                     if (\is_array($itemSchema)) {
-                        $schema['items'][$index] = self::normalizeSchemaProperties($itemSchema);
+                        $schema['items'][$index] = self::normalizeSubSchema($itemSchema);
                     }
                 }
             } else {
-                $schema['items'] = self::normalizeSchemaProperties($schema['items']);
-            }
-        }
-
-        if (isset($schema['additionalProperties']) && \is_array($schema['additionalProperties'])) {
-            $schema['additionalProperties'] = self::normalizeSchemaProperties($schema['additionalProperties']);
-        }
-
-        foreach (['anyOf', 'oneOf', 'allOf', 'prefixItems'] as $combiner) {
-            if (!isset($schema[$combiner]) || !\is_array($schema[$combiner])) {
-                continue;
-            }
-
-            foreach ($schema[$combiner] as $index => $subSchema) {
-                if (\is_array($subSchema)) {
-                    $schema[$combiner][$index] = self::normalizeSchemaProperties($subSchema);
-                }
+                $schema['items'] = self::normalizeSubSchema($schema['items']);
             }
         }
 
         return $schema;
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>|\stdClass
+     */
+    private static function normalizeSubSchema(array $schema): array|\stdClass
+    {
+        return [] === $schema ? new \stdClass() : self::normalizeSchema($schema);
     }
 }

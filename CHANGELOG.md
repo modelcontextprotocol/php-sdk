@@ -5,7 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
-* Always emit `{}` for an empty tool schema `properties` map: `Tool` normalizes it in the constructor, recursively and for both `inputSchema` and `outputSchema`, so `tools/list` never serializes an invalid `properties: []`.
+* Always emit `{}` for empty tool schemas: `Tool` recursively normalizes every empty sub-schema — `properties`, `items`, `additionalProperties`, `$defs`, combinators and the other draft-07 to 2020-12 schema keywords — in the constructor, for both `inputSchema` and `outputSchema`, so an object position is never serialized as `[]`.
 
 0.7.0
 -----

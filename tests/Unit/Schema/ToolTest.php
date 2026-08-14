@@ -177,4 +177,116 @@ class ToolTest extends TestCase
 
         $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['rows']['items']['properties']);
     }
+
+    /**
+     * Each case is a schema that is already valid JSON: decoding it collapses every `{}`
+     * to `[]`, and normalization has to restore it verbatim.
+     *
+     * @return iterable<string, array{string}>
+     */
+    public static function emptySubSchemaProvider(): iterable
+    {
+        yield 'top-level properties' => ['{"type":"object","properties":{}}'];
+        yield 'nested properties' => ['{"type":"object","properties":{"filter":{"type":"object","properties":{}}}}'];
+        yield 'property schema' => ['{"type":"object","properties":{"anything":{}}}'];
+        yield 'items schema' => ['{"type":"object","properties":{"tags":{"type":"array","items":{}}}}'];
+        yield 'tuple items schema' => ['{"type":"object","properties":{"pair":{"type":"array","items":[{"type":"object","properties":{}},{}]}}}'];
+        yield 'additionalItems schema' => ['{"type":"object","properties":{"tags":{"type":"array","additionalItems":{}}}}'];
+        yield 'additionalProperties schema' => ['{"type":"object","properties":{"map":{"type":"object","additionalProperties":{}}}}'];
+        yield 'propertyNames schema' => ['{"type":"object","properties":{"map":{"type":"object","propertyNames":{}}}}'];
+        yield 'contains schema' => ['{"type":"object","properties":{"tags":{"type":"array","contains":{}}}}'];
+        yield 'unevaluatedItems schema' => ['{"type":"object","properties":{"tags":{"type":"array","unevaluatedItems":{}}}}'];
+        yield 'unevaluatedProperties schema' => ['{"type":"object","properties":{"map":{"type":"object","unevaluatedProperties":{}}}}'];
+        yield 'not schema' => ['{"type":"object","properties":{"a":{"not":{}}}}'];
+        yield 'if/then/else schemas' => ['{"type":"object","properties":{"a":{"if":{},"then":{"type":"object","properties":{}},"else":{}}}}'];
+        yield '$defs entry' => ['{"type":"object","properties":{"a":{"$ref":"#/$defs/E"}},"$defs":{"E":{"type":"object","properties":{}}}}'];
+        yield 'definitions entry' => ['{"type":"object","properties":{"a":{"$ref":"#/definitions/E"}},"definitions":{"E":{}}}'];
+        yield 'patternProperties entry' => ['{"type":"object","properties":{"map":{"type":"object","patternProperties":{"^x":{}}}}}'];
+        yield 'dependentSchemas entry' => ['{"type":"object","properties":{"a":{"type":"string"}},"dependentSchemas":{"a":{}}}'];
+        yield 'combinator branches' => ['{"type":"object","properties":{"a":{"anyOf":[{},{"type":"object","properties":{}}],"oneOf":[{}],"allOf":[{}]}}}'];
+        yield 'prefixItems entry' => ['{"type":"object","properties":{"a":{"type":"array","prefixItems":[{},{"type":"object","properties":{}}]}}}'];
+    }
+
+    #[DataProvider('emptySubSchemaProvider')]
+    public function testConstructorNormalizesEmptySubSchemas(string $schemaJson): void
+    {
+        /** @var array{type: 'object', properties: array<string, mixed>, required: string[]|null} $schema */
+        $schema = json_decode($schemaJson, true, 512, \JSON_THROW_ON_ERROR);
+
+        $tool = new Tool(name: 't', title: null, inputSchema: $schema, description: null, annotations: null);
+
+        $this->assertSame($schemaJson, json_encode($tool->inputSchema, \JSON_UNESCAPED_SLASHES));
+    }
+
+    #[DataProvider('emptySubSchemaProvider')]
+    public function testConstructorNormalizesEmptySubSchemasInOutputSchema(string $schemaJson): void
+    {
+        /** @var array{type: 'object', properties?: array<string, mixed>} $schema */
+        $schema = json_decode($schemaJson, true, 512, \JSON_THROW_ON_ERROR);
+
+        $tool = new Tool(
+            name: 't',
+            title: null,
+            inputSchema: self::validInputSchema(),
+            description: null,
+            annotations: null,
+            outputSchema: $schema,
+        );
+
+        $this->assertSame($schemaJson, json_encode($tool->outputSchema, \JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function preservedEmptyArrayProvider(): iterable
+    {
+        yield 'empty combinator list' => ['{"type":"object","properties":{},"allOf":[]}'];
+        yield 'empty prefixItems list' => ['{"type":"object","properties":{},"prefixItems":[]}'];
+        yield 'empty required list' => ['{"type":"object","properties":{},"required":[]}'];
+        yield 'empty enum list' => ['{"type":"object","properties":{"a":{"enum":[]}}}'];
+        yield 'empty dependentRequired list' => ['{"type":"object","properties":{"a":{}},"dependentRequired":{"a":[]}}'];
+    }
+
+    /**
+     * Keywords that hold JSON arrays — not sub-schemas — must keep encoding as `[]`.
+     */
+    #[DataProvider('preservedEmptyArrayProvider')]
+    public function testConstructorLeavesNonSchemaEmptyArraysAlone(string $schemaJson): void
+    {
+        /** @var array{type: 'object', properties: array<string, mixed>, required: string[]|null} $schema */
+        $schema = json_decode($schemaJson, true, 512, \JSON_THROW_ON_ERROR);
+
+        $tool = new Tool(name: 't', title: null, inputSchema: $schema, description: null, annotations: null);
+
+        $this->assertSame($schemaJson, json_encode($tool->inputSchema, \JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Regression test for #151: `SchemaGenerator` emits `items: {}` for untyped arrays,
+     * but a client decoding that payload gets `items: []` back — re-serializing it used to
+     * hand strict clients the very schema #151 fixed.
+     */
+    public function testFromArrayRoundTripPreservesEmptyItemsSchema(): void
+    {
+        $tool = new Tool(
+            name: 't',
+            title: null,
+            inputSchema: [
+                'type' => 'object',
+                'properties' => ['tags' => ['type' => 'array', 'items' => new \stdClass()]],
+                'required' => null,
+            ],
+            description: null,
+            annotations: null,
+        );
+
+        $wire = (string) json_encode($tool);
+        $this->assertStringContainsString('"items":{}', $wire);
+
+        /** @var array{name: string, inputSchema: array{type: 'object', properties: array<string, mixed>, required: string[]|null}} $decoded */
+        $decoded = json_decode($wire, true, 512, \JSON_THROW_ON_ERROR);
+
+        $this->assertSame($wire, json_encode(Tool::fromArray($decoded)));
+    }
 }
