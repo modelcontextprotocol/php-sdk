@@ -251,12 +251,17 @@ class Client
      *
      * The server should react by requesting an updated list via roots/list.
      *
-     * @throws RuntimeException if the client did not advertise the `roots.listChanged` capability
+     * @throws RuntimeException    if the client did not advertise the `roots.listChanged` capability
+     * @throws ConnectionException if the client is not connected
      */
     public function sendRootsListChanged(): void
     {
         if (true !== $this->config->capabilities->rootsListChanged) {
             throw new RuntimeException('Cannot send a "roots/list_changed" notification without advertising the "roots.listChanged" capability. Build the client with new ClientCapabilities(roots: true, rootsListChanged: true).');
+        }
+
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
         }
 
         $this->protocol->sendNotification(new RootsListChangedNotification());

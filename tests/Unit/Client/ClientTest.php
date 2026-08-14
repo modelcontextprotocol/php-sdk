@@ -12,7 +12,9 @@
 namespace Mcp\Tests\Unit\Client;
 
 use Mcp\Client;
+use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use PHPUnit\Framework\TestCase;
@@ -25,6 +27,10 @@ final class ClientTest extends TestCase
         $transport = $this->createMock(TransportInterface::class);
         $transport->method('send')->willReturnCallback(static function (string $data) use (&$sent): void {
             $sent[] = $data;
+        });
+        // Stand in for a completed initialize handshake, which the transport drives.
+        $transport->method('setState')->willReturnCallback(static function (ClientStateInterface $state): void {
+            $state->setInitialized(true);
         });
 
         $client = Client::builder()
@@ -54,6 +60,19 @@ final class ClientTest extends TestCase
 
         $this->expectException(RuntimeException::class);
         $this->expectExceptionMessage('roots.listChanged');
+
+        $client->sendRootsListChanged();
+    }
+
+    public function testSendRootsListChangedThrowsWhenNotConnected(): void
+    {
+        $client = Client::builder()
+            ->setClientInfo('Roots Test', '1.0.0')
+            ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
+            ->build();
+
+        $this->expectException(ConnectionException::class);
+        $this->expectExceptionMessage('Client is not connected.');
 
         $client->sendRootsListChanged();
     }

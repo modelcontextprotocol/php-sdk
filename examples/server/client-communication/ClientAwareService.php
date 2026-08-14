@@ -26,6 +26,42 @@ final class ClientAwareService
     }
 
     /**
+     * Ask the client which workspace folders the server is allowed to operate on.
+     *
+     * Demonstrates the server side of the "roots" client capability: the tool
+     * issues a roots/list request that the client answers from its own handler.
+     *
+     * @return array{status: string, message: string, roots?: list<array{uri: string, name: string|null}>}
+     */
+    #[McpTool(name: 'inspect_workspace_roots', description: 'Ask the client for its workspace roots via a roots/list request.')]
+    public function inspectWorkspaceRoots(RequestContext $context): array
+    {
+        $clientGateway = $context->getClientGateway();
+
+        if (!$clientGateway->supportsRoots()) {
+            return [
+                'status' => 'unsupported',
+                'message' => 'Client does not expose roots. Advertise the "roots" capability and register a ListRootsRequestHandler to let the server discover your workspace folders.',
+            ];
+        }
+
+        $result = $clientGateway->listRoots();
+
+        $roots = [];
+        foreach ($result->roots as $root) {
+            $roots[] = ['uri' => $root->uri, 'name' => $root->name];
+        }
+
+        $clientGateway->log(LoggingLevel::Info, \sprintf('Client exposed %d root(s).', \count($roots)));
+
+        return [
+            'status' => 'ok',
+            'message' => \sprintf('Client exposed %d root(s).', \count($roots)),
+            'roots' => $roots,
+        ];
+    }
+
+    /**
      * @return array{incident: string, recommended_actions: string, model: string}
      */
     #[McpTool(name: 'coordinate_incident_response', description: 'Coordinate an incident response with logging, progress, and sampling.')]

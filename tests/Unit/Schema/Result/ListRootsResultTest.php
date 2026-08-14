@@ -63,6 +63,17 @@ final class ListRootsResultTest extends TestCase
         ListRootsResult::fromArray([]);
     }
 
+    public function testFromArrayWithNonArrayRoot(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid root in ListRootsResult data, expected an array.');
+
+        /* @phpstan-ignore argument.type */
+        ListRootsResult::fromArray([
+            'roots' => ['file:///tmp'],
+        ]);
+    }
+
     public function testFromArrayRejectsNonFileUri(): void
     {
         $this->expectException(InvalidArgumentException::class);

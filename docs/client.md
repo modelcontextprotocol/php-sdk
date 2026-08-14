@@ -634,11 +634,16 @@ $client = Client::builder()
 When the client's roots change, notify the server so it can request the updated
 list via `roots/list`. This requires advertising the `roots.listChanged`
 capability (`rootsListChanged: true` above); otherwise `sendRootsListChanged()`
-throws a `RuntimeException`:
+throws a `RuntimeException`. On a client that is not connected it throws a
+`ConnectionException`:
 
 ```php
 $client->sendRootsListChanged();
 ```
+
+See `examples/client/stdio_roots.php` for a runnable example: it calls the
+`inspect_workspace_roots` tool of the client-communication demo server, which
+answers by issuing the `roots/list` request back to the client.
 
 ## Error Handling
 

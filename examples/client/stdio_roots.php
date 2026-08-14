@@ -16,7 +16,9 @@
  * - The client advertises the `roots` capability during initialization.
  * - It answers server `roots/list` requests via a RootsCallbackInterface,
  *   exposing a couple of `file://` workspace folders.
- * - It can notify the server when its list of roots changes.
+ * - Calling the server's `inspect_workspace_roots` tool makes the server issue
+ *   a `roots/list` request, so the handler below actually runs.
+ * - It notifies the server when its list of roots changes.
  *
  * Usage: php examples/client/stdio_roots.php
  */
@@ -28,6 +30,7 @@ use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
@@ -57,29 +60,26 @@ $transport = new StdioTransport(
     args: [__DIR__.'/../server/client-communication/server.php'],
 );
 
-try {
-    echo "Connecting to MCP server...\n";
-    $client->connect($transport);
+echo "Connecting to MCP server...\n";
+$client->connect($transport);
 
-    $serverInfo = $client->getServerInfo();
-    echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
+$serverInfo = $client->getServerInfo();
+echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
 
-    echo "Available tools:\n";
-    $toolsResult = $client->listTools();
-    foreach ($toolsResult->tools as $tool) {
-        echo "  - {$tool->name}\n";
+// The server tool asks the client for its roots, which triggers the handler above.
+echo "Calling 'inspect_workspace_roots'...\n";
+$result = $client->callTool(name: 'inspect_workspace_roots');
+
+echo "\nResult:\n";
+foreach ($result->content as $content) {
+    if ($content instanceof TextContent) {
+        echo $content->text."\n";
     }
-    echo "\n";
-
-    // Whenever the client's workspace folders change, notify the server so it can
-    // request an updated list via roots/list.
-    echo "Notifying the server that the roots list changed...\n";
-    $client->sendRootsListChanged();
-
-    echo "Client is ready to answer roots/list requests from the server.\n";
-} catch (Throwable $e) {
-    echo "Error: {$e->getMessage()}\n";
-    echo $e->getTraceAsString()."\n";
-} finally {
-    $client->disconnect();
 }
+
+// Whenever the client's workspace folders change, notify the server so it can
+// request an updated list via roots/list.
+echo "\nNotifying the server that the roots list changed...\n";
+$client->sendRootsListChanged();
+
+$client->disconnect();
