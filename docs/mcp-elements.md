@@ -172,8 +172,8 @@ public function getMultipleContent(): array
 
 #### Structured Output
 
-Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` object. Declare its
-shape with `outputSchema`, which the MCP specification requires to be a JSON Schema of type `object`:
+Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` value. Declare its
+shape with `outputSchema`, a JSON Schema of type `object`:
 
 ```php
 #[McpTool(
@@ -200,22 +200,25 @@ The same schema can be passed to manual registration:
 $builder->addTool([WeatherHandler::class, 'getWeather'], outputSchema: [/* ... */]);
 ```
 
-Only object-shaped return values become `structuredContent`. The SDK fills it whenever the return value qualifies —
-`outputSchema` is what tells clients to expect it and lets them validate it.
+The SDK fills `structuredContent` whenever the return value qualifies — `outputSchema` is what tells clients to expect it
+and lets them validate it. What qualifies depends on the protocol revision the call is served under:
 
 | Return value | `structuredContent` |
 |---|---|
 | Associative array (`['temperature' => 22.5]`) | The array |
 | Object (`stdClass`, DTO, `JsonSerializable`) that serializes to a JSON object | Its JSON representation |
-| List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted |
+| List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted before `2026-07-28`, kept from it on |
 | Array holding `Content` instances | Omitted (already carried in `content`) |
 | Scalars, `null`, `Content` instances | Omitted |
 
-Lists are omitted because a PHP list serializes to a JSON array, and `structuredContent` must be a JSON object — strict
-clients reject the whole tool call otherwise. Wrap the list in a key to give it structured output:
+Up to revision `2025-11-25`, `structuredContent` had to be a JSON object, so a PHP list — which serializes to a JSON
+array — was not emittable and strict clients rejected the whole tool call over one. [SEP-2106][sep-2106], part of
+revision `2026-07-28`, widened `outputSchema` to any JSON Schema 2020-12 and `structuredContent` to any JSON value
+conforming to it. The SDK picks the rule from the revision negotiated for the call, so a tool serving both eras needs the
+object shape to produce structured output everywhere. Wrap the list in a key for that:
 
 ```php
-// No structured content: a list can't be a JSON object
+// Structured content only from 2026-07-28 on: a bare list is not a JSON object
 public function listUsersFlat(): array
 {
     return [['id' => 1], ['id' => 2]];
@@ -235,7 +238,10 @@ public function listUsers(): array
 ```
 
 Either way the data reaches the client: a return value with no structured representation is still JSON-encoded into
-`content` as a `TextContent`.
+`content` as a `TextContent`. When a tool declares an `outputSchema` but returns something that cannot be sent as
+`structuredContent`, the SDK logs a warning — the value is not silently dropped.
+
+[sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
 
 #### Error Handling
 

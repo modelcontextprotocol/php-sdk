@@ -24,6 +24,7 @@ use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
@@ -496,11 +497,14 @@ class RegistryTest extends TestCase
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
     }
 
-    public function testExtractStructuredContentReturnsNullForListResults(): void
+    /**
+     * @dataProvider provideHandshakeVersions
+     */
+    public function testExtractStructuredContentDropsListResultsBeforeSep2106(?ProtocolVersion $version): void
     {
-        // A PHP list serializes to a JSON array, but `structuredContent` must be a
-        // JSON object — `Tool::fromArray()` enforces the matching rule by rejecting
-        // any outputSchema whose type is not "object".
+        // Up to 2025-11-25 a PHP list serializes to something `structuredContent`
+        // does not allow — a JSON array — and `Tool::fromArray()` enforces the
+        // matching rule by rejecting any outputSchema whose type is not "object".
         $outputSchema = [
             'type' => 'object',
             'properties' => [
@@ -518,10 +522,50 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_static_data');
-        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, $version));
     }
 
-    public function testExtractStructuredContentReturnsNullForListOfScalars(): void
+    /**
+     * The revision is optional, and omitting it has to keep the strict rule: it is
+     * what every revision reachable through the `initialize` handshake requires.
+     *
+     * @return iterable<string, array{?ProtocolVersion}>
+     */
+    public static function provideHandshakeVersions(): iterable
+    {
+        yield 'unspecified' => [null];
+
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            yield $version->value => [$version];
+        }
+    }
+
+    public function testExtractStructuredContentKeepsListResultsFromSep2106On(): void
+    {
+        // SEP-2106 widened `structuredContent` to any JSON value conforming to
+        // `outputSchema`, and `outputSchema` to any JSON Schema 2020-12 — the spec's
+        // own example of a legal result is a list of records like this one.
+        $outputSchema = [
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => ['foo' => ['type' => 'string']],
+            ],
+        ];
+
+        $tool = $this->createValidTool('list_static_data', $outputSchema);
+        $toolReturnValue = [
+            ['foo' => 'bar'],
+            ['foo' => 'baz'],
+        ];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_static_data');
+        $this->assertSame($toolReturnValue, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentDropsListOfScalarsBeforeSep2106(): void
     {
         $tool = $this->createValidTool('list_ids', null);
         $toolReturnValue = ['101', '102', '103'];
@@ -529,7 +573,8 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_ids');
-        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame($toolReturnValue, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testExtractStructuredContentEncodesObjectResults(): void
@@ -545,10 +590,10 @@ class RegistryTest extends TestCase
         $this->assertSame(['id' => 1, 'label' => 'thing'], $toolRef->extractStructuredContent($toolReturnValue));
     }
 
-    public function testExtractStructuredContentReturnsNullForObjectsSerializingToAList(): void
+    public function testExtractStructuredContentAppliesTheListRuleToObjectResultsToo(): void
     {
         // `JsonSerializable` can hand back a list just as a raw array result can,
-        // and it is no more valid as `structuredContent` for having come from an object.
+        // and it is no more — and no less — valid for having come from an object.
         $tool = $this->createValidTool('list_things', null);
         $toolReturnValue = new class implements \JsonSerializable {
             public function jsonSerialize(): array
@@ -560,11 +605,15 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('list_things');
-        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame([['id' => 1], ['id' => 2]], $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testExtractStructuredContentReturnsNullForObjectsSerializingToAScalar(): void
     {
+        // SEP-2106 allows a scalar `structuredContent`, but `CallToolResult` types
+        // the field as `?array` and cannot carry one — so it is dropped in every
+        // revision until that type widens.
         $tool = $this->createValidTool('count_things', null);
         $toolReturnValue = new class implements \JsonSerializable {
             public function jsonSerialize(): int
@@ -576,11 +625,14 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('count_things');
-        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testExtractStructuredContentReturnsNullForArrayOfContentItems(): void
     {
+        // Unlike the list rule, this one is revision-independent: the items are
+        // already carried in the result's `content`.
         $tool = $this->createValidTool('lookup_thing', null);
         $toolReturnValue = [
             new TextContent('Found it.'),
@@ -590,7 +642,8 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
         $toolRef = $this->registry->getTool('lookup_thing');
-        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testConfiguredLoaderIsNotRunUntilFirstRead(): void

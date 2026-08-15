@@ -17,6 +17,7 @@ use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -34,6 +35,14 @@ use Psr\Log\NullLogger;
  */
 final class CallToolHandler implements RequestHandlerInterface
 {
+    /**
+     * `_meta` key carrying the protocol revision of a single request, introduced
+     * with the modern era that replaced the `initialize` handshake.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning
+     */
+    private const PROTOCOL_VERSION_META_KEY = 'io.modelcontextprotocol/protocolVersion';
+
     private SchemaValidator $schemaValidator;
 
     public function __construct(
@@ -97,7 +106,15 @@ final class CallToolHandler implements RequestHandlerInterface
 
             $structuredContent = null;
             if (!$result instanceof CallToolResult) {
-                $structuredContent = $reference->extractStructuredContent($result);
+                $structuredContent = $reference->extractStructuredContent($result, $this->resolveProtocolVersion($request, $session));
+
+                if (null === $structuredContent && null !== $reference->tool->outputSchema) {
+                    $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
+                        'name' => $toolName,
+                        'result_type' => get_debug_type($result),
+                    ]);
+                }
+
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
             }
 
@@ -126,5 +143,25 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while executing tool', $request->getId());
         }
+    }
+
+    /**
+     * Resolves the revision this call is served under.
+     *
+     * Modern revisions declare it per request in `_meta`, handshake ones negotiate
+     * it once and keep it on the session. Neither is guaranteed to be present — a
+     * transport may skip `initialize` entirely — so this falls back to the newest
+     * handshake revision, whose rules hold for every revision below it too.
+     */
+    private function resolveProtocolVersion(Request $request, SessionInterface $session): ProtocolVersion
+    {
+        $meta = $request->getMeta();
+        $requested = $meta[self::PROTOCOL_VERSION_META_KEY] ?? $session->get('protocol_version');
+
+        if (!\is_string($requested)) {
+            return ProtocolVersion::latestHandshake();
+        }
+
+        return ProtocolVersion::tryFrom($requested) ?? ProtocolVersion::latestHandshake();
     }
 }

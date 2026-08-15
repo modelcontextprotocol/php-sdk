@@ -477,6 +477,117 @@ class CallToolHandlerTest extends TestCase
         $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
     }
 
+    /**
+     * @dataProvider provideStructuredContentRevisions
+     */
+    public function testStructuredContentFollowsTheNegotiatedRevision(?string $negotiated, ?array $expected): void
+    {
+        $listResult = [['id' => 1], ['id' => 2]];
+        $request = $this->createCallToolRequest('list_things', []);
+        $toolReference = $this->createToolReference('list_things', static fn () => $listResult);
+
+        $this->session
+            ->method('get')
+            ->with('protocol_version')
+            ->willReturn($negotiated);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($listResult);
+
+        $toolReference
+            ->method('formatResult')
+            ->willReturn([new TextContent('[{"id":1},{"id":2}]')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($expected, $response->result->structuredContent);
+    }
+
+    /**
+     * @return iterable<string, array{?string, ?array<mixed>}>
+     */
+    public static function provideStructuredContentRevisions(): iterable
+    {
+        // A list is only emittable from 2026-07-28 (SEP-2106) on. Without a
+        // negotiated revision the handler assumes the stricter handshake rule.
+        yield 'no session revision' => [null, null];
+        yield 'unknown revision' => ['1999-01-01', null];
+        yield '2025-06-18' => ['2025-06-18', null];
+        yield '2025-11-25' => ['2025-11-25', null];
+        yield '2026-07-28' => ['2026-07-28', [['id' => 1], ['id' => 2]]];
+    }
+
+    public function testPerRequestRevisionTakesPrecedenceOverTheSession(): void
+    {
+        $listResult = [['id' => 1]];
+        $request = $this->createCallToolRequest('list_things', [])
+            ->withMeta(['io.modelcontextprotocol/protocolVersion' => '2026-07-28']);
+        $toolReference = $this->createToolReference('list_things', static fn () => $listResult);
+
+        $this->session
+            ->method('get')
+            ->with('protocol_version')
+            ->willReturn('2025-11-25');
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($listResult);
+
+        $toolReference
+            ->method('formatResult')
+            ->willReturn([new TextContent('[{"id":1}]')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($listResult, $response->result->structuredContent);
+    }
+
+    public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void
+    {
+        $listResult = [['id' => 1]];
+        $request = $this->createCallToolRequest('list_things', []);
+        $toolReference = $this->createToolReference('list_things', static fn () => $listResult, [
+            'type' => 'object',
+            'properties' => ['items' => ['type' => 'array']],
+        ]);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($listResult);
+
+        $toolReference
+            ->method('formatResult')
+            ->willReturn([new TextContent('[{"id":1}]')]);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('warning')
+            ->with(
+                $this->stringContains('outputSchema'),
+                $this->callback(static fn (array $context): bool => 'list_things' === $context['name'] && 'array' === $context['result_type']),
+            );
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertNull($response->result->structuredContent);
+    }
+
     public function testValidationError(): void
     {
         $schema = [
