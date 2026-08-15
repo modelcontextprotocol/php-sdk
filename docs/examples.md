@@ -512,3 +512,106 @@ php examples/client/http_client_communication.php
 
 !!! note
     For sampling with HTTP transport, the server must support concurrent request processing (e.g., using Symfony CLI, PHP-FPM, or a production web server). PHP's built-in development server cannot handle the concurrent requests required for sampling.
+
+### STDIO Elicitation
+
+**File**: `examples/client/stdio_elicitation.php`
+
+**What it demonstrates:**
+- Answering server-initiated `elicitation/create` requests
+- Prompting interactively on STDIN, one field per requested property
+- Deriving a default per schema type, applied when the user just presses Enter
+- Casting the entered string back to the declared type
+
+Runs against the [Elicitation](#elicitation) server example, whose tools ask for
+input mid-execution.
+
+**Key Features:**
+```php
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
+
+$elicitationRequestHandler = new ElicitationRequestHandler(new class implements ElicitationCallbackInterface {
+    public function __invoke(ElicitRequest $request): ElicitResult
+    {
+        echo "\n[ELICIT] {$request->message}\n";
+
+        $content = [];
+        foreach ($request->requestedSchema->properties as $name => $definition) {
+            // defaultFor() and cast() below switch on the schema definition type
+            $default = $this->defaultFor($definition);
+            echo "  {$definition->title} [{$default}]: ";
+
+            $input = trim(fgets(\STDIN) ?: '');
+            $content[$name] = '' === $input ? $default : $this->cast($definition, $input);
+        }
+
+        return new ElicitResult(ElicitAction::Accept, $content);
+    }
+});
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler($elicitationRequestHandler)
+    ->build();
+```
+
+**Usage:**
+```bash
+# Run the client (automatically starts the elicitation server)
+php examples/client/stdio_elicitation.php
+```
+
+The client calls `book_restaurant` and `confirm_action`, so it prompts for a
+multi-field reservation form and then for a boolean confirmation.
+
+### STDIO Roots
+
+**File**: `examples/client/stdio_roots.php`
+
+**What it demonstrates:**
+- Advertising the `roots` capability during initialization
+- Answering server `roots/list` requests with `file://` workspace folders
+- Notifying the server when the list of roots changes
+
+**Key Features:**
+```php
+use Mcp\Client\Handler\Request\ListRootsRequestHandler;
+use Mcp\Client\Handler\Request\RootsCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Result\ListRootsResult;
+use Mcp\Schema\Root;
+
+$rootsRequestHandler = new ListRootsRequestHandler(new class implements RootsCallbackInterface {
+    public function __invoke(ListRootsRequest $request): ListRootsResult
+    {
+        echo "[ROOTS] Server requested the client's list of roots\n";
+
+        return new ListRootsResult([
+            new Root('file:///home/user/projects/app', 'Application'),
+            new Root('file:///home/user/projects/library', 'Library'),
+        ]);
+    }
+});
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
+    ->addRequestHandler($rootsRequestHandler)
+    ->build();
+
+// The tool asks the client for its roots, which triggers the handler above
+$result = $client->callTool(name: 'inspect_workspace_roots');
+
+// Whenever the workspace folders change
+$client->sendRootsListChanged();
+```
+
+**Usage:**
+```bash
+# Run the client (automatically starts the communication server)
+php examples/client/stdio_roots.php
+```
