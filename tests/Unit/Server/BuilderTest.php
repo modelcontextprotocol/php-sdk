@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Extension\Apps\McpApps;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\ServerCapabilities;
@@ -204,6 +205,45 @@ final class BuilderTest extends TestCase
 
         // The loader ran but registered nothing, so the loaded registry advertises no tools.
         $this->assertFalse($capabilities->tools);
+    }
+
+    #[TestDox('setServerInfo() forwards the title to the advertised serverInfo')]
+    public function testSetServerInfoForwardsTitle(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0', 'A test server', null, 'https://example.com', 'Test Server')
+            ->build();
+
+        $serverInfo = $this->extractServerInfo($server);
+
+        $this->assertSame('test', $serverInfo->name);
+        $this->assertSame('A test server', $serverInfo->description);
+        $this->assertSame('https://example.com', $serverInfo->websiteUrl);
+        $this->assertSame('Test Server', $serverInfo->title);
+    }
+
+    #[TestDox('setServerInfo() leaves the title absent when it is not given')]
+    public function testSetServerInfoTitleIsOptional(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->build();
+
+        $this->assertNull($this->extractServerInfo($server)->title);
+    }
+
+    private function extractServerInfo(Server $server): Implementation
+    {
+        $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);
+        $requestHandlers = (new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol);
+
+        foreach ($requestHandlers as $handler) {
+            if ($handler instanceof InitializeHandler) {
+                return $handler->configuration->serverInfo;
+            }
+        }
+
+        $this->fail('InitializeHandler not found in request handlers');
     }
 
     private function extractServerCapabilities(Server $server): ServerCapabilities
