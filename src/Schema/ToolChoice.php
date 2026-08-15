@@ -29,11 +29,13 @@ final class ToolChoice implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (isset($data['mode']) && !\is_string($data['mode'])) {
+        // Key presence, not isset(): an explicit `null` is not one of the modes, so it
+        // has to reach the rejection path rather than fall back to the default.
+        if (\array_key_exists('mode', $data) && !\is_string($data['mode'])) {
             throw new InvalidArgumentException('Invalid "mode" in ToolChoice data.');
         }
 
-        $mode = isset($data['mode']) ? ToolChoiceMode::tryFrom($data['mode']) : ToolChoiceMode::Auto;
+        $mode = \array_key_exists('mode', $data) ? ToolChoiceMode::tryFrom($data['mode']) : ToolChoiceMode::Auto;
         if (null === $mode) {
             throw new InvalidArgumentException(\sprintf('Invalid tool choice mode "%s".', $data['mode']));
         }

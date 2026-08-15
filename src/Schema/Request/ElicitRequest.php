@@ -77,9 +77,11 @@ final class ElicitRequest extends Request
         }
 
         // `mode` is absent on requests from servers predating URL elicitation,
-        // where the form shape was the only one available.
+        // where the form shape was the only one available. Only a genuinely absent
+        // key defaults, though: an explicit null is not one of the modes, so it is
+        // rejected like any other unknown value.
         $mode = ElicitationMode::Form;
-        if (isset($params['mode'])) {
+        if (\array_key_exists('mode', $params)) {
             if (!\is_string($params['mode']) || null === $mode = ElicitationMode::tryFrom($params['mode'])) {
                 throw new InvalidArgumentException('Invalid "mode" parameter for elicitation/create.');
             }

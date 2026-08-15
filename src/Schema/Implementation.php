@@ -69,6 +69,9 @@ class Implementation implements \JsonSerializable
         if (isset($data['websiteUrl']) && !\is_string($data['websiteUrl'])) {
             throw new InvalidArgumentException('Invalid "websiteUrl" in Implementation data.');
         }
+        if (isset($data['title']) && !\is_string($data['title'])) {
+            throw new InvalidArgumentException('Invalid "title" in Implementation data.');
+        }
 
         return new self(
             $data['name'],

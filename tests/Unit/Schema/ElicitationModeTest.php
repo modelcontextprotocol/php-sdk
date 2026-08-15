@@ -99,6 +99,22 @@ class ElicitationModeTest extends TestCase
         $this->requestFromParams(['message' => 'hi', 'mode' => 'telepathy']);
     }
 
+    #[TestDox('an explicit null mode is rejected rather than defaulting to form')]
+    public function testNullModeRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid "mode" parameter');
+
+        $this->requestFromParams([
+            'message' => 'Your name?',
+            'mode' => null,
+            'requestedSchema' => [
+                'type' => 'object',
+                'properties' => ['name' => ['type' => 'string', 'title' => 'Name']],
+            ],
+        ]);
+    }
+
     private function createSchema(): ElicitationSchema
     {
         return new ElicitationSchema(['name' => new StringSchemaDefinition('Name')], ['name']);
