@@ -55,24 +55,40 @@ abstract class IntegrationTestCase extends TestCase
      */
     protected function connect(string $fixture, ?ClientBuilder $client = null, array $env = []): Client
     {
-        $script = __DIR__.'/Fixture/'.$fixture.'.php';
-
         $this->client = ($client ?? $this->clientBuilder())->build();
 
         try {
-            $this->client->connect(new StdioTransport(
-                command: \PHP_BINARY,
-                args: [$script],
-                // proc_open() replaces the environment rather than adding to it.
-                env: [] === $env ? null : array_merge(getenv(), $env),
-            ));
+            $this->client->connect($this->transport($fixture, $env));
         } catch (ConnectionException $e) {
             // The transport discards the child's stderr, so a fixture dying on
             // startup arrives here as a bare timeout.
-            $this->fail(\sprintf('Could not connect to fixture server "%s": %s. Run `%s %s` to see why.', $fixture, $e->getMessage(), \PHP_BINARY, $script));
+            $this->fail(\sprintf('Could not connect to fixture server "%s": %s. Run `%s %s` to see why.', $fixture, $e->getMessage(), \PHP_BINARY, self::script($fixture)));
         }
 
         return $this->client;
+    }
+
+    /**
+     * A transport that will spawn a fixture server, without connecting it.
+     *
+     * Tests that assert on a failing connection need the transport by itself,
+     * since {@see self::connect()} turns that failure into a test failure.
+     *
+     * @param array<string, string> $env added to the server process environment
+     */
+    protected function transport(string $fixture, array $env = []): StdioTransport
+    {
+        return new StdioTransport(
+            command: \PHP_BINARY,
+            args: [self::script($fixture)],
+            // proc_open() replaces the environment rather than adding to it.
+            env: [] === $env ? null : array_merge(getenv(), $env),
+        );
+    }
+
+    private static function script(string $fixture): string
+    {
+        return __DIR__.'/Fixture/'.$fixture.'.php';
     }
 
     protected function tearDown(): void
