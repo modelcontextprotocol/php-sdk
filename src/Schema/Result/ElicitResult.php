@@ -13,13 +13,15 @@ namespace Mcp\Schema\Result;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
  * The client's response to an elicitation/create request from the server.
  *
  * Contains the user's action (accept, decline, or cancel) and the content
- * they provided when accepting.
+ * they provided when accepting. Only form elicitation collects content: a url-mode
+ * interaction happens out of band, so an accepted one carries the action alone.
  *
  * @author Johannes Wachter <johannes@sulu.io>
  */
@@ -36,9 +38,13 @@ final class ElicitResult implements ResultInterface
     }
 
     /**
+     * The result carries no discriminator of its own, so the mode of the request it
+     * answers has to be passed in: it decides whether an accepted response is
+     * expected to carry content.
+     *
      * @param array{action: string, content?: array<string, mixed>} $data
      */
-    public static function fromArray(array $data): self
+    public static function fromArray(array $data, ElicitationMode $mode = ElicitationMode::Form): self
     {
         if (!isset($data['action']) || !\is_string($data['action'])) {
             throw new InvalidArgumentException('Missing or invalid "action" in ElicitResult data.');
@@ -50,7 +56,7 @@ final class ElicitResult implements ResultInterface
 
         $content = isset($data['content']) && \is_array($data['content']) ? $data['content'] : null;
 
-        if (ElicitAction::Accept === $action && null === $content) {
+        if (ElicitationMode::Form === $mode && ElicitAction::Accept === $action && null === $content) {
             throw new InvalidArgumentException('Content must be provided when action is "accept".');
         }
 
