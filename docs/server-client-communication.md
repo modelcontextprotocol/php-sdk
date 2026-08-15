@@ -30,6 +30,17 @@ class MyService
         $context->getClientGateway()->log(...);
 ```
 
+The same object also carries the protocol revision negotiated for the current request, which is useful when a feature is
+only available from a certain revision on:
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
+if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
+    // e.g. a bare list is only valid as `structuredContent` from this revision on
+}
+```
+
 ## Sampling
 
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to

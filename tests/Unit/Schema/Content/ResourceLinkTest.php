@@ -227,5 +227,25 @@ final class ResourceLinkTest extends TestCase
             ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', '_meta' => 'not-an-array'],
             'Invalid "_meta" in ResourceLink data.',
         ];
+        yield 'invalid description' => [
+            ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'description' => ['not-a-string']],
+            'Invalid "description" in ResourceLink data.',
+        ];
+        yield 'invalid mimeType' => [
+            ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'mimeType' => ['not-a-string']],
+            'Invalid "mimeType" in ResourceLink data.',
+        ];
+        yield 'invalid size' => [
+            ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'size' => 'not-an-int'],
+            'Invalid "size" in ResourceLink data; expected an integer.',
+        ];
+        yield 'invalid annotations' => [
+            ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'annotations' => 'not-an-array'],
+            'Invalid "annotations" in ResourceLink data; expected an array.',
+        ];
+        yield 'invalid icons entry' => [
+            ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'icons' => ['not-an-array']],
+            'Each entry in "icons" of ResourceLink data must be an array.',
+        ];
     }
 }

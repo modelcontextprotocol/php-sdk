@@ -102,6 +102,20 @@ enum ProtocolVersion: string
     }
 
     /**
+     * Whether this revision restricts `structuredContent` to a JSON object.
+     *
+     * SEP-2106, part of {@see self::V2026_07_28}, widened `outputSchema` to any
+     * JSON Schema 2020-12 and `structuredContent` to any JSON value conforming to
+     * it. Up to `2025-11-25` both are restricted to an object.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
+     */
+    public function requiresObjectStructuredContent(): bool
+    {
+        return !$this->isAtLeast(self::V2026_07_28);
+    }
+
+    /**
      * Whether this revision is at least as new as $minimum.
      */
     public function isAtLeast(self $minimum): bool

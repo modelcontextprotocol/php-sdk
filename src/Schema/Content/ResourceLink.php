@@ -84,6 +84,15 @@ class ResourceLink extends Content
         if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in ResourceLink data.');
         }
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in ResourceLink data.');
+        }
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in ResourceLink data.');
+        }
+        if (isset($data['size']) && !\is_int($data['size'])) {
+            throw new InvalidArgumentException('Invalid "size" in ResourceLink data; expected an integer.');
+        }
 
         return new self(
             uri: $data['uri'],
@@ -91,9 +100,9 @@ class ResourceLink extends Content
             title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
-            annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
-            size: isset($data['size']) ? (int) $data['size'] : null,
-            icons: isset($data['icons']) && \is_array($data['icons']) ? array_map(Icon::fromArray(...), $data['icons']) : null,
+            annotations: Annotations::tryFromArray($data['annotations'] ?? null, 'ResourceLink'),
+            size: $data['size'] ?? null,
+            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'ResourceLink') : null,
             meta: $data['_meta'] ?? null,
         );
     }

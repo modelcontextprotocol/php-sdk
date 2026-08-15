@@ -13,6 +13,7 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Capability\Formatter\ToolResultFormatter;
 use Mcp\Schema\Content\Content;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Tool;
 
 /**
@@ -59,22 +60,39 @@ class ToolReference extends ElementReference
     /**
      * Extracts structured content from a tool result using the output schema.
      *
-     * @param mixed $toolExecutionResult the raw value returned by the tool's PHP method
+     * What may be sent as `structuredContent` depends on the protocol revision in
+     * use. Up to `2025-11-25` it has to be a JSON object, and `outputSchema` is
+     * restricted to `type: "object"` to match. From `2026-07-28` on (SEP-2106)
+     * `outputSchema` is any JSON Schema 2020-12 and `structuredContent` is any JSON
+     * value conforming to it — a list included.
      *
-     * @return array<string, mixed>|null the structured content, or null if not extractable
+     * @param mixed            $toolExecutionResult the raw value returned by the tool's PHP method
+     * @param ?ProtocolVersion $protocolVersion     revision the result is produced for; defaults to the
+     *                                              newest handshake revision, whose stricter rule is what
+     *                                              every revision reachable through `initialize` requires
+     *
+     * @return array<array-key, mixed>|null the structured content, or null if not extractable
      *
      * @throws \JsonException if JSON encoding fails for non-Content array/object results
      */
-    public function extractStructuredContent(mixed $toolExecutionResult): ?array
+    public function extractStructuredContent(mixed $toolExecutionResult, ?ProtocolVersion $protocolVersion = null): ?array
     {
+        $objectOnly = ($protocolVersion ?? ProtocolVersion::latestHandshake())->requiresObjectStructuredContent();
+
         if (\is_array($toolExecutionResult)) {
+            // A PHP list serializes to a JSON array, which the revisions predating
+            // SEP-2106 do not allow as `structuredContent` — strict clients reject
+            // the whole tool call when one is sent.
+            if ($objectOnly && array_is_list($toolExecutionResult)) {
+                return null;
+            }
+
             foreach ($toolExecutionResult as $item) {
                 if ($item instanceof Content) {
                     // Content items are already reflected in the result's `content`
-                    // array; a raw array holding one or more of them isn't
-                    // structured data and, if it were serialized as-is, could
-                    // produce a `structuredContent` value that isn't a JSON object
-                    // (e.g. a list), which the spec doesn't allow.
+                    // array; an array holding one or more of them isn't structured
+                    // data. This holds in every revision — it is a duplication rule,
+                    // not a shape rule.
                     return null;
                 }
             }
@@ -88,9 +106,23 @@ class ToolReference extends ElementReference
                 \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE
             );
 
-            return json_decode(
+            $decoded = json_decode(
                 $jsonResult, true, 512, \JSON_THROW_ON_ERROR
             );
+
+            // A plain object always encodes to a JSON object, but `JsonSerializable`
+            // can hand back anything. A scalar is dropped whatever the revision
+            // allows: `CallToolResult::$structuredContent` is typed `?array` and
+            // cannot carry one.
+            if (!\is_array($decoded)) {
+                return null;
+            }
+
+            if ($objectOnly && array_is_list($decoded)) {
+                return null;
+            }
+
+            return $decoded;
         }
 
         return null;
