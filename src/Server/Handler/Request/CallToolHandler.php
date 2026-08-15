@@ -68,7 +68,7 @@ final class CallToolHandler implements RequestHandlerInterface
         } catch (ToolNotFoundException $e) {
             $this->logger->error('Tool not found', ['name' => $toolName, 'exception' => $e]);
 
-            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
+            return Error::forInvalidParams($e->getMessage(), $request->getId());
         }
 
         $inputSchema = $reference->tool->inputSchema;
