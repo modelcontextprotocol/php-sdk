@@ -116,12 +116,11 @@ class CallToolResult implements ResultInterface
         if (isset($data['isError']) && !\is_bool($data['isError'])) {
             throw new InvalidArgumentException('Invalid "isError" in CallToolResult data.');
         }
-        // Kept object-only on the wire although the property itself now holds any
-        // JSON value, mirroring the emission gate below: no revision this SDK
-        // negotiates sends a scalar here, so one is still type-confused input.
-        if (isset($data['structuredContent']) && !\is_array($data['structuredContent'])) {
-            throw new InvalidArgumentException('Invalid "structuredContent" in CallToolResult data.');
-        }
+        // `structuredContent` deliberately has no type guard beside its siblings:
+        // SEP-2106 admits any JSON value there, so every value this method can
+        // receive is well-typed and there is nothing left to reject. Validating it
+        // against the tool's outputSchema is the caller's job — the schema isn't
+        // known here, and rejecting a legal payload would only strand the result.
         if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in CallToolResult data.');
         }
@@ -149,12 +148,15 @@ class CallToolResult implements ResultInterface
             'isError' => $this->isError,
         ];
 
-        // Deliberately a truthiness check rather than `null !==`. SEP-2106 lets
-        // structuredContent be any JSON value, but only from 2026-07-28 onward:
-        // every version this SDK currently negotiates still requires an object,
-        // and emitting `[]`, `0` or `false` to those clients is a protocol error.
-        // Emission widens once results serialize per negotiated version.
-        if ($this->structuredContent) {
+        // `null` is the only value that means absent — it is what the constructor,
+        // success() and error() all use to say "no structured result". A truthiness
+        // check cannot stand in for that: it drops `0`, `false`, `""` and `[]` while
+        // still emitting `[1, 2, 3]` or `"text"`, so it neither honours SEP-2106 nor
+        // shields older peers from the non-object values it does let through. Which
+        // values a given revision permits is a question for version-aware
+        // serialization, which results cannot answer yet; until they can, passing
+        // the caller's value along beats silently discarding half of it.
+        if (null !== $this->structuredContent) {
             $result['structuredContent'] = $this->structuredContent;
         }
 

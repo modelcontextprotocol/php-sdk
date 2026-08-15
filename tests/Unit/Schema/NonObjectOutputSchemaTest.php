@@ -102,12 +102,22 @@ class NonObjectOutputSchemaTest extends TestCase
         yield 'empty array' => [[]];
     }
 
-    #[TestDox('a truthy non-object value reaches the wire')]
-    public function testNonObjectValueIsSerialized(): void
+    /**
+     * `null` is the only value that means absent, so every other JSON value —
+     * falsy ones included — reaches the wire. This matches the sibling field on
+     * {@see \Mcp\Schema\Content\ToolResultContent}, which carries the same tool
+     * result inside a sampling turn.
+     */
+    #[TestDox('every non-null value reaches the wire, falsy ones included')]
+    #[DataProvider('provideStructuredValues')]
+    public function testNonNullValueIsSerialized(mixed $value): void
     {
-        $result = new CallToolResult([new TextContent('ok')], false, [1, 2, 3]);
+        $result = new CallToolResult([new TextContent('ok')], false, $value);
 
-        $this->assertSame([1, 2, 3], $result->jsonSerialize()['structuredContent']);
+        $serialized = $result->jsonSerialize();
+
+        $this->assertArrayHasKey('structuredContent', $serialized);
+        $this->assertSame($value, $serialized['structuredContent']);
     }
 
     #[TestDox('a null structuredContent is omitted entirely')]
@@ -118,28 +128,27 @@ class NonObjectOutputSchemaTest extends TestCase
         $this->assertArrayNotHasKey('structuredContent', $result->jsonSerialize());
     }
 
-    /**
-     * Emission of falsy values stays gated until results serialize per negotiated
-     * protocol version: every version this SDK speaks today still requires
-     * structuredContent to be an object.
-     */
-    #[TestDox('falsy values are still withheld from the wire pending version-gated serialization')]
-    public function testFalsyValuesAreNotYetEmitted(): void
-    {
-        $result = new CallToolResult([new TextContent('ok')], false, []);
-
-        $this->assertSame([], $result->structuredContent);
-        $this->assertArrayNotHasKey('structuredContent', $result->jsonSerialize());
-    }
-
-    #[TestDox('round-trips a non-object structuredContent through fromArray')]
-    public function testRoundTrip(): void
+    #[TestDox('round-trips any JSON structuredContent through fromArray')]
+    #[DataProvider('provideStructuredValues')]
+    public function testRoundTrip(mixed $value): void
     {
         $result = CallToolResult::fromArray([
             'content' => [['type' => 'text', 'text' => 'ok']],
-            'structuredContent' => ['a', 'b'],
+            'structuredContent' => $value,
         ]);
 
-        $this->assertSame(['a', 'b'], $result->structuredContent);
+        $this->assertSame($value, $result->structuredContent);
+    }
+
+    #[TestDox('an object structuredContent still round-trips unchanged')]
+    public function testObjectRoundTrip(): void
+    {
+        $result = CallToolResult::fromArray([
+            'content' => [['type' => 'text', 'text' => 'ok']],
+            'structuredContent' => ['temperature' => 22.5],
+        ]);
+
+        $this->assertSame(['temperature' => 22.5], $result->structuredContent);
+        $this->assertSame(['temperature' => 22.5], $result->jsonSerialize()['structuredContent']);
     }
 }
