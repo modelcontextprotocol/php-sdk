@@ -17,7 +17,6 @@ use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
-use Mcp\Schema\Enum\SamplingStopReason;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
@@ -33,14 +32,16 @@ class CreateSamplingMessageResult implements ResultInterface
      * @param Role                                                                                                            $role       the role of the message
      * @param TextContent|ImageContent|AudioContent|ToolUseContent|list<TextContent|ImageContent|AudioContent|ToolUseContent> $content    the content of the message
      * @param string                                                                                                          $model      the name of the model that generated the message
-     * @param SamplingStopReason|string|null                                                                                  $stopReason the reason why sampling stopped, if known
+     * @param ?string                                                                                                         $stopReason The reason why sampling stopped, if known. The spec defines "endTurn",
+     *                                                                                                                                    "stopSequence", "maxTokens" and "toolUse", but leaves the set open for
+     *                                                                                                                                    provider-specific values, so this stays an unconstrained string.
      * @param ?array<string, mixed>                                                                                           $meta       optional message metadata
      */
     public function __construct(
         public readonly Role $role,
         public readonly TextContent|ImageContent|AudioContent|ToolUseContent|array $content,
         public readonly string $model,
-        public readonly SamplingStopReason|string|null $stopReason = null,
+        public readonly ?string $stopReason = null,
         public readonly ?array $meta = null,
     ) {
         if (Role::Assistant !== $role) {
@@ -87,10 +88,7 @@ class CreateSamplingMessageResult implements ResultInterface
             $content[] = self::hydrateContent($item);
         }
 
-        $stopReason = null;
-        if (isset($data['stopReason']) && \is_string($data['stopReason'])) {
-            $stopReason = SamplingStopReason::tryFrom($data['stopReason']) ?? $data['stopReason'];
-        }
+        $stopReason = isset($data['stopReason']) && \is_string($data['stopReason']) ? $data['stopReason'] : null;
 
         return new self(
             $role,
@@ -139,7 +137,7 @@ class CreateSamplingMessageResult implements ResultInterface
         ];
 
         if (null !== $this->stopReason) {
-            $result['stopReason'] = $this->stopReason instanceof SamplingStopReason ? $this->stopReason->value : $this->stopReason;
+            $result['stopReason'] = $this->stopReason;
         }
 
         if (null !== $this->meta) {

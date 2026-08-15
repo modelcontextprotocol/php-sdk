@@ -13,7 +13,6 @@ namespace Mcp\Tests\Unit\Schema\Result;
 
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
-use Mcp\Schema\Enum\SamplingStopReason;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use PHPUnit\Framework\TestCase;
 
@@ -34,7 +33,7 @@ final class CreateSamplingMessageResultTest extends TestCase
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertInstanceOf(ToolUseContent::class, $result->content[1]);
-        $this->assertSame(SamplingStopReason::ToolUse, $result->stopReason);
+        $this->assertSame('toolUse', $result->stopReason);
         $this->assertSame('toolUse', $result->jsonSerialize()['stopReason']);
         $this->assertSame(['traceId' => 'trace-1'], $result->jsonSerialize()['_meta']);
     }

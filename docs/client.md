@@ -561,7 +561,6 @@ Clients that support tool-enabled sampling should advertise that capability and 
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
-use Mcp\Schema\Enum\SamplingStopReason;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 
 $client = Client::builder()
@@ -581,7 +580,7 @@ return new CreateSamplingMessageResult(
         $providerResponse->toolCalls,
     ),
     model: $providerResponse->model,
-    stopReason: SamplingStopReason::ToolUse,
+    stopReason: 'toolUse',
 );
 ```
 
