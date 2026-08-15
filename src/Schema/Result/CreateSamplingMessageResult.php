@@ -48,11 +48,25 @@ class CreateSamplingMessageResult implements ResultInterface
             throw new InvalidArgumentException('CreateSamplingMessageResult role must be "assistant".');
         }
 
-        foreach (\is_array($content) ? $content : [$content] as $item) {
-            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent) {
-                throw new InvalidArgumentException('CreateSamplingMessageResult contains an unsupported content block.');
+        if (\is_array($content)) {
+            if ([] === $content) {
+                throw new InvalidArgumentException('CreateSamplingMessageResult content must not be empty.');
+            }
+
+            foreach ($content as $item) {
+                if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent) {
+                    throw new InvalidArgumentException('CreateSamplingMessageResult contains an unsupported content block.');
+                }
             }
         }
+    }
+
+    /**
+     * @return list<TextContent|ImageContent|AudioContent|ToolUseContent>
+     */
+    public function getContentBlocks(): array
+    {
+        return \is_array($this->content) ? array_values($this->content) : [$this->content];
     }
 
     /**
@@ -64,7 +78,7 @@ class CreateSamplingMessageResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "role" in CreateSamplingMessageResult data.');
         }
 
-        if (!isset($data['content']) || !\is_array($data['content'])) {
+        if (!isset($data['content']) || !\is_array($data['content']) || [] === $data['content']) {
             throw new InvalidArgumentException('Missing or invalid "content" in CreateSamplingMessageResult data.');
         }
 

@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Schema\Result;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
@@ -49,5 +50,64 @@ final class CreateSamplingMessageResultTest extends TestCase
 
         $this->assertSame('provider-specific', $result->stopReason);
         $this->assertSame('provider-specific', $result->jsonSerialize()['stopReason']);
+    }
+
+    public function testKnownStopReasonStaysAString(): void
+    {
+        $result = CreateSamplingMessageResult::fromArray([
+            'role' => 'assistant',
+            'content' => ['type' => 'text', 'text' => 'Done'],
+            'model' => 'test-model',
+            'stopReason' => 'endTurn',
+        ]);
+
+        $this->assertSame('endTurn', $result->stopReason);
+    }
+
+    public function testSingleContentBlockKeepsItsShape(): void
+    {
+        $result = CreateSamplingMessageResult::fromArray([
+            'role' => 'assistant',
+            'content' => ['type' => 'text', 'text' => 'Done'],
+            'model' => 'test-model',
+        ]);
+
+        $this->assertInstanceOf(TextContent::class, $result->content);
+        $this->assertCount(1, $result->getContentBlocks());
+        $this->assertSame('{"type":"text","text":"Done"}', json_encode($result->jsonSerialize()['content']));
+    }
+
+    public function testNonAssistantRoleIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('CreateSamplingMessageResult role must be "assistant".');
+
+        CreateSamplingMessageResult::fromArray([
+            'role' => 'user',
+            'content' => ['type' => 'text', 'text' => 'Done'],
+            'model' => 'test-model',
+        ]);
+    }
+
+    public function testEmptyContentIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        CreateSamplingMessageResult::fromArray([
+            'role' => 'assistant',
+            'content' => [],
+            'model' => 'test-model',
+        ]);
+    }
+
+    public function testToolResultContentIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        CreateSamplingMessageResult::fromArray([
+            'role' => 'assistant',
+            'content' => ['type' => 'tool_result', 'toolUseId' => 'call-1', 'content' => []],
+            'model' => 'test-model',
+        ]);
     }
 }

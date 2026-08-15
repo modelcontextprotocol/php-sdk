@@ -61,7 +61,7 @@ $samplingRequestHandler = new SamplingRequestHandler(new class implements Sampli
             role: Role::Assistant,
             content: new TextContent($mockResponse),
             model: 'mock-gpt-4',
-            stopReason: 'end_turn',
+            stopReason: 'endTurn',
         );
     }
 });
