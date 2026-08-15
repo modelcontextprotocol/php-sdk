@@ -58,6 +58,8 @@ use Psr\Log\NullLogger;
  */
 class Client
 {
+    private const RETRY_BASE_DELAY_MS = 100;
+
     private ?TransportInterface $transport = null;
 
     public function __construct(
@@ -78,16 +80,44 @@ class Client
     /**
      * Connect to an MCP server using the provided transport.
      *
-     * @throws ConnectionException If connection or initialization fails
+     * A failed attempt is closed and retried, see {@see Builder::setMaxRetries()}.
+     *
+     * @throws ConnectionException If connection or initialization fails on every attempt
      */
     public function connect(TransportInterface $transport): void
     {
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        $transport->connect();
+        $maxAttempts = $this->config->maxRetries + 1;
 
-        $this->logger->info('Client connected and initialized');
+        for ($attempt = 1; $attempt <= $maxAttempts; ++$attempt) {
+            try {
+                $transport->connect();
+
+                $this->logger->info('Client connected and initialized', ['attempt' => $attempt]);
+
+                return;
+            } catch (ConnectionException $e) {
+                // initialize() flags the session before sending the initialized
+                // notification, so a failure in between leaves the flag set.
+                $this->protocol->getState()->setInitialized(false);
+
+                $transport->close();
+
+                if ($attempt === $maxAttempts) {
+                    throw $e;
+                }
+
+                $this->logger->warning('Connection attempt failed, retrying', [
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'exception' => $e,
+                ]);
+
+                usleep($attempt * self::RETRY_BASE_DELAY_MS * 1000);
+            }
+        }
     }
 
     /**

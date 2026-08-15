@@ -38,5 +38,9 @@ class Configuration
         if ($requestTimeout < 1) {
             throw new InvalidArgumentException(\sprintf('The request timeout must be a positive number of seconds, got %d.', $requestTimeout));
         }
+
+        if ($maxRetries < 0) {
+            throw new InvalidArgumentException(\sprintf('The maximum number of retries must be zero or greater, got %d.', $maxRetries));
+        }
     }
 }

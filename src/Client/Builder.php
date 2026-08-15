@@ -96,7 +96,11 @@ final class Builder
     }
 
     /**
-     * Set maximum retry attempts for failed connections.
+     * Set the number of times a failed connection attempt is retried.
+     *
+     * Counts retries, not attempts: 3 means one initial attempt plus up to three
+     * retries. Pass 0 to fail on the first failure. Only applies to
+     * {@see Client::connect()}; individual requests are never retried.
      */
     public function setMaxRetries(int $retries): self
     {
