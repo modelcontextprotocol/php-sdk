@@ -241,6 +241,9 @@ Either way the data reaches the client: a return value with no structured repres
 `content` as a `TextContent`. When a tool declares an `outputSchema` but returns something that cannot be sent as
 `structuredContent`, the SDK logs a warning — the value is not silently dropped.
 
+A tool that wants to branch on the revision itself can read it from the injected `RequestContext`, see
+[Client Communication](server-client-communication.md#client-gateway).
+
 [sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
 
 #### Error Handling
