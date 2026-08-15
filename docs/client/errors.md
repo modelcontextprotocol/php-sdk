@@ -74,7 +74,7 @@ $samplingCallback = new class implements SamplingCallbackInterface {
                 role: Role::Assistant,
                 content: new TextContent($response),
                 model: 'mock-llm',
-                stopReason: 'end_turn',
+                stopReason: 'endTurn',
             );
         } catch (\Throwable $e) {
             throw new SamplingException(

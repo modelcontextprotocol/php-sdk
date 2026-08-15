@@ -60,7 +60,7 @@ public function returnVoid(): void { /* no return */ }           // TextContent(
 For fine control over output formatting:
 
 ```php
-use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, EmbeddedResource};
+use Mcp\Schema\Content\{TextContent, ImageContent, AudioContent, ResourceLink, EmbeddedResource};
 
 public function getFormattedCode(): TextContent
 {
@@ -97,6 +97,17 @@ public function getEmbeddedResource(): EmbeddedResource
     //     new TextResourceContents('file://data.json', 'application/json', '{}')
     // );
 }
+
+public function getResourceLink(): ResourceLink
+{
+    // Reference a resource by URI without embedding its contents, e.g. when
+    // a tool result would otherwise need to inline many or large resources.
+    return new ResourceLink(
+        uri: 'file://data.json',
+        name: 'data.json',
+        mimeType: 'application/json'
+    );
+}
 ```
 
 ### Multiple Content Items
@@ -113,6 +124,82 @@ public function getMultipleContent(): array
     ];
 }
 ```
+
+### Structured Output
+
+Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` value. Declare its
+shape with `outputSchema`, a JSON Schema of type `object`:
+
+```php
+#[McpTool(
+    name: 'get_weather',
+    outputSchema: [
+        'type' => 'object',
+        'properties' => [
+            'temperature' => ['type' => 'number'],
+            'conditions' => ['type' => 'string'],
+        ],
+        'required' => ['temperature', 'conditions'],
+    ]
+)]
+public function getWeather(string $city): array
+{
+    // Sent as `structuredContent`, and JSON-encoded into `content` for clients that ignore it
+    return ['temperature' => 22.5, 'conditions' => 'sunny'];
+}
+```
+
+The same schema can be passed to manual registration:
+
+```php
+$builder->addTool([WeatherHandler::class, 'getWeather'], outputSchema: [/* ... */]);
+```
+
+The SDK fills `structuredContent` whenever the return value qualifies — `outputSchema` is what tells clients to expect it
+and lets them validate it. What qualifies depends on the protocol revision the call is served under:
+
+| Return value | `structuredContent` |
+|---|---|
+| Associative array (`['temperature' => 22.5]`) | The array |
+| Object (`stdClass`, DTO, `JsonSerializable`) that serializes to a JSON object | Its JSON representation |
+| List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted before `2026-07-28`, kept from it on |
+| Array holding `Content` instances | Omitted (already carried in `content`) |
+| Scalars, `null`, `Content` instances | Omitted |
+
+Up to revision `2025-11-25`, `structuredContent` had to be a JSON object, so a PHP list — which serializes to a JSON
+array — was not emittable and strict clients rejected the whole tool call over one. [SEP-2106][sep-2106], part of
+revision `2026-07-28`, widened `outputSchema` to any JSON Schema 2020-12 and `structuredContent` to any JSON value
+conforming to it. The SDK picks the rule from the revision negotiated for the call, so a tool serving both eras needs the
+object shape to produce structured output everywhere. Wrap the list in a key for that:
+
+```php
+// Structured content only from 2026-07-28 on: a bare list is not a JSON object
+public function listUsersFlat(): array
+{
+    return [['id' => 1], ['id' => 2]];
+}
+
+#[McpTool(outputSchema: [
+    'type' => 'object',
+    'properties' => [
+        'items' => ['type' => 'array', 'items' => ['type' => 'object']],
+    ],
+    'required' => ['items']
+])]
+public function listUsers(): array
+{
+    return ['items' => [['id' => 1], ['id' => 2]]];
+}
+```
+
+Either way the data reaches the client: a return value with no structured representation is still JSON-encoded into
+`content` as a `TextContent`. When a tool declares an `outputSchema` but returns something that cannot be sent as
+`structuredContent`, the SDK logs a warning — the value is not silently dropped.
+
+A tool that wants to branch on the revision itself can read it from the injected `RequestContext`, see
+[Talking back to the client](../handlers/client-communication.md#clientgateway).
+
+[sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
 
 ### Error Handling
 

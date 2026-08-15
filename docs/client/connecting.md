@@ -17,12 +17,31 @@ $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')
     ->setInitTimeout(30)      // Seconds to wait for initialization
     ->setRequestTimeout(120)  // Seconds to wait for request responses
+    ->setMaxRetries(3)        // Retries for failed connections
     ->build();
 ```
 
-!!! note
-    The builder also exposes `setMaxRetries()`, but the value is currently stored and never acted on — no transport
-    retries a failed connection. Do not rely on it.
+### Connection Retries
+
+`setMaxRetries()` controls how often `connect()` retries a failed connection. It
+counts retries rather than attempts, so the default of `3` means one initial
+attempt plus up to three retries — four in total — before the `ConnectionException`
+of the last attempt is rethrown:
+
+```php
+$client = Client::builder()
+    ->setMaxRetries(0)  // Fail on the first failed attempt
+    ->build();
+```
+
+Between two attempts the transport is closed, so a retry never reuses a
+half-established connection: a `StdioTransport` spawns a fresh server process and
+an `HttpTransport` discards the session ID of the failed attempt. Each retry is
+preceded by a short, linearly growing delay (100ms, 200ms, 300ms, …).
+
+Only the connection handshake is retried. Individual requests such as
+`callTool()` are always sent once — retrying them is unsafe as tool calls are not
+necessarily idempotent.
 
 ### Client Information
 
@@ -40,7 +59,7 @@ $client = Client::builder()
 
 ### Protocol Version
 
-Specify the MCP protocol version (defaults to latest):
+Specify the MCP protocol version to offer during the handshake (defaults to the latest):
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -49,6 +68,20 @@ $client = Client::builder()
     ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->build();
 ```
+
+This is an offer, not a demand. A server that does not support the requested revision counter-offers one it does, as
+described in the specification's
+[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+section. The client accepts any counter-offer it knows about and continues on that revision; a counter-offer the SDK
+cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
+on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.
+
+Modern revisions such as `2026-07-28` replaced `initialize` with per-request metadata, so they cannot be offered here.
+Configuring one still opens the handshake with `ProtocolVersion::latestHandshake()`, and the client logs a warning
+saying so.
+
+See [Protocol Version Negotiation](../run/server-builder.md#protocol-version-negotiation) for the server side of the
+exchange.
 
 ### Capabilities
 

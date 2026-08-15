@@ -84,6 +84,42 @@ $client = Client::builder()
     ->build();
 ```
 
+### Sampling with Tools
+
+Clients that support tool-enabled sampling should advertise that capability and forward the request's `tools` and
+`toolChoice` fields to their LLM provider. A provider response that requests tools can be returned as one or more
+`ToolUseContent` blocks:
+
+```php
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\ToolUseContent;
+use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(
+        sampling: true,
+        samplingContext: true,
+        samplingTools: true,
+    ))
+    ->addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    ->build();
+
+// Inside the sampling callback, after invoking the LLM provider:
+return new CreateSamplingMessageResult(
+    role: Role::Assistant,
+    content: array_map(
+        static fn ($call) => new ToolUseContent($call->id, $call->name, $call->input),
+        $providerResponse->toolCalls,
+    ),
+    model: $providerResponse->model,
+    stopReason: 'toolUse',
+);
+```
+
+The server executes the requested tools and sends their results in a later sampling request as `ToolResultContent`
+blocks in a user message. The client should pass those blocks back to the LLM provider to continue the sampling loop.
+
 !!! warning
     **Error Handling in Sampling Callbacks:**
 
@@ -167,3 +203,48 @@ Only the `Accept` action carries content.
 
 See `examples/client/stdio_elicitation.php` for a runnable example against the
 elicitation demo server.
+
+## Roots
+
+Roots let the client expose a list of `file://` "workspace folders" that the server
+is allowed to operate on. Advertise the `roots` capability and register a handler
+that answers server `roots/list` requests:
+
+```php
+use Mcp\Client\Handler\Request\ListRootsRequestHandler;
+use Mcp\Client\Handler\Request\RootsCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\ListRootsResult;
+use Mcp\Schema\Root;
+
+class WorkspaceRootsCallback implements RootsCallbackInterface
+{
+    public function __invoke(ListRootsRequest $request): ListRootsResult
+    {
+        return new ListRootsResult([
+            new Root('file:///home/user/projects/app', 'Application'),
+            new Root('file:///home/user/projects/library', 'Library'),
+        ]);
+    }
+}
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
+    ->addRequestHandler(new ListRootsRequestHandler(new WorkspaceRootsCallback))
+    ->build();
+```
+
+When the client's roots change, notify the server so it can request the updated
+list via `roots/list`. This requires advertising the `roots.listChanged`
+capability (`rootsListChanged: true` above); otherwise `sendRootsListChanged()`
+throws a `RuntimeException`. On a client that is not connected it throws a
+`ConnectionException`:
+
+```php
+$client->sendRootsListChanged();
+```
+
+See `examples/client/stdio_roots.php` for a runnable example: it calls the
+`inspect_workspace_roots` tool of the client-communication demo server, which
+answers by issuing the `roots/list` request back to the client.
