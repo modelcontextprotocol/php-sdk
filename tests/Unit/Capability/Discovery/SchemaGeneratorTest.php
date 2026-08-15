@@ -190,6 +190,16 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['username', 'priority'], $schema['required']);
     }
 
+    public function testMapsPhpStanAndPsalmIntegerRangesToBaseIntegerType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'integerRangeTypes');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals(['type' => 'integer', 'description' => 'Positive offset', 'minimum' => 0], $schema['properties']['offset']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Negative value'], $schema['properties']['negative']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Bounded value'], $schema['properties']['bounded']);
+    }
+
     public function testGeneratesCorrectSchemaForEnumParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');

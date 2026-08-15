@@ -677,7 +677,12 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return ['array'];
         }
 
-        // PRIORITY 3: Handle unions (recursive)
+        // PRIORITY 3: Treat PHPStan/Psalm integer ranges as their base type
+        if (preg_match('/^int\s*<\s*[^<>]+\s*>$/i', $normalizedType)) {
+            return ['integer'];
+        }
+
+        // PRIORITY 4: Handle unions (recursive)
         if (str_contains($normalizedType, '|')) {
             $types = explode('|', $normalizedType);
             $jsonTypes = [];
@@ -689,7 +694,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return array_values(array_unique($jsonTypes));
         }
 
-        // PRIORITY 4: Handle simple built-in types
+        // PRIORITY 5: Handle simple built-in types
         return match ($normalizedType) {
             'string', 'scalar' => ['string'],
             '?string' => ['null', 'string'],
