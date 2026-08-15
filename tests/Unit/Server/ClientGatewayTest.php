@@ -43,6 +43,26 @@ final class ClientGatewayTest extends TestCase
         $this->assertFalse($gateway->supportsRoots());
     }
 
+    public function testSupportsSamplingReturnsTrueWhenAdvertised(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('get')->with('client_capabilities', [])->willReturn(['sampling' => []]);
+
+        $gateway = new ClientGateway($session);
+
+        $this->assertTrue($gateway->supportsSampling());
+    }
+
+    public function testSupportsSamplingReturnsFalseWhenNotAdvertised(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('get')->with('client_capabilities', [])->willReturn(['roots' => []]);
+
+        $gateway = new ClientGateway($session);
+
+        $this->assertFalse($gateway->supportsSampling());
+    }
+
     public function testListRootsReturnsRootsFromClient(): void
     {
         $session = $this->createMock(SessionInterface::class);
