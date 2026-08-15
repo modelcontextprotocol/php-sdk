@@ -56,8 +56,12 @@ final class ElicitResult implements ResultInterface
 
         $content = isset($data['content']) && \is_array($data['content']) ? $data['content'] : null;
 
-        if (ElicitationMode::Form === $mode && ElicitAction::Accept === $action && null === $content) {
-            throw new InvalidArgumentException('Content must be provided when action is "accept".');
+        if (ElicitationMode::Form === $mode) {
+            if (ElicitAction::Accept === $action && null === $content) {
+                throw new InvalidArgumentException('Content must be provided when action is "accept".');
+            }
+        } elseif (isset($data['content'])) {
+            throw new InvalidArgumentException('Content must not be provided for a url-mode elicitation result.');
         }
 
         return new self($action, $content);

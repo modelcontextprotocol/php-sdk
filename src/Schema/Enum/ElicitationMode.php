@@ -18,7 +18,9 @@ namespace Mcp\Schema\Enum;
  */
 enum ElicitationMode: string
 {
-    /** Present a form built from the requested schema, and return the filled values. */
+    /**
+     * Present a form built from the requested schema, and return the filled values.
+     */
     case Form = 'form';
 
     /**

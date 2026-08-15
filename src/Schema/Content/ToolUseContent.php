@@ -28,7 +28,6 @@ final class ToolUseContent extends Content
         public readonly array $input,
         public readonly ?array $meta = null,
     ) {
-        // An empty array is exempt: it is also an empty map, and serializes as `{}` below.
         if ([] !== $input && array_is_list($input)) {
             throw new InvalidArgumentException('ToolUseContent "input" must be a map of argument names, not a list.');
         }

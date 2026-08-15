@@ -142,9 +142,6 @@ class Tool implements \JsonSerializable
             throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
         }
 
-        // Unlike inputSchema — whose root must stay an object, because tool
-        // arguments are always a JSON object — outputSchema may describe any
-        // JSON value, including arrays and primitives.
         $outputSchema = null;
         if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
             $outputSchema = $data['outputSchema'];
@@ -171,7 +168,7 @@ class Tool implements \JsonSerializable
      *     annotations?: ToolAnnotations,
      *     icons?: Icon[],
      *     _meta?: array<string, mixed>,
-     *     outputSchema?: ToolOutputSchema
+     *     outputSchema?: ToolOutputSchema|\stdClass
      * }
      */
     public function jsonSerialize(): array
@@ -194,7 +191,7 @@ class Tool implements \JsonSerializable
             $data['_meta'] = $this->meta;
         }
         if (null !== $this->outputSchema) {
-            $data['outputSchema'] = $this->outputSchema;
+            $data['outputSchema'] = [] === $this->outputSchema ? new \stdClass() : $this->outputSchema;
         }
 
         return $data;

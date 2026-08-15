@@ -113,16 +113,18 @@ final class CallToolHandler implements RequestHandlerInterface
 
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
-                && \is_array($result->structuredContent)
+                && null !== $result->structuredContent
                 && [] !== $result->structuredContent
-                && array_is_list($result->structuredContent)
+                && !self::isJsonObject($result->structuredContent)
             ) {
                 // A tool building its own `CallToolResult` bypasses the extraction
-                // rules on purpose, so the value is sent as it was set — but a JSON
-                // array is not valid here before SEP-2106 and clients may reject it.
-                $this->logger->warning('Tool returned a "CallToolResult" whose "structuredContent" is a JSON array, which the negotiated protocol revision does not allow; sending it unchanged.', [
+                // rules on purpose, so the value is sent as it was set — but before
+                // SEP-2106 only a JSON object is valid here, whether the value is a
+                // list or a scalar, and clients may reject it.
+                $this->logger->warning('Tool returned a "CallToolResult" whose "structuredContent" is not a JSON object, which the negotiated protocol revision requires; sending it unchanged.', [
                     'name' => $toolName,
                     'protocol_version' => $protocolVersion->value,
+                    'structured_content_type' => get_debug_type($result->structuredContent),
                 ]);
             }
 
@@ -151,5 +153,14 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while executing tool', $request->getId());
         }
+    }
+
+    /**
+     * Whether a `structuredContent` value encodes as a JSON object — the only shape
+     * revisions predating SEP-2106 accept.
+     */
+    private static function isJsonObject(mixed $value): bool
+    {
+        return \is_array($value) && !array_is_list($value);
     }
 }

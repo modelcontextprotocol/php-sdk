@@ -202,20 +202,12 @@ class ClientGateway
      * the user's action; unlike form mode there is no content to read back, so
      * whatever the user did there has to be picked up through the URL's own channel.
      *
-     * @param string $message A human-readable message describing what the user is being sent to do
-     * @param string $url     The URL the client should open
-     * @param int    $timeout The timeout in seconds
-     *
-     * @return ElicitResult The elicitation response carrying the user's action
-     *
      * @throws ClientException          if the client request results in an error message
      * @throws InvalidArgumentException if the client did not declare url-mode elicitation
      */
     public function elicitUrl(string $message, string $url, int $timeout = 120): ElicitResult
     {
-        // URL mode only exists from 2025-11-25 on, and only for clients declaring it:
-        // an `elicitation` capability naming no mode means form mode alone, so a client
-        // that never named `url` has no way to honour this request.
+        // URL mode only exists from 2025-11-25 on, and only for clients declaring it
         if (!$this->supportsElicitationUrl()) {
             throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
         }
@@ -370,8 +362,6 @@ class ClientGateway
             throw new ClientException($response);
         }
 
-        // The result carries no discriminator of its own, so the mode of the request
-        // decides whether an accepted response is expected to carry content.
         return ElicitResult::fromArray($response->result, $request->mode);
     }
 

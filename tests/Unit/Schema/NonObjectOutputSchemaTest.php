@@ -151,4 +151,16 @@ class NonObjectOutputSchemaTest extends TestCase
         $this->assertSame(['temperature' => 22.5], $result->structuredContent);
         $this->assertSame(['temperature' => 22.5], $result->jsonSerialize()['structuredContent']);
     }
+
+    #[TestDox('the empty root schema serializes as {} rather than []')]
+    public function testEmptyOutputSchemaSerializesAsObject(): void
+    {
+        $tool = Tool::fromArray([
+            'name' => 'demo',
+            'inputSchema' => self::validInputSchema(),
+            'outputSchema' => [],
+        ]);
+
+        $this->assertSame('{}', json_encode($tool->jsonSerialize()['outputSchema']));
+    }
 }

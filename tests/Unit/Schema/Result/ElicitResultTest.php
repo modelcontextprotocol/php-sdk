@@ -177,4 +177,15 @@ final class ElicitResultTest extends TestCase
             'action' => 'cancel',
         ], $result->jsonSerialize());
     }
+
+    public function testUrlModeRejectsContent(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Content must not be provided for a url-mode elicitation result.');
+
+        ElicitResult::fromArray(
+            ['action' => 'accept', 'content' => ['name' => 'Ada']],
+            ElicitationMode::Url,
+        );
+    }
 }

@@ -76,10 +76,7 @@ final class ElicitRequest extends Request
             throw new InvalidArgumentException('Missing or invalid "message" parameter for elicitation/create.');
         }
 
-        // `mode` is absent on requests from servers predating URL elicitation,
-        // where the form shape was the only one available. Only a genuinely absent
-        // key defaults, though: an explicit null is not one of the modes, so it is
-        // rejected like any other unknown value.
+        // Default `mode` is form - url elicitation is opt-in.
         $mode = ElicitationMode::Form;
         if (\array_key_exists('mode', $params)) {
             if (!\is_string($params['mode']) || null === $mode = ElicitationMode::tryFrom($params['mode'])) {
@@ -120,9 +117,7 @@ final class ElicitRequest extends Request
             ];
         }
 
-        // `mode` is left off for form elicitation: it is optional on that shape,
-        // and omitting it keeps the request readable by clients predating the
-        // mode discriminator.
+        // We don't need to send the mode if it's the default (form).
         return [
             'message' => $this->message,
             'requestedSchema' => $this->requestedSchema,
