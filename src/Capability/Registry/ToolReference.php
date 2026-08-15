@@ -77,7 +77,7 @@ class ToolReference extends ElementReference
      */
     public function extractStructuredContent(mixed $toolExecutionResult, ?ProtocolVersion $protocolVersion = null): ?array
     {
-        $objectOnly = !($protocolVersion ?? ProtocolVersion::latestHandshake())->isAtLeast(ProtocolVersion::V2026_07_28);
+        $objectOnly = ($protocolVersion ?? ProtocolVersion::latestHandshake())->requiresObjectStructuredContent();
 
         if (\is_array($toolExecutionResult)) {
             // A PHP list serializes to a JSON array, which the revisions predating

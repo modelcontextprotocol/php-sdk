@@ -131,4 +131,14 @@ class ProtocolVersionTest extends TestCase
     {
         $this->assertSame(ProtocolVersion::V2025_03_26, ProtocolVersion::DEFAULT_HEADER_VERSION);
     }
+
+    #[TestDox('SEP-2106 lifts the object-only rule for structuredContent')]
+    public function testRequiresObjectStructuredContent(): void
+    {
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            $this->assertTrue($version->requiresObjectStructuredContent(), \sprintf('%s predates SEP-2106.', $version->value));
+        }
+
+        $this->assertFalse(ProtocolVersion::V2026_07_28->requiresObjectStructuredContent());
+    }
 }

@@ -98,9 +98,11 @@ final class CallToolHandler implements RequestHandlerInterface
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            $protocolVersion = $context->getProtocolVersion();
+
             $structuredContent = null;
             if (!$result instanceof CallToolResult) {
-                $structuredContent = $reference->extractStructuredContent($result, $context->getProtocolVersion());
+                $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
 
                 if (null === $structuredContent && null !== $reference->tool->outputSchema) {
                     $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
@@ -110,6 +112,18 @@ final class CallToolHandler implements RequestHandlerInterface
                 }
 
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
+            } elseif ($protocolVersion->requiresObjectStructuredContent()
+                && \is_array($result->structuredContent)
+                && [] !== $result->structuredContent
+                && array_is_list($result->structuredContent)
+            ) {
+                // A tool building its own `CallToolResult` bypasses the extraction
+                // rules on purpose, so the value is sent as it was set — but a JSON
+                // array is not valid here before SEP-2106 and clients may reject it.
+                $this->logger->warning('Tool returned a "CallToolResult" whose "structuredContent" is a JSON array, which the negotiated protocol revision does not allow; sending it unchanged.', [
+                    'name' => $toolName,
+                    'protocol_version' => $protocolVersion->value,
+                ]);
             }
 
             $this->logger->debug('Tool executed successfully', [

@@ -524,6 +524,61 @@ class CallToolHandlerTest extends TestCase
         yield '2026-07-28' => ['2026-07-28', [['id' => 1], ['id' => 2]]];
     }
 
+    /**
+     * @dataProvider provideSelfBuiltResults
+     */
+    public function testSelfBuiltResultIsSentUnchangedAndOnlyWarnedAbout(
+        ?string $negotiated,
+        ?array $structuredContent,
+        int $expectedWarnings,
+    ): void {
+        $request = $this->createCallToolRequest('build_result', []);
+        $toolReference = $this->createToolReference('build_result', static fn () => null);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, $structuredContent);
+
+        $this->session
+            ->method('get')
+            ->with('protocol_version')
+            ->willReturn($negotiated);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($callToolResult);
+
+        $toolReference
+            ->expects($this->never())
+            ->method('formatResult');
+
+        $this->logger
+            ->expects($this->exactly($expectedWarnings))
+            ->method('warning');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        // Warned about, never rewritten: building the result is an explicit opt-out.
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($callToolResult, $response->result);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    /**
+     * @return iterable<string, array{?string, ?array<mixed>, int}>
+     */
+    public static function provideSelfBuiltResults(): iterable
+    {
+        yield 'list before SEP-2106' => ['2025-11-25', [['id' => 1]], 1];
+        yield 'list without a negotiated revision' => [null, [['id' => 1]], 1];
+        yield 'list from SEP-2106 on' => ['2026-07-28', [['id' => 1]], 0];
+        yield 'object before SEP-2106' => ['2025-11-25', ['items' => [['id' => 1]]], 0];
+        yield 'none at all' => ['2025-11-25', null, 0];
+        // Dropped by `CallToolResult::jsonSerialize()` anyway, so nothing to warn about.
+        yield 'empty' => ['2025-11-25', [], 0];
+    }
+
     public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void
     {
         $listResult = [['id' => 1]];
