@@ -76,6 +76,20 @@ final class ToolResultContentTest extends TestCase
         $this->assertInstanceOf(EmbeddedResource::class, $content->content[4]);
     }
 
+    public function testFilteredContentStillSerializesAsAnArray(): void
+    {
+        $blocks = [new TextContent('drop me'), new TextContent('keep me')];
+
+        // array_filter() preserves keys, so this list starts at index 1.
+        $kept = array_filter($blocks, static fn (TextContent $block): bool => 'keep me' === $block->text);
+        $content = new ToolResultContent('call-1', $kept);
+
+        $this->assertSame(
+            '{"type":"tool_result","toolUseId":"call-1","content":[{"type":"text","text":"keep me"}]}',
+            json_encode($content),
+        );
+    }
+
     public function testRejectsNonStandardContentBlocks(): void
     {
         $this->expectException(InvalidArgumentException::class);

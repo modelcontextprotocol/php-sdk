@@ -35,12 +35,17 @@ use Mcp\Schema\Enum\Role;
 class SamplingMessage extends Content
 {
     /**
-     * @param SamplingContent|list<SamplingContent> $content
-     * @param ?array<string, mixed>                 $meta
+     * @var SamplingContent|list<SamplingContent>
+     */
+    public readonly TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content;
+
+    /**
+     * @param SamplingContent|array<SamplingContent> $content keys are discarded, the property always holds a list
+     * @param ?array<string, mixed>                  $meta
      */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content,
+        TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content,
         public readonly ?array $meta = null,
     ) {
         if (\is_array($content)) {
@@ -53,7 +58,13 @@ class SamplingMessage extends Content
                     throw new InvalidArgumentException('Sampling message content contains an unsupported content block.');
                 }
             }
+
+            // array_filter() and friends preserve keys, and a keyed array serializes
+            // as a JSON object rather than the array the schema requires.
+            $content = array_values($content);
         }
+
+        $this->content = $content;
 
         parent::__construct('sampling');
     }
@@ -63,7 +74,7 @@ class SamplingMessage extends Content
      */
     public function getContentBlocks(): array
     {
-        return \is_array($this->content) ? array_values($this->content) : [$this->content];
+        return \is_array($this->content) ? $this->content : [$this->content];
     }
 
     /**

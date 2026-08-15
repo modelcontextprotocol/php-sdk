@@ -80,6 +80,20 @@ final class SamplingMessageTest extends TestCase
         $this->assertInstanceOf(ToolUseContent::class, $message->content);
     }
 
+    public function testFilteredContentStillSerializesAsAnArray(): void
+    {
+        $blocks = [new TextContent('thinking'), new ToolUseContent('call-1', 'weather', [])];
+
+        // array_filter() preserves keys, so this list starts at index 1.
+        $toolUses = array_filter($blocks, static fn ($block): bool => $block instanceof ToolUseContent);
+        $message = new SamplingMessage(Role::Assistant, $toolUses);
+
+        $this->assertSame(
+            '{"role":"assistant","content":[{"type":"tool_use","id":"call-1","name":"weather","input":{}}]}',
+            json_encode($message),
+        );
+    }
+
     public function testEmptyContentListIsRejected(): void
     {
         $this->expectException(InvalidArgumentException::class);

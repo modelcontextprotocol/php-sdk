@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Schema\Result;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolUseContent;
+use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 use PHPUnit\Framework\TestCase;
 
@@ -75,6 +76,20 @@ final class CreateSamplingMessageResultTest extends TestCase
         $this->assertInstanceOf(TextContent::class, $result->content);
         $this->assertCount(1, $result->getContentBlocks());
         $this->assertSame('{"type":"text","text":"Done"}', json_encode($result->jsonSerialize()['content']));
+    }
+
+    public function testFilteredContentStillSerializesAsAnArray(): void
+    {
+        $blocks = [new TextContent('thinking'), new ToolUseContent('call-1', 'weather', [])];
+
+        // array_filter() preserves keys, so this list starts at index 1.
+        $toolUses = array_filter($blocks, static fn ($block): bool => $block instanceof ToolUseContent);
+        $result = new CreateSamplingMessageResult(Role::Assistant, $toolUses, 'test-model');
+
+        $this->assertSame(
+            '[{"type":"tool_use","id":"call-1","name":"weather","input":{}}]',
+            json_encode($result->jsonSerialize()['content']),
+        );
     }
 
     public function testNonAssistantRoleIsRejected(): void

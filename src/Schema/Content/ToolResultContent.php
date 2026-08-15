@@ -24,13 +24,18 @@ use Mcp\Exception\InvalidArgumentException;
 final class ToolResultContent extends Content
 {
     /**
-     * @param list<ToolResultBlock> $content
-     * @param ?array<string, mixed> $structuredContent
-     * @param ?array<string, mixed> $meta
+     * @var list<ToolResultBlock>
+     */
+    public readonly array $content;
+
+    /**
+     * @param array<ToolResultBlock> $content           keys are discarded, the property always holds a list
+     * @param ?array<string, mixed>  $structuredContent
+     * @param ?array<string, mixed>  $meta
      */
     public function __construct(
         public readonly string $toolUseId,
-        public readonly array $content,
+        array $content,
         public readonly ?array $structuredContent = null,
         public readonly bool $isError = false,
         public readonly ?array $meta = null,
@@ -40,6 +45,10 @@ final class ToolResultContent extends Content
                 throw new InvalidArgumentException('Tool result content must contain standard content blocks.');
             }
         }
+
+        // array_filter() and friends preserve keys, and a keyed array serializes
+        // as a JSON object rather than the array the schema requires.
+        $this->content = array_values($content);
 
         parent::__construct('tool_result');
     }

@@ -29,17 +29,22 @@ use Mcp\Schema\JsonRpc\ResultInterface;
 class CreateSamplingMessageResult implements ResultInterface
 {
     /**
-     * @param Role                                                                                                            $role       the role of the message
-     * @param TextContent|ImageContent|AudioContent|ToolUseContent|list<TextContent|ImageContent|AudioContent|ToolUseContent> $content    the content of the message
-     * @param string                                                                                                          $model      the name of the model that generated the message
-     * @param ?string                                                                                                         $stopReason The reason why sampling stopped, if known. The spec defines "endTurn",
-     *                                                                                                                                    "stopSequence", "maxTokens" and "toolUse", but leaves the set open for
-     *                                                                                                                                    provider-specific values, so this stays an unconstrained string.
-     * @param ?array<string, mixed>                                                                                           $meta       optional message metadata
+     * @var TextContent|ImageContent|AudioContent|ToolUseContent|list<TextContent|ImageContent|AudioContent|ToolUseContent>
+     */
+    public readonly TextContent|ImageContent|AudioContent|ToolUseContent|array $content;
+
+    /**
+     * @param Role                                                                                                             $role       the role of the message
+     * @param TextContent|ImageContent|AudioContent|ToolUseContent|array<TextContent|ImageContent|AudioContent|ToolUseContent> $content    The content of the message. Keys are discarded, the property always holds a list.
+     * @param string                                                                                                           $model      the name of the model that generated the message
+     * @param ?string                                                                                                          $stopReason The reason why sampling stopped, if known. The spec defines "endTurn",
+     *                                                                                                                                     "stopSequence", "maxTokens" and "toolUse", but leaves the set open for
+     *                                                                                                                                     provider-specific values, so this stays an unconstrained string.
+     * @param ?array<string, mixed>                                                                                            $meta       optional message metadata
      */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent|ToolUseContent|array $content,
+        TextContent|ImageContent|AudioContent|ToolUseContent|array $content,
         public readonly string $model,
         public readonly ?string $stopReason = null,
         public readonly ?array $meta = null,
@@ -58,7 +63,13 @@ class CreateSamplingMessageResult implements ResultInterface
                     throw new InvalidArgumentException('CreateSamplingMessageResult contains an unsupported content block.');
                 }
             }
+
+            // array_filter() and friends preserve keys, and a keyed array serializes
+            // as a JSON object rather than the array the schema requires.
+            $content = array_values($content);
         }
+
+        $this->content = $content;
     }
 
     /**
@@ -66,7 +77,7 @@ class CreateSamplingMessageResult implements ResultInterface
      */
     public function getContentBlocks(): array
     {
-        return \is_array($this->content) ? array_values($this->content) : [$this->content];
+        return \is_array($this->content) ? $this->content : [$this->content];
     }
 
     /**
