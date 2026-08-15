@@ -163,6 +163,9 @@ class ClientGateway
             toolChoice: $options['toolChoice'] ?? null,
         );
 
+        // Fail here rather than letting the client reject the request with -32602.
+        $request->validateToolFlow();
+
         $response = $this->request($request, $timeout);
 
         if ($response instanceof Error) {
@@ -274,6 +277,47 @@ class ClientGateway
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('sampling', $capabilities);
+    }
+
+    /**
+     * Check if the connected client supports tools during sampling.
+     *
+     * Per the spec a server MUST NOT put `tools` or `toolChoice` on a
+     * `sampling/createMessage` request unless the client advertised
+     * `sampling.tools`, so check this before passing either option to
+     * {@see self::sample()}.
+     *
+     * @return bool True if the client supports tool-enabled sampling, false otherwise
+     */
+    public function supportsSamplingTools(): bool
+    {
+        return $this->hasSamplingSubCapability('tools');
+    }
+
+    /**
+     * Check if the connected client supports context inclusion during sampling.
+     *
+     * The `includeContext` values other than `none` are soft-deprecated and should
+     * only be sent when the client advertised `sampling.context`.
+     *
+     * @return bool True if the client supports sampling context, false otherwise
+     */
+    public function supportsSamplingContext(): bool
+    {
+        return $this->hasSamplingSubCapability('context');
+    }
+
+    private function hasSamplingSubCapability(string $name): bool
+    {
+        $capabilities = (array) $this->session->get('client_capabilities', []);
+        $sampling = $capabilities['sampling'] ?? null;
+
+        if (!\is_array($sampling) && !\is_object($sampling)) {
+            return false;
+        }
+
+        // MCP spec: capability presence indicates support (value is typically {} or [])
+        return \array_key_exists($name, (array) $sampling);
     }
 
     /**

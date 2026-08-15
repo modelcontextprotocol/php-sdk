@@ -13,6 +13,9 @@ namespace Mcp\Schema\Request;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\SamplingMessage;
+use Mcp\Schema\Content\ToolResultContent;
+use Mcp\Schema\Content\ToolUseContent;
+use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingContext;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\ModelPreferences;
@@ -175,6 +178,64 @@ final class CreateSamplingMessageRequest extends Request
             $tools,
             $toolChoice,
         );
+    }
+
+    /**
+     * Assert the spec's tool-flow rules over the whole message list.
+     *
+     * These are deliberately kept out of the hydration path: a violation is an
+     * "invalid params" condition the peer must be told about, not a parse failure
+     * that would leave the request unanswered. Call it from whatever boundary can
+     * report it — the request handler when receiving, the gateway when sending.
+     *
+     * @throws InvalidArgumentException on the first violation found
+     */
+    public function validateToolFlow(): void
+    {
+        $pendingToolUseIds = [];
+
+        foreach ($this->messages as $message) {
+            $blocks = $message->getContentBlocks();
+
+            $toolResults = array_filter($blocks, static fn ($block): bool => $block instanceof ToolResultContent);
+            $toolUses = array_filter($blocks, static fn ($block): bool => $block instanceof ToolUseContent);
+
+            if ($toolResults && \count($toolResults) !== \count($blocks)) {
+                throw new InvalidArgumentException('Tool results mixed with other content.');
+            }
+
+            if (Role::User === $message->role && $toolUses) {
+                throw new InvalidArgumentException('ToolUseContent is only valid in assistant sampling messages.');
+            }
+
+            if (Role::Assistant === $message->role && $toolResults) {
+                throw new InvalidArgumentException('ToolResultContent is only valid in user sampling messages.');
+            }
+
+            if ($pendingToolUseIds && !$toolResults) {
+                throw new InvalidArgumentException('Tool result missing in request.');
+            }
+
+            foreach ($toolResults as $toolResult) {
+                $matched = array_search($toolResult->toolUseId, $pendingToolUseIds, true);
+                if (false === $matched) {
+                    throw new InvalidArgumentException(\sprintf('Tool result "%s" does not answer a preceding tool use.', $toolResult->toolUseId));
+                }
+                unset($pendingToolUseIds[$matched]);
+            }
+
+            if ($pendingToolUseIds) {
+                throw new InvalidArgumentException('Tool result missing in request.');
+            }
+
+            foreach ($toolUses as $toolUse) {
+                $pendingToolUseIds[] = $toolUse->id;
+            }
+        }
+
+        if ($pendingToolUseIds) {
+            throw new InvalidArgumentException('Tool result missing in request.');
+        }
     }
 
     /**

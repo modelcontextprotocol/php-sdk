@@ -17,11 +17,17 @@ use Mcp\Schema\Enum\Role;
 /**
  * Describes a message issued to or received from an LLM API during sampling.
  *
+ * Structural validity is enforced here, but the spec's tool-flow rules (which role may
+ * carry which block, tool results not being mixed with other content, every tool use
+ * being answered) are not: they span the whole message list and must be reportable as
+ * an "invalid params" error rather than as a parse failure. They live in
+ * {@see \Mcp\Schema\Request\CreateSamplingMessageRequest::validateToolFlow()}.
+ *
  * @phpstan-type SamplingContent TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent
- * @phpstan-type SamplingMessageData = array{
+ * @phpstan-type SamplingMessageData array{
  *     role: 'user'|'assistant',
- *     content: array<string, mixed>|array<array<string, mixed>>,
- *     _meta?: array<string, mixed>
+ *     content: array<string, mixed>|list<array<string, mixed>>,
+ *     _meta?: array<string, mixed>,
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -29,33 +35,46 @@ use Mcp\Schema\Enum\Role;
 class SamplingMessage extends Content
 {
     /**
-     * @param SamplingContent|list<SamplingContent> $content
-     * @param ?array<string, mixed>                 $meta
+     * @var SamplingContent|list<SamplingContent>
+     */
+    public readonly TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content;
+
+    /**
+     * @param SamplingContent|array<SamplingContent> $content keys are discarded, the property always holds a list
+     * @param ?array<string, mixed>                  $meta
      */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content,
+        TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content,
         public readonly ?array $meta = null,
     ) {
-        $contents = \is_array($content) ? $content : [$content];
-        foreach ($contents as $item) {
-            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent && !$item instanceof ToolResultContent) {
-                throw new InvalidArgumentException('Sampling message content contains an unsupported content block.');
+        if (\is_array($content)) {
+            if ([] === $content) {
+                throw new InvalidArgumentException('Sampling message content must not be empty.');
             }
-            if (Role::User === $role && $item instanceof ToolUseContent) {
-                throw new InvalidArgumentException('ToolUseContent is only valid in assistant sampling messages.');
+
+            foreach ($content as $item) {
+                if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent && !$item instanceof ToolResultContent) {
+                    throw new InvalidArgumentException('Sampling message content contains an unsupported content block.');
+                }
             }
-            if (Role::Assistant === $role && $item instanceof ToolResultContent) {
-                throw new InvalidArgumentException('ToolResultContent is only valid in user sampling messages.');
-            }
+
+            // array_filter() and friends preserve keys, and a keyed array serializes
+            // as a JSON object rather than the array the schema requires.
+            $content = array_values($content);
         }
 
-        if (array_filter($contents, static fn ($item): bool => $item instanceof ToolResultContent)
-            && array_filter($contents, static fn ($item): bool => !$item instanceof ToolResultContent)) {
-            throw new InvalidArgumentException('Tool result messages must not contain other content types.');
-        }
+        $this->content = $content;
 
         parent::__construct('sampling');
+    }
+
+    /**
+     * @return list<SamplingContent>
+     */
+    public function getContentBlocks(): array
+    {
+        return \is_array($this->content) ? $this->content : [$this->content];
     }
 
     /**
@@ -66,7 +85,7 @@ class SamplingMessage extends Content
         if (!isset($data['role']) || !\is_string($data['role'])) {
             throw new InvalidArgumentException('Missing or invalid "role" in SamplingMessage data.');
         }
-        if (!isset($data['content']) || !\is_array($data['content'])) {
+        if (!isset($data['content']) || !\is_array($data['content']) || [] === $data['content']) {
             throw new InvalidArgumentException('Missing or invalid "content" in SamplingMessage data.');
         }
 
@@ -99,7 +118,11 @@ class SamplingMessage extends Content
     }
 
     /**
-     * @return SamplingMessageData
+     * @return array{
+     *     role: string,
+     *     content: SamplingContent|list<SamplingContent>,
+     *     _meta?: array<string, mixed>,
+     * }
      */
     public function jsonSerialize(): array
     {

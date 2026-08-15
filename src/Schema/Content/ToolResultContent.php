@@ -15,26 +15,40 @@ use Mcp\Exception\InvalidArgumentException;
 
 /**
  * The result of a tool use, provided by the user back to the assistant.
+ *
+ * Carries the same content blocks as a `tools/call` result, so it accepts everything
+ * {@see \Mcp\Schema\Result\CallToolResult} does.
+ *
+ * @phpstan-type ToolResultBlock TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
  */
 final class ToolResultContent extends Content
 {
     /**
-     * @param Content[]             $content
-     * @param ?array<string, mixed> $structuredContent
-     * @param ?array<string, mixed> $meta
+     * @var list<ToolResultBlock>
+     */
+    public readonly array $content;
+
+    /**
+     * @param array<ToolResultBlock> $content           keys are discarded, the property always holds a list
+     * @param ?array<string, mixed>  $structuredContent
+     * @param ?array<string, mixed>  $meta
      */
     public function __construct(
         public readonly string $toolUseId,
-        public readonly array $content,
+        array $content,
         public readonly ?array $structuredContent = null,
         public readonly bool $isError = false,
         public readonly ?array $meta = null,
     ) {
         foreach ($content as $item) {
-            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof EmbeddedResource) {
+            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ResourceLink && !$item instanceof EmbeddedResource) {
                 throw new InvalidArgumentException('Tool result content must contain standard content blocks.');
             }
         }
+
+        // array_filter() and friends preserve keys, and a keyed array serializes
+        // as a JSON object rather than the array the schema requires.
+        $this->content = array_values($content);
 
         parent::__construct('tool_result');
     }
@@ -61,6 +75,7 @@ final class ToolResultContent extends Content
                 'text' => TextContent::fromArray($item),
                 'image' => ImageContent::fromArray($item),
                 'audio' => AudioContent::fromArray($item),
+                'resource_link' => ResourceLink::fromArray($item),
                 'resource' => EmbeddedResource::fromArray($item),
                 default => throw new InvalidArgumentException(\sprintf('Unsupported tool result content type "%s".', $item['type'] ?? null)),
             };
@@ -84,8 +99,12 @@ final class ToolResultContent extends Content
             'type' => $this->type,
             'toolUseId' => $this->toolUseId,
             'content' => $this->content,
-            'isError' => $this->isError,
         ];
+
+        // Optional in the schema with a default of false, so only sent when it is true.
+        if ($this->isError) {
+            $data['isError'] = true;
+        }
 
         if (null !== $this->structuredContent) {
             $data['structuredContent'] = $this->structuredContent;

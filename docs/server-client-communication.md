@@ -58,8 +58,33 @@ The `sample` method accepts four arguments:
 4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
    `stopSequences`, `metadata`, `tools`, and `toolChoice`
 
-Only send `includeContext` when the client advertises `sampling.context`, and only send `tools` or `toolChoice` when it
-advertises `sampling.tools`. The context modes other than `none` are soft-deprecated by the current specification.
+Both `tools`/`toolChoice` and `includeContext` are gated on what the client advertised, so check before sending:
+
+```php
+if ($clientGateway->supportsSamplingTools()) {
+    $result = $clientGateway->sample($messages, options: ['tools' => $tools]);
+}
+```
+
+A server **must not** send `tools` or `toolChoice` to a client that did not advertise `sampling.tools`. The
+`includeContext` values other than `none` are soft-deprecated and should only be sent when the client advertises
+`sampling.context` — `supportsSamplingContext()` reports that one.
+
+### Tool loops
+
+When the model wants to call a tool, the result comes back with `stopReason: 'toolUse'` and one or more
+`ToolUseContent` blocks. Execute them, then send a follow-up request with the assistant's message and a user message
+carrying a matching `ToolResultContent` for every `ToolUseContent`:
+
+```php
+$messages[] = new SamplingMessage(Role::Assistant, $result->content);
+$messages[] = new SamplingMessage(Role::User, [new ToolResultContent($toolUse->id, [new TextContent($output)])]);
+```
+
+The specification is strict about the shape of that exchange: tool results may not be mixed with other content in a
+message, and every tool use must be answered before the conversation continues. `sample()` checks these rules before
+sending and throws an `InvalidArgumentException` rather than letting the client reject the request with `-32602`.
+Use `$result->getContentBlocks()` to iterate the response regardless of whether it holds one block or a list.
 
 [Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 

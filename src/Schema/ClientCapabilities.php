@@ -21,7 +21,12 @@ class ClientCapabilities implements \JsonSerializable
 {
     /**
      * @param array<string, mixed>  $experimental
-     * @param ?array<string, mixed> $extensions   protocol extensions the client supports (e.g. io.modelcontextprotocol/ui)
+     * @param ?array<string, mixed> $extensions      protocol extensions the client supports (e.g. io.modelcontextprotocol/ui)
+     * @param ?bool                 $samplingContext the `sampling.context` sub-capability
+     * @param ?bool                 $samplingTools   the `sampling.tools` sub-capability
+     *
+     * The two sampling sub-capabilities trail `extensions` rather than sitting next to
+     * `sampling` so that existing positional calls keep working. Pass them by name.
      */
     public function __construct(
         public readonly ?bool $roots = false,

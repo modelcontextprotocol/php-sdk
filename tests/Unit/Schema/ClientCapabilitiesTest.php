@@ -68,4 +68,47 @@ class ClientCapabilitiesTest extends TestCase
         $this->assertTrue($restored->roots);
         $this->assertTrue($restored->rootsListChanged);
     }
+
+    public function testRoundTripPreservesSamplingSubCapabilities(): void
+    {
+        $capabilities = new ClientCapabilities(sampling: true, samplingContext: true, samplingTools: true);
+
+        $serialized = $capabilities->jsonSerialize();
+        $this->assertObjectHasProperty('context', $serialized['sampling']);
+        $this->assertObjectHasProperty('tools', $serialized['sampling']);
+
+        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities), true));
+
+        $this->assertTrue($restored->sampling);
+        $this->assertTrue($restored->samplingContext);
+        $this->assertTrue($restored->samplingTools);
+    }
+
+    public function testPlainSamplingLeavesSubCapabilitiesOff(): void
+    {
+        $capabilities = new ClientCapabilities(sampling: true);
+
+        $serialized = $capabilities->jsonSerialize();
+        $this->assertObjectNotHasProperty('context', $serialized['sampling']);
+        $this->assertObjectNotHasProperty('tools', $serialized['sampling']);
+
+        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities), true));
+
+        $this->assertTrue($restored->sampling);
+        $this->assertFalse($restored->samplingContext);
+        $this->assertFalse($restored->samplingTools);
+    }
+
+    public function testSamplingSubCapabilitiesAreHydratedFromObject(): void
+    {
+        $sampling = new \stdClass();
+        $sampling->context = new \stdClass();
+        $sampling->tools = new \stdClass();
+
+        $capabilities = ClientCapabilities::fromArray(['sampling' => $sampling]);
+
+        $this->assertTrue($capabilities->sampling);
+        $this->assertTrue($capabilities->samplingContext);
+        $this->assertTrue($capabilities->samplingTools);
+    }
 }

@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Handler\Request;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\SamplingException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -49,6 +50,14 @@ class SamplingRequestHandler implements RequestHandlerInterface
     public function handle(Request $request): Response|Error
     {
         \assert($request instanceof CreateSamplingMessageRequest);
+
+        try {
+            $request->validateToolFlow();
+        } catch (InvalidArgumentException $e) {
+            $this->logger->warning('Rejecting sampling request violating the tool flow', ['exception' => $e]);
+
+            return Error::forInvalidParams($e->getMessage(), $request->getId());
+        }
 
         try {
             $result = $this->callback->__invoke($request);
