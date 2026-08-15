@@ -16,11 +16,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
- * Protocol version negotiation, run across both implementations at once.
+ * What the two sides settle on before anything else can happen.
  *
- * The unit tests either drive the client against a canned counter-offer or the
- * server against a canned request. Neither can show that the version this
- * server answers with is the version this client ends up on.
+ * @see Fixture/handshake.php for the server under test
  */
 final class HandshakeTest extends IntegrationTestCase
 {
@@ -28,17 +26,16 @@ final class HandshakeTest extends IntegrationTestCase
     #[DataProvider('provideNegotiations')]
     public function testNegotiatedVersion(?ProtocolVersion $clientVersion, ?ProtocolVersion $serverVersion, ProtocolVersion $expected): void
     {
-        $server = $this->serverBuilder();
-        if (null !== $serverVersion) {
-            $server->setProtocolVersion($serverVersion);
-        }
-
         $client = $this->clientBuilder();
         if (null !== $clientVersion) {
             $client->setProtocolVersion($clientVersion);
         }
 
-        $connected = $this->connect($server, $client);
+        $connected = $this->connect(
+            'handshake',
+            $client,
+            null !== $serverVersion ? ['MCP_INTEGRATION_PROTOCOL_VERSION' => $serverVersion->value] : [],
+        );
 
         $this->assertSame($expected, $connected->getProtocolVersion());
     }
@@ -52,19 +49,17 @@ final class HandshakeTest extends IntegrationTestCase
 
         yield 'both unconfigured' => [null, null, $latest];
 
-        // A client asking for a revision the server supports gets that exact one
-        // back, whichever end of the supported range it sits at.
+        // Whichever end of the supported range it sits at.
         foreach (ProtocolVersion::handshakeVersions() as $version) {
             yield \sprintf('client asks for %s', $version->value) => [$version, null, $version];
         }
 
-        // A pinned server answers with its pin, and this client continues on it
-        // rather than insisting on what it asked for.
+        // A pinned server answers with its pin, and the client continues on it.
         yield 'server pins an older revision' => [ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_03_26, ProtocolVersion::V2025_03_26];
         yield 'server pins a newer revision' => [ProtocolVersion::V2024_11_05, ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25];
         yield 'both pin the same revision' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18];
 
-        // Neither side can reach the modern era through `initialize`, so
+        // Neither side reaches the modern era through `initialize`, so
         // configuring it falls back to the handshake set on both ends.
         yield 'client configured modern' => [ProtocolVersion::V2026_07_28, null, $latest];
         yield 'server configured modern' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_06_18];
@@ -74,7 +69,7 @@ final class HandshakeTest extends IntegrationTestCase
     #[TestDox('the handshake carries the server identity to the client')]
     public function testServerInfoIsExchanged(): void
     {
-        $client = $this->connect($this->serverBuilder()->setInstructions('Be brief.'));
+        $client = $this->connect('handshake');
 
         $this->assertSame('integration-server', $client->getServerInfo()->name);
         $this->assertSame('1.0.0', $client->getServerInfo()->version);

@@ -14,25 +14,24 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
-use Mcp\Exception\ClientException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
-use Mcp\Server\Builder as ServerBuilder;
-use Mcp\Server\RequestContext;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * Sampling: the server borrowing the client's model mid-tool-call.
+ *
+ * @see Fixture/sampling.php for the server under test
  */
 final class SamplingTest extends IntegrationTestCase
 {
     #[TestDox('the sampled completion reaches the tool that asked for it')]
     public function testSampledCompletionReachesTheTool(): void
     {
-        $client = $this->connect($this->serverWithSamplingTool(), $this->clientSampling());
+        $client = $this->connect('sampling', $this->clientSampling());
 
         $result = $client->callTool('summarize', ['text' => 'a long report']);
 
@@ -43,9 +42,11 @@ final class SamplingTest extends IntegrationTestCase
     #[TestDox('the prompt the tool passed arrives at the client')]
     public function testPromptReachesTheClient(): void
     {
+        // The client stays in this process, so what it was asked can be
+        // collected by reference even though the tool asking runs in another.
         /** @var \ArrayObject<int, CreateSamplingMessageRequest> $seen */
         $seen = new \ArrayObject();
-        $client = $this->connect($this->serverWithSamplingTool(), $this->clientSampling($seen));
+        $client = $this->connect('sampling', $this->clientSampling($seen));
 
         $client->callTool('summarize', ['text' => 'inspect me']);
 
@@ -58,34 +59,14 @@ final class SamplingTest extends IntegrationTestCase
     #[TestDox('a client that cannot sample refuses instead of stalling the tool')]
     public function testClientWithoutSamplingRefuses(): void
     {
-        // The gateway has no supportsSampling() to consult, so the tool finds out
-        // by asking: the client answers "method not found" and that surfaces as a
-        // ClientException rather than a Fiber waiting on a response forever.
-        $client = $this->connect($this->serverWithSamplingTool());
+        // The gateway has no supportsSampling() to consult, so the tool finds
+        // out by asking and the refusal surfaces as a ClientException.
+        $client = $this->connect('sampling');
 
         $result = $client->callTool('summarize', ['text' => 'anything']);
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('Client does not handle "sampling/createMessage" requests.', $result->content[0]->text);
-    }
-
-    private function serverWithSamplingTool(): ServerBuilder
-    {
-        return $this->serverBuilder()->addTool(
-            static function (RequestContext $context, string $text): string {
-                try {
-                    $result = $context->getClientGateway()->sample($text, maxTokens: 64);
-                } catch (ClientException $e) {
-                    return $e->getMessage();
-                }
-
-                \assert($result->content instanceof TextContent);
-
-                return \sprintf('%s said: %s', $result->model, $result->content->text);
-            },
-            name: 'summarize',
-            description: 'Summarizes text by asking the client to sample.',
-        );
     }
 
     /**

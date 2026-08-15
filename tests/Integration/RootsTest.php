@@ -19,19 +19,19 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
-use Mcp\Server\Builder as ServerBuilder;
-use Mcp\Server\RequestContext;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * Roots: the server asking the client which workspace folders it may touch.
+ *
+ * @see Fixture/roots.php for the server under test
  */
 final class RootsTest extends IntegrationTestCase
 {
     #[TestDox('the roots the client exposes reach the tool that asked')]
     public function testRootsReachTheTool(): void
     {
-        $client = $this->connect($this->serverWithRootsTool(), $this->clientExposing(
+        $client = $this->connect('roots', $this->clientExposing(
             new Root('file:///workspace/app', 'App'),
             new Root('file:///workspace/docs', 'Docs'),
         ));
@@ -45,7 +45,7 @@ final class RootsTest extends IntegrationTestCase
     #[TestDox('an empty root list is a valid answer, not a failure')]
     public function testEmptyRootList(): void
     {
-        $client = $this->connect($this->serverWithRootsTool(), $this->clientExposing());
+        $client = $this->connect('roots', $this->clientExposing());
 
         $result = $client->callTool('inspect_roots');
 
@@ -56,7 +56,7 @@ final class RootsTest extends IntegrationTestCase
     #[TestDox('a client that does not advertise roots is not asked')]
     public function testCapabilityIsVisibleToTheServer(): void
     {
-        $client = $this->connect($this->serverWithRootsTool());
+        $client = $this->connect('roots');
 
         $result = $client->callTool('inspect_roots');
 
@@ -67,36 +67,14 @@ final class RootsTest extends IntegrationTestCase
     #[TestDox('the client can announce that its roots changed')]
     public function testRootsListChangedNotification(): void
     {
-        $client = $this->connect($this->serverWithRootsTool(), $this->clientExposing(new Root('file:///workspace')));
+        $client = $this->connect('roots', $this->clientExposing(new Root('file:///workspace')));
 
-        // A notification has no reply, so what this pins down is that sending one
-        // mid-session neither raises nor leaves the connection unusable.
+        // A notification has no reply, so what this pins down is that sending
+        // one mid-session leaves the connection usable.
         $client->sendRootsListChanged();
 
         $this->assertTrue($client->isConnected());
         $this->assertInstanceOf(TextContent::class, $client->callTool('inspect_roots')->content[0]);
-    }
-
-    private function serverWithRootsTool(): ServerBuilder
-    {
-        return $this->serverBuilder()->addTool(
-            static function (RequestContext $context): string {
-                $gateway = $context->getClientGateway();
-
-                if (!$gateway->supportsRoots()) {
-                    return 'unsupported';
-                }
-
-                $described = [];
-                foreach ($gateway->listRoots()->roots as $root) {
-                    $described[] = \sprintf('%s (%s)', $root->uri, $root->name ?? '-');
-                }
-
-                return implode(', ', $described);
-            },
-            name: 'inspect_roots',
-            description: 'Reports the workspace roots the client exposes.',
-        );
     }
 
     private function clientExposing(Root ...$roots): ClientBuilder

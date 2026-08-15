@@ -15,22 +15,22 @@ use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\LoggingMessageNotification;
-use Mcp\Server\Builder as ServerBuilder;
-use Mcp\Server\RequestContext;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * Notifications a server emits while a tool is still running.
  *
- * These travel the same queue as a response but carry no id and expect no
- * answer, so what they exercise is delivery ordering rather than correlation.
+ * These share the pipe with the response but carry no id, so what they exercise
+ * is delivery ordering rather than correlation.
+ *
+ * @see Fixture/notification.php for the server under test
  */
 final class NotificationTest extends IntegrationTestCase
 {
     #[TestDox('progress notifications reach the callback passed to callTool()')]
     public function testProgressReachesTheCaller(): void
     {
-        $client = $this->connect($this->serverWithReportingTool());
+        $client = $this->connect('notification');
 
         $updates = [];
         $result = $client->callTool('work', [], static function (float $progress, ?float $total, ?string $message) use (&$updates): void {
@@ -46,9 +46,8 @@ final class NotificationTest extends IntegrationTestCase
     public function testProgressIsSkippedWithoutAToken(): void
     {
         // Without an onProgress callback the request carries no progress token,
-        // and the gateway drops the notification rather than sending one the
-        // client could not correlate.
-        $client = $this->connect($this->serverWithReportingTool());
+        // so the gateway drops the notification instead of sending it.
+        $client = $this->connect('notification');
 
         $result = $client->callTool('work');
 
@@ -61,7 +60,7 @@ final class NotificationTest extends IntegrationTestCase
     {
         $logged = [];
         $client = $this->connect(
-            $this->serverWithReportingTool(),
+            'notification',
             $this->clientBuilder()->addNotificationHandler(new LoggingNotificationHandler(
                 static function (LoggingMessageNotification $notification) use (&$logged): void {
                     $logged[] = [$notification->level, $notification->data];
@@ -72,22 +71,5 @@ final class NotificationTest extends IntegrationTestCase
         $client->callTool('work');
 
         $this->assertSame([[LoggingLevel::Info, 'starting work']], $logged);
-    }
-
-    private function serverWithReportingTool(): ServerBuilder
-    {
-        return $this->serverBuilder()->addTool(
-            static function (RequestContext $context): string {
-                $gateway = $context->getClientGateway();
-
-                $gateway->log(LoggingLevel::Info, 'starting work');
-                $gateway->progress(0.5, 1.0, 'halfway');
-                $gateway->progress(1.0, 1.0, 'done');
-
-                return 'finished';
-            },
-            name: 'work',
-            description: 'Reports progress and logs while working.',
-        );
     }
 }

@@ -13,50 +13,71 @@ namespace Mcp\Tests\Integration;
 
 use Mcp\Client;
 use Mcp\Client\Builder as ClientBuilder;
-use Mcp\Server;
-use Mcp\Server\Builder as ServerBuilder;
-use Mcp\Tests\Integration\Loopback\LoopbackConnection;
+use Mcp\Client\Transport\StdioTransport;
+use Mcp\Exception\ConnectionException;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Base for tests that run a real client against a real server.
+ * Base for tests that run a real client against a real server process.
  *
  * Every other test in the suite mocks one side of the conversation. These run
- * both, so what they cover is the agreement between the two halves rather than
- * either half against an expectation of the other.
+ * both, wired the way `examples/client` wires them, so what they cover is the
+ * agreement between the two halves. The servers live in {@see Fixture}, one
+ * script per scenario.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 abstract class IntegrationTestCase extends TestCase
 {
-    protected function serverBuilder(): ServerBuilder
-    {
-        return Server::builder()->setServerInfo('integration-server', '1.0.0');
-    }
+    /**
+     * Both sides answer immediately, so anything reaching this is a deadlock.
+     * Far below the SDK's two-minute default, to fail rather than hang.
+     */
+    private const TIMEOUT = 5;
+
+    private ?Client $client = null;
 
     protected function clientBuilder(): ClientBuilder
     {
-        return Client::builder()->setClientInfo('integration-client', '1.0.0');
+        return Client::builder()
+            ->setClientInfo('integration-client', '1.0.0')
+            ->setInitTimeout(self::TIMEOUT)
+            ->setRequestTimeout(self::TIMEOUT);
     }
 
     /**
-     * Connect a client to a server over an in-process loopback.
+     * Spawn a fixture server and connect a client to it.
      *
-     * The returned client has completed the handshake, so the negotiated
-     * revision and the server info are already readable.
+     * The returned client has completed the handshake.
+     *
+     * @param string                $fixture basename of a script in {@see Fixture}
+     * @param array<string, string> $env     added to the server process environment
      */
-    protected function connect(?ServerBuilder $server = null, ?ClientBuilder $client = null): Client
+    protected function connect(string $fixture, ?ClientBuilder $client = null, array $env = []): Client
     {
-        $connection = new LoopbackConnection();
+        $script = __DIR__.'/Fixture/'.$fixture.'.php';
 
-        // run() wires the protocol to the transport and returns straight away:
-        // the loopback transport has no loop of its own to enter, because the
-        // connection drives it from the client's side instead.
-        ($server ?? $this->serverBuilder())->build()->run($connection->serverTransport());
+        $this->client = ($client ?? $this->clientBuilder())->build();
 
-        $mcpClient = ($client ?? $this->clientBuilder())->build();
-        $mcpClient->connect($connection->clientTransport());
+        try {
+            $this->client->connect(new StdioTransport(
+                command: \PHP_BINARY,
+                args: [$script],
+                // proc_open() replaces the environment rather than adding to it.
+                env: [] === $env ? null : array_merge(getenv(), $env),
+            ));
+        } catch (ConnectionException $e) {
+            // The transport discards the child's stderr, so a fixture dying on
+            // startup arrives here as a bare timeout.
+            $this->fail(\sprintf('Could not connect to fixture server "%s": %s. Run `%s %s` to see why.', $fixture, $e->getMessage(), \PHP_BINARY, $script));
+        }
 
-        return $mcpClient;
+        return $this->client;
+    }
+
+    protected function tearDown(): void
+    {
+        $this->client?->disconnect();
+        $this->client = null;
     }
 }

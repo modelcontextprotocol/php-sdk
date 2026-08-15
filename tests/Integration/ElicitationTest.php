@@ -14,33 +14,29 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
-use Mcp\Exception\ClientException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Elicitation\ElicitationSchema;
-use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
-use Mcp\Server\Builder as ServerBuilder;
-use Mcp\Server\RequestContext;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
  * Elicitation, driven all the way around the loop.
  *
- * This is the round-trip that suspends both sides at once: the tool's Fiber
- * waits on the client while the client's request Fiber waits on the tool.
+ * The round-trip that suspends both sides at once: the tool's Fiber waits on
+ * the client while the client's request Fiber waits on the tool.
+ *
+ * @see Fixture/elicitation.php for the server under test
  */
 final class ElicitationTest extends IntegrationTestCase
 {
     #[TestDox('an accepted elicitation hands the content back to the tool')]
     public function testAcceptedElicitation(): void
     {
-        $client = $this->connect(
-            $this->serverWithElicitingTool(),
-            $this->clientAnswering(new ElicitResult(ElicitAction::Accept, ['name' => 'Ada'])),
-        );
+        $client = $this->connect('elicitation', $this->clientAnswering(
+            new ElicitResult(ElicitAction::Accept, ['name' => 'Ada']),
+        ));
 
         $result = $client->callTool('ask_name');
 
@@ -52,10 +48,9 @@ final class ElicitationTest extends IntegrationTestCase
     #[TestDox('a declined elicitation reaches the tool as a decline, not an error')]
     public function testDeclinedElicitation(): void
     {
-        $client = $this->connect(
-            $this->serverWithElicitingTool(),
-            $this->clientAnswering(new ElicitResult(ElicitAction::Decline)),
-        );
+        $client = $this->connect('elicitation', $this->clientAnswering(
+            new ElicitResult(ElicitAction::Decline),
+        ));
 
         $result = $client->callTool('ask_name');
 
@@ -66,9 +61,9 @@ final class ElicitationTest extends IntegrationTestCase
     #[TestDox('a client that does not advertise elicitation is not asked')]
     public function testCapabilityIsVisibleToTheServer(): void
     {
-        // The tool checks supportsElicitation() before asking, and that answer
-        // comes from the capabilities this client sent during the handshake.
-        $client = $this->connect($this->serverWithElicitingTool());
+        // The tool consults supportsElicitation(), which answers from the
+        // capabilities this client sent during the handshake.
+        $client = $this->connect('elicitation');
 
         $result = $client->callTool('ask_name');
 
@@ -80,10 +75,9 @@ final class ElicitationTest extends IntegrationTestCase
     public function testAdvertisedCapabilityWithoutHandler(): void
     {
         // The client answers "method not found", which the gateway raises inside
-        // the tool as a ClientException. Nothing hangs: the refusal travels the
-        // same path a result would, and the tool decides what to do with it.
+        // the tool as a ClientException rather than leaving it waiting.
         $client = $this->connect(
-            $this->serverWithElicitingTool(),
+            'elicitation',
             $this->clientBuilder()->setCapabilities(new ClientCapabilities(elicitation: true)),
         );
 
@@ -91,31 +85,6 @@ final class ElicitationTest extends IntegrationTestCase
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('Client does not handle "elicitation/create" requests.', $result->content[0]->text);
-    }
-
-    private function serverWithElicitingTool(): ServerBuilder
-    {
-        return $this->serverBuilder()->addTool(
-            static function (RequestContext $context): string {
-                $gateway = $context->getClientGateway();
-
-                if (!$gateway->supportsElicitation()) {
-                    return 'unsupported';
-                }
-
-                try {
-                    $result = $gateway->elicit('What is your name?', new ElicitationSchema([
-                        'name' => new StringSchemaDefinition(title: 'Name'),
-                    ]));
-                } catch (ClientException $e) {
-                    return $e->getMessage();
-                }
-
-                return \sprintf('%s:%s', $result->action->value, $result->content['name'] ?? '');
-            },
-            name: 'ask_name',
-            description: 'Asks the client for a name.',
-        );
     }
 
     private function clientAnswering(ElicitResult $answer): ClientBuilder
