@@ -15,7 +15,10 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Enum\ToolChoiceMode;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Tool;
+use Mcp\Schema\ToolChoice;
 use PHPUnit\Framework\TestCase;
 
 final class CreateSamplingMessageRequestTest extends TestCase
@@ -47,5 +50,24 @@ final class CreateSamplingMessageRequestTest extends TestCase
 
         /* @phpstan-ignore argument.type */
         new CreateSamplingMessageRequest($messages, 150);
+    }
+
+    public function testToolsAndToolChoiceRoundTrip(): void
+    {
+        $tool = new Tool('weather', null, ['type' => 'object', 'properties' => [], 'required' => null], 'Get weather', null);
+        $request = new CreateSamplingMessageRequest(
+            [new SamplingMessage(Role::User, new TextContent('Weather in Paris?'))],
+            150,
+            tools: [$tool],
+            toolChoice: new ToolChoice(ToolChoiceMode::Required),
+        );
+
+        $payload = $request->withId(1)->jsonSerialize();
+        $this->assertSame('weather', $payload['params']['tools'][0]->name);
+        $this->assertSame(ToolChoiceMode::Required, $payload['params']['toolChoice']->mode);
+
+        $hydrated = CreateSamplingMessageRequest::fromArray(json_decode(json_encode($payload, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR));
+        $this->assertSame('weather', $hydrated->tools[0]->name);
+        $this->assertSame(ToolChoiceMode::Required, $hydrated->toolChoice->mode);
     }
 }

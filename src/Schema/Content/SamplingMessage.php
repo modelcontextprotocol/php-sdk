@@ -17,19 +17,44 @@ use Mcp\Schema\Enum\Role;
 /**
  * Describes a message issued to or received from an LLM API during sampling.
  *
+ * @phpstan-type SamplingContent TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent
  * @phpstan-type SamplingMessageData = array{
  *     role: 'user'|'assistant',
- *     content: TextContent|ImageContent|AudioContent
+ *     content: array<string, mixed>|array<array<string, mixed>>,
+ *     _meta?: array<string, mixed>
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class SamplingMessage extends Content
 {
+    /**
+     * @param SamplingContent|list<SamplingContent> $content
+     * @param ?array<string, mixed>                 $meta
+     */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent $content,
+        public readonly TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent|array $content,
+        public readonly ?array $meta = null,
     ) {
+        $contents = \is_array($content) ? $content : [$content];
+        foreach ($contents as $item) {
+            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent && !$item instanceof ToolResultContent) {
+                throw new InvalidArgumentException('Sampling message content contains an unsupported content block.');
+            }
+            if (Role::User === $role && $item instanceof ToolUseContent) {
+                throw new InvalidArgumentException('ToolUseContent is only valid in assistant sampling messages.');
+            }
+            if (Role::Assistant === $role && $item instanceof ToolResultContent) {
+                throw new InvalidArgumentException('ToolResultContent is only valid in user sampling messages.');
+            }
+        }
+
+        if (array_filter($contents, static fn ($item): bool => $item instanceof ToolResultContent)
+            && array_filter($contents, static fn ($item): bool => !$item instanceof ToolResultContent)) {
+            throw new InvalidArgumentException('Tool result messages must not contain other content types.');
+        }
+
         parent::__construct('sampling');
     }
 
@@ -51,18 +76,26 @@ class SamplingMessage extends Content
 
         $contentData = $data['content'];
         $contentType = $contentData['type'] ?? null;
-        if (!\is_string($contentType)) {
+        if (null !== $contentType && !\is_string($contentType)) {
             throw new InvalidArgumentException('Missing or invalid content "type" for SamplingMessage.');
         }
 
-        $contentInstance = match ($contentType) {
-            'text' => TextContent::fromArray($contentData),
-            'image' => ImageContent::fromArray($contentData),
-            'audio' => AudioContent::fromArray($contentData),
-            default => throw new InvalidArgumentException(\sprintf('Invalid content type "%s" for SamplingMessage.', $contentType)),
-        };
+        $isSingleContent = null !== $contentType;
+        $contentItems = $isSingleContent ? [$contentData] : $contentData;
+        $content = [];
 
-        return new self($role, $contentInstance);
+        foreach ($contentItems as $item) {
+            if (!\is_array($item)) {
+                throw new InvalidArgumentException('Invalid content block in SamplingMessage data.');
+            }
+            $content[] = self::hydrateContent($item);
+        }
+
+        return new self(
+            $role,
+            $isSingleContent ? $content[0] : $content,
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+        );
     }
 
     /**
@@ -70,9 +103,34 @@ class SamplingMessage extends Content
      */
     public function jsonSerialize(): array
     {
-        return [
+        $data = [
             'role' => $this->role->value,
             'content' => $this->content,
         ];
+
+        if (null !== $this->meta) {
+            $data['_meta'] = $this->meta;
+        }
+
+        return $data;
+    }
+
+    /**
+     * @param array<string, mixed> $contentData
+     *
+     * @return SamplingContent
+     */
+    private static function hydrateContent(array $contentData): TextContent|ImageContent|AudioContent|ToolUseContent|ToolResultContent
+    {
+        $contentType = $contentData['type'] ?? null;
+
+        return match ($contentType) {
+            'text' => TextContent::fromArray($contentData),
+            'image' => ImageContent::fromArray($contentData),
+            'audio' => AudioContent::fromArray($contentData),
+            'tool_use' => ToolUseContent::fromArray($contentData),
+            'tool_result' => ToolResultContent::fromArray($contentData),
+            default => throw new InvalidArgumentException(\sprintf('Invalid content type "%s" for SamplingMessage.', $contentType)),
+        };
     }
 }

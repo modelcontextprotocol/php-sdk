@@ -32,7 +32,7 @@ class MyService
 
 ## Sampling
 
-With [sampling](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling) servers can request clients to
+With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
 
 ```php
@@ -41,12 +41,16 @@ $result = $clientGateway->sample('Roses are red, violets are', 350, 90, ['temper
 
 The `sample` method accepts four arguments:
 
-1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SampleMessage` instances.
+1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SamplingMessage` instances.
 2. `maxTokens`, which defaults to `1000`
 3. `timeout` in seconds, which defaults to `120`
-4. `options` which might include `system_prompt`, `preferences` for model choice, `includeContext`, `temperature`, `stopSequences` and `metadata`
+4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
+   `stopSequences`, `metadata`, `tools`, and `toolChoice`
 
-[Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#protocol-messages)
+Only send `includeContext` when the client advertises `sampling.context`, and only send `tools` or `toolChoice` when it
+advertises `sampling.tools`. The context modes other than `none` are soft-deprecated by the current specification.
+
+[Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 
 ## Logging
 

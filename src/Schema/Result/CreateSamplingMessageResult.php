@@ -15,6 +15,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
@@ -28,17 +29,30 @@ use Mcp\Schema\JsonRpc\ResultInterface;
 class CreateSamplingMessageResult implements ResultInterface
 {
     /**
-     * @param Role                                  $role       the role of the message
-     * @param TextContent|ImageContent|AudioContent $content    the content of the message
-     * @param string                                $model      the name of the model that generated the message
-     * @param string|null                           $stopReason the reason why sampling stopped, if known
+     * @param Role                                                                                                            $role       the role of the message
+     * @param TextContent|ImageContent|AudioContent|ToolUseContent|list<TextContent|ImageContent|AudioContent|ToolUseContent> $content    the content of the message
+     * @param string                                                                                                          $model      the name of the model that generated the message
+     * @param ?string                                                                                                         $stopReason The reason why sampling stopped, if known. The spec defines "endTurn",
+     *                                                                                                                                    "stopSequence", "maxTokens" and "toolUse", but leaves the set open for
+     *                                                                                                                                    provider-specific values, so this stays an unconstrained string.
+     * @param ?array<string, mixed>                                                                                           $meta       optional message metadata
      */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent $content,
+        public readonly TextContent|ImageContent|AudioContent|ToolUseContent|array $content,
         public readonly string $model,
         public readonly ?string $stopReason = null,
+        public readonly ?array $meta = null,
     ) {
+        if (Role::Assistant !== $role) {
+            throw new InvalidArgumentException('CreateSamplingMessageResult role must be "assistant".');
+        }
+
+        foreach (\is_array($content) ? $content : [$content] as $item) {
+            if (!$item instanceof TextContent && !$item instanceof ImageContent && !$item instanceof AudioContent && !$item instanceof ToolUseContent) {
+                throw new InvalidArgumentException('CreateSamplingMessageResult contains an unsupported content block.');
+            }
+        }
     }
 
     /**
@@ -64,16 +78,31 @@ class CreateSamplingMessageResult implements ResultInterface
 
         $contentPayload = $data['content'];
 
-        $content = self::hydrateContent($contentPayload);
+        $isSingleContent = isset($contentPayload['type']);
+        $contentItems = $isSingleContent ? [$contentPayload] : $contentPayload;
+        $content = [];
+        foreach ($contentItems as $item) {
+            if (!\is_array($item)) {
+                throw new InvalidArgumentException('Invalid content block in CreateSamplingMessageResult data.');
+            }
+            $content[] = self::hydrateContent($item);
+        }
+
         $stopReason = isset($data['stopReason']) && \is_string($data['stopReason']) ? $data['stopReason'] : null;
 
-        return new self($role, $content, $data['model'], $stopReason);
+        return new self(
+            $role,
+            $isSingleContent ? $content[0] : $content,
+            $data['model'],
+            $stopReason,
+            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+        );
     }
 
     /**
      * @param array<string, mixed> $contentData
      */
-    private static function hydrateContent(array $contentData): TextContent|ImageContent|AudioContent
+    private static function hydrateContent(array $contentData): TextContent|ImageContent|AudioContent|ToolUseContent
     {
         $type = $contentData['type'] ?? null;
 
@@ -85,6 +114,7 @@ class CreateSamplingMessageResult implements ResultInterface
             'text' => TextContent::fromArray($contentData),
             'image' => ImageContent::fromArray($contentData),
             'audio' => AudioContent::fromArray($contentData),
+            'tool_use' => ToolUseContent::fromArray($contentData),
             default => throw new InvalidArgumentException(\sprintf('Unsupported sampling content type "%s".', $type)),
         };
     }
@@ -92,9 +122,10 @@ class CreateSamplingMessageResult implements ResultInterface
     /**
      * @return array{
      *     role: string,
-     *     content: TextContent|ImageContent|AudioContent,
+     *     content: TextContent|ImageContent|AudioContent|ToolUseContent|list<TextContent|ImageContent|AudioContent|ToolUseContent>,
      *     model: string,
      *     stopReason?: string,
+     *     _meta?: array<string, mixed>,
      * }
      */
     public function jsonSerialize(): array
@@ -107,6 +138,10 @@ class CreateSamplingMessageResult implements ResultInterface
 
         if (null !== $this->stopReason) {
             $result['stopReason'] = $this->stopReason;
+        }
+
+        if (null !== $this->meta) {
+            $result['_meta'] = $this->meta;
         }
 
         return $result;
