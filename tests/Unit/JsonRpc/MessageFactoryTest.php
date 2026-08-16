@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -167,7 +166,7 @@ final class MessageFactoryTest extends TestCase
         $this->assertEquals(['details' => 'Something went wrong'], $result->data);
     }
 
-    public function testBatchRequests(): void
+    public function testBatchRequestsAreRejected(): void
     {
         $json = '[
             {"jsonrpc": "2.0", "method": "ping", "id": 1},
@@ -177,13 +176,12 @@ final class MessageFactoryTest extends TestCase
 
         $results = $this->factory->create($json);
 
-        $this->assertCount(3, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(GetPromptRequest::class, $results[1]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[2]);
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertStringContainsString('batch', $results[0]->getMessage());
     }
 
-    public function testBatchWithMixedMessages(): void
+    public function testBatchWithMixedMessagesIsRejected(): void
     {
         $json = '[
             {"jsonrpc": "2.0", "method": "ping", "id": 1},
@@ -194,11 +192,9 @@ final class MessageFactoryTest extends TestCase
 
         $results = $this->factory->create($json);
 
-        $this->assertCount(4, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(Response::class, $results[1]);
-        $this->assertInstanceOf(Error::class, $results[2]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[3]);
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertStringContainsString('batch', $results[0]->getMessage());
     }
 
     public function testInvalidJson(): void
@@ -309,7 +305,7 @@ final class MessageFactoryTest extends TestCase
         $this->assertStringContainsString('message', $results[0]->getMessage());
     }
 
-    public function testBatchWithErrors(): void
+    public function testBatchWithErrorsIsRejected(): void
     {
         $json = '[
             {"jsonrpc": "2.0", "method": "ping", "id": 1},
@@ -320,11 +316,9 @@ final class MessageFactoryTest extends TestCase
 
         $results = $this->factory->create($json);
 
-        $this->assertCount(4, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[2]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[3]);
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertStringContainsString('batch', $results[0]->getMessage());
     }
 
     public function testMakeFactoryWithDefaultMessages(): void
@@ -444,13 +438,13 @@ final class MessageFactoryTest extends TestCase
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
     }
 
-    public function testBatchElementMustBeObject(): void
+    public function testBatchWithNonObjectElementsIsRejected(): void
     {
         $results = $this->factory->create('[1, 2]');
 
-        $this->assertCount(2, $results);
+        $this->assertCount(1, $results);
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
+        $this->assertStringContainsString('batch', $results[0]->getMessage());
     }
 
     /**
@@ -474,20 +468,6 @@ final class MessageFactoryTest extends TestCase
         $this->assertStringContainsString('"method" must be a string', $results[0]->getMessage());
     }
 
-    public function testBatchWithNonStringMethodStillYieldsTheValidMessages(): void
-    {
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": {}, "id": 2}
-        ]';
-
-        $results = $this->factory->create($json);
-
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
-    }
-
     public function testLeadingWhitespaceObjectIsParsedAsSingleMessage(): void
     {
         $json = "  \n  {\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}";
@@ -496,43 +476,5 @@ final class MessageFactoryTest extends TestCase
 
         $this->assertCount(1, $results);
         $this->assertInstanceOf(PingRequest::class, $results[0]);
-    }
-
-    public function testBatchSizeExceedingMaxIsRejected(): void
-    {
-        $factory = new MessageFactory([PingRequest::class], maxBatchSize: 2);
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": "ping", "id": 2},
-            {"jsonrpc": "2.0", "method": "ping", "id": 3}
-        ]';
-
-        $results = $factory->create($json);
-
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('batch', $results[0]->getMessage());
-    }
-
-    public function testBatchSizeWithinMaxIsAccepted(): void
-    {
-        $factory = new MessageFactory([PingRequest::class], maxBatchSize: 2);
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": "ping", "id": 2}
-        ]';
-
-        $results = $factory->create($json);
-
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(PingRequest::class, $results[1]);
-    }
-
-    public function testNonPositiveMaxBatchSizeThrows(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        new MessageFactory([PingRequest::class], maxBatchSize: 0);
     }
 }
