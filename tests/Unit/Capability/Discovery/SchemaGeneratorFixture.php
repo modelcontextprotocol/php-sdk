@@ -226,6 +226,21 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * PHPStan/Psalm integer ranges should keep their base integer type.
+     *
+     * @param int<0, max>  $offset   Positive offset
+     * @param int<min, -1> $negative Negative value
+     * @param int<-5, 10>  $bounded  Bounded value
+     */
+    public function integerRangeTypes(
+        #[Schema(minimum: 0)]
+        int $offset,
+        int $negative,
+        int $bounded,
+    ): void {
+    }
+
     // ===== ENUM SCENARIOS =====
 
     /**
