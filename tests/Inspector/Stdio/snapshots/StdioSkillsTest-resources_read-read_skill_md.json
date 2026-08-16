@@ -1,0 +1,18 @@
+{
+  "contents": [
+    {
+      "uri": "skill://code-review/SKILL.md",
+      "mimeType": "text/markdown",
+      "_meta": {
+        "io.modelcontextprotocol.skills/": {
+          "version": "1.0.0",
+          "tags": [
+            "review",
+            "quality"
+          ]
+        }
+      },
+      "text": "---\nname: code-review\ndescription: Review a pull request for correctness, security, and style following this team's conventions.\nversion: 1.0.0\ntags:\n  - review\n  - quality\n---\n\n# Code Review\n\nFollow these steps to review a pull request thoroughly and consistently.\n\n## 1. Understand the change\n\n- Read the PR description and linked issue to understand the intended behavior.\n- Skim the diff top to bottom before commenting to build a mental model.\n\n## 2. Correctness\n\n- Check edge cases: empty input, nulls, boundary values, concurrency.\n- Verify error handling fails fast and preserves context.\n- Confirm tests cover the new behavior and actually assert on it.\n\n## 3. Security\n\n- See `references/SECURITY.md` for the security checklist that MUST be applied to\n  every change touching authentication, input parsing, or external I/O.\n\n## 4. Style & maintainability\n\n- Match the surrounding code's naming, structure, and comment density.\n- Prefer the simplest implementation that satisfies the requirement.\n\n## 5. Wrap up\n\n- Summarize findings grouped by severity (blocking, suggestion, nit).\n- Approve only when blocking issues are resolved and CI is green.\n"
+    }
+  ]
+}

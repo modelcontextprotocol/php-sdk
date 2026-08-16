@@ -32,7 +32,8 @@
     "psr/http-server-handler": "^1.0",
     "psr/http-server-middleware": "^1.0",
     "psr/log": "^1.0 || ^2.0 || ^3.0",
-    "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
+    "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0",
+    "symfony/yaml": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "suggest": {
     "symfony/finder": "Required for file-based discovery."
@@ -80,6 +81,7 @@
       "Mcp\\Example\\Server\\OAuthKeycloak\\": "examples/server/oauth-keycloak/",
       "Mcp\\Example\\Server\\OAuthMicrosoft\\": "examples/server/oauth-microsoft/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
+      "Mcp\\Example\\Server\\Skills\\": "examples/server/skills/",
       "Mcp\\Tests\\": "tests/"
     },
     "classmap": [

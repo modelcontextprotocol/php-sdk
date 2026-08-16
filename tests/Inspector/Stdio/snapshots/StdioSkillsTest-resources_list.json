@@ -1,0 +1,48 @@
+{
+  "resources": [
+    {
+      "name": "acme-billing-refunds-SKILL-md",
+      "title": "refunds",
+      "uri": "skill://acme/billing/refunds/SKILL.md",
+      "description": "Process a customer refund following Acme's billing policy and approval thresholds.",
+      "mimeType": "text/markdown",
+      "_meta": {
+        "io.modelcontextprotocol.skills/": {
+          "version": "1.0.0",
+          "tags": [
+            "billing",
+            "support"
+          ]
+        }
+      }
+    },
+    {
+      "name": "code-review-SKILL-md",
+      "title": "code-review",
+      "uri": "skill://code-review/SKILL.md",
+      "description": "Review a pull request for correctness, security, and style following this team's conventions.",
+      "mimeType": "text/markdown",
+      "_meta": {
+        "io.modelcontextprotocol.skills/": {
+          "version": "1.0.0",
+          "tags": [
+            "review",
+            "quality"
+          ]
+        }
+      }
+    },
+    {
+      "name": "code-review-references-SECURITY-md",
+      "uri": "skill://code-review/references/SECURITY.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "name": "skills-index",
+      "title": "Skills discovery index",
+      "uri": "skill://index.json",
+      "description": "Agent Skills discovery index of all skills served by this server.",
+      "mimeType": "application/json"
+    }
+  ]
+}

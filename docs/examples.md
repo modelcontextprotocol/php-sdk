@@ -373,6 +373,18 @@ and calls back into the server. See the
 [ext-apps repo](https://github.com/modelcontextprotocol/ext-apps) for the
 TypeScript SDK and richer view-side patterns.
 
+### Skills
+
+**File**: `examples/server/skills/`
+
+A directory of skills exposed through the [Skills extension](extensions.md)
+(SEP-2640). `addSkillsFromDirectory()` registers each `SKILL.md` (and its
+supporting files) as a `skill://` resource, derives `name`/`description` from the
+YAML frontmatter, and serves a `skill://index.json` discovery index. Demonstrates
+flat (`skill://code-review/SKILL.md`), nested
+(`skill://acme/billing/refunds/SKILL.md`), and supporting-file
+(`skill://code-review/references/SECURITY.md`) URIs.
+
 ## Client Examples
 
 ### STDIO Discovery Calculator (Client)

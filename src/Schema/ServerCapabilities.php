@@ -189,7 +189,12 @@ class ServerCapabilities implements \JsonSerializable
         }
 
         if ($this->extensions) {
-            $data['extensions'] = (object) $this->extensions;
+            // An extension MAY advertise an empty capability payload (e.g. `io.modelcontextprotocol/skills`).
+            // Coerce empty inner arrays to objects so they serialize to `{}` rather than `[]`.
+            $data['extensions'] = (object) array_map(
+                static fn (mixed $capabilities): mixed => [] === $capabilities ? new \stdClass() : $capabilities,
+                $this->extensions,
+            );
         }
 
         return $data;
