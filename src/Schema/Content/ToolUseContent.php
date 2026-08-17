@@ -15,6 +15,9 @@ use Mcp\Exception\InvalidArgumentException;
 
 /**
  * A request from the assistant to call a tool.
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 final class ToolUseContent extends Content
 {

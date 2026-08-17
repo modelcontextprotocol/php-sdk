@@ -99,9 +99,14 @@ class ClientGateway
 
     /**
      * Convenience method to send a logging notification to the client.
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Log to stderr (stdio) or use OpenTelemetry instead.
      */
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP logging is deprecated since protocol revision 2026-07-28 (SEP-2577); log to stderr or use OpenTelemetry instead.');
+
         $this->notify(new LoggingMessageNotification($level, $data, $logger));
     }
 
@@ -135,9 +140,14 @@ class ClientGateway
      * @return CreateSamplingMessageResult The sampling response
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Integrate with an LLM provider's API directly instead.
      */
     public function sample(array|Content|string $message, int $maxTokens = 1000, int $timeout = 120, array $options = []): CreateSamplingMessageResult
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP sampling is deprecated since protocol revision 2026-07-28 (SEP-2577); integrate with an LLM provider\'s API directly instead.');
+
         $preferences = $options['preferences'] ?? null;
         if (null !== $preferences && !$preferences instanceof ModelPreferences) {
             throw new InvalidArgumentException('The "preferences" option must be an array or an instance of ModelPreferences.');
@@ -227,9 +237,15 @@ class ClientGateway
      * @return ListRootsResult The roots exposed by the client
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Pass directories or files through tool arguments, resource URIs or server
+     *             configuration instead.
      */
     public function listRoots(int $timeout = 120): ListRootsResult
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP roots are deprecated since protocol revision 2026-07-28 (SEP-2577); pass directories through tool arguments or resource URIs instead.');
+
         $request = new ListRootsRequest();
 
         $response = $this->request($request, $timeout);

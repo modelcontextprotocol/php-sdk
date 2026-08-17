@@ -22,6 +22,9 @@ use Psr\Log\AbstractLogger;
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Log to stderr (stdio) or use OpenTelemetry instead.
  */
 final class ClientLogger extends AbstractLogger
 {

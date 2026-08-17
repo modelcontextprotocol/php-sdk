@@ -16,6 +16,9 @@ use Mcp\Schema\Enum\ToolChoiceMode;
 
 /**
  * Controls how the model uses tools during sampling.
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 final class ToolChoice implements \JsonSerializable
 {

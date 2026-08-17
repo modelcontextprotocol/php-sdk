@@ -21,6 +21,10 @@ use Mcp\Schema\Result\ListRootsResult;
  * requested by the server.
  *
  * @author Johannes Wachter <johannes@sulu.io>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Pass directories or files through tool arguments, resource
+ * URIs or server configuration instead.
  */
 interface RootsCallbackInterface
 {
