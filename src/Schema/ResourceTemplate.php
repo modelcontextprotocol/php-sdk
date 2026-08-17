@@ -33,11 +33,6 @@ use Mcp\Exception\InvalidArgumentException;
 class ResourceTemplate implements \JsonSerializable
 {
     /**
-     * Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.
-     */
-    private const RESOURCE_NAME_PATTERN = '/^[a-zA-Z0-9_-]+$/';
-
-    /**
      * URI Template pattern regex - requires a valid scheme followed by colon and path with at least one placeholder (RFC 3986).
      * Example patterns: file://{path}/contents.txt, db://{table}/{id}, config:{key}, etc.
      */
@@ -61,9 +56,8 @@ class ResourceTemplate implements \JsonSerializable
         public readonly ?Annotations $annotations = null,
         public readonly ?array $meta = null,
     ) {
-        if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
-            throw new InvalidArgumentException(\sprintf('Invalid resource name "%s": must contain only alphanumeric characters, underscores, and hyphens.', $name));
-        }
+        // See {@see ResourceDefinition}: the specification puts no pattern on
+        // `name`, so neither does this.
         if (!preg_match(self::URI_TEMPLATE_PATTERN, $uriTemplate)) {
             throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder.', $uriTemplate));
         }
