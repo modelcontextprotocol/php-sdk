@@ -16,8 +16,10 @@ use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\HttpTransportException;
 use Mcp\Exception\RequestException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionExpiredException;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
@@ -317,7 +319,7 @@ class Client
      *
      * @return Response<mixed>
      *
-     * @throws RequestException|ConnectionException
+     * @throws RequestException|ConnectionException|SessionExpiredException|HttpTransportException
      */
     private function sendRequest(Request $request, ?callable $onProgress = null): Response
     {
