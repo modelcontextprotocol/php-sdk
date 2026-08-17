@@ -120,7 +120,7 @@ final class MessageFactory
         // A list is a batch array. MCP removed JSON-RPC batches from the
         // protocol, so the whole payload is invalid rather than a set of messages.
         if (array_is_list($data)) {
-            return [new InvalidInputMessageException('JSON-RPC batch requests are not supported; send a single JSON-RPC message.')];
+            return [new InvalidInputMessageException('JSON-RPC batch requests are not supported anymore since specification release 2025-06-18; send a single JSON-RPC message.')];
         }
 
         try {
