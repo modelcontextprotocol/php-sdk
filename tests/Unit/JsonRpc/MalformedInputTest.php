@@ -69,15 +69,15 @@ final class MalformedInputTest extends TestCase
         $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
     }
 
-    #[TestDox('A malformed message in a batch does not discard the valid ones')]
-    public function testMalformedMessageInBatchDoesNotDiscardValidMessages(): void
+    #[TestDox('A batch payload is rejected as a whole, without hydrating any entry')]
+    public function testBatchPayloadIsRejectedAsAWhole(): void
     {
         $payload = '[{"jsonrpc":"2.0","id":1,"method":"tools/list"},{"jsonrpc":"2.0","id":2,"method":{}}]';
 
         $results = MessageFactory::make()->create($payload);
 
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(\Mcp\Schema\Request\ListToolsRequest::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->assertStringContainsString('batch', $results[0]->getMessage());
     }
 }

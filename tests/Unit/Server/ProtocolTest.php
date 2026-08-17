@@ -176,20 +176,29 @@ final class ProtocolTest extends TestCase
         );
     }
 
-    #[TestDox('Initialize request must not be part of a batch')]
-    public function testInitializeRequestInBatchReturnsError(): void
+    #[TestDox('A JSON-RPC batch is rejected as invalid input without hydrating its entries')]
+    public function testBatchInputIsRejected(): void
     {
-        $this->transport->expects($this->once())
-            ->method('send')
-            ->with(
-                $this->callback(static function ($data) {
-                    $decoded = json_decode($data, true);
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
 
-                    return isset($decoded['error'])
-                        && str_contains($decoded['error']['message'], 'MUST NOT be part of a batch');
-                }),
-                $this->anything()
-            );
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                return $queue;
+            }
+
+            return $default;
+        });
+
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         $protocol = new Protocol(
             requestHandlers: [],
@@ -198,11 +207,19 @@ final class ProtocolTest extends TestCase
             sessionManager: $this->sessionManager,
         );
 
+        $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
             '[{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"protocolVersion": "2024-11-05", "capabilities": {}, "clientInfo": {"name": "test", "version": "1.0"}}}, {"jsonrpc": "2.0", "method": "ping", "id": 2}]',
-            null
+            $sessionId
         );
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+
+        $decoded = json_decode($outgoing[0]['message'], true);
+        $this->assertSame(Error::INVALID_REQUEST, $decoded['error']['code']);
+        $this->assertStringContainsString('batch', $decoded['error']['message']);
     }
 
     #[TestDox('Non-initialize requests require a session ID')]
@@ -380,13 +397,29 @@ final class ProtocolTest extends TestCase
         $this->assertStringNotContainsString('must not leak', $decoded['error']['message']);
     }
 
-    #[TestDox('A batch that fails to hydrate is answered once, under the empty id')]
-    public function testBatchThatFailsToHydrateIsAnsweredOnce(): void
+    #[TestDox('A batch containing a throwing request is rejected wholesale, never hydrating it')]
+    public function testBatchContainingThrowingRequestIsRejectedWholesale(): void
     {
-        $sent = [];
-        $this->transport->method('send')->willReturnCallback(static function ($data) use (&$sent) {
-            $sent[] = $data;
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                return $queue;
+            }
+
+            return $default;
         });
+
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
 
         $protocol = new Protocol(
             requestHandlers: [],
@@ -395,42 +428,19 @@ final class ProtocolTest extends TestCase
             sessionManager: $this->sessionManager,
         );
 
+        $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
             '[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "id": 2, "method": "test/throwing"}]',
-            Uuid::v4()
+            $sessionId
         );
 
-        $this->assertCount(1, $sent);
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
 
-        $decoded = json_decode($sent[0], true);
-        $this->assertSame(Error::INTERNAL_ERROR, $decoded['error']['code']);
-        $this->assertSame('', $decoded['id'], 'The failure cannot be attributed to one request of the batch.');
-    }
-
-    #[TestDox('A batch holding only notifications is not answered when processing fails')]
-    public function testBatchOfNotificationsIsNotAnsweredWhenProcessingFails(): void
-    {
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
-
-        $this->sessionManager->method('createWithId')->willReturn($session);
-        $this->sessionManager->method('exists')->willReturn(true);
-
-        $this->transport->expects($this->never())->method('send');
-
-        $protocol = new Protocol(
-            requestHandlers: [],
-            notificationHandlers: [],
-            messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
-        );
-
-        $protocol->processInput(
-            $this->transport,
-            '[{"jsonrpc": "2.0", "method": "notifications/initialized"}]',
-            Uuid::v4()
-        );
+        $decoded = json_decode($outgoing[0]['message'], true);
+        $this->assertSame(Error::INVALID_REQUEST, $decoded['error']['code']);
+        $this->assertStringContainsString('batch', $decoded['error']['message']);
     }
 
     #[TestDox('An unexpected throwable while saving the session does not answer a notification')]
@@ -758,69 +768,6 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('result', $message);
         $this->assertEquals(['status' => 'ok'], $message['result']);
-    }
-
-    #[TestDox('Batch requests are processed and send multiple responses')]
-    public function testBatchRequestsAreProcessed(): void
-    {
-        $handlerA = $this->createMock(RequestHandlerInterface::class);
-        $handlerA->method('supports')->willReturn(true);
-        $handlerA->method('handle')->willReturnCallback(static function ($request) {
-            return Response::fromArray([
-                'jsonrpc' => '2.0',
-                'id' => $request->getId(),
-                'result' => ['method' => $request::getMethod()],
-            ]);
-        });
-
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn(Uuid::v4());
-
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        $this->sessionManager->method('createWithId')->willReturn($session);
-        $this->sessionManager->method('exists')->willReturn(true);
-
-        // The protocol now queues responses instead of sending them directly
-        $session->expects($this->exactly(2))
-            ->method('save');
-
-        $protocol = new Protocol(
-            requestHandlers: [$handlerA],
-            notificationHandlers: [],
-            messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
-        );
-
-        $sessionId = Uuid::v4();
-        $protocol->processInput(
-            $this->transport,
-            '[{"jsonrpc": "2.0", "method": "tools/list", "id": 1}, {"jsonrpc": "2.0", "method": "prompts/list", "id": 2}]',
-            $sessionId
-        );
-
-        // Check that both responses were queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
-        $this->assertCount(2, $outgoing);
-
-        foreach ($outgoing as $outgoingMessage) {
-            $message = json_decode($outgoingMessage['message'], true);
-            $this->assertArrayHasKey('result', $message);
-        }
     }
 
     #[TestDox('Session is saved after processing')]

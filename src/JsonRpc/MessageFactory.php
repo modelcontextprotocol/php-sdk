@@ -69,23 +69,11 @@ final class MessageFactory
     ];
 
     /**
-     * Upper bound on the number of messages accepted in a single batch, guarding
-     * against amplification where one small request expands into many operations.
-     */
-    public const DEFAULT_MAX_BATCH_SIZE = 100;
-
-    /**
      * @param list<class-string<Request>|class-string<Notification>> $registeredMessages
-     * @param int                                                    $maxBatchSize       Maximum number of messages accepted in a single JSON-RPC batch
      */
     public function __construct(
         private readonly array $registeredMessages,
-        private readonly int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE,
     ) {
-        if ($this->maxBatchSize < 1) {
-            throw new InvalidArgumentException('maxBatchSize must be at least 1.');
-        }
-
         foreach ($this->registeredMessages as $messageClass) {
             if (!is_subclass_of($messageClass, Request::class) && !is_subclass_of($messageClass, Notification::class)) {
                 throw new InvalidArgumentException(\sprintf('Message classes must extend %s or %s.', Request::class, Notification::class));
@@ -96,16 +84,18 @@ final class MessageFactory
     /**
      * Creates a new Factory instance with all the protocol's default messages.
      */
-    public static function make(int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE): self
+    public static function make(): self
     {
-        return new self(self::REGISTERED_MESSAGES, $maxBatchSize);
+        return new self(self::REGISTERED_MESSAGES);
     }
 
     /**
-     * Creates message objects from JSON input.
+     * Creates a message object from JSON input.
      *
-     * Supports both single messages and batch requests. Returns an array containing
-     * MessageInterface objects or InvalidInputMessageException instances for invalid messages.
+     * Accepts a single JSON-RPC message only; the MCP protocol no longer supports
+     * JSON-RPC batch requests, so a top-level array is rejected as invalid input.
+     * Returns an array containing a MessageInterface object or an
+     * InvalidInputMessageException instance for invalid messages.
      *
      * @return array<MessageInterface|InvalidInputMessageException>
      *
@@ -115,44 +105,29 @@ final class MessageFactory
     {
         $data = json_decode($input, true, flags: \JSON_THROW_ON_ERROR);
 
-        // A JSON-RPC payload is a single message (JSON object) or a batch (JSON
-        // array). Anything else (scalar, null) is invalid input rather than a
-        // parse error, and must not reach the per-message loop below.
+        // A JSON-RPC payload is a single message (JSON object). Anything else
+        // (scalar, null) is invalid input rather than a parse error.
         if (!\is_array($data)) {
-            return [new InvalidInputMessageException('A JSON-RPC message must be a JSON object or a batch array.')];
+            return [new InvalidInputMessageException('A JSON-RPC message must be a JSON object.')];
         }
 
-        // json_decode(assoc: true) maps both objects and arrays to PHP arrays. A
-        // list is a batch; a non-list (string keys) is a single message. An empty
-        // array is ambiguous ({} vs []) and invalid as either, so reject it.
+        // json_decode(assoc: true) maps both objects and arrays to PHP arrays. An
+        // empty array is ambiguous ({} vs []) and invalid as either, so reject it.
         if ([] === $data) {
             return [new InvalidInputMessageException('A JSON-RPC message must not be empty.')];
         }
 
+        // A list is a batch array. MCP removed JSON-RPC batches from the
+        // protocol, so the whole payload is invalid rather than a set of messages.
         if (array_is_list($data)) {
-            if (\count($data) > $this->maxBatchSize) {
-                return [new InvalidInputMessageException(\sprintf('JSON-RPC batch size %d exceeds the maximum allowed batch size of %d.', \count($data), $this->maxBatchSize))];
-            }
-
-            $batch = $data;
-        } else {
-            $batch = [$data];
+            return [new InvalidInputMessageException('JSON-RPC batch requests are not supported anymore since specification release 2025-06-18; send a single JSON-RPC message.')];
         }
 
-        $messages = [];
-        foreach ($batch as $message) {
-            try {
-                if (!\is_array($message)) {
-                    throw new InvalidInputMessageException('A JSON-RPC message must be a JSON object.');
-                }
-
-                $messages[] = $this->createMessage($message);
-            } catch (InvalidInputMessageException $e) {
-                $messages[] = $e;
-            }
+        try {
+            return [$this->createMessage($data)];
+        } catch (InvalidInputMessageException $e) {
+            return [$e];
         }
-
-        return $messages;
     }
 
     /**

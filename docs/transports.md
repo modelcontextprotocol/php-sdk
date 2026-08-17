@@ -259,22 +259,21 @@ When the request stream advertises a size, the transport rejects it up-front. Ot
 unknown size) the body is read incrementally and aborted as soon as it crosses the cap, so an unbounded stream cannot
 exhaust memory. A value below `1` throws `InvalidArgumentException`.
 
-### JSON-RPC Batch Size Limit
+### JSON-RPC Batch Requests
 
-A JSON-RPC batch (top-level array) is capped at 100 messages by default. Oversized batches are rejected before any
-message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap lives on
-`MessageFactory`:
+The MCP protocol does not support JSON-RPC batch requests: a POST body must be a single JSON-RPC message. A
+top-level JSON array is rejected by `MessageFactory` as invalid input, so no element of a batch is ever
+hydrated or processed:
 
 ```php
 use Mcp\JsonRpc\MessageFactory;
 
-$factory = MessageFactory::make(maxBatchSize: 50);
+$results = MessageFactory::make()->create('[{...}, {...}]'); // [InvalidInputMessageException]
 ```
 
-Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON array
-is a batch. Scalars, empty payloads, and non-object batch elements are returned as `InvalidInputMessageException`
-entries (the existing per-message error contract), not parse errors or crashes. A `maxBatchSize` below `1` throws
-`InvalidArgumentException`.
+Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON
+array is a batch and is rejected wholesale with an `InvalidInputMessageException` entry. Scalars and empty
+payloads are rejected the same way.
 
 ### Custom PSR-15 Middleware
 
