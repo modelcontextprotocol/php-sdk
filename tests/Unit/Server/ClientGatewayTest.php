@@ -18,6 +18,7 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -84,6 +85,17 @@ final class ClientGatewayTest extends TestCase
         $capabilities = (new ClientCapabilities(samplingTools: true))->jsonSerialize();
 
         $this->assertTrue($this->gatewayFor((array) $capabilities)->supportsSamplingTools());
+    }
+
+    public function testSupportsExtensionReflectsTheNegotiatedExtensions(): void
+    {
+        $this->assertTrue($this->gatewayFor(['extensions' => [McpApps::EXTENSION_ID => ['mimeTypes' => [McpApps::MIME_TYPE]]]])->supportsExtension(McpApps::EXTENSION_ID));
+        $this->assertFalse($this->gatewayFor(['extensions' => ['io.example/other' => []]])->supportsExtension(McpApps::EXTENSION_ID));
+        $this->assertFalse($this->gatewayFor([])->supportsExtension(McpApps::EXTENSION_ID));
+
+        // Live sessions hold the serialized object shape.
+        $capabilities = (new ClientCapabilities(extensions: [McpApps::EXTENSION_ID => (new McpApps())->getCapabilities()]))->jsonSerialize();
+        $this->assertTrue($this->gatewayFor((array) $capabilities)->supportsExtension(McpApps::EXTENSION_ID));
     }
 
     public function testSupportsElicitationUrlReflectsTheSubCapability(): void

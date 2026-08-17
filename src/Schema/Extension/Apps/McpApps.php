@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Extension\Apps;
 
-use Mcp\Schema\Extension\ServerExtensionInterface;
+use Mcp\Schema\Extension\ExtensionInterface;
 
 /**
  * The MCP Apps extension (io.modelcontextprotocol/ui).
@@ -19,13 +19,14 @@ use Mcp\Schema\Extension\ServerExtensionInterface;
  * MCP Apps allows servers to expose interactive HTML UI applications as resources.
  * Clients that support the extension render these in sandboxed iframes.
  *
- * Enable on the server via {@see \Mcp\Server\Builder::enableExtension()}.
+ * Enable on the server via {@see \Mcp\Server\Builder::enableExtension()} and on the
+ * client (host) via {@see \Mcp\Client\Builder::enableExtension()}.
  *
  * @see https://github.com/modelcontextprotocol/ext-apps
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class McpApps implements ServerExtensionInterface
+final class McpApps implements ExtensionInterface
 {
     public const EXTENSION_ID = 'io.modelcontextprotocol/ui';
     public const MIME_TYPE = 'text/html;profile=mcp-app';

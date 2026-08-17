@@ -15,6 +15,7 @@ use Mcp\Capability\Completion\EnumCompletionProvider;
 use Mcp\Capability\Completion\ListCompletionProvider;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Registry\ToolReference;
+use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Tests\Unit\Capability\Attribute\CompletionProviderFixture;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\AlternativeFileNameToolHandler;
 use Mcp\Tests\Unit\Capability\Discovery\Fixtures\DiscoverableToolHandler;
@@ -38,7 +39,7 @@ class DiscoveryTest extends TestCase
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures'], [], ['*.php', '*.inc']);
 
         $tools = $discovery->getTools();
-        $this->assertCount(5, $tools);
+        $this->assertCount(6, $tools);
 
         $this->assertArrayHasKey('greet_user', $tools);
         $this->assertEquals('greet_user', $tools['greet_user']->tool->name);
@@ -63,7 +64,7 @@ class DiscoveryTest extends TestCase
         $this->assertArrayNotHasKey('static_tool_should_be_ignored', $tools);
 
         $resources = $discovery->getResources();
-        $this->assertCount(3, $resources);
+        $this->assertCount(4, $resources);
 
         $this->assertArrayHasKey('app://info/version', $resources);
         $this->assertEquals('app_version', $resources['app://info/version']->resource->name);
@@ -71,6 +72,14 @@ class DiscoveryTest extends TestCase
 
         $this->assertArrayHasKey('invokable://config/status', $resources);
         $this->assertEquals([InvocableResourceFixture::class, '__invoke'], $resources['invokable://config/status']->handler);
+
+        $this->assertArrayHasKey('ui://widget/clock', $resources);
+        $this->assertEquals(McpApps::MIME_TYPE, $resources['ui://widget/clock']->resource->mimeType);
+        $this->assertJsonStringEqualsJsonString('{"ui":{}}', json_encode($resources['ui://widget/clock']->resource->meta));
+        $this->assertJsonStringEqualsJsonString(
+            '{"ui":{"resourceUri":"ui://widget/clock","visibility":["app"]}}',
+            json_encode($tools['show_clock']->tool->meta),
+        );
 
         $prompts = $discovery->getPrompts();
         $this->assertCount(4, $prompts);
