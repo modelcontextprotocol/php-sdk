@@ -28,8 +28,8 @@ use Mcp\Server\Session\SessionInterface;
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
  *
- * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
- * least twelve months. Log to stderr (stdio) or use OpenTelemetry instead.
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Log to stderr (stdio) or use OpenTelemetry instead.
  */
 final class SetLogLevelHandler implements RequestHandlerInterface
 {

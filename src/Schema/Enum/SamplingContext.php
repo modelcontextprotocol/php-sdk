@@ -17,8 +17,8 @@ namespace Mcp\Schema\Enum;
  * `thisServer` and `allServers` are themselves deprecated since 2025-11-25
  * (SEP-2596): omit the field or use `none`.
  *
- * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
- * least twelve months. Integrate with an LLM provider's API directly instead.
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 enum SamplingContext: string
 {

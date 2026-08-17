@@ -43,6 +43,8 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
 
 ## Sampling
 
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
+
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
 
@@ -89,6 +91,8 @@ Use `$result->getContentBlocks()` to iterate the response regardless of whether 
 [Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 
 ## Logging
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
 
 The [Logging](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging) utility enables servers
 to send structured log messages as notification to clients:

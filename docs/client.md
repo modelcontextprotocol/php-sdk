@@ -471,6 +471,8 @@ The client can receive requests and notifications from the server when configure
 
 ### Logging Notifications
 
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
+
 Receive structured log messages from the server:
 
 ```php
@@ -503,6 +505,8 @@ $client->setLoggingLevel(LoggingLevel::Info);
 ```
 
 ### Sampling (LLM Requests)
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
 
 Handle server requests for LLM completions:
 
@@ -672,6 +676,8 @@ See `examples/client/stdio_elicitation.php` for a runnable example against the
 elicitation demo server.
 
 ### Roots
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Roots keep working until then; new integrations should pass directories or files through tool arguments, resource URIs or server configuration instead.
 
 Roots let the client expose a list of `file://` "workspace folders" that the server
 is allowed to operate on. Advertise the `roots` capability and register a handler

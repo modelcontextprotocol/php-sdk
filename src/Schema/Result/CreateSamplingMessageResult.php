@@ -26,8 +26,8 @@ use Mcp\Schema\JsonRpc\ResultInterface;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  *
- * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
- * least twelve months. Integrate with an LLM provider's API directly instead.
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 class CreateSamplingMessageResult implements ResultInterface
 {
