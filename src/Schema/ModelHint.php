@@ -17,6 +17,9 @@ namespace Mcp\Schema;
  * Keys not declared here are currently left unspecified by the spec and are up to the client to interpret.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Integrate with an LLM provider's API directly instead.
  */
 class ModelHint implements \JsonSerializable
 {

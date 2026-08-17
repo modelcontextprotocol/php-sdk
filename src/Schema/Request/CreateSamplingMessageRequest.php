@@ -28,6 +28,9 @@ use Mcp\Schema\ToolChoice;
  * loop) and decide whether to approve it.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Integrate with an LLM provider's API directly instead.
  */
 final class CreateSamplingMessageRequest extends Request
 {

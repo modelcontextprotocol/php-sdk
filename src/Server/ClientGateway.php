@@ -99,6 +99,9 @@ class ClientGateway
 
     /**
      * Convenience method to send a logging notification to the client.
+     *
+     * @deprecated logging is deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional
+     *             for at least twelve months. Log to stderr (stdio) or use OpenTelemetry instead.
      */
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
@@ -135,6 +138,9 @@ class ClientGateway
      * @return CreateSamplingMessageResult The sampling response
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated sampling is deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional
+     *             for at least twelve months. Integrate with an LLM provider's API directly instead.
      */
     public function sample(array|Content|string $message, int $maxTokens = 1000, int $timeout = 120, array $options = []): CreateSamplingMessageResult
     {
@@ -227,6 +233,10 @@ class ClientGateway
      * @return ListRootsResult The roots exposed by the client
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated roots are deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional
+     *             for at least twelve months. Pass directories or files through tool arguments,
+     *             resource URIs or server configuration instead.
      */
     public function listRoots(int $timeout = 120): ListRootsResult
     {

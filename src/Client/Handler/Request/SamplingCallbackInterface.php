@@ -18,6 +18,9 @@ use Mcp\Schema\Result\CreateSamplingMessageResult;
  * Contract for callbacks used by SamplingRequestHandler.
  *
  * Implementations perform the actual LLM sampling when requested by the server.
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Integrate with an LLM provider's API directly instead.
  */
 interface SamplingCallbackInterface
 {

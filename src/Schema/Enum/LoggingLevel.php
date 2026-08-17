@@ -18,6 +18,9 @@ namespace Mcp\Schema\Enum;
  * https://datatracker.ietf.org/doc/html/rfc5424#section-6.2.1
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Log to stderr (stdio) or use OpenTelemetry instead.
  */
 enum LoggingLevel: string
 {

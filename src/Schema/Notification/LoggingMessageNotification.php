@@ -17,6 +17,9 @@ use Mcp\Schema\JsonRpc\Notification;
 
 /**
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Log to stderr (stdio) or use OpenTelemetry instead.
  */
 class LoggingMessageNotification extends Notification
 {

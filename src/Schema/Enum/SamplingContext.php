@@ -11,6 +11,15 @@
 
 namespace Mcp\Schema\Enum;
 
+/**
+ * Which servers' context a sampling request asks the client to attach.
+ *
+ * `thisServer` and `allServers` are themselves deprecated since 2025-11-25
+ * (SEP-2596): omit the field or use `none`.
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Integrate with an LLM provider's API directly instead.
+ */
 enum SamplingContext: string
 {
     case NONE = 'none';

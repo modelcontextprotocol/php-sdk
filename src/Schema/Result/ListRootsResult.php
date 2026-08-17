@@ -21,6 +21,10 @@ use Mcp\Schema\Root;
  * or file that the server can operate on.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Pass directories or files through tool arguments, resource
+ * URIs or server configuration instead.
  */
 class ListRootsResult implements ResultInterface
 {

@@ -20,6 +20,9 @@ use Mcp\Exception\InvalidArgumentException;
  * {@see \Mcp\Schema\Result\CallToolResult} does.
  *
  * @phpstan-type ToolResultBlock TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
+ *
+ * @deprecated Deprecated as of protocol revision 2026-07-28 (SEP-2577). Still functional for at
+ * least twelve months. Integrate with an LLM provider's API directly instead.
  */
 final class ToolResultContent extends Content
 {
