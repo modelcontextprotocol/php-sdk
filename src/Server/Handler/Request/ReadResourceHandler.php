@@ -14,11 +14,13 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\Session\SessionInterface;
@@ -26,7 +28,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<ReadResourceResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -45,7 +47,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<ReadResourceResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -69,9 +71,23 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $arguments = array_merge($arguments, $variables);
 
                 $result = $this->referenceHandler->handle($reference, $arguments);
+
+                // A handler that built a whole result — its own ReadResourceResult,
+                // or another kind, an extension's say — keeps what it decided.
+                if ($result instanceof ResultInterface) {
+                    return new Response($request->getId(), $result);
+                }
+
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
+
+                // A handler that built a whole result — its own ReadResourceResult,
+                // or another kind, an extension's say — keeps what it decided.
+                if ($result instanceof ResultInterface) {
+                    return new Response($request->getId(), $result);
+                }
+
                 $formatted = $reference->formatResult($result, $uri, $reference->resource->mimeType);
             }
 
@@ -84,6 +100,8 @@ final class ReadResourceHandler implements RequestHandlerInterface
             $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
+        } catch (MissingRequiredClientCapabilityException $e) {
+            return $e->toError($request->getId());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while reading resource "%s": "%s".', $uri, $e->getMessage()), ['exception' => $e]);
 
