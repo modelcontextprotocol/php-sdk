@@ -21,19 +21,20 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
-use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * A tools/call answers with the tool's output or, under MRTR, with a request
- * for the input it still needs.
+ * A tools/call answers with the tool's output, under MRTR with a request for
+ * the input it still needs, or — under an extension — with a result of its
+ * own kind.
  *
- * @implements RequestHandlerInterface<CallToolResult|InputRequiredResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -57,7 +58,7 @@ final class CallToolHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<CallToolResult|InputRequiredResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -105,8 +106,9 @@ final class CallToolHandler implements RequestHandlerInterface
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
-            // An ask is a result in its own right, not tool output.
-            if ($result instanceof InputRequiredResult) {
+            // A handler that built a whole result of another kind — an
+            // extension's, say — keeps what it decided; it is not tool output.
+            if ($result instanceof ResultInterface && !$result instanceof CallToolResult) {
                 return new Response($request->getId(), $result);
             }
 

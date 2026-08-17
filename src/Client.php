@@ -355,6 +355,22 @@ class Client
     }
 
     /**
+     * Sends any request and returns the raw response — the way to speak a
+     * method the typed API does not cover, such as an extension's.
+     *
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     *                                                                                            Optional callback for progress updates
+     *
+     * @return Response<mixed>
+     *
+     * @throws RequestException|ConnectionException
+     */
+    public function request(Request $request, ?callable $onProgress = null): Response
+    {
+        return $this->sendRequest($request, $onProgress);
+    }
+
+    /**
      * Disconnect from the server.
      */
     public function disconnect(): void

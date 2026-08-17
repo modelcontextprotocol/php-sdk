@@ -14,6 +14,8 @@ namespace Mcp\Tests\Unit\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
@@ -155,6 +157,23 @@ final class ReferenceHandlerTest extends TestCase
 
         $this->assertSame('value', $result);
         $this->assertSame('value', $captured);
+    }
+
+    public function testHandleInjectsWhatAnArgumentProviderBuildsForTheRequest(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $request = PingRequest::fromArray(['jsonrpc' => '2.0', 'id' => 7, 'method' => 'ping']);
+
+        $closure = static fn (\ArrayObject $provided, string $kept): string => $provided['request'].':'.$kept;
+        $reference = new ElementReference($closure);
+
+        $handler = new ReferenceHandler(argumentProviders: [
+            \ArrayObject::class => static fn (SessionInterface $s, Request $r): \ArrayObject => new \ArrayObject(['request' => $r::getMethod().'#'.$r->getId()]),
+        ]);
+
+        $result = $handler->handle($reference, ['_session' => $session, '_request' => $request, 'kept' => 'value']);
+
+        $this->assertSame('ping#7:value', $result);
     }
 
     public function testHandleThrowsForStringHandlerThatIsNeitherFunctionNorClass(): void

@@ -14,13 +14,16 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\EmptyResult;
 use Mcp\Schema\Tool;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
@@ -91,6 +94,42 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals($expectedResult, $response->result);
+    }
+
+    public function testAResultOfAnotherKindIsPassedThroughUntouched(): void
+    {
+        // What an extension's handler returns — a task handle, say — is a
+        // result in its own right, not tool output to be formatted.
+        $request = $this->createCallToolRequest('slow_tool', []);
+        $toolReference = $this->createToolReference('slow_tool', static fn () => null);
+        $foreign = new EmptyResult();
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($foreign);
+        $toolReference->expects($this->never())->method('formatResult');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($foreign, $response->result);
+    }
+
+    public function testAMissingClientCapabilityIsLeftToTheProtocol(): void
+    {
+        // Not a tool failure: the request was unservable, and the protocol
+        // renders it as -32021. The handler must let it through rather than
+        // turn it into tool output.
+        $request = $this->createCallToolRequest('slow_tool', []);
+        $toolReference = $this->createToolReference('slow_tool', static fn () => null);
+        $required = new ClientCapabilities(extensions: ['io.example/thing' => new \stdClass()]);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willThrowException(new MissingRequiredClientCapabilityException($required, 'Needs the thing.'));
+
+        $this->expectException(MissingRequiredClientCapabilityException::class);
+        $this->expectExceptionMessage('Needs the thing.');
+
+        $this->handler->handle($request, $this->session);
     }
 
     public function testHandleToolCallWithEmptyArguments(): void
@@ -554,6 +593,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertSame($expected, $response->result->structuredContent);
     }
 
@@ -659,6 +699,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertNull($response->result->structuredContent);
     }
 

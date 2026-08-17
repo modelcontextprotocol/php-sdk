@@ -20,8 +20,8 @@ use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
@@ -29,7 +29,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<ReadResourceResult|InputRequiredResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -48,7 +48,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<ReadResourceResult|InputRequiredResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -74,9 +74,10 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
                 // An ask is a result in its own right, not resource contents;
-                // and a handler that built the whole result keeps what it
+                // and a handler that built the whole result — its own
+                // ReadResourceResult, or an extension's kind — keeps what it
                 // decided, caching hints included.
-                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
+                if ($result instanceof ResultInterface) {
                     return new Response($request->getId(), $result);
                 }
 
@@ -84,7 +85,11 @@ final class ReadResourceHandler implements RequestHandlerInterface
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
-                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
+                // An ask is a result in its own right, not resource contents;
+                // and a handler that built the whole result — its own
+                // ReadResourceResult, or an extension's kind — keeps what it
+                // decided, caching hints included.
+                if ($result instanceof ResultInterface) {
                     return new Response($request->getId(), $result);
                 }
 
