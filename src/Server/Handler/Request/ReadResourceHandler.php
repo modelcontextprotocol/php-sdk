@@ -14,8 +14,8 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\ReadResourceRequest;
-use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Server\Capability\Registry\ResourceTemplateReference;
@@ -31,7 +31,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<ReadResourceResult|InputRequiredResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -50,7 +50,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<ReadResourceResult|InputRequiredResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -76,9 +76,9 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
                 // An ask is a result in its own right, not resource contents;
-                // and a handler that built the whole result keeps what it
-                // decided, caching hints included on the modern era.
-                if ($result instanceof InputRequiredResult) {
+                // and a handler that built the whole result — an
+                // extension's kind — keeps what it decided.
+                if ($result instanceof ResultInterface && !$result instanceof ReadResourceResult) {
                     return new Response($request->getId(), $result);
                 }
 
@@ -90,7 +90,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
-                if ($result instanceof InputRequiredResult) {
+                if ($result instanceof ResultInterface && !$result instanceof ReadResourceResult) {
                     return new Response($request->getId(), $result);
                 }
 

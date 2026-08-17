@@ -27,4 +27,7 @@ enum ResultType: string
 
     /** The request needs more input before it can finish (MRTR). */
     case InputRequired = 'input_required';
+
+    /** The request became a task; the result is the handle to poll (Tasks extension). */
+    case Task = 'task';
 }

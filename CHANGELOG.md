@@ -8,6 +8,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Server
 
 * Fix const validation errors always reporting the expected value as null.
+* Add the Tasks extension (SEP-2663, `io.modelcontextprotocol/tasks`): a server hands back a durable handle instead of holding a connection open — `Mcp\Schema\Task` and `TaskStatus`, `ResultType::Task`, the flat `CreateTaskResult` / `TaskResult` wire shapes, the `tasks/get` / `tasks/update` / `tasks/cancel` surface, and `TaskStoreInterface` with `InMemoryTaskStore` and `Psr16TaskStore` (what PHP-FPM needs). Enable with `Builder::enableExtension(new TasksExtension($store))`; a handler declares a `TaskContext` parameter and creates a task through `TaskContext::create()` after `isSupported()` — a task for a client that did not declare the extension is refused with `-32021`. Advancing a task is the application's job. On the client, `enableExtension(new TasksExtension())` declares it and `Client\Task\TaskClient` speaks it.
+* Let an extension reach handler code without the core knowing it: `ArgumentProvidingExtensionInterface` hands handlers objects of the extension's own, injected like a `RequestContext` and left out of the generated schemas; the tool, prompt and resource handlers pass any `ResultInterface` a handler returns through untouched; a `MissingRequiredClientCapabilityException` thrown from handler code is answered as `-32021`; `Client::request()` sends any request.
 
 0.10.0
 ------

@@ -12,6 +12,7 @@
 namespace Mcp\Server\Capability\Registry;
 
 use Mcp\Schema\Json;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Exception\RegistryException;
 use Mcp\Server\Session\SessionInterface;
@@ -22,8 +23,14 @@ use Psr\Container\ContainerInterface;
  */
 final class ReferenceHandler implements ReferenceHandlerInterface
 {
+    /**
+     * @param array<class-string, callable(SessionInterface, Request): object> $argumentProviders builders for further
+     *                                                                                            injectable parameter types,
+     *                                                                                            e.g. an extension's
+     */
     public function __construct(
         private readonly ?ContainerInterface $container = null,
+        private readonly array $argumentProviders = [],
     ) {
     }
 
@@ -151,6 +158,15 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $injected = InjectableParameters::resolve($type->getName(), $arguments);
                 if (null !== $injected) {
                     $finalArgs[$paramPosition] = $injected;
+                    continue;
+                }
+
+                // An extension may contribute further injectable types; the
+                // core stays unaware of what they are.
+                $typeName = $type->getName();
+
+                if (isset($this->argumentProviders[$typeName], $arguments['_session'], $arguments['_request'])) {
+                    $finalArgs[$paramPosition] = ($this->argumentProviders[$typeName])($arguments['_session'], $arguments['_request']);
                     continue;
                 }
             }

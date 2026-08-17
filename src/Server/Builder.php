@@ -14,6 +14,7 @@ namespace Mcp\Server;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\AbstractExtension;
+use Mcp\Schema\Extension\ArgumentProvidingExtensionInterface;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
@@ -29,6 +30,8 @@ use Mcp\Server\Capability\Completion\ProviderInterface;
 use Mcp\Server\Capability\Discovery\CachedDiscoverer;
 use Mcp\Server\Capability\Discovery\Discoverer;
 use Mcp\Server\Capability\Discovery\DiscovererInterface;
+use Mcp\Server\Capability\Discovery\DocBlockParser;
+use Mcp\Server\Capability\Discovery\SchemaGenerator;
 use Mcp\Server\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Server\Capability\Discovery\SchemaValidator;
 use Mcp\Server\Capability\Registry;
@@ -57,6 +60,7 @@ use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
@@ -150,6 +154,9 @@ final class Builder
 
     /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
     private array $extensionMessages = [];
+
+    /** @var array<class-string, callable(SessionInterface, \Mcp\Schema\JsonRpc\Request): object> */
+    private array $extensionArgumentProviders = [];
 
     /** @var string|list<string>|null */
     private string|array|null $requestStateKey = null;
@@ -504,6 +511,10 @@ final class Builder
             }
 
             $this->extensions[$id] = $extension->getCapabilities();
+
+            if ($extension instanceof ArgumentProvidingExtensionInterface) {
+                $this->extensionArgumentProviders += $extension->getArgumentProviders();
+            }
 
             // Without this the method cannot be decoded at all, so nothing
             // downstream ever sees it.
@@ -1150,7 +1161,7 @@ final class Builder
                 $this->explicitResourceTemplates,
                 $this->explicitPrompts,
             ),
-            new ReflectedElementLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator),
+            new ReflectedElementLoader($this->tools, $this->resources, $this->resourceTemplates, $this->prompts, $logger, $this->schemaGenerator($logger)),
         ];
 
         if (null !== $this->discoveryBasePath) {
@@ -1199,7 +1210,7 @@ final class Builder
 
         $serverInfo = $this->serverInfo ?? new Implementation();
         $configuration = new Configuration($serverInfo, $capabilities, $this->paginationLimit, $this->instructions, $this->protocolVersion);
-        $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
+        $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container, $this->extensionArgumentProviders);
 
         $requestHandlers = array_merge($this->requestHandlers, [
             new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger, $this->schemaValidator),
@@ -1278,9 +1289,23 @@ final class Builder
         );
     }
 
+    /**
+     * The configured generator, or one that leaves the parameter types
+     * extensions inject out of the schemas — null when nothing needs that,
+     * so the loaders keep their own defaults.
+     */
+    private function schemaGenerator(LoggerInterface $logger): ?SchemaGeneratorInterface
+    {
+        if (null !== $this->schemaGenerator || [] === $this->extensionArgumentProviders) {
+            return $this->schemaGenerator;
+        }
+
+        return new SchemaGenerator(new DocBlockParser(logger: $logger), array_keys($this->extensionArgumentProviders));
+    }
+
     private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
     {
-        $discoverer = new Discoverer($logger, null, $this->schemaGenerator);
+        $discoverer = new Discoverer($logger, null, $this->schemaGenerator($logger));
 
         if (null !== $this->discoveryCache) {
             return new CachedDiscoverer($discoverer, $this->discoveryCache, $logger);
