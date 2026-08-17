@@ -14,11 +14,14 @@ namespace Mcp\Client\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\HttpTransportException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\SessionExpiredException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
+use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
@@ -56,6 +59,12 @@ class HttpTransport extends BaseTransport
      * Default cap on the bytes buffered while waiting for a complete SSE event.
      */
     public const DEFAULT_MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
+
+    /**
+     * Cap on the characters of a non-JSON-RPC error body included in
+     * {@see HttpTransportException} messages.
+     */
+    public const MAX_ERROR_BODY_SNIPPET_CHARS = 500;
 
     private readonly int $maxSseBufferBytes;
 
@@ -120,11 +129,7 @@ class HttpTransport extends BaseTransport
             ->withHeader('Accept', 'application/json, text/event-stream')
             ->withBody($this->streamFactory->createStream($data));
 
-        if (null !== $this->sessionId) {
-            $request = $request->withHeader('Mcp-Session-Id', $this->sessionId);
-        }
-
-        foreach ($this->headers as $name => $value) {
+        foreach ($this->buildHeaders() as $name => $value) {
             $request = $request->withHeader($name, $value);
         }
 
@@ -135,6 +140,14 @@ class HttpTransport extends BaseTransport
         } catch (\Throwable $e) {
             $this->handleError($e);
             throw new ConnectionException('HTTP request failed: '.$e->getMessage(), 0, $e);
+        }
+
+        $statusCode = $response->getStatusCode();
+
+        if ($statusCode < 200 || $statusCode >= 300) {
+            $this->handleNonSuccessResponse($response, $statusCode);
+
+            return;
         }
 
         if ($response->hasHeader('Mcp-Session-Id')) {
@@ -156,6 +169,113 @@ class HttpTransport extends BaseTransport
     }
 
     /**
+     * Headers shared by every request: the negotiated protocol version, the
+     * session id once assigned, and the caller-supplied headers.
+     *
+     * @return array<string, string>
+     */
+    private function buildHeaders(): array
+    {
+        $headers = [];
+
+        // Spec: clients MUST echo the negotiated protocol version on every
+        // request after the initialize handshake. The handshake itself runs
+        // before a version is negotiated, so the header is omitted for that
+        // first request and the server falls back to its default version.
+        $protocolVersion = $this->state?->getProtocolVersion();
+        if (null !== $protocolVersion) {
+            $headers['Mcp-Protocol-Version'] = $protocolVersion->value;
+        }
+
+        if (null !== $this->sessionId) {
+            $headers['Mcp-Session-Id'] = $this->sessionId;
+        }
+
+        foreach ($this->headers as $name => $value) {
+            $headers[$name] = $value;
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Handle a non-success response.
+     *
+     * The spec asks servers to explain several non-2xx statuses with a
+     * JSON-RPC error response body (404 + -32601 method-not-found, 400 +
+     * -32020 HeaderMismatch, 400 + UnsupportedProtocolVersionError listing
+     * the supported versions). Parse the body first and, when it is a
+     * JSON-RPC error answering an outstanding request, dispatch it through
+     * the normal message path so the waiting request resolves with the
+     * server's error instead of a transport exception. Only bodies that
+     * cannot be parsed as such an error fall back to the status-derived
+     * exceptions below.
+     *
+     * @throws HttpTransportException|SessionExpiredException
+     */
+    private function handleNonSuccessResponse(ResponseInterface $response, int $statusCode): void
+    {
+        $body = $response->getBody()->getContents();
+        $error = $this->parseJsonRpcError($body);
+
+        // The spec asks servers to explain several non-2xx statuses with a
+        // JSON-RPC error response body (404 + -32601 method-not-found, 400 +
+        // -32020 HeaderMismatch, 400 + UnsupportedProtocolVersionError
+        // listing the supported versions). Dispatch such an error through
+        // the normal message path so the waiting request resolves with the
+        // server's error instead of a transport exception.
+        if (null !== $error && null !== $this->state && \array_key_exists($error->getId(), $this->state->getPendingRequests())) {
+            $this->handleMessage($body);
+
+            return;
+        }
+
+        // A 404 on a request carrying a session id, whose body is not a
+        // JSON-RPC error, means the server has dropped the session: the
+        // client must re-initialize. Clear the local session id and mark the
+        // client un-initialized so isConnected() reports false and the
+        // application can start a new session. A JSON-RPC error body (even
+        // one that cannot be correlated to a request) does not mean the
+        // session is gone.
+        if (404 === $statusCode && null !== $this->sessionId && null === $error) {
+            $this->logger->warning('Server no longer knows the current session (HTTP 404); clearing the session id so the client re-initializes.', ['session_id' => $this->sessionId]);
+            $this->sessionId = null;
+            $this->state?->setInitialized(false);
+
+            throw new SessionExpiredException('The MCP session no longer exists (HTTP 404); re-initialize the client to start a new session.');
+        }
+
+        // Any other non-success status is a transport-level failure. Reading
+        // the body here also surfaces plain-text error pages instead of
+        // silently dropping them and leaving the caller waiting on a timeout.
+        $snippet = '' === trim($body) ? 'empty body' : mb_substr(trim($body), 0, self::MAX_ERROR_BODY_SNIPPET_CHARS);
+
+        throw new HttpTransportException(\sprintf('MCP server returned HTTP %d: %s', $statusCode, $snippet), $statusCode);
+    }
+
+    /**
+     * Parse a JSON-RPC error response body, or null when the body is not one.
+     */
+    private function parseJsonRpcError(string $body): ?Error
+    {
+        try {
+            $data = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            return null;
+        }
+
+        if (!\is_array($data) || !isset($data['error'])) {
+            return null;
+        }
+
+        try {
+            return Error::fromArray($data);
+        } catch (InvalidArgumentException $e) {
+            return null;
+        }
+    }
+
+    /**
      * @param McpFiber                                                                $fiber
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      */
@@ -165,25 +285,26 @@ class HttpTransport extends BaseTransport
         $this->activeProgressCallback = $onProgress;
         $fiber->start();
 
-        while (!$fiber->isTerminated()) {
-            $this->tick();
+        try {
+            while (!$fiber->isTerminated()) {
+                $this->tick();
+            }
+
+            return $fiber->getReturn();
+        } finally {
+            $this->activeFiber = null;
+            $this->activeProgressCallback = null;
+            $this->activeStream = null;
         }
-
-        $this->activeFiber = null;
-        $this->activeProgressCallback = null;
-        $this->activeStream = null;
-
-        return $fiber->getReturn();
     }
 
     public function close(): void
     {
         if (null !== $this->sessionId) {
             try {
-                $request = $this->requestFactory->createRequest('DELETE', $this->endpoint)
-                    ->withHeader('Mcp-Session-Id', $this->sessionId);
+                $request = $this->requestFactory->createRequest('DELETE', $this->endpoint);
 
-                foreach ($this->headers as $name => $value) {
+                foreach ($this->buildHeaders() as $name => $value) {
                     $request = $request->withHeader($name, $value);
                 }
 

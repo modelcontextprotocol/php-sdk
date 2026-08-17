@@ -749,6 +749,45 @@ try {
 }
 ```
 
+### HttpTransportException
+
+Thrown when an `HttpTransport` request gets a non-success HTTP status code
+whose body is not a JSON-RPC error response (for example a plain-text error
+page). Carries the status code and a snippet of the response body:
+
+```php
+use Mcp\Exception\HttpTransportException;
+
+try {
+    $client->ping();
+} catch (HttpTransportException $e) {
+    echo "Server returned HTTP {$e->getStatusCode()}: {$e->getMessage()}\n";
+}
+```
+
+When the server does answer with a JSON-RPC error response body (such as
+`-32601` method-not-found on a 404, or `-32020` HeaderMismatch on a 400),
+that error is dispatched through the normal message path and surfaces as a
+`RequestException` instead.
+
+### SessionExpiredException
+
+Thrown when the server answers a request with HTTP 404 and a body that is not
+a JSON-RPC error response, meaning it no longer recognizes the current
+session. The client clears its local session id and marks itself
+un-initialized, so `isConnected()` returns `false`; reconnect to start a new
+session:
+
+```php
+use Mcp\Exception\SessionExpiredException;
+
+try {
+    $client->ping();
+} catch (SessionExpiredException $e) {
+    $client->connect($transport); // start a fresh session
+}
+```
+
 ## Complete Example
 
 Here's a comprehensive example demonstrating client usage:
