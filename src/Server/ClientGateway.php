@@ -350,6 +350,21 @@ class ClientGateway
     }
 
     /**
+     * Check if the connected client negotiated the given protocol extension.
+     *
+     * Extensions are advertised under `capabilities.extensions` keyed by their
+     * reverse-DNS id, e.g. `McpApps::EXTENSION_ID` — a server offering MCP Apps
+     * should check this before pointing a tool at a `ui://` resource, and fall back
+     * to a text-only result otherwise.
+     *
+     * @return bool True if the client advertised the extension, false otherwise
+     */
+    public function supportsExtension(string $id): bool
+    {
+        return $this->hasSubCapability('extensions', $id);
+    }
+
+    /**
      * Sub-capabilities are declared by the presence of a (possibly empty) object, so
      * only the key matters — not whatever it holds. The value arrives as an object on
      * a live session and as an array once the session has round-tripped through JSON,

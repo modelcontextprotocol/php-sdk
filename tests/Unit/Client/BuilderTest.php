@@ -13,6 +13,9 @@ namespace Mcp\Tests\Unit\Client;
 
 use Mcp\Client;
 use Mcp\Client\Configuration;
+use Mcp\Exception\LogicException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Extension\Apps\McpApps;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -41,6 +44,41 @@ final class BuilderTest extends TestCase
             ->build();
 
         $this->assertNull($this->extractConfiguration($client)->clientInfo->title);
+    }
+
+    #[TestDox('enableExtension() announces the extension under capabilities.extensions')]
+    public function testEnableExtensionAdvertisesExtension(): void
+    {
+        $client = Client::builder()
+            ->enableExtension(new McpApps())
+            ->build();
+
+        $capabilities = $this->extractConfiguration($client)->capabilities;
+
+        $this->assertSame([McpApps::EXTENSION_ID => ['mimeTypes' => [McpApps::MIME_TYPE]]], $capabilities->extensions);
+    }
+
+    #[TestDox('enableExtension() extensions are merged into capabilities set via setCapabilities()')]
+    public function testEnableExtensionMergesIntoCustomCapabilities(): void
+    {
+        $client = Client::builder()
+            ->setCapabilities(new ClientCapabilities(elicitation: true, extensions: ['io.example/other' => []]))
+            ->enableExtension(new McpApps())
+            ->build();
+
+        $capabilities = $this->extractConfiguration($client)->capabilities;
+
+        $this->assertTrue($capabilities->elicitation);
+        $this->assertSame(['io.example/other', McpApps::EXTENSION_ID], array_keys($capabilities->extensions ?? []));
+    }
+
+    #[TestDox('enableExtension() throws when the same extension is enabled twice')]
+    public function testEnableExtensionRejectsDuplicate(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage(McpApps::EXTENSION_ID);
+
+        Client::builder()->enableExtension(new McpApps(), new McpApps());
     }
 
     private function extractConfiguration(Client $client): Configuration

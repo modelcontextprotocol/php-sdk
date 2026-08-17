@@ -12,15 +12,16 @@
 namespace Mcp\Schema\Extension;
 
 /**
- * A server-side MCP protocol extension advertised during capability negotiation.
+ * An MCP protocol extension advertised during capability negotiation.
  *
  * Implementations are typically zero-config — they expose a stable identifier and the
- * capability payload announced under `capabilities.extensions[<id>]` in the initialize
- * response.
+ * capability payload announced under `capabilities.extensions[<id>]`. The same
+ * extension object can be enabled on a server (initialize response) and on a client
+ * (initialize request); the side that enables it decides which.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-interface ServerExtensionInterface
+interface ExtensionInterface
 {
     /**
      * The reverse-DNS identifier used as the key under `capabilities.extensions`.
@@ -31,8 +32,8 @@ interface ServerExtensionInterface
      * The capability payload announced for this extension.
      *
      * The returned array is cast to an object and embedded under
-     * `capabilities.extensions[<id>]` in the initialize response, so every value
-     * must be JSON-serializable (scalars, arrays, or `JsonSerializable` objects).
+     * `capabilities.extensions[<id>]`, so every value must be JSON-serializable
+     * (scalars, arrays, or `JsonSerializable` objects).
      *
      * @return array<string, mixed>
      */

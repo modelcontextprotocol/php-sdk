@@ -32,7 +32,7 @@ use Mcp\Exception\LogicException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\Extension\ServerExtensionInterface;
+use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -282,7 +282,7 @@ final class Builder
      *
      * @throws LogicException if the same extension is enabled more than once
      */
-    public function enableExtension(ServerExtensionInterface ...$extensions): self
+    public function enableExtension(ExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
             $id = $extension->getId();

@@ -14,8 +14,10 @@ namespace Mcp\Client;
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
+use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Implementation;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -33,6 +35,9 @@ final class Builder
     private ?string $title = null;
     private ?ProtocolVersion $protocolVersion = null;
     private ?ClientCapabilities $capabilities = null;
+
+    /** @var array<string, array<string, mixed>> */
+    private array $extensions = [];
     private int $initTimeout = 30;
     private int $requestTimeout = 120;
     private int $maxRetries = 3;
@@ -75,6 +80,27 @@ final class Builder
     public function setCapabilities(ClientCapabilities $capabilities): self
     {
         $this->capabilities = $capabilities;
+
+        return $this;
+    }
+
+    /**
+     * Enable one or more MCP protocol extensions, announced to the server under
+     * `capabilities.extensions` in the initialize request.
+     *
+     * @throws LogicException if the same extension is enabled more than once
+     */
+    public function enableExtension(ExtensionInterface ...$extensions): self
+    {
+        foreach ($extensions as $extension) {
+            $id = $extension->getId();
+
+            if (isset($this->extensions[$id])) {
+                throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
+            }
+
+            $this->extensions[$id] = $extension->getCapabilities();
+        }
 
         return $this;
     }
@@ -159,9 +185,17 @@ final class Builder
             title: $this->title,
         );
 
+        $capabilities = $this->capabilities ?? new ClientCapabilities();
+
+        // Extensions enabled via enableExtension() are folded into caller-supplied
+        // capabilities too, so setCapabilities() does not silently drop them.
+        if ([] !== $this->extensions) {
+            $capabilities = $capabilities->withExtensions($this->extensions);
+        }
+
         $config = new Configuration(
             clientInfo: $clientInfo,
-            capabilities: $this->capabilities ?? new ClientCapabilities(),
+            capabilities: $capabilities,
             protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_11_25,
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,

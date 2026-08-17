@@ -113,6 +113,17 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
     }
 
+    public function testClientCapabilitiesWithExtensionsMerges(): void
+    {
+        $caps = new ClientCapabilities(elicitation: true, extensions: ['a' => ['x' => 1], 'b' => ['y' => 2]]);
+
+        $merged = $caps->withExtensions(['b' => ['y' => 99], 'c' => ['z' => 3]]);
+
+        $this->assertTrue($merged->elicitation);
+        $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 99], 'c' => ['z' => 3]], $merged->extensions);
+        $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
+    }
+
     public function testClientCapabilitiesWithExtensions(): void
     {
         $extensions = [

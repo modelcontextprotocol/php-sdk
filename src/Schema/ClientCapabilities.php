@@ -126,6 +126,25 @@ class ClientCapabilities implements \JsonSerializable
     }
 
     /**
+     * @param array<string, mixed> $extensions
+     */
+    public function withExtensions(array $extensions): self
+    {
+        return new self(
+            $this->roots,
+            $this->rootsListChanged,
+            $this->sampling,
+            $this->elicitation,
+            $this->experimental,
+            array_replace($this->extensions ?? [], $extensions),
+            $this->samplingContext,
+            $this->samplingTools,
+            $this->elicitationForm,
+            $this->elicitationUrl,
+        );
+    }
+
+    /**
      * @return array{
      *     roots?: object,
      *     sampling?: object,
