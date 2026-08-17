@@ -24,6 +24,7 @@ class Implementation implements \JsonSerializable
 {
     /**
      * @param ?Icon[] $icons
+     * @param ?string $title Display name for UI and end-user contexts. Falls back to $name when absent.
      */
     public function __construct(
         public readonly string $name = 'app',
@@ -31,6 +32,7 @@ class Implementation implements \JsonSerializable
         public readonly ?string $description = null,
         public readonly ?array $icons = null,
         public readonly ?string $websiteUrl = null,
+        public readonly ?string $title = null,
     ) {
     }
 
@@ -41,6 +43,7 @@ class Implementation implements \JsonSerializable
      *     description?: string,
      *     icons?: IconData[],
      *     websiteUrl?: string,
+     *     title?: string,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -66,6 +69,9 @@ class Implementation implements \JsonSerializable
         if (isset($data['websiteUrl']) && !\is_string($data['websiteUrl'])) {
             throw new InvalidArgumentException('Invalid "websiteUrl" in Implementation data.');
         }
+        if (isset($data['title']) && !\is_string($data['title'])) {
+            throw new InvalidArgumentException('Invalid "title" in Implementation data.');
+        }
 
         return new self(
             $data['name'],
@@ -73,6 +79,7 @@ class Implementation implements \JsonSerializable
             $data['description'] ?? null,
             $data['icons'] ?? null,
             $data['websiteUrl'] ?? null,
+            $data['title'] ?? null,
         );
     }
 
@@ -83,6 +90,7 @@ class Implementation implements \JsonSerializable
      *     description?: string,
      *     icons?: Icon[],
      *     websiteUrl?: string,
+     *     title?: string,
      * }
      */
     public function jsonSerialize(): array
@@ -102,6 +110,10 @@ class Implementation implements \JsonSerializable
 
         if (null !== $this->websiteUrl) {
             $data['websiteUrl'] = $this->websiteUrl;
+        }
+
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
         }
 
         return $data;

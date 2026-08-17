@@ -30,6 +30,7 @@ final class Builder
     private string $name = 'mcp-php-client';
     private string $version = '1.0.0';
     private ?string $description = null;
+    private ?string $title = null;
     private ?ProtocolVersion $protocolVersion = null;
     private ?ClientCapabilities $capabilities = null;
     private int $initTimeout = 30;
@@ -45,12 +46,15 @@ final class Builder
 
     /**
      * Set the client name and version.
+     *
+     * @param ?string $title Display name for UI and end-user contexts. Falls back to $name when absent.
      */
-    public function setClientInfo(string $name, string $version, ?string $description = null): self
+    public function setClientInfo(string $name, string $version, ?string $description = null, ?string $title = null): self
     {
         $this->name = $name;
         $this->version = $version;
         $this->description = $description;
+        $this->title = $title;
 
         return $this;
     }
@@ -152,6 +156,7 @@ final class Builder
             $this->name,
             $this->version,
             $this->description,
+            title: $this->title,
         );
 
         $config = new Configuration(

@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Schema;
 
 use Mcp\Schema\ClientCapabilities;
+use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
 class ClientCapabilitiesTest extends TestCase
@@ -110,5 +111,70 @@ class ClientCapabilitiesTest extends TestCase
         $this->assertTrue($capabilities->sampling);
         $this->assertTrue($capabilities->samplingContext);
         $this->assertTrue($capabilities->samplingTools);
+    }
+
+    #[TestDox('reads the elicitation sub-capabilities')]
+    public function testReadsElicitationSubCapabilities(): void
+    {
+        $capabilities = ClientCapabilities::fromArray([
+            'elicitation' => ['form' => [], 'url' => []],
+        ]);
+
+        $this->assertTrue($capabilities->elicitation);
+        $this->assertTrue($capabilities->elicitationForm);
+        $this->assertTrue($capabilities->elicitationUrl);
+    }
+
+    #[TestDox('an elicitation capability naming no mode declares form')]
+    public function testElicitationWithoutModeImpliesForm(): void
+    {
+        $capabilities = ClientCapabilities::fromArray(['elicitation' => []]);
+
+        $this->assertTrue($capabilities->elicitationForm);
+        $this->assertFalse($capabilities->elicitationUrl);
+    }
+
+    #[TestDox('naming url alone does not declare form')]
+    public function testElicitationUrlAloneIsNotForm(): void
+    {
+        $capabilities = ClientCapabilities::fromArray(['elicitation' => ['url' => []]]);
+
+        $this->assertFalse($capabilities->elicitationForm);
+        $this->assertTrue($capabilities->elicitationUrl);
+    }
+
+    #[TestDox('an absent elicitation capability declares no mode either way')]
+    public function testAbsentElicitationLeavesModesNull(): void
+    {
+        $capabilities = ClientCapabilities::fromArray([]);
+
+        $this->assertNull($capabilities->elicitation);
+        $this->assertNull($capabilities->elicitationForm);
+        $this->assertNull($capabilities->elicitationUrl);
+    }
+
+    #[TestDox('round-trips the elicitation sub-capabilities')]
+    public function testRoundTripPreservesElicitationSubCapabilities(): void
+    {
+        $capabilities = new ClientCapabilities(elicitation: true, elicitationForm: true, elicitationUrl: true);
+
+        $encoded = json_encode($capabilities) ?: '';
+        $this->assertStringContainsString('"elicitation":{"form":{},"url":{}}', $encoded);
+
+        $restored = ClientCapabilities::fromArray(json_decode($encoded, true));
+
+        $this->assertTrue($restored->elicitationForm);
+        $this->assertTrue($restored->elicitationUrl);
+    }
+
+    #[TestDox('declaring only a mode still advertises elicitation')]
+    public function testElicitationModeImpliesParent(): void
+    {
+        $capabilities = new ClientCapabilities(elicitationUrl: true);
+
+        $encoded = json_decode(json_encode($capabilities) ?: '', true);
+
+        $this->assertArrayHasKey('elicitation', $encoded);
+        $this->assertArrayHasKey('url', $encoded['elicitation']);
     }
 }

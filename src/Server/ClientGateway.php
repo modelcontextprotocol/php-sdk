@@ -56,9 +56,9 @@ use Mcp\Server\Session\SessionInterface;
  *     $client->notify(new ProgressNotification("Starting analysis..."));
  *
  *     // Request LLM sampling from client
- *     $response = $client->request(new SamplingRequest($text));
+ *     $result = $client->sample($text);
  *
- *     return $response->content->text;
+ *     return $result->content->text;
  * }
  * ```
  *
@@ -176,7 +176,7 @@ class ClientGateway
     }
 
     /**
-     * Convenience method for elicitation requests.
+     * Convenience method for form-mode elicitation requests.
      *
      * Requests additional information from the user via the client. The user can
      * accept (providing the requested data), decline, or cancel the request.
@@ -191,15 +191,28 @@ class ClientGateway
      */
     public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120): ElicitResult
     {
-        $request = new ElicitRequest($message, $requestedSchema);
+        return $this->sendElicitation(ElicitRequest::forForm($message, $requestedSchema), $timeout);
+    }
 
-        $response = $this->request($request, $timeout);
-
-        if ($response instanceof Error) {
-            throw new ClientException($response);
+    /**
+     * Convenience method for url-mode elicitation requests.
+     *
+     * Sends the user to $url to complete the interaction out of band — an OAuth
+     * consent screen, a checkout, a form hosted elsewhere. The result carries only
+     * the user's action; unlike form mode there is no content to read back, so
+     * whatever the user did there has to be picked up through the URL's own channel.
+     *
+     * @throws ClientException          if the client request results in an error message
+     * @throws InvalidArgumentException if the client did not declare url-mode elicitation
+     */
+    public function elicitUrl(string $message, string $url, int $timeout = 120): ElicitResult
+    {
+        // URL mode only exists from 2025-11-25 on, and only for clients declaring it
+        if (!$this->supportsElicitationUrl()) {
+            throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
         }
 
-        return ElicitResult::fromArray($response->result);
+        return $this->sendElicitation(ElicitRequest::forUrl($message, $url), $timeout);
     }
 
     /**
@@ -291,7 +304,7 @@ class ClientGateway
      */
     public function supportsSamplingTools(): bool
     {
-        return $this->hasSamplingSubCapability('tools');
+        return $this->hasSubCapability('sampling', 'tools');
     }
 
     /**
@@ -304,20 +317,52 @@ class ClientGateway
      */
     public function supportsSamplingContext(): bool
     {
-        return $this->hasSamplingSubCapability('context');
+        return $this->hasSubCapability('sampling', 'context');
     }
 
-    private function hasSamplingSubCapability(string $name): bool
+    /**
+     * Check if the connected client supports url-mode elicitation.
+     *
+     * An `elicitation` capability naming no mode declares form mode — the only shape
+     * that existed before URL elicitation — so url mode has to be named explicitly.
+     *
+     * @return bool True if the client supports url-mode elicitation, false otherwise
+     */
+    public function supportsElicitationUrl(): bool
+    {
+        return $this->hasSubCapability('elicitation', 'url');
+    }
+
+    /**
+     * Sub-capabilities are declared by the presence of a (possibly empty) object, so
+     * only the key matters — not whatever it holds. The value arrives as an object on
+     * a live session and as an array once the session has round-tripped through JSON,
+     * hence both shapes.
+     */
+    private function hasSubCapability(string $capability, string $name): bool
     {
         $capabilities = (array) $this->session->get('client_capabilities', []);
-        $sampling = $capabilities['sampling'] ?? null;
+        $declared = $capabilities[$capability] ?? null;
 
-        if (!\is_array($sampling) && !\is_object($sampling)) {
-            return false;
+        if (\is_array($declared)) {
+            return \array_key_exists($name, $declared);
         }
 
-        // MCP spec: capability presence indicates support (value is typically {} or [])
-        return \array_key_exists($name, (array) $sampling);
+        return \is_object($declared) && property_exists($declared, $name);
+    }
+
+    /**
+     * @throws ClientException if the client request results in an error message
+     */
+    private function sendElicitation(ElicitRequest $request, int $timeout): ElicitResult
+    {
+        $response = $this->request($request, $timeout);
+
+        if ($response instanceof Error) {
+            throw new ClientException($response);
+        }
+
+        return ElicitResult::fromArray($response->result, $request->mode);
     }
 
     /**

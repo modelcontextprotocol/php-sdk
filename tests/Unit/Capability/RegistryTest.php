@@ -753,6 +753,46 @@ class RegistryTest extends TestCase
         };
     }
 
+    public function testExtractStructuredContentKeepsAScalarFromSep2106On(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'string']);
+        $this->registry->registerTool($tool, static fn () => 'sunny');
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        $this->assertSame('sunny', $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
+        $this->assertNull($toolRef->extractStructuredContent('sunny', ProtocolVersion::V2025_11_25));
+    }
+
+    public function testExtractStructuredContentDropsAScalarWithoutAnOutputSchema(): void
+    {
+        $tool = $this->createValidTool('test_tool', null);
+        $this->registry->registerTool($tool, static fn () => 'sunny');
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        // Without a declared schema the value is already carried in `content`;
+        // advertising it as structured too would duplicate it.
+        $this->assertNull($toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentKeepsAJsonSerializableScalarFromSep2106On(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'number']);
+        $result = new class implements \JsonSerializable {
+            public function jsonSerialize(): float
+            {
+                return 22.5;
+            }
+        };
+        $this->registry->registerTool($tool, static fn () => $result);
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        $this->assertSame(22.5, $toolRef->extractStructuredContent($result, ProtocolVersion::V2026_07_28));
+        $this->assertNull($toolRef->extractStructuredContent($result, ProtocolVersion::V2025_11_25));
+    }
+
     private function createValidTool(string $name, ?array $outputSchema = null): Tool
     {
         return new Tool(

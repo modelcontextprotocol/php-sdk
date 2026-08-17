@@ -227,6 +227,7 @@ final class Builder
      * Sets the server's identity. Required.
      *
      * @param ?Icon[] $icons
+     * @param ?string $title Display name for UI and end-user contexts. Falls back to $name when absent.
      */
     public function setServerInfo(
         string $name,
@@ -234,8 +235,9 @@ final class Builder
         ?string $description = null,
         ?array $icons = null,
         ?string $websiteUrl = null,
+        ?string $title = null,
     ): self {
-        $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl);
+        $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl, $title);
 
         return $this;
     }

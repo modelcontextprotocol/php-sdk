@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Schema\Result;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\Result\ElicitResult;
 use PHPUnit\Framework\TestCase;
 
@@ -99,6 +100,23 @@ final class ElicitResultTest extends TestCase
         ElicitResult::fromArray(['action' => 'accept']);
     }
 
+    public function testFromArrayWithUrlModeAllowsContentlessAccept(): void
+    {
+        $result = ElicitResult::fromArray(['action' => 'accept'], ElicitationMode::Url);
+
+        $this->assertSame(ElicitAction::Accept, $result->action);
+        $this->assertNull($result->content);
+        $this->assertTrue($result->isAccepted());
+    }
+
+    public function testFromArrayWithExplicitFormModeRequiresContent(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Content must be provided when action is "accept"');
+
+        ElicitResult::fromArray(['action' => 'accept'], ElicitationMode::Form);
+    }
+
     public function testIsAccepted(): void
     {
         $acceptResult = new ElicitResult(ElicitAction::Accept, ['name' => 'John']);
@@ -158,5 +176,16 @@ final class ElicitResultTest extends TestCase
         $this->assertSame([
             'action' => 'cancel',
         ], $result->jsonSerialize());
+    }
+
+    public function testUrlModeRejectsContent(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Content must not be provided for a url-mode elicitation result.');
+
+        ElicitResult::fromArray(
+            ['action' => 'accept', 'content' => ['name' => 'Ada']],
+            ElicitationMode::Url,
+        );
     }
 }

@@ -28,6 +28,10 @@ final class ToolUseContent extends Content
         public readonly array $input,
         public readonly ?array $meta = null,
     ) {
+        if ([] !== $input && array_is_list($input)) {
+            throw new InvalidArgumentException('ToolUseContent "input" must be a map of argument names, not a list.');
+        }
+
         parent::__construct('tool_use');
     }
 
@@ -45,12 +49,15 @@ final class ToolUseContent extends Content
         if (!isset($data['input']) || !\is_array($data['input'])) {
             throw new InvalidArgumentException('Missing or invalid "input" in ToolUseContent data.');
         }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" in ToolUseContent data.');
+        }
 
         return new self(
             $data['id'],
             $data['name'],
             $data['input'],
-            isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+            $data['_meta'] ?? null,
         );
     }
 

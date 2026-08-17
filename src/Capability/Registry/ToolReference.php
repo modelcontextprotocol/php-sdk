@@ -71,11 +71,11 @@ class ToolReference extends ElementReference
      *                                              newest handshake revision, whose stricter rule is what
      *                                              every revision reachable through `initialize` requires
      *
-     * @return array<array-key, mixed>|null the structured content, or null if not extractable
+     * @return mixed the structured content, or null if not extractable
      *
      * @throws \JsonException if JSON encoding fails for non-Content array/object results
      */
-    public function extractStructuredContent(mixed $toolExecutionResult, ?ProtocolVersion $protocolVersion = null): ?array
+    public function extractStructuredContent(mixed $toolExecutionResult, ?ProtocolVersion $protocolVersion = null): mixed
     {
         $objectOnly = ($protocolVersion ?? ProtocolVersion::latestHandshake())->requiresObjectStructuredContent();
 
@@ -111,11 +111,9 @@ class ToolReference extends ElementReference
             );
 
             // A plain object always encodes to a JSON object, but `JsonSerializable`
-            // can hand back anything. A scalar is dropped whatever the revision
-            // allows: `CallToolResult::$structuredContent` is typed `?array` and
-            // cannot carry one.
+            // can hand back anything, scalars included.
             if (!\is_array($decoded)) {
-                return null;
+                return $this->acceptsScalarStructuredContent($objectOnly) ? $decoded : null;
             }
 
             if ($objectOnly && array_is_list($decoded)) {
@@ -125,6 +123,20 @@ class ToolReference extends ElementReference
             return $decoded;
         }
 
-        return null;
+        // A scalar is structured content only from SEP-2106 on, and only when the
+        // tool declared an outputSchema: without one, every string-returning tool
+        // would start advertising a duplicate of its own `content`.
+        return $this->acceptsScalarStructuredContent($objectOnly) && \is_scalar($toolExecutionResult)
+            ? $toolExecutionResult
+            : null;
+    }
+
+    /**
+     * Whether the negotiated revision and the tool's own declaration together allow
+     * a non-object `structuredContent`.
+     */
+    private function acceptsScalarStructuredContent(bool $objectOnly): bool
+    {
+        return !$objectOnly && null !== $this->tool->outputSchema;
     }
 }
