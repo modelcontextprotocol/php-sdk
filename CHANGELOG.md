@@ -5,7 +5,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
-* [Security] Fix three memory-exhaustion denial-of-service issues from unbounded read buffers: server-side stdin line reads (`StdioTransport`, GHSA-vm75-qjc7-xh6w), client-side stdio response buffering (GHSA-6vrr-g4hw-f3hj), and client-side SSE event buffering (GHSA-7m52-jw36-44r3). Each buffer now has a configurable cap and fails the affected request with an error instead of growing without bound.
 * Fix the client hanging until `initTimeout` against servers that use CRLF or CR line endings for SSE (every Python-SDK-based MCP server) instead of LF.
 * Fix `Client\Builder::setMaxRetries()` — it was stored but never used, so connections never actually retried. Also fixes a bug where a timed-out request stayed "pending" forever and made every subsequent request fail as an immediate timeout.
 * Fix malformed JSON-RPC input crashing the server process: type-confused or otherwise malformed payloads now return a proper JSON-RPC error instead of throwing an uncaught `TypeError`/`ValueError`.
