@@ -21,13 +21,13 @@ use Mcp\Exception\InvalidArgumentException;
 abstract class AbstractSchemaDefinition implements \JsonSerializable
 {
     public function __construct(
-        public readonly string $title,
+        public readonly ?string $title = null,
         public readonly ?string $description = null,
     ) {
     }
 
     /**
-     * Validate that title exists and is a string in the data array.
+     * Reject a title that is present but not a string.
      *
      * @param array<string, mixed> $data
      *
@@ -35,22 +35,23 @@ abstract class AbstractSchemaDefinition implements \JsonSerializable
      */
     protected static function validateTitle(array $data, string $schemaType): void
     {
-        if (!isset($data['title']) || !\is_string($data['title'])) {
-            throw new InvalidArgumentException(\sprintf('Missing or invalid "title" for %s schema definition.', $schemaType));
+        if (\array_key_exists('title', $data) && null !== $data['title'] && !\is_string($data['title'])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "title" for %s schema definition.', $schemaType));
         }
     }
 
     /**
-     * Build the base JSON structure with type, title, and optional description.
+     * Build the base JSON structure with type, optional title and description.
      *
      * @return array<string, mixed>
      */
     protected function buildBaseJson(string $type): array
     {
-        $data = [
-            'type' => $type,
-            'title' => $this->title,
-        ];
+        $data = ['type' => $type];
+
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
+        }
 
         if (null !== $this->description) {
             $data['description'] = $this->description;

@@ -25,7 +25,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
     private const VALID_FORMATS = ['date', 'date-time', 'email', 'uri'];
 
     /**
-     * @param string      $title       Human-readable title for the field
+     * @param ?string     $title       Optional human-readable title for the field
      * @param string|null $description Optional description/help text
      * @param string|null $default     Optional default value
      * @param string|null $format      Optional format constraint (date, date-time, email, uri)
@@ -33,7 +33,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
      * @param int|null    $maxLength   Optional maximum string length
      */
     public function __construct(
-        string $title,
+        ?string $title = null,
         ?string $description = null,
         public readonly ?string $default = null,
         public readonly ?string $format = null,
@@ -61,7 +61,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: string,
      *     format?: string,
@@ -74,7 +74,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
         self::validateTitle($data, 'string');
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,
             format: $data['format'] ?? null,
@@ -86,7 +86,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
     /**
      * @return array{
      *     type: string,
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: string,
      *     format?: string,
