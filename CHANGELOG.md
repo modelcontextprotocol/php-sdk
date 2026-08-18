@@ -5,9 +5,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
-* Fix the client hanging until `initTimeout` against servers that use CRLF or CR line endings for SSE (every Python-SDK-based MCP server) instead of LF.
-* Fix `Client\Builder::setMaxRetries()` — it was stored but never used, so connections never actually retried. Also fixes a bug where a timed-out request stayed "pending" forever and made every subsequent request fail as an immediate timeout.
-* Fix malformed JSON-RPC input crashing the server process: type-confused or otherwise malformed payloads now return a proper JSON-RPC error instead of throwing an uncaught `TypeError`/`ValueError`.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
@@ -23,8 +20,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix empty tool/resource schemas serializing as `[]` instead of `{}` in `inputSchema`/`outputSchema`.
 * Fix `PromptResultFormatter` dropping `annotations`, `_meta`, and `mimeType` when a prompt generator returns content as a plain array.
 * Add `annotations` support to `ImageContent`, matching `TextContent`/`AudioContent`.
-* [BC Break] `Client\Configuration` now rejects a non-positive `initTimeout`/`requestTimeout` — previously `0` or a negative value was accepted silently and made every request time out immediately.
-* `FileSessionStore` now throws `Mcp\Exception\RuntimeException` instead of the global `\RuntimeException` when the session directory isn't writable, so it's catchable via `ExceptionInterface` like the rest of the SDK.
 
 0.7.0
 -----
