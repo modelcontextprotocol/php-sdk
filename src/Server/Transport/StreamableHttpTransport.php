@@ -13,11 +13,15 @@ namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
+use Mcp\Server\Transport\Http\StatelessResponder;
+use Mcp\Server\Wire\InboundClassifier;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -28,11 +32,24 @@ use Psr\Log\LoggerInterface;
 use Symfony\Component\Uid\Uuid;
 
 /**
+ * Carries MCP over HTTP, in either protocol era.
+ *
+ * Every request is classified once, before anything else looks at it, and
+ * routed to the lifecycle it belongs to: a per-request envelope claiming a
+ * modern revision goes to {@see StatelessProtocol}, everything else — the
+ * `initialize` handshake, its session's later requests, its `DELETE` teardown —
+ * goes to the session machinery below. One endpoint, both eras, nothing for the
+ * client to pick.
+ *
+ * A server run without a modern-era dispatcher (see
+ * {@see \Mcp\Server\Builder::withoutModernEra()}) serves the handshake era
+ * alone and refuses modern claims, naming the revisions it does serve.
+ *
  * @extends BaseTransport<ResponseInterface>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class StreamableHttpTransport extends BaseTransport
+class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface
 {
     use ReadsBoundedBody;
 
@@ -47,12 +64,16 @@ class StreamableHttpTransport extends BaseTransport
 
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
+    private StatelessResponder $responder;
+    private InboundClassifier $classifier;
+
+    private ?StatelessProtocol $stateless = null;
 
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
-    /** @var list<MiddlewareInterface> */
-    private array $middleware;
+    /** @var list<MiddlewareInterface>|null null until {@see self::listen()} resolves the defaults */
+    private ?array $middleware;
 
     /**
      * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables all middleware
@@ -73,9 +94,14 @@ class StreamableHttpTransport extends BaseTransport
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+        $this->responder = new StatelessResponder($this->responseFactory, $this->streamFactory, $this->logger);
+        $this->classifier = new InboundClassifier();
 
         if (null === $middleware) {
-            $this->middleware = self::defaultMiddleware();
+            // Left unresolved: the default stack's version middleware has to
+            // know which revisions this endpoint serves, and the modern
+            // dispatcher arrives after the constructor.
+            $this->middleware = null;
         } else {
             $this->middleware = self::normalizeMiddleware($middleware);
             if ([] === $this->middleware) {
@@ -87,6 +113,12 @@ class StreamableHttpTransport extends BaseTransport
     /**
      * Secure default middleware stack applied when no `$middleware` is provided to the constructor.
      *
+     * These run at the edge, before the request's era is known, because what
+     * they enforce — origin policy, DNS rebinding — is true of both eras. The
+     * `MCP-Protocol-Version` header rule is not: it belongs to the handshake
+     * era, so {@see self::handshakeMiddleware()} carries it instead and the
+     * modern leg answers for its own revisions.
+     *
      * @return list<MiddlewareInterface>
      */
     public static function defaultMiddleware(): array
@@ -94,8 +126,24 @@ class StreamableHttpTransport extends BaseTransport
         return [
             new CorsMiddleware(),
             new DnsRebindingProtectionMiddleware(),
+        ];
+    }
+
+    /**
+     * Middleware applied only to requests classified as handshake-era traffic.
+     *
+     * @return list<MiddlewareInterface>
+     */
+    public static function handshakeMiddleware(): array
+    {
+        return [
             new ProtocolVersionMiddleware(),
         ];
+    }
+
+    public function connectStateless(StatelessProtocol $protocol): void
+    {
+        $this->stateless = $protocol;
     }
 
     public function send(string $data, array $context): void
@@ -107,7 +155,7 @@ class StreamableHttpTransport extends BaseTransport
     public function listen(): ResponseInterface
     {
         $handler = new MiddlewareRequestHandler(
-            $this->middleware,
+            $this->middleware ??= self::defaultMiddleware(),
             \Closure::fromCallable([$this, 'handleRequest']),
         );
 
@@ -119,15 +167,11 @@ class StreamableHttpTransport extends BaseTransport
         return $this->responseFactory->createResponse(204);
     }
 
-    protected function handlePostRequest(): ResponseInterface
+    /**
+     * @param string $body the request body, already read and bounded by {@see self::handleRequest()}
+     */
+    protected function handlePostRequest(string $body): ResponseInterface
     {
-        $body = $this->readBody($this->request->getBody());
-        if (null === $body) {
-            $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
-
-            return $this->createErrorResponse(Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)), 413);
-        }
-
         $this->handleMessage($body, $this->sessionId);
 
         if (null !== $this->immediateResponse) {
@@ -322,6 +366,48 @@ class StreamableHttpTransport extends BaseTransport
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
         $this->request = $request;
+
+        if ('OPTIONS' === $request->getMethod()) {
+            return $this->handleOptionsRequest();
+        }
+
+        // Read once, here: the era decision needs the body, and so does
+        // whichever leg it routes to. A PSR-7 stream over `php://input` cannot
+        // be read twice.
+        $body = null;
+        if ('POST' === $request->getMethod()) {
+            $body = $this->readBody($request->getBody());
+
+            if (null === $body) {
+                $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
+
+                return $this->createErrorResponse(Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)), 413);
+            }
+        }
+
+        $classification = $this->classifier->classify($request->getMethod(), $body, self::headers($request));
+
+        if ($classification->isRejected()) {
+            \assert(null !== $classification->error);
+
+            return $this->responder->error($classification->error, $classification->httpStatus);
+        }
+
+        if ($classification->modern) {
+            return $this->handleModernRequest($body ?? '', $classification->claimedVersion ?? '');
+        }
+
+        // The version-header rule only reaches the traffic it is about. Running
+        // it at the edge would let it answer a modern claim with the handshake
+        // era's revision list, ahead of the leg that knows better.
+        return (new MiddlewareRequestHandler(
+            self::handshakeMiddleware(),
+            fn (ServerRequestInterface $handshake): ResponseInterface => $this->handleHandshakeRequest($handshake, $body),
+        ))->handle($request);
+    }
+
+    private function handleHandshakeRequest(ServerRequestInterface $request, ?string $body): ResponseInterface
+    {
         $sessionIdHeaders = $request->getHeader(self::SESSION_HEADER);
         if (\count($sessionIdHeaders) > 1) {
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must not be repeated.'), 400);
@@ -337,10 +423,38 @@ class StreamableHttpTransport extends BaseTransport
         }
 
         return match ($request->getMethod()) {
-            'OPTIONS' => $this->handleOptionsRequest(),
-            'POST' => $this->handlePostRequest(),
+            'POST' => $this->handlePostRequest($body ?? ''),
             'DELETE' => $this->handleDeleteRequest(),
             default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
+    }
+
+    /**
+     * Answers a request that claimed the modern era's per-request envelope.
+     */
+    private function handleModernRequest(string $body, string $claimedVersion): ResponseInterface
+    {
+        if (null === $this->stateless) {
+            return $this->responder->error(
+                Error::forUnsupportedProtocolVersion($claimedVersion, ProtocolVersion::handshakeVersions()),
+                400,
+            );
+        }
+
+        return $this->responder->respond($this->stateless->handle($body, self::headers($this->request)));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function headers(ServerRequestInterface $request): array
+    {
+        $headers = [];
+
+        foreach ($request->getHeaders() as $name => $values) {
+            $headers[$name] = implode(', ', $values);
+        }
+
+        return $headers;
     }
 }

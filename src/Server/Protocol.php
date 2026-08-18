@@ -27,6 +27,8 @@ use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
+use Mcp\Server\Stateless\InputContext;
+use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -78,6 +80,8 @@ class Protocol
         private readonly SessionManagerInterface $sessionManager,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?InputRequiredShim $inputRequiredShim = null,
+        private readonly ?RequestStateCodec $requestStateCodec = null,
     ) {
     }
 
@@ -257,6 +261,15 @@ class Protocol
 
         $session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
 
+        // A request starts with nothing behind it: the shim fills this in as it
+        // collects answers, and clearing it here is what keeps one request's
+        // round from being read as another's.
+        $session->set(InputContext::class, null);
+
+        if (null !== $this->requestStateCodec) {
+            $session->set(RequestStateCodec::class, $this->requestStateCodec);
+        }
+
         $event = $this->dispatchEvent(new RequestEvent($request, $session));
         $request = $event->getRequest();
 
@@ -270,8 +283,18 @@ class Protocol
             $handlerFound = true;
 
             try {
+                $shim = $this->inputRequiredShim;
+                $codec = $this->requestStateCodec;
+
+                // The handler runs inside the fiber either way; with the shim
+                // it runs there once per round, and the wait for each answer is
+                // the same suspension a handler's own ClientGateway call makes.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static fn () => $handler->handle($request, $session));
+                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
+                    $result = $handler->handle($request, $session);
+
+                    return $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                });
 
                 $result = $fiber->start();
 

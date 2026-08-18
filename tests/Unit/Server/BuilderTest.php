@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Response;
@@ -30,6 +31,7 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
@@ -176,6 +178,58 @@ final class BuilderTest extends TestCase
         $builder = Server::builder();
 
         $this->assertSame($builder, $builder->setLazyLoading(false));
+    }
+
+    #[TestDox('One builder configuration is resolved once, however many dispatchers come out of it')]
+    public function testAssembledPartsAreSharedAcrossEras(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        // Twice would mean two registries behind one endpoint, and a change
+        // made through one of them invisible to the other.
+        $loader->expects($this->once())->method('load');
+
+        $builder = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setLazyLoading(false)
+            ->addLoader($loader);
+
+        $builder->build();
+        $builder->buildStateless();
+    }
+
+    #[TestDox('A built server carries a dispatcher for each era, so one endpoint serves both')]
+    public function testBuildProducesBothEras(): void
+    {
+        $server = Server::builder()->setServerInfo('test', '1.0.0')->build();
+
+        $this->assertInstanceOf(StatelessProtocol::class, self::statelessProtocol($server));
+    }
+
+    #[TestDox('withoutModernEra() leaves the server with the handshake era alone')]
+    public function testWithoutModernEra(): void
+    {
+        $builder = Server::builder()->setServerInfo('test', '1.0.0');
+
+        $this->assertSame($builder, $builder->withoutModernEra());
+        $this->assertNull(self::statelessProtocol($builder->build()));
+    }
+
+    #[TestDox('setModernVersions() narrows what the modern leg answers for')]
+    public function testSetModernVersions(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setModernVersions([ProtocolVersion::V2026_07_28])
+            ->build();
+
+        $this->assertSame([ProtocolVersion::V2026_07_28], self::statelessProtocol($server)?->supportedVersions());
+    }
+
+    private static function statelessProtocol(Server $server): ?StatelessProtocol
+    {
+        $property = new \ReflectionProperty(Server::class, 'statelessProtocol');
+
+        return $property->getValue($server);
     }
 
     #[TestDox('An extension identifier must be a valid _meta prefix')]

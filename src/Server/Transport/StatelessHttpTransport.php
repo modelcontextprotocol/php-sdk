@@ -17,6 +17,7 @@ use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
+use Mcp\Server\Transport\Http\StatelessResponder;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -45,6 +46,7 @@ final class StatelessHttpTransport
 
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
+    private StatelessResponder $responder;
 
     /** @var list<MiddlewareInterface> */
     private array $middleware;
@@ -66,6 +68,7 @@ final class StatelessHttpTransport
 
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
+        $this->responder = new StatelessResponder($this->responseFactory, $this->streamFactory, $this->logger);
     }
 
     /**
@@ -123,55 +126,11 @@ final class StatelessHttpTransport
             $headers[$name] = implode(', ', $values);
         }
 
-        $result = $this->protocol->handle($payload, $headers);
-
-        if ($result->isStream()) {
-            return $this->sse($result->frames);
-        }
-
-        if ($result->isEmpty()) {
-            return $this->responseFactory->createResponse($result->httpStatus);
-        }
-
-        return $this->json($result->toJson(), $result->httpStatus);
-    }
-
-    /**
-     * @param \Closure(): \Generator<mixed> $frames
-     */
-    private function sse(\Closure $frames): ResponseInterface
-    {
-        $logger = $this->logger;
-
-        $callback = static function () use ($frames, $logger): void {
-            try {
-                foreach ($frames() as $frame) {
-                    // A null frame is a keep-alive tick: an SSE comment the
-                    // client ignores, and the write PHP needs to spot a drop.
-                    echo null === $frame
-                        ? ": keep-alive\n\n"
-                        : 'data: '.json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)."\n\n";
-                    flush();
-                }
-            } catch (\Throwable $e) {
-                // Headers are long sent, so this cannot become an error
-                // response; the client sees a close without the closure frame.
-                $logger->error('Subscription stream ended with an error.', ['exception' => $e]);
-            }
-        };
-
-        return $this->responseFactory->createResponse(200)
-            ->withHeader('Content-Type', 'text/event-stream')
-            ->withHeader('Cache-Control', 'no-cache')
-            ->withHeader('Connection', 'keep-alive')
-            ->withHeader('X-Accel-Buffering', 'no')
-            ->withBody(new CallbackStream($callback, $this->logger));
+        return $this->responder->respond($this->protocol->handle($payload, $headers));
     }
 
     private function json(string $payload, int $status): ResponseInterface
     {
-        return $this->responseFactory->createResponse($status)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($payload));
+        return $this->responder->json($payload, $status);
     }
 }

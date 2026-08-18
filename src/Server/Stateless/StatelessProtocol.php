@@ -33,6 +33,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Wire\CachePolicy;
+use Mcp\Server\Wire\InboundClassifier;
 use Mcp\Server\Wire\Rev2026Codec;
 use Mcp\Server\Wire\WireCodecInterface;
 use Psr\Log\LoggerInterface;
@@ -114,6 +115,16 @@ final class StatelessProtocol
             // non-conformant server and worth saying out loud once.
             $this->logger->warning('No StandardHeaderValidator configured; the SEP-2243 request headers will not be enforced. This is correct only for a transport without a header layer.');
         }
+    }
+
+    /**
+     * The modern revisions this dispatcher answers for.
+     *
+     * @return list<ProtocolVersion>
+     */
+    public function supportedVersions(): array
+    {
+        return $this->supportedVersions;
     }
 
     /**
@@ -265,14 +276,10 @@ final class StatelessProtocol
             );
         }
 
-        if (null !== $headerVersion && $headerVersion !== $meta->protocolVersion) {
-            return StatelessResult::error(
-                Error::forHeaderMismatch(
-                    \sprintf('MCP-Protocol-Version header "%s" contradicts the "%s" declared in _meta.', $headerVersion, $meta->protocolVersion),
-                    $id,
-                ),
-                400,
-            );
+        // The same check the HTTP entry runs before routing, so the edge and
+        // this dispatcher cannot disagree about what a request claims.
+        if (null !== $mismatch = InboundClassifier::crossCheckVersion($headerVersion, $meta->protocolVersion)) {
+            return StatelessResult::error(Error::forHeaderMismatch($mismatch, $id), 400);
         }
 
         $version = ProtocolVersion::tryFrom($meta->protocolVersion);
@@ -803,12 +810,6 @@ final class StatelessProtocol
      */
     private function header(array $headers, string $name): ?string
     {
-        foreach ($headers as $key => $value) {
-            if (0 === strcasecmp($key, $name)) {
-                return $value;
-            }
-        }
-
-        return null;
+        return InboundClassifier::header($headers, $name);
     }
 }

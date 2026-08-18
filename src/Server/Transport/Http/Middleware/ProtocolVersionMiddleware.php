@@ -54,7 +54,7 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
     private readonly array $supported;
 
     /**
-     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()}; modern revisions are excluded as their per-request negotiation is not served yet.
+     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()}; an endpoint serving the modern era too passes those revisions as well, so a modern header is not turned away before the era is classified.
      * @param ResponseFactoryInterface|null $responseFactory   PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory     PSR-17 stream factory (auto-discovered if null)
      */
