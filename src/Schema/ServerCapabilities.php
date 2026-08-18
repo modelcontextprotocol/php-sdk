@@ -189,7 +189,12 @@ class ServerCapabilities implements \JsonSerializable
         }
 
         if ($this->extensions) {
-            $data['extensions'] = (object) $this->extensions;
+            // Each entry is a settings *object*; an extension with no settings
+            // declares `{}`, and an empty PHP array would serialize as `[]`.
+            $data['extensions'] = (object) array_map(
+                static fn (mixed $settings): mixed => \is_array($settings) ? (object) $settings : $settings,
+                $this->extensions,
+            );
         }
 
         return $data;

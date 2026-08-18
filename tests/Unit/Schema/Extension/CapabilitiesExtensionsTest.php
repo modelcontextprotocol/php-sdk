@@ -57,6 +57,24 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $json['extensions']);
     }
 
+    public function testServerCapabilitiesSerializeSettinglessExtensionAsObject(): void
+    {
+        $caps = new ServerCapabilities(tools: true, extensions: ['acme/thing' => []]);
+
+        $json = json_encode($caps->jsonSerialize(), \JSON_UNESCAPED_SLASHES);
+
+        $this->assertStringContainsString('"acme/thing":{}', (string) $json);
+    }
+
+    public function testClientCapabilitiesSerializeSettinglessExtensionAsObject(): void
+    {
+        $caps = new ClientCapabilities(elicitation: true, extensions: ['acme/thing' => []]);
+
+        $json = json_encode($caps->jsonSerialize(), \JSON_UNESCAPED_SLASHES);
+
+        $this->assertStringContainsString('"acme/thing":{}', (string) $json);
+    }
+
     public function testServerCapabilitiesJsonSerializeWithoutExtensions(): void
     {
         $caps = new ServerCapabilities(tools: true);
