@@ -13,21 +13,10 @@
 #   make conformance-draft-server
 #
 # Absent by design, because they pass in full: server-stateless (the SEP-2575
-# lifecycle), caching (SEP-2549 hints), and every wire-schema-valid check bar
-# one noted below.
+# lifecycle), caching (SEP-2549 hints), both SEP-2243 header-validation
+# scenarios, and every wire-schema-valid check bar one noted below.
 
 server:
-  # --- SEP-2243: standard HTTP headers ---------------------------------------
-  # Mcp-Method / Mcp-Name validation and the X-MCP-* parameter rules are not
-  # implemented. Self-contained and the largest remaining block; a good next
-  # chunk after MRTR.
-  - http-header-validation:sep-2243-server-reject-invalid-headers
-  - http-custom-header-server-validation:sep-2243-server-no-xmcp-tool
-  - http-custom-header-server-validation:sep-2243-server-decode-base64
-  - http-custom-header-server-validation:sep-2243-server-validate-param-match
-  - http-custom-header-server-validation:sep-2243-server-reject-invalid-param-chars
-  - http-custom-header-server-validation:sep-2243-server-reject-param-mismatch
-
   # --- SEP-2322: the MRTR retry half -----------------------------------------
   # InputRequiredResult exists and tools/call can answer with one — that is what
   # makes server-stateless green. What is missing is the second round trip: the
@@ -49,7 +38,6 @@ server:
   # keyword), so the run summary counts them as passed — but the baseline
   # evaluator still wants them declared, and declaring them is right: each is a
   # SHOULD the SDK does not yet honour.
-  - http-header-validation:sep-2243-server-reject-error-code
   - input-required-result-ignore-extra-params:sep-2322-ignore-unexpected-params
   - input-required-result-missing-input-response:sep-2322-missing-response-rerequests
   - sep-2164-resource-not-found:sep-2164-data-uri
