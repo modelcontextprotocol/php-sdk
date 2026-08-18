@@ -25,9 +25,6 @@ logger()->info('Starting MCP Apps Example Server...');
 $server = Server::builder()
     ->setServerInfo('MCP Apps Weather Example', '1.0.0')
     ->setLogger(logger())
-    // Every request is its own PHP process under `php -S` and php-fpm alike, so
-    // the handshake era needs somewhere outside memory to keep the session.
-    // Without this the example works over stdio and nowhere else.
     ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->enableExtension(new McpApps())
     ->addResource(
