@@ -126,16 +126,18 @@ class Tool implements \JsonSerializable
         $this->inputSchema = self::normalizeSchema($inputSchema);
         $this->outputSchema = null !== $outputSchema ? self::normalizeSchema($outputSchema) : null;
 
-        // An out-of-bounds `x-mcp-header` makes the whole tool definition
-        // invalid, so it is refused where the tool is defined rather than
-        // discovered when a header comparison mysteriously fails.
+        // An out-of-bounds `x-mcp-header` reachable through `properties` makes
+        // the whole tool definition invalid, so it is refused where the tool
+        // is defined rather than discovered when a header comparison
+        // mysteriously fails.
         if (null !== $reason = self::checkHeaderAnnotations($this->inputSchema)) {
             throw new InvalidArgumentException(\sprintf('Tool "%s" has an invalid "x-mcp-header" annotation: %s', $this->name, $reason));
         }
     }
 
     /**
-     * Validates every `x-mcp-header` annotation in an input schema (SEP-2243).
+     * Validates every `x-mcp-header` annotation reachable through `properties`
+     * in an input schema (SEP-2243).
      *
      * The value becomes an HTTP field name, so it has to be one; it has to be
      * unique case-insensitively, or two arguments would fight over one header;
