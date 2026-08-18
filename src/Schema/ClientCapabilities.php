@@ -188,7 +188,10 @@ class ClientCapabilities implements \JsonSerializable
         }
 
         if ($this->extensions) {
-            $data['extensions'] = (object) $this->extensions;
+            $data['extensions'] = (object) array_map(
+                static fn (mixed $settings): mixed => \is_array($settings) ? (object) $settings : $settings,
+                $this->extensions,
+            );
         }
 
         return $data ?: new \stdClass();
