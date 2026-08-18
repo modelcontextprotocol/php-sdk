@@ -63,9 +63,6 @@ class ResourceDefinition implements \JsonSerializable
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
     ) {
-        // `name` is deliberately unconstrained: the specification puts no
-        // pattern on it, and this class also parses what a server sent, so a
-        // rule of our own would reject conformant peers over a display string.
         if (!preg_match(self::URI_PATTERN, $uri)) {
             throw new InvalidArgumentException(\sprintf('Invalid resource URI: "%s" must be a valid URI with a scheme and optional path.', $uri));
         }
