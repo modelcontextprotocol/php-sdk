@@ -90,6 +90,7 @@ final class StatelessProtocol
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly float $subscriptionLifetime = 30.0,
         ?WireCodecInterface $codec = null,
+        private readonly ?StandardHeaderValidator $headerValidator = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo);
     }
@@ -138,6 +139,14 @@ final class StatelessProtocol
 
         if (null !== $versionError = $this->checkVersion($meta, $headers, $id)) {
             return $versionError;
+        }
+
+        // After the version is settled, because a peer on the wrong revision
+        // has a more fundamental problem than a header that disagrees with its
+        // body — and telling it about the headers first would send it fixing
+        // the wrong thing.
+        if (null !== $headerError = $this->headerValidator?->validate($method, $params, $headers)) {
+            return StatelessResult::error(Error::forHeaderMismatch($headerError, $id), 400);
         }
 
         if (self::DISCOVER_METHOD === $method || self::LISTEN_METHOD === $method) {

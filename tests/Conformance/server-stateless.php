@@ -93,6 +93,21 @@ $protocol = Server::builder()
         name: 'test_logging_tool',
         description: 'Emits a server-side log message while returning normally',
     )
+    // Mirrors its arguments into Mcp-Param-* headers (SEP-2243), so the header/
+    // body agreement rules have something to be checked against.
+    ->addTool(
+        static fn (string $region = '', int $retries = 0): string => sprintf('region=%s retries=%d', $region, $retries),
+        name: 'test_custom_headers',
+        description: 'Tests custom header mirroring via x-mcp-header',
+        inputSchema: [
+            'type' => 'object',
+            'properties' => [
+                'region' => ['type' => 'string', 'x-mcp-header' => 'Region'],
+                'retries' => ['type' => 'integer', 'x-mcp-header' => 'Retries'],
+            ],
+            'required' => ['region'],
+        ],
+    )
     // Resources
     ->addResource(static fn () => 'This is the content of the static text resource.', 'test://static-text', 'static-text', 'A static text resource for testing')
     ->addResource(static fn () => fopen('data://image/png;base64,'.Elements::TEST_IMAGE_BASE64, 'r'), 'test://static-binary', 'static-binary', 'A static binary resource (image) for testing')

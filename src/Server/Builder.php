@@ -56,6 +56,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -228,6 +229,8 @@ final class Builder
 
     private bool $lazyLoading = true;
 
+    private bool $headerValidation = true;
+
     /**
      * Sets the server's identity. Required.
      *
@@ -385,6 +388,21 @@ final class Builder
     public function setLazyLoading(bool $lazyLoading = true): self
     {
         $this->lazyLoading = $lazyLoading;
+
+        return $this;
+    }
+
+    /**
+     * Controls whether {@see self::buildStateless()} checks the standard MCP
+     * request headers (SEP-2243) against the JSON-RPC body. On by default.
+     *
+     * Disable for a `StatelessProtocol` served by a transport with no header
+     * layer — the validator would otherwise reject every request for
+     * carrying none of the standard headers.
+     */
+    public function setHeaderValidator(bool $headerValidation = true): self
+    {
+        $this->headerValidation = $headerValidation;
 
         return $this;
     }
@@ -717,6 +735,7 @@ final class Builder
             configuration: $parts['configuration'],
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],
+            headerValidator: $this->headerValidation ? new StandardHeaderValidator($parts['registry']) : null,
         );
     }
 
@@ -728,6 +747,7 @@ final class Builder
      *     configuration: Configuration,
      *     messageFactory: MessageFactory,
      *     sessionManager: SessionManagerInterface,
+     *     registry: RegistryInterface,
      *     requestHandlers: list<RequestHandlerInterface<mixed>>,
      *     notificationHandlers: list<NotificationHandlerInterface>,
      * }
@@ -824,6 +844,7 @@ final class Builder
 
         return [
             'logger' => $logger,
+            'registry' => $registry,
             'configuration' => $configuration,
             'messageFactory' => $messageFactory,
             'sessionManager' => $sessionManager,
