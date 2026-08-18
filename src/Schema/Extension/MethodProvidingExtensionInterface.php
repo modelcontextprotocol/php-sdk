@@ -21,7 +21,7 @@ use Mcp\Server\Handler\Request\RequestHandlerInterface;
  *
  * The two halves are declared separately because they answer different
  * questions: the handlers say how a claimed method is served, and
- * {@see self::getMethods()} says which methods exist at all — which is what
+ * {@see self::getMessages()} says which methods exist at all — which is what
  * lets a server distinguish "this extension is not enabled here" from "no such
  * method", instead of answering `-32601` to both.
  *
