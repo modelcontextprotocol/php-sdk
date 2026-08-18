@@ -22,6 +22,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -92,13 +93,39 @@ final class CallToolHandler implements RequestHandlerInterface
         $arguments['_session'] = $session;
         $arguments['_request'] = $request;
 
+        $context = new RequestContext($session, $request);
+
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            $protocolVersion = $context->getProtocolVersion();
+
             $structuredContent = null;
             if (!$result instanceof CallToolResult) {
-                $structuredContent = $reference->extractStructuredContent($result);
+                $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
+
+                if (null === $structuredContent && null !== $reference->tool->outputSchema) {
+                    $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
+                        'name' => $toolName,
+                        'result_type' => get_debug_type($result),
+                    ]);
+                }
+
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
+            } elseif ($protocolVersion->requiresObjectStructuredContent()
+                && null !== $result->structuredContent
+                && [] !== $result->structuredContent
+                && !self::isJsonObject($result->structuredContent)
+            ) {
+                // A tool building its own `CallToolResult` bypasses the extraction
+                // rules on purpose, so the value is sent as it was set — but before
+                // SEP-2106 only a JSON object is valid here, whether the value is a
+                // list or a scalar, and clients may reject it.
+                $this->logger->warning('Tool returned a "CallToolResult" whose "structuredContent" is not a JSON object, which the negotiated protocol revision requires; sending it unchanged.', [
+                    'name' => $toolName,
+                    'protocol_version' => $protocolVersion->value,
+                    'structured_content_type' => get_debug_type($result->structuredContent),
+                ]);
             }
 
             $this->logger->debug('Tool executed successfully', [
@@ -126,5 +153,14 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while executing tool', $request->getId());
         }
+    }
+
+    /**
+     * Whether a `structuredContent` value encodes as a JSON object — the only shape
+     * revisions predating SEP-2106 accept.
+     */
+    private static function isJsonObject(mixed $value): bool
+    {
+        return \is_array($value) && !array_is_list($value);
     }
 }

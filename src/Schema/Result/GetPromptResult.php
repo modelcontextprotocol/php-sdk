@@ -51,8 +51,16 @@ class GetPromptResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "messages" array in GetPromptResult data.');
         }
 
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in GetPromptResult data.');
+        }
+
         $messages = [];
         foreach ($data['messages'] as $message) {
+            if (!\is_array($message)) {
+                throw new InvalidArgumentException('Each entry in "messages" of GetPromptResult data must be an array.');
+            }
+
             $messages[] = PromptMessage::fromArray($message);
         }
 

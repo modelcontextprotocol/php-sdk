@@ -21,7 +21,15 @@ class ClientCapabilities implements \JsonSerializable
 {
     /**
      * @param array<string, mixed>  $experimental
-     * @param ?array<string, mixed> $extensions   protocol extensions the client supports (e.g. io.modelcontextprotocol/ui)
+     * @param ?array<string, mixed> $extensions      protocol extensions the client supports (e.g. io.modelcontextprotocol/ui)
+     * @param ?bool                 $samplingContext the `sampling.context` sub-capability
+     * @param ?bool                 $samplingTools   the `sampling.tools` sub-capability
+     * @param ?bool                 $elicitationForm The `elicitation.form` sub-capability. Implied by declaring
+     *                                               `elicitation` without naming any mode.
+     * @param ?bool                 $elicitationUrl  the `elicitation.url` sub-capability
+     *
+     * The sub-capabilities trail `extensions` rather than sitting next to `sampling` and
+     * `elicitation` so that existing positional calls keep working. Pass them by name.
      */
     public function __construct(
         public readonly ?bool $roots = false,
@@ -30,6 +38,10 @@ class ClientCapabilities implements \JsonSerializable
         public readonly ?bool $elicitation = null,
         public readonly ?array $experimental = null,
         public readonly ?array $extensions = null,
+        public readonly ?bool $samplingContext = null,
+        public readonly ?bool $samplingTools = null,
+        public readonly ?bool $elicitationForm = null,
+        public readonly ?bool $elicitationUrl = null,
     ) {
     }
 
@@ -38,8 +50,8 @@ class ClientCapabilities implements \JsonSerializable
      *     roots?: array{
      *         listChanged?: bool,
      *     },
-     *     sampling?: bool,
-     *     elicitation?: bool,
+     *     sampling?: array{context?: mixed, tools?: mixed}|object,
+     *     elicitation?: array{form?: mixed, url?: mixed}|object|bool,
      *     experimental?: array<string, mixed>,
      *     extensions?: array<string, mixed>,
      * } $data
@@ -57,13 +69,29 @@ class ClientCapabilities implements \JsonSerializable
         }
 
         $sampling = null;
+        $samplingContext = null;
+        $samplingTools = null;
         if (isset($data['sampling'])) {
             $sampling = true;
+            if (\is_array($data['sampling'])) {
+                $samplingContext = isset($data['sampling']['context']);
+                $samplingTools = isset($data['sampling']['tools']);
+            } elseif (\is_object($data['sampling'])) {
+                $samplingContext = property_exists($data['sampling'], 'context');
+                $samplingTools = property_exists($data['sampling'], 'tools');
+            }
         }
 
         $elicitation = null;
+        $elicitationForm = null;
+        $elicitationUrl = null;
         if (isset($data['elicitation'])) {
             $elicitation = true;
+            $elicitationUrl = self::namesMode($data['elicitation'], 'url');
+            // Form mode is the backwards-compatible default: an `elicitation` capability
+            // naming no mode at all means form, the only shape that existed before `url`.
+            // Naming any mode is an explicit statement, so `{"url": {}}` is not form.
+            $elicitationForm = self::namesMode($data['elicitation'], 'form') || !$elicitationUrl;
         }
 
         return new self(
@@ -73,6 +101,46 @@ class ClientCapabilities implements \JsonSerializable
             $elicitation,
             \is_array($data['experimental'] ?? null) ? $data['experimental'] : null,
             \is_array($data['extensions'] ?? null) ? $data['extensions'] : null,
+            $samplingContext,
+            $samplingTools,
+            $elicitationForm,
+            $elicitationUrl,
+        );
+    }
+
+    /**
+     * A mode is declared by the presence of a (possibly empty) object, so only the
+     * key matters — not whatever it holds. A boolean `elicitation` names none.
+     */
+    private static function namesMode(mixed $capability, string $name): bool
+    {
+        if (\is_array($capability)) {
+            return \array_key_exists($name, $capability);
+        }
+
+        if (\is_object($capability)) {
+            return property_exists($capability, $name);
+        }
+
+        return false;
+    }
+
+    /**
+     * @param array<string, mixed> $extensions
+     */
+    public function withExtensions(array $extensions): self
+    {
+        return new self(
+            $this->roots,
+            $this->rootsListChanged,
+            $this->sampling,
+            $this->elicitation,
+            $this->experimental,
+            array_replace($this->extensions ?? [], $extensions),
+            $this->samplingContext,
+            $this->samplingTools,
+            $this->elicitationForm,
+            $this->elicitationUrl,
         );
     }
 
@@ -95,12 +163,24 @@ class ClientCapabilities implements \JsonSerializable
             }
         }
 
-        if ($this->sampling) {
+        if ($this->sampling || $this->samplingContext || $this->samplingTools) {
             $data['sampling'] = new \stdClass();
+            if ($this->samplingContext) {
+                $data['sampling']->context = new \stdClass();
+            }
+            if ($this->samplingTools) {
+                $data['sampling']->tools = new \stdClass();
+            }
         }
 
-        if ($this->elicitation) {
+        if ($this->elicitation || $this->elicitationForm || $this->elicitationUrl) {
             $data['elicitation'] = new \stdClass();
+            if ($this->elicitationForm) {
+                $data['elicitation']->form = new \stdClass();
+            }
+            if ($this->elicitationUrl) {
+                $data['elicitation']->url = new \stdClass();
+            }
         }
 
         if ($this->experimental) {
@@ -108,7 +188,10 @@ class ClientCapabilities implements \JsonSerializable
         }
 
         if ($this->extensions) {
-            $data['extensions'] = (object) $this->extensions;
+            $data['extensions'] = (object) array_map(
+                static fn (mixed $settings): mixed => \is_array($settings) ? (object) $settings : $settings,
+                $this->extensions,
+            );
         }
 
         return $data ?: new \stdClass();

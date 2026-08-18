@@ -11,6 +11,7 @@
 
 namespace Mcp\Client;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
@@ -30,5 +31,16 @@ class Configuration
         public readonly int $requestTimeout = 120,
         public readonly int $maxRetries = 3,
     ) {
+        if ($initTimeout < 1) {
+            throw new InvalidArgumentException(\sprintf('The initialization timeout must be a positive number of seconds, got %d.', $initTimeout));
+        }
+
+        if ($requestTimeout < 1) {
+            throw new InvalidArgumentException(\sprintf('The request timeout must be a positive number of seconds, got %d.', $requestTimeout));
+        }
+
+        if ($maxRetries < 0) {
+            throw new InvalidArgumentException(\sprintf('The maximum number of retries must be zero or greater, got %d.', $maxRetries));
+        }
     }
 }

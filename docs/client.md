@@ -57,9 +57,31 @@ $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')
     ->setInitTimeout(30)      // Seconds to wait for initialization
     ->setRequestTimeout(120)  // Seconds to wait for request responses
-    ->setMaxRetries(3)        // Retry attempts for failed connections
+    ->setMaxRetries(3)        // Retries for failed connections
     ->build();
 ```
+
+### Connection Retries
+
+`setMaxRetries()` controls how often `connect()` retries a failed connection. It
+counts retries rather than attempts, so the default of `3` means one initial
+attempt plus up to three retries — four in total — before the `ConnectionException`
+of the last attempt is rethrown:
+
+```php
+$client = Client::builder()
+    ->setMaxRetries(0)  // Fail on the first failed attempt
+    ->build();
+```
+
+Between two attempts the transport is closed, so a retry never reuses a
+half-established connection: a `StdioTransport` spawns a fresh server process and
+an `HttpTransport` discards the session ID of the failed attempt. Each retry is
+preceded by a short, linearly growing delay (100ms, 200ms, 300ms, …).
+
+Only the connection handshake is retried. Individual requests such as
+`callTool()` are always sent once — retrying them is unsafe as tool calls are not
+necessarily idempotent.
 
 ### Client Information
 
@@ -77,7 +99,7 @@ $client = Client::builder()
 
 ### Protocol Version
 
-Specify the MCP protocol version (defaults to latest):
+Specify the MCP protocol version to offer during the handshake (defaults to the latest):
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -86,6 +108,19 @@ $client = Client::builder()
     ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->build();
 ```
+
+This is an offer, not a demand. A server that does not support the requested revision counter-offers one it does, as
+described in the specification's
+[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+section. The client accepts any counter-offer it knows about and continues on that revision; a counter-offer the SDK
+cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
+on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.
+
+Modern revisions such as `2026-07-28` replaced `initialize` with per-request metadata, so they cannot be offered here.
+Configuring one still opens the handshake with `ProtocolVersion::latestHandshake()`, and the client logs a warning
+saying so.
+
+See [Protocol Version Negotiation](server-builder.md#protocol-version-negotiation) for the server side of the exchange.
 
 ### Capabilities
 
@@ -436,6 +471,8 @@ The client can receive requests and notifications from the server when configure
 
 ### Logging Notifications
 
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
+
 Receive structured log messages from the server:
 
 ```php
@@ -468,6 +505,8 @@ $client->setLoggingLevel(LoggingLevel::Info);
 ```
 
 ### Sampling (LLM Requests)
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
 
 Handle server requests for LLM completions:
 
@@ -515,6 +554,42 @@ $client = Client::builder()
     ->addRequestHandler(new SamplingRequestHandler(new LlmSamplingCallback))
     ->build();
 ```
+
+#### Sampling with Tools
+
+Clients that support tool-enabled sampling should advertise that capability and forward the request's `tools` and
+`toolChoice` fields to their LLM provider. A provider response that requests tools can be returned as one or more
+`ToolUseContent` blocks:
+
+```php
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\ToolUseContent;
+use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(
+        sampling: true,
+        samplingContext: true,
+        samplingTools: true,
+    ))
+    ->addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    ->build();
+
+// Inside the sampling callback, after invoking the LLM provider:
+return new CreateSamplingMessageResult(
+    role: Role::Assistant,
+    content: array_map(
+        static fn ($call) => new ToolUseContent($call->id, $call->name, $call->input),
+        $providerResponse->toolCalls,
+    ),
+    model: $providerResponse->model,
+    stopReason: 'toolUse',
+);
+```
+
+The server executes the requested tools and sends their results in a later sampling request as `ToolResultContent`
+blocks in a user message. The client should pass those blocks back to the LLM provider to continue the sampling loop.
 
 > [!IMPORTANT]
 > **Error Handling in Sampling Callbacks:**
@@ -600,6 +675,53 @@ Only the `Accept` action carries content.
 See `examples/client/stdio_elicitation.php` for a runnable example against the
 elicitation demo server.
 
+### Roots
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Roots keep working until then; new integrations should pass directories or files through tool arguments, resource URIs or server configuration instead.
+
+Roots let the client expose a list of `file://` "workspace folders" that the server
+is allowed to operate on. Advertise the `roots` capability and register a handler
+that answers server `roots/list` requests:
+
+```php
+use Mcp\Client\Handler\Request\ListRootsRequestHandler;
+use Mcp\Client\Handler\Request\RootsCallbackInterface;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\ListRootsResult;
+use Mcp\Schema\Root;
+
+class WorkspaceRootsCallback implements RootsCallbackInterface
+{
+    public function __invoke(ListRootsRequest $request): ListRootsResult
+    {
+        return new ListRootsResult([
+            new Root('file:///home/user/projects/app', 'Application'),
+            new Root('file:///home/user/projects/library', 'Library'),
+        ]);
+    }
+}
+
+$client = Client::builder()
+    ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
+    ->addRequestHandler(new ListRootsRequestHandler(new WorkspaceRootsCallback))
+    ->build();
+```
+
+When the client's roots change, notify the server so it can request the updated
+list via `roots/list`. This requires advertising the `roots.listChanged`
+capability (`rootsListChanged: true` above); otherwise `sendRootsListChanged()`
+throws a `RuntimeException`. On a client that is not connected it throws a
+`ConnectionException`:
+
+```php
+$client->sendRootsListChanged();
+```
+
+See `examples/client/stdio_roots.php` for a runnable example: it calls the
+`inspect_workspace_roots` tool of the client-communication demo server, which
+answers by issuing the `roots/list` request back to the client.
+
 ## Error Handling
 
 The client throws exceptions for various error conditions:
@@ -676,7 +798,7 @@ $samplingCallback = new class implements SamplingCallbackInterface {
                 role: Role::Assistant,
                 content: new TextContent($response),
                 model: 'mock-llm',
-                stopReason: 'end_turn',
+                stopReason: 'endTurn',
             );
         } catch (\Throwable $e) {
             throw new SamplingException(

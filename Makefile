@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client docs
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client docs
 
 deps-stable:
 	composer update --prefer-stable
@@ -17,6 +17,9 @@ tests:
 
 unit-tests:
 	vendor/bin/phpunit --testsuite=unit
+
+integration-tests:
+	vendor/bin/phpunit --testsuite=integration
 
 inspector-tests:
 	vendor/bin/phpunit --testsuite=inspector

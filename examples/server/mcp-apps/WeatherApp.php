@@ -16,6 +16,7 @@ use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\UiResourceContentMeta;
 use Mcp\Schema\Extension\Apps\UiResourceCsp;
 use Mcp\Schema\Extension\Apps\UiResourcePermissions;
+use Mcp\Server\RequestContext;
 
 final class WeatherApp
 {
@@ -39,7 +40,7 @@ final class WeatherApp
         );
     }
 
-    public function getWeather(string $city): string
+    public function getWeather(string $city, RequestContext $context): string
     {
         $weather = [
             'london' => ['temp' => '15°C', 'condition' => 'Cloudy', 'humidity' => '78%'],
@@ -56,12 +57,20 @@ final class WeatherApp
         $key = strtolower($city);
         $data = $weather[$key] ?? ['temp' => '20°C', 'condition' => 'Clear', 'humidity' => '60%'];
 
-        return \sprintf(
+        $text = \sprintf(
             'Weather in %s: %s, %s, Humidity: %s',
             $city,
             $data['temp'],
             $data['condition'],
             $data['humidity'],
         );
+
+        // Hosts without MCP Apps support only ever see this text; the ones that
+        // negotiated the extension render the ui://weather-app view on top of it.
+        if (!$context->getClientGateway()->supportsExtension(McpApps::EXTENSION_ID)) {
+            return $text.' (text-only, host does not support MCP Apps)';
+        }
+
+        return $text;
     }
 }

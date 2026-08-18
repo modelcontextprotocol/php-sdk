@@ -64,6 +64,13 @@ class InitializeResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "serverInfo".');
         }
 
+        if (isset($data['instructions']) && !\is_string($data['instructions'])) {
+            throw new InvalidArgumentException('Invalid "instructions" in InitializeResult data.');
+        }
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
+            throw new InvalidArgumentException('Invalid "_meta" in InitializeResult data.');
+        }
+
         return new self(
             ServerCapabilities::fromArray($data['capabilities']),
             Implementation::fromArray($data['serverInfo']),

@@ -148,6 +148,11 @@ final class MessageFactory
 
                 $messages[] = $this->createMessage($message);
             } catch (InvalidInputMessageException $e) {
+                // Recover the id only when it's a valid JSON-RPC scalar;
+                // a null or malformed id is left at the exception's null default.
+                if (\is_array($message) && isset($message['id']) && (\is_string($message['id']) || \is_int($message['id']))) {
+                    $e->setRequestId($message['id']);
+                }
                 $messages[] = $e;
             }
         }
@@ -175,6 +180,10 @@ final class MessageFactory
 
             if (!isset($data['method'])) {
                 throw new InvalidInputMessageException('Invalid JSON-RPC message: missing "method", "result", or "error" field.');
+            }
+
+            if (!\is_string($data['method'])) {
+                throw new InvalidInputMessageException('Invalid JSON-RPC message: "method" must be a string.');
             }
 
             $messageClass = $this->findMessageClassByMethod($data['method']);

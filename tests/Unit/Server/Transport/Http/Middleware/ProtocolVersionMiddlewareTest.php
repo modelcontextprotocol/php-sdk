@@ -44,18 +44,33 @@ final class ProtocolVersionMiddlewareTest extends MiddlewareTestCase
         $this->assertSame(400, $response->getStatusCode());
     }
 
-    #[TestDox('accepts every version declared in the ProtocolVersion enum')]
+    #[TestDox('accepts every handshake-era version by default')]
     public function testAcceptsSupportedVersions(): void
     {
         $middleware = new ProtocolVersionMiddleware(responseFactory: $this->factory, streamFactory: $this->factory);
 
-        foreach (ProtocolVersion::cases() as $version) {
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
             $request = $this->factory->createServerRequest('POST', 'http://localhost/')
                 ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, $version->value);
 
             $response = $middleware->process($request, $this->passthroughHandler);
 
             $this->assertSame(200, $response->getStatusCode(), 'Expected '.$version->value.' to be accepted.');
+        }
+    }
+
+    #[TestDox('rejects modern-era versions by default, since the server cannot serve them yet')]
+    public function testRejectsModernVersionsByDefault(): void
+    {
+        $middleware = new ProtocolVersionMiddleware(responseFactory: $this->factory, streamFactory: $this->factory);
+
+        foreach (ProtocolVersion::modernVersions() as $version) {
+            $request = $this->factory->createServerRequest('POST', 'http://localhost/')
+                ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, $version->value);
+
+            $response = $middleware->process($request, $this->passthroughHandler);
+
+            $this->assertSame(400, $response->getStatusCode(), 'Expected '.$version->value.' to be rejected.');
         }
     }
 

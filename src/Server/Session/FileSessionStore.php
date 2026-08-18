@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Session;
 
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -31,7 +32,7 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         if (!is_dir($this->directory) || !is_writable($this->directory)) {
-            throw new \RuntimeException(\sprintf('Session directory "%s" is not writable.', $this->directory));
+            throw new RuntimeException(\sprintf('Session directory "%s" is not writable.', $this->directory));
         }
     }
 

@@ -13,14 +13,37 @@ $server = Server::builder()
     ->build();
 ```
 
-Pass one or more `ServerExtensionInterface` instances; multiple extensions can
+Pass one or more `ExtensionInterface` instances; multiple extensions can
 be enabled in a single call. Enabling the same extension twice throws a
 `LogicException`.
 
+Clients (hosts) advertise the extensions they support the same way, via
+`Client\Builder::enableExtension()`; the payload lands under
+`capabilities.extensions` in the initialize request.
+
 > Note: extensions enabled via `enableExtension()` are merged into the
-> `extensions` capability even when you supply your own `ServerCapabilities` via
-> `setCapabilities()`. An enabled extension overrides any entry under the same
-> id already present in those capabilities.
+> `extensions` capability even when you supply your own `ServerCapabilities` /
+> `ClientCapabilities` via `setCapabilities()`. An enabled extension overrides
+> any entry under the same id already present in those capabilities.
+
+## Checking what the client negotiated
+
+An extension is only in effect when both sides advertise it. On the server, a
+handler can ask the `ClientGateway` from the injected `RequestContext` whether the
+connected client did:
+
+```php
+use Mcp\Schema\Extension\Apps\McpApps;
+use Mcp\Server\RequestContext;
+
+public function getWeather(string $city, RequestContext $context): string
+{
+    if (!$context->getClientGateway()->supportsExtension(McpApps::EXTENSION_ID)) {
+        // text-only fallback for hosts without MCP Apps support
+    }
+    // ...
+}
+```
 
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
@@ -77,6 +100,30 @@ Note the two distinct `_meta.ui` shapes: the resource *descriptor* (its
 flagging it as an MCP App, while the resource *content* returned by `resources/read`
 carries the structured `UiResourceContentMeta` with the actual CSP and permission
 configuration.
+
+### Attribute-based discovery
+
+The same linkage works with `#[McpResource]` / `#[McpTool]`, since both accept a
+`meta` array and PHP allows `new` in attribute arguments. The one difference is the
+descriptor marker: `McpApps::resourceMarker()` is a method call and cannot appear
+in an attribute, so spell it as `new \stdClass()` there.
+
+```php
+use Mcp\Capability\Attribute\McpResource;
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\Extension\Apps\McpApps;
+use Mcp\Schema\Extension\Apps\ToolVisibility;
+use Mcp\Schema\Extension\Apps\UiToolMeta;
+
+final class WeatherApp
+{
+    #[McpResource(uri: 'ui://my-app', mimeType: McpApps::MIME_TYPE, meta: ['ui' => new \stdClass()])]
+    public function view(): TextResourceContents { /* as above */ }
+
+    #[McpTool(name: 'my_tool', meta: ['ui' => new UiToolMeta(resourceUri: 'ui://my-app', visibility: [ToolVisibility::Model, ToolVisibility::App])])]
+    public function myTool(string $city): string { /* ... */ }
+}
+```
 
 ### Server-side DTOs
 

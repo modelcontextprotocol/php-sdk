@@ -30,9 +30,22 @@ class MyService
         $context->getClientGateway()->log(...);
 ```
 
+The same object also carries the protocol revision negotiated for the current request, which is useful when a feature is
+only available from a certain revision on:
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
+if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
+    // e.g. a bare list is only valid as `structuredContent` from this revision on
+}
+```
+
 ## Sampling
 
-With [sampling](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling) servers can request clients to
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
+
+With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
 
 ```php
@@ -41,14 +54,45 @@ $result = $clientGateway->sample('Roses are red, violets are', 350, 90, ['temper
 
 The `sample` method accepts four arguments:
 
-1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SampleMessage` instances.
+1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SamplingMessage` instances.
 2. `maxTokens`, which defaults to `1000`
 3. `timeout` in seconds, which defaults to `120`
-4. `options` which might include `system_prompt`, `preferences` for model choice, `includeContext`, `temperature`, `stopSequences` and `metadata`
+4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
+   `stopSequences`, `metadata`, `tools`, and `toolChoice`
 
-[Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-06-18/client/sampling#protocol-messages)
+Both `tools`/`toolChoice` and `includeContext` are gated on what the client advertised, so check before sending:
+
+```php
+if ($clientGateway->supportsSamplingTools()) {
+    $result = $clientGateway->sample($messages, options: ['tools' => $tools]);
+}
+```
+
+A server **must not** send `tools` or `toolChoice` to a client that did not advertise `sampling.tools`. The
+`includeContext` values other than `none` are soft-deprecated and should only be sent when the client advertises
+`sampling.context` — `supportsSamplingContext()` reports that one.
+
+### Tool loops
+
+When the model wants to call a tool, the result comes back with `stopReason: 'toolUse'` and one or more
+`ToolUseContent` blocks. Execute them, then send a follow-up request with the assistant's message and a user message
+carrying a matching `ToolResultContent` for every `ToolUseContent`:
+
+```php
+$messages[] = new SamplingMessage(Role::Assistant, $result->content);
+$messages[] = new SamplingMessage(Role::User, [new ToolResultContent($toolUse->id, [new TextContent($output)])]);
+```
+
+The specification is strict about the shape of that exchange: tool results may not be mixed with other content in a
+message, and every tool use must be answered before the conversation continues. `sample()` checks these rules before
+sending and throws an `InvalidArgumentException` rather than letting the client reject the request with `-32602`.
+Use `$result->getContentBlocks()` to iterate the response regardless of whether it holds one block or a list.
+
+[Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 
 ## Logging
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
 
 The [Logging](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging) utility enables servers
 to send structured log messages as notification to clients:

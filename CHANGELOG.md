@@ -2,6 +2,27 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.8.0
+-----
+
+* [BC Break] `Mcp\Schema\JsonRpc\Error` accepts `null` as its `$id`, and `getId()` may return it. An error response whose id could not be read now omits the member instead of sending `"id": ""` — which claimed the peer had issued a request with an empty-string id. All the `for*()` factories default to `null`, `fromArray()` accepts a missing or explicitly-null id, and `MessageFactory` decodes both as an id-less error rather than rejecting them.
+* Preserve the original request `id` on an invalid-but-parseable message (`-32600`) instead of answering it id-less: `InvalidInputMessageException` now carries the recoverable id via `getRequestId()`/`setRequestId()`, threaded from `MessageFactory` through to the error response.
+* [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
+* Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
+* Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
+* [BC Break] Gate `structuredContent` on the negotiated protocol revision: a tool result that's a PHP list (or an object serializing to a JSON array) is now only sent as `structuredContent` on protocol revisions `2026-07-28`+; older revisions omit it and keep the JSON-encoded value in `content`.
+* Add protocol revision negotiation during `initialize`: the server counter-offers a revision it supports, and the client now fails the handshake instead of continuing on an unagreed revision. Adds `Client::getProtocolVersion()` and the `2026-07-28` revision.
+* Add sampling-with-tools support: sampling requests can include tools and tool-choice preferences, messages support tool-use/tool-result content blocks, and clients advertise `sampling.context`/`sampling.tools` via `ClientGateway::supportsSamplingTools()`/`supportsSamplingContext()`. A request that violates the spec's tool-flow rules is now rejected with a proper JSON-RPC error instead of being left unanswered.
+* [BC Break] `SamplingMessage::$content` and `CreateSamplingMessageResult::$content` may now be a list of content blocks instead of just one — use the new `getContentBlocks()` to always get a list.
+* [BC Break] `CreateSamplingMessageResult` now rejects any role other than `assistant`, and rejects empty content, per spec.
+* Close the remaining schema gaps for `2025-06-18`/`2025-11-25` and add the `2026-07-28` surface (SEP-2106): url-mode elicitation (`ClientGateway::elicitUrl()`/`supportsElicitationUrl()`), `Implementation::title`, and `outputSchema`/`structuredContent` accepting any JSON value rather than only objects.
+* Add `Mcp\Schema\Content\ResourceLink` — reference a resource by URI/name in tool results and prompt messages without embedding its contents.
+* Add client-side Roots support: `RootsCallbackInterface`, `Client::sendRootsListChanged()`, and server-side `ClientGateway::listRoots()`/`supportsRoots()`.
+* Add `ClientGateway::supportsSampling()` to check the client's advertised capabilities before sending a sampling request, matching `supportsRoots()`/`supportsElicitation()`.
+* Fix empty tool/resource schemas serializing as `[]` instead of `{}` in `inputSchema`/`outputSchema`.
+* Fix `PromptResultFormatter` dropping `annotations`, `_meta`, and `mimeType` when a prompt generator returns content as a plain array.
+* Add `annotations` support to `ImageContent`, matching `TextContent`/`AudioContent`.
+
 0.7.0
 -----
 

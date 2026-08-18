@@ -230,16 +230,19 @@ class HttpTransport extends BaseTransport
             }
         }
 
-        while (false !== ($pos = strpos($this->sseBuffer, "\n\n"))) {
-            $event = substr($this->sseBuffer, 0, $pos);
-            $this->sseBuffer = substr($this->sseBuffer, $pos + 2);
-
+        while (null !== ($event = $this->extractSSEEvent())) {
             if (!empty(trim($event))) {
                 $this->processSSEEvent($event);
             }
         }
 
-        if ($this->activeStream->eof() && empty($this->sseBuffer)) {
+        if ($this->activeStream->eof()) {
+            // The stream ended without a trailing blank line: dispatch what is left.
+            if (!empty(trim($this->sseBuffer))) {
+                $this->processSSEEvent($this->sseBuffer);
+            }
+
+            $this->sseBuffer = '';
             $this->activeStream = null;
         }
     }
@@ -274,13 +277,44 @@ class HttpTransport extends BaseTransport
     }
 
     /**
+     * Take the next complete event off the buffer, or null if none is complete yet.
+     *
+     * Per the SSE specification, lines are terminated by CRLF, LF or CR, so an
+     * event is delimited by any pair of those. Servers built on sse-starlette
+     * (the MCP Python SDK) use CRLF.
+     */
+    private function extractSSEEvent(): ?string
+    {
+        $position = null;
+        $length = 0;
+
+        foreach (["\r\n\r\n", "\n\n", "\r\r"] as $delimiter) {
+            $found = strpos($this->sseBuffer, $delimiter);
+
+            if (false !== $found && (null === $position || $found < $position)) {
+                $position = $found;
+                $length = \strlen($delimiter);
+            }
+        }
+
+        if (null === $position) {
+            return null;
+        }
+
+        $event = substr($this->sseBuffer, 0, $position);
+        $this->sseBuffer = substr($this->sseBuffer, $position + $length);
+
+        return $event;
+    }
+
+    /**
      * Parse a single SSE event and handle the message.
      */
     private function processSSEEvent(string $event): void
     {
         $data = '';
 
-        foreach (explode("\n", $event) as $line) {
+        foreach (preg_split("/\r\n|\r|\n/", $event) ?: [] as $line) {
             if (str_starts_with($line, 'data:')) {
                 $data .= trim(substr($line, 5));
             }

@@ -18,6 +18,7 @@ use Mcp\Client\State\ClientState;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
@@ -98,8 +99,20 @@ class Protocol
      */
     public function initialize(Configuration $config): Response|Error
     {
+        $offered = $config->protocolVersion;
+        if ($offered->isModern()) {
+            // Only handshake era spec versions need the initialize call, so if we
+            // end up here, we fall back to the latest handshake version.
+            $offered = ProtocolVersion::latestHandshake();
+
+            $this->logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, offering the newest handshake revision instead.', [
+                'configured' => $config->protocolVersion->value,
+                'offered' => $offered->value,
+            ]);
+        }
+
         $request = new InitializeRequest(
-            $config->protocolVersion->value,
+            $offered->value,
             $config->capabilities,
             $config->clientInfo,
         );
@@ -108,6 +121,26 @@ class Protocol
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
+
+            // A counter-offer this SDK cannot speak leaves nothing to fall back to,
+            // so the handshake fails rather than continuing on a revision neither
+            // side agrees on.
+            $negotiated = $initResult->protocolVersion;
+            if (null === $negotiated || $negotiated->isModern()) {
+                // fromArray() above already rejected a missing or non-string revision.
+                $counterOffer = (string) $response->result['protocolVersion'];
+
+                return Error::forInvalidParams(\sprintf(
+                    'Server responded with unsupported protocol version "%s". Supported versions: %s.',
+                    $counterOffer,
+                    implode(', ', array_map(
+                        static fn (ProtocolVersion $v): string => $v->value,
+                        ProtocolVersion::handshakeVersions(),
+                    )),
+                ), $response->id);
+            }
+
+            $this->state->setProtocolVersion($negotiated);
             $this->state->setServerInfo($initResult->serverInfo);
             $this->state->setInstructions($initResult->instructions);
             $this->state->setInitialized(true);
@@ -116,6 +149,7 @@ class Protocol
 
             $this->logger->info('Initialization complete', [
                 'server' => $initResult->serverInfo->name,
+                'protocolVersion' => $negotiated->value,
             ]);
         }
 
@@ -145,22 +179,29 @@ class Protocol
         }
 
         $this->state->addPendingRequest($requestId, $timeout);
-        $this->sendRequest($request);
 
-        $immediate = $this->state->consumeResponse($requestId);
-        if (null !== $immediate) {
-            $this->logger->debug('Received immediate response', ['id' => $requestId]);
+        try {
+            $this->sendRequest($request);
 
-            return $immediate;
+            $immediate = $this->state->consumeResponse($requestId);
+            if (null !== $immediate) {
+                $this->logger->debug('Received immediate response', ['id' => $requestId]);
+
+                return $immediate;
+            }
+
+            $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
+
+            return \Fiber::suspend([
+                'type' => 'await_response',
+                'request_id' => $requestId,
+                'timeout' => $timeout,
+            ]);
+        } finally {
+            // Only the response path clears it, so a request that timed out or
+            // whose send() threw would stay pending and fail every later one.
+            $this->state->removePendingRequest($requestId);
         }
-
-        $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
-
-        return \Fiber::suspend([
-            'type' => 'await_response',
-            'request_id' => $requestId,
-            'timeout' => $timeout,
-        ]);
     }
 
     /**
@@ -239,6 +280,12 @@ class Protocol
     private function handleResponse(Response|Error $response): void
     {
         $requestId = $response->getId();
+
+        if (null === $requestId) {
+            $this->logger->warning('Received an id-less error response; cannot correlate it to a request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
 
         $this->logger->debug('Handling response', ['id' => $requestId]);
 

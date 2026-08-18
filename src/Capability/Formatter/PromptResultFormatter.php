@@ -11,15 +11,15 @@
 
 namespace Mcp\Capability\Formatter;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\AudioContent;
-use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\PromptMessage;
+use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\Role;
 
 /**
@@ -142,18 +142,19 @@ final class PromptResultFormatter
     /**
      * Formats content into a proper Content object.
      */
-    private function formatContent(mixed $content, ?int $index = null): TextContent|ImageContent|AudioContent|EmbeddedResource
+    private function formatContent(mixed $content, ?int $index = null): TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
     {
         $indexStr = null !== $index ? " at index {$index}" : '';
 
         if ($content instanceof Content) {
             if (
                 $content instanceof TextContent || $content instanceof ImageContent
-                || $content instanceof AudioContent || $content instanceof EmbeddedResource
+                || $content instanceof AudioContent || $content instanceof ResourceLink
+                || $content instanceof EmbeddedResource
             ) {
                 return $content;
             }
-            throw new RuntimeException("Invalid Content type{$indexStr}. PromptMessage only supports TextContent, ImageContent, AudioContent, or EmbeddedResource.");
+            throw new RuntimeException("Invalid Content type{$indexStr}. PromptMessage only supports TextContent, ImageContent, AudioContent, ResourceLink, or EmbeddedResource.");
         }
 
         if (\is_string($content)) {
@@ -178,90 +179,33 @@ final class PromptResultFormatter
     /**
      * Formats typed content arrays into Content objects.
      *
+     * Delegates to the schema classes' fromArray() so optional fields
+     * (annotations, mimeType, _meta, ...) carry over instead of being dropped.
+     *
      * @param array<string, mixed> $content
      */
-    private function formatTypedContent(array $content, ?int $index = null): TextContent|ImageContent|AudioContent|EmbeddedResource
+    private function formatTypedContent(array $content, ?int $index = null): TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
     {
         $indexStr = null !== $index ? " at index {$index}" : '';
         $type = $content['type'];
 
-        return match ($type) {
-            'text' => $this->formatTextContent($content, $indexStr),
-            'image' => $this->formatImageContent($content, $indexStr),
-            'audio' => $this->formatAudioContent($content, $indexStr),
-            'resource' => $this->formatResourceContent($content, $indexStr),
-            default => throw new RuntimeException("Invalid content type '{$type}'{$indexStr}."),
-        };
-    }
-
-    /**
-     * @param array<string, mixed> $content
-     */
-    private function formatTextContent(array $content, string $indexStr): TextContent
-    {
-        if (!isset($content['text']) || !\is_string($content['text'])) {
-            throw new RuntimeException(\sprintf('Invalid "text" content%s: Missing or invalid "text" string.', $indexStr));
+        if ('resource' === $type && isset($content['resource']) && \is_array($content['resource']) && !isset($content['resource']['mimeType'])) {
+            // EmbeddedResource::fromArray() leaves a missing mimeType unset; this
+            // formatter has always defaulted it, so keep that for compatibility.
+            $content['resource']['mimeType'] = isset($content['resource']['text']) ? 'text/plain' : 'application/octet-stream';
         }
 
-        return new TextContent($content['text']);
-    }
-
-    /**
-     * @param array<string, mixed> $content
-     */
-    private function formatImageContent(array $content, string $indexStr): ImageContent
-    {
-        if (!isset($content['data']) || !\is_string($content['data'])) {
-            throw new RuntimeException("Invalid 'image' content{$indexStr}: Missing or invalid 'data' string (base64).");
+        try {
+            return match ($type) {
+                'text' => TextContent::fromArray($content),
+                'image' => ImageContent::fromArray($content),
+                'audio' => AudioContent::fromArray($content),
+                'resource' => EmbeddedResource::fromArray($content),
+                'resource_link' => ResourceLink::fromArray($content),
+                default => throw new RuntimeException("Invalid content type '{$type}'{$indexStr}."),
+            };
+        } catch (InvalidArgumentException $e) {
+            throw new RuntimeException("Invalid '{$type}' content{$indexStr}: {$e->getMessage()}", 0, $e);
         }
-        if (!isset($content['mimeType']) || !\is_string($content['mimeType'])) {
-            throw new RuntimeException("Invalid 'image' content{$indexStr}: Missing or invalid 'mimeType' string.");
-        }
-
-        return new ImageContent($content['data'], $content['mimeType']);
-    }
-
-    /**
-     * @param array<string, mixed> $content
-     */
-    private function formatAudioContent(array $content, string $indexStr): AudioContent
-    {
-        if (!isset($content['data']) || !\is_string($content['data'])) {
-            throw new RuntimeException("Invalid 'audio' content{$indexStr}: Missing or invalid 'data' string (base64).");
-        }
-        if (!isset($content['mimeType']) || !\is_string($content['mimeType'])) {
-            throw new RuntimeException("Invalid 'audio' content{$indexStr}: Missing or invalid 'mimeType' string.");
-        }
-
-        return new AudioContent($content['data'], $content['mimeType']);
-    }
-
-    /**
-     * @param array<string, mixed> $content
-     */
-    private function formatResourceContent(array $content, string $indexStr): EmbeddedResource
-    {
-        if (!isset($content['resource']) || !\is_array($content['resource'])) {
-            throw new RuntimeException("Invalid 'resource' content{$indexStr}: Missing or invalid 'resource' object.");
-        }
-
-        $resource = $content['resource'];
-        if (!isset($resource['uri']) || !\is_string($resource['uri'])) {
-            throw new RuntimeException("Invalid resource{$indexStr}: Missing or invalid 'uri'.");
-        }
-
-        if (isset($resource['text']) && \is_string($resource['text'])) {
-            $resourceObj = new TextResourceContents($resource['uri'], $resource['mimeType'] ?? 'text/plain', $resource['text']);
-        } elseif (isset($resource['blob']) && \is_string($resource['blob'])) {
-            $resourceObj = new BlobResourceContents(
-                $resource['uri'],
-                $resource['mimeType'] ?? 'application/octet-stream',
-                $resource['blob']
-            );
-        } else {
-            throw new RuntimeException("Invalid resource{$indexStr}: Must contain 'text' or 'blob'.");
-        }
-
-        return new EmbeddedResource($resourceObj);
     }
 }

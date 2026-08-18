@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema;
 
+use Mcp\Exception\InvalidArgumentException;
+
 /**
  * Additional properties describing a Tool to clients.
  * NOTE: all properties in ToolAnnotations are hints.
@@ -48,6 +50,16 @@ class ToolAnnotations implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
+        if (isset($data['title']) && !\is_string($data['title'])) {
+            throw new InvalidArgumentException('Invalid "title" in ToolAnnotations data.');
+        }
+
+        foreach (['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'] as $hint) {
+            if (isset($data[$hint]) && !\is_bool($data[$hint])) {
+                throw new InvalidArgumentException(\sprintf('Invalid "%s" in ToolAnnotations data; expected a boolean.', $hint));
+            }
+        }
+
         return new self(
             $data['title'] ?? null,
             $data['readOnlyHint'] ?? null,

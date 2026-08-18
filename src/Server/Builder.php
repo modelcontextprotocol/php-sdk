@@ -32,7 +32,7 @@ use Mcp\Exception\LogicException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\Extension\ServerExtensionInterface;
+use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -229,6 +229,7 @@ final class Builder
      * Sets the server's identity. Required.
      *
      * @param ?Icon[] $icons
+     * @param ?string $title Display name for UI and end-user contexts. Falls back to $name when absent.
      */
     public function setServerInfo(
         string $name,
@@ -236,8 +237,9 @@ final class Builder
         ?string $description = null,
         ?array $icons = null,
         ?string $websiteUrl = null,
+        ?string $title = null,
     ): self {
-        $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl);
+        $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl, $title);
 
         return $this;
     }
@@ -282,7 +284,7 @@ final class Builder
      *
      * @throws LogicException if the same extension is enabled more than once
      */
-    public function enableExtension(ServerExtensionInterface ...$extensions): self
+    public function enableExtension(ExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
             $id = $extension->getId();
@@ -717,6 +719,13 @@ final class Builder
         // capabilities too, so setCapabilities() does not silently drop them.
         if (null !== $this->serverCapabilities && [] !== $this->extensions) {
             $capabilities = $capabilities->withExtensions($this->extensions);
+        }
+
+        if (null !== $this->protocolVersion && $this->protocolVersion->isModern()) {
+            $logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, negotiating the handshake revisions instead.', [
+                'configured' => $this->protocolVersion->value,
+                'negotiable' => array_map(static fn (ProtocolVersion $v): string => $v->value, ProtocolVersion::handshakeVersions()),
+            ]);
         }
 
         $serverInfo = $this->serverInfo ?? new Implementation();
