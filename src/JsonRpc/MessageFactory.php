@@ -95,10 +95,12 @@ final class MessageFactory
 
     /**
      * Creates a new Factory instance with all the protocol's default messages.
+     *
+     * @param list<class-string<Request>|class-string<Notification>> $additional message classes an extension defines
      */
-    public static function make(int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE): self
+    public static function make(int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE, array $additional = []): self
     {
-        return new self(self::REGISTERED_MESSAGES, $maxBatchSize);
+        return new self([...self::REGISTERED_MESSAGES, ...$additional], $maxBatchSize);
     }
 
     /**
