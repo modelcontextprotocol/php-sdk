@@ -23,7 +23,7 @@ use Mcp\Exception\InvalidArgumentException;
 final class EnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string        $title       Human-readable title for the field
+     * @param ?string       $title       Optional human-readable title for the field
      * @param string[]      $enum        Array of allowed string values
      * @param string|null   $description Optional description/help text
      * @param string|null   $default     Optional default value (must be in enum)

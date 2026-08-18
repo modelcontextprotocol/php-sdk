@@ -24,7 +24,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
      * @param bool|null   $default     Optional default value
      */
     public function __construct(
-        ?string $title,
+        ?string $title = null,
         ?string $description = null,
         public readonly ?bool $default = null,
     ) {

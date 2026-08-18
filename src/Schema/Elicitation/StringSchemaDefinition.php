@@ -33,7 +33,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
      * @param int|null    $maxLength   Optional maximum string length
      */
     public function __construct(
-        ?string $title,
+        ?string $title = null,
         ?string $description = null,
         public readonly ?string $default = null,
         public readonly ?string $format = null,

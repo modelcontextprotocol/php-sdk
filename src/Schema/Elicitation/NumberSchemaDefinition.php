@@ -23,7 +23,7 @@ use Mcp\Exception\InvalidArgumentException;
 final class NumberSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string         $title       Human-readable title for the field
+     * @param ?string        $title       Optional human-readable title for the field
      * @param bool           $integerOnly Whether to restrict to integer values only
      * @param string|null    $description Optional description/help text
      * @param int|float|null $default     Optional default value
