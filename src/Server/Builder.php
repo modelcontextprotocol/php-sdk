@@ -59,6 +59,10 @@ use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
+use Mcp\Server\Subscription\NotificationBusInterface;
+use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Server\Wire\CachePolicy;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
@@ -109,6 +113,10 @@ final class Builder
     private ?ProtocolVersion $protocolVersion = null;
 
     private ?CachePolicy $cachePolicy = null;
+
+    private ?NotificationBusInterface $notificationBus = null;
+
+    private float $subscriptionLifetime = 30.0;
 
     private ?string $requestStateKey = null;
 
@@ -254,6 +262,45 @@ final class Builder
         ?string $title = null,
     ): self {
         $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl, $title);
+
+        return $this;
+    }
+
+    /**
+     * Sets the bus carrying server-initiated notifications to open
+     * `subscriptions/listen` streams (SEP-2575).
+     *
+     * Without one, a listen stream acknowledges and then carries nothing: there
+     * is no safe default, because the right implementation depends on whether
+     * the publisher and the stream share a process.
+     * {@see InMemoryNotificationBus} is correct for stdio and persistent
+     * runtimes; under PHP-FPM, where they are different workers, use
+     * {@see Psr16NotificationBus} or an implementation over your own broker.
+     *
+     * Registry changes are published automatically when an event dispatcher is
+     * configured; anything else — `notifications/resources/updated` above all —
+     * is published by the application calling
+     * {@see NotificationBusInterface::publish()}.
+     */
+    public function setNotificationBus(NotificationBusInterface $bus): self
+    {
+        $this->notificationBus = $bus;
+
+        return $this;
+    }
+
+    /**
+     * Sets how long a `subscriptions/listen` stream is held open before the
+     * server closes it gracefully.
+     *
+     * The real ceiling is the runtime's: under PHP-FPM a stream cannot outlive
+     * `max_execution_time`, and a value above it buys a killed worker instead
+     * of a longer subscription. Pass `0` for "until the client or the runtime
+     * ends it", which is what a persistent runtime wants.
+     */
+    public function setSubscriptionLifetime(float $seconds): self
+    {
+        $this->subscriptionLifetime = max(0.0, $seconds);
 
         return $this;
     }
@@ -757,7 +804,7 @@ final class Builder
             messageFactory: $parts['messageFactory'],
             sessionManager: $parts['sessionManager'],
             logger: $parts['logger'],
-            eventDispatcher: $this->eventDispatcher,
+            eventDispatcher: $parts['eventDispatcher'],
         );
 
         return new Server($protocol, $parts['logger']);
@@ -782,11 +829,13 @@ final class Builder
             configuration: $parts['configuration'],
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],
+            subscriptionLifetime: $this->subscriptionLifetime,
             headerValidator: $this->headerValidation ? new StandardHeaderValidator($parts['registry']) : null,
             requestStateCodec: null !== $this->requestStateKey
                 ? new RequestStateCodec($this->requestStateKey, $this->requestStateTtl)
                 : null,
             cachePolicy: $this->cachePolicy,
+            notificationBus: $this->notificationBus,
         );
     }
 
@@ -795,6 +844,7 @@ final class Builder
      *
      * @return array{
      *     logger: LoggerInterface,
+     *     eventDispatcher: ?EventDispatcherInterface,
      *     configuration: Configuration,
      *     messageFactory: MessageFactory,
      *     sessionManager: SessionManagerInterface,
@@ -807,6 +857,12 @@ final class Builder
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
+
+        // A configured bus needs the registry's change events, and PSR-14 hands
+        // the SDK a dispatcher it cannot register listeners on — so it wraps.
+        $eventDispatcher = null !== $this->notificationBus
+            ? new PublishingEventDispatcher($this->notificationBus, $this->eventDispatcher)
+            : $this->eventDispatcher;
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
         $sessionManager = $this->sessionManager ?? new SessionManager(
             $this->sessionStore ?? new InMemorySessionStore(),
@@ -845,7 +901,7 @@ final class Builder
             $chainLoader->load($registry);
             $eagerlyLoaded = true;
         } else {
-            $registry = new Registry($this->eventDispatcher, $logger, loader: $chainLoader);
+            $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
             if (!$this->lazyLoading) {
                 $registry->load();
             }
@@ -854,7 +910,7 @@ final class Builder
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
-        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
+        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded, $eventDispatcher);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
@@ -895,6 +951,7 @@ final class Builder
 
         return [
             'logger' => $logger,
+            'eventDispatcher' => $eventDispatcher,
             'registry' => $registry,
             'configuration' => $configuration,
             'messageFactory' => $messageFactory,
@@ -909,9 +966,11 @@ final class Builder
      * the load, so they are advertised from the configured sources instead — opaque sources (custom
      * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
      */
-    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
+    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded, ?EventDispatcherInterface $eventDispatcher): ServerCapabilities
     {
-        $listChanged = $this->eventDispatcher instanceof EventDispatcherInterface;
+        // Without a dispatcher the registry announces nothing, so there is no
+        // list-changed notification to advertise.
+        $listChanged = $eventDispatcher instanceof EventDispatcherInterface;
 
         if ($eagerlyLoaded) {
             $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();

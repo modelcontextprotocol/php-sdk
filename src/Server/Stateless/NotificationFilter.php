@@ -11,6 +11,11 @@
 
 namespace Mcp\Server\Stateless;
 
+use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceListChangedNotification;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\ServerCapabilities;
 
 /**
@@ -63,6 +68,24 @@ final class NotificationFilter
             $this->resourcesListChanged && true === $capabilities->resourcesListChanged,
             true === $capabilities->resourcesSubscribe ? $this->resourceSubscriptions : [],
         );
+    }
+
+    /**
+     * Whether this filter admits $notification onto the stream.
+     *
+     * An allow-list decision, so an unrecognized notification is declined: the
+     * server MUST NOT send a type the client did not ask for, and "did not ask
+     * for" includes types it has never heard of.
+     */
+    public function carries(Notification $notification): bool
+    {
+        return match (true) {
+            $notification instanceof ToolListChangedNotification => $this->toolsListChanged,
+            $notification instanceof PromptListChangedNotification => $this->promptsListChanged,
+            $notification instanceof ResourceListChangedNotification => $this->resourcesListChanged,
+            $notification instanceof ResourceUpdatedNotification => \in_array($notification->uri, $this->resourceSubscriptions, true),
+            default => false,
+        };
     }
 
     /**

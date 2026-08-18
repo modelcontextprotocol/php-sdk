@@ -20,14 +20,19 @@ use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\PromptListChangedNotification;
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Wire\CachePolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -608,6 +613,119 @@ class StatelessProtocolTest extends TestCase
         // presented as reusable.
         $this->assertArrayNotHasKey('ttlMs', $answer['body']['result']);
         $this->assertArrayNotHasKey('cacheScope', $answer['body']['result']);
+    }
+
+    #[TestDox('a listen stream acknowledges, then carries what the client asked for')]
+    public function testListenStreamDeliversSubscribedNotifications(): void
+    {
+        $bus = new InMemoryNotificationBus();
+
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true, resourcesListChanged: true, resourcesSubscribe: true))
+            ->setNotificationBus($bus)
+            ->setSubscriptionLifetime(0.8)
+            ->addTool(static fn (): string => 'ok', name: 'a_tool', description: 'x')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 42,
+            'method' => 'subscriptions/listen',
+            'params' => [
+                'notifications' => ['toolsListChanged' => true, 'resourceSubscriptions' => ['file:///watched']],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                ],
+            ],
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'subscriptions/listen',
+        ]);
+
+        $this->assertTrue($result->isStream());
+
+        $frames = [];
+        $published = false;
+
+        foreach (($result->frames)() as $frame) {
+            if (null === $frame) {
+                // Publish once the stream is established, so the notifications
+                // arrive the way a concurrent request would deliver them.
+                if (!$published) {
+                    $bus->publish(new ToolListChangedNotification());
+                    $bus->publish(new PromptListChangedNotification());
+                    $bus->publish(new ResourceUpdatedNotification('file:///watched'));
+                    $bus->publish(new ResourceUpdatedNotification('file:///ignored'));
+                    $published = true;
+                }
+
+                continue;
+            }
+
+            $frames[] = $frame;
+        }
+
+        $methods = array_map(static fn (array $frame): string => $frame['method'] ?? 'response', $frames);
+
+        // The acknowledgment MUST come first, the declined types must not come
+        // at all, and the graceful closure ends it.
+        $this->assertSame([
+            'notifications/subscriptions/acknowledged',
+            'notifications/tools/list_changed',
+            'notifications/resources/updated',
+            'response',
+        ], $methods);
+
+        $this->assertSame(['toolsListChanged' => true, 'resourceSubscriptions' => ['file:///watched']], (array) $frames[0]['params']['notifications']);
+        $this->assertSame('file:///watched', $frames[2]['params']['uri']);
+
+        // Every message on the stream names the subscription it belongs to.
+        foreach ([$frames[0], $frames[1], $frames[2]] as $frame) {
+            $this->assertSame(42, $frame['params']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
+        }
+
+        $this->assertSame(42, $frames[3]['id']);
+        $this->assertSame(42, $frames[3]['result']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
+        $this->assertSame('complete', $frames[3]['result']['resultType']);
+    }
+
+    #[TestDox('the acknowledgment drops types the server cannot honour')]
+    public function testAcknowledgmentReflectsWhatTheServerCanDo(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true, promptsListChanged: false))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(0.05)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'subscriptions/listen',
+            'params' => [
+                'notifications' => ['toolsListChanged' => true, 'promptsListChanged' => true],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                ],
+            ],
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'subscriptions/listen',
+        ]);
+
+        $first = null;
+        foreach (($result->frames)() as $frame) {
+            if (null !== $frame) {
+                $first = $frame;
+                break;
+            }
+        }
+
+        $this->assertSame(['toolsListChanged' => true], (array) $first['params']['notifications']);
     }
 
     #[TestDox('a notification is acknowledged with no body, never answered')]
