@@ -35,7 +35,7 @@ final class StatelessResult
         public readonly int $httpStatus,
         public readonly ?\Closure $frames = null,
         private readonly ?array $body = null,
-        private readonly string|int $id = '',
+        private readonly string|int|null $id = null,
     ) {
     }
 
@@ -59,6 +59,16 @@ final class StatelessResult
     }
 
     /**
+     * A notification never gets an answer, successful or not — per JSON-RPC, a
+     * message with no id must never receive a response. This is the "I read
+     * it, there is nothing to say back" answer: HTTP 202 with no body.
+     */
+    public static function accepted(): self
+    {
+        return new self(null, 202);
+    }
+
+    /**
      * A long-lived answer delivered as a sequence of frames rather than one
      * message — `subscriptions/listen` is the only such method today.
      *
@@ -78,6 +88,15 @@ final class StatelessResult
         return null !== $this->frames;
     }
 
+    /**
+     * An accepted notification: no message, no body, no frames — just the
+     * status code.
+     */
+    public function isEmpty(): bool
+    {
+        return null === $this->message && null === $this->body && null === $this->frames;
+    }
+
     public function isError(): bool
     {
         return $this->message instanceof Error;
@@ -94,7 +113,7 @@ final class StatelessResult
         }
 
         if (null === $this->message) {
-            throw new \LogicException('A streaming result has no single JSON body; iterate its frames instead.');
+            throw new \LogicException('A streaming or empty result has no single JSON body; check isStream()/isEmpty() first.');
         }
 
         return json_encode($this->message, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);

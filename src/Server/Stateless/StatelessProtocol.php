@@ -11,11 +11,13 @@
 
 namespace Mcp\Server\Stateless;
 
+use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\MissingRequestMetaException;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\DiscoverResult;
@@ -67,6 +69,16 @@ final class StatelessProtocol
     public const ACKNOWLEDGED_NOTIFICATION = 'notifications/subscriptions/acknowledged';
 
     /**
+     * What a client is told when a handler fails in a way nothing anticipated.
+     *
+     * Deliberately generic rather than {@see \Throwable::getMessage()}: the
+     * real message is logged, not returned, so an internal detail (a
+     * connection string, a file path, another library's error text) never
+     * reaches the client that triggered it.
+     */
+    private const INTERNAL_ERROR_MESSAGE = 'Internal server error.';
+
+    /**
      * @param iterable<RequestHandlerInterface<ResultInterface>> $requestHandlers
      * @param list<ProtocolVersion>                              $supportedVersions
      */
@@ -101,11 +113,14 @@ final class StatelessProtocol
         }
 
         // The id is read before anything is validated so that every error below
-        // can echo it. A request that fails validation still has an id, and a
-        // client correlating responses by id would otherwise lose the reply.
-        $id = $decoded['id'] ?? '';
+        // can echo it when there is one to echo. A missing or malformed id is
+        // left as null rather than coerced to "" — Error::jsonSerialize()
+        // already knows to omit a null id instead of fabricating one, and
+        // "id": "" would falsely claim the sender issued a request with an
+        // empty-string id.
+        $id = $decoded['id'] ?? null;
         if (!\is_string($id) && !\is_int($id)) {
-            $id = '';
+            $id = null;
         }
 
         $method = $decoded['method'] ?? null;
@@ -125,11 +140,19 @@ final class StatelessProtocol
             return $versionError;
         }
 
-        if (self::DISCOVER_METHOD === $method) {
-            return $this->encode($method, $id, $this->discover());
-        }
+        if (self::DISCOVER_METHOD === $method || self::LISTEN_METHOD === $method) {
+            // Both answer with a single response tied to this request's id,
+            // unlike a genuine notification — so unlike the general dispatch
+            // path below, a missing id here is this request being invalid
+            // rather than this request needing no answer at all.
+            if (null === $id) {
+                return StatelessResult::error(Error::forInvalidRequest(\sprintf('Method "%s" requires an "id".', $method)), 400);
+            }
 
-        if (self::LISTEN_METHOD === $method) {
+            if (self::DISCOVER_METHOD === $method) {
+                return $this->encode($method, $id, $this->discover());
+            }
+
             return $this->listen($params, $id);
         }
 
@@ -158,7 +181,7 @@ final class StatelessProtocol
      *
      * @param array<string, string> $headers
      */
-    private function checkVersion(RequestMeta $meta, array $headers, string|int $id): ?StatelessResult
+    private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id): ?StatelessResult
     {
         $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
 
@@ -261,7 +284,7 @@ final class StatelessProtocol
     /**
      * @param array<string, mixed> $decoded
      */
-    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int $id): StatelessResult
+    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id): StatelessResult
     {
         try {
             $messages = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
@@ -273,9 +296,39 @@ final class StatelessProtocol
 
         $request = $messages[0] ?? null;
 
-        if (!$request instanceof Request) {
-            return StatelessResult::error(Error::forMethodNotFound(\sprintf('Method "%s" is not supported.', $method), $id), 404);
+        // A notification (no id) is never answered, successful or not — this is
+        // one of the SDK's own registered message classes, just not a Request.
+        if ($request instanceof Notification) {
+            return StatelessResult::accepted();
         }
+
+        // The factory hands back an exception object rather than throwing one,
+        // distinguishing a genuinely unknown method (-32601, the client should
+        // stop asking) from a known method the message could not otherwise be
+        // parsed into (-32600, the request itself is malformed).
+        if ($request instanceof InvalidInputMessageException) {
+            $unknownMethod = \sprintf('Unknown method "%s".', $method) === $request->getMessage();
+
+            return StatelessResult::error(
+                $unknownMethod
+                    ? Error::forMethodNotFound($request->getMessage(), $id)
+                    : Error::forInvalidRequest($request->getMessage(), $id),
+                $unknownMethod ? 404 : 400,
+            );
+        }
+
+        if (!$request instanceof Request) {
+            // Reachable only for a well-formed Response/Error object posted to
+            // this endpoint — decodable by the factory, but not a request this
+            // server can answer.
+            return StatelessResult::error(Error::forInvalidRequest(\sprintf('"%s" is not a request this server can answer.', $method), $id), 400);
+        }
+
+        // Request::fromArray() already rejected a missing/invalid id (as an
+        // InvalidInputMessageException, handled above), so this request's id
+        // is always present here — reusing it narrows $id for the rest of this
+        // method instead of trusting the raw, still-nullable value from above.
+        $id = $request->getId();
 
         $session = new Session(new InMemorySessionStore());
         $session->set(RequestMeta::class, $meta);
@@ -297,7 +350,7 @@ final class StatelessProtocol
             } catch (\Throwable $e) {
                 $this->logger->error('Uncaught exception handling a modern-era request.', ['method' => $method, 'exception' => $e]);
 
-                return StatelessResult::error(Error::forInternalError($e->getMessage(), $id), 500);
+                return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
             }
 
             if ($result instanceof Error) {
