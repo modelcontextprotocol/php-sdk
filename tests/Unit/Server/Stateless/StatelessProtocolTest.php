@@ -35,6 +35,7 @@ use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
+use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -822,8 +823,8 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(['flavour' => 'vanilla'], (array) $answer['body']['result']['capabilities']['extensions']['com.example/things']);
     }
 
-    #[TestDox('a method of an extension this server does not serve says so by name')]
-    public function testDisabledExtensionMethodNamesItsExtension(): void
+    #[TestDox('a method of an extension this server has never heard of stays generic')]
+    public function testUnknownExtensionMethodStaysGeneric(): void
     {
         $protocol = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
@@ -836,9 +837,28 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
-        // Without the extension enabled there is nothing to name it by.
+        // The extension was never enabled, so it never entered the method map
+        // — there is nothing to name it by.
         $this->assertStringContainsString('com.example/things.list', $answer['body']['error']['message']);
         $this->assertStringNotContainsString('extension', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('a method of an extension this server does not serve says so by name')]
+    public function testUnservedExtensionMethodNamesItsExtension(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->enableExtension(new UnservedThingExtension())
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $answer = self::callWithHeaders($protocol, 'com.example/things.list', [], [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'com.example/things.list',
+        ]);
+
+        $this->assertSame(404, $answer['status']);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+        $this->assertStringContainsString('com.example/unserved-things', $answer['body']['error']['message']);
     }
 
     #[TestDox('a notification is acknowledged with no body, never answered')]

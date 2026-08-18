@@ -392,7 +392,8 @@ final class Builder
      * for extensions that only announce a capability.
      *
      * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
-     * @throws LogicException           if the same extension is enabled more than once
+     * @throws LogicException           if the same extension is enabled more than once, or
+     *                                  two enabled extensions define the same RPC method
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
@@ -408,10 +409,19 @@ final class Builder
             // Without this the method cannot be decoded at all, so nothing
             // downstream ever sees it.
             foreach ($extension->getMessages() as $message) {
+                $method = $message::getMethod();
+
+                // The message factory resolves a method to whichever class was
+                // registered first, so a second owner here would silently lose
+                // the dispatch race while still being named in error messages.
+                if (isset($this->extensionMethods[$method]) && $this->extensionMethods[$method] !== $id) {
+                    throw new LogicException(\sprintf('Method "%s" is already claimed by extension "%s", so extension "%s" cannot also define it.', $method, $this->extensionMethods[$method], $id));
+                }
+
                 $this->extensionMessages[] = $message;
                 // Recorded even though the handler answers it, so a server with
                 // the extension *off* can say so instead of "no such method".
-                $this->extensionMethods[$message::getMethod()] = $id;
+                $this->extensionMethods[$method] = $id;
             }
 
             foreach ($extension->getRequestHandlers() as $handler) {
