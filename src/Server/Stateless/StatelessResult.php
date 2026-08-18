@@ -34,6 +34,7 @@ final class StatelessResult
         public readonly ?\Closure $frames = null,
         private readonly ?array $body = null,
         private readonly string|int|null $id = null,
+        private readonly bool $bodyless = false,
     ) {
     }
 
@@ -54,13 +55,12 @@ final class StatelessResult
     }
 
     /**
-     * A notification never gets an answer, successful or not — per JSON-RPC, a
-     * message with no id must never receive a response. This is the "I read
-     * it, there is nothing to say back" answer: HTTP 202 with no body.
+     * A status with no body — what a notification gets, since it has no id to
+     * correlate a JSON-RPC message against.
      */
-    public static function accepted(): self
+    public static function empty(int $httpStatus): self
     {
-        return new self(null, 202);
+        return new self(null, $httpStatus, bodyless: true);
     }
 
     /**
@@ -80,13 +80,9 @@ final class StatelessResult
         return null !== $this->frames;
     }
 
-    /**
-     * An accepted notification: no message, no body, no frames — just the
-     * status code.
-     */
     public function isEmpty(): bool
     {
-        return null === $this->message && null === $this->body && null === $this->frames;
+        return $this->bodyless;
     }
 
     public function isError(): bool
@@ -102,6 +98,10 @@ final class StatelessResult
                 'id' => $this->id,
                 'result' => $this->body,
             ], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+        }
+
+        if ($this->bodyless) {
+            throw new \LogicException('This result carries no body; send its status alone.');
         }
 
         if (null === $this->message) {

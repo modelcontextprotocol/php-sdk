@@ -158,6 +158,49 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
     }
 
+    #[TestDox('a notification is acknowledged with no body, never answered')]
+    public function testNotificationIsAcknowledged(): void
+    {
+        $result = self::protocol()->handle(
+            json_encode(['jsonrpc' => '2.0', 'method' => 'notifications/something', 'params' => []], \JSON_THROW_ON_ERROR),
+            ['Mcp-Method' => 'notifications/something'],
+        );
+
+        $this->assertTrue($result->isEmpty());
+        $this->assertSame(202, $result->httpStatus);
+    }
+
+    #[TestDox('a notification for a removed method is refused with no body')]
+    public function testRemovedNotificationIsRefused(): void
+    {
+        $result = self::protocol()->handle(
+            json_encode(['jsonrpc' => '2.0', 'method' => 'notifications/initialized'], \JSON_THROW_ON_ERROR),
+            ['Mcp-Method' => 'notifications/initialized'],
+        );
+
+        $this->assertTrue($result->isEmpty());
+        $this->assertSame(400, $result->httpStatus);
+    }
+
+    #[TestDox('an error for a request whose id could not be read omits the id')]
+    public function testUnreadableIdIsOmittedRatherThanEmptied(): void
+    {
+        $result = self::protocol()->handle('{"jsonrpc":"2.0","id":{"bad":1},"method":"tools/list"}', []);
+
+        $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertArrayNotHasKey('id', $body);
+        $this->assertSame(Error::INVALID_REQUEST, $body['error']['code']);
+    }
+
+    #[TestDox('an error for a readable id still echoes it')]
+    public function testReadableIdIsEchoed(): void
+    {
+        $answer = self::callWithHeaders(self::protocol(), 'tools/list', [], ['Mcp-Method' => 'tools/list']);
+
+        $this->assertSame(1, $answer['body']['id']);
+    }
+
     #[TestDox('a POST without the MCP-Protocol-Version header is refused')]
     public function testMissingProtocolVersionHeaderIsRefused(): void
     {

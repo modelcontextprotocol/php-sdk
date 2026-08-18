@@ -18,7 +18,6 @@ use Mcp\Exception\RequestStateException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\DiscoverResult;
@@ -142,7 +141,13 @@ final class StatelessProtocol
         // already knows to omit a null id instead of fabricating one, and
         // "id": "" would falsely claim the sender issued a request with an
         // empty-string id.
+        //
+        // An absent id and an unreadable one are different messages: the first
+        // is a notification, the second a malformed request. JSON-RPC 2.0
+        // writes "no id" as an explicit null, so that counts as absent too.
+        $isNotification = !\array_key_exists('id', $decoded) || null === $decoded['id'];
         $id = $decoded['id'] ?? null;
+
         if (!\is_string($id) && !\is_int($id)) {
             $id = null;
         }
@@ -153,6 +158,19 @@ final class StatelessProtocol
         }
 
         $params = \is_array($decoded['params'] ?? null) ? $decoded['params'] : null;
+
+        // No id is a notification. It gets an acknowledgment, never a response
+        // — answering one with a JSON-RPC message would invent a correlation
+        // the client has no request to match it against. Checked before the
+        // `_meta` parse: notification params carry `NotificationMetaObject`,
+        // which has none of a request's required members.
+        if ($isNotification) {
+            return $this->acknowledge($method);
+        }
+
+        if (null === $id) {
+            return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC request id must be a string or a number.'), 400);
+        }
 
         try {
             $meta = RequestMeta::fromParams($params);
@@ -171,14 +189,6 @@ final class StatelessProtocol
         }
 
         if (self::DISCOVER_METHOD === $method || self::LISTEN_METHOD === $method) {
-            // Both answer with a single response tied to this request's id,
-            // unlike a genuine notification — so unlike the general dispatch
-            // path below, a missing id here is this request being invalid
-            // rather than this request needing no answer at all.
-            if (null === $id) {
-                return StatelessResult::error(Error::forInvalidRequest(\sprintf('Method "%s" requires an "id".', $method)), 400);
-            }
-
             if (self::DISCOVER_METHOD === $method) {
                 return $this->encode($method, $id, $this->discover());
             }
@@ -194,6 +204,29 @@ final class StatelessProtocol
         }
 
         return $this->dispatch($method, $decoded, $meta, $id);
+    }
+
+    /**
+     * Answers a notification.
+     *
+     * This revision's core defines no client-to-server notification over HTTP —
+     * `notifications/cancelled` is stdio-only, since closing the response
+     * stream is the cancellation signal here — so anything arriving is either
+     * an extension's or a client still speaking an older revision. Accepting
+     * the former and refusing the latter both come out as a status with no
+     * body; what must not happen is a JSON-RPC response.
+     */
+    private function acknowledge(string $method): StatelessResult
+    {
+        if (\in_array($method, self::REMOVED_METHODS, true)) {
+            $this->logger->debug('Refused a notification this revision removed.', ['method' => $method]);
+
+            return StatelessResult::empty(400);
+        }
+
+        $this->logger->debug('Accepted a notification with no handler to run.', ['method' => $method]);
+
+        return StatelessResult::empty(202);
     }
 
     /**
@@ -316,12 +349,6 @@ final class StatelessProtocol
         }
 
         $request = $messages[0] ?? null;
-
-        // A notification (no id) is never answered, successful or not — this is
-        // one of the SDK's own registered message classes, just not a Request.
-        if ($request instanceof Notification) {
-            return StatelessResult::accepted();
-        }
 
         // The factory hands back an exception object rather than throwing one,
         // distinguishing a genuinely unknown method (-32601, the client should

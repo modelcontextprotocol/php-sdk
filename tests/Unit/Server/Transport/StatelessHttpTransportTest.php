@@ -107,6 +107,23 @@ final class StatelessHttpTransportTest extends TestCase
         $this->assertSame(413, $response->getStatusCode());
     }
 
+    #[TestDox('a notification POST is acknowledged with 202 and no body')]
+    public function testNotificationPostIsAccepted(): void
+    {
+        $body = json_encode([
+            'jsonrpc' => '2.0',
+            'method' => 'notifications/something',
+            'params' => [],
+        ], \JSON_THROW_ON_ERROR);
+
+        $request = $this->post($body)->withHeader('Mcp-Method', 'notifications/something');
+
+        $response = (new StatelessHttpTransport($this->protocol(), $this->factory, $this->factory))->handle($request);
+
+        $this->assertSame(202, $response->getStatusCode());
+        $this->assertSame('', (string) $response->getBody());
+    }
+
     #[TestDox('GET and DELETE are refused: there is no session to address')]
     public function testOnlyPostIsAccepted(): void
     {
