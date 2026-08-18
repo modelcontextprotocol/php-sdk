@@ -443,7 +443,18 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
         // Handle regular arrays
         elseif (\in_array('array', $this->mapPhpTypeToJsonSchemaType($typeString))) {
-            $itemsType = $this->inferArrayItemsType($typeString);
+            // `inferArrayItemsType()` expects a single array type, not a union — for
+            // `string[]|int` it would see the whole string, match nothing, and lose
+            // the element-type constraint. Isolate the branch that is the array.
+            $arrayBranch = $typeString;
+            foreach (self::splitUnion($typeString) as $branch) {
+                if (\in_array('array', $this->mapPhpTypeToJsonSchemaType($branch), true)) {
+                    $arrayBranch = $branch;
+                    break;
+                }
+            }
+
+            $itemsType = $this->inferArrayItemsType($arrayBranch);
             if ('any' !== $itemsType) {
                 if (\is_string($itemsType)) {
                     $paramSchema['items'] = ['type' => $itemsType];

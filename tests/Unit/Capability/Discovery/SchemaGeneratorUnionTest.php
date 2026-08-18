@@ -92,7 +92,9 @@ class SchemaGeneratorUnionTest extends TestCase
         // `items` constrains the instance only when it *is* an array, so it
         // coexists with the scalar branch instead of excluding it.
         $this->assertSame(['array', 'integer'], $schema['properties']['mixedish']['type']);
-        $this->assertArrayHasKey('items', $schema['properties']['mixedish']);
+        // The array branch keeps its own element-type constraint rather than
+        // losing it to the union as a whole (`items` would otherwise be `{}`).
+        $this->assertSame(['type' => 'string'], $schema['properties']['mixedish']['items']);
 
         $this->assertSame(['integer', 'string'], $schema['properties']['scalars']['type']);
         $this->assertSame('array', $schema['properties']['arrayOnly']['type']);
