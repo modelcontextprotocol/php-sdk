@@ -60,8 +60,14 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  */
 final class SchemaGenerator implements SchemaGeneratorInterface
 {
+    /**
+     * @param list<class-string> $injectedTypes parameter types the runtime injects rather than the caller supplies,
+     *                                          on top of {@see RequestContext} — an extension's, say — and which
+     *                                          therefore do not belong in a schema
+     */
     public function __construct(
         private readonly DocBlockParser $docBlockParser,
+        private readonly array $injectedTypes = [],
     ) {
     }
 
@@ -531,7 +537,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
                 $typeName = $reflectionType->getName();
 
-                if (is_a($typeName, RequestContext::class, true)) {
+                if (is_a($typeName, RequestContext::class, true) || \in_array($typeName, $this->injectedTypes, true)) {
                     continue;
                 }
             }

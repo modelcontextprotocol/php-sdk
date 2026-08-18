@@ -13,11 +13,13 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Server\Session\SessionInterface;
@@ -25,7 +27,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<GetPromptResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -44,7 +46,7 @@ final class GetPromptHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<GetPromptResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -61,6 +63,12 @@ final class GetPromptHandler implements RequestHandlerInterface
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            // A handler that built a whole result of another kind — an
+            // extension's, say — keeps what it decided; it is not prompt messages.
+            if ($result instanceof ResultInterface) {
+                return new Response($request->getId(), $result);
+            }
+
             $formatted = $reference->formatResult($result);
 
             return new Response($request->getId(), new GetPromptResult($formatted));
@@ -72,6 +80,8 @@ final class GetPromptHandler implements RequestHandlerInterface
             $this->logger->error('Prompt not found', ['prompt_name' => $promptName, 'exception' => $e]);
 
             return Error::forResourceNotFound($e->getMessage(), $request->getId());
+        } catch (MissingRequiredClientCapabilityException $e) {
+            return $e->toError($request->getId());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 

@@ -14,12 +14,14 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\RequestContext;
@@ -28,7 +30,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<CallToolResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -52,7 +54,7 @@ final class CallToolHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<CallToolResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -97,6 +99,12 @@ final class CallToolHandler implements RequestHandlerInterface
 
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
+
+            // A handler that built a whole result of another kind — an
+            // extension's, say — keeps what it decided; it is not tool output.
+            if ($result instanceof ResultInterface && !$result instanceof CallToolResult) {
+                return new Response($request->getId(), $result);
+            }
 
             $protocolVersion = $context->getProtocolVersion();
 
@@ -145,6 +153,8 @@ final class CallToolHandler implements RequestHandlerInterface
             $errorContent = [new TextContent($e->getMessage())];
 
             return new Response($request->getId(), CallToolResult::error($errorContent));
+        } catch (MissingRequiredClientCapabilityException $e) {
+            return $e->toError($request->getId());
         } catch (\Throwable $e) {
             $this->logger->error('Unhandled error during tool execution', [
                 'name' => $toolName,
