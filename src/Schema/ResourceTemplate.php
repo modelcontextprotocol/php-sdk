@@ -56,8 +56,6 @@ class ResourceTemplate implements \JsonSerializable
         public readonly ?Annotations $annotations = null,
         public readonly ?array $meta = null,
     ) {
-        // See {@see ResourceDefinition}: the specification puts no pattern on
-        // `name`, so neither does this.
         if (!preg_match(self::URI_TEMPLATE_PATTERN, $uriTemplate)) {
             throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder.', $uriTemplate));
         }
