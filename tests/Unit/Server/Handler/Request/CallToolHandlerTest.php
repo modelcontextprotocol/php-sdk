@@ -183,7 +183,7 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
     }
 
     public function testHandleToolCallExceptionReturnsResponseWithErrorResult(): void

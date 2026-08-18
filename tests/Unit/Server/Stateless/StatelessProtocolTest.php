@@ -158,6 +158,64 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
     }
 
+    #[TestDox('a missing resource answers -32602 with the uri, not the retired -32002')]
+    public function testResourceNotFoundUsesInvalidParams(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            ['uri' => 'test://absent'],
+            ['Mcp-Name' => 'test://absent'],
+        );
+
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
+        $this->assertSame('test://absent', $answer['body']['error']['data']['uri']);
+    }
+
+    #[TestDox('an unknown tool is a bad parameter, not an unknown method')]
+    public function testUnknownToolUsesInvalidParams(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'no_such_tool', 'arguments' => []],
+            ['Mcp-Name' => 'no_such_tool'],
+        );
+
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('an unknown prompt is a bad parameter too')]
+    public function testUnknownPromptUsesInvalidParams(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'prompts/get',
+            ['name' => 'no_such_prompt', 'arguments' => []],
+            ['Mcp-Name' => 'no_such_prompt'],
+        );
+
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('this revision never emits the codes it reserved')]
+    public function testReservedCodesAreNeverEmitted(): void
+    {
+        $protocol = self::protocol();
+
+        $answers = [
+            self::call($protocol, 'resources/read', ['uri' => 'test://absent'], ['Mcp-Name' => 'test://absent']),
+            self::call($protocol, 'tools/call', ['name' => 'nope', 'arguments' => []], ['Mcp-Name' => 'nope']),
+            self::call($protocol, 'prompts/get', ['name' => 'nope', 'arguments' => []], ['Mcp-Name' => 'nope']),
+        ];
+
+        foreach ($answers as $answer) {
+            // -32002 (resource not found) and -32042 (url elicitation required)
+            // are reserved by earlier revisions and never reused.
+            $this->assertNotContains($answer['body']['error']['code'], [-32002, -32042]);
+        }
+    }
+
     #[TestDox('a notification is acknowledged with no body, never answered')]
     public function testNotificationIsAcknowledged(): void
     {
