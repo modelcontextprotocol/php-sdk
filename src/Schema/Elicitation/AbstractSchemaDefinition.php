@@ -29,10 +29,6 @@ abstract class AbstractSchemaDefinition implements \JsonSerializable
     /**
      * Reject a title that is present but not a string.
      *
-     * The specification makes `title` optional on every elicitation schema, so
-     * its absence is not an error — and treating it as one would have this
-     * client refuse to read a conformant server's request.
-     *
      * @param array<string, mixed> $data
      *
      * @throws InvalidArgumentException
