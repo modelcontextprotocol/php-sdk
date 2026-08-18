@@ -283,9 +283,10 @@ class HttpTransport extends BaseTransport
     {
         $this->activeFiber = $fiber;
         $this->activeProgressCallback = $onProgress;
-        $fiber->start();
 
         try {
+            $fiber->start();
+
             while (!$fiber->isTerminated()) {
                 $this->tick();
             }

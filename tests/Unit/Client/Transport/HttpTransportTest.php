@@ -246,7 +246,7 @@ final class HttpTransportTest extends TestCase
         $protocol = new Protocol();
         $protocol->connect($transport, $this->createConfiguration());
 
-        $fiber = new \Fiber(fn () => $protocol->request(new PingRequest(), 30));
+        $fiber = new \Fiber(static fn () => $protocol->request(new PingRequest(), 30));
         $result = $transport->runRequest($fiber);
 
         $this->assertInstanceOf(Error::class, $result);
@@ -382,7 +382,7 @@ final class HttpTransportTest extends TestCase
         $protocol = new Protocol();
         $protocol->connect($transport, $this->createConfiguration());
 
-        $fiber = new \Fiber(fn () => $protocol->request(new PingRequest(), 30));
+        $fiber = new \Fiber(static fn () => $protocol->request(new PingRequest(), 30));
 
         try {
             $transport->runRequest($fiber);
