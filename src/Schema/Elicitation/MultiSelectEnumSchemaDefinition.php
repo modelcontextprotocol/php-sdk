@@ -31,7 +31,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
      * @param int|null      $maxItems    Optional maximum number of selections
      */
     public function __construct(
-        string $title,
+        ?string $title,
         public readonly array $enum,
         ?string $description = null,
         public readonly ?array $default = null,
@@ -73,7 +73,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     items: array{type: string, enum: string[]},
      *     description?: string,
      *     default?: string[],
@@ -90,7 +90,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
         }
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             enum: $data['items']['enum'],
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,

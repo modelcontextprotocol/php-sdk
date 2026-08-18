@@ -24,13 +24,13 @@ use Mcp\Exception\InvalidArgumentException;
 final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string                                    $title       Human-readable title for the field
+     * @param ?string                                   $title       Optional human-readable title for the field
      * @param list<array{const: string, title: string}> $oneOf       Array of const/title pairs
      * @param string|null                               $description Optional description/help text
      * @param string|null                               $default     Optional default value (must match a const)
      */
     public function __construct(
-        string $title,
+        ?string $title,
         public readonly array $oneOf,
         ?string $description = null,
         public readonly ?string $default = null,
@@ -59,7 +59,7 @@ final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     oneOf: list<array{const: string, title: string}>,
      *     description?: string,
      *     default?: string,
@@ -74,7 +74,7 @@ final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
         }
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             oneOf: $data['oneOf'],
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,

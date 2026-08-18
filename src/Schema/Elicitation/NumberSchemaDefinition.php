@@ -31,7 +31,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
      * @param int|float|null $maximum     Optional maximum value (inclusive)
      */
     public function __construct(
-        string $title,
+        ?string $title,
         public readonly bool $integerOnly = false,
         ?string $description = null,
         public readonly int|float|null $default = null,
@@ -60,7 +60,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
     /**
      * @param array{
      *     type: string,
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: int|float,
      *     minimum?: int|float,
@@ -75,7 +75,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
         $integerOnly = 'integer' === $type;
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             integerOnly: $integerOnly,
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,
@@ -87,7 +87,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
     /**
      * @return array{
      *     type: string,
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: int|float,
      *     minimum?: int|float,
