@@ -59,6 +59,7 @@ use Mcp\Server\Session\SessionStoreInterface;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Wire\CachePolicy;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -106,6 +107,8 @@ final class Builder
     private ?string $instructions = null;
 
     private ?ProtocolVersion $protocolVersion = null;
+
+    private ?CachePolicy $cachePolicy = null;
 
     private ?string $requestStateKey = null;
 
@@ -251,6 +254,28 @@ final class Builder
         ?string $title = null,
     ): self {
         $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl, $title);
+
+        return $this;
+    }
+
+    /**
+     * Sets how long, and to whom, this server's answers may be cached (SEP-2549).
+     *
+     * The modern lifecycle must put `ttlMs` and `cacheScope` on every cacheable
+     * result; without a policy it says "private, immediately stale", which is
+     * conformant and forfeits the point. Build one with
+     * {@see CachePolicy::default()} and narrow it per method:
+     *
+     * ```php
+     * $builder->setCachePolicy(
+     *     CachePolicy::default(60_000)
+     *         ->withMethod('tools/list', 3_600_000, CacheScope::Public),
+     * );
+     * ```
+     */
+    public function setCachePolicy(CachePolicy $policy): self
+    {
+        $this->cachePolicy = $policy;
 
         return $this;
     }
@@ -761,6 +786,7 @@ final class Builder
             requestStateCodec: null !== $this->requestStateKey
                 ? new RequestStateCodec($this->requestStateKey, $this->requestStateTtl)
                 : null,
+            cachePolicy: $this->cachePolicy,
         );
     }
 

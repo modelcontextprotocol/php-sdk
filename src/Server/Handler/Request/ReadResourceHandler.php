@@ -73,8 +73,10 @@ final class ReadResourceHandler implements RequestHandlerInterface
 
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
-                // An ask is a result in its own right, not resource contents.
-                if ($result instanceof InputRequiredResult) {
+                // An ask is a result in its own right, not resource contents;
+                // and a handler that built the whole result keeps what it
+                // decided, caching hints included.
+                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
                     return new Response($request->getId(), $result);
                 }
 
@@ -82,7 +84,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
 
-                if ($result instanceof InputRequiredResult) {
+                if ($result instanceof InputRequiredResult || $result instanceof ReadResourceResult) {
                     return new Response($request->getId(), $result);
                 }
 

@@ -30,12 +30,14 @@ use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
 use Mcp\Server\Transport\StatelessHttpTransport;
+use Mcp\Server\Wire\CachePolicy;
 use Mcp\Tests\Conformance\Elements;
 use Mcp\Tests\Conformance\FileLogger;
 use Mcp\Tests\Conformance\MrtrElements;
@@ -125,6 +127,15 @@ $protocol = Server::builder()
     ->addPrompt([MrtrElements::class, 'prompt'], name: 'test_input_required_result_prompt', description: 'MRTR: a prompt that asks for input first')
     // Fixed so a retry landing on another process still verifies.
     ->setRequestState(str_repeat('conformance-fixture-key-', 2))
+    // Lists are the same for everyone here; a read is not.
+    ->setCachePolicy(
+        CachePolicy::default(60_000)
+            ->withMethod('tools/list', 3_600_000, CacheScope::Public)
+            ->withMethod('prompts/list', 3_600_000, CacheScope::Public)
+            ->withMethod('resources/list', 3_600_000, CacheScope::Public)
+            ->withMethod('resources/templates/list', 3_600_000, CacheScope::Public)
+            ->withMethod('server/discover', 3_600_000, CacheScope::Public),
+    )
     ->buildStateless([ProtocolVersion::V2026_07_28]);
 
 $transport = new StatelessHttpTransport($protocol, logger: $logger);
