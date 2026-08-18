@@ -203,6 +203,15 @@ final class BuilderTest extends TestCase
         $this->assertInstanceOf(ThingListRequest::class, $decoded[0]);
     }
 
+    #[TestDox('enableExtension() throws when two enabled extensions define the same RPC method')]
+    public function testEnableExtensionRejectsClaimedMethod(): void
+    {
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('com.example/things.list');
+
+        Server::builder()->enableExtension(new ThingExtension('com.example/things-a'), new ThingExtension('com.example/things-b'));
+    }
+
     #[TestDox('A method-providing extension contributes the handlers serving its methods')]
     public function testEnableExtensionRegistersItsHandlers(): void
     {
