@@ -150,7 +150,7 @@ class Tool implements \JsonSerializable
     {
         $seen = [];
 
-        foreach (self::headerAnnotations($this->inputSchema) as [$name, $type, $path]) {
+        foreach ($this->headerAnnotations($this->inputSchema) as [$name, $type, $path]) {
             if ('' === $name) {
                 return \sprintf('the annotation at "%s" is empty', $path);
             }
@@ -186,7 +186,7 @@ class Tool implements \JsonSerializable
      *
      * @return list<array{string, ?string, string}>
      */
-    private static function headerAnnotations(array $schema, string $prefix = ''): array
+    private function headerAnnotations(array $schema, string $prefix = ''): array
     {
         $properties = $schema['properties'] ?? null;
 
@@ -212,7 +212,7 @@ class Tool implements \JsonSerializable
                 }
             }
 
-            $found = [...$found, ...self::headerAnnotations($definition, $path)];
+            $found = [...$found, ...$this->headerAnnotations($definition, $path)];
         }
 
         return $found;
