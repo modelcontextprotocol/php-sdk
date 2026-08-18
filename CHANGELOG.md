@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
+* Fix the MCP Apps example being unusable over HTTP. It was the only example without a session store, so every request under `php -S` or PHP-FPM — each its own process — was answered "Session not found or has expired". It now uses a `FileSessionStore` like the others, and is covered by Inspector snapshot tests that pin what the extension actually puts on the wire: the `ui://` resource's `text/html;profile=mcp-app` MIME type and `ui` marker, and the `_meta.ui` on the tool that links the two.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
