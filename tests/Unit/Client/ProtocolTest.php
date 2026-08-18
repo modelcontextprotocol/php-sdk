@@ -15,6 +15,7 @@ use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -22,6 +23,7 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Stateless\RequestMeta;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -42,20 +44,64 @@ final class ProtocolTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_06_18->value, $transport->offeredVersion);
     }
 
-    #[TestDox('never offers a modern version over the initialize handshake, and warns about it')]
-    public function testDoesNotOfferModernVersionOverHandshake(): void
+    #[TestDox('never sends "initialize" on a modern revision, which removed it')]
+    public function testModernRevisionSkipsTheHandshake(): void
     {
-        $transport = new RecordingTransport(ProtocolVersion::latestHandshake()->value);
-        $protocol = new Protocol(logger: $logger = new CollectingLogger());
+        $transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value);
+        $protocol = new Protocol();
         $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
 
         $protocol->initialize($config);
 
-        $this->assertSame(ProtocolVersion::latestHandshake()->value, $transport->offeredVersion);
-        $this->assertSame([[
-            'configured' => ProtocolVersion::V2026_07_28->value,
-            'offered' => ProtocolVersion::latestHandshake()->value,
-        ]], $logger->warnings);
+        $this->assertNotContains('initialize', $transport->methods);
+        $this->assertNotContains('notifications/initialized', $transport->methods);
+        $this->assertSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
+        $this->assertTrue($protocol->getState()->isInitialized());
+    }
+
+    #[TestDox('carries the revision, capabilities and client info on every modern request')]
+    public function testModernRequestsCarryTheEnvelope(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $protocol->initialize($config);
+
+        $this->assertNotSame([], $transport->metas);
+
+        foreach ($transport->metas as $meta) {
+            $this->assertSame(ProtocolVersion::V2026_07_28->value, $meta[RequestMeta::PROTOCOL_VERSION] ?? null);
+            $this->assertArrayHasKey(RequestMeta::CLIENT_CAPABILITIES, $meta);
+            $this->assertSame('client-app', $meta[RequestMeta::CLIENT_INFO]['name'] ?? null);
+        }
+    }
+
+    #[TestDox('a server that refuses "server/discover" still leaves a usable connection')]
+    public function testDiscoveryFailureIsNotFatal(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value, refuseDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $protocol->initialize($config);
+
+        $this->assertTrue($protocol->getState()->isInitialized());
+    }
+
+    #[TestDox('refuses to continue when discovery shows the server has no modern revision')]
+    public function testDiscoveryWithoutAModernRevisionFails(): void
+    {
+        // Advertising only handshake revisions leaves nothing this connection
+        // can use: it has already skipped the handshake.
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $this->expectException(ConnectionException::class);
+        $this->expectExceptionMessage('does not support any modern protocol revision');
+
+        $protocol->initialize($config);
     }
 
     #[TestDox('accepts a counter-offer the SDK can speak and records it as negotiated')]
@@ -137,38 +183,88 @@ final class ProtocolTest extends TestCase
 }
 
 /**
- * Transport that answers the `initialize` request inline with a canned
- * `protocolVersion`, so the handshake resolves without a Fiber round-trip.
+ * Transport that answers inline, so a request resolves without a Fiber
+ * round-trip: `initialize` with a canned `protocolVersion`, and
+ * `server/discover` with a minimal modern-era answer.
  */
 final class RecordingTransport implements TransportInterface
 {
     public ?string $offeredVersion = null;
 
+    /** @var list<string> every method that reached the wire, in order */
+    public array $methods = [];
+
+    /** @var list<array<string, mixed>> the `_meta` each request carried */
+    public array $metas = [];
+
     private ClientStateInterface $state;
 
-    public function __construct(private readonly string $counterOffer)
-    {
+    public function __construct(
+        private readonly string $counterOffer,
+        private readonly bool $refuseDiscovery = false,
+    ) {
     }
 
     public function send(string $data): void
     {
-        /** @var array{id: int|string, method: string, params?: array{protocolVersion?: string}} $message */
+        /** @var array{id?: int|string, method?: string, params?: array<string, mixed>} $message */
         $message = json_decode($data, true);
+        $method = $message['method'] ?? null;
 
-        if ('initialize' !== ($message['method'] ?? null)) {
+        if (!\is_string($method)) {
             return;
         }
 
-        $this->offeredVersion = $message['params']['protocolVersion'] ?? null;
+        $this->methods[] = $method;
+        $this->metas[] = $message['params']['_meta'] ?? [];
 
-        $this->state->storeResponse($message['id'], [
-            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
-            'id' => $message['id'],
-            'result' => [
+        if (!isset($message['id'])) {
+            return;
+        }
+
+        if ('initialize' === $method) {
+            $this->offeredVersion = $message['params']['protocolVersion'] ?? null;
+
+            $this->answer($message['id'], [
                 'protocolVersion' => $this->counterOffer,
                 'capabilities' => [],
                 'serverInfo' => ['name' => 'server', 'version' => '1.2.3'],
-            ],
+            ]);
+
+            return;
+        }
+
+        if ('server/discover' !== $method) {
+            return;
+        }
+
+        if ($this->refuseDiscovery) {
+            $this->state->storeResponse($message['id'], [
+                'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+                'id' => $message['id'],
+                'error' => ['code' => -32601, 'message' => 'Method not found'],
+            ]);
+
+            return;
+        }
+
+        $this->answer($message['id'], [
+            'resultType' => 'complete',
+            'supportedVersions' => [$this->counterOffer],
+            'capabilities' => [],
+            'serverInfo' => ['name' => 'server', 'version' => '1.2.3'],
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    private function answer(int|string $id, array $result): void
+    {
+        $this->state->storeResponse($id, [
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => $id,
+            'result' => $result,
         ]);
     }
 

@@ -175,7 +175,16 @@ class Client
 
         $response = $this->sendRequest($request);
 
-        return ListToolsResult::fromArray($response->result);
+        $result = $response->result;
+
+        // Filtered before parsing, because parsing is where a malformed
+        // `x-mcp-header` annotation throws. One broken definition must cost the
+        // caller that tool, not the whole listing (SEP-2243).
+        if (\is_array($result['tools'] ?? null)) {
+            $result['tools'] = $this->protocol->getToolCatalog()->record($result['tools']);
+        }
+
+        return ListToolsResult::fromArray($result);
     }
 
     /**
@@ -188,6 +197,15 @@ class Client
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
     {
+        $catalog = $this->protocol->getToolCatalog();
+
+        // A tool the listing showed to be malformed is refused here rather than
+        // sent: the client cannot produce the headers its annotations demand,
+        // so the call could only go out misdescribed (SEP-2243).
+        if ($catalog->isRejected($name)) {
+            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        }
+
         $request = new CallToolRequest($name, $arguments);
 
         $response = $this->sendRequest($request, $onProgress);

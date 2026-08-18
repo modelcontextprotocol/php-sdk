@@ -59,11 +59,16 @@ final class HandshakeTest extends IntegrationTestCase
         yield 'server pins a newer revision' => [ProtocolVersion::V2024_11_05, ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25];
         yield 'both pin the same revision' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18];
 
-        // Neither side reaches the modern era through `initialize`, so
-        // configuring it falls back to the handshake set on both ends.
-        yield 'client configured modern' => [ProtocolVersion::V2026_07_28, null, $latest];
+        // A modern client does not negotiate at all: it skips the handshake and
+        // states its revision on every request, so what it was configured with
+        // is what it reports. This server never answers `server/discover`, so
+        // there is nothing to reconcile against either.
+        yield 'client configured modern' => [ProtocolVersion::V2026_07_28, null, ProtocolVersion::V2026_07_28];
+        yield 'both configured modern' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2026_07_28, ProtocolVersion::V2026_07_28];
+
+        // The server end still falls back: a handshake-era client offered a
+        // revision, and `initialize` cannot answer with a modern one.
         yield 'server configured modern' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_06_18];
-        yield 'both configured modern' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2026_07_28, $latest];
     }
 
     #[TestDox('the handshake carries the server identity to the client')]

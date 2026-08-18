@@ -12,8 +12,13 @@
 namespace Mcp\Example\Server\ClientCommunication;
 
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 
@@ -31,10 +36,14 @@ final class ClientAwareService
      * Demonstrates the server side of the "roots" client capability: the tool
      * issues a roots/list request that the client answers from its own handler.
      *
-     * @return array{status: string, message: string, roots?: list<array{uri: string, name: string|null}>}
+     * Written the 2026-07-28 way: the ask is returned and the answer read off
+     * the retry. A handshake-era client reaches the same tool — the SDK sends
+     * the `roots/list` request over that connection and re-enters this method.
+     *
+     * @return array{status: string, message: string, roots?: list<array{uri: string, name: string|null}>}|InputRequiredResult
      */
     #[McpTool(name: 'inspect_workspace_roots', description: 'Ask the client for its workspace roots via a roots/list request.')]
-    public function inspectWorkspaceRoots(RequestContext $context): array
+    public function inspectWorkspaceRoots(RequestContext $context): array|InputRequiredResult
     {
         $clientGateway = $context->getClientGateway();
 
@@ -45,7 +54,11 @@ final class ClientAwareService
             ];
         }
 
-        $result = $clientGateway->listRoots();
+        $result = $context->getInputContext()?->rootsResult('roots');
+
+        if (null === $result) {
+            return new InputRequiredResult(['roots' => new ListRootsRequest()]);
+        }
 
         $roots = [];
         foreach ($result->roots as $root) {
@@ -62,10 +75,10 @@ final class ClientAwareService
     }
 
     /**
-     * @return array{incident: string, recommended_actions: string, model: string}
+     * @return array{incident: string, recommended_actions: string, model: string}|InputRequiredResult
      */
     #[McpTool(name: 'coordinate_incident_response', description: 'Coordinate an incident response with logging, progress, and sampling.')]
-    public function coordinateIncident(RequestContext $context, string $incidentTitle): array
+    public function coordinateIncident(RequestContext $context, string $incidentTitle): array|InputRequiredResult
     {
         $clientGateway = $context->getClientGateway();
         $clientGateway->log(LoggingLevel::Warning, \sprintf('Incident triage started: %s', $incidentTitle));
@@ -90,7 +103,15 @@ final class ClientAwareService
             implode(', ', $steps)
         );
 
-        $result = $clientGateway->sample($prompt, 350, 90, ['temperature' => 0.5]);
+        $result = $context->getInputContext()?->samplingResult('recommendation');
+
+        if (null === $result) {
+            return new InputRequiredResult(['recommendation' => new CreateSamplingMessageRequest(
+                messages: [new SamplingMessage(Role::User, new TextContent($prompt))],
+                maxTokens: 350,
+                temperature: 0.5,
+            )]);
+        }
 
         $recommendation = $result->content instanceof TextContent ? trim((string) $result->content->text) : '';
 
