@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
+* [BC Break] `Mcp\Schema\JsonRpc\Error` accepts `null` as its `$id`, and `getId()` may return it. An error response whose id could not be read now omits the member instead of sending `"id": ""` — which claimed the peer had issued a request with an empty-string id. All the `for*()` factories default to `null`, `fromArray()` accepts a missing or explicitly-null id, and `MessageFactory` decodes both as an id-less error rather than rejecting them.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.

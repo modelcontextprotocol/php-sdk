@@ -57,12 +57,15 @@ class Error implements MessageInterface
     public const UNSUPPORTED_PROTOCOL_VERSION = -32022;
 
     /**
-     * @param int        $code    the error type that occurred
-     * @param string     $message a short description of the error
-     * @param mixed|null $data    additional information about the error
+     * @param string|int|null $id      The id of the request this answers. `null` only when it could not be
+     *                                 read — a malformed body, or a notification that was refused — in which
+     *                                 case the member is omitted rather than sent as an id nobody issued.
+     * @param int             $code    the error type that occurred
+     * @param string          $message a short description of the error
+     * @param mixed|null      $data    additional information about the error
      */
     public function __construct(
-        public readonly string|int $id,
+        public readonly string|int|null $id,
         public readonly int $code,
         public readonly string $message,
         public readonly mixed $data = null,
@@ -77,10 +80,9 @@ class Error implements MessageInterface
         if (!isset($data['jsonrpc']) || MessageInterface::JSONRPC_VERSION !== $data['jsonrpc']) {
             throw new InvalidArgumentException('Invalid or missing "jsonrpc" in Error data.');
         }
-        if (!isset($data['id'])) {
-            throw new InvalidArgumentException('Invalid or missing "id" in Error data.');
-        }
-        if (!\is_string($data['id']) && !\is_int($data['id'])) {
+        // An error response carrying no id is well-formed: it is what a
+        // receiver sends when the id could not be read off the request.
+        if (isset($data['id']) && !\is_string($data['id']) && !\is_int($data['id'])) {
             throw new InvalidArgumentException('Invalid "id" type in Error data.');
         }
         if (!isset($data['error']) || !\is_array($data['error'])) {
@@ -93,45 +95,45 @@ class Error implements MessageInterface
             throw new InvalidArgumentException('Invalid or missing "message" in Error data.');
         }
 
-        return new self($data['id'], $data['error']['code'], $data['error']['message'], $data['error']['data'] ?? null);
+        return new self($data['id'] ?? null, $data['error']['code'], $data['error']['message'], $data['error']['data'] ?? null);
     }
 
-    final public static function forParseError(string $message, string|int $id = ''): self
+    final public static function forParseError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::PARSE_ERROR, $message);
     }
 
-    final public static function forInvalidRequest(string $message, string|int $id = ''): self
+    final public static function forInvalidRequest(string $message, string|int|null $id = null): self
     {
         return new self($id, self::INVALID_REQUEST, $message);
     }
 
-    final public static function forMethodNotFound(string $message, string|int $id = ''): self
+    final public static function forMethodNotFound(string $message, string|int|null $id = null): self
     {
         return new self($id, self::METHOD_NOT_FOUND, $message);
     }
 
-    final public static function forInvalidParams(string $message, string|int $id = '', mixed $data = null): self
+    final public static function forInvalidParams(string $message, string|int|null $id = null, mixed $data = null): self
     {
         return new self($id, self::INVALID_PARAMS, $message, $data);
     }
 
-    final public static function forInternalError(string $message, string|int $id = ''): self
+    final public static function forInternalError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::INTERNAL_ERROR, $message);
     }
 
-    final public static function forServerError(string $message, string|int $id = ''): self
+    final public static function forServerError(string $message, string|int|null $id = null): self
     {
         return new self($id, self::SERVER_ERROR, $message);
     }
 
-    final public static function forResourceNotFound(string $message, string|int $id = ''): self
+    final public static function forResourceNotFound(string $message, string|int|null $id = null): self
     {
         return new self($id, self::RESOURCE_NOT_FOUND, $message);
     }
 
-    final public static function forHeaderMismatch(string $message, string|int $id = ''): self
+    final public static function forHeaderMismatch(string $message, string|int|null $id = null): self
     {
         return new self($id, self::HEADER_MISMATCH, $message);
     }
@@ -142,7 +144,7 @@ class Error implements MessageInterface
     final public static function forMissingRequiredClientCapability(
         string $message,
         ClientCapabilities $requiredCapabilities,
-        string|int $id = '',
+        string|int|null $id = null,
     ): self {
         return new self($id, self::MISSING_REQUIRED_CLIENT_CAPABILITY, $message, [
             'requiredCapabilities' => $requiredCapabilities,
@@ -159,7 +161,7 @@ class Error implements MessageInterface
     final public static function forUnsupportedProtocolVersion(
         string $requested,
         array $supported,
-        string|int $id = '',
+        string|int|null $id = null,
     ): self {
         return new self($id, self::UNSUPPORTED_PROTOCOL_VERSION, 'Unsupported protocol version', [
             'requested' => $requested,
@@ -167,7 +169,7 @@ class Error implements MessageInterface
         ]);
     }
 
-    public function getId(): string|int
+    public function getId(): string|int|null
     {
         return $this->id;
     }
@@ -175,7 +177,7 @@ class Error implements MessageInterface
     /**
      * @return array{
      *     jsonrpc: string,
-     *     id: string|int,
+     *     id?: string|int,
      *     error: array{
      *         code: int,
      *         message: string,
@@ -194,10 +196,17 @@ class Error implements MessageInterface
             $error['data'] = $this->data;
         }
 
-        return [
-            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
-            'id' => $this->id,
-            'error' => $error,
-        ];
+        $data = ['jsonrpc' => MessageInterface::JSONRPC_VERSION];
+
+        // Omitted, not empty: `"id": ""` claims the sender issued a request
+        // with an empty-string id, which is a different statement from "the
+        // id could not be read".
+        if (null !== $this->id) {
+            $data['id'] = $this->id;
+        }
+
+        $data['error'] = $error;
+
+        return $data;
     }
 }
