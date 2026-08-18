@@ -127,6 +127,14 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema['properties']['tags']);
     }
 
+    public function testDefinitionDescriptionWinsOverDocblockOnVariadicParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicCompleteDefinitionWithDocblockDescription');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertSame('Tags to apply.', $schema['properties']['tags']['description']);
+    }
+
     public function testKeepsTheSignatureDefaultWhenADefinitionReshapesTheParameter(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'definitionReshapingTheParameter');

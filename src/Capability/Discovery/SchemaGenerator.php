@@ -334,6 +334,12 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $paramSchema = ['type' => 'array'];
 
+        // Add description from docblock before parameter-level schema is merged in,
+        // so a definition's own description takes precedence (matches buildParameterSchema).
+        if ($paramInfo['description']) {
+            $paramSchema['description'] = $paramInfo['description'];
+        }
+
         // Apply parameter-level Schema attributes first
         if (!empty($paramInfo['parameter_schema'])) {
             $parameterLevelSchema = $paramInfo['parameter_schema'];
@@ -344,10 +350,6 @@ final class SchemaGenerator implements SchemaGeneratorInterface
 
             // Ensure type is always array for variadic
             $paramSchema['type'] = 'array';
-        }
-
-        if ($paramInfo['description']) {
-            $paramSchema['description'] = $paramInfo['description'];
         }
 
         // If no items specified by Schema attribute, infer from type

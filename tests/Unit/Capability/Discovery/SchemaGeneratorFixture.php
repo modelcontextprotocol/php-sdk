@@ -360,6 +360,18 @@ class SchemaGeneratorFixture
     }
 
     /**
+     * Variadic parameter with both a docblock description and a complete definition;
+     * the definition's own description must win.
+     *
+     * @param string ...$tags Docblock description that must lose to the definition's own
+     */
+    public function variadicCompleteDefinitionWithDocblockDescription(
+        #[Schema(definition: ['type' => 'array', 'description' => 'Tags to apply.', 'items' => ['type' => 'string']])]
+        string ...$tags,
+    ): void {
+    }
+
+    /**
      * Variadic parameter scenarios.
      *
      * @param string ...$items Variadic strings
