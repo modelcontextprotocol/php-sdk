@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
+* Refuse a JSON Schema that is unsafe or ruinous to validate before `opis/json-schema` walks it (SEP-2106): a `$ref` naming anything outside the document, and a composition that expands past a subschema budget, nesting depth or property-map size. New `Mcp\Capability\Discovery\SchemaComplexityGuard`, wired into `SchemaValidator` by default — sixteen nested two-branch `anyOf`s went from 9.0s to refused in 0.1s. `SchemaValidator` also caps reported errors at 100 and names an unsupported `$schema` dialect instead of reporting an internal fault.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
