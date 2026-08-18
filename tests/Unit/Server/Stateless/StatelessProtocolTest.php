@@ -63,10 +63,32 @@ class StatelessProtocolTest extends TestCase
             RequestMeta::CLIENT_CAPABILITIES => (object) $capabilities,
         ];
 
-        $headers = [
+        return self::callWithHeaders($protocol, $method, $params, [
             'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
             'Mcp-Method' => $method,
             ...$extraHeaders,
+        ]);
+    }
+
+    /**
+     * The header-exact variant: nothing is filled in, so a test can leave a
+     * required header out.
+     *
+     * @param array<string, mixed>  $params
+     * @param array<string, string> $headers
+     *
+     * @return array<string, mixed>
+     */
+    private static function callWithHeaders(
+        StatelessProtocol $protocol,
+        string $method,
+        array $params = [],
+        array $headers = [],
+        ?string $metaVersion = null,
+    ): array {
+        $params['_meta'] ??= [
+            RequestMeta::PROTOCOL_VERSION => $metaVersion ?? ProtocolVersion::V2026_07_28->value,
+            RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
         ];
 
         $result = $protocol->handle(
@@ -134,6 +156,52 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('a POST without the MCP-Protocol-Version header is refused')]
+    public function testMissingProtocolVersionHeaderIsRefused(): void
+    {
+        $answer = self::callWithHeaders(
+            self::protocol(),
+            'tools/list',
+            [],
+            ['Mcp-Method' => 'tools/list'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::HEADER_MISMATCH, $answer['body']['error']['code']);
+        $this->assertStringContainsString('MCP-Protocol-Version', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('a header contradicting the _meta version outranks an unsupported version')]
+    public function testContradictingProtocolVersionHeaderIsRefused(): void
+    {
+        $answer = self::callWithHeaders(
+            self::protocol(),
+            'tools/list',
+            [],
+            ['Mcp-Method' => 'tools/list', 'MCP-Protocol-Version' => '2025-11-25'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::HEADER_MISMATCH, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('an unsupported version carries the supported set the client can retry from')]
+    public function testUnsupportedProtocolVersionCarriesSupportedSet(): void
+    {
+        $answer = self::callWithHeaders(
+            self::protocol(),
+            'tools/list',
+            [],
+            ['Mcp-Method' => 'tools/list', 'MCP-Protocol-Version' => '1900-01-01'],
+            '1900-01-01',
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answer['body']['error']['code']);
+        $this->assertSame('1900-01-01', $answer['body']['error']['data']['requested']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answer['body']['error']['data']['supported']);
     }
 
     #[TestDox('elicitation without a named mode reports form, not url')]

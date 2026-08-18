@@ -95,6 +95,27 @@ final class StatelessProtocol
         private readonly ?RequestStateCodec $requestStateCodec = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo);
+
+        if (null === $this->headerValidator) {
+            // Not fatal: a transport without a header layer — stdio — has
+            // nothing to validate. But on HTTP the headers are REQUIRED for
+            // compliance, so an absent validator there is a silently
+            // non-conformant server and worth saying out loud once.
+            $this->logger->warning('No StandardHeaderValidator configured; the SEP-2243 request headers will not be enforced. This is correct only for a transport without a header layer.');
+        }
+    }
+
+    /**
+     * Whether the transport carrying this dispatcher has a header layer whose
+     * required members must be present.
+     *
+     * The validator's presence is the signal: it is what a header-bearing
+     * transport installs, and stdio carries its metadata inline instead
+     * (see the stdio binding's "Request Metadata").
+     */
+    private function requiresTransportHeaders(): bool
+    {
+        return null !== $this->headerValidator;
     }
 
     /**
@@ -185,6 +206,19 @@ final class StatelessProtocol
     private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id): ?StatelessResult
     {
         $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
+
+        // REQUIRED on every POST. The 2025-03-26 fallback for a header-less
+        // request exists only for servers choosing to serve pre-2025-06-18
+        // clients, which a modern-only endpoint is not.
+        if (null === $headerVersion && $this->requiresTransportHeaders()) {
+            return StatelessResult::error(
+                Error::forHeaderMismatch(
+                    \sprintf('Missing required MCP-Protocol-Version header (_meta declares "%s").', $meta->protocolVersion),
+                    $id,
+                ),
+                400,
+            );
+        }
 
         if (null !== $headerVersion && $headerVersion !== $meta->protocolVersion) {
             return StatelessResult::error(
