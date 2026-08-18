@@ -1,9 +1,9 @@
 name: conformance-weekly
 
-# Runs the MCP conformance suite weekly against the latest
-# @modelcontextprotocol/conformance release. The on:pull_request pipeline
-# pins to whatever version is available at PR time; this schedule catches
-# upstream releases that add scenarios between PRs.
+# Runs the MCP conformance suite weekly against the newest published
+# @modelcontextprotocol/conformance. The on:pull_request pipeline pins an exact
+# version; this schedule catches upstream releases that add scenarios between
+# PRs, so the pin never silently goes stale.
 #
 # It also scores each run and publishes the client/server pass-rate as
 # shields.io endpoint JSON to the orphan `badges` branch (consumed by the
@@ -17,10 +17,26 @@ permissions:
   contents: write
   issues: write
 
+# The PR pipeline pins an exact conformance version so a PR only goes red for
+# reasons in the PR. That pin is only safe because this job tracks the moving
+# target instead — on both revisions, since each rides a different dist-tag:
+# the dated one is on `latest`, the draft one only on `alpha`.
 jobs:
   server:
-    name: conformance / server (latest)
+    name: conformance / server (${{ matrix.spec-version }}, ${{ matrix.dist-tag }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            dist-tag: latest
+            path: '/'
+            baseline: conformance-baseline.yml
+          - spec-version: '2026-07-28'
+            dist-tag: alpha
+            path: '/stateless'
+            baseline: conformance-baseline-2026-07-28.yml
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,9 +51,17 @@ jobs:
           sleep 5
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: npx --yes @modelcontextprotocol/conformance@latest server --url http://localhost:8000/ --expected-failures conformance-baseline.yml --output-dir results
+        run: >-
+          npx --yes @modelcontextprotocol/conformance@${{ matrix.dist-tag }} server
+          --url http://localhost:8000${{ matrix.path }}
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
+          --output-dir results
+      # The badge tracks the released revision, so only the dated entry feeds
+      # it; the draft entry runs purely to catch upstream drift.
       - name: Generate score badge
-        if: always()
+        if: always() && matrix.spec-version == '2025-11-25'
         run: php tests/Conformance/score.php server
       - name: Show docker logs on failure
         if: failure()
@@ -46,20 +70,30 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-server-results
+          name: conformance-server-results-${{ matrix.spec-version }}
           path: |
             tests/Conformance/logs
             tests/Conformance/results
       - name: Upload score badge
-        if: always()
+        if: always() && matrix.spec-version == '2025-11-25'
         uses: actions/upload-artifact@v7
         with:
           name: server-badge
           path: tests/Conformance/server-conformance.json
 
   client:
-    name: conformance / client (latest)
+    name: conformance / client (${{ matrix.spec-version }}, ${{ matrix.dist-tag }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            dist-tag: latest
+            baseline: conformance-baseline.yml
+          - spec-version: '2026-07-28'
+            dist-tag: alpha
+            baseline: conformance-baseline-2026-07-28.yml
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -73,20 +107,26 @@ jobs:
       - run: mkdir -p tests/Conformance/logs
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: npx --yes @modelcontextprotocol/conformance@latest client --command "php ${{ github.workspace }}/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml --output-dir results
+        run: >-
+          npx --yes @modelcontextprotocol/conformance@${{ matrix.dist-tag }} client
+          --command "php ${{ github.workspace }}/tests/Conformance/client.php"
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
+          --output-dir results
       - name: Generate score badge
-        if: always()
+        if: always() && matrix.spec-version == '2025-11-25'
         run: php tests/Conformance/score.php client
       - name: Upload conformance results
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-client-results
+          name: conformance-client-results-${{ matrix.spec-version }}
           path: |
             tests/Conformance/logs
             tests/Conformance/results
       - name: Upload score badge
-        if: always()
+        if: always() && matrix.spec-version == '2025-11-25'
         uses: actions/upload-artifact@v7
         with:
           name: client-badge
