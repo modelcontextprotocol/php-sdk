@@ -32,9 +32,8 @@ use Mcp\Exception\LogicException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\Extension\ExtensionIdentifier;
+use Mcp\Schema\Extension\AbstractExtension;
 use Mcp\Schema\Extension\ExtensionInterface;
-use Mcp\Schema\Extension\MethodProvidingExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -285,30 +284,23 @@ final class Builder
      * Enable one or more MCP protocol extensions, announced to clients under
      * `capabilities.extensions` during the initialize handshake.
      *
-     * An extension implementing {@see MethodProvidingExtensionInterface} also
-     * contributes the message classes its methods decode into and the handlers
-     * serving them.
+     * An extension also contributes the message classes its methods decode
+     * into and the handlers serving them, if any — see {@see AbstractExtension}
+     * for extensions that only announce a capability.
      *
-     * @throws LogicException if the identifier is not a valid `_meta` prefix, or the same extension is enabled more than once
+     * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
+     * @throws LogicException           if the same extension is enabled more than once
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
-            $id = $extension->getId();
-
-            if (null !== $reason = ExtensionIdentifier::check($id)) {
-                throw new LogicException(\sprintf('Invalid extension identifier: %s', $reason));
-            }
+            $id = (string) $extension->getId();
 
             if (isset($this->extensions[$id])) {
                 throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
             }
 
             $this->extensions[$id] = $extension->getCapabilities();
-
-            if (!$extension instanceof MethodProvidingExtensionInterface) {
-                continue;
-            }
 
             // Without this the method cannot be decoded at all, so nothing
             // downstream ever sees it.

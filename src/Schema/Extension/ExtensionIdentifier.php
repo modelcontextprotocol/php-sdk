@@ -11,20 +11,23 @@
 
 namespace Mcp\Schema\Extension;
 
+use Mcp\Exception\InvalidArgumentException;
+
 /**
- * The naming rules an extension identifier has to satisfy (SEP-2133).
+ * An extension identifier (SEP-2133): a `_meta` key with a mandatory vendor
+ * prefix, since an extension is something a vendor owns and an unprefixed
+ * name has no owner. Naming rules are enforced at construction, so any
+ * `ExtensionIdentifier` in hand is guaranteed well-formed.
  *
- * Identifiers are `_meta` keys, with the prefix made mandatory: an extension is
- * something a vendor owns, and an unprefixed name has no owner. The
- * `modelcontextprotocol`/`mcp` second label is reserved for official
+ * The `modelcontextprotocol`/`mcp` second label is reserved for official
  * extensions, so a third party naming itself `io.modelcontextprotocol/tasks`
- * would be claiming to be one.
+ * would be claiming to be one — see {@see self::isReserved()}.
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/index#meta
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ExtensionIdentifier
+final class ExtensionIdentifier implements \Stringable
 {
     /** Second labels only the specification may use. */
     public const RESERVED_LABELS = ['modelcontextprotocol', 'mcp'];
@@ -39,9 +42,39 @@ final class ExtensionIdentifier
     private const NAME = '[a-zA-Z0-9](?:[a-zA-Z0-9._-]*[a-zA-Z0-9])?';
 
     /**
+     * @throws InvalidArgumentException if $identifier is not a valid `_meta` prefix
+     */
+    public function __construct(
+        private readonly string $identifier,
+    ) {
+        if (null !== $reason = self::check($identifier)) {
+            throw new InvalidArgumentException($reason);
+        }
+    }
+
+    /**
+     * Whether this identifier claims a prefix the specification reserves.
+     *
+     * Not an error on its own — the official extensions legitimately use it —
+     * but a third party doing so is misrepresenting itself, so callers that are
+     * not the SDK should refuse.
+     */
+    public function isReserved(): bool
+    {
+        $labels = explode('.', strstr($this->identifier, '/', true) ?: '');
+
+        return \in_array($labels[1] ?? '', self::RESERVED_LABELS, true);
+    }
+
+    public function __toString(): string
+    {
+        return $this->identifier;
+    }
+
+    /**
      * @return string|null the reason $identifier is invalid, or null when it is well-formed
      */
-    public static function check(string $identifier): ?string
+    private static function check(string $identifier): ?string
     {
         $slash = strpos($identifier, '/');
 
@@ -61,19 +94,5 @@ final class ExtensionIdentifier
         }
 
         return null;
-    }
-
-    /**
-     * Whether $identifier claims a prefix the specification reserves.
-     *
-     * Not an error on its own — the official extensions legitimately use it —
-     * but a third party doing so is misrepresenting itself, so callers that are
-     * not the SDK should refuse.
-     */
-    public static function isReserved(string $identifier): bool
-    {
-        $labels = explode('.', strstr($identifier, '/', true) ?: '');
-
-        return \in_array($labels[1] ?? '', self::RESERVED_LABELS, true);
     }
 }

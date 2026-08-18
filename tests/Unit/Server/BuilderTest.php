@@ -15,6 +15,7 @@ use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -180,8 +181,8 @@ final class BuilderTest extends TestCase
     #[TestDox('An extension identifier must be a valid _meta prefix')]
     public function testEnableExtensionRejectsUnprefixedIdentifier(): void
     {
-        $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('Invalid extension identifier');
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('has no prefix');
 
         Server::builder()->enableExtension(new ThingExtension('things'));
     }

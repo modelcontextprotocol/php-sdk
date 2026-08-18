@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Schema\Extension;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Extension\ExtensionIdentifier;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -33,10 +34,10 @@ class ExtensionIdentifierTest extends TestCase
     }
 
     #[DataProvider('validIdentifiers')]
-    #[TestDox('a well-formed identifier is accepted')]
+    #[TestDox('a well-formed identifier is accepted and stringifies back to itself')]
     public function testValidIdentifiers(string $identifier): void
     {
-        $this->assertNull(ExtensionIdentifier::check($identifier));
+        $this->assertSame($identifier, (string) new ExtensionIdentifier($identifier));
     }
 
     /**
@@ -55,10 +56,13 @@ class ExtensionIdentifierTest extends TestCase
     }
 
     #[DataProvider('invalidIdentifiers')]
-    #[TestDox('a malformed identifier is refused, with the reason')]
+    #[TestDox('a malformed identifier is refused at construction, with the reason')]
     public function testInvalidIdentifiers(string $identifier, string $reason): void
     {
-        $this->assertStringContainsString($reason, (string) ExtensionIdentifier::check($identifier));
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($reason);
+
+        new ExtensionIdentifier($identifier);
     }
 
     /**
@@ -79,6 +83,6 @@ class ExtensionIdentifierTest extends TestCase
     #[TestDox('the reserved second labels are recognised, and only those')]
     public function testReservedPrefixes(string $identifier, bool $reserved): void
     {
-        $this->assertSame($reserved, ExtensionIdentifier::isReserved($identifier));
+        $this->assertSame($reserved, (new ExtensionIdentifier($identifier))->isReserved());
     }
 }

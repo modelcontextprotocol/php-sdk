@@ -11,22 +11,23 @@
 
 namespace Mcp\Tests\Unit\Server\Extension;
 
-use Mcp\Schema\Extension\MethodProvidingExtensionInterface;
+use Mcp\Schema\Extension\ExtensionIdentifier;
+use Mcp\Schema\Extension\ExtensionInterface;
 
 /**
  * A minimal extension: an identifier, a capability payload, and one method it
  * defines and serves.
  */
-final class ThingExtension implements MethodProvidingExtensionInterface
+final class ThingExtension implements ExtensionInterface
 {
     public function __construct(
         private readonly string $id = 'com.example/things',
     ) {
     }
 
-    public function getId(): string
+    public function getId(): ExtensionIdentifier
     {
-        return $this->id;
+        return new ExtensionIdentifier($this->id);
     }
 
     public function getCapabilities(): array

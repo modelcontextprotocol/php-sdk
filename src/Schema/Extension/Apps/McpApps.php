@@ -11,7 +11,8 @@
 
 namespace Mcp\Schema\Extension\Apps;
 
-use Mcp\Schema\Extension\ExtensionInterface;
+use Mcp\Schema\Extension\AbstractExtension;
+use Mcp\Schema\Extension\ExtensionIdentifier;
 
 /**
  * The MCP Apps extension (io.modelcontextprotocol/ui).
@@ -26,15 +27,15 @@ use Mcp\Schema\Extension\ExtensionInterface;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class McpApps implements ExtensionInterface
+final class McpApps extends AbstractExtension
 {
     public const EXTENSION_ID = 'io.modelcontextprotocol/ui';
     public const MIME_TYPE = 'text/html;profile=mcp-app';
     public const URI_SCHEME = 'ui';
 
-    public function getId(): string
+    public function getId(): ExtensionIdentifier
     {
-        return self::EXTENSION_ID;
+        return new ExtensionIdentifier(self::EXTENSION_ID);
     }
 
     /**
