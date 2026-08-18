@@ -95,6 +95,13 @@ class StatelessProtocolTest extends TestCase
                 name: 'elicits_directly',
                 description: 'Asks the client directly, which this revision forbids',
             )
+            ->addTool(
+                static fn (): InputRequiredResult => new InputRequiredResult([
+                    'consent' => ElicitRequest::forUrl('Approve out of band', 'https://example.com/consent'),
+                ]),
+                name: 'asks_by_url',
+                description: 'Asks through a url-mode elicitation',
+            )
             ->addResource(static fn (): string => 'body', 'test://static', 'static', 'A static resource')
             ->addResource(
                 static function (RequestContext $context): string|InputRequiredResult {
@@ -448,6 +455,7 @@ class StatelessProtocolTest extends TestCase
             'resources/read',
             ['uri' => 'test://gated'],
             ['Mcp-Name' => 'test://gated'],
+            ['elicitation' => new \stdClass()],
         );
 
         $this->assertSame(200, $answer['status']);
@@ -457,6 +465,54 @@ class StatelessProtocolTest extends TestCase
         // Interim results are not cacheable and carry no hints.
         $this->assertArrayNotHasKey('ttlMs', $answer['body']['result']);
         $this->assertArrayNotHasKey('cacheScope', $answer['body']['result']);
+    }
+
+    #[TestDox('an ask the client cannot answer is refused with -32021, not sent')]
+    public function testUndeclaredInputRequestIsRefused(): void
+    {
+        // The client declared nothing, so it has no way to answer an
+        // elicitation — and a retry carrying one could never arrive.
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            ['uri' => 'test://gated'],
+            ['Mcp-Name' => 'test://gated'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $answer['body']['error']['code']);
+        $this->assertArrayHasKey('elicitation', $answer['body']['error']['data']['requiredCapabilities']);
+    }
+
+    #[TestDox('url-mode elicitation needs its own declaration, which form does not satisfy')]
+    public function testUrlElicitationNeedsItsOwnDeclaration(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'asks_by_url', 'arguments' => []],
+            ['Mcp-Name' => 'asks_by_url'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $answer['body']['error']['code']);
+        $this->assertArrayHasKey('url', $answer['body']['error']['data']['requiredCapabilities']['elicitation']);
+    }
+
+    #[TestDox('a client declaring url mode gets the ask')]
+    public function testUrlElicitationPassesWhenDeclared(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'asks_by_url', 'arguments' => []],
+            ['Mcp-Name' => 'asks_by_url'],
+            ['elicitation' => ['url' => new \stdClass()]],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
     }
 
     #[TestDox('a first-round read carries caching hints')]
@@ -484,6 +540,7 @@ class StatelessProtocolTest extends TestCase
                 'inputResponses' => ['who' => ['action' => 'accept', 'content' => ['n' => 'ada']]],
             ],
             ['Mcp-Name' => 'test://gated'],
+            ['elicitation' => new \stdClass()],
         );
 
         $this->assertSame('complete', $answer['body']['result']['resultType']);

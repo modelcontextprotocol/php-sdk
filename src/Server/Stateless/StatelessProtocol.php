@@ -25,6 +25,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Result\DiscoverResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
@@ -457,6 +458,10 @@ final class StatelessProtocol
                 return StatelessResult::error($result, 400);
             }
 
+            if (null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
+                return $capabilityError;
+            }
+
             return $this->encode($method, $id, $result->result, null === $input);
         }
 
@@ -561,6 +566,41 @@ final class StatelessProtocol
         yield $result instanceof Error
             ? $result->jsonSerialize()
             : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize(), $cacheable)];
+    }
+
+    /**
+     * Refuses to send an ask the client cannot answer.
+     *
+     * The handler's mistake rather than the client's, but the client is the one
+     * that has to hear about it, and `-32021` is precisely the code for
+     * "processing this needs a capability you did not declare" — so it is
+     * reported as that, and logged as the server-side bug it is.
+     */
+    private function checkInputRequests(ResultInterface $result, RequestMeta $meta, string $method, string|int $id): ?StatelessResult
+    {
+        if (!$result instanceof InputRequiredResult) {
+            return null;
+        }
+
+        $missing = InputRequestCapabilities::missing($result, $meta->clientCapabilities);
+
+        if (null === $missing) {
+            return null;
+        }
+
+        $this->logger->warning('A handler asked for input the client did not declare it could provide; the ask was replaced with -32021.', [
+            'method' => $method,
+            'required' => $missing->jsonSerialize(),
+        ]);
+
+        return StatelessResult::error(
+            Error::forMissingRequiredClientCapability(
+                'The server needs input this client did not declare it can provide.',
+                $missing,
+                $id,
+            ),
+            400,
+        );
     }
 
     /**
