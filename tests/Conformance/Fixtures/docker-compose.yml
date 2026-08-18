@@ -2,7 +2,9 @@ services:
   nginx:
     image: nginx:1.26-alpine
     ports:
-      - "8000:80"
+      # Overridable so the fixture can coexist with whatever else a developer
+      # already has on 8000; CI and the Makefile default keep using 8000.
+      - "${CONFORMANCE_PORT:-8000}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ../../..:/app:ro

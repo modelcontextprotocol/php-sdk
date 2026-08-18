@@ -14,6 +14,7 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -22,13 +23,17 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<CallToolResult>
+ * A tools/call can answer with the tool's output or, under MRTR, with a request
+ * for the input the tool still needs — hence the two result types.
+ *
+ * @implements RequestHandlerInterface<CallToolResult|InputRequiredResult>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -52,7 +57,7 @@ final class CallToolHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<CallToolResult>|Error
+     * @return Response<CallToolResult|InputRequiredResult>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -98,6 +103,11 @@ final class CallToolHandler implements RequestHandlerInterface
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            // Tool asking for more input as response
+            if ($result instanceof InputRequiredResult) {
+                return new Response($request->getId(), $result);
+            }
+
             $protocolVersion = $context->getProtocolVersion();
 
             $structuredContent = null;
@@ -135,6 +145,8 @@ final class CallToolHandler implements RequestHandlerInterface
             ]);
 
             return new Response($request->getId(), $result);
+        } catch (MissingRequiredClientCapabilityException $e) {
+            throw $e;
         } catch (ToolCallException $e) {
             $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
