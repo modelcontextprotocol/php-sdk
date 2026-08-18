@@ -1,0 +1,28 @@
+{
+  "tools": [
+    {
+      "name": "get_weather",
+      "description": "Get current weather for a city",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "city": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "city"
+        ]
+      },
+      "_meta": {
+        "ui": {
+          "resourceUri": "ui://weather-app",
+          "visibility": [
+            "model",
+            "app"
+          ]
+        }
+      }
+    }
+  ]
+}

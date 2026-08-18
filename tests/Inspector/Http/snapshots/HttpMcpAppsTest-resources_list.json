@@ -1,0 +1,13 @@
+{
+  "resources": [
+    {
+      "name": "weather-app",
+      "uri": "ui://weather-app",
+      "description": "Interactive weather dashboard",
+      "mimeType": "text/html;profile=mcp-app",
+      "_meta": {
+        "ui": {}
+      }
+    }
+  ]
+}
