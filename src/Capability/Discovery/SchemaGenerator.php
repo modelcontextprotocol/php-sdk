@@ -455,11 +455,25 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                 }
             }
 
-            if ($allowsNull) {
-                $paramSchema['type'] = ['array', 'null'];
+            // Only when the parameter is an array and nothing else. A union
+            // like `string[]|int` keeps both branches: `items` constrains the
+            // instance only when it *is* an array, so the two coexist and
+            // overwriting the type here would drop the scalar branch —
+            // rejecting a value the handler accepts.
+            $otherTypes = array_values(array_diff(
+                (array) $paramSchema['type'],
+                ['array', 'null'],
+            ));
+
+            if ([] === $otherTypes) {
+                $paramSchema['type'] = $allowsNull ? ['array', 'null'] : 'array';
+
+                if (\is_array($paramSchema['type'])) {
+                    sort($paramSchema['type']);
+                }
+            } elseif ($allowsNull && !\in_array('null', (array) $paramSchema['type'], true)) {
+                $paramSchema['type'] = [...(array) $paramSchema['type'], 'null'];
                 sort($paramSchema['type']);
-            } else {
-                $paramSchema['type'] = 'array';
             }
         }
 
@@ -656,6 +670,42 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     }
 
     /**
+     * Splits a type string on its top-level `|`, leaving generics and shapes
+     * intact.
+     *
+     * `int|string` splits; `array<int|string>` and `array{a: int|string}` do
+     * not, because the `|` there is a parameter of the outer type rather than
+     * an alternative to it.
+     *
+     * @return list<string>
+     */
+    public static function splitUnion(string $type): array
+    {
+        $branches = [];
+        $depth = 0;
+        $current = '';
+
+        foreach (str_split($type) as $character) {
+            if (\in_array($character, ['<', '{', '('], true)) {
+                ++$depth;
+            } elseif (\in_array($character, ['>', '}', ')'], true)) {
+                $depth = max(0, $depth - 1);
+            } elseif ('|' === $character && 0 === $depth) {
+                $branches[] = trim($current);
+                $current = '';
+
+                continue;
+            }
+
+            $current .= $character;
+        }
+
+        $branches[] = trim($current);
+
+        return array_values(array_filter($branches, static fn (string $branch): bool => '' !== $branch));
+    }
+
+    /**
      * Maps a PHP type string (potentially a union) to an array of JSON Schema type names.
      *
      * @return string[]
@@ -664,12 +714,28 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $normalizedType = strtolower(trim($phpTypeString));
 
-        // PRIORITY 1: Check for array{} syntax which should be treated as object
+        // PRIORITY 1: Handle unions before anything else. A `|` at the top
+        // level joins alternatives; one inside `<>` or `{}` belongs to a
+        // generic (`array<int|string>`) and is not a union of the whole type.
+        // Checked first because a branch may itself be an array shape — and
+        // `string[]|int` read as "an array" silently loses the `int`.
+        $branches = self::splitUnion($normalizedType);
+
+        if (\count($branches) > 1) {
+            $jsonTypes = [];
+            foreach ($branches as $branch) {
+                $jsonTypes = array_merge($jsonTypes, $this->mapPhpTypeToJsonSchemaType($branch));
+            }
+
+            return array_values(array_unique($jsonTypes));
+        }
+
+        // PRIORITY 2: Check for array{} syntax which should be treated as object
         if (preg_match('/^array\s*{/i', $normalizedType)) {
             return ['object'];
         }
 
-        // PRIORITY 2: Check for array syntax first (T[] or generics)
+        // PRIORITY 3: Check for array syntax (T[] or generics)
         if (
             str_contains($normalizedType, '[]')
             || preg_match('/^(array|list|iterable|collection)</i', $normalizedType)
@@ -677,21 +743,9 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return ['array'];
         }
 
-        // PRIORITY 3: Treat PHPStan/Psalm integer ranges as their base type
+        // PRIORITY 4: Treat PHPStan/Psalm integer ranges as their base type
         if (preg_match('/^int\s*<\s*[^<>]+\s*>$/i', $normalizedType)) {
             return ['integer'];
-        }
-
-        // PRIORITY 4: Handle unions (recursive)
-        if (str_contains($normalizedType, '|')) {
-            $types = explode('|', $normalizedType);
-            $jsonTypes = [];
-            foreach ($types as $type) {
-                $mapped = $this->mapPhpTypeToJsonSchemaType(trim($type));
-                $jsonTypes = array_merge($jsonTypes, $mapped);
-            }
-
-            return array_values(array_unique($jsonTypes));
         }
 
         // PRIORITY 5: Handle simple built-in types
