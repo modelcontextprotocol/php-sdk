@@ -594,7 +594,7 @@ final class StatelessProtocol
     {
         try {
             while ($run->valid()) {
-                yield $run->current()->jsonSerialize();
+                yield self::withTraceContext($run->current()->jsonSerialize(), $meta->traceContext);
 
                 $run->next();
             }
@@ -652,6 +652,31 @@ final class StatelessProtocol
             ),
             400,
         );
+    }
+
+    /**
+     * Puts the request's trace context back onto a notification it caused, so a
+     * collector can join the two without the handler carrying it by hand.
+     *
+     * @param array<string, mixed>  $frame
+     * @param array<string, string> $traceContext
+     *
+     * @return array<string, mixed>
+     */
+    private static function withTraceContext(array $frame, array $traceContext): array
+    {
+        if ([] === $traceContext) {
+            return $frame;
+        }
+
+        $params = \is_array($frame['params'] ?? null) ? $frame['params'] : [];
+        $frameMeta = \is_array($params['_meta'] ?? null) ? $params['_meta'] : [];
+
+        // Anything the notification set itself wins: it knows its own span.
+        $params['_meta'] = [...$traceContext, ...$frameMeta];
+        $frame['params'] = $params;
+
+        return $frame;
     }
 
     /**

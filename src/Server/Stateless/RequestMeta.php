@@ -35,11 +35,23 @@ final class RequestMeta
     public const SERVER_INFO = 'io.modelcontextprotocol/serverInfo';
     public const SUBSCRIPTION_ID = 'io.modelcontextprotocol/subscriptionId';
 
+    /**
+     * OpenTelemetry trace context, exempt from the prefix rule by name so it
+     * matches what the wider ecosystem already puts on the wire.
+     *
+     * @see https://www.w3.org/TR/trace-context/
+     */
+    public const TRACE_KEYS = ['traceparent', 'tracestate', 'baggage'];
+
+    /**
+     * @param array<string, string> $traceContext W3C trace context carried through from the request
+     */
     public function __construct(
         public readonly string $protocolVersion,
         public readonly ClientCapabilities $clientCapabilities,
         public readonly ?Implementation $clientInfo = null,
         public readonly ?LoggingLevel $logLevel = null,
+        public readonly array $traceContext = [],
     ) {
     }
 
@@ -74,6 +86,7 @@ final class RequestMeta
             ClientCapabilities::fromArray((array) $capabilities),
             \is_array($clientInfo) ? Implementation::fromArray($clientInfo) : null,
             self::parseLogLevel($meta[self::LOG_LEVEL] ?? null),
+            self::parseTraceContext($meta),
         );
     }
 
@@ -84,5 +97,26 @@ final class RequestMeta
     private static function parseLogLevel(mixed $level): ?LoggingLevel
     {
         return \is_string($level) ? LoggingLevel::tryFrom($level) : null;
+    }
+
+    /**
+     * Carried through opaquely: the values are the tracing ecosystem's to
+     * interpret, and a malformed one is not this server's to reject.
+     *
+     * @param array<string, mixed> $meta
+     *
+     * @return array<string, string>
+     */
+    private static function parseTraceContext(array $meta): array
+    {
+        $context = [];
+
+        foreach (self::TRACE_KEYS as $key) {
+            if (\is_string($meta[$key] ?? null)) {
+                $context[$key] = $meta[$key];
+            }
+        }
+
+        return $context;
     }
 }
