@@ -11,6 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\Capability\Registry;
+use Mcp\Capability\RegistryInterface;
+use Mcp\Schema\Tool;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -171,6 +174,148 @@ class StandardHeaderValidatorTest extends TestCase
         yield 'tasks/get uses taskId' => ['tasks/get', ['taskId' => 'd'], 'd'];
         yield 'tools/list has no subject' => ['tools/list', [], null];
         yield 'non-string name is ignored' => ['tools/call', ['name' => 42], null];
+    }
+
+    #[TestDox('an annotation on a nested property is found through the properties chain')]
+    public function testNestedMirroredPropertyIsFound(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'target' => [
+                    'type' => 'object',
+                    'properties' => [
+                        'region' => ['type' => 'string', 'x-mcp-header' => 'Region'],
+                    ],
+                ],
+                'top' => ['type' => 'string', 'x-mcp-header' => 'Top'],
+            ],
+        ];
+
+        $this->assertSame(
+            ['Region' => ['target', 'region'], 'Top' => ['top']],
+            StandardHeaderValidator::mirroredProperties($schema),
+        );
+    }
+
+    #[TestDox('an annotation the chain cannot reach statically is not mirrored')]
+    #[DataProvider('unreachableAnnotations')]
+    public function testUnreachableAnnotationsAreNotMirrored(array $properties): void
+    {
+        $this->assertSame([], StandardHeaderValidator::mirroredProperties([
+            'type' => 'object',
+            'properties' => $properties,
+        ]));
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function unreachableAnnotations(): iterable
+    {
+        yield 'under items' => [['a' => ['type' => 'array', 'items' => ['type' => 'string', 'x-mcp-header' => 'X']]]];
+        yield 'under anyOf' => [['a' => ['anyOf' => [['type' => 'string', 'x-mcp-header' => 'X']]]]];
+        yield 'under if' => [['a' => ['if' => ['type' => 'string', 'x-mcp-header' => 'X']]]];
+    }
+
+    #[TestDox('an integer is compared numerically, so 42 and 42.0 agree')]
+    public function testIntegerParamsCompareNumerically(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => 42]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '42.0'],
+        ));
+
+        $this->assertStringContainsString('does not match', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => 42]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '43'],
+        ));
+    }
+
+    #[TestDox('a numeric-looking string argument keeps its exact-match comparison')]
+    public function testNumericLookingStringArgumentIsNotComparedNumerically(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertStringContainsString('does not match', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => '042']],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '42'],
+        ));
+
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => '042']],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '042'],
+        ));
+    }
+
+    #[TestDox('a scientific-notation header is not accepted as a decimal number')]
+    public function testScientificNotationHeaderIsRejected(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertStringContainsString('does not match', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => 40]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '4e1'],
+        ));
+    }
+
+    #[TestDox('a nested mirrored argument is read at its exact path')]
+    public function testNestedMirroredArgumentIsChecked(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['target' => ['region' => 'us-west1']]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Region' => 'us-west1'],
+        ));
+
+        $this->assertStringContainsString('Missing required Mcp-Param-Region', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['target' => ['region' => 'us-west1']]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored'],
+        ));
+
+        // Absent at that path, so no header is expected.
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => []],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored'],
+        ));
+    }
+
+    private static function registryWithMirroredTool(): RegistryInterface
+    {
+        $registry = new Registry();
+        $registry->registerTool(
+            new Tool(
+                name: 'mirrored',
+                title: null,
+                inputSchema: [
+                    'type' => 'object',
+                    'properties' => [
+                        'retries' => ['type' => 'integer', 'x-mcp-header' => 'Retries'],
+                        'target' => [
+                            'type' => 'object',
+                            'properties' => ['region' => ['type' => 'string', 'x-mcp-header' => 'Region']],
+                        ],
+                    ],
+                    'required' => null,
+                ],
+                description: 'x',
+                annotations: null,
+            ),
+            static fn (): string => 'ok',
+        );
+
+        return $registry;
     }
 
     #[TestDox('a plain header value decodes to itself')]

@@ -149,22 +149,13 @@ final class StandardHeaderValidator
             return null;
         }
 
-        $properties = $tool->inputSchema['properties'] ?? [];
-        if (!\is_array($properties)) {
-            return null;
-        }
-
         $arguments = \is_array($params['arguments'] ?? null) ? $params['arguments'] : [];
 
-        foreach ($properties as $property => $definition) {
-            if (!\is_array($definition) || !\is_string($definition['x-mcp-header'] ?? null)) {
-                continue;
-            }
-
+        foreach (self::mirroredProperties($tool->inputSchema) as $name => $path) {
             $error = $this->checkParam(
-                self::PARAM_HEADER_PREFIX.$definition['x-mcp-header'],
+                self::PARAM_HEADER_PREFIX.$name,
                 $headers,
-                \array_key_exists($property, $arguments) ? $arguments[$property] : null,
+                self::valueAt($arguments, $path),
             );
 
             if (null !== $error) {
@@ -173,6 +164,70 @@ final class StandardHeaderValidator
         }
 
         return null;
+    }
+
+    /**
+     * Every `x-mcp-header` annotation in $schema, as header name to the property
+     * path it mirrors.
+     *
+     * Only statically reachable properties count: the chain from the root must
+     * be `properties` keys the whole way. A chain through `items`, a
+     * composition keyword, `if`/`then`/`else` or a `$ref` is not extractable
+     * without evaluating the instance, so the specification puts an annotation
+     * there out of bounds — and this walk simply never reaches one.
+     *
+     * @param array<string, mixed> $schema
+     * @param list<string>         $path
+     *
+     * @return array<string, list<string>>
+     */
+    public static function mirroredProperties(array $schema, array $path = []): array
+    {
+        $properties = $schema['properties'] ?? null;
+
+        if (!\is_array($properties)) {
+            return [];
+        }
+
+        $found = [];
+
+        foreach ($properties as $property => $definition) {
+            if (!\is_array($definition)) {
+                continue;
+            }
+
+            $here = [...$path, (string) $property];
+
+            if (\is_string($definition['x-mcp-header'] ?? null)) {
+                $found[$definition['x-mcp-header']] = $here;
+            }
+
+            $found = [...$found, ...self::mirroredProperties($definition, $here)];
+        }
+
+        return $found;
+    }
+
+    /**
+     * Reads the instance value at an exact property path, or null when the path
+     * is not present — which the specification reads as "no header expected".
+     *
+     * @param array<string, mixed> $arguments
+     * @param list<string>         $path
+     */
+    private static function valueAt(array $arguments, array $path): mixed
+    {
+        $node = $arguments;
+
+        foreach ($path as $segment) {
+            if (!\is_array($node) || !\array_key_exists($segment, $node)) {
+                return null;
+            }
+
+            $node = $node[$segment];
+        }
+
+        return $node;
     }
 
     /**
@@ -204,8 +259,21 @@ final class StandardHeaderValidator
             default => null,
         };
 
+        // A non-scalar cannot be mirrored at all, so the annotation on it is
+        // the tool definition's problem rather than this request's.
         if (null === $expected) {
             return null;
+        }
+
+        // Numerically for numbers, so "42.0" and "42" agree — the spec asks for
+        // this, and a client's JSON writer is free to pick either. Gated on the
+        // argument's actual type (not is_numeric, which a numeric-looking
+        // string like "042" would also satisfy) and a decimal header (not
+        // "4e1"), so a string argument keeps its exact-match comparison.
+        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/', $decoded)) {
+            return (float) $decoded === (float) $argument
+                ? null
+                : \sprintf('%s header "%s" does not match the body argument "%s".', $headerName, $decoded, $expected);
         }
 
         if ($decoded !== $expected) {
