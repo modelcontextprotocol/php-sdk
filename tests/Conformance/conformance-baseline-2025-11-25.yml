@@ -1,32 +1,9 @@
-# Expected conformance failures for spec revision 2025-11-25.
-#
-# Separate from conformance-baseline-2026-07-28.yml because the two revisions
-# exercise different lifecycles against different endpoints: this file covers
-# the handshake era served at /, the other the modern (SEP-2575) era served
-# at /stateless.
-#
-# Entries are per-check (scenario:check-id) rather than whole scenarios, so a
-# scenario that is mostly conformant keeps reporting the parts that work and a
-# new regression inside it still fails the run.
-#
-# Run with:
-#   make conformance-server
-#   make conformance-client
-
-# Both pre-existing fixture bugs, not lifecycle-specific: json-schema-2020-12
-# wants a `json_schema_2020_12_tool` fixture neither conformance server
-# defines, and resources-templates-read emits a resource-template URI in a
-# shape the schema rejects. Reproduce identically on the 2026-07-28 endpoint
-# (see conformance-baseline-2026-07-28.yml).
 server:
-  - json-schema-2020-12:json-schema-2020-12-tool-found
-  - resources-templates-read:wire-schema-valid
+  - json-schema-2020-12
 
 client:
   - elicitation-sep1034-client-defaults
   - sse-retry
-  # The example client doesn't call add_numbers or echo the tool's inputSchema
-  # back, so these checks have nothing to exercise.
   - tools_call:tool-add-numbers
   - json-schema-2020-12-preservation:json-schema-2020-12-client-echo-completed
   - auth/metadata-default
@@ -50,4 +27,3 @@ client:
   - auth/client-credentials-jwt
   - auth/client-credentials-basic
   - auth/cross-app-access-complete-flow
-

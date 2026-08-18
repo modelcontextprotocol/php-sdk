@@ -146,7 +146,7 @@ final class Elements
     public function resourceTemplate(string $id): TextResourceContents
     {
         return new TextResourceContents(
-            uri: 'test://template/{id}/data',
+            uri: \sprintf('test://template/%s/data', $id),
             mimeType: 'application/json',
             text: json_encode([
                 'id' => $id,

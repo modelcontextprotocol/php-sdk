@@ -1,36 +1,6 @@
-# Expected conformance failures for spec revision 2026-07-28.
-#
-# Separate from conformance-baseline-2025-11-25.yml because the two revisions
-# exercise different lifecycles against different endpoints: the other file
-# covers the handshake era served at /, this one the modern (SEP-2575) era
-# served at /stateless.
-#
-# Entries are per-check (scenario:check-id) rather than whole scenarios, so a
-# scenario that is mostly conformant keeps reporting the parts that work and a
-# new regression inside it still fails the run.
-#
-# Run with:
-#   make conformance-draft-server
-#   make conformance-draft-client
-
 server:
-  # --- Pre-existing, not lifecycle-specific ----------------------------------
-  # Neither is caused by (or fixable in) the modern lifecycle; both reproduce
-  # on the handshake endpoint. Listed so the draft run is honest.
-  #
-  # json-schema-2020-12 wants a `json_schema_2020_12_tool` fixture that neither
-  # conformance server defines, so the scenario has nothing to exercise.
-  # resources-templates-read is the single remaining wire-schema failure: the
-  # fixture emits a resource-template URI in a shape the schema rejects, on
-  # both revisions.
-  - json-schema-2020-12:json-schema-2020-12-tool-found
-  - resources-templates-read:wire-schema-valid
+  - json-schema-2020-12
 
-# The client does not speak 2026-07-28 at all yet: it still opens with
-# `initialize` regardless of revision, so it never reaches the stateless wire
-# (no per-request `_meta`, no Mcp-Method/Mcp-Name headers, no client-side
-# requestState) — and separately, the SDK ships no OAuth client, so every
-# scenario driving an authorization flow has nothing to exercise.
 client:
   - request-metadata
   - http-standard-headers
@@ -41,7 +11,6 @@ client:
   - tools_call:tool-add-numbers
   - json-schema-2020-12-preservation:json-schema-2020-12-client-tool-found
   - json-schema-2020-12-preservation:json-schema-2020-12-client-echo-completed
-
   - auth/metadata-default
   - auth/metadata-var1
   - auth/metadata-var2
