@@ -236,6 +236,36 @@ class StandardHeaderValidatorTest extends TestCase
         ));
     }
 
+    #[TestDox('a numeric-looking string argument keeps its exact-match comparison')]
+    public function testNumericLookingStringArgumentIsNotComparedNumerically(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertStringContainsString('does not match', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => '042']],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '42'],
+        ));
+
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => '042']],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '042'],
+        ));
+    }
+
+    #[TestDox('a scientific-notation header is not accepted as a decimal number')]
+    public function testScientificNotationHeaderIsRejected(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertStringContainsString('does not match', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => 40]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '4e1'],
+        ));
+    }
+
     #[TestDox('a nested mirrored argument is read at its exact path')]
     public function testNestedMirroredArgumentIsChecked(): void
     {

@@ -266,9 +266,12 @@ final class StandardHeaderValidator
         }
 
         // Numerically for numbers, so "42.0" and "42" agree — the spec asks for
-        // this, and a client's JSON writer is free to pick either.
-        if (is_numeric($argument) && is_numeric($decoded)) {
-            return $decoded == $argument
+        // this, and a client's JSON writer is free to pick either. Gated on the
+        // argument's actual type (not is_numeric, which a numeric-looking
+        // string like "042" would also satisfy) and a decimal header (not
+        // "4e1"), so a string argument keeps its exact-match comparison.
+        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/', $decoded)) {
+            return (float) $decoded === (float) $argument
                 ? null
                 : \sprintf('%s header "%s" does not match the body argument "%s".', $headerName, $decoded, $expected);
         }
