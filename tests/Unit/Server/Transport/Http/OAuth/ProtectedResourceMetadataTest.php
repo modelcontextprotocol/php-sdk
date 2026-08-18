@@ -83,4 +83,33 @@ class ProtectedResourceMetadataTest extends TestCase
 
         new ProtectedResourceMetadata([]);
     }
+
+    #[TestDox('the SDK advertises exactly the scopes it was given, and never adds offline_access')]
+    public function testScopesAreOperatorSuppliedOnly(): void
+    {
+        // SEP-2207: `offline_access` is a refresh-token scope, not something a
+        // resource requires. Nothing in the SDK injects it — this pins that, so
+        // a future default cannot quietly start advertising one.
+        $metadata = new ProtectedResourceMetadata(
+            resource: 'https://api.example.com/mcp',
+            authorizationServers: ['https://auth.example.com'],
+            scopesSupported: ['mcp:read', 'mcp:write'],
+        );
+
+        $data = $metadata->jsonSerialize();
+
+        $this->assertSame(['mcp:read', 'mcp:write'], $data['scopes_supported']);
+        $this->assertNotContains('offline_access', $data['scopes_supported']);
+    }
+
+    #[TestDox('no scopes given means no scopes_supported member at all')]
+    public function testNoScopesMeansNoMember(): void
+    {
+        $metadata = new ProtectedResourceMetadata(
+            resource: 'https://api.example.com/mcp',
+            authorizationServers: ['https://auth.example.com'],
+        );
+
+        $this->assertArrayNotHasKey('scopes_supported', $metadata->jsonSerialize());
+    }
 }
