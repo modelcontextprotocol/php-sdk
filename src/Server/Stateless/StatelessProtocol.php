@@ -310,6 +310,12 @@ final class StatelessProtocol
         $session = new Session(new InMemorySessionStore());
         $session->set(RequestMeta::class, $meta);
 
+        // Under the same keys the handshake era writes, so everything reading
+        // connection state — ClientGateway's capability probes above all — sees
+        // this request's declaration instead of an empty session.
+        $session->set('client_capabilities', $meta->clientCapabilities->jsonSerialize());
+        $session->set('protocol_version', $meta->protocolVersion);
+
         try {
             $input = $this->liftInputContext($decoded['params'] ?? null);
         } catch (RequestStateException $e) {
