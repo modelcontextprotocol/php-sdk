@@ -201,8 +201,7 @@ $server = Server::builder()
     // Fixed so a retry landing on another process still verifies.
     ->setRequestState(str_repeat('conformance-fixture-key-', 2))
     // So a listen stream carries the registry's changes rather than only
-    // acknowledging. In-memory is right here: the conformance server is one
-    // FrankenPHP-less php-fpm pool, and the scenarios publish within a request.
+    // acknowledging; see $bus above for why it is filesystem-backed.
     ->setNotificationBus($bus)
     // Short, so a listen stream cannot tie up an fpm worker for the length of
     // a whole run.

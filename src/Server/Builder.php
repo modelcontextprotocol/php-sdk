@@ -271,12 +271,7 @@ final class Builder
     private int $inputRequiredTimeout = InputRequiredShim::DEFAULT_ROUND_TIMEOUT;
 
     /**
-     * Resolved once and shared by every dispatcher this builder produces.
-     *
-     * Both eras run the same tools over the same registry, so assembling twice
-     * would mean two registries, two discovery passes and two session managers
-     * behind one endpoint — and a change made through one of them invisible to
-     * the other.
+     * @see self::assemble() for why this is memoized
      *
      * @var AssembledParts|null
      */

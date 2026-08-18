@@ -286,9 +286,8 @@ class Protocol
                 $shim = $this->inputRequiredShim;
                 $codec = $this->requestStateCodec;
 
-                // The handler runs inside the fiber either way; with the shim
-                // it runs there once per round, and the wait for each answer is
-                // the same suspension a handler's own ClientGateway call makes.
+                // One fiber for the whole exchange: with the shim, the handler
+                // re-enters inside it each round rather than needing a new one.
                 /** @var McpFiber $fiber */
                 $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
                     $result = $handler->handle($request, $session);
