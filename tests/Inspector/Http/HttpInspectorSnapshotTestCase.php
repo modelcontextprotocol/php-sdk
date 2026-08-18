@@ -29,6 +29,27 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
         $this->stopServer();
     }
 
+    private function dumpServerOutputForDiagnosis(): void
+    {
+        if (!isset($this->serverProcess)) {
+            return;
+        }
+
+        $out = $this->serverProcess->getOutput();
+        $err = $this->serverProcess->getErrorOutput();
+
+        if ('' !== $out || '' !== $err) {
+            fwrite(\STDERR, \sprintf(
+                "\n[DIAG] server on port %d (pid target %s), exit code %s\n--- stdout ---\n%s\n--- stderr ---\n%s\n[/DIAG]\n",
+                $this->serverPort,
+                (string) getmypid(),
+                var_export($this->serverProcess->getExitCode(), true),
+                $out,
+                $err,
+            ));
+        }
+    }
+
     abstract protected function getServerScript(): string;
 
     protected function getServerConnectionArgs(): array
@@ -71,6 +92,7 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
     {
         if (isset($this->serverProcess)) {
             $this->serverProcess->stop(1, \SIGTERM);
+            $this->dumpServerOutputForDiagnosis();
         }
     }
 
