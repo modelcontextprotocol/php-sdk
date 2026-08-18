@@ -6,8 +6,10 @@
 [![CI](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml)
 [![PHP Version](https://img.shields.io/packagist/php-v/mcp/sdk.svg)](https://packagist.org/packages/mcp/sdk)
 [![License](https://img.shields.io/packagist/l/mcp/sdk.svg)](LICENSE)
-[![Server Conformance](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
-[![Client Conformance](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+[![Server Conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+[![Client Conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+[![Server Conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
+[![Client Conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
 
 </div>
 

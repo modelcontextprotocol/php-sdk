@@ -6,9 +6,7 @@ permissions:
   pull-requests: write
 
 env:
-  # Pinned so a PR only goes red for reasons in the PR. The 2026-07-28
-  # scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has none of them.
-  # conformance-weekly.yaml is what tracks upstream releases.
+  # Pinned exact version; conformance-weekly.yaml tracks upstream releases.
   CONFORMANCE_PKG: "@modelcontextprotocol/conformance@0.2.0-alpha.11"
 
 jobs:
@@ -105,16 +103,11 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      # One entry per lifecycle, not per spec revision: `--spec-version` is
-      # cumulative across the dated revisions, so 2025-11-25 already covers
-      # 2025-06-18 and 2025-03-26. 2026-07-28 is not cumulative with them — it
-      # is the SEP-2575 stateless wire, served from its own endpoint with its
-      # own baseline, so it needs its own run.
       matrix:
         include:
           - spec-version: '2025-11-25'
             path: '/'
-            baseline: conformance-baseline.yml
+            baseline: conformance-baseline-2025-11-25.yml
           - spec-version: '2026-07-28'
             path: '/stateless'
             baseline: conformance-baseline-2026-07-28.yml
@@ -180,7 +173,7 @@ jobs:
       matrix:
         include:
           - spec-version: '2025-11-25'
-            baseline: conformance-baseline.yml
+            baseline: conformance-baseline-2025-11-25.yml
           - spec-version: '2026-07-28'
             baseline: conformance-baseline-2026-07-28.yml
 
