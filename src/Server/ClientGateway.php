@@ -23,6 +23,7 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingContext;
+use Mcp\Schema\Extension\ExtensionIdentifier;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
@@ -359,9 +360,9 @@ class ClientGateway
      *
      * @return bool True if the client advertised the extension, false otherwise
      */
-    public function supportsExtension(string $id): bool
+    public function supportsExtension(ExtensionIdentifier|string $id): bool
     {
-        return $this->hasSubCapability('extensions', $id);
+        return $this->hasSubCapability('extensions', (string) $id);
     }
 
     /**

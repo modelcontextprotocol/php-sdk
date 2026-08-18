@@ -14,6 +14,7 @@ namespace Mcp\Client;
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -88,12 +89,13 @@ final class Builder
      * Enable one or more MCP protocol extensions, announced to the server under
      * `capabilities.extensions` in the initialize request.
      *
-     * @throws LogicException if the same extension is enabled more than once
+     * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
+     * @throws LogicException           if the same extension is enabled more than once
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
-            $id = $extension->getId();
+            $id = (string) $extension->getId();
 
             if (isset($this->extensions[$id])) {
                 throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));

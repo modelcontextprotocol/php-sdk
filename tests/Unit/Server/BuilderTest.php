@@ -15,6 +15,7 @@ use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -24,9 +25,14 @@ use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Server;
+use Mcp\Server\Builder;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
+use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Tests\Unit\Server\Extension\ThingExtension;
+use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
+use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -170,6 +176,43 @@ final class BuilderTest extends TestCase
         $builder = Server::builder();
 
         $this->assertSame($builder, $builder->setLazyLoading(false));
+    }
+
+    #[TestDox('An extension identifier must be a valid _meta prefix')]
+    public function testEnableExtensionRejectsUnprefixedIdentifier(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('has no prefix');
+
+        Server::builder()->enableExtension(new ThingExtension('things'));
+    }
+
+    #[TestDox('A method-providing extension contributes the message classes its methods decode into')]
+    public function testEnableExtensionRegistersItsMessages(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->enableExtension(new ThingExtension())
+            ->build();
+
+        $factory = (new \ReflectionProperty(Protocol::class, 'messageFactory'))
+            ->getValue((new \ReflectionProperty(Server::class, 'protocol'))->getValue($server));
+
+        $decoded = $factory->create('{"jsonrpc":"2.0","id":1,"method":"com.example/things.list"}');
+
+        $this->assertInstanceOf(ThingListRequest::class, $decoded[0]);
+    }
+
+    #[TestDox('A method-providing extension contributes the handlers serving its methods')]
+    public function testEnableExtensionRegistersItsHandlers(): void
+    {
+        $builder = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->enableExtension(new ThingExtension());
+
+        $handlers = (new \ReflectionProperty(Builder::class, 'requestHandlers'))->getValue($builder);
+
+        $this->assertContainsOnlyInstancesOf(ThingListHandler::class, $handlers);
     }
 
     #[TestDox('Lazy loading (default) advertises tools from configured sources without running loaders')]

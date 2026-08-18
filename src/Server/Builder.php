@@ -32,6 +32,7 @@ use Mcp\Exception\LogicException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\AbstractExtension;
 use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
@@ -214,6 +215,9 @@ final class Builder
      */
     private array $extensions = [];
 
+    /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
+    private array $extensionMessages = [];
+
     /**
      * @var LoaderInterface[]
      */
@@ -280,18 +284,33 @@ final class Builder
      * Enable one or more MCP protocol extensions, announced to clients under
      * `capabilities.extensions` during the initialize handshake.
      *
-     * @throws LogicException if the same extension is enabled more than once
+     * An extension also contributes the message classes its methods decode
+     * into and the handlers serving them, if any — see {@see AbstractExtension}
+     * for extensions that only announce a capability.
+     *
+     * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
+     * @throws LogicException           if the same extension is enabled more than once
      */
     public function enableExtension(ExtensionInterface ...$extensions): self
     {
         foreach ($extensions as $extension) {
-            $id = $extension->getId();
+            $id = (string) $extension->getId();
 
             if (isset($this->extensions[$id])) {
                 throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
             }
 
             $this->extensions[$id] = $extension->getCapabilities();
+
+            // Without this the method cannot be decoded at all, so nothing
+            // downstream ever sees it.
+            foreach ($extension->getMessages() as $message) {
+                $this->extensionMessages[] = $message;
+            }
+
+            foreach ($extension->getRequestHandlers() as $handler) {
+                $this->requestHandlers[] = $handler;
+            }
         }
 
         return $this;
@@ -709,7 +728,7 @@ final class Builder
             $eagerlyLoaded = !$this->lazyLoading;
         }
 
-        $messageFactory = MessageFactory::make();
+        $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
         $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 

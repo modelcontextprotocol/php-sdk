@@ -27,7 +27,7 @@ class McpAppsTest extends TestCase
         $extension = new McpApps();
 
         $this->assertInstanceOf(ExtensionInterface::class, $extension);
-        $this->assertSame('io.modelcontextprotocol/ui', $extension->getId());
+        $this->assertSame('io.modelcontextprotocol/ui', (string) $extension->getId());
         $this->assertSame(['mimeTypes' => ['text/html;profile=mcp-app']], $extension->getCapabilities());
     }
 
