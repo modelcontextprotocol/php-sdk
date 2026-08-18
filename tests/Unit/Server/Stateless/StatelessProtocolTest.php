@@ -12,10 +12,12 @@
 namespace Mcp\Tests\Unit\Server\Stateless;
 
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -107,6 +109,31 @@ class StatelessProtocolTest extends TestCase
         );
 
         $this->assertSame('none', $answer['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>}>
+     */
+    public static function removedMethods(): iterable
+    {
+        yield 'initialize' => ['initialize', []];
+        yield 'ping' => ['ping', []];
+        yield 'logging/setLevel' => ['logging/setLevel', ['level' => 'info']];
+        yield 'resources/subscribe' => ['resources/subscribe', ['uri' => 'test://static']];
+        yield 'resources/unsubscribe' => ['resources/unsubscribe', ['uri' => 'test://static']];
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('removedMethods')]
+    #[TestDox('a method this revision removed is answered as unknown')]
+    public function testRemovedMethodsAreUnknown(string $method, array $params): void
+    {
+        $answer = self::call(self::protocol(), $method, $params);
+
+        $this->assertSame(404, $answer['status']);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
     }
 
     #[TestDox('elicitation without a named mode reports form, not url')]

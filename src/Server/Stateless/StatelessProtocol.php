@@ -47,12 +47,22 @@ final class StatelessProtocol
     /**
      * Methods the modern era deleted. Answered as unknown methods, which is
      * what they are to a modern server.
+     *
+     * A deny-list rather than an allow-list on purpose: extensions add methods
+     * this class has never heard of, so an unlisted method has to reach
+     * dispatch. Every removal named in the 2026-07-28 changelog belongs here —
+     * the handlers behind them stay registered for the handshake era, which is
+     * why the era guard, and not the registration, is what turns them off.
      */
     public const REMOVED_METHODS = [
         'initialize',
         'notifications/initialized',
         'ping',
         'logging/setLevel',
+        // Replaced by the `resourceSubscriptions` filter of subscriptions/listen.
+        'resources/subscribe',
+        'resources/unsubscribe',
+        'notifications/roots/list_changed',
     ];
 
     public const DISCOVER_METHOD = 'server/discover';
