@@ -51,7 +51,7 @@ final class ClientLogger extends AbstractLogger
         $minimumLevel = $this->session->get(Protocol::SESSION_LOGGING_LEVEL, '');
         $minimumLevel = LoggingLevel::tryFrom($minimumLevel) ?? LoggingLevel::Warning;
 
-        if ($this->getSeverityIndex($minimumLevel) > $this->getSeverityIndex($mcpLevel)) {
+        if (!$mcpLevel->isAtLeast($minimumLevel)) {
             return;
         }
 
@@ -77,26 +77,6 @@ final class ClientLogger extends AbstractLogger
             'info' => LoggingLevel::Info,
             'debug' => LoggingLevel::Debug,
             default => null,
-        };
-    }
-
-    /**
-     * Gets the severity index for this log level.
-     * Higher values indicate more severe log levels.
-     *
-     * @return int Severity index (0-7, where 7 is most severe)
-     */
-    private function getSeverityIndex(LoggingLevel $level): int
-    {
-        return match ($level) {
-            LoggingLevel::Debug => 0,
-            LoggingLevel::Info => 1,
-            LoggingLevel::Notice => 2,
-            LoggingLevel::Warning => 3,
-            LoggingLevel::Error => 4,
-            LoggingLevel::Critical => 5,
-            LoggingLevel::Alert => 6,
-            LoggingLevel::Emergency => 7,
         };
     }
 }
