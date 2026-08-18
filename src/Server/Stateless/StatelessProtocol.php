@@ -434,7 +434,7 @@ final class StatelessProtocol
             }
 
             if ($run->valid() && $wantsStream) {
-                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $method, $id, null === $input));
+                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $meta, $method, $id, null === $input));
             }
 
             try {
@@ -545,7 +545,7 @@ final class StatelessProtocol
      *
      * @return \Generator<mixed>
      */
-    private function streamFrames(\Generator $run, string $method, string|int $id, bool $cacheable): \Generator
+    private function streamFrames(\Generator $run, RequestMeta $meta, string $method, string|int $id, bool $cacheable): \Generator
     {
         try {
             while ($run->valid()) {
@@ -559,6 +559,12 @@ final class StatelessProtocol
             // Headers left long ago, so the status is already 200 and the only
             // way left to report this is a frame.
             yield $this->toErrorResult($method, $id, $e)->message?->jsonSerialize();
+
+            return;
+        }
+
+        if (!$result instanceof Error && null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
+            yield $capabilityError->message?->jsonSerialize();
 
             return;
         }

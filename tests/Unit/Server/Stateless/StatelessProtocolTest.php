@@ -102,6 +102,17 @@ class StatelessProtocolTest extends TestCase
                 name: 'asks_by_url',
                 description: 'Asks through a url-mode elicitation',
             )
+            ->addTool(
+                static function (RequestContext $context): InputRequiredResult {
+                    $context->getClientGateway()->progress(0, 100, 'starting');
+
+                    return new InputRequiredResult([
+                        'consent' => ElicitRequest::forUrl('Approve out of band', 'https://example.com/consent'),
+                    ]);
+                },
+                name: 'asks_by_url_after_progress',
+                description: 'Emits progress, then asks through a url-mode elicitation',
+            )
             ->addResource(static fn (): string => 'body', 'test://static', 'static', 'A static resource')
             ->addResource(
                 static function (RequestContext $context): string|InputRequiredResult {
@@ -513,6 +524,23 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(200, $answer['status']);
         $this->assertSame('input_required', $answer['body']['result']['resultType']);
+    }
+
+    #[TestDox('an ask the client cannot answer is refused with -32021 even mid-stream')]
+    public function testUndeclaredInputRequestIsRefusedWhenStreamed(): void
+    {
+        // The handler emits progress before its InputRequiredResult, so the
+        // answer goes out on the response stream, not a plain 400 — the gate
+        // still has to apply there.
+        $result = self::callStreaming(self::protocol(), 'asks_by_url_after_progress', ['progressToken' => 'tok-1']);
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+        $last = json_decode(json_encode($frames[array_key_last($frames)], \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $last['error']['code']);
+        $this->assertArrayHasKey('url', $last['error']['data']['requiredCapabilities']['elicitation']);
     }
 
     #[TestDox('a first-round read carries caching hints')]
