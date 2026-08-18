@@ -21,6 +21,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
@@ -28,7 +29,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<ReadResourceResult>
+ * @implements RequestHandlerInterface<ReadResourceResult|InputRequiredResult>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -47,7 +48,7 @@ final class ReadResourceHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<ReadResourceResult>|Error
+     * @return Response<ReadResourceResult|InputRequiredResult>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -71,9 +72,20 @@ final class ReadResourceHandler implements RequestHandlerInterface
                 $arguments = array_merge($arguments, $variables);
 
                 $result = $this->referenceHandler->handle($reference, $arguments);
+
+                // An ask is a result in its own right, not resource contents.
+                if ($result instanceof InputRequiredResult) {
+                    return new Response($request->getId(), $result);
+                }
+
                 $formatted = $reference->formatResult($result, $uri, $reference->resourceTemplate->mimeType);
             } else {
                 $result = $this->referenceHandler->handle($reference, $arguments);
+
+                if ($result instanceof InputRequiredResult) {
+                    return new Response($request->getId(), $result);
+                }
+
                 $formatted = $reference->formatResult($result, $uri, $reference->resource->mimeType);
             }
 

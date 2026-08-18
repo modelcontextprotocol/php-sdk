@@ -51,10 +51,12 @@ final class Rev2026Codec implements WireCodecInterface
     ) {
     }
 
-    public function encodeResult(string $method, array $result): array
+    public function encodeResult(string $method, array $result, bool $cacheable = true): array
     {
+        $stamped = $this->stampResultType($method, $result);
+
         return $this->stampServerInfo(
-            $this->fillCacheHints($method, $this->stampResultType($method, $result)),
+            $cacheable ? $this->fillCacheHints($method, $stamped) : $stamped,
         );
     }
 

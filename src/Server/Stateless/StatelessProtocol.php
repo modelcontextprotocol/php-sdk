@@ -433,7 +433,7 @@ final class StatelessProtocol
             }
 
             if ($run->valid() && $wantsStream) {
-                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $method, $id));
+                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $method, $id, null === $input));
             }
 
             try {
@@ -457,7 +457,7 @@ final class StatelessProtocol
                 return StatelessResult::error($result, 400);
             }
 
-            return $this->encode($method, $id, $result->result);
+            return $this->encode($method, $id, $result->result, null === $input);
         }
 
         return StatelessResult::error(Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $method), $id), 404);
@@ -540,7 +540,7 @@ final class StatelessProtocol
      *
      * @return \Generator<mixed>
      */
-    private function streamFrames(\Generator $run, string $method, string|int $id): \Generator
+    private function streamFrames(\Generator $run, string $method, string|int $id, bool $cacheable): \Generator
     {
         try {
             while ($run->valid()) {
@@ -560,7 +560,7 @@ final class StatelessProtocol
 
         yield $result instanceof Error
             ? $result->jsonSerialize()
-            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize())];
+            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize(), $cacheable)];
     }
 
     /**
@@ -634,9 +634,9 @@ final class StatelessProtocol
      * Runs a result through the wire codec. Passed as-is rather than via a
      * json round trip, which would turn a nested `{}` into `[]`.
      */
-    private function encode(string $method, string|int $id, ResultInterface $result): StatelessResult
+    private function encode(string $method, string|int $id, ResultInterface $result, bool $cacheable = true): StatelessResult
     {
-        return StatelessResult::ok($id, $this->codec->encodeResult($method, (array) $result->jsonSerialize()));
+        return StatelessResult::ok($id, $this->codec->encodeResult($method, (array) $result->jsonSerialize(), $cacheable));
     }
 
     /**
