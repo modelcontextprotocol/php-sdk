@@ -82,6 +82,30 @@ final class ProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('An id-less error response from the client is logged and ignored, not stored under a collapsed session key')]
+    public function testIdLessErrorResponseIsIgnored(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->expects($this->never())->method('set');
+
+        $this->sessionManager->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $sessionId = Uuid::v4();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}}',
+            $sessionId
+        );
+    }
+
     #[TestDox('A single request is handled only by the first matching handler')]
     public function testRequestHandledByFirstMatchingHandler(): void
     {

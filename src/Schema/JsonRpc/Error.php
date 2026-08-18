@@ -181,8 +181,8 @@ class Error implements MessageInterface
      *     error: array{
      *         code: int,
      *         message: string,
+     *         data?: mixed,
      *     },
-     *     data?: mixed,
      * }
      */
     public function jsonSerialize(): array

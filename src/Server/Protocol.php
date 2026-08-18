@@ -341,6 +341,12 @@ class Protocol
 
         $messageId = $response->getId();
 
+        if (null === $messageId) {
+            $this->logger->warning('Received an id-less error response from client; cannot correlate it to a pending request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
+
         $session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
         $session->forget(self::SESSION_ACTIVE_REQUEST_META);
 
