@@ -85,7 +85,9 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
 
             return new Response($request->getId(), new CompletionCompleteResult($paged, $total, $hasMore));
         } catch (PromptNotFoundException|ResourceNotFoundException $e) {
-            return Error::forResourceNotFound($e->getMessage(), $request->getId());
+            // The reference names something the server does not have, which is
+            // a bad parameter rather than a missing resource.
+            return Error::forInvalidParams($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             return Error::forInternalError('Error while handling completion request', $request->getId());
         }

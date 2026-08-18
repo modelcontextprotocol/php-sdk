@@ -89,8 +89,18 @@ final class StandardHeaderValidator
             return \sprintf('Missing required %s header (body carries "%s").', self::NAME_HEADER, $expected);
         }
 
-        if ($declared !== $expected) {
-            return \sprintf('%s header "%s" does not match the body value "%s".', self::NAME_HEADER, $declared, $expected);
+        // Tool and prompt names are only SHOULD-constrained to header-safe
+        // characters and a resource URI is not constrained at all, so the
+        // client wraps anything unsafe — decode before comparing or every
+        // conformant client carrying a non-ASCII subject is refused.
+        $decoded = self::decode($declared);
+
+        if (null === $decoded) {
+            return \sprintf('%s header is not a well-formed Base64 wrapper.', self::NAME_HEADER);
+        }
+
+        if ($decoded !== $expected) {
+            return \sprintf('%s header "%s" does not match the body value "%s".', self::NAME_HEADER, $decoded, $expected);
         }
 
         return null;

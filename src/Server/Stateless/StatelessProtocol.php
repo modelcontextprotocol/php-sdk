@@ -18,7 +18,6 @@ use Mcp\Exception\RequestStateException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\DiscoverResult;
@@ -47,12 +46,22 @@ final class StatelessProtocol
     /**
      * Methods the modern era deleted. Answered as unknown methods, which is
      * what they are to a modern server.
+     *
+     * A deny-list rather than an allow-list on purpose: extensions add methods
+     * this class has never heard of, so an unlisted method has to reach
+     * dispatch. Every removal named in the 2026-07-28 changelog belongs here —
+     * the handlers behind them stay registered for the handshake era, which is
+     * why the era guard, and not the registration, is what turns them off.
      */
     public const REMOVED_METHODS = [
         'initialize',
         'notifications/initialized',
         'ping',
         'logging/setLevel',
+        // Replaced by the `resourceSubscriptions` filter of subscriptions/listen.
+        'resources/subscribe',
+        'resources/unsubscribe',
+        'notifications/roots/list_changed',
     ];
 
     public const DISCOVER_METHOD = 'server/discover';
@@ -85,6 +94,27 @@ final class StatelessProtocol
         private readonly ?RequestStateCodec $requestStateCodec = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo);
+
+        if (null === $this->headerValidator) {
+            // Not fatal: a transport without a header layer — stdio — has
+            // nothing to validate. But on HTTP the headers are REQUIRED for
+            // compliance, so an absent validator there is a silently
+            // non-conformant server and worth saying out loud once.
+            $this->logger->warning('No StandardHeaderValidator configured; the SEP-2243 request headers will not be enforced. This is correct only for a transport without a header layer.');
+        }
+    }
+
+    /**
+     * Whether the transport carrying this dispatcher has a header layer whose
+     * required members must be present.
+     *
+     * The validator's presence is the signal: it is what a header-bearing
+     * transport installs, and stdio carries its metadata inline instead
+     * (see the stdio binding's "Request Metadata").
+     */
+    private function requiresTransportHeaders(): bool
+    {
+        return null !== $this->headerValidator;
     }
 
     /**
@@ -111,7 +141,13 @@ final class StatelessProtocol
         // already knows to omit a null id instead of fabricating one, and
         // "id": "" would falsely claim the sender issued a request with an
         // empty-string id.
+        //
+        // An absent id and an unreadable one are different messages: the first
+        // is a notification, the second a malformed request. JSON-RPC 2.0
+        // writes "no id" as an explicit null, so that counts as absent too.
+        $isNotification = !\array_key_exists('id', $decoded) || null === $decoded['id'];
         $id = $decoded['id'] ?? null;
+
         if (!\is_string($id) && !\is_int($id)) {
             $id = null;
         }
@@ -122,6 +158,19 @@ final class StatelessProtocol
         }
 
         $params = \is_array($decoded['params'] ?? null) ? $decoded['params'] : null;
+
+        // No id is a notification. It gets an acknowledgment, never a response
+        // — answering one with a JSON-RPC message would invent a correlation
+        // the client has no request to match it against. Checked before the
+        // `_meta` parse: notification params carry `NotificationMetaObject`,
+        // which has none of a request's required members.
+        if ($isNotification) {
+            return $this->acknowledge($method);
+        }
+
+        if (null === $id) {
+            return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC request id must be a string or a number.'), 400);
+        }
 
         try {
             $meta = RequestMeta::fromParams($params);
@@ -140,14 +189,6 @@ final class StatelessProtocol
         }
 
         if (self::DISCOVER_METHOD === $method || self::LISTEN_METHOD === $method) {
-            // Both answer with a single response tied to this request's id,
-            // unlike a genuine notification — so unlike the general dispatch
-            // path below, a missing id here is this request being invalid
-            // rather than this request needing no answer at all.
-            if (null === $id) {
-                return StatelessResult::error(Error::forInvalidRequest(\sprintf('Method "%s" requires an "id".', $method)), 400);
-            }
-
             if (self::DISCOVER_METHOD === $method) {
                 return $this->encode($method, $id, $this->discover());
             }
@@ -166,6 +207,29 @@ final class StatelessProtocol
     }
 
     /**
+     * Answers a notification.
+     *
+     * This revision's core defines no client-to-server notification over HTTP —
+     * `notifications/cancelled` is stdio-only, since closing the response
+     * stream is the cancellation signal here — so anything arriving is either
+     * an extension's or a client still speaking an older revision. Accepting
+     * the former and refusing the latter both come out as a status with no
+     * body; what must not happen is a JSON-RPC response.
+     */
+    private function acknowledge(string $method): StatelessResult
+    {
+        if (\in_array($method, self::REMOVED_METHODS, true)) {
+            $this->logger->debug('Refused a notification this revision removed.', ['method' => $method]);
+
+            return StatelessResult::empty(400);
+        }
+
+        $this->logger->debug('Accepted a notification with no handler to run.', ['method' => $method]);
+
+        return StatelessResult::empty(202);
+    }
+
+    /**
      * Header and `_meta` must agree before the version can be judged supported:
      * when they disagree the server cannot know which the client meant, so a
      * mismatch outranks an unsupported version.
@@ -175,6 +239,19 @@ final class StatelessProtocol
     private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id): ?StatelessResult
     {
         $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
+
+        // REQUIRED on every POST. The 2025-03-26 fallback for a header-less
+        // request exists only for servers choosing to serve pre-2025-06-18
+        // clients, which a modern-only endpoint is not.
+        if (null === $headerVersion && $this->requiresTransportHeaders()) {
+            return StatelessResult::error(
+                Error::forHeaderMismatch(
+                    \sprintf('Missing required MCP-Protocol-Version header (_meta declares "%s").', $meta->protocolVersion),
+                    $id,
+                ),
+                400,
+            );
+        }
 
         if (null !== $headerVersion && $headerVersion !== $meta->protocolVersion) {
             return StatelessResult::error(
@@ -273,12 +350,6 @@ final class StatelessProtocol
 
         $request = $messages[0] ?? null;
 
-        // A notification (no id) is never answered, successful or not — this is
-        // one of the SDK's own registered message classes, just not a Request.
-        if ($request instanceof Notification) {
-            return StatelessResult::accepted();
-        }
-
         // The factory hands back an exception object rather than throwing one,
         // distinguishing a genuinely unknown method (-32601, the client should
         // stop asking) from a known method the message could not otherwise be
@@ -309,6 +380,12 @@ final class StatelessProtocol
 
         $session = new Session(new InMemorySessionStore());
         $session->set(RequestMeta::class, $meta);
+
+        // Under the same keys the handshake era writes, so everything reading
+        // connection state — ClientGateway's capability probes above all — sees
+        // this request's declaration instead of an empty session.
+        $session->set('client_capabilities', $meta->clientCapabilities->jsonSerialize());
+        $session->set('protocol_version', $meta->protocolVersion);
 
         try {
             $input = $this->liftInputContext($decoded['params'] ?? null);

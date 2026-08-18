@@ -34,6 +34,8 @@ use Symfony\Component\Uid\Uuid;
  */
 class StreamableHttpTransport extends BaseTransport
 {
+    use ReadsBoundedBody;
+
     public const SESSION_HEADER = 'Mcp-Session-Id';
     public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
 
@@ -293,33 +295,10 @@ class StreamableHttpTransport extends BaseTransport
 
     /**
      * Reads the request body, bounded by {@see self::$maxBodyBytes}.
-     *
-     * Returns the body contents, or `null` when the payload exceeds the cap. When
-     * the stream advertises a size we reject up-front; otherwise (e.g. chunked
-     * transfer with unknown size) we read incrementally and stop at the cap so an
-     * unbounded stream cannot exhaust memory.
      */
     private function readBody(StreamInterface $body): ?string
     {
-        $size = $body->getSize();
-        if (null !== $size && $size > $this->maxBodyBytes) {
-            return null;
-        }
-
-        $contents = '';
-        while (!$body->eof()) {
-            $chunk = $body->read(8192);
-            if ('' === $chunk) {
-                break;
-            }
-
-            $contents .= $chunk;
-            if (\strlen($contents) > $this->maxBodyBytes) {
-                return null;
-            }
-        }
-
-        return $contents;
+        return $this->readBoundedBody($body, $this->maxBodyBytes);
     }
 
     /**

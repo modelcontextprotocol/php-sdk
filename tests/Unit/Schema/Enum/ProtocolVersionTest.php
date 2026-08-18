@@ -141,4 +141,17 @@ class ProtocolVersionTest extends TestCase
 
         $this->assertFalse(ProtocolVersion::V2026_07_28->requiresObjectStructuredContent());
     }
+
+    #[TestDox('SEP-2164 moves resource-not-found from -32002 to -32602')]
+    public function testUsesInvalidParamsForResourceNotFound(): void
+    {
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            $this->assertFalse(
+                $version->usesInvalidParamsForResourceNotFound(),
+                \sprintf('%s predates SEP-2164 and still expects -32002.', $version->value),
+            );
+        }
+
+        $this->assertTrue(ProtocolVersion::V2026_07_28->usesInvalidParamsForResourceNotFound());
+    }
 }

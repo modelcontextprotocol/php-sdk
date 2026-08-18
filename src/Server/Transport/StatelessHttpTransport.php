@@ -21,7 +21,6 @@ use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
-use Psr\Http\Message\StreamInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -36,6 +35,8 @@ use Psr\Log\NullLogger;
  */
 final class StatelessHttpTransport
 {
+    use ReadsBoundedBody;
+
     /**
      * Upper bound on the request body read for a POST, guarding against memory
      * exhaustion from an oversized (or unbounded chunked) payload.
@@ -106,11 +107,7 @@ final class StatelessHttpTransport
             );
         }
 
-        $body = $request->getBody();
-        if ($body->isSeekable()) {
-            $body->rewind();
-        }
-        $payload = $this->readBody($body);
+        $payload = $this->readBoundedBody($request->getBody(), $this->maxBodyBytes);
 
         if (null === $payload) {
             $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
@@ -169,39 +166,6 @@ final class StatelessHttpTransport
             ->withHeader('Connection', 'keep-alive')
             ->withHeader('X-Accel-Buffering', 'no')
             ->withBody(new CallbackStream($callback, $this->logger));
-    }
-
-    /**
-     * Reads the request body, bounded by {@see self::$maxBodyBytes}.
-     *
-     * Returns the body contents, or `null` when the payload exceeds the cap.
-     * A single `read()` call is not enough: PSR-7 allows it to return fewer
-     * bytes than requested, so a body arriving across more than one physical
-     * read would otherwise be silently truncated. Reading incrementally to
-     * EOF is what {@see StreamableHttpTransport::readBody()} already does for
-     * the same reason.
-     */
-    private function readBody(StreamInterface $body): ?string
-    {
-        $size = $body->getSize();
-        if (null !== $size && $size > $this->maxBodyBytes) {
-            return null;
-        }
-
-        $contents = '';
-        while (!$body->eof()) {
-            $chunk = $body->read(8192);
-            if ('' === $chunk) {
-                break;
-            }
-
-            $contents .= $chunk;
-            if (\strlen($contents) > $this->maxBodyBytes) {
-                return null;
-            }
-        }
-
-        return $contents;
     }
 
     private function json(string $payload, int $status): ResponseInterface
