@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
+* Refuse an invalid `x-mcp-header` annotation where a tool defines it (SEP-2243). `Tool` now rejects a definition whose `x-mcp-header` is empty, is not an HTTP field name (CR/LF injection included), collides case-insensitively with another, or sits on a `number`, array or object property — the specification calls such a definition invalid, and the earliest place to say so is where the tool is defined, not on the request that trips over it.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
