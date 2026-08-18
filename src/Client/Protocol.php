@@ -281,6 +281,12 @@ class Protocol
     {
         $requestId = $response->getId();
 
+        if (null === $requestId) {
+            $this->logger->warning('Received an id-less error response; cannot correlate it to a request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
+
         $this->logger->debug('Handling response', ['id' => $requestId]);
 
         $this->state->storeResponse($requestId, $response->jsonSerialize());

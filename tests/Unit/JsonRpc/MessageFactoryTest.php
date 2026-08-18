@@ -278,13 +278,15 @@ final class MessageFactoryTest extends TestCase
 
     public function testErrorMissingId(): void
     {
+        // Well-formed: an error response leaves the member out when the id
+        // could not be read off the request it answers.
         $json = '{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid"}}';
 
         $results = $this->factory->create($json);
 
         $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('id', $results[0]->getMessage());
+        $this->assertInstanceOf(Error::class, $results[0]);
+        $this->assertNull($results[0]->getId());
     }
 
     public function testErrorMissingCode(): void
@@ -365,9 +367,21 @@ final class MessageFactoryTest extends TestCase
         $this->assertStringContainsString('id', $results[0]->getMessage());
     }
 
+    public function testErrorWithNullId(): void
+    {
+        // JSON-RPC 2.0 spells the same thing as an explicit null.
+        $json = '{"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid"}}';
+
+        $results = $this->factory->create($json);
+
+        $this->assertCount(1, $results);
+        $this->assertInstanceOf(Error::class, $results[0]);
+        $this->assertNull($results[0]->getId());
+    }
+
     public function testErrorWithInvalidIdType(): void
     {
-        $json = '{"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid"}}';
+        $json = '{"jsonrpc": "2.0", "id": {"not": "an id"}, "error": {"code": -32600, "message": "Invalid"}}';
 
         $results = $this->factory->create($json);
 

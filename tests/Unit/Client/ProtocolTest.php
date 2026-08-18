@@ -99,6 +99,19 @@ final class ProtocolTest extends TestCase
         yield 'modern revision' => [ProtocolVersion::V2026_07_28->value];
     }
 
+    #[TestDox('logs and ignores an id-less error response instead of crashing on it')]
+    public function testIgnoresIdLessErrorResponse(): void
+    {
+        $protocol = new Protocol(logger: $logger = new CollectingLogger());
+
+        $protocol->processMessage(json_encode([
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'error' => ['code' => -32700, 'message' => 'Parse error'],
+        ], \JSON_THROW_ON_ERROR));
+
+        $this->assertCount(1, $logger->warnings);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion): Configuration
     {
         return new Configuration(
