@@ -32,4 +32,31 @@ enum LoggingLevel: string
     case Critical = 'critical';
     case Alert = 'alert';
     case Emergency = 'emergency';
+
+    /**
+     * RFC 5424 ordering, inverted so a larger number is more severe — which is
+     * the direction a minimum-level comparison reads in.
+     */
+    public function severity(): int
+    {
+        return match ($this) {
+            self::Debug => 0,
+            self::Info => 1,
+            self::Notice => 2,
+            self::Warning => 3,
+            self::Error => 4,
+            self::Critical => 5,
+            self::Alert => 6,
+            self::Emergency => 7,
+        };
+    }
+
+    /**
+     * Whether a message at this level should be emitted when $minimum was
+     * requested.
+     */
+    public function isAtLeast(self $minimum): bool
+    {
+        return $this->severity() >= $minimum->severity();
+    }
 }

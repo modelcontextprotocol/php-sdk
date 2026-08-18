@@ -13,15 +13,6 @@
 #   make conformance-draft-server
 
 server:
-  # --- Progress notifications on a response stream ---------------------------
-  # The one place the modern lifecycle is behind the handshake one, and a real
-  # gap rather than a fixture difference: this scenario passes at / and fails
-  # at /stateless. A tools/call answer is a single JSON response here, so
-  # notifications a handler emits mid-call have nowhere to go. Closing it means
-  # answering tools/call over a stream — the same seam MRTR's IncompleteResult
-  # chunks will need — rather than anything specific to progress.
-  - tools-call-with-progress:tools-call-with-progress
-
   # --- Pre-existing, not lifecycle-specific ----------------------------------
   # Neither is caused by (or fixable in) the modern lifecycle; both reproduce
   # on the handshake endpoint. Listed so the draft run is honest.

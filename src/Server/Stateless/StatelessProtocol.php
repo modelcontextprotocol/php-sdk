@@ -12,17 +12,22 @@
 namespace Mcp\Server\Stateless;
 
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\LogicException;
 use Mcp\Exception\MissingRequestMetaException;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\RequestStateException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Wire\Rev2026Codec;
@@ -33,7 +38,7 @@ use Psr\Log\NullLogger;
 /**
  * Dispatches a single modern-era (SEP-2575) request.
  *
- * Separate from {@see \Mcp\Server\Protocol} because the modern era has no
+ * Separate from {@see Protocol} because the modern era has no
  * session to resolve, replay or keep a fiber against; the two eras share
  * request handlers, not control flow.
  *
@@ -203,7 +208,7 @@ final class StatelessProtocol
             );
         }
 
-        return $this->dispatch($method, $decoded, $meta, $id);
+        return $this->dispatch($method, $decoded, $meta, $id, self::acceptsEventStream($headers));
     }
 
     /**
@@ -338,7 +343,7 @@ final class StatelessProtocol
     /**
      * @param array<string, mixed> $decoded
      */
-    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id): StatelessResult
+    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false): StatelessResult
     {
         try {
             $messages = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
@@ -405,24 +410,47 @@ final class StatelessProtocol
             $session->set(RequestStateCodec::class, $this->requestStateCodec);
         }
 
+        // What ClientGateway::progress() reads to find the progress token, and
+        // the handshake era sets under the same key.
+        $session->set(Protocol::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
+
         foreach ($this->requestHandlers as $handler) {
             if (!$handler->supports($request)) {
                 continue;
             }
 
-            try {
-                $result = $handler->handle($request, $session);
-            } catch (MissingRequiredClientCapabilityException $e) {
-                return StatelessResult::error(
-                    Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $id),
-                    400,
-                );
-            } catch (\InvalidArgumentException $e) {
-                return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
-            } catch (\Throwable $e) {
-                $this->logger->error('Uncaught exception handling a modern-era request.', ['method' => $method, 'exception' => $e]);
+            $run = $this->run($handler, $request, $session, $meta);
 
-                return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
+            try {
+                // Runs the handler up to its first notification, or to the end
+                // if it emits none. Deciding here and not earlier is what keeps
+                // the status codes honest: a request that turns out to need
+                // -32021 has said nothing yet, so it can still be answered
+                // with 400 rather than an error frame under a 200.
+                $run->rewind();
+            } catch (\Throwable $e) {
+                return $this->toErrorResult($method, $id, $e);
+            }
+
+            if ($run->valid() && $wantsStream) {
+                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $method, $id));
+            }
+
+            try {
+                // Stepped rather than foreach()ed: rewind() already advanced it,
+                // and a generator will not be traversed a second time.
+                while ($run->valid()) {
+                    $this->logger->debug('Dropped a notification: the client did not accept a response stream.', [
+                        'method' => $method,
+                        'notification' => $run->current()::getMethod(),
+                    ]);
+
+                    $run->next();
+                }
+
+                $result = $run->getReturn();
+            } catch (\Throwable $e) {
+                return $this->toErrorResult($method, $id, $e);
             }
 
             if ($result instanceof Error) {
@@ -433,6 +461,134 @@ final class StatelessProtocol
         }
 
         return StatelessResult::error(Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $method), $id), 404);
+    }
+
+    /**
+     * Runs a handler, yielding the notifications it emits as it emits them and
+     * returning its result.
+     *
+     * The fiber is what makes a handler's `$gateway->progress(...)` look
+     * synchronous while the caller decides where the notification goes. Server
+     * -to-client *requests* are refused rather than forwarded: this revision
+     * carries those in the result (MRTR), and putting one on a response stream
+     * is something the transport binding forbids outright.
+     *
+     * @param RequestHandlerInterface<ResultInterface> $handler
+     *
+     * @return \Generator<int, Notification, null, Response<ResultInterface>|Error>
+     */
+    private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
+    {
+        $fiber = new \Fiber(static fn (): mixed => $handler->handle($request, $session));
+
+        $suspended = $fiber->start();
+
+        while (!$fiber->isTerminated()) {
+            $notification = $this->readNotification($suspended, $meta);
+
+            if (null !== $notification) {
+                yield $notification;
+            }
+
+            $suspended = $fiber->resume(null);
+        }
+
+        /** @var Response<ResultInterface>|Error $return */
+        $return = $fiber->getReturn();
+
+        return $return;
+    }
+
+    /**
+     * Reads one fiber suspension, or null when it carries nothing to send.
+     *
+     * @param mixed $suspended the payload {@see \Mcp\Server\ClientGateway} suspended with
+     */
+    private function readNotification(mixed $suspended, RequestMeta $meta): ?Notification
+    {
+        if (!\is_array($suspended) || 'notification' !== ($suspended['type'] ?? null)) {
+            if (\is_array($suspended) && 'request' === ($suspended['type'] ?? null)) {
+                throw new LogicException('This protocol revision has no server-initiated requests: return an InputRequiredResult naming what you need instead, and read the answers back through RequestContext::getInputContext(). See the multi round-trip requests pattern.');
+            }
+
+            return null;
+        }
+
+        $notification = $suspended['notification'] ?? null;
+
+        if (!$notification instanceof Notification) {
+            return null;
+        }
+
+        // The client opts into logs per request; with no level named the server
+        // MUST NOT send any, which is why an absent level drops rather than
+        // defaults.
+        if ($notification instanceof LoggingMessageNotification) {
+            if (null === $meta->logLevel || !$notification->level->isAtLeast($meta->logLevel)) {
+                return null;
+            }
+        }
+
+        return $notification;
+    }
+
+    /**
+     * The frames of a request-scoped response stream: the notifications the
+     * handler emits, then the response that ends it.
+     *
+     * @param \Generator<int, Notification, null, Response<ResultInterface>|Error> $run
+     *
+     * @return \Generator<mixed>
+     */
+    private function streamFrames(\Generator $run, string $method, string|int $id): \Generator
+    {
+        try {
+            while ($run->valid()) {
+                yield $run->current()->jsonSerialize();
+
+                $run->next();
+            }
+
+            $result = $run->getReturn();
+        } catch (\Throwable $e) {
+            // Headers left long ago, so the status is already 200 and the only
+            // way left to report this is a frame.
+            yield $this->toErrorResult($method, $id, $e)->message?->jsonSerialize();
+
+            return;
+        }
+
+        yield $result instanceof Error
+            ? $result->jsonSerialize()
+            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize())];
+    }
+
+    /**
+     * The one place a handler's exception becomes an answer, so the streaming
+     * and non-streaming paths cannot disagree about which code it earns.
+     */
+    private function toErrorResult(string $method, string|int $id, \Throwable $e): StatelessResult
+    {
+        if ($e instanceof MissingRequiredClientCapabilityException) {
+            return StatelessResult::error(
+                Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $id),
+                400,
+            );
+        }
+
+        if ($e instanceof \InvalidArgumentException) {
+            return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
+        }
+
+        if ($e instanceof LogicException) {
+            // Guidance for the tool author, not a detail leaked from their
+            // code or a dependency's — safe to echo back verbatim.
+            return StatelessResult::error(Error::forInternalError($e->getMessage(), $id), 500);
+        }
+
+        $this->logger->error('Uncaught exception handling a modern-era request.', ['method' => $method, 'exception' => $e]);
+
+        return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
     }
 
     /**
@@ -481,6 +637,26 @@ final class StatelessProtocol
     private function encode(string $method, string|int $id, ResultInterface $result): StatelessResult
     {
         return StatelessResult::ok($id, $this->codec->encodeResult($method, (array) $result->jsonSerialize()));
+    }
+
+    /**
+     * Whether the client will read a response stream.
+     *
+     * Clients MUST offer both content types, so this is normally true; a client
+     * that does not gets its notifications dropped rather than a stream it
+     * cannot parse.
+     *
+     * @param array<string, string> $headers
+     */
+    private static function acceptsEventStream(array $headers): bool
+    {
+        foreach ($headers as $key => $value) {
+            if (0 === strcasecmp($key, 'Accept')) {
+                return str_contains(strtolower($value), 'text/event-stream');
+            }
+        }
+
+        return false;
     }
 
     /**

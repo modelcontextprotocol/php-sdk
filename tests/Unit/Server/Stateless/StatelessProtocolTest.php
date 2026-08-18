@@ -11,12 +11,18 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Elicitation\ElicitationSchema;
+use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Stateless\StatelessResult;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -45,6 +51,47 @@ class StatelessProtocolTest extends TestCase
                 },
                 name: 'probe_capabilities',
                 description: 'Reports which client capabilities the gateway can see',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $gateway = $context->getClientGateway();
+                    $gateway->progress(0, 100, 'starting');
+                    $gateway->progress(100, 100, 'done');
+
+                    return 'progressed';
+                },
+                name: 'progress_tool',
+                description: 'Reports progress while it works',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $gateway = $context->getClientGateway();
+                    foreach ([LoggingLevel::Debug, LoggingLevel::Info, LoggingLevel::Warning, LoggingLevel::Error] as $level) {
+                        $gateway->log($level, $level->value.' message');
+                    }
+
+                    return 'logged';
+                },
+                name: 'logging_tool',
+                description: 'Emits one message at each of four levels',
+            )
+            ->addTool(
+                static function (): never {
+                    throw new MissingRequiredClientCapabilityException(new ClientCapabilities(roots: false, sampling: true), 'needs sampling');
+                },
+                name: 'capability_tool',
+                description: 'Always reports a missing client capability',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    // The pattern this revision replaced: kept as a fixture so
+                    // the refusal has something to refuse.
+                    $context->getClientGateway()->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+
+                    return 'unreachable';
+                },
+                name: 'elicits_directly',
+                description: 'Asks the client directly, which this revision forbids',
             )
             ->addResource(static fn (): string => 'body', 'test://static', 'static', 'A static resource')
             ->buildStateless([ProtocolVersion::V2026_07_28]);
@@ -156,6 +203,165 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+    }
+
+    /**
+     * Drains a streaming result into the frames it would write.
+     *
+     * @return list<array<string, mixed>>
+     */
+    private static function frames(StatelessResult $result): array
+    {
+        $frames = [];
+
+        foreach (($result->frames)() as $frame) {
+            if (null !== $frame) {
+                $frames[] = $frame;
+            }
+        }
+
+        return $frames;
+    }
+
+    /**
+     * @param array<string, mixed> $meta
+     */
+    private static function callStreaming(StatelessProtocol $protocol, string $tool, array $meta = []): StatelessResult
+    {
+        return $protocol->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 7,
+            'method' => 'tools/call',
+            'params' => [
+                'name' => $tool,
+                'arguments' => [],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                    ...$meta,
+                ],
+            ],
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'tools/call',
+            'Mcp-Name' => $tool,
+            'Accept' => 'application/json, text/event-stream',
+        ]);
+    }
+
+    #[TestDox('progress notifications reach the client on the response stream')]
+    public function testProgressStreamsBeforeTheResponse(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'progress_tool', ['progressToken' => 'tok-1']);
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+
+        $this->assertCount(3, $frames);
+        $this->assertSame('notifications/progress', $frames[0]['method']);
+        $this->assertSame('tok-1', $frames[0]['params']['progressToken']);
+        $this->assertSame('notifications/progress', $frames[1]['method']);
+        $this->assertSame(7, $frames[2]['id']);
+        $this->assertSame('complete', $frames[2]['result']['resultType']);
+    }
+
+    #[TestDox('without a progress token the handler emits nothing and gets a plain response')]
+    public function testProgressWithoutATokenIsNotStreamed(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'progress_tool');
+
+        $this->assertFalse($result->isStream());
+        $this->assertSame(200, $result->httpStatus);
+    }
+
+    #[TestDox('a client that will not read a stream gets its notifications dropped, not a stream')]
+    public function testNotificationsAreDroppedWithoutAnAcceptingClient(): void
+    {
+        $result = self::protocol()->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 7,
+            'method' => 'tools/call',
+            'params' => [
+                'name' => 'progress_tool',
+                'arguments' => [],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                    'progressToken' => 'tok-1',
+                ],
+            ],
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'tools/call',
+            'Mcp-Name' => 'progress_tool',
+            'Accept' => 'application/json',
+        ]);
+
+        $this->assertFalse($result->isStream());
+        $this->assertSame(200, $result->httpStatus);
+    }
+
+    #[TestDox('a request naming no log level receives no log notifications')]
+    public function testLoggingIsSilentWithoutARequestedLevel(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'logging_tool');
+
+        $this->assertFalse($result->isStream());
+    }
+
+    #[TestDox('a request naming a log level receives the messages at or above it')]
+    public function testLoggingHonoursTheRequestedLevel(): void
+    {
+        $frames = self::frames(self::callStreaming(self::protocol(), 'logging_tool', [RequestMeta::LOG_LEVEL => 'warning']));
+
+        $levels = [];
+        foreach ($frames as $frame) {
+            if ('notifications/message' === ($frame['method'] ?? null)) {
+                $levels[] = $frame['params']['level'];
+            }
+        }
+
+        // The tool emits debug, info, warning and error.
+        $this->assertSame(['warning', 'error'], $levels);
+    }
+
+    #[TestDox('a lower requested level lets more through')]
+    public function testLoggingAtDebugLetsEverythingThrough(): void
+    {
+        $frames = self::frames(self::callStreaming(self::protocol(), 'logging_tool', [RequestMeta::LOG_LEVEL => 'debug']));
+
+        $levels = [];
+        foreach ($frames as $frame) {
+            if ('notifications/message' === ($frame['method'] ?? null)) {
+                $levels[] = $frame['params']['level'];
+            }
+        }
+
+        $this->assertSame(['debug', 'info', 'warning', 'error'], $levels);
+    }
+
+    #[TestDox('an error raised before any notification keeps its own status')]
+    public function testEarlyFailureIsStillAStatusCode(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'capability_tool');
+
+        $this->assertFalse($result->isStream());
+        $this->assertSame(400, $result->httpStatus);
+
+        $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $body['error']['code']);
+    }
+
+    #[TestDox('a server-initiated request is refused with the pattern that replaced it')]
+    public function testServerInitiatedRequestIsRefused(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'elicits_directly');
+
+        $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertSame(500, $result->httpStatus);
+        $this->assertStringContainsString('InputRequiredResult', $body['error']['message']);
     }
 
     #[TestDox('a missing resource answers -32602 with the uri, not the retired -32002')]
