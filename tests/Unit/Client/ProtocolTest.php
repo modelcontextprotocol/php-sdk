@@ -112,6 +112,20 @@ final class ProtocolTest extends TestCase
         $this->assertCount(1, $logger->warnings);
     }
 
+    #[TestDox('stores an error response under its id so the pending request can be correlated')]
+    public function testErrorResponseWithIdIsStoredForItsPendingRequest(): void
+    {
+        $protocol = new Protocol();
+
+        $protocol->processMessage('{"jsonrpc": "2.0", "id": 7, "error": {"code": -32601, "message": "Method not found"}}');
+
+        $response = $protocol->getState()->consumeResponse(7);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertSame(7, $response->getId());
+        $this->assertSame(Error::METHOD_NOT_FOUND, $response->code);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion): Configuration
     {
         return new Configuration(
