@@ -1,8 +1,8 @@
 # Expected conformance failures for spec revision 2026-07-28.
 #
-# Separate from conformance-baseline.yml because the two revisions exercise
-# different lifecycles against different endpoints: the dated baseline covers
-# the handshake era served at /, this one covers the modern (SEP-2575) era
+# Separate from conformance-baseline-2025-11-25.yml because the two revisions
+# exercise different lifecycles against different endpoints: the other file
+# covers the handshake era served at /, this one the modern (SEP-2575) era
 # served at /stateless.
 #
 # Entries are per-check (scenario:check-id) rather than whole scenarios, so a
@@ -11,6 +11,7 @@
 #
 # Run with:
 #   make conformance-draft-server
+#   make conformance-draft-client
 
 server:
   # --- Pre-existing, not lifecycle-specific ----------------------------------

@@ -13,13 +13,14 @@
  * Turns a conformance run's results into a shields.io endpoint badge JSON, so
  * the client/server conformance score can be rendered in the README.
  *
- *   php score.php <server|client>
+ *   php score.php <server|client> <spec-version> [results-dir]
  *
- * The conformance CLI (run with `--output-dir results`) writes one
- * `checks.json` per scenario into the `results/` directory next to this file.
- * A scenario counts as passing when none of its checks has a FAILURE status;
- * the badge message is "<passed>/<total> (<pct>%)" and is written to
- * `<suite>-conformance.json`.
+ * The conformance CLI writes one `checks.json` per scenario into
+ * `[results-dir]` (default `results`), relative to this file. A scenario
+ * counts as passing when none of its checks has a FAILURE status; the badge
+ * message is "<passed>/<total> (<pct>%)" and is written to
+ * `<suite>-conformance-<spec-version>.json`, so each revision gets its own
+ * badge.
  */
 
 use Symfony\Component\Console\Command\Command;
@@ -36,10 +37,13 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
     ->setName('conformance-score')
     ->setDescription('Generates a shields.io endpoint badge from the conformance results')
     ->addArgument('suite', InputArgument::REQUIRED, 'Which conformance suite was run: "server" or "client"')
+    ->addArgument('spec-version', InputArgument::REQUIRED, 'The spec revision that was run, e.g. "2025-11-25"')
+    ->addArgument('results-dir', InputArgument::OPTIONAL, 'Directory the conformance CLI wrote results into, relative to this file', 'results')
     ->setCode(static function (InputInterface $input, OutputInterface $output): int {
         $io = new SymfonyStyle($input, $output);
 
         $suite = $input->getArgument('suite');
+        $specVersion = $input->getArgument('spec-version');
 
         if (!in_array($suite, ['server', 'client'], true)) {
             $io->error(sprintf('Suite must be "server" or "client", got "%s".', $suite));
@@ -47,10 +51,10 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
             return Command::INVALID;
         }
 
-        $resultsDir = __DIR__.'/results';
+        $resultsDir = __DIR__.'/'.$input->getArgument('results-dir');
 
         if (!is_dir($resultsDir)) {
-            $io->error(sprintf('Results directory "%s" does not exist; run the conformance suite with `--output-dir results` first.', $resultsDir));
+            $io->error(sprintf('Results directory "%s" does not exist; run the conformance suite with `--output-dir` first.', $resultsDir));
 
             return Command::FAILURE;
         }
@@ -88,7 +92,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
         $badge = [
             'schemaVersion' => 1,
-            'label' => $suite.' conformance',
+            'label' => sprintf('%s %s', $suite, $specVersion),
             'message' => $total > 0 ? sprintf('%d/%d (%d%%)', $passed, $total, $pct) : 'no data',
             'color' => match (true) {
                 0 === $total => 'lightgrey',
@@ -99,7 +103,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
             },
         ];
 
-        $outputFile = __DIR__.'/'.$suite.'-conformance.json';
+        $outputFile = __DIR__.'/'.$suite.'-conformance-'.$specVersion.'.json';
 
         if (false === file_put_contents($outputFile, json_encode($badge, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES)."\n")) {
             $io->error(sprintf('Could not write badge file "%s".', $outputFile));
