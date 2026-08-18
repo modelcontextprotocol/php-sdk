@@ -30,11 +30,23 @@ use Psr\Log\NullLogger;
  */
 class SchemaValidator
 {
+    /**
+     * Ceiling on reported errors. Opis walks the whole schema regardless — this
+     * only bounds the array built out of it, which a composition blow-up can
+     * make the larger cost of the two. {@see SchemaComplexityGuard} is what
+     * bounds the walk.
+     */
+    private const MAX_REPORTED_ERRORS = 100;
+
     private ?Validator $jsonSchemaValidator = null;
+
+    private SchemaComplexityGuard $complexityGuard;
 
     public function __construct(
         private LoggerInterface $logger = new NullLogger(),
+        ?SchemaComplexityGuard $complexityGuard = null,
     ) {
+        $this->complexityGuard = $complexityGuard ?? new SchemaComplexityGuard();
     }
 
     /**
@@ -81,6 +93,14 @@ class SchemaValidator
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Internal validation preparation error.']];
         }
 
+        // Before the validator sees it: a schema can be cheap to send and
+        // ruinous to walk, and refusing it is only possible up front.
+        if (null !== $reason = $this->complexityGuard->check($schemaObject)) {
+            $this->logger->warning('MCP SDK: Refused a schema the complexity guard rejected.', ['reason' => $reason]);
+
+            return [['pointer' => '', 'keyword' => 'schema', 'message' => $reason]];
+        }
+
         $validator = $this->getJsonSchemaValidator();
 
         try {
@@ -91,6 +111,13 @@ class SchemaValidator
                 'data' => json_encode($dataToValidate),
                 'schema' => json_encode($schemaObject),
             ]);
+
+            // "Unsupported draft-XXXX" is the one failure here that is the
+            // schema's doing rather than ours, and the spec asks for an error
+            // that names the dialect.
+            if (str_contains($e->getMessage(), 'Unsupported draft')) {
+                return [['pointer' => '', 'keyword' => '$schema', 'message' => \sprintf('Unsupported JSON Schema dialect: %s. This validator supports 2020-12 (the default when no "$schema" is given) and the drafts opis/json-schema implements.', $e->getMessage())]];
+            }
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Schema validation process failed: '.$e->getMessage()]];
         }
@@ -124,7 +151,12 @@ class SchemaValidator
     {
         if (null === $this->jsonSchemaValidator) {
             $this->jsonSchemaValidator = new Validator();
-            // Potentially configure resolver here if needed later
+            $this->jsonSchemaValidator->setMaxErrors(self::MAX_REPORTED_ERRORS);
+            // No resolver is registered, and none should be: a `$ref` naming an
+            // absolute URI must never be fetched, which is a MUST in the
+            // specification's JSON Schema rules. SchemaComplexityGuard refuses
+            // such a schema before it reaches here, so this is the second of
+            // two locks rather than the only one.
         }
 
         return $this->jsonSchemaValidator;
@@ -169,6 +201,13 @@ class SchemaValidator
      */
     private function collectSubErrors(ValidationError $error, array &$collectedErrors): void
     {
+        // The error tree fans out with the schema, so a composition-heavy
+        // schema produces far more leaves than Opis's own cap admits. Past the
+        // ceiling there is nothing left to learn from another one.
+        if (\count($collectedErrors) >= self::MAX_REPORTED_ERRORS) {
+            return;
+        }
+
         $subErrors = $error->subErrors();
         if (empty($subErrors)) {
             $collectedErrors[] = [
