@@ -20,6 +20,7 @@ use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 
@@ -46,7 +47,7 @@ final class MrtrElements
             ], requestState: $context->mintRequestState(['stage' => 'awaiting-input']));
         }
 
-        return new CallToolResult([new TextContent(\sprintf('Hello, %s!', self::nameFrom($input->response(self::ELICIT_KEY))))]);
+        return new CallToolResult([new TextContent(\sprintf('Hello, %s!', self::nameFrom($input->elicitResult(self::ELICIT_KEY))))]);
     }
 
     public static function sampling(RequestContext $context): CallToolResult|InputRequiredResult
@@ -198,14 +199,13 @@ final class MrtrElements
             ], requestState: $context->mintRequestState(['stage' => 'awaiting-input']));
         }
 
-        return [['role' => 'user', 'content' => \sprintf('Hello, %s!', self::nameFrom($input->response(self::ELICIT_KEY)))]];
+        return [['role' => 'user', 'content' => \sprintf('Hello, %s!', self::nameFrom($input->elicitResult(self::ELICIT_KEY)))]];
     }
 
     /** A declined or cancelled answer has no content, so the greeting falls back. */
-    private static function nameFrom(mixed $response): string
+    private static function nameFrom(?ElicitResult $result): string
     {
-        $content = \is_array($response) ? ($response['content'] ?? null) : null;
-        $name = \is_array($content) ? ($content['name'] ?? null) : null;
+        $name = $result?->content['name'] ?? null;
 
         return \is_string($name) ? $name : 'friend';
     }
