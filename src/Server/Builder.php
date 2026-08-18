@@ -56,6 +56,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Stateless\StatelessProtocol;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -681,6 +682,58 @@ final class Builder
      */
     public function build(): Server
     {
+        $parts = $this->assemble();
+
+        $protocol = new Protocol(
+            requestHandlers: $parts['requestHandlers'],
+            notificationHandlers: $parts['notificationHandlers'],
+            messageFactory: $parts['messageFactory'],
+            sessionManager: $parts['sessionManager'],
+            logger: $parts['logger'],
+            eventDispatcher: $this->eventDispatcher,
+        );
+
+        return new Server($protocol, $parts['logger']);
+    }
+
+    /**
+     * Builds a dispatcher for the modern (SEP-2575) lifecycle.
+     *
+     * Everything the server exposes — tools, prompts, resources, and the
+     * handlers that serve them — is era-independent and shared with
+     * {@see self::build()}; only the dispatch model differs. So one builder
+     * configuration can drive either lifecycle, and a server can offer both at
+     * once by mounting each on its own endpoint.
+     *
+     * @param list<ProtocolVersion> $supportedVersions revisions this dispatcher will answer for
+     */
+    public function buildStateless(array $supportedVersions = [ProtocolVersion::V2026_07_28]): StatelessProtocol
+    {
+        $parts = $this->assemble();
+
+        return new StatelessProtocol(
+            requestHandlers: $parts['requestHandlers'],
+            messageFactory: $parts['messageFactory'],
+            configuration: $parts['configuration'],
+            supportedVersions: $supportedVersions,
+            logger: $parts['logger'],
+        );
+    }
+
+    /**
+     * Resolves the builder's configuration into the parts both lifecycles need.
+     *
+     * @return array{
+     *     logger: LoggerInterface,
+     *     configuration: Configuration,
+     *     messageFactory: MessageFactory,
+     *     sessionManager: SessionManagerInterface,
+     *     requestHandlers: list<RequestHandlerInterface<mixed>>,
+     *     notificationHandlers: list<NotificationHandlerInterface>,
+     * }
+     */
+    private function assemble(): array
+    {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();
         $subscriptionManager = $this->subscriptionManager ?? new SessionSubscriptionManager($logger);
@@ -769,16 +822,14 @@ final class Builder
             new Handler\Notification\InitializedHandler(),
         ]);
 
-        $protocol = new Protocol(
-            requestHandlers: $requestHandlers,
-            notificationHandlers: $notificationHandlers,
-            messageFactory: $messageFactory,
-            sessionManager: $sessionManager,
-            logger: $logger,
-            eventDispatcher: $this->eventDispatcher,
-        );
-
-        return new Server($protocol, $logger);
+        return [
+            'logger' => $logger,
+            'configuration' => $configuration,
+            'messageFactory' => $messageFactory,
+            'sessionManager' => $sessionManager,
+            'requestHandlers' => $requestHandlers,
+            'notificationHandlers' => $notificationHandlers,
+        ];
     }
 
     /**
