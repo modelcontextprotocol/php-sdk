@@ -22,6 +22,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
+use Mcp\Capability\Registry;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\AudioContent;
@@ -32,15 +33,21 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Schema\Tool;
 use Mcp\Server;
+use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Tests\Conformance\Elements;
 use Mcp\Tests\Conformance\FileLogger;
 use Mcp\Tests\Conformance\MrtrElements;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 
 chdir(__DIR__);
 
@@ -49,9 +56,22 @@ $logger = new FileLogger(__DIR__.'/logs/conformance-stateless.log', true);
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
 
+// Explicit rather than builder-built, so the diagnostic hooks below can mutate
+// the live registry and the change reaches an open subscription.
+//
+// Filesystem-backed and not in-memory: under php-fpm the worker holding the
+// listen stream open and the worker serving the tools/call that mutates the
+// registry are different processes, so the only thing they share is storage.
+$bus = new Psr16NotificationBus(
+    new Psr16Cache(new FilesystemAdapter('mcp-conformance-notifications', 120, __DIR__.'/sessions')),
+    logger: $logger,
+);
+$registry = new Registry(new PublishingEventDispatcher($bus), $logger);
+
 $protocol = Server::builder()
     ->setServerInfo('mcp-conformance-test-server', '1.0.0')
     ->setLogger($logger)
+    ->setRegistry($registry)
     // Tools
     ->addTool(static fn () => 'This is a simple text response for testing.', name: 'test_simple_text', description: 'Tests simple text content response')
     ->addTool(static fn () => new ImageContent(Elements::TEST_IMAGE_BASE64, 'image/png'), name: 'test_image_content', description: 'Tests image content response')
@@ -106,6 +126,38 @@ $protocol = Server::builder()
         ],
     )
     ->addTool([Elements::class, 'toolWithProgress'], name: 'test_tool_with_progress', description: 'Tests tool that reports progress notifications')
+    // Diagnostic hooks the subscription scenarios call to make the lists change
+    // while a listen stream is open.
+    ->addTool(
+        static function () use ($registry): string {
+            $registry->registerTool(
+                new Tool(
+                    name: 'test_ephemeral_tool_'.bin2hex(random_bytes(4)),
+                    title: null,
+                    inputSchema: ['type' => 'object', 'properties' => new stdClass(), 'required' => null],
+                    description: 'Registered to trigger a list change',
+                    annotations: null,
+                ),
+                static fn (): string => 'ephemeral',
+            );
+
+            return 'Tool list mutated.';
+        },
+        name: 'test_trigger_tool_change',
+        description: 'Registers a tool so the tool list changes',
+    )
+    ->addTool(
+        static function () use ($registry): string {
+            $registry->registerPrompt(
+                new Prompt('test_ephemeral_prompt_'.bin2hex(random_bytes(4)), null, 'Registered to trigger a list change'),
+                static fn (): array => [['role' => 'user', 'content' => 'ephemeral']],
+            );
+
+            return 'Prompt list mutated.';
+        },
+        name: 'test_trigger_prompt_change',
+        description: 'Registers a prompt so the prompt list changes',
+    )
     // Multi round-trip request tools (SEP-2322).
     ->addTool([MrtrElements::class, 'elicitation'], name: 'test_input_required_result_elicitation', description: 'MRTR: asks for a name via elicitation')
     ->addTool([MrtrElements::class, 'sampling'], name: 'test_input_required_result_sampling', description: 'MRTR: asks for a sampling completion')
@@ -127,6 +179,13 @@ $protocol = Server::builder()
     ->addPrompt([MrtrElements::class, 'prompt'], name: 'test_input_required_result_prompt', description: 'MRTR: a prompt that asks for input first')
     // Fixed so a retry landing on another process still verifies.
     ->setRequestState(str_repeat('conformance-fixture-key-', 2))
+    // So a listen stream carries the registry's changes rather than only
+    // acknowledging. In-memory is right here: the conformance server is one
+    // FrankenPHP-less php-fpm pool, and the scenarios publish within a request.
+    ->setNotificationBus($bus)
+    // Short, so a listen stream cannot tie up an fpm worker for the length of
+    // a whole run.
+    ->setSubscriptionLifetime(5.0)
     // Lists are the same for everyone here; a read is not.
     ->setCachePolicy(
         CachePolicy::default(60_000)

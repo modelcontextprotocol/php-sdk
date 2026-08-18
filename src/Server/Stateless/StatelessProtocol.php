@@ -31,6 +31,7 @@ use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Server\Wire\Rev2026Codec;
 use Mcp\Server\Wire\WireCodecInterface;
@@ -100,6 +101,7 @@ final class StatelessProtocol
         private readonly ?StandardHeaderValidator $headerValidator = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
         ?CachePolicy $cachePolicy = null,
+        private readonly ?NotificationBusInterface $notificationBus = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -295,8 +297,12 @@ final class StatelessProtocol
         $agreed = NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
 
         $lifetime = $this->subscriptionLifetime;
+        $bus = $this->notificationBus;
+        $codec = $this->codec;
 
-        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime): \Generator {
+        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec): \Generator {
+            // MUST be the first message carrying this subscription's id, and
+            // MUST precede any notification on it.
             yield [
                 'jsonrpc' => '2.0',
                 'method' => self::ACKNOWLEDGED_NOTIFICATION,
@@ -306,12 +312,27 @@ final class StatelessProtocol
                 ],
             ];
 
-            // Cross-request notifications need a channel this SDK does not
-            // define yet, so the stream only waits. The tick is not optional:
-            // PHP spots a dropped peer by writing, and a sleeping loop would
-            // pin an FPM worker for the full lifetime.
-            $deadline = microtime(true) + $lifetime;
+            // From now, not from the beginning: a subscriber wants what happens
+            // next, not a replay of the server's history.
+            $cursor = $bus?->cursor() ?? 0;
+
+            // The tick is not optional: PHP spots a dropped peer by writing,
+            // and a sleeping loop would pin an FPM worker for the full lifetime.
+            $deadline = 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
+
             while (microtime(true) < $deadline) {
+                if (null !== $bus) {
+                    [$notifications, $cursor] = $bus->since($cursor);
+
+                    foreach ($notifications as $notification) {
+                        if (!$agreed->carries($notification)) {
+                            continue;
+                        }
+
+                        yield self::tagWithSubscription($notification, $id);
+                    }
+                }
+
                 yield null;
 
                 if (connection_aborted()) {
@@ -326,12 +347,34 @@ final class StatelessProtocol
             yield [
                 'jsonrpc' => '2.0',
                 'id' => $id,
-                'result' => [
+                'result' => $codec->encodeResult(self::LISTEN_METHOD, [
                     'resultType' => 'complete',
                     '_meta' => [RequestMeta::SUBSCRIPTION_ID => $id],
-                ],
+                ], false),
             ];
         });
+    }
+
+    /**
+     * Every message on a listen stream carries the id of the subscription it
+     * belongs to, which is how a client demultiplexes them on stdio — where
+     * they all share one channel.
+     *
+     * @return array<string, mixed>
+     */
+    private static function tagWithSubscription(Notification $notification, string|int $id): array
+    {
+        /** @var array<string, mixed> $frame */
+        $frame = $notification->jsonSerialize();
+
+        $params = \is_array($frame['params'] ?? null) ? $frame['params'] : [];
+        $meta = \is_array($params['_meta'] ?? null) ? $params['_meta'] : [];
+
+        $meta[RequestMeta::SUBSCRIPTION_ID] = $id;
+        $params['_meta'] = $meta;
+        $frame['params'] = $params;
+
+        return $frame;
     }
 
     private function discover(): DiscoverResult
