@@ -445,16 +445,21 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         elseif (\in_array('array', $this->mapPhpTypeToJsonSchemaType($typeString))) {
             // `inferArrayItemsType()` expects a single array type, not a union — for
             // `string[]|int` it would see the whole string, match nothing, and lose
-            // the element-type constraint. Isolate the branch that is the array.
-            $arrayBranch = $typeString;
-            foreach (self::splitUnion($typeString) as $branch) {
-                if (\in_array('array', $this->mapPhpTypeToJsonSchemaType($branch), true)) {
-                    $arrayBranch = $branch;
-                    break;
-                }
+            // the element-type constraint. Isolate the branch(es) that are arrays.
+            $arrayBranches = array_values(array_filter(
+                self::splitUnion($typeString),
+                fn (string $branch): bool => \in_array('array', $this->mapPhpTypeToJsonSchemaType($branch), true),
+            ));
+            if ([] === $arrayBranches) {
+                $arrayBranches = [$typeString];
             }
 
-            $itemsType = $this->inferArrayItemsType($arrayBranch);
+            // Several array branches (`string[]|int[]`) can disagree on their
+            // element type. Applying just one would reject values valid under
+            // the other, so `items` only applies when every array branch agrees.
+            $itemsTypes = array_map($this->inferArrayItemsType(...), $arrayBranches);
+            $itemsType = 1 === \count(array_unique(array_map(json_encode(...), $itemsTypes))) ? $itemsTypes[0] : 'any';
+
             if ('any' !== $itemsType) {
                 if (\is_string($itemsType)) {
                     $paramSchema['items'] = ['type' => $itemsType];

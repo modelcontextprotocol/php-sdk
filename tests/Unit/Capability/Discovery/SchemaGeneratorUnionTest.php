@@ -99,6 +99,13 @@ class SchemaGeneratorUnionTest extends TestCase
         $this->assertSame(['integer', 'string'], $schema['properties']['scalars']['type']);
         $this->assertSame('array', $schema['properties']['arrayOnly']['type']);
         $this->assertSame(['array', 'null'], $schema['properties']['nullableArray']['type']);
+
+        // Two array branches with different element types can't both be
+        // enforced without rejecting a value that is valid under one of
+        // them, so neither constraint is applied (falls back to the "matches
+        // anything" empty schema `ensureArrayItems()` defaults every array to).
+        $this->assertSame('array', $schema['properties']['disagreeingArrays']['type']);
+        $this->assertEquals(new \stdClass(), $schema['properties']['disagreeingArrays']['items']);
     }
 
     #[TestDox('a value from either branch validates against the generated schema')]
@@ -108,12 +115,16 @@ class SchemaGeneratorUnionTest extends TestCase
             ->generate(new \ReflectionMethod(UnionFixture::class, 'handle'));
 
         $validator = new SchemaValidator();
-        $base = ['scalars' => 1, 'arrayOnly' => ['a'], 'nullableArray' => null];
+        $base = ['scalars' => 1, 'arrayOnly' => ['a'], 'nullableArray' => null, 'disagreeingArrays' => []];
 
         $this->assertSame([], $validator->validateAgainstJsonSchema([...$base, 'mixedish' => ['a', 'b']], $schema));
         $this->assertSame([], $validator->validateAgainstJsonSchema([...$base, 'mixedish' => 42], $schema));
 
         // A float is in neither branch, so it is still refused.
         $this->assertNotSame([], $validator->validateAgainstJsonSchema([...$base, 'mixedish' => 1.5], $schema));
+
+        // Neither element type is enforced, so both branches' values pass.
+        $this->assertSame([], $validator->validateAgainstJsonSchema([...$base, 'mixedish' => 42, 'disagreeingArrays' => ['a', 'b']], $schema));
+        $this->assertSame([], $validator->validateAgainstJsonSchema([...$base, 'mixedish' => 42, 'disagreeingArrays' => [1, 2]], $schema));
     }
 }
