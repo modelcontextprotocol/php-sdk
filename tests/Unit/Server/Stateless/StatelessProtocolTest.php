@@ -18,6 +18,8 @@ use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
@@ -93,7 +95,41 @@ class StatelessProtocolTest extends TestCase
                 name: 'elicits_directly',
                 description: 'Asks the client directly, which this revision forbids',
             )
+            ->addTool(
+                static fn (): InputRequiredResult => new InputRequiredResult([
+                    'consent' => ElicitRequest::forUrl('Approve out of band', 'https://example.com/consent'),
+                ]),
+                name: 'asks_by_url',
+                description: 'Asks through a url-mode elicitation',
+            )
+            ->addTool(
+                static function (RequestContext $context): InputRequiredResult {
+                    $context->getClientGateway()->progress(0, 100, 'starting');
+
+                    return new InputRequiredResult([
+                        'consent' => ElicitRequest::forUrl('Approve out of band', 'https://example.com/consent'),
+                    ]);
+                },
+                name: 'asks_by_url_after_progress',
+                description: 'Emits progress, then asks through a url-mode elicitation',
+            )
             ->addResource(static fn (): string => 'body', 'test://static', 'static', 'A static resource')
+            ->addResource(
+                static function (RequestContext $context): string|InputRequiredResult {
+                    $input = $context->getInputContext();
+
+                    if (null === $input || !$input->has('who')) {
+                        return new InputRequiredResult([
+                            'who' => new ElicitRequest('Who is asking?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n'])),
+                        ]);
+                    }
+
+                    return 'body for '.($input->response('who')['content']['n'] ?? '?');
+                },
+                'test://gated',
+                'gated',
+                'A resource that asks who is reading before it answers',
+            )
             ->buildStateless([ProtocolVersion::V2026_07_28]);
     }
 
@@ -420,6 +456,126 @@ class StatelessProtocolTest extends TestCase
             // are reserved by earlier revisions and never reused.
             $this->assertNotContains($answer['body']['error']['code'], [-32002, -32042]);
         }
+    }
+
+    #[TestDox('resources/read can ask for input before it answers')]
+    public function testResourceReadCanAskForInput(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            ['uri' => 'test://gated'],
+            ['Mcp-Name' => 'test://gated'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+        $this->assertArrayHasKey('who', $answer['body']['result']['inputRequests']);
+
+        // Interim results are not cacheable and carry no hints.
+        $this->assertArrayNotHasKey('ttlMs', $answer['body']['result']);
+        $this->assertArrayNotHasKey('cacheScope', $answer['body']['result']);
+    }
+
+    #[TestDox('an ask the client cannot answer is refused with -32021, not sent')]
+    public function testUndeclaredInputRequestIsRefused(): void
+    {
+        // The client declared nothing, so it has no way to answer an
+        // elicitation — and a retry carrying one could never arrive.
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            ['uri' => 'test://gated'],
+            ['Mcp-Name' => 'test://gated'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $answer['body']['error']['code']);
+        $this->assertArrayHasKey('elicitation', $answer['body']['error']['data']['requiredCapabilities']);
+    }
+
+    #[TestDox('url-mode elicitation needs its own declaration, which form does not satisfy')]
+    public function testUrlElicitationNeedsItsOwnDeclaration(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'asks_by_url', 'arguments' => []],
+            ['Mcp-Name' => 'asks_by_url'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $answer['body']['error']['code']);
+        $this->assertArrayHasKey('url', $answer['body']['error']['data']['requiredCapabilities']['elicitation']);
+    }
+
+    #[TestDox('a client declaring url mode gets the ask')]
+    public function testUrlElicitationPassesWhenDeclared(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'asks_by_url', 'arguments' => []],
+            ['Mcp-Name' => 'asks_by_url'],
+            ['elicitation' => ['url' => new \stdClass()]],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+    }
+
+    #[TestDox('an ask the client cannot answer is refused with -32021 even mid-stream')]
+    public function testUndeclaredInputRequestIsRefusedWhenStreamed(): void
+    {
+        // The handler emits progress before its InputRequiredResult, so the
+        // answer goes out on the response stream, not a plain 400 — the gate
+        // still has to apply there.
+        $result = self::callStreaming(self::protocol(), 'asks_by_url_after_progress', ['progressToken' => 'tok-1']);
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+        $last = json_decode(json_encode($frames[array_key_last($frames)], \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $last['error']['code']);
+        $this->assertArrayHasKey('url', $last['error']['data']['requiredCapabilities']['elicitation']);
+    }
+
+    #[TestDox('a first-round read carries caching hints')]
+    public function testFirstRoundReadIsCacheable(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            ['uri' => 'test://static'],
+            ['Mcp-Name' => 'test://static'],
+        );
+
+        $this->assertArrayHasKey('ttlMs', $answer['body']['result']);
+        $this->assertArrayHasKey('cacheScope', $answer['body']['result']);
+    }
+
+    #[TestDox('a result produced by a multi round-trip retry carries no caching hints')]
+    public function testMrtrRetryResultIsNotCacheable(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'resources/read',
+            [
+                'uri' => 'test://gated',
+                'inputResponses' => ['who' => ['action' => 'accept', 'content' => ['n' => 'ada']]],
+            ],
+            ['Mcp-Name' => 'test://gated'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame('complete', $answer['body']['result']['resultType']);
+        // The inputs are not part of any cache key, so the answer must not be
+        // presented as reusable.
+        $this->assertArrayNotHasKey('ttlMs', $answer['body']['result']);
+        $this->assertArrayNotHasKey('cacheScope', $answer['body']['result']);
     }
 
     #[TestDox('a notification is acknowledged with no body, never answered')]

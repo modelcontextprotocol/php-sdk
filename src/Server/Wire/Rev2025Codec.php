@@ -21,7 +21,7 @@ namespace Mcp\Server\Wire;
  */
 final class Rev2025Codec implements WireCodecInterface
 {
-    public function encodeResult(string $method, array $result): array
+    public function encodeResult(string $method, array $result, bool $cacheable = true): array
     {
         return $result;
     }

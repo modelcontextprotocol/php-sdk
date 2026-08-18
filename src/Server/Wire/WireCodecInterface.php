@@ -29,10 +29,13 @@ interface WireCodecInterface
     /**
      * Stamps an already-serialized result with whatever this era requires.
      *
-     * @param string               $method the request method the result answers
-     * @param array<string, mixed> $result the neutral result body
+     * @param string               $method    the request method the result answers
+     * @param array<string, mixed> $result    the neutral result body
+     * @param bool                 $cacheable whether this answer may carry caching hints at all — false for one
+     *                                        produced by a multi round-trip retry, whose inputs are not part of
+     *                                        any cache key
      *
      * @return array<string, mixed>
      */
-    public function encodeResult(string $method, array $result): array;
+    public function encodeResult(string $method, array $result, bool $cacheable = true): array;
 }

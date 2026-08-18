@@ -25,6 +25,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Result\DiscoverResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
@@ -433,7 +434,7 @@ final class StatelessProtocol
             }
 
             if ($run->valid() && $wantsStream) {
-                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $method, $id));
+                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $meta, $method, $id, null === $input));
             }
 
             try {
@@ -457,7 +458,11 @@ final class StatelessProtocol
                 return StatelessResult::error($result, 400);
             }
 
-            return $this->encode($method, $id, $result->result);
+            if (null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
+                return $capabilityError;
+            }
+
+            return $this->encode($method, $id, $result->result, null === $input);
         }
 
         return StatelessResult::error(Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $method), $id), 404);
@@ -540,7 +545,7 @@ final class StatelessProtocol
      *
      * @return \Generator<mixed>
      */
-    private function streamFrames(\Generator $run, string $method, string|int $id): \Generator
+    private function streamFrames(\Generator $run, RequestMeta $meta, string $method, string|int $id, bool $cacheable): \Generator
     {
         try {
             while ($run->valid()) {
@@ -558,9 +563,50 @@ final class StatelessProtocol
             return;
         }
 
+        if (!$result instanceof Error && null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
+            yield $capabilityError->message?->jsonSerialize();
+
+            return;
+        }
+
         yield $result instanceof Error
             ? $result->jsonSerialize()
-            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize())];
+            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize(), $cacheable)];
+    }
+
+    /**
+     * Refuses to send an ask the client cannot answer.
+     *
+     * The handler's mistake rather than the client's, but the client is the one
+     * that has to hear about it, and `-32021` is precisely the code for
+     * "processing this needs a capability you did not declare" — so it is
+     * reported as that, and logged as the server-side bug it is.
+     */
+    private function checkInputRequests(ResultInterface $result, RequestMeta $meta, string $method, string|int $id): ?StatelessResult
+    {
+        if (!$result instanceof InputRequiredResult) {
+            return null;
+        }
+
+        $missing = InputRequestCapabilities::missing($result, $meta->clientCapabilities);
+
+        if (null === $missing) {
+            return null;
+        }
+
+        $this->logger->warning('A handler asked for input the client did not declare it could provide; the ask was replaced with -32021.', [
+            'method' => $method,
+            'required' => $missing->jsonSerialize(),
+        ]);
+
+        return StatelessResult::error(
+            Error::forMissingRequiredClientCapability(
+                'The server needs input this client did not declare it can provide.',
+                $missing,
+                $id,
+            ),
+            400,
+        );
     }
 
     /**
@@ -634,9 +680,9 @@ final class StatelessProtocol
      * Runs a result through the wire codec. Passed as-is rather than via a
      * json round trip, which would turn a nested `{}` into `[]`.
      */
-    private function encode(string $method, string|int $id, ResultInterface $result): StatelessResult
+    private function encode(string $method, string|int $id, ResultInterface $result, bool $cacheable = true): StatelessResult
     {
-        return StatelessResult::ok($id, $this->codec->encodeResult($method, (array) $result->jsonSerialize()));
+        return StatelessResult::ok($id, $this->codec->encodeResult($method, (array) $result->jsonSerialize(), $cacheable));
     }
 
     /**
