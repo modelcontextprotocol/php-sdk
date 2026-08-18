@@ -25,4 +25,43 @@ server:
   - json-schema-2020-12:json-schema-2020-12-tool-found
   - resources-templates-read:wire-schema-valid
 
-client: []
+# The client does not speak 2026-07-28 at all yet: it still opens with
+# `initialize` regardless of revision, so it never reaches the stateless wire
+# (no per-request `_meta`, no Mcp-Method/Mcp-Name headers, no client-side
+# requestState) — and separately, the SDK ships no OAuth client, so every
+# scenario driving an authorization flow has nothing to exercise.
+client:
+  - request-metadata
+  - http-standard-headers
+  - http-custom-headers
+  - http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate
+  - http-invalid-tool-headers:sep-2243-client-reject-invalid-tool
+  - sep-2322-client-request-state
+  - tools_call:tool-add-numbers
+  - json-schema-2020-12-preservation:json-schema-2020-12-client-tool-found
+  - json-schema-2020-12-preservation:json-schema-2020-12-client-echo-completed
+
+  - auth/metadata-default
+  - auth/metadata-var1
+  - auth/metadata-var2
+  - auth/metadata-var3
+  - auth/metadata-issuer-mismatch
+  - auth/basic-cimd
+  - auth/pre-registration
+  - auth/scope-from-www-authenticate
+  - auth/scope-from-scopes-supported
+  - auth/scope-omitted-when-undefined
+  - auth/scope-step-up
+  - auth/scope-retry-limit
+  - auth/token-endpoint-auth-basic
+  - auth/token-endpoint-auth-post
+  - auth/token-endpoint-auth-none
+  - auth/offline-access-scope
+  - auth/offline-access-not-supported
+  - auth/authorization-server-migration:sep-2352-reregister-on-as-change
+  - auth/iss-supported
+  - auth/iss-not-advertised
+  - auth/iss-supported-missing
+  - auth/iss-wrong-issuer
+  - auth/iss-unexpected
+  - auth/iss-normalized
