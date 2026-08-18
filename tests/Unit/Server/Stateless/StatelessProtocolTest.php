@@ -122,6 +122,18 @@ class StatelessProtocolTest extends TestCase
                 name: 'asks_by_url_after_progress',
                 description: 'Emits progress, then asks through a url-mode elicitation',
             )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $pairs = [];
+                    foreach ($context->getTraceContext() as $key => $value) {
+                        $pairs[] = $key.'='.$value;
+                    }
+
+                    return implode(';', $pairs) ?: 'none';
+                },
+                name: 'probe_trace',
+                description: 'Reports the trace context it was called with',
+            )
             ->addResource(static fn (): string => 'body', 'test://static', 'static', 'A static resource')
             ->addResource(
                 static function (RequestContext $context): string|InputRequiredResult {
@@ -150,9 +162,11 @@ class StatelessProtocolTest extends TestCase
      */
     private static function call(StatelessProtocol $protocol, string $method, array $params = [], array $extraHeaders = [], array $capabilities = []): array
     {
+        // Merged, not replaced: a test may add its own `_meta` members.
         $params['_meta'] = [
             RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
             RequestMeta::CLIENT_CAPABILITIES => (object) $capabilities,
+            ...($params['_meta'] ?? []),
         ];
 
         return self::callWithHeaders($protocol, $method, $params, [
@@ -407,6 +421,55 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(500, $result->httpStatus);
         $this->assertStringContainsString('InputRequiredResult', $body['error']['message']);
+    }
+
+    #[TestDox('a request\'s trace context reaches the handler')]
+    public function testTraceContextReachesTheHandler(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            [
+                'name' => 'probe_trace',
+                'arguments' => [],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                    'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+                    'baggage' => 'tenant=acme',
+                ],
+            ],
+            ['Mcp-Name' => 'probe_trace'],
+        );
+
+        $this->assertSame(
+            'traceparent=00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01;baggage=tenant=acme',
+            $answer['body']['result']['content'][0]['text'],
+        );
+    }
+
+    #[TestDox('notifications caused by a traced request carry its trace context')]
+    public function testNotificationsCarryTheTraceContext(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'progress_tool', [
+            'progressToken' => 'tok-1',
+            'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+        ]);
+
+        $frames = self::frames($result);
+
+        $this->assertSame(
+            '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+            $frames[0]['params']['_meta']['traceparent'],
+        );
+    }
+
+    #[TestDox('an untraced request adds no trace metadata')]
+    public function testUntracedRequestAddsNothing(): void
+    {
+        $frames = self::frames(self::callStreaming(self::protocol(), 'progress_tool', ['progressToken' => 'tok-1']));
+
+        $this->assertArrayNotHasKey('traceparent', $frames[0]['params']['_meta'] ?? []);
     }
 
     #[TestDox('a missing resource answers -32602 with the uri, not the retired -32002')]

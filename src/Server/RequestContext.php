@@ -112,6 +112,23 @@ final class RequestContext
     }
 
     /**
+     * The W3C trace context this request carried, if any.
+     *
+     * Values are passed through exactly as they arrived — validating or
+     * regenerating them is the tracing library's job, not the protocol's. The
+     * SDK echoes them onto the notifications a handler emits so a span stays
+     * joined across the stream.
+     *
+     * @return array<string, string> keyed by `traceparent`, `tracestate`, `baggage`
+     */
+    public function getTraceContext(): array
+    {
+        $meta = $this->session->get(RequestMeta::class);
+
+        return $meta instanceof RequestMeta ? $meta->traceContext : [];
+    }
+
+    /**
      * Seals handler context into the string an
      * {@see \Mcp\Schema\Result\InputRequiredResult} carries to the client.
      * Signed, not encrypted: nothing secret belongs in the payload.
