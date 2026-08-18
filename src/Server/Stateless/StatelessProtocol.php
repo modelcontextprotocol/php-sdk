@@ -89,6 +89,7 @@ final class StatelessProtocol
     /**
      * @param iterable<RequestHandlerInterface<ResultInterface>> $requestHandlers
      * @param list<ProtocolVersion>                              $supportedVersions
+     * @param array<string, string>                              $extensionMethods  RPC method to the extension identifier defining it
      */
     public function __construct(
         private readonly iterable $requestHandlers,
@@ -102,6 +103,7 @@ final class StatelessProtocol
         private readonly ?RequestStateCodec $requestStateCodec = null,
         ?CachePolicy $cachePolicy = null,
         private readonly ?NotificationBusInterface $notificationBus = null,
+        private readonly array $extensionMethods = [],
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -396,7 +398,7 @@ final class StatelessProtocol
         } catch (\Throwable $e) {
             $this->logger->warning('Rejected an unparseable modern-era request.', ['method' => $method, 'exception' => $e]);
 
-            return StatelessResult::error(Error::forMethodNotFound(\sprintf('Method "%s" is not supported.', $method), $id), 404);
+            return StatelessResult::error($this->unknownMethod($method, $id), 404);
         }
 
         $request = $messages[0] ?? null;
@@ -410,7 +412,7 @@ final class StatelessProtocol
 
             return StatelessResult::error(
                 $unknownMethod
-                    ? Error::forMethodNotFound($request->getMessage(), $id)
+                    ? $this->unknownMethod($method, $id)
                     : Error::forInvalidRequest($request->getMessage(), $id),
                 $unknownMethod ? 404 : 400,
             );
@@ -510,7 +512,28 @@ final class StatelessProtocol
             return $this->encode($method, $id, $result->result, null === $input);
         }
 
-        return StatelessResult::error(Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $method), $id), 404);
+        return StatelessResult::error($this->unknownMethod($method, $id), 404);
+    }
+
+    /**
+     * A method with no handler, said as precisely as the server can.
+     *
+     * An extension's method is still `-32601` when the extension is off — the
+     * server genuinely does not implement it — but naming the extension turns
+     * an opaque refusal into something the caller can act on.
+     */
+    private function unknownMethod(string $method, string|int $id): Error
+    {
+        $extension = $this->extensionMethods[$method] ?? null;
+
+        if (null !== $extension) {
+            return Error::forMethodNotFound(
+                \sprintf('Method "%s" belongs to the "%s" extension, which this server does not serve.', $method, $extension),
+                $id,
+            );
+        }
+
+        return Error::forMethodNotFound(\sprintf('No handler found for method "%s".', $method), $id);
     }
 
     /**

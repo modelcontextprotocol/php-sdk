@@ -34,6 +34,7 @@ use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Wire\CachePolicy;
+use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -789,6 +790,55 @@ class StatelessProtocolTest extends TestCase
         }
 
         $this->assertSame(['toolsListChanged' => true], (array) $first['params']['notifications']);
+    }
+
+    #[TestDox('an extension method is served by the extension that claims it')]
+    public function testExtensionMethodIsServed(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->enableExtension(new ThingExtension())
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $answer = self::callWithHeaders($protocol, 'com.example/things.list', [], [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'com.example/things.list',
+        ]);
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame(['a', 'b'], $answer['body']['result']['things']);
+    }
+
+    #[TestDox('the extension is advertised under capabilities.extensions')]
+    public function testExtensionIsAdvertised(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->enableExtension(new ThingExtension())
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $answer = self::call($protocol, 'server/discover');
+
+        $this->assertSame(['flavour' => 'vanilla'], (array) $answer['body']['result']['capabilities']['extensions']['com.example/things']);
+    }
+
+    #[TestDox('a method of an extension this server does not serve says so by name')]
+    public function testDisabledExtensionMethodNamesItsExtension(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $answer = self::callWithHeaders($protocol, 'com.example/things.list', [], [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'com.example/things.list',
+        ]);
+
+        $this->assertSame(404, $answer['status']);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+        // Without the extension enabled there is nothing to name it by.
+        $this->assertStringContainsString('com.example/things.list', $answer['body']['error']['message']);
+        $this->assertStringNotContainsString('extension', $answer['body']['error']['message']);
     }
 
     #[TestDox('a notification is acknowledged with no body, never answered')]

@@ -236,6 +236,9 @@ final class Builder
     /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
     private array $extensionMessages = [];
 
+    /** @var array<string, string> RPC method to the extension identifier defining it */
+    private array $extensionMethods = [];
+
     /**
      * @var LoaderInterface[]
      */
@@ -406,6 +409,9 @@ final class Builder
             // downstream ever sees it.
             foreach ($extension->getMessages() as $message) {
                 $this->extensionMessages[] = $message;
+                // Recorded even though the handler answers it, so a server with
+                // the extension *off* can say so instead of "no such method".
+                $this->extensionMethods[$message::getMethod()] = $id;
             }
 
             foreach ($extension->getRequestHandlers() as $handler) {
@@ -836,6 +842,7 @@ final class Builder
                 : null,
             cachePolicy: $this->cachePolicy,
             notificationBus: $this->notificationBus,
+            extensionMethods: $this->extensionMethods,
         );
     }
 
