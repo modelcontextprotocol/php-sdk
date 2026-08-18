@@ -31,7 +31,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
      * @param int|float|null $maximum     Optional maximum value (inclusive)
      */
     public function __construct(
-        ?string $title,
+        ?string $title = null,
         public readonly bool $integerOnly = false,
         ?string $description = null,
         public readonly int|float|null $default = null,
