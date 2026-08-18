@@ -13,18 +13,22 @@ namespace Mcp\Tests\Unit\Server\Stateless;
 
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
+use Mcp\Server\Wire\CachePolicy;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -541,6 +545,34 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $last['error']['code']);
         $this->assertArrayHasKey('url', $last['error']['data']['requiredCapabilities']['elicitation']);
+    }
+
+    #[TestDox('a resource can set its own freshness, overriding the policy')]
+    public function testResourceAuthoredCacheHintsWin(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCachePolicy(CachePolicy::default(60_000, CacheScope::Public))
+            ->addResource(
+                static fn (): ReadResourceResult => new ReadResourceResult(
+                    [new TextResourceContents('test://volatile', 'text/plain', 'now')],
+                    ttlMs: 250,
+                    cacheScope: CacheScope::Private,
+                ),
+                'test://volatile',
+                'volatile',
+                'A resource that decides its own freshness',
+            )
+            ->addResource(static fn (): string => 'body', 'test://plain', 'plain', 'A resource that defers to policy')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $volatile = self::call($protocol, 'resources/read', ['uri' => 'test://volatile'], ['Mcp-Name' => 'test://volatile']);
+        $this->assertSame(250, $volatile['body']['result']['ttlMs']);
+        $this->assertSame('private', $volatile['body']['result']['cacheScope']);
+
+        $plain = self::call($protocol, 'resources/read', ['uri' => 'test://plain'], ['Mcp-Name' => 'test://plain']);
+        $this->assertSame(60_000, $plain['body']['result']['ttlMs']);
+        $this->assertSame('public', $plain['body']['result']['cacheScope']);
     }
 
     #[TestDox('a first-round read carries caching hints')]

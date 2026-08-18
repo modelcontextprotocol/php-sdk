@@ -31,6 +31,7 @@ use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Wire\CachePolicy;
 use Mcp\Server\Wire\Rev2026Codec;
 use Mcp\Server\Wire\WireCodecInterface;
 use Psr\Log\LoggerInterface;
@@ -98,8 +99,9 @@ final class StatelessProtocol
         ?WireCodecInterface $codec = null,
         private readonly ?StandardHeaderValidator $headerValidator = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
+        ?CachePolicy $cachePolicy = null,
     ) {
-        $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo);
+        $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
         if (null === $this->headerValidator) {
             // Not fatal: a transport without a header layer — stdio — has

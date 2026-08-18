@@ -44,11 +44,13 @@ final class Rev2026Codec implements WireCodecInterface
         'resources/read',
     ];
 
+    private readonly CachePolicy $cachePolicy;
+
     public function __construct(
         private readonly ?Implementation $serverInfo = null,
-        private readonly CacheScope $defaultCacheScope = CacheScope::Private,
-        private readonly int $defaultTtlMs = 0,
+        ?CachePolicy $cachePolicy = null,
     ) {
+        $this->cachePolicy = $cachePolicy ?? CachePolicy::none();
     }
 
     public function encodeResult(string $method, array $result, bool $cacheable = true): array
@@ -84,8 +86,9 @@ final class Rev2026Codec implements WireCodecInterface
     }
 
     /**
-     * Fills `ttlMs`/`cacheScope`, most-specific author first: an authored value,
-     * then configured policy, then "private, do not cache".
+     * Fills `ttlMs`/`cacheScope`, most-specific author first: a value the
+     * result itself carries, then the configured {@see CachePolicy}, whose own
+     * default is "private, do not cache".
      *
      * @param array<string, mixed> $result
      *
@@ -106,11 +109,11 @@ final class Rev2026Codec implements WireCodecInterface
 
         // Invalid authored values fall through to the next author down.
         if (!\is_int($ttl) || $ttl < 0) {
-            $ttl = $this->defaultTtlMs;
+            $ttl = $this->cachePolicy->ttlFor($method);
         }
 
         if (!\is_string($scope) || null === CacheScope::tryFrom($scope)) {
-            $scope = $this->defaultCacheScope->value;
+            $scope = $this->cachePolicy->scopeFor($method)->value;
         }
 
         return [...$result, 'ttlMs' => $ttl, 'cacheScope' => $scope];
