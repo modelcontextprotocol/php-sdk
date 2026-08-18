@@ -14,16 +14,11 @@ namespace Mcp\Exception;
 use Mcp\Schema\ClientCapabilities;
 
 /**
- * Answering the request needs a client capability the request never declared.
- *
- * In the handshake era a server learned the client's capabilities once, at
- * `initialize`, and could refuse to advertise features the client could not
- * use. A modern request restates its capabilities every time, so the check
- * moves to call time — a handler that needs to call back into the client
- * throws this, and the protocol answers `-32021` with HTTP 400.
+ * Answering the request needs a client capability it never declared; the
+ * protocol answers `-32021` with HTTP 400.
  *
  * The capabilities travel as a {@see ClientCapabilities} object rather than a
- * list of names so the client can compare them against what it would send.
+ * list of names, so the client can compare them against what it would send.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

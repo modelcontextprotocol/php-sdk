@@ -11,49 +11,37 @@
 #
 # Run with:
 #   make conformance-draft-server
-#
-# Absent by design, because they pass in full: server-stateless (the SEP-2575
-# lifecycle), caching (SEP-2549 hints), both SEP-2243 header-validation
-# scenarios, and every wire-schema-valid check bar one noted below.
 
 server:
-  # --- SEP-2322: the MRTR retry half -----------------------------------------
-  # InputRequiredResult exists and tools/call can answer with one — that is what
-  # makes server-stateless green. What is missing is the second round trip: the
-  # SDK does not read inputResponses, verify requestState integrity, or resume a
-  # call from it. Until it does, every scenario that retries fails at the retry.
-  - input-required-result-basic-elicitation:sep-2322-elicitation-incomplete
-  - input-required-result-basic-list-roots:sep-2322-list-roots-incomplete
-  - input-required-result-basic-sampling:sep-2322-sampling-incomplete
-  - input-required-result-capability-check:sep-2322-respect-client-capabilities
-  - input-required-result-multi-round:sep-2322-multi-round-r1
-  - input-required-result-multiple-input-requests:sep-2322-multiple-inputs-incomplete
-  - input-required-result-non-tool-request:sep-2322-non-tool-incomplete
-  - input-required-result-request-state:sep-2322-request-state-incomplete
-  - input-required-result-result-type:sep-2322-result-type-included
-  - input-required-result-tampered-state:sep-2322-reject-tampered-state
+  # --- Progress notifications on a response stream ---------------------------
+  # The one place the modern lifecycle is behind the handshake one, and a real
+  # gap rather than a fixture difference: this scenario passes at / and fails
+  # at /stateless. A tools/call answer is a single JSON response here, so
+  # notifications a handler emits mid-call have nowhere to go. Closing it means
+  # answering tools/call over a stream — the same seam MRTR's IncompleteResult
+  # chunks will need — rather than anything specific to progress.
+  - tools-call-with-progress:tools-call-with-progress
 
   # --- SHOULD-level warnings -------------------------------------------------
   # These report WARNING rather than FAILURE (the severity follows the spec
   # keyword), so the run summary counts them as passed — but the baseline
   # evaluator still wants them declared, and declaring them is right: each is a
-  # SHOULD the SDK does not yet honour.
-  - input-required-result-ignore-extra-params:sep-2322-ignore-unexpected-params
-  - input-required-result-missing-input-response:sep-2322-missing-response-rerequests
+  # SHOULD the SDK does not yet honour. Both concern the resources/read
+  # not-found shape: SEP-2164 moved it to -32602 with the uri in error.data,
+  # and the SDK still answers with the older -32002 and no data.
   - sep-2164-resource-not-found:sep-2164-data-uri
   - sep-2164-resource-not-found:sep-2164-error-code
 
   # --- Pre-existing, not lifecycle-specific ----------------------------------
-  # Each of these fails identically on the handshake endpoint at /, so none is
-  # caused by (or fixable in) the modern lifecycle. Listed so the draft run is
-  # honest, not to excuse them — resources-templates-read in particular is the
-  # single wire-schema failure left, a resource-template URI the fixture emits
-  # in a shape the schema rejects on both revisions.
-  - dns-rebinding-protection:localhost-host-rebinding-rejected
+  # Neither is caused by (or fixable in) the modern lifecycle; both reproduce
+  # on the handshake endpoint. Listed so the draft run is honest.
+  #
+  # json-schema-2020-12 wants a `json_schema_2020_12_tool` fixture that neither
+  # conformance server defines, so the scenario has nothing to exercise.
+  # resources-templates-read is the single remaining wire-schema failure: the
+  # fixture emits a resource-template URI in a shape the schema rejects, on
+  # both revisions.
   - json-schema-2020-12:json-schema-2020-12-tool-found
-  - prompts-get-embedded-resource:prompts-get-embedded-resource
-  - prompts-get-with-image:prompts-get-with-image
   - resources-templates-read:wire-schema-valid
-  - tools-call-with-progress:tools-call-with-progress
 
 client: []

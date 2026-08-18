@@ -12,9 +12,14 @@
 namespace Mcp\Server;
 
 use Mcp\Capability\Logger\ClientLogger;
+use Mcp\Exception\LogicException;
+use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Stateless\InputContext;
+use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Stateless\RequestStateCodec;
 
 /**
  * Context related to a single request. This includes information about the session and
@@ -80,6 +85,48 @@ final class RequestContext
         }
 
         return $this->clientGateway;
+    }
+
+    /**
+     * What a multi round-trip retry carried back, or null on a first call —
+     * which is the signal to return an
+     * {@see \Mcp\Schema\Result\InputRequiredResult} instead of an answer.
+     */
+    public function getInputContext(): ?InputContext
+    {
+        $context = $this->session->get(InputContext::class);
+
+        return $context instanceof InputContext ? $context : null;
+    }
+
+    /**
+     * What the client declared on this request. A server MUST NOT ask for
+     * input the client cannot supply. Null in the handshake era, where
+     * capabilities are connection state.
+     */
+    public function getClientCapabilities(): ?ClientCapabilities
+    {
+        $meta = $this->session->get(RequestMeta::class);
+
+        return $meta instanceof RequestMeta ? $meta->clientCapabilities : null;
+    }
+
+    /**
+     * Seals handler context into the string an
+     * {@see \Mcp\Schema\Result\InputRequiredResult} carries to the client.
+     * Signed, not encrypted: nothing secret belongs in the payload.
+     *
+     * @param array<string, mixed> $payload
+     */
+    public function mintRequestState(array $payload): string
+    {
+        $codec = $this->session->get(RequestStateCodec::class);
+
+        if (!$codec instanceof RequestStateCodec) {
+            throw new LogicException('No requestState signing key is configured; call Builder::setRequestState() before returning state from a handler.');
+        }
+
+        return $codec->mint($payload);
     }
 
     public function getClientLogger(): ClientLogger

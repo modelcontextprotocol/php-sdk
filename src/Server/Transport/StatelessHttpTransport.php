@@ -14,22 +14,23 @@ namespace Mcp\Server\Transport;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Message\StreamInterface;
+use Psr\Http\Server\MiddlewareInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
  * Carries the modern (SEP-2575) lifecycle over HTTP.
  *
- * Deliberately not a mode of {@see StreamableHttpTransport}: that transport's
- * job is largely session management — minting an `Mcp-Session-Id`, resuming a
- * suspended fiber against it, tearing it down on DELETE — and a modern request
- * has no session to manage. What is left is a POST in, one JSON-RPC message
- * out, and a status code the protocol has already chosen.
+ * Not a mode of {@see StreamableHttpTransport}, whose job is largely session
+ * management; without a session what is left is a POST in, one message out.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -44,25 +45,60 @@ final class StatelessHttpTransport
     private ResponseFactoryInterface $responseFactory;
     private StreamFactoryInterface $streamFactory;
 
+    /** @var list<MiddlewareInterface> */
+    private array $middleware;
+
+    /**
+     * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables all middleware
+     */
     public function __construct(
         private readonly StatelessProtocol $protocol,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly int $maxBodyBytes = self::DEFAULT_MAX_BODY_BYTES,
+        ?iterable $middleware = null,
     ) {
+        $this->middleware = null === $middleware
+            ? self::defaultMiddleware()
+            : array_values([...$middleware]);
+
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
+    /**
+     * Browser-facing protections, era-independent. The protocol-version
+     * middleware is absent: here the version travels in `_meta`, so a
+     * header-only check would judge half the story.
+     *
+     * @return list<MiddlewareInterface>
+     */
+    public static function defaultMiddleware(): array
+    {
+        return [
+            new CorsMiddleware(),
+            new DnsRebindingProtectionMiddleware(),
+        ];
+    }
+
     public function handle(ServerRequestInterface $request): ResponseInterface
+    {
+        $handler = new MiddlewareRequestHandler(
+            $this->middleware,
+            \Closure::fromCallable([$this, 'dispatch']),
+        );
+
+        return $handler->handle($request);
+    }
+
+    private function dispatch(ServerRequestInterface $request): ResponseInterface
     {
         if ('OPTIONS' === $request->getMethod()) {
             return $this->responseFactory->createResponse(204);
         }
 
-        // No GET-opened notification stream and no DELETE teardown: without a
-        // session there is nothing for either to address.
+        // No GET stream and no DELETE teardown: there is no session to address.
         if ('POST' !== $request->getMethod()) {
             return $this->json(
                 json_encode(Error::forInvalidRequest(\sprintf('The modern lifecycle accepts POST only, got %s.', $request->getMethod())), \JSON_THROW_ON_ERROR),
@@ -113,19 +149,16 @@ final class StatelessHttpTransport
         $callback = static function () use ($frames, $logger): void {
             try {
                 foreach ($frames() as $frame) {
-                    // A null frame is a keep-alive tick, not a message: it goes
-                    // out as an SSE comment, which the client ignores and which
-                    // gives PHP the write it needs to notice a dropped peer.
+                    // A null frame is a keep-alive tick: an SSE comment the
+                    // client ignores, and the write PHP needs to spot a drop.
                     echo null === $frame
                         ? ": keep-alive\n\n"
                         : 'data: '.json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)."\n\n";
                     flush();
                 }
             } catch (\Throwable $e) {
-                // The status line and headers are long gone by the time a frame
-                // fails, so there is no way to turn this into an error response.
-                // Log it and let the stream end; the client sees a close without
-                // the graceful-closure frame, which is exactly what it means.
+                // Headers are long sent, so this cannot become an error
+                // response; the client sees a close without the closure frame.
                 $logger->error('Subscription stream ended with an error.', ['exception' => $e]);
             }
         };

@@ -1,8 +1,8 @@
 .PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client check-conformance-repo docs
 
-# The published @modelcontextprotocol/conformance release carries no 2026-07-28
-# scenarios, so the draft targets below run a local checkout of the conformance
-# repo instead. Override with `make conformance-draft CONFORMANCE_REPO=/path/to/conformance`.
+# The published conformance release carries no 2026-07-28 scenarios, so the
+# draft targets run a local checkout instead.
+# Override with `make conformance-draft CONFORMANCE_REPO=/path/to/conformance`.
 CONFORMANCE_REPO ?= $(CURDIR)/../conformance
 CONFORMANCE_DRAFT = node $(CONFORMANCE_REPO)/dist/index.js
 
@@ -47,8 +47,7 @@ conformance-client:
 	php tests/Conformance/score.php client
 
 # --- 2026-07-28 (SEP-2575 stateless lifecycle) ------------------------------
-# Local-checkout only for now; not wired into CI until upstream publishes a
-# release carrying the draft scenarios.
+# Local-checkout only until upstream publishes the draft scenarios.
 
 conformance-draft: conformance-draft-server conformance-draft-client
 

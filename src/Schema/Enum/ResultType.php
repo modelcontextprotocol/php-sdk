@@ -14,13 +14,9 @@ namespace Mcp\Schema\Enum;
 /**
  * Tells the client how to read a result before it looks at the body.
  *
- * Introduced in 2026-07-28, where a request can come back either finished or
- * asking for more input; without a discriminator the client would have to
- * infer which by probing for fields. Servers on this revision MUST send it.
- *
- * Earlier revisions have no such field, and a client receiving a result
- * without one MUST read it as {@see self::Complete} — which is what makes it
- * safe to emit unconditionally rather than only on the newer revision.
+ * Required from 2026-07-28, where a request may come back finished or asking
+ * for input. A client seeing no `resultType` MUST read it as
+ * {@see self::Complete}.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

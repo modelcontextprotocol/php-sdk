@@ -23,8 +23,7 @@ class StandardHeaderValidatorTest extends TestCase
     protected function setUp(): void
     {
         // No registry: the Mcp-Param dimension needs tool definitions and is
-        // covered by the conformance fixture, which has real ones. Everything
-        // here is registry-independent.
+        // covered by the conformance fixture.
         $this->validator = new StandardHeaderValidator();
     }
 
@@ -125,8 +124,6 @@ class StandardHeaderValidatorTest extends TestCase
         yield 'resources/read uses uri' => ['resources/read', ['uri' => 'test://c'], 'test://c'];
         yield 'tasks/get uses taskId' => ['tasks/get', ['taskId' => 'd'], 'd'];
         yield 'tools/list has no subject' => ['tools/list', [], null];
-        // A non-string value is not a name: treating it as one would compare a
-        // header against something that was never a header value.
         yield 'non-string name is ignored' => ['tools/call', ['name' => 42], null];
     }
 
@@ -146,10 +143,8 @@ class StandardHeaderValidatorTest extends TestCase
     #[DataProvider('malformedBase64')]
     public function testMalformedBase64IsRefused(string $encoded): void
     {
-        // PHP's decoder will happily return bytes for most of these. Accepting
-        // them would let a corrupted header silently compare equal — or, worse,
-        // silently unequal — instead of being reported as the transport-level
-        // fault it is.
+        // PHP's decoder returns bytes for most of these; accepting them would
+        // let a corrupted header silently compare equal.
         $this->assertNull(StandardHeaderValidator::decode('=?base64?'.$encoded.'?='));
     }
 

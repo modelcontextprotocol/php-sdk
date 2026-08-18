@@ -17,10 +17,8 @@ use Mcp\Schema\JsonRpc\MessageInterface;
 /**
  * One modern-era answer, paired with the HTTP status that carries it.
  *
- * The pairing is the point. SEP-2575 fixes specific HTTP statuses to specific
- * JSON-RPC error codes — 404 for a method that does not exist, 400 for a
- * request the server could parse but not accept — so the status is part of the
- * answer rather than something the transport re-derives from the error code.
+ * SEP-2575 fixes specific statuses to specific JSON-RPC error codes, so the
+ * status is part of the answer rather than something the transport re-derives.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -40,11 +38,8 @@ final class StatelessResult
     }
 
     /**
-     * A successful answer whose result body the wire codec has already stamped.
-     *
-     * The body arrives as a plain array rather than a result object because the
-     * codec's job is to add fields the result classes deliberately do not model
-     * — once it has run, there is no object left that describes the payload.
+     * A successful answer whose body the wire codec has already stamped — a
+     * plain array, since no result class models the fields it added.
      *
      * @param array<string, mixed> $body
      */
@@ -69,12 +64,9 @@ final class StatelessResult
     }
 
     /**
-     * A long-lived answer delivered as a sequence of frames rather than one
-     * message — `subscriptions/listen` is the only such method today.
-     *
-     * The generator is deferred rather than eager because the frames are
-     * produced over the life of the connection: building them up front would
-     * defeat the point of streaming and hold the whole subscription in memory.
+     * A long-lived answer delivered as frames — today only
+     * `subscriptions/listen`. Deferred, since the frames are produced over the
+     * life of the connection.
      *
      * @param \Closure(): \Generator<mixed> $frames
      */
