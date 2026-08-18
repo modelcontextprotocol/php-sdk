@@ -67,7 +67,11 @@ final class SchemaComplexityGuard
      */
     public function check(array|object $schema): ?string
     {
-        $root = self::toArray($schema);
+        try {
+            $root = self::toArray($schema);
+        } catch (\JsonException $e) {
+            return \sprintf('Schema could not be decoded as JSON: %s', $e->getMessage());
+        }
 
         if (null !== $reason = $this->findExternalRef($root, 0)) {
             return $reason;
@@ -209,7 +213,7 @@ final class SchemaComplexityGuard
      */
     private static function resolve(string $pointer, array $root): ?array
     {
-        if ('#' === $pointer || '' === $pointer) {
+        if ('#' === $pointer) {
             return $root;
         }
 

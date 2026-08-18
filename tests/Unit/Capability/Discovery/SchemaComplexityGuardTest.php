@@ -217,4 +217,13 @@ class SchemaComplexityGuardTest extends TestCase
 
         $this->assertStringContainsString('non-local reference', (string) $this->guard->check($schema));
     }
+
+    #[TestDox('an object schema that cannot be encoded as JSON is refused, not thrown')]
+    public function testUnencodableObjectSchemaIsRefused(): void
+    {
+        $schema = new \stdClass();
+        $schema->bad = \NAN;
+
+        $this->assertStringContainsString('could not be decoded as JSON', (string) $this->guard->check($schema));
+    }
 }
