@@ -109,7 +109,7 @@ jobs:
             path: '/'
             baseline: conformance-baseline-2025-11-25.yml
           - spec-version: '2026-07-28'
-            path: '/stateless'
+            path: '/'
             baseline: conformance-baseline-2026-07-28.yml
 
     steps:

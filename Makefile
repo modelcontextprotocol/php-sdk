@@ -55,7 +55,7 @@ conformance-draft-server:
 	@echo "Waiting for server to start..."
 	@sleep 5
 	rm -rf tests/Conformance/results-2026-07-28
-	cd tests/Conformance && $(CONFORMANCE) server --url http://localhost:8000/stateless --suite all --spec-version 2026-07-28 --expected-failures conformance-baseline-2026-07-28.yml --output-dir results-2026-07-28 || true
+	cd tests/Conformance && $(CONFORMANCE) server --url http://localhost:8000/ --suite all --spec-version 2026-07-28 --expected-failures conformance-baseline-2026-07-28.yml --output-dir results-2026-07-28 || true
 	php tests/Conformance/score.php server 2026-07-28 results-2026-07-28
 	docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
 
