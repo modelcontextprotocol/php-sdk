@@ -17,13 +17,9 @@ use Mcp\Exception\ToolNotFoundException;
 /**
  * Checks that a request's HTTP headers agree with its JSON-RPC body (SEP-2243).
  *
- * The headers exist so an intermediary — a gateway, a proxy, a rate limiter —
- * can route and police MCP traffic without parsing the body. That only works
- * if the two cannot disagree, so a server that *does* read the body is
- * required to confirm they match and to reject the request when they do not.
- * Otherwise a caller could show a gateway one request and the server another.
- *
- * Failures are all one kind: HTTP 400 with JSON-RPC `-32020`.
+ * The headers let an intermediary route MCP traffic without parsing the body,
+ * which only holds if the two cannot disagree — otherwise a caller could show
+ * a gateway one request and the server another.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -74,10 +70,8 @@ final class StandardHeaderValidator
     }
 
     /**
-     * `Mcp-Name` names whatever the request acts on, which is a different
-     * member per method. When the body carries one, the header must repeat it;
-     * when it does not, the header has nothing to agree with and the server
-     * must not demand one.
+     * When the body carries a name the header must repeat it; when it does not,
+     * the server must not demand one.
      *
      * @param array<string, mixed>|null $params
      * @param array<string, string>     $headers
@@ -103,8 +97,7 @@ final class StandardHeaderValidator
     }
 
     /**
-     * The subject of a request, per method. Anything not listed carries no
-     * name, and so is exempt from the header entirely.
+     * The subject of a request, per method. Anything unlisted is exempt.
      *
      * @param array<string, mixed>|null $params
      */
@@ -121,13 +114,9 @@ final class StandardHeaderValidator
     }
 
     /**
-     * Tool arguments a tool marked with `x-mcp-header` are mirrored into
-     * `Mcp-Param-*` headers, and must survive the round trip unchanged.
-     *
-     * Only headers the *tool* declares are checked. An unrecognized
-     * `Mcp-Param-*` belongs to somebody else in the chain — the spec has
-     * intermediaries forward what they do not understand — so rejecting it
-     * would break traffic this server has no stake in.
+     * Only headers the tool itself declares are checked: an unrecognized
+     * `Mcp-Param-*` belongs to somebody else in the chain, and intermediaries
+     * are meant to forward what they do not understand.
      *
      * @param array<string, mixed>|null $params
      * @param array<string, string>     $headers
@@ -146,8 +135,7 @@ final class StandardHeaderValidator
         try {
             $tool = $this->registry->getTool($toolName)->tool;
         } catch (ToolNotFoundException) {
-            // Not this validator's error to report: the handler will answer
-            // with a proper tool-not-found rather than a header complaint.
+            // The handler reports this properly; a header complaint would not.
             return null;
         }
 
@@ -184,8 +172,7 @@ final class StandardHeaderValidator
     {
         $declared = $this->header($headers, $headerName);
 
-        // A null or omitted argument means the client omits the header, and the
-        // server must not expect one.
+        // An omitted argument means an omitted header.
         if (null === $argument) {
             return null;
         }
@@ -200,9 +187,7 @@ final class StandardHeaderValidator
             return \sprintf('%s header is not a well-formed Base64 wrapper.', $headerName);
         }
 
-        // Numbers travel as their decimal string, booleans as "true"/"false" —
-        // so the comparison is between the decoded header and the argument
-        // rendered the same way, not between PHP values.
+        // Numbers travel as decimal strings, booleans as "true"/"false".
         $expected = match (true) {
             \is_bool($argument) => $argument ? 'true' : 'false',
             \is_scalar($argument) => (string) $argument,
@@ -223,11 +208,9 @@ final class StandardHeaderValidator
     /**
      * Unwraps a `=?base64?…?=` value, or returns a plain value unchanged.
      *
-     * Decoding is strict. PHP's decoder is happy to accept mispadded or
-     * out-of-alphabet input and hand back plausible-looking bytes, which would
-     * turn a corrupted header into a silent mismatch — or worse, a silent
-     * match. Returns null when the wrapper is present but its contents are not
-     * valid Base64.
+     * Strict: PHP's decoder accepts mispadded input and returns plausible
+     * bytes, which would turn a corrupted header into a silent mismatch.
+     * Null when the wrapper is present but its contents are not valid Base64.
      */
     public static function decode(string $value): ?string
     {
@@ -247,8 +230,7 @@ final class StandardHeaderValidator
     }
 
     /**
-     * Header names compare case-insensitively, and values carry no meaning in
-     * the optional whitespace around them (RFC 9110 §5.5).
+     * Case-insensitive name, whitespace-trimmed value (RFC 9110 §5.5).
      *
      * @param array<string, string> $headers
      */

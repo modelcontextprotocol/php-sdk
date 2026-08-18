@@ -17,30 +17,17 @@ use Mcp\Schema\Implementation;
 use Mcp\Server\Stateless\RequestMeta;
 
 /**
- * The wire codec for 2026-07-28.
+ * The wire codec for 2026-07-28: stamps `resultType`, then the SEP-2549 caching
+ * hints, then the `_meta` serverInfo identity.
  *
- * Applies the three additions this revision makes to every outbound result, in
- * a fixed order:
- *
- *  1. the `resultType` discriminator;
- *  2. the SEP-2549 caching hints, on cacheable methods only;
- *  3. the `_meta` serverInfo identity (spec PR #3002).
- *
- * The order is load-bearing rather than incidental: the cache fill only runs
- * on a result that came out of step 1 as `complete`, so a result still asking
- * for input never acquires a TTL for content it has not produced.
+ * The order matters — the cache fill only runs on a result that came out of the
+ * stamp as `complete`, so one still asking for input never gets a TTL.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class Rev2026Codec implements WireCodecInterface
 {
-    /**
-     * Methods whose result vocabulary goes beyond `complete`, because they can
-     * come back asking for input (MRTR).
-     *
-     * `subscriptions/listen` is deliberately absent: it never sends an ordinary
-     * result, so there is nothing for the stamp to reach.
-     */
+    /** Methods that can come back asking for input (MRTR). */
     public const EXTENDED_RESULT_TYPE_METHODS = [
         'tools/call',
         'prompts/get',
@@ -72,10 +59,8 @@ final class Rev2026Codec implements WireCodecInterface
     }
 
     /**
-     * A result that already names its own type keeps it, but only where the
-     * method's vocabulary allows more than `complete`. Elsewhere the value
-     * would be meaningless to the client, and quietly rewriting it would bury
-     * a server bug that is better surfaced by the handler.
+     * A result naming its own type keeps it, but only where the method's
+     * vocabulary allows more than `complete`.
      *
      * @param array<string, mixed> $result
      *
@@ -97,9 +82,8 @@ final class Rev2026Codec implements WireCodecInterface
     }
 
     /**
-     * Fills `ttlMs`/`cacheScope`, most-specific author first: a valid value the
-     * result already carries wins over the server's configured policy, which
-     * wins over the conservative default of "private, do not cache".
+     * Fills `ttlMs`/`cacheScope`, most-specific author first: an authored value,
+     * then configured policy, then "private, do not cache".
      *
      * @param array<string, mixed> $result
      *
@@ -118,8 +102,7 @@ final class Rev2026Codec implements WireCodecInterface
         $ttl = $result['ttlMs'] ?? null;
         $scope = $result['cacheScope'] ?? null;
 
-        // An invalid authored value is dropped rather than repaired: it cannot
-        // go on the wire, and the next author down already has a usable answer.
+        // Invalid authored values fall through to the next author down.
         if (!\is_int($ttl) || $ttl < 0) {
             $ttl = $this->defaultTtlMs;
         }
@@ -132,9 +115,8 @@ final class Rev2026Codec implements WireCodecInterface
     }
 
     /**
-     * Servers SHOULD identify themselves on every response. A result that
-     * already carries an identity keeps it; without a configured one this is
-     * the identity function.
+     * Servers SHOULD identify themselves on every response; an identity the
+     * result already carries wins.
      *
      * @param array<string, mixed> $result
      *

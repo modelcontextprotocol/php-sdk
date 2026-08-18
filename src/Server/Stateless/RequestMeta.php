@@ -20,15 +20,11 @@ use Mcp\Schema\Implementation;
  * The per-request metadata that replaces the `initialize` handshake in the
  * modern era (SEP-2575).
  *
- * A handshake-era connection learns the protocol version, the client's
- * identity and its capabilities once, then keeps them in session state. With
- * no session to keep them in, every modern request restates them in
- * `params._meta` — so this object is the stateless equivalent of the session
- * a {@see \Mcp\Server\Protocol} run would have resolved.
+ * `protocolVersion` and `clientCapabilities` are structurally required; a
+ * server cannot decide how to answer without them. `clientInfo` is a SHOULD,
+ * and a request omitting it MUST NOT be refused.
  *
- * `protocolVersion` and `clientCapabilities` are structurally required: a
- * server cannot decide how to answer without them. `clientInfo` is not — it is
- * a SHOULD, and servers MUST NOT refuse a request that omits it.
+ * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class RequestMeta
 {
@@ -65,9 +61,7 @@ final class RequestMeta
             throw new MissingRequestMetaException(\sprintf('Request "_meta" is missing the required "%s" member.', self::PROTOCOL_VERSION));
         }
 
-        // Required, but an empty object is a perfectly valid value: it declares
-        // a client that supports none of the optional capabilities. Only its
-        // absence — or a non-object — is a protocol error.
+        // An empty object is valid — a client with no optional capabilities.
         $capabilities = $meta[self::CLIENT_CAPABILITIES] ?? null;
         if (!\is_array($capabilities) && !$capabilities instanceof \stdClass) {
             throw new MissingRequestMetaException(\sprintf('Request "_meta" is missing the required "%s" member.', self::CLIENT_CAPABILITIES));
@@ -84,9 +78,8 @@ final class RequestMeta
     }
 
     /**
-     * An unparseable level is treated as "no level requested" rather than as a
-     * protocol error: log verbosity is a diagnostic preference, and rejecting
-     * the whole request over it would fail the caller's actual work.
+     * An unparseable level means "none requested": failing the caller's actual
+     * work over a diagnostic preference would be worse.
      */
     private static function parseLogLevel(mixed $level): ?LoggingLevel
     {

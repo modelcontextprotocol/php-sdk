@@ -20,18 +20,10 @@ use Mcp\Schema\Request\ListRootsRequest;
 /**
  * Tells the client the server needs more input before it can finish (MRTR).
  *
- * This is how a modern-era server asks the client for anything — elicitation,
- * sampling, roots. The handshake era let a server open its own request to the
- * client mid-call; 2026-07-28 removed that outright, so the ask travels back as
- * part of the *result* and the client re-sends the original call with the
- * answers attached. The exchange is two independent requests, which is what
- * lets any server instance serve the retry.
- *
- * `requestState` is the server's own context, opaque to the client and echoed
- * back verbatim. Because it round-trips through the client it is
- * attacker-controlled on return: anything that influences authorization or
- * business logic MUST be integrity-protected and verified, and rejected when
- * verification fails.
+ * The modern era removed server-initiated requests, so the ask travels back in
+ * the result and the client re-sends the original call with the answers. The
+ * `requestState` round-trips through the client and is therefore
+ * attacker-controlled on return — see {@see \Mcp\Server\Stateless\RequestStateCodec}.
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr
  *
@@ -49,9 +41,7 @@ class InputRequiredResult implements ResultInterface
         public readonly array $inputRequests = [],
         public readonly ?string $requestState = null,
     ) {
-        // "Servers MUST include at least one of inputRequests or requestState
-        // in every InputRequiredResult response." A result carrying neither
-        // tells the client to retry with nothing new, which loops forever.
+        // Neither member would tell the client to retry with nothing new.
         if ([] === $this->inputRequests && null === $this->requestState) {
             throw new InvalidArgumentException('An InputRequiredResult must carry at least one of "inputRequests" or "requestState".');
         }
@@ -71,21 +61,17 @@ class InputRequiredResult implements ResultInterface
         if ([] !== $this->inputRequests) {
             $requests = [];
             foreach ($this->inputRequests as $key => $request) {
-                // The map values are bare method/params pairs rather than whole
-                // JSON-RPC requests: they are not messages in their own right,
-                // and giving them ids would imply a correlation the retry does
-                // not use — the client keys its answers by the map key instead.
-                //
-                // Params are reachable only through the JSON-RPC envelope
-                // (getParams() is protected), and rendering that envelope needs
-                // an id these requests never have. Hence the throwaway id: it
-                // exists for the length of this expression and is discarded
-                // with the envelope it was needed to build.
+                // Values are bare method/params pairs, not messages: the client
+                // keys answers by the map key. getParams() is protected, so the
+                // envelope is built with a throwaway id and then discarded.
                 $envelope = $request->withId(0)->jsonSerialize();
+
+                $params = $envelope['params'] ?? null;
 
                 $requests[$key] = [
                     'method' => $request::getMethod(),
-                    'params' => $envelope['params'] ?? new \stdClass(),
+                    // An empty PHP array would encode as `[]`, not `{}`.
+                    'params' => [] === $params || null === $params ? new \stdClass() : $params,
                 ];
             }
             $data['inputRequests'] = $requests;

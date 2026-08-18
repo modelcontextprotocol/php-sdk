@@ -12,11 +12,13 @@
 namespace Mcp\Exception;
 
 /**
- * A modern-era request omitted the protocol version or client capabilities.
- * Answered with `-32602 Invalid params` and HTTP 400.
+ * An echoed `requestState` failed verification.
+ *
+ * The message is a bare reason code — `malformed`, `mac` or `expired` —
+ * because whoever sent the value may be probing.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class MissingRequestMetaException extends InvalidArgumentException
+class RequestStateException extends InvalidArgumentException
 {
 }

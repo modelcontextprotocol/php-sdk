@@ -14,12 +14,8 @@ namespace Mcp\Server\Wire;
 /**
  * The wire codec for every revision through 2025-11-25.
  *
- * The identity transform, and deliberately so. These revisions have no
- * `resultType`, no caching hints and no `_meta` serverInfo requirement, so the
- * neutral result body *is* the wire body — there is nothing to stamp and,
- * more importantly, nothing newer that may leak in. A server negotiating one
- * of these revisions emits exactly the bytes it emitted before the modern era
- * existed.
+ * The identity transform, deliberately: these revisions have nothing to stamp,
+ * and nothing newer may leak into them.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

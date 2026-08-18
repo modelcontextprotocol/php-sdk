@@ -10,11 +10,10 @@
  */
 
 /*
- * Conformance fixture for the modern (SEP-2575) lifecycle, served at
- * /stateless alongside the handshake-era fixture at /. The element set is
- * deliberately the same as server.php's where the two eras overlap, so that a
- * difference in conformance results points at the lifecycle rather than at the
- * fixtures having drifted apart.
+ * Conformance fixture for the modern (SEP-2575) lifecycle, served at /stateless
+ * alongside the handshake-era fixture at /. The element set mirrors
+ * server.php's where the eras overlap, so a difference in results points at the
+ * lifecycle rather than at drifted fixtures.
  */
 
 ini_set('display_errors', '0');
@@ -39,6 +38,7 @@ use Mcp\Server;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Tests\Conformance\Elements;
 use Mcp\Tests\Conformance\FileLogger;
+use Mcp\Tests\Conformance\MrtrElements;
 
 chdir(__DIR__);
 
@@ -57,8 +57,7 @@ $protocol = Server::builder()
     ->addTool(static fn () => EmbeddedResource::fromText('test://embedded-resource', 'This is an embedded resource content.'), name: 'test_embedded_resource', description: 'Tests embedded resource content response')
     ->addTool([Elements::class, 'toolMultipleTypes'], name: 'test_multiple_content_types', description: 'Tests response with multiple content types')
     ->addTool(static fn () => CallToolResult::error([new TextContent('This tool intentionally returns an error for testing')]), name: 'test_error_handling', description: 'Tests error response handling')
-    // Exercises the -32021 path: the tool needs to call back into the client,
-    // which a client that never declared `sampling` cannot service.
+    // Exercises the -32021 path.
     ->addTool(
         static function (): never {
             throw new MissingRequiredClientCapabilityException(new ClientCapabilities(roots: false, sampling: true), 'test_missing_capability requires the sampling capability.');
@@ -66,8 +65,7 @@ $protocol = Server::builder()
         name: 'test_missing_capability',
         description: 'Always reports a missing client capability, for testing -32021 handling',
     )
-    // Asks for input the MRTR way: the ask travels back inside the result, so
-    // the response stream never carries a server-initiated request.
+    // The ask travels back inside the result, never as its own request.
     ->addTool(
         static fn (): InputRequiredResult => new InputRequiredResult(
             [
@@ -81,9 +79,7 @@ $protocol = Server::builder()
         name: 'test_streaming_elicitation',
         description: 'Returns an InputRequiredResult asking for elicitation input',
     )
-    // The logger writes to the fixture's log file, never to the wire: a modern
-    // server emits notifications/message only when the request asked for a log
-    // level, and this one deliberately does not.
+    // Logs server-side only; no logLevel was requested, so nothing goes out.
     ->addTool(
         static function () use ($logger): string {
             $logger->info('test_logging_tool executed');
@@ -93,8 +89,7 @@ $protocol = Server::builder()
         name: 'test_logging_tool',
         description: 'Emits a server-side log message while returning normally',
     )
-    // Mirrors its arguments into Mcp-Param-* headers (SEP-2243), so the header/
-    // body agreement rules have something to be checked against.
+    // Mirrors its arguments into Mcp-Param-* headers (SEP-2243).
     ->addTool(
         static fn (string $region = '', int $retries = 0): string => sprintf('region=%s retries=%d', $region, $retries),
         name: 'test_custom_headers',
@@ -108,6 +103,16 @@ $protocol = Server::builder()
             'required' => ['region'],
         ],
     )
+    ->addTool([Elements::class, 'toolWithProgress'], name: 'test_tool_with_progress', description: 'Tests tool that reports progress notifications')
+    // Multi round-trip request tools (SEP-2322).
+    ->addTool([MrtrElements::class, 'elicitation'], name: 'test_input_required_result_elicitation', description: 'MRTR: asks for a name via elicitation')
+    ->addTool([MrtrElements::class, 'sampling'], name: 'test_input_required_result_sampling', description: 'MRTR: asks for a sampling completion')
+    ->addTool([MrtrElements::class, 'listRoots'], name: 'test_input_required_result_list_roots', description: 'MRTR: asks for the client roots')
+    ->addTool([MrtrElements::class, 'elicitation'], name: 'test_input_required_result_request_state', description: 'MRTR: exercises requestState round-tripping')
+    ->addTool([MrtrElements::class, 'multipleInputs'], name: 'test_input_required_result_multiple_inputs', description: 'MRTR: asks for two inputs at once')
+    ->addTool([MrtrElements::class, 'multiRound'], name: 'test_input_required_result_multi_round', description: 'MRTR: asks across two sequential rounds')
+    ->addTool([MrtrElements::class, 'capabilities'], name: 'test_input_required_result_capabilities', description: 'MRTR: asks only for capabilities the client declared')
+    ->addTool([MrtrElements::class, 'tamperedState'], name: 'test_input_required_result_tampered_state', description: 'MRTR: completes only when the echoed state verifies')
     // Resources
     ->addResource(static fn () => 'This is the content of the static text resource.', 'test://static-text', 'static-text', 'A static text resource for testing')
     ->addResource(static fn () => fopen('data://image/png;base64,'.Elements::TEST_IMAGE_BASE64, 'r'), 'test://static-binary', 'static-binary', 'A static binary resource (image) for testing')
@@ -115,6 +120,11 @@ $protocol = Server::builder()
     // Prompts
     ->addPrompt(static fn () => [['role' => 'user', 'content' => 'This is a simple prompt for testing.']], name: 'test_simple_prompt', description: 'A simple prompt without arguments')
     ->addPrompt([Elements::class, 'promptWithArguments'], name: 'test_prompt_with_arguments', description: 'A prompt with required arguments')
+    ->addPrompt([Elements::class, 'promptWithEmbeddedResource'], name: 'test_prompt_with_embedded_resource', description: 'A prompt that includes an embedded resource')
+    ->addPrompt([Elements::class, 'promptWithImage'], name: 'test_prompt_with_image', description: 'A prompt that includes image content')
+    ->addPrompt([MrtrElements::class, 'prompt'], name: 'test_input_required_result_prompt', description: 'MRTR: a prompt that asks for input first')
+    // Fixed so a retry landing on another process still verifies.
+    ->setRequestState(str_repeat('conformance-fixture-key-', 2))
     ->buildStateless([ProtocolVersion::V2026_07_28]);
 
 $transport = new StatelessHttpTransport($protocol, logger: $logger);

@@ -20,13 +20,9 @@ use Mcp\Schema\ServerCapabilities;
 /**
  * The server's response to a `server/discover` request.
  *
- * This is the modern era's replacement for `InitializeResult`. The difference
- * is not just the method name: `initialize` *negotiates* a single version and
- * remembers it for the connection, whereas `server/discover` merely *reports*
- * every version this server speaks and lets each subsequent request pick one.
- *
- * Server identity travels in the result `_meta` rather than in a body
- * `serverInfo` member (spec PR #3002 removed the latter).
+ * The modern era's replacement for `InitializeResult`: it reports every
+ * version this server speaks rather than negotiating one, and each request
+ * picks from that list.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -46,9 +42,8 @@ class DiscoverResult implements ResultInterface
     }
 
     /**
-     * Carries no `resultType`, caching hints or serverInfo identity: those are
-     * wire vocabulary, stamped by {@see \Mcp\Server\Wire\Rev2026Codec} on the
-     * way out. What is modelled here is only what discovery actually answers.
+     * `resultType`, caching hints and serverInfo are wire vocabulary, stamped
+     * by {@see \Mcp\Server\Wire\Rev2026Codec} rather than modelled here.
      *
      * @return array{
      *     supportedVersions: list<string>,

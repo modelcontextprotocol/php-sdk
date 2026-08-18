@@ -56,6 +56,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Psr\Container\ContainerInterface;
@@ -105,6 +106,10 @@ final class Builder
     private ?string $instructions = null;
 
     private ?ProtocolVersion $protocolVersion = null;
+
+    private ?string $requestStateKey = null;
+
+    private int $requestStateTtl = 600;
 
     /**
      * @var array<int, RequestHandlerInterface<mixed>>
@@ -246,6 +251,25 @@ final class Builder
         ?string $title = null,
     ): self {
         $this->serverInfo = new Implementation(trim($name), trim($version), $description, $icons, $websiteUrl, $title);
+
+        return $this;
+    }
+
+    /**
+     * Sets the key signing the `requestState` carried across the rounds of a
+     * multi round-trip request (SEP-2322). Without one, every echoed state is
+     * refused.
+     *
+     * The same key must reach every instance that might serve the retry, so a
+     * per-process random value only works for a single-process deployment.
+     *
+     * @param string $key at least 32 bytes
+     * @param int    $ttl how long a minted state stays valid, in seconds
+     */
+    public function setRequestState(string $key, int $ttl = 600): self
+    {
+        $this->requestStateKey = $key;
+        $this->requestStateTtl = $ttl;
 
         return $this;
     }
@@ -717,11 +741,9 @@ final class Builder
     /**
      * Builds a dispatcher for the modern (SEP-2575) lifecycle.
      *
-     * Everything the server exposes — tools, prompts, resources, and the
-     * handlers that serve them — is era-independent and shared with
-     * {@see self::build()}; only the dispatch model differs. So one builder
-     * configuration can drive either lifecycle, and a server can offer both at
-     * once by mounting each on its own endpoint.
+     * Tools, prompts, resources and their handlers are era-independent, so one
+     * builder configuration drives either lifecycle and a server can offer both
+     * by mounting each on its own endpoint.
      *
      * @param list<ProtocolVersion> $supportedVersions revisions this dispatcher will answer for
      */
@@ -736,6 +758,9 @@ final class Builder
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],
             headerValidator: $this->headerValidation ? new StandardHeaderValidator($parts['registry']) : null,
+            requestStateCodec: null !== $this->requestStateKey
+                ? new RequestStateCodec($this->requestStateKey, $this->requestStateTtl)
+                : null,
         );
     }
 

@@ -16,10 +16,8 @@ use Mcp\Schema\ServerCapabilities;
 /**
  * Which notification types a `subscriptions/listen` stream will carry.
  *
- * The filter is an allow-list, not a hint: "The server MUST NOT send
- * notification types the client has not explicitly requested." Omitting a
- * field is the same as declining that type, so absence and `false` mean the
- * same thing here and the type never needs to distinguish them.
+ * An allow-list, not a hint: a server MUST NOT send types the client did not
+ * request, and an omitted field declines just as `false` does.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -54,13 +52,8 @@ final class NotificationFilter
     }
 
     /**
-     * Narrows the filter to what this server can actually deliver.
-     *
-     * The acknowledgment must reflect "the subset the server agreed to honor",
-     * so a type the server does not support is dropped here rather than
-     * acknowledged and then silently never sent — a client comparing the
-     * acknowledgment against its request would otherwise wait forever for
-     * notifications that were never coming.
+     * Narrows the filter to what this server can deliver, so the acknowledgment
+     * reflects the subset it agreed to honour rather than promising silence.
      */
     public function intersect(ServerCapabilities $capabilities): self
     {
@@ -73,8 +66,7 @@ final class NotificationFilter
     }
 
     /**
-     * The acknowledgment's `notifications` member: agreed types only, with
-     * declined ones omitted rather than reported as `false`.
+     * Agreed types only; declined ones are omitted rather than sent as `false`.
      *
      * @return array<string, mixed>
      */
