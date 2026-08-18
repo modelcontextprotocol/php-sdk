@@ -130,7 +130,7 @@ class Tool implements \JsonSerializable
         // the whole tool definition invalid, so it is refused where the tool
         // is defined rather than discovered when a header comparison
         // mysteriously fails.
-        if (null !== $reason = self::checkHeaderAnnotations($this->inputSchema)) {
+        if (null !== $reason = $this->checkHeaderAnnotations()) {
             throw new InvalidArgumentException(\sprintf('Tool "%s" has an invalid "x-mcp-header" annotation: %s', $this->name, $reason));
         }
     }
@@ -144,15 +144,13 @@ class Tool implements \JsonSerializable
      * and it may only sit on a primitive that is not `number`, because a float
      * has no single decimal spelling for a receiver to compare against.
      *
-     * @param array<string, mixed> $inputSchema
-     *
      * @return string|null the reason it is invalid, or null when every annotation is well-formed
      */
-    public static function checkHeaderAnnotations(array $inputSchema): ?string
+    private function checkHeaderAnnotations(): ?string
     {
         $seen = [];
 
-        foreach (self::headerAnnotations($inputSchema) as [$name, $type, $path]) {
+        foreach (self::headerAnnotations($this->inputSchema) as [$name, $type, $path]) {
             if ('' === $name) {
                 return \sprintf('the annotation at "%s" is empty', $path);
             }
