@@ -101,6 +101,52 @@ class StandardHeaderValidatorTest extends TestCase
         ));
     }
 
+    #[TestDox('a Base64-wrapped Mcp-Name is decoded before it is compared')]
+    #[DataProvider('wrappedNames')]
+    public function testWrappedNameHeaderIsDecoded(string $method, string $member, string $subject): void
+    {
+        $this->assertNull($this->validator->validate(
+            $method,
+            [$member => $subject],
+            [
+                'Mcp-Method' => $method,
+                'Mcp-Name' => '=?base64?'.base64_encode($subject).'?=',
+            ],
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function wrappedNames(): iterable
+    {
+        yield 'non-ASCII tool name' => ['tools/call', 'name', 'grüße_welt'];
+        yield 'CJK prompt name' => ['prompts/get', 'name', '天気予報'];
+        yield 'resource URI with a non-ASCII path' => ['resources/read', 'uri', 'file:///projects/münchen/config.json'];
+        yield 'value padded with spaces' => ['tools/call', 'name', ' padded '];
+        yield 'value matching the sentinel pattern' => ['tools/call', 'name', '=?base64?literal?='];
+    }
+
+    #[TestDox('a wrapped Mcp-Name that disagrees with the body is still rejected')]
+    public function testWrappedNameHeaderStillHasToMatch(): void
+    {
+        $this->assertStringContainsString('does not match', (string) $this->validator->validate(
+            'tools/call',
+            ['name' => 'grüße_welt'],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => '=?base64?'.base64_encode('etwas_anderes').'?='],
+        ));
+    }
+
+    #[TestDox('a malformed Base64 wrapper on Mcp-Name is refused, not compared raw')]
+    public function testMalformedWrappedNameHeaderIsRefused(): void
+    {
+        $this->assertStringContainsString('well-formed Base64', (string) $this->validator->validate(
+            'tools/call',
+            ['name' => 'do_thing'],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => '=?base64?SGVsbG8!?='],
+        ));
+    }
+
     #[TestDox('a method that carries no name does not require the header')]
     public function testNamelessMethodNeedsNoNameHeader(): void
     {
