@@ -147,6 +147,23 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
     }
 
+    #[TestDox('a custom middleware list carrying ProtocolVersionMiddleware warns that it will reject the modern era')]
+    public function testCustomMiddlewareWithProtocolVersionMiddlewareWarns(): void
+    {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with($this->stringContains('ProtocolVersionMiddleware'));
+
+        new StreamableHttpTransport(
+            $this->factory->createServerRequest('POST', 'http://localhost/')->withHeader('Host', 'localhost'),
+            $this->factory,
+            $this->factory,
+            $logger,
+            [new CorsMiddleware(), new DnsRebindingProtectionMiddleware(), new ProtocolVersionMiddleware()],
+        );
+    }
+
     #[TestDox('null middleware does not trigger the empty-list warning')]
     public function testNullMiddlewareDoesNotWarn(): void
     {

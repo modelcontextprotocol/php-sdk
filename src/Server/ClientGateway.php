@@ -403,14 +403,20 @@ class ClientGateway
      * This suspends the Fiber and waits for the client to respond. The transport
      * handles polling the session for the response and resuming the Fiber when ready.
      *
+     * Public for {@see InputRequiredShim}, which sends the requests a handler
+     * embedded in an {@see \Mcp\Schema\Result\InputRequiredResult} and knows
+     * nothing about their kinds. Prefer the typed methods above.
+     *
      * @param Request $request The request to send
      * @param int     $timeout Maximum time to wait for response (seconds)
      *
      * @return Response<array<string, mixed>>|Error The client's response message
      *
      * @throws RuntimeException If Fiber support is not available
+     *
+     * @internal
      */
-    private function request(Request $request, int $timeout = 120): Response|Error
+    public function request(Request $request, int $timeout = 120): Response|Error
     {
         $response = \Fiber::suspend([
             'type' => 'request',

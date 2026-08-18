@@ -74,6 +74,17 @@ use Symfony\Component\Finder\Finder;
 /**
  * @phpstan-import-type Handler from ElementReference
  *
+ * @phpstan-type AssembledParts array{
+ *     logger: LoggerInterface,
+ *     eventDispatcher: ?EventDispatcherInterface,
+ *     configuration: Configuration,
+ *     messageFactory: MessageFactory,
+ *     sessionManager: SessionManagerInterface,
+ *     registry: RegistryInterface,
+ *     requestHandlers: list<RequestHandlerInterface<mixed>>,
+ *     notificationHandlers: list<NotificationHandlerInterface>,
+ * }
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 final class Builder
@@ -117,6 +128,12 @@ final class Builder
     private ?NotificationBusInterface $notificationBus = null;
 
     private float $subscriptionLifetime = 30.0;
+
+    /** @var array<string, string> RPC method to the extension identifier defining it */
+    private array $extensionMethods = [];
+
+    /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
+    private array $extensionMessages = [];
 
     private ?string $requestStateKey = null;
 
@@ -233,12 +250,6 @@ final class Builder
      */
     private array $extensions = [];
 
-    /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
-    private array $extensionMessages = [];
-
-    /** @var array<string, string> RPC method to the extension identifier defining it */
-    private array $extensionMethods = [];
-
     /**
      * @var LoaderInterface[]
      */
@@ -249,6 +260,22 @@ final class Builder
     private bool $lazyLoading = true;
 
     private bool $headerValidation = true;
+
+    /** @var list<ProtocolVersion>|null null defaults to every modern revision, [] serves none */
+    private ?array $modernVersions = null;
+
+    private bool $inputRequiredShim = true;
+
+    private int $inputRequiredRounds = InputRequiredShim::DEFAULT_MAX_ROUNDS;
+
+    private int $inputRequiredTimeout = InputRequiredShim::DEFAULT_ROUND_TIMEOUT;
+
+    /**
+     * @see self::assemble() for why this is memoized
+     *
+     * @var AssembledParts|null
+     */
+    private ?array $parts = null;
 
     /**
      * Sets the server's identity. Required.
@@ -808,7 +835,99 @@ final class Builder
     }
 
     /**
+     * Stop serving multi round-trip handlers to handshake-era clients.
+     *
+     * A handler that returns an {@see \Mcp\Schema\Result\InputRequiredResult}
+     * is written for the modern era, where the client answers the embedded
+     * requests and retries the call. On a handshake-era connection the SDK
+     * fulfils it instead, by sending those requests over that connection's own
+     * channel and re-entering the handler with the answers — so one handler
+     * serves both eras. See {@see InputRequiredShim} for what re-entry costs.
+     *
+     * Turn it off to have such a handler fail on a handshake-era connection
+     * rather than be fulfilled behind your back.
+     */
+    public function withoutInputRequiredShim(): self
+    {
+        $this->inputRequiredShim = false;
+
+        return $this;
+    }
+
+    /**
+     * Bounds on the shim's loop: how many times a handler may be re-entered for
+     * one request, and how long one answer is waited for.
+     *
+     * The wait holds the originating request open, so on a process-per-request
+     * runtime it holds a worker too. Size it against your pool, not against a
+     * user's patience.
+     */
+    public function setInputRequiredLimits(int $maxRounds, int $roundTimeout): self
+    {
+        if ($maxRounds < 1) {
+            throw new InvalidArgumentException('maxRounds must be at least 1.');
+        }
+
+        if ($roundTimeout < 1) {
+            throw new InvalidArgumentException('roundTimeout must be at least 1 second.');
+        }
+
+        $this->inputRequiredRounds = $maxRounds;
+        $this->inputRequiredTimeout = $roundTimeout;
+
+        return $this;
+    }
+
+    private function requestStateCodec(): ?RequestStateCodec
+    {
+        return null !== $this->requestStateKey
+            ? new RequestStateCodec($this->requestStateKey, $this->requestStateTtl)
+            : null;
+    }
+
+    /**
+     * Serve only the handshake era, refusing modern-era traffic.
+     *
+     * The default is to serve both from whatever the server is run on, because
+     * an endpoint that turns a client away for speaking the newer revision is
+     * almost never what anyone wants. Call this when it is: a deployment that
+     * has to stay on the handshake wire, or one whose tools call back into the
+     * client and would fail the modern half anyway.
+     */
+    public function withoutModernEra(): self
+    {
+        $this->modernVersions = [];
+
+        return $this;
+    }
+
+    /**
+     * Revisions the modern-era leg answers for. Defaults to every modern
+     * revision this SDK knows.
+     *
+     * @param list<ProtocolVersion> $versions
+     *
+     * @throws InvalidArgumentException if a version is not one {@see Wire\InboundClassifier} routes to this leg
+     */
+    public function setModernVersions(array $versions): self
+    {
+        foreach ($versions as $version) {
+            if (!$version->isModern()) {
+                throw new InvalidArgumentException(\sprintf('"%s" is a handshake-era revision; a request claiming it never reaches the modern leg to be served.', $version->value));
+            }
+        }
+
+        $this->modernVersions = $versions;
+
+        return $this;
+    }
+
+    /**
      * Builds the fully configured Server instance.
+     *
+     * The result carries a dispatcher for each era. Which one answers is a
+     * per-request decision the transport makes, so one server object — and one
+     * endpoint — serves handshake-era and modern-era clients alike.
      */
     public function build(): Server
     {
@@ -821,17 +940,28 @@ final class Builder
             sessionManager: $parts['sessionManager'],
             logger: $parts['logger'],
             eventDispatcher: $parts['eventDispatcher'],
+            inputRequiredShim: $this->inputRequiredShim
+                ? new InputRequiredShim($this->inputRequiredRounds, $this->inputRequiredTimeout, $parts['logger'])
+                : null,
+            requestStateCodec: $this->requestStateCodec(),
         );
 
-        return new Server($protocol, $parts['logger']);
+        $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
+
+        return new Server(
+            $protocol,
+            $parts['logger'],
+            [] === $modernVersions ? null : $this->buildStateless($modernVersions),
+        );
     }
 
     /**
-     * Builds a dispatcher for the modern (SEP-2575) lifecycle.
+     * Builds a dispatcher for the modern (SEP-2575) lifecycle on its own.
      *
      * Tools, prompts, resources and their handlers are era-independent, so one
-     * builder configuration drives either lifecycle and a server can offer both
-     * by mounting each on its own endpoint.
+     * builder configuration drives either lifecycle. {@see self::build()} wires
+     * both together; this is the modern era by itself, for an endpoint that
+     * serves nothing else.
      *
      * @param list<ProtocolVersion> $supportedVersions revisions this dispatcher will answer for
      */
@@ -847,9 +977,7 @@ final class Builder
             logger: $parts['logger'],
             subscriptionLifetime: $this->subscriptionLifetime,
             headerValidator: $this->headerValidation ? new StandardHeaderValidator($parts['registry']) : null,
-            requestStateCodec: null !== $this->requestStateKey
-                ? new RequestStateCodec($this->requestStateKey, $this->requestStateTtl)
-                : null,
+            requestStateCodec: $this->requestStateCodec(),
             cachePolicy: $this->cachePolicy,
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
@@ -859,18 +987,21 @@ final class Builder
     /**
      * Resolves the builder's configuration into the parts both lifecycles need.
      *
-     * @return array{
-     *     logger: LoggerInterface,
-     *     eventDispatcher: ?EventDispatcherInterface,
-     *     configuration: Configuration,
-     *     messageFactory: MessageFactory,
-     *     sessionManager: SessionManagerInterface,
-     *     registry: RegistryInterface,
-     *     requestHandlers: list<RequestHandlerInterface<mixed>>,
-     *     notificationHandlers: list<NotificationHandlerInterface>,
-     * }
+     * Memoized: the two eras share one registry, one session manager and one
+     * set of handler instances, so they answer for the same server rather than
+     * for two that merely started from the same configuration.
+     *
+     * @return AssembledParts
      */
     private function assemble(): array
+    {
+        return $this->parts ??= $this->resolve();
+    }
+
+    /**
+     * @return AssembledParts
+     */
+    private function resolve(): array
     {
         $logger = $this->logger ?? new NullLogger();
         $container = $this->container ?? new Container();

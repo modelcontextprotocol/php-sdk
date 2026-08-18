@@ -34,6 +34,54 @@ final class Elements
     public const TEST_IMAGE_BASE64 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==';
     public const TEST_AUDIO_BASE64 = 'UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAAB9AAACABAAZGF0YQIAAAA=';
 
+    /**
+     * The focal `inputSchema` the `json-schema-2020-12` scenario expects a
+     * server to advertise verbatim.
+     *
+     * It is handed to `addTool()` raw rather than generated from a signature,
+     * because the point is that the SDK passes an author-supplied 2020-12
+     * schema through `tools/list` untouched: `$schema`/`$defs`/
+     * `additionalProperties` (SEP-1613) and the composition, conditional and
+     * `$anchor` keywords (SEP-2106) must all survive.
+     *
+     * Mirrors `JSON_SCHEMA_2020_12_FIXTURE` in the conformance suite; keep the
+     * two in sync.
+     *
+     * @return array<string, mixed>
+     */
+    public static function jsonSchema2020_12Fixture(): array
+    {
+        return [
+            '$schema' => 'https://json-schema.org/draft/2020-12/schema',
+            'type' => 'object',
+            '$defs' => [
+                'address' => [
+                    '$anchor' => 'addressDef',
+                    'type' => 'object',
+                    'properties' => [
+                        'street' => ['type' => 'string'],
+                        'city' => ['type' => 'string'],
+                    ],
+                ],
+            ],
+            'properties' => [
+                'name' => ['type' => 'string'],
+                'address' => ['$ref' => '#/$defs/address'],
+                'contactMethod' => ['type' => 'string', 'enum' => ['phone', 'email']],
+                'phone' => ['type' => 'string'],
+                'email' => ['type' => 'string'],
+            ],
+            'allOf' => [['anyOf' => [['required' => ['phone']], ['required' => ['email']]]]],
+            'if' => [
+                'properties' => ['contactMethod' => ['const' => 'phone']],
+                'required' => ['contactMethod'],
+            ],
+            'then' => ['required' => ['phone']],
+            'else' => ['required' => ['email']],
+            'additionalProperties' => false,
+        ];
+    }
+
     public function toolMultipleTypes(): CallToolResult
     {
         return new CallToolResult([

@@ -1,6 +1,3 @@
-server:
-  - json-schema-2020-12
-
 client:
   - request-metadata
   - http-standard-headers
