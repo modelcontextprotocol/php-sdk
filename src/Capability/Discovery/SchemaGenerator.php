@@ -237,7 +237,17 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Parameter-level takes highest precedence
         $parameterLevelSchema = $paramInfo['parameter_schema'];
         if (!empty($parameterLevelSchema)) {
-            $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
+            // A complete definition replaces the schema, as it does at method level.
+            if (isset($parameterLevelSchema['definition']) && \is_array($parameterLevelSchema['definition'])) {
+                $mergedSchema = $parameterLevelSchema['definition'];
+
+                // The default comes from the signature, not from the schema.
+                if (!\array_key_exists('default', $mergedSchema) && \array_key_exists('default', $inferredSchema)) {
+                    $mergedSchema['default'] = $inferredSchema['default'];
+                }
+            } else {
+                $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
+            }
         }
 
         // Run after all merges so that when a Schema attribute reshapes the parameter
@@ -324,15 +334,22 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $paramSchema = ['type' => 'array'];
 
-        // Apply parameter-level Schema attributes first
-        if (!empty($paramInfo['parameter_schema'])) {
-            $paramSchema = array_merge($paramSchema, $paramInfo['parameter_schema']);
-            // Ensure type is always array for variadic
-            $paramSchema['type'] = 'array';
-        }
-
+        // Add description from docblock before parameter-level schema is merged in,
+        // so a definition's own description takes precedence (matches buildParameterSchema).
         if ($paramInfo['description']) {
             $paramSchema['description'] = $paramInfo['description'];
+        }
+
+        // Apply parameter-level Schema attributes first
+        if (!empty($paramInfo['parameter_schema'])) {
+            $parameterLevelSchema = $paramInfo['parameter_schema'];
+
+            $paramSchema = isset($parameterLevelSchema['definition']) && \is_array($parameterLevelSchema['definition'])
+                ? $parameterLevelSchema['definition']
+                : array_merge($paramSchema, $parameterLevelSchema);
+
+            // Ensure type is always array for variadic
+            $paramSchema['type'] = 'array';
         }
 
         // If no items specified by Schema attribute, infer from type
