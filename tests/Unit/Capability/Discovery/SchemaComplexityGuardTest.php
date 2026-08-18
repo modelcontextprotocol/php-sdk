@@ -160,6 +160,27 @@ class SchemaComplexityGuardTest extends TestCase
         $this->assertNull($this->guard->check(['$defs' => $defs, '$ref' => '#/$defs/a60']));
     }
 
+    #[TestDox('a long chain of bare $refs is walked without recursing per link')]
+    public function testLongLocalRefChainDoesNotRecursePerLink(): void
+    {
+        // Bare {"$ref": ...} nodes chained together are meant to be free
+        // regardless of length, and used to be resolved by mutual recursion
+        // between cost() and refCost(): one native call frame per link. A
+        // chain long enough exhausted the stack, or the memory backing it,
+        // long before the subschema budget below ever got a chance to fire —
+        // 20,000 links reliably faulted with the old implementation. This
+        // uses a guard with a raised budget so the chain is not refused for
+        // an unrelated reason, and asserts it resolves at all.
+        $defs = ['a0' => ['type' => 'string']];
+        for ($i = 1; $i < 20_000; ++$i) {
+            $defs['a'.$i] = ['$ref' => '#/$defs/a'.($i - 1)];
+        }
+
+        $guard = new SchemaComplexityGuard(maxSubschemas: 1_000_000, maxProperties: 1_000_000);
+
+        $this->assertNull($guard->check(['$defs' => $defs, '$ref' => '#/$defs/a19999']));
+    }
+
     #[TestDox('a recursive schema is allowed: how far it unrolls is the data\'s doing')]
     public function testRecursiveSchemaIsAllowed(): void
     {

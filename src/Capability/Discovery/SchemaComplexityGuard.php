@@ -171,35 +171,69 @@ final class SchemaComplexityGuard
     }
 
     /**
+     * Chases a same-document `$ref`, and every bare `$ref` it in turn points
+     * to, without recursing: a node that is only `{"$ref": ...}` contributes
+     * nothing of its own, so a schema chaining many of them (a "flat" `$defs`
+     * indirection) is meant to be free regardless of length. Resolving that
+     * chain by mutual recursion with {@see cost()} spent one native call
+     * frame per link, so a chain long enough — a size none of the other
+     * bounds catch, since a chain's cost is deliberately independent of its
+     * length — exhausted the stack or the memory backing it before this
+     * class ever got to refuse anything. Walking the chain in a loop keeps
+     * this at constant stack depth; only the schema found at the end of it,
+     * if any, is handed to cost() for its own depth-bounded recursion.
+     *
      * @param array<string, mixed> $root
-     * @param list<string>         $stack
+     * @param list<string>         $stack pointers being resolved by an enclosing call
      */
     private function refCost(string $pointer, array $root, array $stack, int $depth, object $memo): int
     {
-        // A back-edge: recursive schemas are legitimate, and how far one
-        // unrolls is decided by the data, not the schema.
-        if (\in_array($pointer, $stack, true)) {
-            return 1;
+        $visited = [];
+
+        while (true) {
+            // A back-edge: recursive schemas are legitimate, and how far one
+            // unrolls is decided by the data, not the schema.
+            if (\in_array($pointer, $stack, true) || isset($visited[$pointer])) {
+                return $this->memoizeAll($visited, 1, $memo);
+            }
+
+            if (isset($memo->{$pointer})) {
+                return $this->memoizeAll($visited, $memo->{$pointer}, $memo);
+            }
+
+            $target = self::resolve($pointer, $root);
+
+            if (null === $target) {
+                // Unresolvable same-document pointers are the validator's
+                // business to report; nothing here can be expensive.
+                return $this->memoizeAll($visited, 1, $memo);
+            }
+
+            $visited[$pointer] = true;
+
+            if (!isset($target['$ref']) || !\is_string($target['$ref'])) {
+                // Depth is lexical nesting, which following a reference is
+                // not: a long chain of `$defs` referring to one another is
+                // flat and cheap. What bounds this is the subschema budget
+                // and the cycle check above, and the pointer set is finite,
+                // so the walk is too.
+                $cost = $this->cost($target, $root, [...$stack, ...array_keys($visited)], $depth, $memo);
+
+                return $this->memoizeAll($visited, $cost, $memo);
+            }
+
+            $pointer = $target['$ref'];
         }
+    }
 
-        if (isset($memo->{$pointer})) {
-            return $memo->{$pointer};
+    /**
+     * @param array<string, true> $pointers
+     */
+    private function memoizeAll(array $pointers, int $cost, object $memo): int
+    {
+        foreach ($pointers as $pointer => $_) {
+            $memo->{$pointer} = $cost;
         }
-
-        $target = self::resolve($pointer, $root);
-
-        if (null === $target) {
-            // Unresolvable same-document pointers are the validator's business
-            // to report; nothing here can be expensive.
-            return 1;
-        }
-
-        // Depth is lexical nesting, which following a reference is not: a long
-        // chain of `$defs` referring to one another is flat and cheap. What
-        // bounds this is the subschema budget and the cycle check above, and
-        // the pointer set is finite, so the recursion is too.
-        $cost = $this->cost($target, $root, [...$stack, $pointer], $depth, $memo);
-        $memo->{$pointer} = $cost;
 
         return $cost;
     }
