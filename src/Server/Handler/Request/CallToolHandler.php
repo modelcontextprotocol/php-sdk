@@ -152,7 +152,7 @@ final class CallToolHandler implements RequestHandlerInterface
             // needs to retry declaring the capability. Rendered as -32021.
             throw $e;
         } catch (ToolCallException $e) {
-            $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
+            $this->logger->debug(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
                 'exception' => $e,
