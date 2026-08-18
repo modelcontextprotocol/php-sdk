@@ -131,6 +131,30 @@ class SchemaGeneratorFixture
     // ===== PARAMETER-LEVEL SCHEMA SCENARIOS =====
 
     /**
+     * Parameter-level Schema with complete definition.
+     */
+    public function parameterLevelCompleteDefinition(
+        #[Schema(definition: [
+            'type' => 'string',
+            'description' => 'The region to query.',
+            'x-mcp-header' => 'Region',
+        ])]
+        string $region = 'eu',
+        #[Schema(definition: ['type' => 'integer', 'minimum' => 1, 'maximum' => 10])]
+        int $limit = 3,
+    ): void {
+    }
+
+    /**
+     * Parameter-level definition that reshapes the parameter's type.
+     */
+    public function definitionReshapingTheParameter(
+        #[Schema(definition: ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]])]
+        string $payload = '{}',
+    ): void {
+    }
+
+    /**
      * Parameter-level Schema attributes only.
      */
     public function parameterLevelOnly(
@@ -325,6 +349,15 @@ class SchemaGeneratorFixture
     }
 
     // ===== VARIADIC SCENARIOS =====
+
+    /**
+     * Variadic parameter with a complete definition.
+     */
+    public function variadicCompleteDefinition(
+        #[Schema(definition: ['type' => 'array', 'description' => 'Tags to apply.', 'items' => ['type' => 'string']])]
+        string ...$tags,
+    ): void {
+    }
 
     /**
      * Variadic parameter scenarios.

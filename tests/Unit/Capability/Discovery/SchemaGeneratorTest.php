@@ -92,6 +92,50 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema);
     }
 
+    public function testUsesCompleteSchemaDefinitionFromParameterLevelSchemaAttribute(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterLevelCompleteDefinition');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals([
+            'type' => 'string',
+            'description' => 'The region to query.',
+            'x-mcp-header' => 'Region',
+            'default' => 'eu',
+        ], $schema['properties']['region']);
+
+        $this->assertEquals([
+            'type' => 'integer',
+            'minimum' => 1,
+            'maximum' => 10,
+            'default' => 3,
+        ], $schema['properties']['limit']);
+
+        $this->assertArrayNotHasKey('required', $schema);
+    }
+
+    public function testUsesCompleteSchemaDefinitionFromVariadicParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicCompleteDefinition');
+        $schema = $this->schemaGenerator->generate($method);
+
+        // The array type is forced: a variadic always arrives as one.
+        $this->assertEquals([
+            'type' => 'array',
+            'description' => 'Tags to apply.',
+            'items' => ['type' => 'string'],
+        ], $schema['properties']['tags']);
+    }
+
+    public function testKeepsTheSignatureDefaultWhenADefinitionReshapesTheParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'definitionReshapingTheParameter');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertSame('{}', $schema['properties']['payload']['default']);
+        $this->assertSame('object', $schema['properties']['payload']['type']);
+    }
+
     public function testGeneratesSchemaFromMethodLevelSchemaAttributeWithProperties(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelWithProperties');

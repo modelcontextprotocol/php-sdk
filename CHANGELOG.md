@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.8.0
 -----
 
+* Fix `#[Schema(definition: …)]` on a parameter being merged as an ordinary key instead of replacing the schema, so the property reached clients carrying a literal `definition` member with everything inside it lost. Fixed on the plain and the variadic path; the signature default survives a definition that states none.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name` — the spec allows any string (its own examples use `main.rs` and `Project Files`). URI/URI-template validation is unchanged.
 * Add `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, and `ClientCapabilities::withExtensions()` so clients can negotiate and check protocol extensions (e.g. MCP Apps) the same way servers already do. [BC Break] `ServerExtensionInterface` is replaced by the side-agnostic `Mcp\Schema\Extension\ExtensionInterface`.
 * Deprecate Roots, Sampling and Logging per SEP-2577 (protocol revision `2026-07-28`, earliest removal `2027-07-28`). They keep working but using them now triggers a deprecation notice — migrate to tool arguments/resource URIs, a direct LLM provider API, and stderr/OpenTelemetry respectively.
