@@ -906,9 +906,17 @@ final class Builder
      * revision this SDK knows.
      *
      * @param list<ProtocolVersion> $versions
+     *
+     * @throws InvalidArgumentException if a version is not one {@see Wire\InboundClassifier} routes to this leg
      */
     public function setModernVersions(array $versions): self
     {
+        foreach ($versions as $version) {
+            if (!$version->isModern()) {
+                throw new InvalidArgumentException(\sprintf('"%s" is a handshake-era revision; a request claiming it never reaches the modern leg to be served.', $version->value));
+            }
+        }
+
         $this->modernVersions = $versions;
 
         return $this;

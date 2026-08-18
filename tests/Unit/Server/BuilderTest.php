@@ -225,6 +225,15 @@ final class BuilderTest extends TestCase
         $this->assertSame([ProtocolVersion::V2026_07_28], self::statelessProtocol($server)?->supportedVersions());
     }
 
+    #[TestDox('setModernVersions() rejects a handshake-era revision, which the classifier would never route there')]
+    public function testSetModernVersionsRejectsHandshakeRevision(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(ProtocolVersion::V2025_11_25->value);
+
+        Server::builder()->setModernVersions([ProtocolVersion::V2025_11_25]);
+    }
+
     private static function statelessProtocol(Server $server): ?StatelessProtocol
     {
         $property = new \ReflectionProperty(Server::class, 'statelessProtocol');

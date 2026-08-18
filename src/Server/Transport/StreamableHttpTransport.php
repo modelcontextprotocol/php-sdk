@@ -107,6 +107,17 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             if ([] === $this->middleware) {
                 $this->logger->warning('Streamable HTTP transport started with an empty middleware list. Default security protections (CORS, DNS rebinding, protocol version validation) are disabled. Pass null (or omit the argument) to use the secure defaults, or include them via [...StreamableHttpTransport::defaultMiddleware(), $yourMiddleware].');
             }
+
+            // Custom middleware runs before the request's era is classified, so a
+            // ProtocolVersionMiddleware here rejects every modern-era request by
+            // default — it only accepts the handshake versions it was built for.
+            foreach ($this->middleware as $entry) {
+                if ($entry instanceof ProtocolVersionMiddleware) {
+                    $this->logger->warning('A custom middleware list includes ProtocolVersionMiddleware. It runs before the modern (2026-07-28) era is classified and rejects that era\'s requests by default, since it only recognises handshake revisions. Remove it from the custom list — the transport already applies it to handshake-era traffic on its own via self::handshakeMiddleware().');
+
+                    break;
+                }
+            }
         }
     }
 
