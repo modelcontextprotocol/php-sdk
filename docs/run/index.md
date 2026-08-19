@@ -6,7 +6,7 @@ answering. Every transport implements `TransportInterface` and is used the same 
 ```php
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
     ->build();
 
 $transport = new SomeTransport();

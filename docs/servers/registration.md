@@ -15,7 +15,7 @@ registry somehow. There are three ways to get it there, and they mix freely.
 **Example:**
 ```php
 $server = Server::builder()
-    ->setDiscovery(__DIR__, ['.'])  // Automatic discovery
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])  // Automatic discovery
     ->build();
 ```
 
@@ -88,6 +88,7 @@ $server = Server::builder()
 - `inputSchema` (array|null): Optional input schema for the tool
 - `icons` (Icon[]|null): Optional array of icons for the tool
 - `meta` (array|null): Optional metadata for the tool
+- `outputSchema` (array|null): Optional JSON schema describing the tool's `structuredContent`
 
 ### Manual Resource Registration
 
@@ -109,6 +110,7 @@ $server = Server::builder()
 - `handler` (callable|string): The resource handler
 - `uri` (string): The resource URI
 - `name` (string|null): Optional resource name
+- `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional resource description
 - `mimeType` (string|null): Optional MIME type of the resource
 - `size` (int|null): Optional size of the resource in bytes
@@ -136,9 +138,11 @@ $server = Server::builder()
 - `handler` (callable|string): The resource template handler
 - `uriTemplate` (string): The resource URI template
 - `name` (string|null): Optional resource template name
+- `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional resource template description
 - `mimeType` (string|null): Optional MIME type of the resource
 - `annotations` (Annotations|null): Optional annotations for the resource template
+- `meta` (array|null): Optional metadata for the resource template
 
 ### Manual Prompt Registration
 
@@ -160,6 +164,7 @@ $server = Server::builder()
 - `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional prompt description
 - `icons` (Icon[]|null): Optional array of icons for the prompt
+- `meta` (array|null): Optional metadata for the prompt
 
 **Note:** `name` and `description` are optional when the handler is a method or an invokable class — they are then
 derived from the method name and its docblock. A **closure** handler has neither, so it gets a generated name
@@ -230,7 +235,7 @@ Combine both methods for maximum flexibility:
 
 ```php
 $server = Server::builder()
-    ->setDiscovery(__DIR__, ['.'])  // Discover most capabilities
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])  // Discover most capabilities
     ->addTool([ExternalService::class, 'process'], 'external')  // Add specific ones
     ->build();
 ```

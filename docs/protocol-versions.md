@@ -64,9 +64,6 @@ would leave a connection neither side could use. A client speaking it never gets
 of an `initialize` request, and the transport routes it to the modern dispatcher before any negotiation is attempted.
 See [Serving both eras](run/protocol-eras.md).
 
-This table is mirrored by the `provideNegotiationTable()` data provider in
-`tests/Unit/Server/Handler/Request/InitializeHandlerTest.php`, which drives its supported-revision rows off the enum so
-a newly declared revision is covered automatically.
 
 ### Pinning a revision
 

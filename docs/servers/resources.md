@@ -27,7 +27,7 @@ class ConfigProvider
 - **`uri`** (required): Unique resource identifier. Must comply with [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
 - **`name`** (optional): Short resource identifier. Defaults to method name if not provided.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
-- **`description`** (optional): Resource description. Defaults to docblock summary if not provided.
+- **`description`** (optional): Resource description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`size`** (optional): Size in bytes if known.
 - **`annotations`** (optional): Additional metadata.
@@ -128,6 +128,7 @@ Resource handlers can throw any exception, but the type determines how it's hand
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
+use Mcp\Capability\Attribute\McpResourceTemplate;
 use Mcp\Exception\ResourceReadException;
 
 // A URI with variables is a resource *template*; `#[McpResource]` registers a

@@ -23,6 +23,7 @@ $transport = new StdioTransport(
 - `cwd` (string|null): Working directory for the process
 - `env` (array|null): Environment variables
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
+- `maxBufferSize` (int): Maximum buffered bytes per message before the transport gives up
 
 ## HTTP Transport
 
@@ -44,6 +45,7 @@ $transport = new HttpTransport(
 - `requestFactory` (RequestFactoryInterface|null): PSR-17 request factory (auto-discovered)
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
+- `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
 
 **PSR-18 Auto-Discovery:**
 

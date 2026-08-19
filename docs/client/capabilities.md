@@ -24,6 +24,8 @@ if ($toolsResult->nextCursor) {
 ### Calling Tools
 
 ```php
+use Mcp\Schema\Content\TextContent;
+
 $result = $client->callTool(
     name: 'calculate',
     arguments: ['a' => 5, 'b' => 3, 'operation' => 'add'],
@@ -80,6 +82,8 @@ foreach ($templatesResult->resourceTemplates as $template) {
 ### Reading Resources
 
 ```php
+use Mcp\Schema\Content\{TextResourceContents, BlobResourceContents};
+
 $resourceResult = $client->readResource('config://app/settings');
 
 foreach ($resourceResult->contents as $content) {

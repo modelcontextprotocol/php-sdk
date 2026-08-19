@@ -21,7 +21,7 @@ Level **warning** is the default level, so anything below it is dropped until th
 The SDK automatically injects a `RequestContext` instance into handlers. This can be used to create a `ClientLogger`.
 
 ```php
-use Mcp\Capability\Logger\ClientLogger;
+use Mcp\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 #[McpTool]

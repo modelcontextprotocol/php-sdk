@@ -15,7 +15,7 @@ use Mcp\Server;
 
 $server = Server::builder()
     ->setServerInfo('My MCP Server', '1.0.0')
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
     ->build();
 ```
 
@@ -26,7 +26,7 @@ use Mcp\Server\Builder;
 
 $server = (new Builder())
     ->setServerInfo('My MCP Server', '1.0.0')
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
     ->build();
 ```
 
@@ -59,6 +59,7 @@ $server = Server::builder()
 - `$description` (string|null): Optional description
 - `$icons` (Icon[]|null): Optional array of server icons
 - `$websiteUrl` (string|null): Optional server website URL
+- `$title` (string|null): Optional human-readable display title, distinct from `$name`
 
 ### Pagination Limit
 
@@ -160,9 +161,14 @@ $server = Server::builder()
 **Basic Discovery (scans current directory and `src/`):**
 ```php
 $server = Server::builder()
-    ->setDiscovery(__DIR__)  // Minimal setup
+    ->setDiscovery(__DIR__, excludeDirs: ['vendor'])  // Scans '.' and 'src'
     ->build();
 ```
+
+!!! warning
+    Always exclude `vendor/` when the scanned directories contain it. The recursive scan
+    tries to load every class it finds, and a single file that cannot be loaded makes the
+    scan abort — the server then reports an **empty** element list instead of an error.
 
 **Production Setup with Caching:**
 ```php

@@ -15,7 +15,8 @@ Handle JSON-RPC requests (messages with an `id` that expect a response). Request
 `Response` or an `Error` object.
 
 Attach request handlers with `addRequestHandler()` (single) or `addRequestHandlers()` (multiple). You can call these
-methods as many times as needed; each call prepends the handlers so they execute before the defaults:
+methods as many times as needed; handlers are collected in call order, and the whole custom list runs before the
+built-in defaults:
 
 ```php
 $server = Server::builder()
@@ -93,5 +94,5 @@ interface NotificationHandlerInterface
 
 ## Example
 
-Check out `examples/server/custom-method-handlers/server.php` for a complete example showing how to implement
+Check out [`examples/server/custom-method-handlers/server.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/custom-method-handlers/server.php) for a complete example showing how to implement
 custom `tools/list` and `tools/call` request handlers independently of the registry.

@@ -25,7 +25,7 @@ class PromptGenerator
 
 - **`name`** (optional): Prompt identifier. Defaults to method name if not provided.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
-- **`description`** (optional): Prompt description. Defaults to docblock summary if not provided.
+- **`description`** (optional): Prompt description. Falls back to the docblock (summary plus long description).
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
@@ -62,19 +62,15 @@ public function userAssistantFormat(): array
     ];
 }
 
-// Mixed content types in messages
+// Non-text content — each message carries exactly one content block,
+// so an image goes into its own message
 use Mcp\Schema\Content\{TextContent, ImageContent};
 
 public function mixedContent(): array
 {
     return [
-        [
-            'role' => 'user', 
-            'content' => [
-                new TextContent('Analyze this image:'),
-                new ImageContent(data: $imageData, mimeType: 'image/png')
-            ]
-        ]
+        ['role' => 'user', 'content' => new TextContent('Analyze this image:')],
+        ['role' => 'user', 'content' => new ImageContent(data: $imageData, mimeType: 'image/png')]
     ];
 }
 

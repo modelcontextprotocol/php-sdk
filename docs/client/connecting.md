@@ -61,7 +61,8 @@ $client = Client::builder()
 
 ### Protocol Version
 
-Specify the MCP protocol version to offer during the handshake (defaults to the latest):
+Specify the MCP protocol version to offer during the handshake (defaults to `V2025_11_25`, the
+latest handshake revision — the modern `2026-07-28` revision must be chosen explicitly):
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;

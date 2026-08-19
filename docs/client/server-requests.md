@@ -2,40 +2,80 @@
 
 The client can receive requests and notifications from the server when configured with appropriate handlers.
 
-## Logging Notifications
+## Elicitation (User Input Requests)
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
-
-Receive structured log messages from the server:
+Handle server requests to elicit additional information from the user during tool
+execution. The server sends an `elicitation/create` request describing the fields it
+needs; your callback presents them to the user and returns an `ElicitResult` with one of
+three actions — accept (with the collected content), decline, or cancel:
 
 ```php
-use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
-use Mcp\Schema\Notification\LoggingMessageNotification;
-use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Exception\ElicitationException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
 
-$loggingHandler = new LoggingNotificationHandler(
-    static function (LoggingMessageNotification $notification) {
-        // Route to your application's logging system
-        $level = $notification->level;
-        $message = $notification->data;
-        
-        match ($level) {
-            LoggingLevel::Debug => logger()->debug($message),
-            LoggingLevel::Info => logger()->info($message),
-            LoggingLevel::Warning => logger()->warning($message),
-            LoggingLevel::Error => logger()->error($message),
-            default => logger()->info($message),
-        };
+class ConsoleElicitationCallback implements ElicitationCallbackInterface
+{
+    public function __invoke(ElicitRequest $request): ElicitResult
+    {
+        echo $request->message.\PHP_EOL;
+
+        // In url mode there is no schema to fill in — the user completes the
+        // interaction in the browser instead.
+        if (ElicitationMode::Url === $request->mode) {
+            echo 'Continue in your browser: '.$request->url.\PHP_EOL;
+
+            return new ElicitResult(ElicitAction::Accept);
+        }
+
+        // Form mode: present $request->requestedSchema->properties and collect input.
+        $content = [];
+        foreach ($request->requestedSchema->properties as $name => $definition) {
+            $answer = readline($definition->title.': ');
+
+            if (false === $answer) {
+                // No input available — let the server know the user cancelled.
+                return new ElicitResult(ElicitAction::Cancel);
+            }
+
+            $content[$name] = $answer;
+        }
+
+        return new ElicitResult(ElicitAction::Accept, $content);
     }
-);
+}
 
 $client = Client::builder()
-    ->addNotificationHandler($loggingHandler)
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler(new ElicitationRequestHandler(new ConsoleElicitationCallback))
     ->build();
-
-// Set minimum log level (optional)
-$client->setLoggingLevel(LoggingLevel::Info);
 ```
+
+Return `new ElicitResult(ElicitAction::Decline)` when the user refuses to provide the
+information, and `new ElicitResult(ElicitAction::Cancel)` when they dismiss the request.
+Only the `Accept` action carries content.
+
+!!! warning
+    **Error Handling in Elicitation Callbacks:**
+
+    - **Throw `ElicitationException`** to forward a specific error message to the server
+    - **Any other exception** is logged but returns a generic error to the server
+
+    ```php
+    // Good: Server receives "No interactive console available" message
+    throw new ElicitationException('No interactive console available');
+
+    // Bad: Server receives generic "Error while processing elicitation" message
+    throw new \RuntimeException('No interactive console available');
+    ```
+
+See [`examples/client/stdio_elicitation.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_elicitation.php) for a runnable example against the
+elicitation demo server.
 
 ## Sampling (LLM Requests)
 
@@ -142,71 +182,40 @@ blocks in a user message. The client should pass those blocks back to the LLM pr
     throw new \RuntimeException('Rate limit exceeded');
     ```
 
-## Elicitation (User Input Requests)
+## Logging Notifications
 
-Handle server requests to elicit additional information from the user during tool
-execution. The server sends an `elicitation/create` request describing the fields it
-needs; your callback presents them to the user and returns an `ElicitResult` with one of
-three actions — accept (with the collected content), decline, or cancel:
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
+
+Receive structured log messages from the server:
 
 ```php
-use Mcp\Client\Handler\Request\ElicitationRequestHandler;
-use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
-use Mcp\Exception\ElicitationException;
-use Mcp\Schema\ClientCapabilities;
-use Mcp\Schema\Enum\ElicitAction;
-use Mcp\Schema\Request\ElicitRequest;
-use Mcp\Schema\Result\ElicitResult;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Enum\LoggingLevel;
 
-class ConsoleElicitationCallback implements ElicitationCallbackInterface
-{
-    public function __invoke(ElicitRequest $request): ElicitResult
-    {
-        echo $request->message.\PHP_EOL;
-
-        // Present $request->requestedSchema->properties to the user and collect input.
-        $content = [];
-        foreach ($request->requestedSchema->properties as $name => $definition) {
-            $answer = readline($definition->title.': ');
-
-            if (false === $answer) {
-                // No input available — let the server know the user cancelled.
-                return new ElicitResult(ElicitAction::Cancel);
-            }
-
-            $content[$name] = $answer;
-        }
-
-        return new ElicitResult(ElicitAction::Accept, $content);
+$loggingHandler = new LoggingNotificationHandler(
+    static function (LoggingMessageNotification $notification) {
+        // Route to your application's logging system
+        $level = $notification->level;
+        $message = $notification->data;
+        
+        match ($level) {
+            LoggingLevel::Debug => logger()->debug($message),
+            LoggingLevel::Info => logger()->info($message),
+            LoggingLevel::Warning => logger()->warning($message),
+            LoggingLevel::Error => logger()->error($message),
+            default => logger()->info($message),
+        };
     }
-}
+);
 
 $client = Client::builder()
-    ->setCapabilities(new ClientCapabilities(elicitation: true))
-    ->addRequestHandler(new ElicitationRequestHandler(new ConsoleElicitationCallback))
+    ->addNotificationHandler($loggingHandler)
     ->build();
+
+// Set minimum log level (optional)
+$client->setLoggingLevel(LoggingLevel::Info);
 ```
-
-Return `new ElicitResult(ElicitAction::Decline)` when the user refuses to provide the
-information, and `new ElicitResult(ElicitAction::Cancel)` when they dismiss the request.
-Only the `Accept` action carries content.
-
-!!! warning
-    **Error Handling in Elicitation Callbacks:**
-
-    - **Throw `ElicitationException`** to forward a specific error message to the server
-    - **Any other exception** is logged but returns a generic error to the server
-
-    ```php
-    // Good: Server receives "No interactive console available" message
-    throw new ElicitationException('No interactive console available');
-
-    // Bad: Server receives generic "Error while processing elicitation" message
-    throw new \RuntimeException('No interactive console available');
-    ```
-
-See `examples/client/stdio_elicitation.php` for a runnable example against the
-elicitation demo server.
 
 ## Roots
 
@@ -251,6 +260,6 @@ throws a `RuntimeException`. On a client that is not connected it throws a
 $client->sendRootsListChanged();
 ```
 
-See `examples/client/stdio_roots.php` for a runnable example: it calls the
+See [`examples/client/stdio_roots.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_roots.php) for a runnable example: it calls the
 `inspect_workspace_roots` tool of the client-communication demo server, which
 answers by issuing the `roots/list` request back to the client.

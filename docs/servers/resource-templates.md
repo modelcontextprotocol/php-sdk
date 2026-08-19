@@ -34,9 +34,10 @@ class UserProvider
 - **`uriTemplate`** (required): URI with `{variables}`. Must start with a scheme (`file://`, `user://`, …) and contain at least one variable.
 - **`name`** (optional): Short resource template identifier. Defaults to method name if not provided.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
-- **`description`** (optional): Template description. Defaults to docblock summary if not provided.
+- **`description`** (optional): Template description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.
 - **`annotations`** (optional): Additional metadata.
+- **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
 ## Variable Rules
 

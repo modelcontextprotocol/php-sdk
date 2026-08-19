@@ -182,15 +182,10 @@ exhaust memory. A value below `1` throws `InvalidArgumentException`.
 
 ## JSON-RPC Batch Size Limit
 
-A JSON-RPC batch (top-level array) is capped at 100 messages by default. Oversized batches are rejected before any
-message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap lives on
-`MessageFactory`:
-
-```php
-use Mcp\JsonRpc\MessageFactory;
-
-$factory = MessageFactory::make(maxBatchSize: 50);
-```
+A JSON-RPC batch (top-level array) is capped at 100 messages. Oversized batches are rejected before any
+message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap
+lives on `Mcp\JsonRpc\MessageFactory` and is not currently configurable through the builder — a server built
+with `Server::builder()` always uses the default of 100.
 
 Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON array
 is a batch. Scalars, empty payloads, and non-object batch elements are returned as `InvalidInputMessageException`

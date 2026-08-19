@@ -1,7 +1,9 @@
 # Protocol Extensions
 
-MCP protocol extensions advertise additional, optional capabilities during the initialize handshake.
-A server opts in via `Builder::enableExtension()`:
+MCP protocol extensions advertise additional, optional capabilities alongside the regular ones —
+during the `initialize` handshake, or on revision `2026-07-28` (which has no handshake) inside the
+capabilities that travel with every request. A server opts in via `Builder::enableExtension()` and
+the SDK places the advertisement correctly for whichever era the client speaks:
 
 ```php
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -19,7 +21,8 @@ be enabled in a single call. Enabling the same extension twice throws a
 
 Clients (hosts) advertise the extensions they support the same way, via
 `Client\Builder::enableExtension()`; the payload lands under
-`capabilities.extensions` in the initialize request.
+`capabilities.extensions` in the initialize request — or, on a modern revision,
+under the client capabilities carried in each request's `_meta` envelope.
 
 > Note: extensions enabled via `enableExtension()` are merged into the
 > `extensions` capability even when you supply your own `ServerCapabilities` /

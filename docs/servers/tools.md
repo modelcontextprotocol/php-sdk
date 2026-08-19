@@ -30,6 +30,7 @@ class Calculator
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Tool description. Falls back to the docblock (summary plus long description); stays unset if there is no docblock.
 - **`annotations`** (optional): `ToolAnnotations` object for additional metadata.
+- **`outputSchema`** (optional): JSON schema describing `structuredContent`; see [Structured Output](#structured-output).
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 

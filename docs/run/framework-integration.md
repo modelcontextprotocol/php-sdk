@@ -30,7 +30,7 @@ $request = $psr17Factory->createServerRequestFromGlobals();
 
 $server = Server::builder()
     ->setServerInfo('HTTP Server', '1.0.0')
-    ->setDiscovery(__DIR__, ['.'])
+    ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
     ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
     ->build();
 
@@ -137,7 +137,7 @@ $app = AppFactory::create();
 $app->any('/mcp', function ($request, $response) {
     $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
-        ->setDiscovery(__DIR__, ['.'])
+        ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
         ->build();
 
     $transport = new StreamableHttpTransport($request);

@@ -16,10 +16,17 @@ public function summarize(string $text, RequestContext $context): string
 
     $result = $context->getClientGateway()->sample("Summarize:\n\n".$text, 500);
 
-    // `content` is TextContent|ImageContent|AudioContent
+    // `content` is TextContent|ImageContent|AudioContent (or ToolUseContent
+    // blocks when the client samples with tools)
     return $result->content instanceof TextContent ? $result->content->text : '';
 }
 ```
+
+Two caveats on this example: clients drop log messages below `warning` unless they raise
+the level first (see [Logging](logging.md)), and `sample()` belongs to the features
+[deprecated by revision `2026-07-28`](../protocol-versions.md#deprecations) — on that
+revision it throws, and [Asking for input](input-required.md) is the way to write it
+instead.
 
 * **[Talking back to the client](client-communication.md)** — the `ClientGateway`:
   asking the client's model for a completion (sampling), reporting progress on a long

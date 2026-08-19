@@ -50,6 +50,7 @@ Authorization in MCP is implemented at the transport level using PSR-15 middlewa
 ```php
 use Mcp\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
+use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
@@ -100,7 +101,7 @@ $transport = new StreamableHttpTransport(
 // 6. Run server
 $server = Server::builder()
     ->setServerInfo('Protected MCP Server', '1.0.0')
-    ->setDiscovery(__DIR__)
+    ->setDiscovery(__DIR__, excludeDirs: ['vendor'])
     ->build();
 
 $response = $server->run($transport);

@@ -15,6 +15,8 @@ $transport = new StdioTransport(
 - **`input`** (optional): Input stream resource. Defaults to `STDIN`.
 - **`output`** (optional): Output stream resource. Defaults to `STDOUT`.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
+- **`runnerControl`** (optional): `RunnerControlInterface` - controls the read loop; the default runs until the input stream closes.
+- **`maxLineBytes`** (optional): Maximum accepted line length in bytes. Oversized lines are rejected as invalid messages.
 
 !!! warning
     When using STDIO transport, **never** write to `STDOUT` in your handlers as it's reserved for JSON-RPC communication.
