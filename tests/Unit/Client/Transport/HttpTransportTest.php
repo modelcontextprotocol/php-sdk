@@ -26,12 +26,14 @@ use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Response as JsonRpcResponse;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -373,7 +375,7 @@ final class HttpTransportTest extends TestCase
 
         $this->invokeProcessSseStream($transport);
 
-        $this->assertSame('', $this->readPrivate($transport, 'sseBuffer'), 'buffer must be cleared on abort');
+        $this->assertSame(0, $this->readPrivate($transport, 'sseParser')->bufferedBytes(), 'buffer must be cleared on abort');
         $this->assertNull($this->readPrivate($transport, 'activeStream'), 'stream must be released on abort');
     }
 
@@ -409,6 +411,339 @@ final class HttpTransportTest extends TestCase
         $this->invokeProcessSseStream($transport);
 
         $this->assertSame(['hello', 'world'], $messages);
+    }
+
+    #[TestDox('an interrupted SSE request resumes with its latest event ID after the server retry delay')]
+    public function testReconnectsWithLatestEventIdAfterServerDelay(): void
+    {
+        $clock = new SteppingClock();
+        $response = '{"jsonrpc":"2.0","id":7,"result":{"ok":true}}';
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, [
+                'Content-Type' => 'text/event-stream',
+                'Mcp-Session-Id' => 'session-1',
+            ], "id: first\ndata:\n\nid: latest\nretry: 500\ndata:\n\n"),
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: final\ndata: {$response}\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(
+            httpClient: $httpClient,
+            headers: [
+                'Authorization' => 'Bearer secret',
+                'MCP-Protocol-Version' => '2025-11-25',
+            ],
+            clock: $clock,
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 7, messages: $messages);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $result);
+        $this->assertSame([$response], $messages);
+        $this->assertCount(2, $httpClient->requests);
+        $this->assertDelay(500, $httpClient->sentAtMs[1] - $httpClient->sentAtMs[0]);
+
+        $request = $httpClient->requests[1];
+        $this->assertSame('GET', $request->getMethod());
+        $this->assertSame('text/event-stream', $request->getHeaderLine('Accept'));
+        $this->assertSame('session-1', $request->getHeaderLine('Mcp-Session-Id'));
+        $this->assertSame('latest', $request->getHeaderLine('Last-Event-ID'));
+        $this->assertSame('Bearer secret', $request->getHeaderLine('Authorization'));
+        $this->assertSame('2025-11-25', $request->getHeaderLine('MCP-Protocol-Version'));
+    }
+
+    #[TestDox('fallback reconnect delays double, cap at ten seconds, and stop after five attempts')]
+    public function testReconnectBackoffAndAttemptLimit(): void
+    {
+        $clock = new SteppingClock();
+        $responses = [new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n")];
+
+        for ($attempt = 1; $attempt <= 5; ++$attempt) {
+            $responses[] = new Response(503);
+        }
+
+        $httpClient = RecordingHttpClient::queued($responses, $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $result = $this->runRequest($transport, 1);
+
+        $this->assertCount(6, $httpClient->requests, 'one POST plus exactly five reconnect attempts');
+        foreach ([1_000, 2_000, 4_000, 8_000, 10_000] as $attempt => $delay) {
+            $request = $httpClient->requests[$attempt + 1];
+            $this->assertSame('GET', $request->getMethod());
+            $this->assertSame('event-0', $request->getHeaderLine('Last-Event-ID'));
+            $this->assertDelay($delay, $httpClient->sentAtMs[$attempt + 1] - $httpClient->sentAtMs[$attempt]);
+        }
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('maximum of 5 reconnect attempts', $result->message);
+    }
+
+    /**
+     * @return iterable<string, array{int, int}>
+     */
+    public static function reconnectStatusProvider(): iterable
+    {
+        yield 'session expired' => [404, 2];
+        yield 'no GET stream offered' => [405, 2];
+        yield 'unauthorized' => [401, 2];
+        yield 'request timeout' => [408, 6];
+        yield 'rate limited' => [429, 6];
+        yield 'server error' => [503, 6];
+    }
+
+    #[DataProvider('reconnectStatusProvider')]
+    #[TestDox('a reconnect answered with HTTP $status fails after $requests requests ($_dataName)')]
+    public function testReconnectStatusHandling(int $status, int $requests): void
+    {
+        $clock = new SteppingClock();
+        $responses = [new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n")];
+
+        for ($attempt = 1; $attempt <= 5; ++$attempt) {
+            $responses[] = new Response($status);
+        }
+
+        $httpClient = RecordingHttpClient::queued($responses, $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $this->assertInstanceOf(Error::class, $this->runRequest($transport, 1));
+        $this->assertCount($requests, $httpClient->requests);
+    }
+
+    #[TestDox('a reconnect answered with 404 expires the session like any session-bound request')]
+    public function testReconnectOnExpiredSessionInvalidatesConnection(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream', 'Mcp-Session-Id' => 'session'], "id: event-0\ndata:\n\n"),
+            new Response(404),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+        $state = new ClientState();
+        $state->setInitialized(true);
+
+        $result = $this->runRequest($transport, 1, state: $state);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP session has expired', $result->message);
+        $this->assertSame('session', $httpClient->requests[1]->getHeaderLine('Mcp-Session-Id'));
+        $this->assertNull($transport->getSessionId());
+        $this->assertFalse($state->isInitialized());
+    }
+
+    #[TestDox('a reconnect that does not answer with an event stream is retried')]
+    public function testReconnectWithoutEventStreamIsRetried(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new Response(200, ['Content-Type' => 'application/json'], '{}'),
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-1\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $this->runRequest($transport, 1));
+        $this->assertCount(3, $httpClient->requests);
+        $this->assertSame('event-0', $httpClient->requests[2]->getHeaderLine('Last-Event-ID'));
+    }
+
+    #[TestDox('a stream that fails while reading is reported and resumed')]
+    public function testReadErrorIsResumed(): void
+    {
+        $clock = new SteppingClock();
+        $reads = 0;
+        $stream = $this->createStub(StreamInterface::class);
+        $stream->method('eof')->willReturn(false);
+        $stream->method('read')->willReturnCallback(static function () use (&$reads): string {
+            if (1 === ++$reads) {
+                return "id: event-0\ndata:\n\n";
+            }
+
+            throw new \RuntimeException('Connection reset by peer');
+        });
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $stream),
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-1\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $errors = [];
+        $result = $this->runRequest($transport, 1, errors: $errors);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $result);
+        $this->assertCount(2, $httpClient->requests);
+        $this->assertSame('event-0', $httpClient->requests[1]->getHeaderLine('Last-Event-ID'));
+        $this->assertCount(1, $errors);
+        $this->assertSame('Connection reset by peer', $errors[0]->getMessage());
+    }
+
+    #[TestDox('a stream on a protocol version without resumption fails instead of reconnecting')]
+    public function testStreamIsNotResumedOnModernProtocolVersion(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $state = new ClientState();
+        $state->setProtocolVersion(ProtocolVersion::V2026_07_28);
+
+        $result = $this->runRequest($transport, 1, state: $state);
+
+        $this->assertCount(1, $httpClient->requests);
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('protocol version 2026-07-28 does not resume streams', $result->message);
+    }
+
+    #[TestDox('a resumed stream that only replays the same empty event still consumes the attempt cap')]
+    public function testReplayingSameEventDoesNotResetAttempts(): void
+    {
+        $clock = new SteppingClock();
+        $priming = "id: priming\nretry: 0\ndata:\n\n";
+        $responses = [];
+
+        for ($attempt = 0; $attempt <= 5; ++$attempt) {
+            $responses[] = new Response(200, ['Content-Type' => 'text/event-stream'], $priming);
+        }
+
+        $httpClient = RecordingHttpClient::queued($responses, $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $result = $this->runRequest($transport, 2);
+
+        $this->assertCount(6, $httpClient->requests, 'one POST plus exactly five reconnect attempts');
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('maximum of 5 reconnect attempts', $result->message);
+    }
+
+    #[TestDox('a stream opened by a payload without a request ID is not resumed')]
+    public function testStreamWithoutRequestIdDoesNotReconnect(): void
+    {
+        $clock = new SteppingClock();
+        $payload = '{"jsonrpc":"2.0","id":1,"result":{"ok":true}}';
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, [
+                'Content-Type' => 'text/event-stream',
+                'Mcp-Session-Id' => 'session-1',
+            ], "id: batch\nretry: 0\ndata: [{$payload}]\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $result = $this->runRequest($transport, 1, '[{"jsonrpc":"2.0","id":1,"method":"tools/call"}]');
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $result);
+        $this->assertCount(1, $httpClient->requests);
+    }
+
+    #[TestDox('a request times out while its reconnect is still scheduled')]
+    public function testRequestTimesOutWhileReconnectIsScheduled(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: resumable\nretry: 3600000\ndata:\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $result = $this->runRequest($transport, 9, timeout: 1);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Request timed out', $result->message);
+        $this->assertCount(1, $httpClient->requests);
+    }
+
+    #[TestDox('receiving the final response before EOF is a normal end and does not reconnect')]
+    public function testFinalResponseDoesNotReconnect(): void
+    {
+        $clock = new SteppingClock();
+        $payload = '{"jsonrpc":"2.0","id":3,"result":{"ok":true}}';
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: complete\ndata: {$payload}\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $this->runRequest($transport, 3));
+        $this->assertCount(1, $httpClient->requests);
+    }
+
+    #[TestDox('closing the transport from a message listener stops reading and reconnecting')]
+    public function testCloseFromListenerStopsReconnecting(): void
+    {
+        $clock = new SteppingClock();
+        $notification = '{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"bye"}}';
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, [
+                'Content-Type' => 'text/event-stream',
+                'Mcp-Session-Id' => 'session-1',
+            ], "id: resumable\ndata: {$notification}\n\n"),
+            new Response(204),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $errors = [];
+        $result = $this->runRequest(
+            $transport,
+            4,
+            timeout: 1,
+            errors: $errors,
+            onMessage: static function () use ($transport): void {
+                $transport->close();
+            },
+        );
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame([], $errors);
+        $this->assertCount(2, $httpClient->requests);
+        $this->assertSame('DELETE', $httpClient->requests[1]->getMethod());
+        $this->assertSame('session-1', $httpClient->requests[1]->getHeaderLine('Mcp-Session-Id'));
+    }
+
+    #[TestDox('an unfinished stream without an event ID fails instead of waiting for the request timeout')]
+    public function testUnresumableEofFailsPendingRequest(): void
+    {
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], ": keep-alive\n\n"),
+        ]);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: new SteppingClock());
+
+        $result = $this->runRequest($transport, 5);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('did not provide an event ID', $result->message);
+    }
+
+    /**
+     * @return iterable<string, array{string, int}>
+     */
+    public static function streamCutProvider(): iterable
+    {
+        foreach (['LF' => "\n", 'CRLF' => "\r\n"] as $name => $eol) {
+            $length = \strlen(ReplayingSseServer::stream($eol));
+
+            for ($cut = 0; $cut < $length; ++$cut) {
+                yield \sprintf('%s, cut after %d bytes', $name, $cut) => [$eol, $cut];
+            }
+        }
+    }
+
+    #[DataProvider('streamCutProvider')]
+    #[TestDox('a stream cut at any byte delivers every message exactly once after resuming ($_dataName)')]
+    public function testStreamCutAtAnyByteDeliversEveryMessageOnce(string $eol, int $cut): void
+    {
+        $transport = $this->createTransport(httpClient: new ReplayingSseServer($eol, $cut), clock: new SteppingClock());
+
+        $messages = [];
+        $result = $this->runRequest($transport, ReplayingSseServer::REQUEST_ID, messages: $messages);
+
+        if ($cut < ReplayingSseServer::primingEventLength($eol)) {
+            // Nothing complete arrived, so there is no event ID to resume from.
+            $this->assertSame([], $messages);
+            $this->assertInstanceOf(Error::class, $result);
+
+            return;
+        }
+
+        $this->assertSame(ReplayingSseServer::MESSAGES, $messages);
+        $this->assertInstanceOf(JsonRpcResponse::class, $result);
     }
 
     #[TestDox('the buffer cap must be a positive number of bytes')]
@@ -766,15 +1101,84 @@ final class HttpTransportTest extends TestCase
         ], $sent);
     }
 
-    private function createTransport(int $maxSseBufferBytes = 8 * 1024 * 1024): HttpTransport
-    {
+    /**
+     * @param array<string, string> $headers
+     */
+    private function createTransport(
+        int $maxSseBufferBytes = 8 * 1024 * 1024,
+        ?ClientInterface $httpClient = null,
+        array $headers = [],
+        ?ClockInterface $clock = null,
+    ): HttpTransport {
         return new HttpTransport(
             endpoint: 'https://example.test/mcp',
-            httpClient: $this->createMock(ClientInterface::class),
+            headers: $headers,
+            httpClient: $httpClient ?? $this->createMock(ClientInterface::class),
             requestFactory: $this->factory,
             streamFactory: $this->factory,
             maxSseBufferBytes: $maxSseBufferBytes,
+            clock: $clock,
         );
+    }
+
+    /**
+     * Sends one request through the transport's own loop, the way the client
+     * does, and returns what it resolved to.
+     *
+     * @param list<string>            $messages  receives every message the transport dispatched
+     * @param list<\Throwable>        $errors    receives every error the transport reported
+     * @param (callable(): void)|null $onMessage called after each dispatched message
+     *
+     * @return JsonRpcResponse<mixed>|Error
+     */
+    private function runRequest(
+        HttpTransport $transport,
+        int $id,
+        ?string $payload = null,
+        int $timeout = 5,
+        array &$messages = [],
+        array &$errors = [],
+        ?callable $onMessage = null,
+        ?ClientState $state = null,
+    ): JsonRpcResponse|Error {
+        $messages = [];
+        $errors = [];
+        $state ??= new ClientState();
+        $state->addPendingRequest($id, $timeout);
+        $transport->setState($state);
+        $transport->onError(static function (\Throwable $error) use (&$errors): void {
+            $errors[] = $error;
+        });
+        // Stands in for the protocol, which stores each response for the loop to pick up.
+        $transport->onMessage(static function (string $message) use ($state, &$messages, $onMessage): void {
+            $messages[] = $message;
+            $decoded = json_decode($message, true);
+
+            foreach (\is_array($decoded) && array_is_list($decoded) ? $decoded : [$decoded] as $item) {
+                if (\is_array($item) && isset($item['id']) && (isset($item['result']) || isset($item['error']))) {
+                    $state->storeResponse($item['id'], $item);
+                }
+            }
+
+            if (null !== $onMessage) {
+                $onMessage();
+            }
+        });
+
+        $payload ??= \sprintf('{"jsonrpc":"2.0","id":%d,"method":"tools/call"}', $id);
+
+        return $transport->runRequest(new \Fiber(static function () use ($transport, $payload): JsonRpcResponse|Error {
+            $transport->send($payload);
+
+            return \Fiber::suspend();
+        }));
+    }
+
+    private function assertDelay(int $expectedMs, float $elapsedMs): void
+    {
+        // The loop notices a due reconnect on the first clock reading at or past it.
+        $this->assertGreaterThanOrEqual($expectedMs, $elapsedMs);
+        $this->assertLessThanOrEqual($expectedMs + 2 * SteppingClock::STEP_MS, $elapsedMs);
     }
 
     private function setActiveStream(HttpTransport $transport, StreamInterface $stream): void
@@ -796,6 +1200,9 @@ final class HttpTransportTest extends TestCase
 /**
  * PSR-18 client that answers both wire formats this SDK speaks and records every
  * message it was handed, so a test can inspect what went out.
+ *
+ * Built with {@see queued()}, it instead answers each request with the next
+ * of a fixed list of responses, for tests that drive the transport directly.
  */
 final class RecordingHttpClient implements ClientInterface
 {
@@ -804,6 +1211,14 @@ final class RecordingHttpClient implements ClientInterface
 
     /** @var list<RequestInterface> */
     public array $requests = [];
+
+    /** @var list<int> Clock reading, in milliseconds, when each request was sent */
+    public array $sentAtMs = [];
+
+    /** @var list<ResponseInterface|\Throwable>|null */
+    private ?array $queue = null;
+
+    private ?SteppingClock $clock = null;
 
     /**
      * The hook sees every request first and may return its own answer; a null
@@ -815,9 +1230,32 @@ final class RecordingHttpClient implements ClientInterface
     {
     }
 
+    /**
+     * @param list<ResponseInterface|\Throwable> $responses a throwable is thrown instead of answering
+     */
+    public static function queued(array $responses, ?SteppingClock $clock = null): self
+    {
+        $client = new self();
+        $client->queue = $responses;
+        $client->clock = $clock;
+
+        return $client;
+    }
+
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
         $this->requests[] = $request;
+        $this->sentAtMs[] = $this->clock?->milliseconds() ?? 0;
+
+        if (null !== $this->queue) {
+            $response = array_shift($this->queue);
+
+            if ($response instanceof \Throwable) {
+                throw $response;
+            }
+
+            return $response ?? throw new \LogicException('No HTTP response was queued for request '.$request->getMethod().'.');
+        }
 
         if ('POST' !== $request->getMethod()) {
             return new Response(202);
@@ -892,5 +1330,97 @@ final class RecordingHttpClient implements ClientInterface
             'id' => $message['id'],
             'result' => $result,
         ], \JSON_THROW_ON_ERROR));
+    }
+}
+
+/**
+ * Moves a fixed step forward on every reading, so the transport's loop reaches
+ * a scheduled reconnect after a bounded number of ticks instead of real time.
+ *
+ * @internal
+ */
+final class SteppingClock implements ClockInterface
+{
+    public const STEP_MS = 100;
+
+    private int $milliseconds = 0;
+
+    public function now(): \DateTimeImmutable
+    {
+        $this->milliseconds += self::STEP_MS;
+
+        return new \DateTimeImmutable(\sprintf('@%.3F', $this->milliseconds / 1000));
+    }
+
+    /**
+     * The latest reading, without moving the clock.
+     */
+    public function milliseconds(): int
+    {
+        return $this->milliseconds;
+    }
+}
+
+/**
+ * Serves a fixed SSE stream for one request, cut after a given number of
+ * bytes, and replays the events after Last-Event-ID on a resuming GET.
+ *
+ * @internal
+ */
+final class ReplayingSseServer implements ClientInterface
+{
+    public const REQUEST_ID = 7;
+
+    public const MESSAGES = [
+        '{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"first"}}',
+        '{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"second"}}',
+        '{"jsonrpc":"2.0","id":7,"result":{"content":[]}}',
+    ];
+
+    public function __construct(
+        private readonly string $eol,
+        private readonly int $cut,
+    ) {
+    }
+
+    public static function stream(string $eol, int $after = -1): string
+    {
+        $stream = '';
+
+        foreach (self::events($eol) as $id => $event) {
+            if ($id > $after) {
+                $stream .= $event;
+            }
+        }
+
+        return $stream;
+    }
+
+    public static function primingEventLength(string $eol): int
+    {
+        return \strlen(self::events($eol)[0]);
+    }
+
+    public function sendRequest(RequestInterface $request): ResponseInterface
+    {
+        if ('POST' === $request->getMethod()) {
+            return new Response(200, ['Content-Type' => 'text/event-stream', 'Mcp-Session-Id' => 'session-1'], substr(self::stream($this->eol), 0, $this->cut));
+        }
+
+        return new Response(200, ['Content-Type' => 'text/event-stream'], self::stream($this->eol, (int) $request->getHeaderLine('Last-Event-ID')));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function events(string $eol): array
+    {
+        $events = ['id: 0'.$eol.'retry: 500'.$eol.'data:'.$eol.$eol];
+
+        foreach (self::MESSAGES as $index => $message) {
+            $events[] = 'id: '.($index + 1).$eol.'data: '.$message.$eol.$eol;
+        }
+
+        return $events;
     }
 }

@@ -51,6 +51,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix a handler throwing after its fiber resumed (e.g. after elicitation or sampling) escaping to the transport: it is now answered with an error response like one throwing before suspending.
 * Drop a client response to a request ID the server is not waiting on, or that timed out, instead of storing it in the session, where nothing would ever consume it.
 * Fix `ClientLogger` dropping messages below `warning` on `2026-07-28` requests that ask for a lower level with `io.modelcontextprotocol/logLevel`.
+* Resume an interrupted SSE response in `HttpTransport` with a GET carrying `Last-Event-ID`, honouring the server's `retry` interval. Configure attempts and fallback backoff with `ReconnectPolicy`, the scheduling clock with any PSR-20 `ClockInterface` (default: a monotonic clock). Protocol version `2026-07-28` does not resume streams. A stream that ends without its response and without an event ID now fails the request instead of waiting for its timeout.
 
 0.8.1
 -----

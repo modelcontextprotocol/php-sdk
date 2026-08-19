@@ -154,4 +154,14 @@ class ProtocolVersionTest extends TestCase
 
         $this->assertTrue(ProtocolVersion::V2026_07_28->usesInvalidParamsForResourceNotFound());
     }
+
+    #[TestDox('SEP-2575 removes SSE stream resumption')]
+    public function testSupportsSseResumption(): void
+    {
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            $this->assertTrue($version->supportsSseResumption(), \sprintf('%s predates SEP-2575.', $version->value));
+        }
+
+        $this->assertFalse(ProtocolVersion::V2026_07_28->supportsSseResumption());
+    }
 }

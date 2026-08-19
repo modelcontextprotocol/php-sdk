@@ -143,6 +143,20 @@ enum ProtocolVersion: string
     }
 
     /**
+     * Whether this revision resumes an interrupted SSE stream with `Last-Event-ID`.
+     *
+     * SEP-2575, part of {@see self::V2026_07_28}, removed resumability and the
+     * GET stream endpoint: a broken response stream loses the in-flight request,
+     * which the client re-issues under a new request ID.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http
+     */
+    public function supportsSseResumption(): bool
+    {
+        return !$this->isAtLeast(self::V2026_07_28);
+    }
+
+    /**
      * Whether this revision is at least as new as $minimum.
      */
     public function isAtLeast(self $minimum): bool

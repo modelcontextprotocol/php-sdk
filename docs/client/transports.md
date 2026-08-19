@@ -50,8 +50,25 @@ $transport = new HttpTransport(
 - `requestFactory` (RequestFactoryInterface|null): PSR-17 request factory (auto-discovered)
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
-- `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
+- `maxSseBufferBytes` (int): Maximum bytes buffered for one incomplete SSE event (default: 8 MiB)
 - `listen` (bool): Open the server's listening stream after the handshake (see below)
+- `reconnectPolicy` (ReconnectPolicy|null): How an interrupted SSE stream is resumed (default: 5 attempts, 1–10 s backoff)
+- `clock` (ClockInterface|null): PSR-20 clock used to schedule reconnects (default: a monotonic clock)
+
+When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect the server rejects with a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429` and server errors are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
+
+To change the attempts or the fallback delays, pass a `ReconnectPolicy`:
+
+```php
+use Mcp\Client\Transport\ReconnectPolicy;
+
+$transport = new HttpTransport(
+    endpoint: 'https://example.com/mcp',
+    reconnectPolicy: new ReconnectPolicy(maxAttempts: 3, initialDelayMs: 500, maxDelayMs: 5000),
+);
+```
+
+`maxAttempts: 0` disables resumption: an interrupted stream then fails the request at once instead of waiting for its timeout.
 
 **PSR-18 Auto-Discovery:**
 
