@@ -1,10 +1,15 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
 # .github/workflows/pipeline.yaml), so a local pass means a green pipeline.
 CONFORMANCE_VERSION ?= 0.2.0-alpha.11
 CONFORMANCE = npx --yes @modelcontextprotocol/conformance@$(CONFORMANCE_VERSION)
+
+# The documentation toolchain is Python (Zensical, see requirements-docs.txt),
+# run through uv so no virtualenv has to be managed by hand:
+# https://docs.astral.sh/uv/getting-started/installation/
+DOCS_RUN = uv run --no-project --with-requirements requirements-docs.txt --
 
 deps-stable:
 	composer update --prefer-stable
@@ -73,7 +78,19 @@ ci-stable: deps-stable cs phpstan tests
 
 ci-lowest: deps-low cs phpstan tests
 
-docs:
-	vendor/bin/phpdoc
-	@grep -q 'No errors have been found' .phpdoc/build/reports/errors.html || \
-		(echo "Documentation errors found. See build/docs/reports/errors.html" && exit 1)
+# The published site is the guides (Zensical) with the phpDocumentor API
+# reference mounted at /api/. `zensical build` wipes site/, so it runs first.
+docs: docs-guides docs-api
+	rm -rf site/api
+	cp -a .phpdoc/build/api site/api
+
+docs-guides:
+	$(DOCS_RUN) zensical build --strict
+
+docs-api:
+	vendor/bin/phpdoc --no-interaction
+	@grep -q 'No errors have been found' .phpdoc/build/api/reports/errors.html || \
+		(echo "Documentation errors found. See .phpdoc/build/api/reports/errors.html" && exit 1)
+
+docs-serve:
+	$(DOCS_RUN) zensical serve

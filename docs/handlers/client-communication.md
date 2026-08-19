@@ -1,26 +1,22 @@
-# Client Communication
+# Talking back to the client
 
-MCP supports various ways a server can communicate back to a client on top of the main request-response flow.
+MCP supports various ways a server can communicate back to a client on top of the main
+request-response flow.
 
-> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server sends its own
-> JSON-RPC requests to the client. The modern lifecycle removed that: sampling, elicitation and roots are
-> carried back inside the *result* instead, and `ClientGateway::sample()`, `elicit()` and `listRoots()`
-> raise a `LogicException` there. Logging and progress still work as described below — they simply travel
-> on the request's own response stream, and the client opts into each. See
-> [The 2026-07-28 Lifecycle](stateless-lifecycle.md).
-
-## Table of Contents
-
-- [ClientGateway](#client-gateway)
-- [Sampling](#sampling)
-- [Logging](#logging)
-- [Notification](#notification)
-- [Progress](#progress)
+> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server
+> sends its own JSON-RPC requests to the client. The modern lifecycle removed that: sampling,
+> elicitation and roots are carried back inside the *result* instead, and
+> `ClientGateway::sample()`, `elicit()` and `listRoots()` raise a `LogicException` there.
+> Logging and progress still work as described below — they simply travel on the request's own
+> response stream, and the client opts into each. See
+> [Asking for input](input-required.md).
 
 ## ClientGateway
 
 Every communication back to client is handled using the `Mcp\Server\ClientGateway` and its dedicated methods per
-operation. To use the `ClientGateway` in your code, you need to use method argument injection for `RequestContext`.
+operation. Reach it through method argument injection for `RequestContext`. (A `ClientGateway`-typed parameter is
+injected too, but unlike `RequestContext` it is not excluded from the generated input schema, so it would show up as
+an argument of your tool.)
 
 Every reference of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the
 `RequestContext` and the SDK will take care to include the gateway in the arguments of the method call:
@@ -37,8 +33,10 @@ class MyService
         $context->getClientGateway()->log(...);
 ```
 
-The same object also carries the protocol revision negotiated for the current request, which is useful when a feature is
-only available from a certain revision on:
+## Request metadata
+
+`RequestContext` also carries what the current request said about itself, which is useful when a feature is only
+available from a certain revision on:
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -47,6 +45,22 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
     // e.g. a bare list is only valid as `structuredContent` from this revision on
 }
 ```
+
+Two more accessors read what the client declared, and both work in either
+[protocol era](../protocol-versions.md) — negotiated once during the handshake, or declared per request from
+`2026-07-28` on:
+
+```php
+$context->getClientCapabilities();  // what this client declared, or null in the handshake era
+$context->getTraceContext();        // traceparent / tracestate / baggage, verbatim
+```
+
+`ClientGateway`'s capability probes — `supportsElicitation()`, `supportsSampling()`, `supportsRoots()` and the
+sub-capability variants — read the same declaration.
+
+W3C trace context is passed through exactly as it arrived, and echoed onto every notification the request causes,
+so a span stays joined across the response stream. Reading it adds no OpenTelemetry dependency — the values are
+strings.
 
 ## Sampling
 
@@ -61,7 +75,7 @@ $result = $clientGateway->sample('Roses are red, violets are', 350, 90, ['temper
 
 The `sample` method accepts four arguments:
 
-1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `SamplingMessage` instances.
+1. `message`, which is **required** and accepts a string, an instance of `Content` or an array of `Mcp\Schema\Content\SamplingMessage` instances.
 2. `maxTokens`, which defaults to `1000`
 3. `timeout` in seconds, which defaults to `120`
 4. `options` which might include `systemPrompt`, `preferences` for model choice, `includeContext`, `temperature`,
@@ -119,9 +133,12 @@ notification a server can update a client while an operation is ongoing:
 $clientGateway->progress(4.2, 10, 'Downloading needed images.');
 ```
 
+Progress is opt-in by the client in both eras: it sends a `progressToken` with the request, and without one this
+call sends nothing.
+
 ## Notification
 
-Lastly, the server can push all kind of notifications, that implement the `Mcp\Schema\JsonRpc\Notification` interface
+Lastly, the server can push all kind of notifications, that extend the abstract `Mcp\Schema\JsonRpc\Notification` class
 to the client to:
 
 ```php
