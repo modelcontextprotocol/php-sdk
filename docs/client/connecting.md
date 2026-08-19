@@ -74,7 +74,7 @@ $client = Client::builder()
 
 This is an offer, not a demand. A server that does not support the requested revision counter-offers one it does, as
 described in the specification's
-[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+[protocol version negotiation](https://modelcontextprotocol.io/specification/latest/basic/versioning#protocol-version-negotiation)
 section. The client accepts any counter-offer it knows about and continues on that revision; a counter-offer the SDK
 cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
 on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.

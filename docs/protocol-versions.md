@@ -30,7 +30,7 @@ map; the mechanics live with the task they belong to.
 Revisions up to `2025-11-25` agree on one during `initialize`. The client names the revision it wants to speak, and
 the server answers with the revision the connection will actually use. Both sides disconnect if they cannot agree.
 This follows the
-[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+[protocol version negotiation](https://modelcontextprotocol.io/specification/latest/basic/versioning#protocol-version-negotiation)
 section of the specification. The modern era negotiates nothing — each request names its own revision.
 
 The SDK's known revisions live in `Mcp\Schema\Enum\ProtocolVersion`, declared oldest to newest:
