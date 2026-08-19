@@ -116,6 +116,21 @@ enum ProtocolVersion: string
     }
 
     /**
+     * Whether this revision answers a missing resource with `-32602`.
+     *
+     * SEP-2164, part of {@see self::V2026_07_28}, retired the bespoke `-32002`
+     * in favour of the JSON-RPC code that already meant this, and reserved
+     * `-32002` so it is never reused. Earlier revisions still expect it, and
+     * clients are told to keep accepting it from them.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/index#error-codes
+     */
+    public function usesInvalidParamsForResourceNotFound(): bool
+    {
+        return $this->isAtLeast(self::V2026_07_28);
+    }
+
+    /**
      * Whether this revision is at least as new as $minimum.
      */
     public function isAtLeast(self $minimum): bool

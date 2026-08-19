@@ -14,7 +14,11 @@ namespace Mcp\Schema\JsonRpc;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * @template TResult
+ * Covariant because a Response only hands its result out, never consumes it,
+ * so a handler can declare the union of results it may answer with while each
+ * return path constructs one concrete type.
+ *
+ * @template-covariant TResult
  *
  * @phpstan-type ResponseData array{
  *     jsonrpc: string,

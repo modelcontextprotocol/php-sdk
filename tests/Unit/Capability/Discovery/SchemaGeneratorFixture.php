@@ -131,6 +131,30 @@ class SchemaGeneratorFixture
     // ===== PARAMETER-LEVEL SCHEMA SCENARIOS =====
 
     /**
+     * Parameter-level Schema with complete definition.
+     */
+    public function parameterLevelCompleteDefinition(
+        #[Schema(definition: [
+            'type' => 'string',
+            'description' => 'The region to query.',
+            'x-mcp-header' => 'Region',
+        ])]
+        string $region = 'eu',
+        #[Schema(definition: ['type' => 'integer', 'minimum' => 1, 'maximum' => 10])]
+        int $limit = 3,
+    ): void {
+    }
+
+    /**
+     * Parameter-level definition that reshapes the parameter's type.
+     */
+    public function definitionReshapingTheParameter(
+        #[Schema(definition: ['type' => 'object', 'properties' => ['id' => ['type' => 'integer']]])]
+        string $payload = '{}',
+    ): void {
+    }
+
+    /**
      * Parameter-level Schema attributes only.
      */
     public function parameterLevelOnly(
@@ -226,6 +250,21 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * PHPStan/Psalm integer ranges should keep their base integer type.
+     *
+     * @param int<0, max>  $offset   Positive offset
+     * @param int<min, -1> $negative Negative value
+     * @param int<-5, 10>  $bounded  Bounded value
+     */
+    public function integerRangeTypes(
+        #[Schema(minimum: 0)]
+        int $offset,
+        int $negative,
+        int $bounded,
+    ): void {
+    }
+
     // ===== ENUM SCENARIOS =====
 
     /**
@@ -310,6 +349,27 @@ class SchemaGeneratorFixture
     }
 
     // ===== VARIADIC SCENARIOS =====
+
+    /**
+     * Variadic parameter with a complete definition.
+     */
+    public function variadicCompleteDefinition(
+        #[Schema(definition: ['type' => 'array', 'description' => 'Tags to apply.', 'items' => ['type' => 'string']])]
+        string ...$tags,
+    ): void {
+    }
+
+    /**
+     * Variadic parameter with both a docblock description and a complete definition;
+     * the definition's own description must win.
+     *
+     * @param string ...$tags Docblock description that must lose to the definition's own
+     */
+    public function variadicCompleteDefinitionWithDocblockDescription(
+        #[Schema(definition: ['type' => 'array', 'description' => 'Tags to apply.', 'items' => ['type' => 'string']])]
+        string ...$tags,
+    ): void {
+    }
 
     /**
      * Variadic parameter scenarios.

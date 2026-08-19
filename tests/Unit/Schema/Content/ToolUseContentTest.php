@@ -77,4 +77,28 @@ final class ToolUseContentTest extends TestCase
 
         ToolUseContent::fromArray($data);
     }
+
+    public function testRejectsListInput(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('ToolUseContent "input" must be a map of argument names, not a list.');
+
+        /* @phpstan-ignore argument.type (deliberately list-shaped) */
+        new ToolUseContent('call-1', 'get_weather', ['Berlin']);
+    }
+
+    public function testRejectsListInputFromArray(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        ToolUseContent::fromArray(['type' => 'tool_use', 'id' => 'call-1', 'name' => 'x', 'input' => [1]]);
+    }
+
+    public function testEmptyInputIsAccepted(): void
+    {
+        $content = ToolUseContent::fromArray(['type' => 'tool_use', 'id' => 'call-1', 'name' => 'ping', 'input' => []]);
+
+        $this->assertSame([], $content->input);
+        $this->assertSame('{"type":"tool_use","id":"call-1","name":"ping","input":{}}', json_encode($content));
+    }
 }

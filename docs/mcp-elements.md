@@ -601,6 +601,8 @@ public function generatePrompt(string $topic, string $style): array
 
 ## Logging
 
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
+
 The SDK provides support to send structured log messages to clients. All standard PSR-3 log levels are supported.
 Level **warning** as the default level.
 

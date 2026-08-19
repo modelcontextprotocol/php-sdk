@@ -32,13 +32,16 @@ use Psr\Log\LoggerInterface;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class HttpTransport extends BaseTransport
+class HttpTransport extends BaseTransport implements HeaderAwareTransportInterface
 {
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
     private StreamFactoryInterface $streamFactory;
 
     private ?string $sessionId = null;
+
+    /** @var (callable(string): array<string, string>)|null */
+    private $headerCallback;
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
@@ -113,6 +116,11 @@ class HttpTransport extends BaseTransport
         $this->logger->info('HTTP client connected and initialized', ['endpoint' => $this->endpoint]);
     }
 
+    public function onHeaders(callable $callback): void
+    {
+        $this->headerCallback = $callback;
+    }
+
     public function send(string $data): void
     {
         $request = $this->requestFactory->createRequest('POST', $this->endpoint)
@@ -122,6 +130,13 @@ class HttpTransport extends BaseTransport
 
         if (null !== $this->sessionId) {
             $request = $request->withHeader('Mcp-Session-Id', $this->sessionId);
+        }
+
+        // Protocol-derived first, so an explicitly configured header still wins:
+        // the caller passing one is making a deliberate choice about this
+        // connection, and a proxy credential is the usual reason.
+        foreach ($this->protocolHeaders($data) as $name => $value) {
+            $request = $request->withHeader($name, $value);
         }
 
         foreach ($this->headers as $name => $value) {
@@ -197,6 +212,27 @@ class HttpTransport extends BaseTransport
         $this->sessionId = null;
         $this->activeStream = null;
         $this->handleClose('Transport closed');
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function protocolHeaders(string $payload): array
+    {
+        if (!\is_callable($this->headerCallback)) {
+            return [];
+        }
+
+        try {
+            return ($this->headerCallback)($payload);
+        } catch (\Throwable $e) {
+            // Headers mirror the body; failing to derive them is a bug worth
+            // reporting, but dropping the request would be a worse outcome than
+            // sending it the way an earlier revision would have.
+            $this->logger->error('Could not derive protocol headers', ['exception' => $e]);
+
+            return [];
+        }
     }
 
     private function tick(): void

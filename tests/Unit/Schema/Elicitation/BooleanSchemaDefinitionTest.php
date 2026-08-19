@@ -71,13 +71,23 @@ final class BooleanSchemaDefinitionTest extends TestCase
         $this->assertTrue($schema->default);
     }
 
-    public function testFromArrayWithMissingTitle(): void
+    public function testFromArrayWithoutTitleIsAccepted(): void
+    {
+        // `title` is optional in the specification, so a server that omits it
+        // must still be readable.
+        $schema = BooleanSchemaDefinition::fromArray([]);
+
+        $this->assertNull($schema->title);
+        $this->assertArrayNotHasKey('title', $schema->jsonSerialize());
+    }
+
+    public function testFromArrayRejectsNonStringTitle(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Missing or invalid "title"');
+        $this->expectExceptionMessage('Invalid "title" for boolean schema definition.');
 
         /* @phpstan-ignore argument.type */
-        BooleanSchemaDefinition::fromArray([]);
+        BooleanSchemaDefinition::fromArray(['title' => 42]);
     }
 
     public function testJsonSerializeWithMinimalParams(): void

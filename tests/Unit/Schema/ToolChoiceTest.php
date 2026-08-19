@@ -60,4 +60,13 @@ final class ToolChoiceTest extends TestCase
         /* @phpstan-ignore argument.type */
         ToolChoice::fromArray(['mode' => 1]);
     }
+
+    public function testExplicitNullModeIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid "mode" in ToolChoice data.');
+
+        /* @phpstan-ignore argument.type (deliberately null, as malformed wire data would be) */
+        ToolChoice::fromArray(['mode' => null]);
+    }
 }

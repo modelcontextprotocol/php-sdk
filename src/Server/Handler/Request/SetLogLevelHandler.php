@@ -27,6 +27,9 @@ use Mcp\Server\Session\SessionInterface;
  * @implements RequestHandlerInterface<EmptyResult>
  *
  * @author Adam Jamiu <jamiuadam120@gmail.com>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Log to stderr (stdio) or use OpenTelemetry instead.
  */
 final class SetLogLevelHandler implements RequestHandlerInterface
 {

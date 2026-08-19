@@ -2,7 +2,8 @@ services:
   nginx:
     image: nginx:1.26-alpine
     ports:
-      - "8000:80"
+      # Overridable so the fixture can coexist with anything already on 8000.
+      - "${CONFORMANCE_PORT:-8000}:80"
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - ../../..:/app:ro

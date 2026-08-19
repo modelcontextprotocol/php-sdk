@@ -19,12 +19,12 @@ namespace Mcp\Schema\Elicitation;
 final class BooleanSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string      $title       Human-readable title for the field
+     * @param ?string     $title       Optional human-readable title for the field
      * @param string|null $description Optional description/help text
      * @param bool|null   $default     Optional default value
      */
     public function __construct(
-        string $title,
+        ?string $title = null,
         ?string $description = null,
         public readonly ?bool $default = null,
     ) {
@@ -33,7 +33,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: bool,
      * } $data
@@ -43,7 +43,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
         self::validateTitle($data, 'boolean');
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             description: $data['description'] ?? null,
             default: isset($data['default']) ? (bool) $data['default'] : null,
         );
@@ -52,7 +52,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
     /**
      * @return array{
      *     type: string,
-     *     title: string,
+     *     title?: string,
      *     description?: string,
      *     default?: bool,
      * }

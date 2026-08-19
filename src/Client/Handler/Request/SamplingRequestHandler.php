@@ -30,6 +30,9 @@ use Psr\Log\NullLogger;
  * @implements RequestHandlerInterface<CreateSamplingMessageResult>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 class SamplingRequestHandler implements RequestHandlerInterface
 {
@@ -37,6 +40,7 @@ class SamplingRequestHandler implements RequestHandlerInterface
         private readonly SamplingCallbackInterface $callback,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP sampling is deprecated since protocol revision 2026-07-28 (SEP-2577); integrate with an LLM provider\'s API directly instead.');
     }
 
     public function supports(Request $request): bool

@@ -1,7 +1,7 @@
 parameters:
 	ignoreErrors:
 		-
-			message: '#^Method Mcp\\Schema\\Result\\ReadResourceResult\:\:jsonSerialize\(\) should return array\{contents\: array\<Mcp\\Schema\\Content\\BlobResourceContents\|Mcp\\Schema\\Content\\TextResourceContents\>\} but returns array\{contents\: array\<Mcp\\Schema\\Content\\ResourceContents\>\}\.$#'
+			message: '#^Method Mcp\\Schema\\Result\\ReadResourceResult\:\:jsonSerialize\(\) should return array\{contents\: array\<Mcp\\Schema\\Content\\BlobResourceContents\|Mcp\\Schema\\Content\\TextResourceContents\>, ttlMs\?\: int, cacheScope\?\: string\} but returns array\{contents\: array\<Mcp\\Schema\\Content\\ResourceContents\>, ttlMs\?\: int\<0, max\>, cacheScope\?\: ''private''\|''public''\}\.$#'
 			identifier: return.type
 			count: 1
 			path: src/Schema/Result/ReadResourceResult.php

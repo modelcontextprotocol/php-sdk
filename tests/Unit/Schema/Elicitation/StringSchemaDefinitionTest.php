@@ -114,13 +114,23 @@ final class StringSchemaDefinitionTest extends TestCase
         $this->assertSame(100, $schema->maxLength);
     }
 
-    public function testFromArrayWithMissingTitle(): void
+    public function testFromArrayWithoutTitleIsAccepted(): void
+    {
+        // `title` is optional in the specification, so a server that omits it
+        // must still be readable.
+        $schema = StringSchemaDefinition::fromArray([]);
+
+        $this->assertNull($schema->title);
+        $this->assertArrayNotHasKey('title', $schema->jsonSerialize());
+    }
+
+    public function testFromArrayRejectsNonStringTitle(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Missing or invalid "title"');
+        $this->expectExceptionMessage('Invalid "title" for string schema definition.');
 
         /* @phpstan-ignore argument.type */
-        StringSchemaDefinition::fromArray([]);
+        StringSchemaDefinition::fromArray(['title' => 42]);
     }
 
     public function testJsonSerializeWithMinimalParams(): void

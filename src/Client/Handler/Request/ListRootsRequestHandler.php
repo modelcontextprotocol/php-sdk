@@ -30,6 +30,10 @@ use Psr\Log\NullLogger;
  * @implements RequestHandlerInterface<ListRootsResult>
  *
  * @author Johannes Wachter <johannes@sulu.io>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Pass directories or files through tool arguments, resource
+ * URIs or server configuration instead.
  */
 class ListRootsRequestHandler implements RequestHandlerInterface
 {
@@ -37,6 +41,7 @@ class ListRootsRequestHandler implements RequestHandlerInterface
         private readonly RootsCallbackInterface $callback,
         private readonly LoggerInterface $logger = new NullLogger(),
     ) {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP roots are deprecated since protocol revision 2026-07-28 (SEP-2577); pass directories through tool arguments or resource URIs instead.');
     }
 
     public function supports(Request $request): bool

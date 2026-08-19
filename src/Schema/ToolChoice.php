@@ -16,6 +16,9 @@ use Mcp\Schema\Enum\ToolChoiceMode;
 
 /**
  * Controls how the model uses tools during sampling.
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 final class ToolChoice implements \JsonSerializable
 {
@@ -29,11 +32,11 @@ final class ToolChoice implements \JsonSerializable
      */
     public static function fromArray(array $data): self
     {
-        if (isset($data['mode']) && !\is_string($data['mode'])) {
+        if (\array_key_exists('mode', $data) && !\is_string($data['mode'])) {
             throw new InvalidArgumentException('Invalid "mode" in ToolChoice data.');
         }
 
-        $mode = isset($data['mode']) ? ToolChoiceMode::tryFrom($data['mode']) : ToolChoiceMode::Auto;
+        $mode = \array_key_exists('mode', $data) ? ToolChoiceMode::tryFrom($data['mode']) : ToolChoiceMode::Auto;
         if (null === $mode) {
             throw new InvalidArgumentException(\sprintf('Invalid tool choice mode "%s".', $data['mode']));
         }

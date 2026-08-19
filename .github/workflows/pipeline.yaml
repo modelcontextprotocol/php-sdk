@@ -5,6 +5,10 @@ permissions:
   contents: read
   pull-requests: write
 
+env:
+  # Pinned exact version; conformance-weekly.yaml tracks upstream releases.
+  CONFORMANCE_PKG: "@modelcontextprotocol/conformance@0.2.0-alpha.11"
+
 jobs:
   unit:
     runs-on: ubuntu-latest
@@ -95,8 +99,19 @@ jobs:
         run: vendor/bin/phpunit --testsuite=inspector
 
   conformance-server:
-    name: conformance / server
+    name: conformance / server (${{ matrix.spec-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            path: '/'
+            baseline: conformance-baseline-2025-11-25.yml
+          - spec-version: '2026-07-28'
+            path: '/'
+            baseline: conformance-baseline-2026-07-28.yml
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -118,7 +133,12 @@ jobs:
 
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: npx @modelcontextprotocol/conformance server --url http://localhost:8000/ --expected-failures conformance-baseline.yml
+        run: >-
+          npx --yes ${{ env.CONFORMANCE_PKG }} server
+          --url http://localhost:8000${{ matrix.path }}
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
 
       - name: Show logs on failure
         if: failure()
@@ -146,8 +166,17 @@ jobs:
         run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml down
 
   conformance-client:
-    name: conformance / client
+    name: conformance / client (${{ matrix.spec-version }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            baseline: conformance-baseline-2025-11-25.yml
+          - spec-version: '2026-07-28'
+            baseline: conformance-baseline-2026-07-28.yml
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -171,7 +200,12 @@ jobs:
 
       - name: Run client conformance tests
         working-directory: ./tests/Conformance
-        run: npx @modelcontextprotocol/conformance client --command "php ${{ github.workspace }}/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml
+        run: >-
+          npx --yes ${{ env.CONFORMANCE_PKG }} client
+          --command "php ${{ github.workspace }}/tests/Conformance/client.php"
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
 
       - name: Show logs on failure
         if: failure()

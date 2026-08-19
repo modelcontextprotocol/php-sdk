@@ -146,7 +146,6 @@ When the `middleware` argument is omitted (or set to `null`), the transport inst
 |-------|------------|---------|
 | 1     | `CorsMiddleware`                    | Applies CORS headers to every response. By default does **not** set `Access-Control-Allow-Origin` (cross-origin requests are blocked). |
 | 2     | `DnsRebindingProtectionMiddleware`  | Validates `Origin`/`Host` against an allowlist. Defaults to localhost variants only. |
-| 3     | `ProtocolVersionMiddleware`         | Rejects requests carrying an unsupported `MCP-Protocol-Version` header with `400 Bad Request`. |
 
 ```php
 // Zero-config, secure-by-default — local servers get full protection automatically.
@@ -158,6 +157,13 @@ The default stack can be inspected and recomposed via the public factory:
 ```php
 $middleware = StreamableHttpTransport::defaultMiddleware();
 ```
+
+These run at the edge, before the request's protocol era is known, because what they enforce is true of
+both eras. `ProtocolVersionMiddleware` is not in that stack: the `MCP-Protocol-Version` header rule belongs
+to the handshake era, so the transport applies it only to requests it classified as handshake-era traffic,
+and the modern leg answers for its own revisions. It is available as
+`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the edge stack.
+See [Serving both eras](stateless-lifecycle.md#serving-both-eras).
 
 ### CORS Configuration
 

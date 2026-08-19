@@ -36,11 +36,6 @@ use Mcp\Exception\InvalidArgumentException;
 class ResourceDefinition implements \JsonSerializable
 {
     /**
-     * Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.
-     */
-    private const RESOURCE_NAME_PATTERN = '/^[a-zA-Z0-9_-]+$/';
-
-    /**
      * URI pattern regex - requires a valid scheme followed by colon and optional path (RFC 3986).
      * Example patterns: file://path, db://table, urn:isbn:123, config:key, etc.
      */
@@ -68,9 +63,6 @@ class ResourceDefinition implements \JsonSerializable
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
     ) {
-        if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
-            throw new InvalidArgumentException(\sprintf('Invalid resource name "%s": must contain only alphanumeric characters, underscores, and hyphens.', $name));
-        }
         if (!preg_match(self::URI_PATTERN, $uri)) {
             throw new InvalidArgumentException(\sprintf('Invalid resource URI: "%s" must be a valid URI with a scheme and optional path.', $uri));
         }

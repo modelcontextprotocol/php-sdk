@@ -114,6 +114,30 @@ class ResourceTemplateTest extends TestCase
         $this->assertArrayNotHasKey('title', $data);
     }
 
+    /**
+     * The specification puts no pattern on `name`; its own examples use
+     * names such as "main.rs" and "Project Files".
+     */
+    #[DataProvider('provideSpecExampleNames')]
+    public function testConstructorAcceptsAnyName(string $name): void
+    {
+        $resource = new ResourceTemplate(
+            uriTemplate: self::VALID_URI,
+            name: $name,
+        );
+
+        $this->assertSame($name, $resource->name);
+    }
+
+    public static function provideSpecExampleNames(): iterable
+    {
+        yield 'file name with dot' => ['main.rs'];
+        yield 'display name with space' => ['Project Files'];
+        yield 'uppercase file name' => ['README.md'];
+        yield 'namespaced' => ['acme/reports:quarterly'];
+        yield 'unicode' => ['Ünïcödé 名前'];
+    }
+
     #[DataProvider('provideInvalidResources')]
     public function testFromArrayInvalid(array $input, string $expectedExceptionMessage): void
     {

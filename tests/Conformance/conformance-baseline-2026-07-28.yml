@@ -1,13 +1,12 @@
-server: []
-
 client:
-  - elicitation-sep1034-client-defaults
-  - sse-retry
+  - http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate
   - auth/metadata-default
   - auth/metadata-var1
   - auth/metadata-var2
   - auth/metadata-var3
+  - auth/metadata-issuer-mismatch
   - auth/basic-cimd
+  - auth/pre-registration
   - auth/scope-from-www-authenticate
   - auth/scope-from-scopes-supported
   - auth/scope-omitted-when-undefined
@@ -16,12 +15,12 @@ client:
   - auth/token-endpoint-auth-basic
   - auth/token-endpoint-auth-post
   - auth/token-endpoint-auth-none
-  - auth/pre-registration
-  - auth/2025-03-26-oauth-metadata-backcompat
-  - auth/2025-03-26-oauth-endpoint-fallback
   - auth/offline-access-scope
   - auth/offline-access-not-supported
-  - auth/client-credentials-jwt
-  - auth/client-credentials-basic
-  - auth/cross-app-access-complete-flow
-
+  - auth/authorization-server-migration:sep-2352-reregister-on-as-change
+  - auth/iss-supported
+  - auth/iss-not-advertised
+  - auth/iss-supported-missing
+  - auth/iss-wrong-issuer
+  - auth/iss-unexpected
+  - auth/iss-normalized

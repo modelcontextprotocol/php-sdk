@@ -23,6 +23,7 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Enum\SamplingContext;
+use Mcp\Schema\Extension\ExtensionIdentifier;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
@@ -56,9 +57,9 @@ use Mcp\Server\Session\SessionInterface;
  *     $client->notify(new ProgressNotification("Starting analysis..."));
  *
  *     // Request LLM sampling from client
- *     $response = $client->request(new SamplingRequest($text));
+ *     $result = $client->sample($text);
  *
- *     return $response->content->text;
+ *     return $result->content->text;
  * }
  * ```
  *
@@ -99,9 +100,14 @@ class ClientGateway
 
     /**
      * Convenience method to send a logging notification to the client.
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Log to stderr (stdio) or use OpenTelemetry instead.
      */
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP logging is deprecated since protocol revision 2026-07-28 (SEP-2577); log to stderr or use OpenTelemetry instead.');
+
         $this->notify(new LoggingMessageNotification($level, $data, $logger));
     }
 
@@ -135,9 +141,14 @@ class ClientGateway
      * @return CreateSamplingMessageResult The sampling response
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Integrate with an LLM provider's API directly instead.
      */
     public function sample(array|Content|string $message, int $maxTokens = 1000, int $timeout = 120, array $options = []): CreateSamplingMessageResult
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP sampling is deprecated since protocol revision 2026-07-28 (SEP-2577); integrate with an LLM provider\'s API directly instead.');
+
         $preferences = $options['preferences'] ?? null;
         if (null !== $preferences && !$preferences instanceof ModelPreferences) {
             throw new InvalidArgumentException('The "preferences" option must be an array or an instance of ModelPreferences.');
@@ -176,7 +187,7 @@ class ClientGateway
     }
 
     /**
-     * Convenience method for elicitation requests.
+     * Convenience method for form-mode elicitation requests.
      *
      * Requests additional information from the user via the client. The user can
      * accept (providing the requested data), decline, or cancel the request.
@@ -191,15 +202,28 @@ class ClientGateway
      */
     public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120): ElicitResult
     {
-        $request = new ElicitRequest($message, $requestedSchema);
+        return $this->sendElicitation(ElicitRequest::forForm($message, $requestedSchema), $timeout);
+    }
 
-        $response = $this->request($request, $timeout);
-
-        if ($response instanceof Error) {
-            throw new ClientException($response);
+    /**
+     * Convenience method for url-mode elicitation requests.
+     *
+     * Sends the user to $url to complete the interaction out of band — an OAuth
+     * consent screen, a checkout, a form hosted elsewhere. The result carries only
+     * the user's action; unlike form mode there is no content to read back, so
+     * whatever the user did there has to be picked up through the URL's own channel.
+     *
+     * @throws ClientException          if the client request results in an error message
+     * @throws InvalidArgumentException if the client did not declare url-mode elicitation
+     */
+    public function elicitUrl(string $message, string $url, int $timeout = 120): ElicitResult
+    {
+        // URL mode only exists from 2025-11-25 on, and only for clients declaring it
+        if (!$this->supportsElicitationUrl()) {
+            throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
         }
 
-        return ElicitResult::fromArray($response->result);
+        return $this->sendElicitation(ElicitRequest::forUrl($message, $url), $timeout);
     }
 
     /**
@@ -214,9 +238,15 @@ class ClientGateway
      * @return ListRootsResult The roots exposed by the client
      *
      * @throws ClientException if the client request results in an error message
+     *
+     * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+     *             Pass directories or files through tool arguments, resource URIs or server
+     *             configuration instead.
      */
     public function listRoots(int $timeout = 120): ListRootsResult
     {
+        trigger_deprecation('mcp/sdk', '0.8', 'MCP roots are deprecated since protocol revision 2026-07-28 (SEP-2577); pass directories through tool arguments or resource URIs instead.');
+
         $request = new ListRootsRequest();
 
         $response = $this->request($request, $timeout);
@@ -291,7 +321,7 @@ class ClientGateway
      */
     public function supportsSamplingTools(): bool
     {
-        return $this->hasSamplingSubCapability('tools');
+        return $this->hasSubCapability('sampling', 'tools');
     }
 
     /**
@@ -304,20 +334,67 @@ class ClientGateway
      */
     public function supportsSamplingContext(): bool
     {
-        return $this->hasSamplingSubCapability('context');
+        return $this->hasSubCapability('sampling', 'context');
     }
 
-    private function hasSamplingSubCapability(string $name): bool
+    /**
+     * Check if the connected client supports url-mode elicitation.
+     *
+     * An `elicitation` capability naming no mode declares form mode — the only shape
+     * that existed before URL elicitation — so url mode has to be named explicitly.
+     *
+     * @return bool True if the client supports url-mode elicitation, false otherwise
+     */
+    public function supportsElicitationUrl(): bool
+    {
+        return $this->hasSubCapability('elicitation', 'url');
+    }
+
+    /**
+     * Check if the connected client negotiated the given protocol extension.
+     *
+     * Extensions are advertised under `capabilities.extensions` keyed by their
+     * reverse-DNS id, e.g. `McpApps::EXTENSION_ID` — a server offering MCP Apps
+     * should check this before pointing a tool at a `ui://` resource, and fall back
+     * to a text-only result otherwise.
+     *
+     * @return bool True if the client advertised the extension, false otherwise
+     */
+    public function supportsExtension(ExtensionIdentifier|string $id): bool
+    {
+        return $this->hasSubCapability('extensions', (string) $id);
+    }
+
+    /**
+     * Sub-capabilities are declared by the presence of a (possibly empty) object, so
+     * only the key matters — not whatever it holds. The value arrives as an object on
+     * a live session and as an array once the session has round-tripped through JSON,
+     * hence both shapes.
+     */
+    private function hasSubCapability(string $capability, string $name): bool
     {
         $capabilities = (array) $this->session->get('client_capabilities', []);
-        $sampling = $capabilities['sampling'] ?? null;
+        $declared = $capabilities[$capability] ?? null;
 
-        if (!\is_array($sampling) && !\is_object($sampling)) {
-            return false;
+        if (\is_array($declared)) {
+            return \array_key_exists($name, $declared);
         }
 
-        // MCP spec: capability presence indicates support (value is typically {} or [])
-        return \array_key_exists($name, (array) $sampling);
+        return \is_object($declared) && property_exists($declared, $name);
+    }
+
+    /**
+     * @throws ClientException if the client request results in an error message
+     */
+    private function sendElicitation(ElicitRequest $request, int $timeout): ElicitResult
+    {
+        $response = $this->request($request, $timeout);
+
+        if ($response instanceof Error) {
+            throw new ClientException($response);
+        }
+
+        return ElicitResult::fromArray($response->result, $request->mode);
     }
 
     /**
@@ -326,14 +403,20 @@ class ClientGateway
      * This suspends the Fiber and waits for the client to respond. The transport
      * handles polling the session for the response and resuming the Fiber when ready.
      *
+     * Public for {@see InputRequiredShim}, which sends the requests a handler
+     * embedded in an {@see \Mcp\Schema\Result\InputRequiredResult} and knows
+     * nothing about their kinds. Prefer the typed methods above.
+     *
      * @param Request $request The request to send
      * @param int     $timeout Maximum time to wait for response (seconds)
      *
      * @return Response<array<string, mixed>>|Error The client's response message
      *
      * @throws RuntimeException If Fiber support is not available
+     *
+     * @internal
      */
-    private function request(Request $request, int $timeout = 120): Response|Error
+    public function request(Request $request, int $timeout = 120): Response|Error
     {
         $response = \Fiber::suspend([
             'type' => 'request',

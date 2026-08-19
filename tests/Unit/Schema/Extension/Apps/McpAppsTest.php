@@ -17,15 +17,17 @@ use Mcp\Schema\Extension\Apps\UiResourceContentMeta;
 use Mcp\Schema\Extension\Apps\UiResourceCsp;
 use Mcp\Schema\Extension\Apps\UiResourcePermissions;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
+use Mcp\Schema\Extension\ExtensionInterface;
 use PHPUnit\Framework\TestCase;
 
 class McpAppsTest extends TestCase
 {
-    public function testServerExtensionInterface(): void
+    public function testExtensionInterface(): void
     {
         $extension = new McpApps();
 
-        $this->assertSame('io.modelcontextprotocol/ui', $extension->getId());
+        $this->assertInstanceOf(ExtensionInterface::class, $extension);
+        $this->assertSame('io.modelcontextprotocol/ui', (string) $extension->getId());
         $this->assertSame(['mimeTypes' => ['text/html;profile=mcp-app']], $extension->getCapabilities());
     }
 

@@ -27,6 +27,8 @@ use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
+use Mcp\Server\Stateless\InputContext;
+use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -78,6 +80,8 @@ class Protocol
         private readonly SessionManagerInterface $sessionManager,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?InputRequiredShim $inputRequiredShim = null,
+        private readonly ?RequestStateCodec $requestStateCodec = null,
     ) {
     }
 
@@ -228,7 +232,7 @@ class Protocol
     {
         $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
-        $error = Error::forInvalidRequest($exception->getMessage());
+        $error = Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
         $this->sendResponse($transport, $error, $session);
     }
 
@@ -257,6 +261,15 @@ class Protocol
 
         $session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
 
+        // A request starts with nothing behind it: the shim fills this in as it
+        // collects answers, and clearing it here is what keeps one request's
+        // round from being read as another's.
+        $session->set(InputContext::class, null);
+
+        if (null !== $this->requestStateCodec) {
+            $session->set(RequestStateCodec::class, $this->requestStateCodec);
+        }
+
         $event = $this->dispatchEvent(new RequestEvent($request, $session));
         $request = $event->getRequest();
 
@@ -270,8 +283,17 @@ class Protocol
             $handlerFound = true;
 
             try {
+                $shim = $this->inputRequiredShim;
+                $codec = $this->requestStateCodec;
+
+                // One fiber for the whole exchange: with the shim, the handler
+                // re-enters inside it each round rather than needing a new one.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static fn () => $handler->handle($request, $session));
+                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
+                    $result = $handler->handle($request, $session);
+
+                    return $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                });
 
                 $result = $fiber->start();
 
@@ -340,6 +362,12 @@ class Protocol
         $this->logger->info('Handling response from client.', ['response' => $response]);
 
         $messageId = $response->getId();
+
+        if (null === $messageId) {
+            $this->logger->warning('Received an id-less error response from client; cannot correlate it to a pending request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
 
         $session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
         $session->forget(self::SESSION_ACTIVE_REQUEST_META);
