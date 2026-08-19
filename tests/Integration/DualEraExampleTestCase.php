@@ -40,7 +40,7 @@ abstract class DualEraExampleTestCase extends TestCase
     /** Answers whatever the server elicits, so a tool that asks can complete. */
     protected const ANSWERS = [];
 
-    private Process $server;
+    private ?Process $server = null;
     private int $port;
 
     /** Absolute path to the example's server script. */
@@ -51,6 +51,15 @@ abstract class DualEraExampleTestCase extends TestCase
 
     protected function setUp(): void
     {
+        // PHP_CLI_SERVER_WORKERS does not reliably fork more than one worker on
+        // PHP 8.1 (see php/php-src#9400), which reproduces the very deadlock the
+        // extra workers exist to avoid: every request below hangs to the test
+        // timeout instead of running. Skip until either PHP 8.1 is dropped or
+        // this suite stops depending on `php -S` for multi-worker concurrency.
+        if (\PHP_VERSION_ID < 80200) {
+            $this->markTestSkipped('php -S does not reliably fork multiple workers on PHP 8.1 (PHP_CLI_SERVER_WORKERS); see php/php-src#9400.');
+        }
+
         $this->port = static::portBase() + (getmypid() % 200);
 
         // More than one worker because the handshake era needs it: a tool that
@@ -77,7 +86,7 @@ abstract class DualEraExampleTestCase extends TestCase
 
     protected function tearDown(): void
     {
-        $this->server->stop();
+        $this->server?->stop();
     }
 
     /**
