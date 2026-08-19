@@ -33,9 +33,9 @@ instead.
   call, and sending notifications.
 * **[Logging](logging.md)** — structured PSR-3 log messages that surface in the client,
   not in your server's log file.
-* **[Asking for input](input-required.md)** — returning an `InputRequiredResult` when a
-  handler needs elicitation, sampling or roots. Written that way, one handler serves both
-  [protocol eras](../protocol-versions.md).
+* **[Asking for input](input-required.md)** — `ClientGateway::elicit()`, or returning an
+  `InputRequiredResult` when a handler needs several answers at once. Either way, one
+  handler serves both [protocol eras](../protocol-versions.md).
 
 Handlers that need application services (a database connection, an API client) get them
 from the container instead; see

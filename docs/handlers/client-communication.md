@@ -3,13 +3,10 @@
 MCP supports various ways a server can communicate back to a client on top of the main
 request-response flow.
 
-> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server
-> sends its own JSON-RPC requests to the client. The modern lifecycle removed that: sampling,
-> elicitation and roots are carried back inside the *result* instead, and
-> `ClientGateway::sample()`, `elicit()` and `listRoots()` raise a `LogicException` there.
-> Logging and progress still work as described below — they simply travel on the request's own
-> response stream, and the client opts into each. See
-> [Asking for input](input-required.md).
+> **Protocol revision `2026-07-28`.** Logging, progress and notifications work as described
+> below on every revision; under the modern lifecycle they travel on the request's own
+> response stream and the client opts into each. Sampling is the exception — see its section.
+> Asking the user something has a page of its own: [Asking for input](input-required.md).
 
 ## ClientGateway
 
@@ -64,7 +61,7 @@ strings.
 
 ## Sampling
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. It keeps working on a handshake-era connection until then, but that revision removed server-initiated requests outright, so `sample()` — like `listRoots()` — raises a `LogicException` when a modern-era client made the call. New integrations should call an LLM provider's API directly instead.
 
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:

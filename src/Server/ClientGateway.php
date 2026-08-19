@@ -192,17 +192,29 @@ class ClientGateway
      * Requests additional information from the user via the client. The user can
      * accept (providing the requested data), decline, or cancel the request.
      *
+     * Serves every revision, by two different mechanics. Where the client can be
+     * asked while the request is open, it is: an `elicitation/create` goes out and
+     * this call returns its answer. From 2026-07-28 on there are no
+     * server-initiated requests, so the ask ends the request instead and the call
+     * returns once the client re-sends it with the answer — see
+     * {@see Stateless\ElicitationReplay} for what that costs, namely
+     * that the handler is entered once per ask.
+     *
      * @param string            $message         A human-readable message describing what information is needed
      * @param ElicitationSchema $requestedSchema The schema defining the fields to elicit from the user
-     * @param int               $timeout         The timeout in seconds
+     * @param int               $timeout         The timeout in seconds; unused where the answer arrives on a later request
+     * @param string|null       $key             Names this ask, so it keeps resolving to the same answer across the rounds
+     *                                           a revision without server-initiated requests needs. Defaults to the ask's
+     *                                           position in the handler, which only a handler asking in a different order
+     *                                           every time needs to override.
      *
      * @return ElicitResult The elicitation response containing the user's action and any provided content
      *
      * @throws ClientException if the client request results in an error message
      */
-    public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120): ElicitResult
+    public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120, ?string $key = null): ElicitResult
     {
-        return $this->sendElicitation(ElicitRequest::forForm($message, $requestedSchema), $timeout);
+        return $this->sendElicitation(ElicitRequest::forForm($message, $requestedSchema), $timeout, $key);
     }
 
     /**
@@ -213,17 +225,21 @@ class ClientGateway
      * the user's action; unlike form mode there is no content to read back, so
      * whatever the user did there has to be picked up through the URL's own channel.
      *
+     * Portable across revisions on the same terms as {@see self::elicit()}.
+     *
+     * @param string|null $key names this ask across the rounds of a multi round-trip call
+     *
      * @throws ClientException          if the client request results in an error message
      * @throws InvalidArgumentException if the client did not declare url-mode elicitation
      */
-    public function elicitUrl(string $message, string $url, int $timeout = 120): ElicitResult
+    public function elicitUrl(string $message, string $url, int $timeout = 120, ?string $key = null): ElicitResult
     {
         // URL mode only exists from 2025-11-25 on, and only for clients declaring it
         if (!$this->supportsElicitationUrl()) {
             throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
         }
 
-        return $this->sendElicitation(ElicitRequest::forUrl($message, $url), $timeout);
+        return $this->sendElicitation(ElicitRequest::forUrl($message, $url), $timeout, $key);
     }
 
     /**
@@ -386,9 +402,9 @@ class ClientGateway
     /**
      * @throws ClientException if the client request results in an error message
      */
-    private function sendElicitation(ElicitRequest $request, int $timeout): ElicitResult
+    private function sendElicitation(ElicitRequest $request, int $timeout, ?string $key = null): ElicitResult
     {
-        $response = $this->request($request, $timeout);
+        $response = $this->suspend($request, $timeout, $key);
 
         if ($response instanceof Error) {
             throw new ClientException($response);
@@ -418,11 +434,27 @@ class ClientGateway
      */
     public function request(Request $request, int $timeout = 120): Response|Error
     {
+        return $this->suspend($request, $timeout);
+    }
+
+    /**
+     * Hands the request to whatever is driving this fiber and waits for its answer.
+     *
+     * @param string|null $key the name an elicitation's answer is filed under when
+     *                         the revision serving this call answers by asking
+     *                         ({@see Stateless\ElicitationReplay});
+     *                         ignored by every leg that has a live client to ask
+     *
+     * @return Response<array<string, mixed>>|Error the peer's answer
+     */
+    private function suspend(Request $request, int $timeout, ?string $key = null): Response|Error
+    {
         $response = \Fiber::suspend([
             'type' => 'request',
             'request' => $request,
             'session_id' => $this->session->getId()->toRfc4122(),
             'timeout' => $timeout,
+            'input_key' => $key,
         ]);
 
         if (!$response instanceof Response && !$response instanceof Error) {
