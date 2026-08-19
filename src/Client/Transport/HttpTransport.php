@@ -13,6 +13,7 @@ namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Client\MonotonicClock;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -20,6 +21,7 @@ use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Wire\McpHeader;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -33,6 +35,7 @@ use Psr\Log\LoggerInterface;
  *
  * @phpstan-import-type McpFiber from TransportInterface
  * @phpstan-import-type FiberSuspend from TransportInterface
+ * @phpstan-import-type SseEvent from SseParser
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -56,21 +59,39 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var StreamInterface|null Active SSE stream being read */
     private ?StreamInterface $activeStream = null;
 
-    /** @var string Buffer for incomplete SSE data */
-    private string $sseBuffer = '';
+    /** The request whose POST response opened the current SSE stream. */
+    private int|string|null $sseRequestId = null;
+
+    /** Whether the current SSE stream delivered that request's final response. */
+    private bool $sseRequestCompleted = false;
+
+    /** Last event ID received on the current logical SSE stream. */
+    private ?string $lastEventId = null;
+
+    /** Reconnection delay requested by the server, in milliseconds. */
+    private ?int $serverRetryMs = null;
+
+    /** Number of GET resumption attempts made for the current logical stream. */
+    private int $reconnectAttempts = 0;
+
+    /** Clock timestamp, in milliseconds, when the next resumption may start. */
+    private ?float $nextReconnectAtMs = null;
 
     /** @var StreamInterface|null The standalone GET stream the server may send on unprompted */
     private ?StreamInterface $listenStream = null;
-
-    /** @var string Buffer for incomplete SSE data on the listening stream */
-    private string $listenBuffer = '';
 
     /**
      * Default cap on the bytes buffered while waiting for a complete SSE event.
      */
     public const DEFAULT_MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
 
-    private readonly int $maxSseBufferBytes;
+    private readonly SseParser $sseParser;
+
+    private readonly SseParser $listenParser;
+
+    private readonly ReconnectPolicy $reconnectPolicy;
+
+    private readonly ClockInterface $clock;
 
     /**
      * @param string                       $endpoint          The MCP server endpoint URL
@@ -87,6 +108,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * @param bool                         $listen            Open the standalone GET stream after the handshake (2025
      *                                                        revisions only). Needs a PSR-18 client that streams
      *                                                        response bodies; see docs/client/transports.md.
+     * @param ReconnectPolicy|null         $reconnectPolicy   How an SSE stream that closed before its response
+     *                                                        arrived is resumed (default: 5 attempts, 1-10 s backoff)
+     * @param ClockInterface|null          $clock             Clock for scheduling reconnects (default: a monotonic clock)
      */
     public function __construct(
         private readonly string $endpoint,
@@ -97,14 +121,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         ?LoggerInterface $logger = null,
         int $maxSseBufferBytes = self::DEFAULT_MAX_SSE_BUFFER_BYTES,
         private readonly bool $listen = false,
+        ?ReconnectPolicy $reconnectPolicy = null,
+        ?ClockInterface $clock = null,
     ) {
         parent::__construct($logger);
 
-        if ($maxSseBufferBytes < 1) {
-            throw new InvalidArgumentException(\sprintf('The maximum SSE buffer size must be a positive number of bytes, got %d.', $maxSseBufferBytes));
-        }
-
-        $this->maxSseBufferBytes = $maxSseBufferBytes;
+        $this->sseParser = new SseParser($maxSseBufferBytes);
+        $this->listenParser = new SseParser($maxSseBufferBytes);
+        $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
+        $this->clock = $clock ?? new MonotonicClock();
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
@@ -112,6 +137,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     public function connect(): void
     {
+        $this->resetSseState();
         $fiber = new \Fiber(fn () => $this->handleInitialize());
         $this->activeFiber = $fiber;
 
@@ -123,6 +149,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $result = $fiber->getReturn();
         $this->activeFiber = null;
+        $this->resetSseState();
 
         if ($result instanceof Error) {
             throw new ConnectionException('Initialization failed: '.$result->message);
@@ -191,10 +218,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         // not a timeout that leaves the expired session reusable.
         if (404 === $response->getStatusCode() && $request->hasHeader('Mcp-Session-Id')) {
             $response->getBody()->close();
-            $this->sessionId = null;
-            // Cancellation notifications are best-effort: their exception can
-            // be logged and swallowed, but the connection must stay invalid.
-            $this->state?->setInitialized(false);
+            $this->expireSession();
 
             throw new ConnectionException('The HTTP session has expired.', 404);
         }
@@ -221,12 +245,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if (str_contains($contentType, 'text/event-stream')) {
-            // While listening, a request on the GET stream can be what this
-            // response waits for, so neither stream may block the other.
-            $this->activeStream = null !== $this->listenStream
-                ? $this->nonBlocking($response->getBody())
-                : $response->getBody();
-            $this->sseBuffer = '';
+            $this->startSseStream($this->responseStream($response->getBody()), self::requestIdOf($data));
         } elseif (str_contains($contentType, 'application/json')) {
             $body = $response->getBody()->getContents();
             if (!empty($body)) {
@@ -306,8 +325,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             $this->activeFiber = null;
             $this->activeSuspend = null;
             $this->activeStream?->close();
-            $this->activeStream = null;
-            $this->sseBuffer = '';
+            $this->resetSseState();
         }
     }
 
@@ -329,9 +347,20 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $this->sessionId = null;
-        $this->activeStream = null;
+        $this->resetSseState();
         $this->closeListenStream();
         $this->handleClose('Transport closed');
+    }
+
+    /**
+     * Forget a session the server no longer knows, so the next connect starts a new one.
+     */
+    private function expireSession(): void
+    {
+        $this->sessionId = null;
+        // Cancellation notifications are best-effort: their exception can
+        // be logged and swallowed, but the connection must stay invalid.
+        $this->state?->setInitialized(false);
     }
 
     /**
@@ -439,7 +468,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $this->listenStream = $stream;
-        $this->listenBuffer = '';
+        $this->listenParser->reset();
         $this->logger->info('Listening for server messages', ['session_id' => $this->sessionId]);
     }
 
@@ -447,7 +476,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     {
         $this->listenStream?->close();
         $this->listenStream = null;
-        $this->listenBuffer = '';
+        $this->listenParser->reset();
     }
 
     /**
@@ -485,6 +514,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->processListenStream();
         $this->checkInterruption();
         $this->processFiber();
+        $this->processSseReconnect();
 
         usleep(1000); // 1ms
     }
@@ -514,15 +544,43 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private function processSSEStream(): void
     {
-        if (null === $this->activeStream) {
+        $stream = $this->activeStream;
+        if (null === $stream) {
             return;
         }
 
-        $done = $this->pumpSse($this->activeStream, $this->sseBuffer, $this->abortSseStream(...));
-
-        if ($done) {
-            $this->sseBuffer = '';
+        try {
+            $ended = $this->pumpSse($stream, $this->sseParser, $this->processSSEEvent(...), $this->abortSseStream(...));
+        } catch (\RuntimeException $e) {
             $this->activeStream = null;
+            $this->sseParser->reset();
+            $this->handleError($e);
+            $this->scheduleSseReconnect();
+
+            return;
+        }
+
+        // A message listener may have closed the transport, or sent a message
+        // whose response replaced this stream; an overflow aborted it.
+        if (!$ended || $stream !== $this->activeStream) {
+            return;
+        }
+
+        // The stream ended without a trailing blank line. What is left may
+        // be a truncated event: dispatching it would adopt its ID, and the
+        // resumed stream would then replay only what follows it. Dispatch
+        // it only when it completes the request or nothing will be resumed.
+        $rest = $this->sseParser->rest();
+        if (null !== $rest && (!$this->isSseStreamExpected() || $this->isResponseForCurrentSseRequest($rest['data']))) {
+            $this->processSSEEvent($rest);
+        }
+
+        $this->activeStream = null;
+
+        if ($this->sseRequestCompleted) {
+            $this->nextReconnectAtMs = null;
+        } else {
+            $this->scheduleSseReconnect();
         }
     }
 
@@ -538,11 +596,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        $done = $this->pumpSse($this->listenStream, $this->listenBuffer, function (string $reason): void {
+        $done = $this->pumpSse($this->listenStream, $this->listenParser, $this->dispatchSseData(...), function (string $reason): void {
             $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
         });
 
         if ($done) {
+            if (null !== $rest = $this->listenParser->rest()) {
+                $this->dispatchSseData($rest);
+            }
+
             $this->closeListenStream();
             $this->logger->info('Listening stream ended', ['session_id' => $this->sessionId]);
         }
@@ -551,41 +613,200 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Read a chunk of an SSE stream and dispatch every event it completes.
      *
+     * @param callable(SseEvent): void       $onEvent
      * @param callable(string $reason): void $onOverflow called when the buffer would exceed its cap
      *
      * @return bool whether the stream is done: ended, or given up for its size
      */
-    private function pumpSse(StreamInterface $stream, string &$buffer, callable $onOverflow): bool
+    private function pumpSse(StreamInterface $stream, SseParser $parser, callable $onEvent, callable $onOverflow): bool
     {
-        if (!$stream->eof()) {
-            $chunk = $stream->read(4096);
-            if ('' !== $chunk) {
-                if (\strlen($buffer) + \strlen($chunk) > $this->maxSseBufferBytes) {
-                    $onOverflow(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', \strlen($buffer) + \strlen($chunk), $this->maxSseBufferBytes));
+        $chunk = $stream->eof() ? '' : $stream->read(4096);
 
-                    return true;
-                }
-
-                $buffer .= $chunk;
-            }
-        }
-
-        while (null !== ($event = $this->extractSSEEvent($buffer))) {
-            if (!empty(trim($event))) {
-                $this->processSSEEvent($event);
-            }
-        }
-
-        if ($stream->eof()) {
-            // The stream ended without a trailing blank line: dispatch what is left.
-            if (!empty(trim($buffer))) {
-                $this->processSSEEvent($buffer);
-            }
+        if (!$parser->append($chunk)) {
+            $onOverflow(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', $parser->bufferedBytes() + \strlen($chunk), $parser->maxBufferBytes));
+            $parser->reset();
 
             return true;
         }
 
+        while (null !== ($event = $parser->next())) {
+            $onEvent($event);
+        }
+
+        return $stream->eof();
+    }
+
+    /**
+     * Resume an interrupted response stream once its delay has elapsed.
+     *
+     * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#resumability-and-redelivery
+     */
+    private function processSseReconnect(): void
+    {
+        if (null === $this->nextReconnectAtMs) {
+            return;
+        }
+
+        if (!$this->isSseStreamExpected()) {
+            $this->nextReconnectAtMs = null;
+
+            return;
+        }
+
+        if ($this->nowMs() < $this->nextReconnectAtMs) {
+            return;
+        }
+
+        $this->nextReconnectAtMs = null;
+        ++$this->reconnectAttempts;
+
+        $request = $this->requestFactory->createRequest('GET', $this->endpoint)
+            ->withHeader('Accept', 'text/event-stream')
+            ->withHeader('Last-Event-ID', (string) $this->lastEventId);
+
+        foreach ([...$this->sessionHeaders(), ...$this->headers] as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        $this->logger->info('Reconnecting SSE stream', [
+            'attempt' => $this->reconnectAttempts,
+            'max_attempts' => $this->reconnectPolicy->maxAttempts,
+            'last_event_id' => $this->lastEventId,
+            'session_id' => $this->sessionId,
+        ]);
+
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (\Throwable $e) {
+            $this->handleError($e);
+            $this->scheduleSseReconnect();
+
+            return;
+        }
+
+        $status = $response->getStatusCode();
+
+        if (404 === $status && $request->hasHeader('Mcp-Session-Id')) {
+            $response->getBody()->close();
+            $this->expireSession();
+            $this->failSseStream('SSE stream ended before the request completed and the HTTP session has expired');
+
+            return;
+        }
+
+        // A client error will not resolve itself: 405 means the server offers no
+        // GET stream. Only a timeout or a rate limit is worth waiting out.
+        if ($status >= 400 && $status < 500 && 408 !== $status && 429 !== $status) {
+            $response->getBody()->close();
+            $this->failSseStream(\sprintf('SSE stream ended before the request completed and the server rejected resuming it with HTTP %d', $status));
+
+            return;
+        }
+
+        $contentType = strtolower($response->getHeaderLine('Content-Type'));
+        if ($status >= 300 || !str_contains($contentType, 'text/event-stream')) {
+            $response->getBody()->close();
+            $this->logger->warning('SSE reconnect did not return an event stream', [
+                'attempt' => $this->reconnectAttempts,
+                'status' => $status,
+                'content_type' => $contentType,
+            ]);
+            $this->scheduleSseReconnect();
+
+            return;
+        }
+
+        $this->activeStream = $this->responseStream($response->getBody());
+        $this->sseParser->reset();
+    }
+
+    /**
+     * Arrange the next GET resumption without blocking request timeout handling.
+     */
+    private function scheduleSseReconnect(): void
+    {
+        if (!$this->isSseStreamExpected()) {
+            $this->nextReconnectAtMs = null;
+
+            return;
+        }
+
+        $version = $this->state?->getProtocolVersion();
+        if (null !== $version && !$version->supportsSseResumption()) {
+            $this->failSseStream(\sprintf('SSE stream ended before the request completed and protocol version %s does not resume streams', $version->value));
+
+            return;
+        }
+
+        if (null === $this->lastEventId || '' === $this->lastEventId) {
+            $this->failSseStream('SSE stream ended before the request completed and did not provide an event ID for resumption');
+
+            return;
+        }
+
+        if ($this->reconnectAttempts >= $this->reconnectPolicy->maxAttempts) {
+            $this->failSseStream(\sprintf('SSE stream ended before the request completed and the maximum of %d reconnect attempts was reached', $this->reconnectPolicy->maxAttempts));
+
+            return;
+        }
+
+        $delayMs = $this->reconnectPolicy->delayMs($this->reconnectAttempts, $this->serverRetryMs);
+        $this->nextReconnectAtMs = $this->nowMs() + $delayMs;
+
+        $this->logger->info('SSE stream disconnected; scheduling reconnect', [
+            'attempt' => $this->reconnectAttempts + 1,
+            'max_attempts' => $this->reconnectPolicy->maxAttempts,
+            'delay_ms' => $delayMs,
+            'last_event_id' => $this->lastEventId,
+            'session_id' => $this->sessionId,
+        ]);
+    }
+
+    private function nowMs(): float
+    {
+        $now = $this->clock->now();
+
+        return (int) $now->format('U') * 1000 + (int) $now->format('u') / 1000;
+    }
+
+    private function isSseStreamExpected(): bool
+    {
+        // Without a request ID (a batch, or a response the server answered
+        // with a stream) nothing tells when the stream is done.
+        if ($this->sseRequestCompleted || null === $this->sseRequestId || null === $this->state) {
+            return false;
+        }
+
+        foreach ($this->state->getPendingRequests() as $pending) {
+            if ($pending['request_id'] === $this->sseRequestId) {
+                return true;
+            }
+        }
+
         return false;
+    }
+
+    /**
+     * Give up on the current response stream and fail the request it belongs to.
+     */
+    private function failSseStream(string $reason): void
+    {
+        $this->activeStream = null;
+        $this->sseParser->reset();
+        $this->nextReconnectAtMs = null;
+
+        $this->logger->warning($reason, [
+            'attempts' => $this->reconnectAttempts,
+            'last_event_id' => $this->lastEventId,
+            'session_id' => $this->sessionId,
+        ]);
+
+        $requestId = $this->sseRequestId;
+        if (null === $requestId || !$this->isSseStreamExpected()) {
+            return;
+        }
+
+        $this->state?->storeResponse($requestId, Error::forInternalError($reason, $requestId)->jsonSerialize());
     }
 
     /**
@@ -596,14 +817,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private function abortSseStream(string $reason): void
     {
-        $bufferedBytes = \strlen($this->sseBuffer);
-        $this->sseBuffer = '';
+        $bufferedBytes = $this->sseParser->bufferedBytes();
+        $this->sseParser->reset();
         $this->activeStream = null;
+        $this->nextReconnectAtMs = null;
 
         $this->logger->warning('Aborting SSE stream: '.$reason, [
             'session_id' => $this->sessionId,
             'buffered_bytes' => $bufferedBytes,
-            'max_sse_buffer_bytes' => $this->maxSseBufferBytes,
+            'max_sse_buffer_bytes' => $this->sseParser->maxBufferBytes,
         ]);
 
         if (null === $this->state) {
@@ -618,52 +840,109 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
-     * Take the next complete event off the buffer, or null if none is complete yet.
+     * Handle an event of the response stream, tracking what a resumption needs.
      *
-     * Per the SSE specification, lines are terminated by CRLF, LF or CR, so an
-     * event is delimited by any pair of those. Servers built on sse-starlette
-     * (the MCP Python SDK) use CRLF.
+     * @param SseEvent $event
      */
-    private function extractSSEEvent(string &$buffer): ?string
+    private function processSSEEvent(array $event): void
     {
-        $position = null;
-        $length = 0;
-
-        foreach (["\r\n\r\n", "\n\n", "\r\r"] as $delimiter) {
-            $found = strpos($buffer, $delimiter);
-
-            if (false !== $found && (null === $position || $found < $position)) {
-                $position = $found;
-                $length = \strlen($delimiter);
-            }
+        // An event that carries data or advances the event ID proves the stream
+        // made progress, so a later polling close starts a fresh retry sequence.
+        // Replaying the same empty event does not, or a server doing so on every
+        // GET would be reconnected to without bound.
+        if ('' !== $event['data'] || (null !== $event['id'] && $event['id'] !== $this->lastEventId)) {
+            $this->reconnectAttempts = 0;
         }
 
-        if (null === $position) {
-            return null;
+        if (null !== $event['id']) {
+            $this->lastEventId = $event['id'];
         }
 
-        $event = substr($buffer, 0, $position);
-        $buffer = substr($buffer, $position + $length);
+        if (null !== $event['retry']) {
+            $this->serverRetryMs = $event['retry'];
+        }
 
-        return $event;
+        if ($this->isResponseForCurrentSseRequest($event['data'])) {
+            $this->sseRequestCompleted = true;
+        }
+
+        $this->dispatchSseData($event);
     }
 
     /**
-     * Parse a single SSE event and handle the message.
+     * @param SseEvent $event
      */
-    private function processSSEEvent(string $event): void
+    private function dispatchSseData(array $event): void
     {
-        $data = '';
+        if ('' !== $event['data']) {
+            $this->handleMessage($event['data']);
+        }
+    }
 
-        foreach (preg_split("/\r\n|\r|\n/", $event) ?: [] as $line) {
-            if (str_starts_with($line, 'data:')) {
-                $data .= trim(substr($line, 5));
+    private function isResponseForCurrentSseRequest(string $data): bool
+    {
+        if (null === $this->sseRequestId || '' === $data) {
+            return false;
+        }
+
+        $decoded = json_decode($data, true);
+        if (!\is_array($decoded)) {
+            return false;
+        }
+
+        foreach (array_is_list($decoded) ? $decoded : [$decoded] as $message) {
+            if (\is_array($message) && !isset($message['method']) && ($message['id'] ?? null) === $this->sseRequestId
+                && (\array_key_exists('result', $message) || \array_key_exists('error', $message))) {
+                return true;
             }
         }
 
-        if (!empty($data)) {
-            $this->handleMessage($data);
+        return false;
+    }
+
+    /**
+     * The body of a response stream, readable alongside the listening stream.
+     *
+     * While listening, a request on the GET stream can be what this response
+     * waits for, so neither stream may block the other.
+     */
+    private function responseStream(StreamInterface $body): StreamInterface
+    {
+        return null !== $this->listenStream ? $this->nonBlocking($body) : $body;
+    }
+
+    private function startSseStream(StreamInterface $stream, int|string|null $requestId): void
+    {
+        $this->resetSseState();
+        $this->activeStream = $stream;
+        $this->sseRequestId = $requestId;
+    }
+
+    private function resetSseState(): void
+    {
+        $this->activeStream = null;
+        $this->sseParser->reset();
+        $this->sseRequestId = null;
+        $this->sseRequestCompleted = false;
+        $this->lastEventId = null;
+        $this->serverRetryMs = null;
+        $this->reconnectAttempts = 0;
+        $this->nextReconnectAtMs = null;
+    }
+
+    /**
+     * The ID of an outgoing request, or null for a notification, a response or a batch.
+     */
+    private static function requestIdOf(string $data): int|string|null
+    {
+        $payload = json_decode($data, true);
+        if (!\is_array($payload) || !\is_string($payload['method'] ?? null)) {
+            return null;
         }
+
+        $id = $payload['id'] ?? null;
+
+        return \is_int($id) || \is_string($id) ? $id : null;
     }
 
     private function processFiber(): void
