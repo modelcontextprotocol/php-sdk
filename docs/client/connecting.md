@@ -2,7 +2,9 @@
 
 A client is configured once through its builder, then connected to a
 [transport](transports.md). Connecting performs the MCP initialization handshake, after
-which the server's capabilities are known and its elements can be used.
+which the server's capabilities are known and its elements can be used. On protocol
+revision `2026-07-28` there is no handshake to perform — see
+[Clients on this revision](../lifecycle/client.md).
 
 ## Client Builder
 
@@ -76,9 +78,9 @@ section. The client accepts any counter-offer it knows about and continues on th
 cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
 on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.
 
-Modern revisions such as `2026-07-28` replaced `initialize` with per-request metadata, so they cannot be offered here.
-Configuring one still opens the handshake with `ProtocolVersion::latestHandshake()`, and the client logs a warning
-saying so.
+Setting a modern revision such as `2026-07-28` selects the other lifecycle rather than making an offer: there is no
+`initialize` to negotiate with, so `connect()` sends none and every request carries its own revision instead. Nothing
+else about the client API changes. See [Clients on this revision](../lifecycle/client.md) for what happens underneath.
 
 See [Protocol Version Negotiation](../run/server-builder.md#protocol-version-negotiation) for the server side of the
 exchange.
@@ -119,7 +121,9 @@ $client = Client::builder()
 
 ### Request Handlers
 
-Register handlers for server-initiated requests (e.g., sampling):
+Register handlers for server-initiated requests (e.g., sampling). The same handlers answer a
+[multi round-trip](../lifecycle/input-required.md) `input_required` result on a modern revision, where the server
+returns its ask instead of sending a request:
 
 ```php
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
@@ -168,6 +172,9 @@ The `connect()` method performs the MCP initialization handshake:
 2. Sends InitializeRequest with client capabilities
 3. Waits for InitializeResult from server
 4. Sends InitializedNotification
+
+On a modern revision it opens the transport and asks `server/discover` for the server's identity instead; a server
+that does not answer that optional method still yields a usable connection.
 
 !!! warning
     Always wrap connection in try/catch to handle `ConnectionException` for failed connections.

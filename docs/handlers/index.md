@@ -26,6 +26,9 @@ public function summarize(string $text, RequestContext $context): string
   call, and sending notifications.
 * **[Logging](logging.md)** — structured PSR-3 log messages that surface in the client,
   not in your server's log file.
+* **[Asking for input](../lifecycle/input-required.md)** — returning an `InputRequiredResult`
+  when a handler needs elicitation, sampling or roots. Written that way, one handler serves
+  both protocol eras.
 
 Handlers that need application services (a database connection, an API client) get them
 from the container instead; see

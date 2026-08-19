@@ -1,8 +1,16 @@
 # Logging
 
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
+
 The SDK provides support to send log messages to clients. All standard PSR-3 log levels are supported.
 Level **warning** is the default level, so anything below it is dropped until the client raises the level with
 `logging/setLevel`.
+
+!!! note
+    Under the [2026-07-28 lifecycle](../lifecycle/requests.md#progress-and-logging) there is no
+    `logging/setLevel`: the client names its level in each request's
+    `_meta["io.modelcontextprotocol/logLevel"]`, and a request naming none receives no log
+    notifications at all.
 
 !!! note
     Only the message is forwarded to the client. A PSR-3 `$context` array is accepted for interface compatibility

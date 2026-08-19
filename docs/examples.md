@@ -164,6 +164,8 @@ $server = Server::builder()
 - Server initiated communication back to the client
 - Logging, sampling, progress and notifications
 - Using `ClientGateway` in tool method via method argument injection of `RequestContext`
+- Sampling and roots asked for the [multi round-trip](lifecycle/input-required.md) way, so the
+  same tools serve a handshake-era and a `2026-07-28` client without naming either
 
 ### Discovery User Profile
 
@@ -282,7 +284,8 @@ public function formatText(
 **File**: `examples/server/elicitation/`
 
 **What it demonstrates:**
-- Server-to-client elicitation requests
+- Asking the user for input from a tool, written the
+  [multi round-trip](lifecycle/input-required.md) way so one handler serves both protocol eras
 - Interactive user input during tool execution
 - Multi-field form schemas with validation
 - Boolean confirmation dialogs
@@ -319,11 +322,15 @@ $schema = new ElicitationSchema(
     required: ['party_size', 'date']
 );
 
-// Send elicitation request
-$result = $client->elicit(
-    message: 'Please provide your reservation details',
-    requestedSchema: $schema
-);
+// Return the ask, read the answer off the retry. The example wraps both halves
+// in one helper, since every tool here does the same thing:
+$result = $context->getInputContext()?->elicitResult('details')
+    ?? new InputRequiredResult(['details' => new ElicitRequest($message, $schema)]);
+
+// First round: hand the ask back to the client, which retries this whole call.
+if ($result instanceof InputRequiredResult) {
+    return $result;
+}
 
 // Handle response
 if ($result->isAccepted()) {
@@ -334,8 +341,12 @@ if ($result->isAccepted()) {
 ```
 
 **Important Notes:**
-- Elicitation requires a session store (e.g., `FileSessionStore`)
-- Check client capabilities with `supportsElicitation()` before sending requests
+- The handler is re-entered from the top on the retry, so anything that must happen once
+  belongs behind the "do I have the answer yet?" check
+- A handshake-era client reaches the same tool: the SDK's input-required shim turns the ask
+  into a real `elicitation/create` request over that connection
+- Elicitation over a handshake-era connection requires a session store (e.g., `FileSessionStore`)
+- Check client capabilities with `supportsElicitation()` before asking
 - Schema supports primitive types: string, number/integer, boolean, enum
 - String fields support format validation: date, date-time, email, uri
 - Users can accept (providing data), decline, or cancel requests
@@ -365,6 +376,42 @@ the `get_weather` tool. The bundled `weather-app.html` performs the
 and calls back into the server. See the
 [ext-apps repo](https://github.com/modelcontextprotocol/ext-apps) for the
 TypeScript SDK and richer view-side patterns.
+
+### The 2026-07-28 lifecycle
+
+**File**: `examples/server/stateless-lifecycle/`
+
+A server speaking protocol revision `2026-07-28`, which removed the `initialize` handshake and
+protocol-level sessions. It is HTTP-only and cannot be driven by the Inspector, which opens with
+`initialize`.
+
+**What it demonstrates:**
+- A tool answered in a single POST, with no handshake before it
+- A [multi round-trip](lifecycle/input-required.md) tool that returns its ask and reads the answer
+  off the retry
+- Progress and log notifications travelling on the request's own response stream
+- Cache hints on `server/discover` and the list methods
+
+**Usage:**
+```bash
+php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php
+```
+
+Every request carries its own protocol version and client capabilities:
+
+```bash
+curl -sS http://127.0.0.1:8000/ \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: server/discover' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
+```
+
+`tests/Integration/StatelessLifecycleTest.php` drives this example end to end. See
+[The 2026-07-28 lifecycle](lifecycle/index.md) for the guide.
 
 ## Client Examples
 
@@ -615,3 +662,46 @@ $client->sendRootsListChanged();
 # Run the client (automatically starts the communication server)
 php examples/client/stdio_roots.php
 ```
+
+### Modern-era client
+
+**File**: `examples/client/stateless_lifecycle_client.php`
+
+**What it demonstrates:**
+- Selecting protocol revision `2026-07-28` with a single `setProtocolVersion()` call
+- A connection that sends no `initialize`, and asks `server/discover` only for the server's identity
+- A [multi round-trip](lifecycle/input-required.md) call answered by the client, so the caller sees
+  one call and one result
+
+**Key Features:**
+```php
+$client = Client::builder()
+    ->setClientInfo('stateless-example-client', '1.0.0')
+    // The only line that selects the modern lifecycle.
+    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+    // Declared in the envelope of every request, so the server knows what it
+    // may ask for before it decides how to answer.
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler($answerWithAName)
+    ->build();
+
+$client->connect(new HttpTransport('http://127.0.0.1:8000/'));
+
+// One call from here. Two on the wire: the server returns its question, the
+// handler above answers it, and the client retries carrying both the answer and
+// the server's sealed `requestState`.
+$client->callTool('greet', []);
+```
+
+Runs against the [2026-07-28 lifecycle](#the-2026-07-28-lifecycle) server example.
+
+**Usage:**
+```bash
+# Start the matching server first
+php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php
+
+# Then run the client
+php examples/client/stateless_lifecycle_client.php
+```
+
+See [Clients on this revision](lifecycle/client.md) for what that one builder line changes.

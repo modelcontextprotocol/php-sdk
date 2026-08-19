@@ -93,6 +93,11 @@ $server = Server::builder()
 
 ## Protocol Version Negotiation
 
+This section is about the **handshake era**. Revisions from `2026-07-28` on have no `initialize` and nothing to
+negotiate — each request names its own revision. `build()` serves both eras from one configuration; see
+[The 2026-07-28 lifecycle](../lifecycle/index.md) and, for narrowing or removing the modern leg,
+[Serving both eras](../lifecycle/serving-both-eras.md).
+
 MCP revisions are identified by a date string such as `2025-11-25`. The client names the revision it wants to speak in
 its `initialize` request, and the server answers with the revision the connection will actually use. Both sides
 disconnect if they cannot agree. This follows the
@@ -125,8 +130,9 @@ connection. The negotiated revision is stored on the session under `protocol_ver
 
 The last row is not a rejection of an unknown revision — the SDK knows `2026-07-28`, it just cannot be reached through
 this handshake. The modern era replaced `initialize` with per-request metadata, so answering with one of its revisions
-would leave a connection neither side could use. Serving that era is separate work; today the server only knows not to
-mis-negotiate it.
+would leave a connection neither side could use. The server does serve that era: a client speaking it sends the
+envelope instead of an `initialize` request, and the transport routes it to the modern dispatcher without any
+negotiation happening at all.
 
 This table is mirrored by the `provideNegotiationTable()` data provider in
 `tests/Unit/Server/Handler/Request/InitializeHandlerTest.php`, which drives its supported-revision rows off the enum so
@@ -139,11 +145,53 @@ pin wins over the client's request, so a client asking for anything else receive
 counter-offer and has to decide whether to continue. Leave it unset unless you have a reason to refuse other revisions.
 
 !!! note
-    On the Streamable HTTP transport, every request after the handshake also carries an `MCP-Protocol-Version` header,
-    which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach that check: the transport
-    builds the middleware without access to the server configuration, so the header keeps being accepted for every
-    revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the middleware yourself with the
-    same revision — see [Protocol Version Validation](http.md#protocol-version-validation).
+    On the Streamable HTTP transport, every handshake-era request after the handshake also carries an
+    `MCP-Protocol-Version` header, which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach
+    that check: the transport builds the middleware without access to the server configuration, so the header keeps
+    being accepted for every revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the
+    middleware yourself with the same revision — see
+    [Protocol Version Validation](http.md#protocol-version-validation).
+
+`setProtocolVersion()` only pins the handshake. To narrow or remove what the modern leg answers for, use
+`setModernVersions()` / `withoutModernEra()` — see
+[Serving both eras](../lifecycle/serving-both-eras.md#serving-one-era-only).
+
+## The 2026-07-28 Lifecycle
+
+`build()` returns a server that answers both protocol eras, and none of the following is required to serve either
+one. Each knob is covered in depth in [The 2026-07-28 lifecycle](../lifecycle/index.md):
+
+```php
+use Mcp\Schema\Enum\CacheScope;
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Wire\CachePolicy;
+
+$server = Server::builder()
+    // Signs the state a multi round-trip request carries through the client.
+    // The same key must reach every process that might serve the retry.
+    ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
+
+    // Bounds the input-required shim, which fulfils an `InputRequiredResult`
+    // over a handshake-era connection. `withoutInputRequiredShim()` turns it off.
+    ->setInputRequiredLimits(maxRounds: 4, roundTimeout: 120)
+
+    // Caching hints stamped on cacheable results. Defaults to `ttlMs: 0, private`.
+    ->setCachePolicy(CachePolicy::default(30_000)->withMethod('tools/list', 3_600_000, CacheScope::Public))
+
+    // Delivery for `subscriptions/listen`, and how long such a stream is held.
+    ->setNotificationBus(new Psr16NotificationBus($cache))
+    ->setSubscriptionLifetime(0)
+
+    // Narrow the modern leg, or drop it entirely.
+    ->setModernVersions([ProtocolVersion::V2026_07_28])
+    ->build();
+```
+
+`buildStateless()` returns the modern dispatcher alone, for an endpoint that serves no handshake-era traffic at all.
+Its requests are checked against the SEP-2243 standard headers — that `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` agree
+with the body they travel with. `setHeaderValidator(false)` turns that check off, which is needed only when the
+dispatcher is served by a transport that has no header layer to check.
 
 ## Discovery Configuration
 
@@ -313,6 +361,15 @@ $server = Server::builder()
 | `setPaginationLimit()` | limit | Set max items per page |
 | `setInstructions()` | instructions | Set usage instructions |
 | `setProtocolVersion()` | protocolVersion | Pin the handshake to one protocol revision |
+| `setModernVersions()` | versions | Narrow the revisions the modern (2026-07-28) leg answers for |
+| `withoutModernEra()` | - | Serve the handshake era only |
+| `setRequestState()` | key, ttl? | Signing key and lifetime for multi round-trip request state |
+| `setInputRequiredLimits()` | maxRounds, roundTimeout | Bound the input-required shim on handshake-era connections |
+| `withoutInputRequiredShim()` | - | Do not fulfil an `InputRequiredResult` over a handshake-era connection |
+| `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
+| `setNotificationBus()` | bus | Delivery for `subscriptions/listen` streams |
+| `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open (`0` = unbounded) |
+| `setHeaderValidator()` | enabled | Toggle the SEP-2243 standard-header check on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |
 | `setLogger()` | logger | Set PSR-3 logger |
@@ -328,3 +385,4 @@ $server = Server::builder()
 | `addPrompt()` | handler, name?, title?, description?, icons?, meta? | Register prompt |
 | `add()` | definition, handler | Register an element from a schema VO + handler pair |
 | `build()` | - | Create the server instance |
+| `buildStateless()` | supportedVersions? | Create the modern dispatcher alone, for `StatelessHttpTransport` |

@@ -56,7 +56,6 @@ When the `middleware` argument is omitted (or set to `null`), the transport inst
 |-------|------------|---------|
 | 1     | `CorsMiddleware`                    | Applies CORS headers to every response. By default does **not** set `Access-Control-Allow-Origin` (cross-origin requests are blocked). |
 | 2     | `DnsRebindingProtectionMiddleware`  | Validates `Origin`/`Host` against an allowlist. Defaults to localhost variants only. |
-| 3     | `ProtocolVersionMiddleware`         | Rejects requests carrying an unsupported `MCP-Protocol-Version` header with `400 Bad Request`. |
 
 ```php
 // Zero-config, secure-by-default — local servers get full protection automatically.
@@ -69,6 +68,13 @@ The default stack can be inspected and recomposed via the public factory:
 $middleware = StreamableHttpTransport::defaultMiddleware();
 ```
 
+These run at the edge, before the request's protocol era is known, because what they enforce is true of
+both eras. `ProtocolVersionMiddleware` is not in that stack: the `MCP-Protocol-Version` header rule belongs
+to the handshake era, so the transport applies it only to requests it classified as handshake-era traffic,
+and the modern leg answers for its own revisions. It is available as
+`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the edge stack.
+See [Serving both eras](../lifecycle/serving-both-eras.md).
+
 ## CORS Configuration
 
 CORS is handled by `CorsMiddleware`. To enable cross-origin browser requests, configure it explicitly and pass it
@@ -77,7 +83,6 @@ in place of (or alongside) the defaults:
 ```php
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
-use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 // Reflect a specific origin
@@ -86,7 +91,6 @@ $transport = new StreamableHttpTransport(
     middleware: [
         new CorsMiddleware(allowedOrigins: ['https://myapp.com']),
         new DnsRebindingProtectionMiddleware(),
-        new ProtocolVersionMiddleware(),
     ],
 );
 
@@ -96,7 +100,6 @@ $transport = new StreamableHttpTransport(
     middleware: [
         new CorsMiddleware(allowedOrigins: ['*']),
         new DnsRebindingProtectionMiddleware(),
-        new ProtocolVersionMiddleware(),
     ],
 );
 ```
@@ -133,6 +136,10 @@ or supply a permissive allowlist.
 set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
 legacy clients do not send it.
 
+It is applied by the transport itself, to handshake-era traffic only — do not add it to a custom `middleware`
+list, where it would run before the era is classified and reject every modern-era request. Construct it
+yourself only to narrow the supported set on a server that also pins its handshake:
+
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
@@ -151,6 +158,10 @@ This header check is separate from, and happens after, the handshake itself. See
 first place. Being separate also means it is unaffected by `setProtocolVersion()`: the middleware validates against
 the set it was constructed with, not against the revision a given session negotiated, so a server that pins the
 handshake has to pass that revision here as well.
+
+Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` rather than in a
+header, and is routed away from this check entirely — see
+[Serving both eras](../lifecycle/serving-both-eras.md).
 
 ## Request Body Size Limit
 

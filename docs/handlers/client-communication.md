@@ -3,6 +3,14 @@
 MCP supports various ways a server can communicate back to a client on top of the main
 request-response flow.
 
+> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server
+> sends its own JSON-RPC requests to the client. The modern lifecycle removed that: sampling,
+> elicitation and roots are carried back inside the *result* instead, and
+> `ClientGateway::sample()`, `elicit()` and `listRoots()` raise a `LogicException` there.
+> Logging and progress still work as described below — they simply travel on the request's own
+> response stream, and the client opts into each. See
+> [Asking for input](../lifecycle/input-required.md).
+
 ## ClientGateway
 
 Every communication back to client is handled using the `Mcp\Server\ClientGateway` and its dedicated methods per
@@ -37,6 +45,8 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
 ```
 
 ## Sampling
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Sampling keeps working until then; new integrations should call an LLM provider's API directly instead.
 
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
@@ -84,6 +94,8 @@ Use `$result->getContentBlocks()` to iterate the response regardless of whether 
 [Find more details to sampling payload in the specification.](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling#protocol-messages)
 
 ## Logging
+
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
 
 The [Logging](https://modelcontextprotocol.io/specification/2025-06-18/server/utilities/logging) utility enables servers
 to send structured log messages as notification to clients:

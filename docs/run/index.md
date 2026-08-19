@@ -33,3 +33,7 @@ The rest of this section:
   you serve HTTP from more than one process.
 * **[Authorization](authorization.md)** — validating OAuth 2 access tokens in front of
   the HTTP transport.
+
+The same server also answers protocol revision `2026-07-28`, which has no handshake and no
+sessions. Nothing above changes for it; what does is
+**[The 2026-07-28 lifecycle](../lifecycle/index.md)**.
