@@ -1,6 +1,6 @@
 # Try it with the Inspector
 
-The [MCP Inspector](https://github.com/modelcontextprotocol/inspector) is an interactive
+The [MCP Inspector](https://modelcontextprotocol.io/docs/latest/tools/inspector) is an interactive
 UI for poking at a server: it lists what the server exposes and lets you call it by
 hand. It is the fastest way to see whether your server does what you think it does.
 
