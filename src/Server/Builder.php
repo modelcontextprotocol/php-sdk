@@ -29,6 +29,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
+use Mcp\Exception\RuntimeException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -1037,7 +1038,13 @@ final class Builder
                 $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
                 $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
             } else {
-                $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
+                // Warning-and-skip here used to route around the identical guard in
+                // Discoverer::__construct(), turning a configured-but-impossible feature
+                // into a silent no-op: build() succeeds, initialize succeeds, and
+                // tools/list quietly returns an empty array with no actionable signal
+                // beyond a single log line. setDiscovery() is an explicit request for
+                // file-based discovery, so failing to honor it must fail loudly.
+                throw new RuntimeException('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
             }
         }
 
