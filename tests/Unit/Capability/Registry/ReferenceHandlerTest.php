@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RegistryException;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
@@ -140,5 +141,50 @@ final class ReferenceHandlerTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         (new ReferenceHandler())->handle($reference, ['_session' => $session]);
+    }
+
+    public function testHandleCastsEachElementOfAnArrayArgumentForAVariadicParameter(): void
+    {
+        // SchemaGenerator advertises variadic parameters as a JSON "array" schema,
+        // so the array arrives here as a single named argument (not spread across
+        // multiple keys) and must be cast element-by-element to the variadic's type.
+        $closure = static fn (string $name, int ...$scores): string => \sprintf('%s:%d', $name, array_sum($scores));
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'total',
+            'scores' => ['1', '2', '3'],
+        ]);
+
+        $this->assertSame('total:6', $result);
+    }
+
+    public function testHandleTreatsOmittedVariadicArgumentAsZeroElements(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'empty',
+        ]);
+
+        $this->assertSame(0, $result);
+    }
+
+    public function testHandleThrowsRegistryExceptionWhenVariadicArgumentIsNotAnArray(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionMessage('Parameter `scores` must be an array of values.');
+
+        (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'bad',
+            'scores' => 'not-an-array',
+        ]);
     }
 }
