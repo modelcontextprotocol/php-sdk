@@ -83,6 +83,11 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
         );
     }
 
+    public function getDefault(): ?string
+    {
+        return $this->default;
+    }
+
     /**
      * @return array{
      *     type: string,

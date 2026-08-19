@@ -17,6 +17,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error.
 * Stop the server `Protocol` from logging full JSON-RPC payloads (tool arguments, client replies) at info level: info records now carry only the method and id, the raw message is logged at debug level.
 * Add `PassthroughMiddleware` to opt `StreamableHttpTransport` out of its default middleware without the warning an empty `$middleware` list logs.
+* Add `ElicitationSchema::getDefaults()`, returning the declared `default` of each field to accept a form elicitation with.
+* [BC Break] `AbstractSchemaDefinition` declares an abstract `getDefault()`, which a custom schema definition has to implement.
 
 0.8.0
 -----

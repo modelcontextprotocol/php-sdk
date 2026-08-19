@@ -100,6 +100,14 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
+     * @return string[]|null
+     */
+    public function getDefault(): ?array
+    {
+        return $this->default;
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function jsonSerialize(): array

@@ -49,6 +49,11 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
         );
     }
 
+    public function getDefault(): ?bool
+    {
+        return $this->default;
+    }
+
     /**
      * @return array{
      *     type: string,
