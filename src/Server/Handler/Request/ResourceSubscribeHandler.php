@@ -18,6 +18,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ResourceSubscribeRequest;
 use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
@@ -57,7 +58,12 @@ final class ResourceSubscribeHandler implements RequestHandlerInterface
         } catch (ResourceNotFoundException $e) {
             $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
-            return Error::forResourceNotFound($e->getMessage(), $request->getId());
+            // SEP-2164 retired -32002 in favour of the JSON-RPC code that
+            // already meant this. Older peers still expect the old one, so the
+            // revision answering the request decides.
+            return (new RequestContext($session, $request))->getProtocolVersion()->usesInvalidParamsForResourceNotFound()
+                ? Error::forInvalidParams($e->getMessage(), $request->getId(), ['uri' => $uri])
+                : Error::forResourceNotFound($e->getMessage(), $request->getId());
         }
 
         $this->logger->debug('Subscribing to resource', ['uri' => $uri]);
