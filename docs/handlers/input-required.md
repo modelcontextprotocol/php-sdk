@@ -1,16 +1,51 @@
 # Asking for input
 
 Some handlers cannot finish in one go: they need the user to confirm something, fill in a
-form, name a directory, or have the client's model draft a paragraph. The way to write that
-is to **return** the ask — an `InputRequiredResult` naming what you need — and read the
-answer off `RequestContext` when the call comes back.
+form, name a directory, or have the client's model draft a paragraph. There are two ways to
+write that: ask for it, or return the ask.
 
-Write it that way once and it serves both [protocol eras](../protocol-versions.md).
-Revision `2026-07-28` has no server-initiated requests at all, so the client retries the
-original call carrying the answers; the specification calls that a multi round-trip request
-(MRTR). On a handshake-era connection the SDK fulfils the same ask over that connection's own
-channel instead. Your handler does not fork on which — see
-[What a handler forks on](#what-a-handler-forks-on).
+## Just asking
+
+For elicitation, ask and use the answer:
+
+```php
+static function (RequestContext $context): string {
+    $answer = $context->getClientGateway()->elicit('Your name?', $schema, key: 'who');
+
+    return "Hello, {$answer->content['name']}!";
+}
+```
+
+`key` names an ask, so its answer keeps finding the question it belongs to. Leave it out and
+asks are keyed by position — `elicitation_1`, `elicitation_2`, … — which holds as long as the
+handler reaches them in the same order every time.
+
+**Write the handler so it can run more than once.** Some clients answer inside the open
+request; others answer by re-sending the whole call, which enters your handler again from the
+top, once per question. Everything above an ask therefore has to be safe to repeat — put side
+effects after the last one, and re-derive where you are from the answers rather than from
+anything you kept.
+
+Answers given in an earlier round travel in the [`requestState`](#requeststate), so a handler
+asking more than once needs `Builder::setRequestState()` configured.
+[`examples/server/elicitation`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/elicitation)
+is written this way.
+
+## Returning the ask
+
+The explicit form: **return** an `InputRequiredResult` naming what you need, and read the
+answer off `RequestContext` when the call comes back. It is more to write, and it is the only
+way to ask several things in **one** round trip, to carry your own state, or to ask for
+anything other than elicitation.
+
+> **Revision `2026-07-28`.** Multi round-trip requests (MRTR) are that revision's feature, and
+> only there does the protocol itself carry this shape. Over a handshake-era connection the SDK
+> emulates it: the input-required shim sends each ask as the real `elicitation/create` /
+> `sampling/createMessage` / `roots/list` and re-enters your handler with the answers. That is
+> on by default and bounded by `setInputRequiredLimits()` — each round holds the originating
+> request open, so it holds a worker for as long as the user takes — and
+> `withoutInputRequiredShim()` turns it off, after which such a handler fails there. See
+> [Server builder](../run/server-builder.md).
 
 ```php
 use Mcp\Schema\Result\CallToolResult;
@@ -63,49 +98,14 @@ form mode only.
 
 ## What not to call
 
-`ClientGateway::sample()`, `elicit()`, `elicitUrl()` and `listRoots()` belong to the
-handshake era. Calling one under this revision raises a `LogicException` naming
-`InputRequiredResult` as the replacement.
+`ClientGateway::sample()` and `listRoots()` belong to the handshake era — revision
+`2026-07-28` removed both outright, so calling one there raises a `LogicException`. Take what
+they gave you from tool arguments, resource URIs or server configuration instead. `elicit()`
+and `elicitUrl()` are unaffected: elicitation survived that revision, as an ask carried in the
+result.
 
-## What a handler forks on
+## Which revision called
 
-Nothing. Tools, resources, prompts, structured output, progress and errors do not care
-which era called, and neither does the one thing that looks like it should: **asking the
-user something**.
-
-Write it the 2026-07-28 way — return an `InputRequiredResult` naming what you need, read the
-answer off `RequestContext::getInputContext()` when the call comes back. On a handshake-era
-connection the SDK's input-required shim fulfils the same ask over that connection's own
-channel: each embedded request goes out as the real `elicitation/create` /
-`sampling/createMessage` / `roots/list`, and the handler is re-entered with the answers under
-the keys it asked for. It is on by default;
-[`examples/server/elicitation`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/elicitation)
-and
-[`examples/server/client-communication`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-communication)
-are written this way and name no era anywhere.
-
-Two things to know about it.
-
-**Re-entry is re-execution.** The handler runs again from the top each round, so it has to
-re-derive where it is from what came back rather than from anything it kept. That is already
-true of the modern era — the client retries the whole call there — so a portable handler is
-written that way regardless. It is only new if you were relying on `ClientGateway::elicit()`
-suspending mid-body and keeping your locals; that keeps working untouched, since nothing here
-runs unless a handler *returns* an ask.
-
-**Each round holds the request open.** The shim waits for the client's answer inside the
-originating request, which on a process-per-request runtime means it holds a worker for as
-long as the user takes. That is the same cost `ClientGateway::elicit()` already pays on that
-leg, but the shim makes it reachable from handlers that never mention it — so size
-`setInputRequiredLimits()` against your pool.
-
-```php
-$server = Server::builder()
-    ->setServerInfo('My Server', '1.0.0')
-    // Re-entries per request, and seconds to wait for one answer.
-    ->setInputRequiredLimits(maxRounds: 4, roundTimeout: 120)
-    ->build();
-```
-
-`withoutInputRequiredShim()` turns it off, so such a handler fails on a handshake-era
-connection instead of being fulfilled behind your back.
+Nothing above forks on it. `elicit()` works the same on every revision — only the mechanics
+underneath differ, and the SDK picks them. The one thing to keep in mind is the rule already
+stated: a handler that asks may be entered again from the top, so let it repeat safely.

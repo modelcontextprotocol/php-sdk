@@ -24,6 +24,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Configuration;
@@ -549,9 +550,19 @@ final class StatelessProtocol
      *
      * The fiber is what makes a handler's `$gateway->progress(...)` look
      * synchronous while the caller decides where the notification goes. Server
-     * -to-client *requests* are refused rather than forwarded: this revision
-     * carries those in the result (MRTR), and putting one on a response stream
-     * is something the transport binding forbids outright.
+     * -to-client *requests* are never forwarded: this revision carries what it
+     * needs in the result (MRTR), and putting a request on a response stream is
+     * something the transport binding forbids outright.
+     *
+     * An elicitation is answered here rather than refused. Already answered, it
+     * resumes the fiber and the handler runs on; not yet, and the ask becomes
+     * the result — abandoning the fiber, since this request has nothing left to
+     * say and the client will re-send it. Abandoning unwinds it, so a handler's
+     * `finally` still runs; what does not run is everything after the ask.
+     *
+     * That is what lets one handler serve both eras through
+     * {@see \Mcp\Server\ClientGateway::elicit()}; see {@see ElicitationReplay}
+     * for what it costs.
      *
      * @param RequestHandlerInterface<ResultInterface> $handler
      *
@@ -560,10 +571,31 @@ final class StatelessProtocol
     private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
     {
         $fiber = new \Fiber(static fn (): mixed => $handler->handle($request, $session));
+        $input = $session->get(InputContext::class);
+        $replay = new ElicitationReplay($input instanceof InputContext ? $input : null, $this->requestStateCodec);
 
         $suspended = $fiber->start();
 
         while (!$fiber->isTerminated()) {
+            if (null !== $elicitation = self::readElicitation($suspended)) {
+                [$named, $elicit] = $elicitation;
+                $key = $replay->key($named);
+
+                if (null === $answer = $replay->answer($key, $elicit->mode)) {
+                    try {
+                        return new Response($request->getId(), $replay->ask($key, $elicit));
+                    } catch (LogicException $e) {
+                        $this->logger->error('A handler asked for input across rounds on a server with no requestState signing key.', ['exception' => $e]);
+
+                        return Error::forInternalError('The server could not carry its own state across a round of input.', $request->getId());
+                    }
+                }
+
+                $suspended = $fiber->resume(new Response($request->getId(), $answer));
+
+                continue;
+            }
+
             $notification = $this->readNotification($suspended, $meta);
 
             if (null !== $notification) {
@@ -588,7 +620,10 @@ final class StatelessProtocol
     {
         if (!\is_array($suspended) || 'notification' !== ($suspended['type'] ?? null)) {
             if (\is_array($suspended) && 'request' === ($suspended['type'] ?? null)) {
-                throw new LogicException('This protocol revision has no server-initiated requests: return an InputRequiredResult naming what you need instead, and read the answers back through RequestContext::getInputContext(). See the multi round-trip requests pattern.');
+                // Elicitation never reaches here — it is answered in run(). What
+                // is left are the kinds this revision removed outright, and no
+                // multi round-trip shape brings them back.
+                throw new LogicException('This protocol revision has no server-initiated requests: sampling and roots were removed with it, so take what you need through tool arguments, resource URIs or server configuration instead. Elicitation is the one ask that survived, as a multi round-trip request.');
             }
 
             return null;
@@ -610,6 +645,30 @@ final class StatelessProtocol
         }
 
         return $notification;
+    }
+
+    /**
+     * One fiber suspension read as an elicitation, or null when it is not one.
+     *
+     * @param mixed $suspended the payload {@see \Mcp\Server\ClientGateway} suspended with
+     *
+     * @return array{0: string|null, 1: ElicitRequest}|null the name the handler gave the ask, and the ask
+     */
+    private static function readElicitation(mixed $suspended): ?array
+    {
+        if (!\is_array($suspended) || 'request' !== ($suspended['type'] ?? null)) {
+            return null;
+        }
+
+        $request = $suspended['request'] ?? null;
+
+        if (!$request instanceof ElicitRequest) {
+            return null;
+        }
+
+        $key = $suspended['input_key'] ?? null;
+
+        return [\is_string($key) ? $key : null, $request];
     }
 
     /**
