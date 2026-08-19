@@ -41,6 +41,7 @@ final class McpHeaderTest extends TestCase
         yield 'trailing space is wrapped' => ['us-west1 ', '=?base64?dXMtd2VzdDEg?='];
         yield 'newline is wrapped' => ["line1\nline2", '=?base64?bGluZTEKbGluZTI=?='];
         yield 'tab is wrapped' => ["\tindented", '=?base64?CWluZGVudGVk?='];
+        yield 'a literal already shaped like the wrapper is wrapped again' => ['=?base64?SGVsbG8=?=', '=?base64?PT9iYXNlNjQ/U0dWc2JHOD0/PQ==?='];
     }
 
     #[DataProvider('provideValues')]

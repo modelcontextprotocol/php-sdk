@@ -1,13 +1,5 @@
 client:
-  - request-metadata
-  - http-standard-headers
-  - http-custom-headers
   - http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate
-  - http-invalid-tool-headers:sep-2243-client-reject-invalid-tool
-  - sep-2322-client-request-state
-  - tools_call:tool-add-numbers
-  - json-schema-2020-12-preservation:json-schema-2020-12-client-tool-found
-  - json-schema-2020-12-preservation:json-schema-2020-12-client-echo-completed
   - auth/metadata-default
   - auth/metadata-var1
   - auth/metadata-var2

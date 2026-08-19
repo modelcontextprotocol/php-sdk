@@ -73,7 +73,7 @@ class Protocol
 
     private ?HeaderFactory $headers = null;
 
-    private readonly ToolCatalog $tools;
+    private ToolCatalog $tools;
 
     private readonly InputRequestResolver $inputRequests;
 
@@ -128,6 +128,11 @@ class Protocol
     public function connect(TransportInterface $transport, Configuration $config): void
     {
         $this->transport = $transport;
+
+        // A fresh catalog per connection: it is what a server told this client
+        // about its tools, and a server reached by reconnecting — the same one
+        // or another — has said nothing yet.
+        $this->tools = new ToolCatalog($this->logger);
 
         if ($config->protocolVersion->isModern()) {
             $this->envelope = new RequestEnvelope(
@@ -395,9 +400,13 @@ class Protocol
             // merged with the last: the answers belong to the ask that just
             // arrived, and carrying an old one forward is how state leaks
             // between rounds.
+            //
+            // Cast to object: inputResponses is a JSON object keyed by the
+            // server's ids, but a PHP array with no entries or with sequential
+            // numeric-string keys encodes as a JSON array instead.
             $payload['params'] = [
                 ...($payload['params'] ?? []),
-                'inputResponses' => $this->inputRequests->resolve($asked),
+                'inputResponses' => (object) $this->inputRequests->resolve($asked),
             ];
 
             unset($payload['params']['requestState']);

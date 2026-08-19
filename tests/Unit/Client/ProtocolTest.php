@@ -23,6 +23,7 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\Stateless\RequestMeta;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -172,6 +173,41 @@ final class ProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $response->code);
     }
 
+    #[TestDox('reconnecting starts with a fresh tool catalog, not the previous server\'s verdicts')]
+    public function testReconnectResetsToolCatalog(): void
+    {
+        $protocol = new Protocol();
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2025_11_25->value), $config = $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->getToolCatalog()->record([[
+            'name' => 'broken',
+            'inputSchema' => [
+                'type' => 'object',
+                'properties' => ['data' => ['type' => 'object', 'x-mcp-header' => 'Data']],
+            ],
+        ]]);
+
+        $this->assertTrue($protocol->getToolCatalog()->isRejected('broken'));
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2025_11_25->value), $config);
+
+        $this->assertFalse($protocol->getToolCatalog()->isRejected('broken'), 'the previous server\'s verdict must not survive a reconnect');
+    }
+
+    #[TestDox('an empty inputResponses map is retried as a JSON object, never an array')]
+    public function testEmptyInputResponsesEncodesAsJsonObject(): void
+    {
+        $transport = new InputRequiredRoundTripTransport();
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $result = $protocol->request(new PingRequest(), 5);
+
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertStringContainsString('"inputResponses":{}', $transport->retryBody);
+        $this->assertStringNotContainsString('"inputResponses":[]', $transport->retryBody);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion): Configuration
     {
         return new Configuration(
@@ -179,6 +215,82 @@ final class ProtocolTest extends TestCase
             capabilities: new ClientCapabilities(),
             protocolVersion: $protocolVersion,
         );
+    }
+}
+
+/**
+ * Answers the first request with an empty `input_required` ask and the retry
+ * with success, capturing the retry's raw body so the test can inspect how
+ * `inputResponses` was actually encoded on the wire.
+ */
+final class InputRequiredRoundTripTransport implements TransportInterface
+{
+    public string $retryBody = '';
+
+    private int $calls = 0;
+    private ClientStateInterface $state;
+
+    public function setState(ClientStateInterface $state): void
+    {
+        $this->state = $state;
+    }
+
+    public function send(string $data): void
+    {
+        /** @var array{id: int} $message */
+        $message = json_decode($data, true);
+        $id = $message['id'];
+
+        if (0 === $this->calls++) {
+            $this->answer($id, ['resultType' => 'input_required', 'inputRequests' => []]);
+
+            return;
+        }
+
+        $this->retryBody = $data;
+
+        $this->answer($id, ['resultType' => 'complete']);
+    }
+
+    /**
+     * @param array<string, mixed> $result
+     */
+    private function answer(int $id, array $result): void
+    {
+        $this->state->storeResponse($id, [
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => $id,
+            'result' => $result,
+        ]);
+    }
+
+    public function connect(): void
+    {
+    }
+
+    public function close(): void
+    {
+    }
+
+    public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
+    {
+        throw new LogicException('Not used in this test.');
+    }
+
+    public function onInitialize(callable $callback): void
+    {
+    }
+
+    public function onMessage(callable $callback): void
+    {
+    }
+
+    public function onError(callable $callback): void
+    {
+    }
+
+    public function onClose(callable $callback): void
+    {
     }
 }
 

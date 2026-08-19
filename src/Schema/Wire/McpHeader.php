@@ -197,10 +197,18 @@ final class McpHeader
      * Printable US-ASCII with no leading or trailing whitespace. Interior
      * spaces are fine; a tab is not, since it is a control character that
      * field parsers are allowed to fold.
+     *
+     * A literal that already has the wrapper's shape is not safe either: sent
+     * unchanged, {@see self::decode()} would unwrap it as if it were Base64
+     * and hand back something other than the literal.
      */
     private static function isSafe(string $value): bool
     {
         if ($value !== trim($value)) {
+            return false;
+        }
+
+        if (str_starts_with($value, self::BASE64_PREFIX) && str_ends_with($value, self::BASE64_SUFFIX)) {
             return false;
         }
 

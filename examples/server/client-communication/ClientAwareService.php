@@ -81,31 +81,35 @@ final class ClientAwareService
     public function coordinateIncident(RequestContext $context, string $incidentTitle): array|InputRequiredResult
     {
         $clientGateway = $context->getClientGateway();
-        $clientGateway->log(LoggingLevel::Warning, \sprintf('Incident triage started: %s', $incidentTitle));
 
-        $steps = [
-            'Collecting telemetry',
-            'Assessing scope',
-            'Coordinating responders',
-        ];
-
-        foreach ($steps as $index => $step) {
-            $progress = ($index + 1) / \count($steps);
-
-            $clientGateway->progress($progress, 1, $step);
-
-            usleep(180_000); // Simulate work being done
-        }
-
-        $prompt = \sprintf(
-            'Provide a concise response strategy for incident "%s" based on the steps completed: %s.',
-            $incidentTitle,
-            implode(', ', $steps)
-        );
-
+        // A retry re-enters this method from the top, so the triage work below
+        // must run only once: check for the answer first, before repeating logs,
+        // progress notifications and simulated work the client already saw.
         $result = $context->getInputContext()?->samplingResult('recommendation');
 
         if (null === $result) {
+            $clientGateway->log(LoggingLevel::Warning, \sprintf('Incident triage started: %s', $incidentTitle));
+
+            $steps = [
+                'Collecting telemetry',
+                'Assessing scope',
+                'Coordinating responders',
+            ];
+
+            foreach ($steps as $index => $step) {
+                $progress = ($index + 1) / \count($steps);
+
+                $clientGateway->progress($progress, 1, $step);
+
+                usleep(180_000); // Simulate work being done
+            }
+
+            $prompt = \sprintf(
+                'Provide a concise response strategy for incident "%s" based on the steps completed: %s.',
+                $incidentTitle,
+                implode(', ', $steps)
+            );
+
             return new InputRequiredResult(['recommendation' => new CreateSamplingMessageRequest(
                 messages: [new SamplingMessage(Role::User, new TextContent($prompt))],
                 maxTokens: 350,
