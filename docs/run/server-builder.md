@@ -95,8 +95,8 @@ $server = Server::builder()
 
 This section is about the **handshake era**. Revisions from `2026-07-28` on have no `initialize` and nothing to
 negotiate — each request names its own revision. `build()` serves both eras from one configuration; see
-[The 2026-07-28 lifecycle](../lifecycle/index.md) and, for narrowing or removing the modern leg,
-[Serving both eras](../lifecycle/serving-both-eras.md).
+[The 2026-07-28 lifecycle](../protocol-versions.md) and, for narrowing or removing the modern leg,
+[Serving both eras](protocol-eras.md).
 
 MCP revisions are identified by a date string such as `2025-11-25`. The client names the revision it wants to speak in
 its `initialize` request, and the server answers with the revision the connection will actually use. Both sides
@@ -154,12 +154,12 @@ counter-offer and has to decide whether to continue. Leave it unset unless you h
 
 `setProtocolVersion()` only pins the handshake. To narrow or remove what the modern leg answers for, use
 `setModernVersions()` / `withoutModernEra()` — see
-[Serving both eras](../lifecycle/serving-both-eras.md#serving-one-era-only).
+[Serving both eras](protocol-eras.md#serving-one-era-only).
 
 ## The 2026-07-28 Lifecycle
 
 `build()` returns a server that answers both protocol eras, and none of the following is required to serve either
-one. Each knob is covered in depth in [The 2026-07-28 lifecycle](../lifecycle/index.md):
+one. Each knob is covered in depth in [The 2026-07-28 lifecycle](../protocol-versions.md):
 
 ```php
 use Mcp\Schema\Enum\CacheScope;

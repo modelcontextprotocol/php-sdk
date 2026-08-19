@@ -4,7 +4,7 @@ A client is configured once through its builder, then connected to a
 [transport](transports.md). Connecting performs the MCP initialization handshake, after
 which the server's capabilities are known and its elements can be used. On protocol
 revision `2026-07-28` there is no handshake to perform — see
-[Clients on this revision](../lifecycle/client.md).
+[Clients on this revision](../protocol-versions.md).
 
 ## Client Builder
 
@@ -80,7 +80,7 @@ on. Use `$client->getProtocolVersion()` after connecting to read what was actual
 
 Setting a modern revision such as `2026-07-28` selects the other lifecycle rather than making an offer: there is no
 `initialize` to negotiate with, so `connect()` sends none and every request carries its own revision instead. Nothing
-else about the client API changes. See [Clients on this revision](../lifecycle/client.md) for what happens underneath.
+else about the client API changes. See [Clients on this revision](../protocol-versions.md) for what happens underneath.
 
 See [Protocol Version Negotiation](../run/server-builder.md#protocol-version-negotiation) for the server side of the
 exchange.
@@ -122,7 +122,7 @@ $client = Client::builder()
 ### Request Handlers
 
 Register handlers for server-initiated requests (e.g., sampling). The same handlers answer a
-[multi round-trip](../lifecycle/input-required.md) `input_required` result on a modern revision, where the server
+[multi round-trip](../handlers/input-required.md) `input_required` result on a modern revision, where the server
 returns its ask instead of sending a request:
 
 ```php

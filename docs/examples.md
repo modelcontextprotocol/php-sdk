@@ -164,7 +164,7 @@ $server = Server::builder()
 - Server initiated communication back to the client
 - Logging, sampling, progress and notifications
 - Using `ClientGateway` in tool method via method argument injection of `RequestContext`
-- Sampling and roots asked for the [multi round-trip](lifecycle/input-required.md) way, so the
+- Sampling and roots asked for the [multi round-trip](handlers/input-required.md) way, so the
   same tools serve a handshake-era and a `2026-07-28` client without naming either
 
 ### Discovery User Profile
@@ -285,7 +285,7 @@ public function formatText(
 
 **What it demonstrates:**
 - Asking the user for input from a tool, written the
-  [multi round-trip](lifecycle/input-required.md) way so one handler serves both protocol eras
+  [multi round-trip](handlers/input-required.md) way so one handler serves both protocol eras
 - Interactive user input during tool execution
 - Multi-field form schemas with validation
 - Boolean confirmation dialogs
@@ -387,7 +387,7 @@ protocol-level sessions. It is HTTP-only and cannot be driven by the Inspector, 
 
 **What it demonstrates:**
 - A tool answered in a single POST, with no handshake before it
-- A [multi round-trip](lifecycle/input-required.md) tool that returns its ask and reads the answer
+- A [multi round-trip](handlers/input-required.md) tool that returns its ask and reads the answer
   off the retry
 - Progress and log notifications travelling on the request's own response stream
 - Cache hints on `server/discover` and the list methods
@@ -411,7 +411,7 @@ curl -sS http://127.0.0.1:8000/ \
 ```
 
 `tests/Integration/StatelessLifecycleTest.php` drives this example end to end. See
-[The 2026-07-28 lifecycle](lifecycle/index.md) for the guide.
+[The 2026-07-28 lifecycle](protocol-versions.md) for the guide.
 
 ## Client Examples
 
@@ -670,7 +670,7 @@ php examples/client/stdio_roots.php
 **What it demonstrates:**
 - Selecting protocol revision `2026-07-28` with a single `setProtocolVersion()` call
 - A connection that sends no `initialize`, and asks `server/discover` only for the server's identity
-- A [multi round-trip](lifecycle/input-required.md) call answered by the client, so the caller sees
+- A [multi round-trip](handlers/input-required.md) call answered by the client, so the caller sees
   one call and one result
 
 **Key Features:**
@@ -704,4 +704,4 @@ php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php
 php examples/client/stateless_lifecycle_client.php
 ```
 
-See [Clients on this revision](lifecycle/client.md) for what that one builder line changes.
+See [Clients on this revision](protocol-versions.md) for what that one builder line changes.

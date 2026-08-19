@@ -28,6 +28,7 @@ nav:
   - Inside your handler:
       - handlers/index.md
       - Talking back to the client: handlers/client-communication.md
+      - Asking for input: handlers/input-required.md
       - Logging: handlers/logging.md
   - Running your server:
       - run/index.md
@@ -36,6 +37,9 @@ nav:
       - HTTP transport: run/http.md
       - Framework integration: run/framework-integration.md
       - Sessions: run/sessions.md
+      - Serving both eras: run/protocol-eras.md
+      - Caching: run/caching.md
+      - Subscriptions: run/subscriptions.md
       - Authorization: run/authorization.md
   - Clients:
       - client/index.md
@@ -44,14 +48,7 @@ nav:
       - "Tools, resources & prompts": client/capabilities.md
       - Server-initiated requests: client/server-requests.md
       - Error handling: client/errors.md
-  - The 2026-07-28 lifecycle:
-      - lifecycle/index.md
-      - What travels with a request: lifecycle/requests.md
-      - Asking for input: lifecycle/input-required.md
-      - Caching: lifecycle/caching.md
-      - Subscriptions: lifecycle/subscriptions.md
-      - Serving both eras: lifecycle/serving-both-eras.md
-      - Clients on this revision: lifecycle/client.md
+  - Protocol versions: protocol-versions.md
   - Advanced:
       - advanced/index.md
       - Events: advanced/events.md

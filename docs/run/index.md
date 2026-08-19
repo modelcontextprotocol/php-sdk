@@ -31,9 +31,11 @@ The rest of this section:
   a Symfony, Laravel, or Slim application, or running it standalone.
 * **[Sessions](sessions.md)** — where per-client state lives, which matters as soon as
   you serve HTTP from more than one process.
+* **[Serving both eras](protocol-eras.md)** — the same endpoint also answers protocol
+  revision `2026-07-28`, which has no handshake and no sessions; what a modern request
+  carries, and how each one is routed.
+* **[Caching](caching.md)** — the `ttlMs` / `cacheScope` hints a modern-era result carries.
+* **[Subscriptions](subscriptions.md)** — `subscriptions/listen` and the notification bus
+  behind it.
 * **[Authorization](authorization.md)** — validating OAuth 2 access tokens in front of
   the HTTP transport.
-
-The same server also answers protocol revision `2026-07-28`, which has no handshake and no
-sessions. Nothing above changes for it; what does is
-**[The 2026-07-28 lifecycle](../lifecycle/index.md)**.

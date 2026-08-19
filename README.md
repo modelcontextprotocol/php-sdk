@@ -297,7 +297,7 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 - **[Inside your handler](docs/handlers/index.md)** — Sampling, logging, progress, and notifications from within a handler
 - **[Running your server](docs/run/index.md)** — Server builder, STDIO and HTTP transports, framework integration, sessions, authorization
 - **[Clients](docs/client/index.md)** — Client SDK for connecting to and communicating with MCP servers
-- **[The 2026-07-28 lifecycle](docs/lifecycle/index.md)** — The stateless protocol revision: per-request metadata, `server/discover`, multi round-trip requests, caching and subscriptions
+- **[Protocol versions](docs/protocol-versions.md)** — The two protocol eras, and what revision `2026-07-28` changed
 - **[Advanced](docs/advanced/index.md)** — Events, protocol extensions (including MCP Apps), and custom message handlers
 - **[API Reference](https://php.sdk.modelcontextprotocol.io/api/)** — Generated class reference
 

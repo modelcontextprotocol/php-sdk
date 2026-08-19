@@ -37,5 +37,5 @@ $client->disconnect();
   messages, sampling requests, and elicitations the server sends *you*.
 * **[Error handling](errors.md)** — which exception means what, plus a complete
   end-to-end example.
-* **[Clients on this revision](../lifecycle/client.md)** — the one builder line that speaks
+* **[Clients on this revision](../protocol-versions.md)** — the one builder line that speaks
   protocol revision `2026-07-28`, and what it changes underneath.

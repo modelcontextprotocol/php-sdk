@@ -2,7 +2,7 @@
 
 > Sessions belong to the handshake era. Protocol revision `2026-07-28` removed them, along with
 > `Mcp-Session-Id`, because every request carries what is needed to answer it — see
-> [The 2026-07-28 lifecycle](../lifecycle/index.md). One server serves both, so the configuration below still
+> [The 2026-07-28 lifecycle](../protocol-versions.md). One server serves both, so the configuration below still
 > applies to the handshake-era clients it answers.
 
 Configure session storage and lifecycle. By default, the SDK uses `InMemorySessionStore`:

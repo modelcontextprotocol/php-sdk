@@ -73,7 +73,7 @@ both eras. `ProtocolVersionMiddleware` is not in that stack: the `MCP-Protocol-V
 to the handshake era, so the transport applies it only to requests it classified as handshake-era traffic,
 and the modern leg answers for its own revisions. It is available as
 `StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the edge stack.
-See [Serving both eras](../lifecycle/serving-both-eras.md).
+See [Serving both eras](protocol-eras.md).
 
 ## CORS Configuration
 
@@ -161,7 +161,7 @@ handshake has to pass that revision here as well.
 
 Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` rather than in a
 header, and is routed away from this check entirely — see
-[Serving both eras](../lifecycle/serving-both-eras.md).
+[Serving both eras](protocol-eras.md).
 
 ## Request Body Size Limit
 

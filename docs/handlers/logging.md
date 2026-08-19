@@ -7,7 +7,7 @@ Level **warning** is the default level, so anything below it is dropped until th
 `logging/setLevel`.
 
 !!! note
-    Under the [2026-07-28 lifecycle](../lifecycle/requests.md#progress-and-logging) there is no
+    Under the [2026-07-28 lifecycle](../run/protocol-eras.md#what-a-modern-request-carries) there is no
     `logging/setLevel`: the client names its level in each request's
     `_meta["io.modelcontextprotocol/logLevel"]`, and a request naming none receives no log
     notifications at all.

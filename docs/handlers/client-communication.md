@@ -9,7 +9,7 @@ request-response flow.
 > `ClientGateway::sample()`, `elicit()` and `listRoots()` raise a `LogicException` there.
 > Logging and progress still work as described below — they simply travel on the request's own
 > response stream, and the client opts into each. See
-> [Asking for input](../lifecycle/input-required.md).
+> [Asking for input](input-required.md).
 
 ## ClientGateway
 
@@ -33,8 +33,10 @@ class MyService
         $context->getClientGateway()->log(...);
 ```
 
-The same object also carries the protocol revision negotiated for the current request, which is useful when a feature is
-only available from a certain revision on:
+## Request metadata
+
+`RequestContext` also carries what the current request said about itself, which is useful when a feature is only
+available from a certain revision on:
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -43,6 +45,22 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
     // e.g. a bare list is only valid as `structuredContent` from this revision on
 }
 ```
+
+Two more accessors read what the client declared, and both work in either
+[protocol era](../protocol-versions.md) — negotiated once during the handshake, or declared per request from
+`2026-07-28` on:
+
+```php
+$context->getClientCapabilities();  // what this client declared, or null in the handshake era
+$context->getTraceContext();        // traceparent / tracestate / baggage, verbatim
+```
+
+`ClientGateway`'s capability probes — `supportsElicitation()`, `supportsSampling()`, `supportsRoots()` and the
+sub-capability variants — read the same declaration.
+
+W3C trace context is passed through exactly as it arrived, and echoed onto every notification the request causes,
+so a span stays joined across the response stream. Reading it adds no OpenTelemetry dependency — the values are
+strings.
 
 ## Sampling
 
@@ -114,6 +132,9 @@ notification a server can update a client while an operation is ongoing:
 ```php
 $clientGateway->progress(4.2, 10, 'Downloading needed images.');
 ```
+
+Progress is opt-in by the client in both eras: it sends a `progressToken` with the request, and without one this
+call sends nothing.
 
 ## Notification
 

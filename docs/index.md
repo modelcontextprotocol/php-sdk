@@ -95,8 +95,8 @@ around in.
   **[Inside your handler](handlers/index.md)**.
 * Building the other side, an application that *uses* MCP servers, is
   **[Clients](client/index.md)**.
-* The stateless protocol revision — no handshake, no sessions — is
-  **[The 2026-07-28 lifecycle](lifecycle/index.md)**.
+* The two protocol eras, and what revision `2026-07-28` changed, are
+  **[Protocol versions](protocol-versions.md)**.
 * Complete, runnable projects are in **[Examples](examples.md)**.
 * Hunting for an exact signature? The **[API Reference](https://php.sdk.modelcontextprotocol.io/api/)**
   is generated from the source.

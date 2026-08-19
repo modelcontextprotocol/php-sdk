@@ -1,11 +1,15 @@
 # Asking for input
 
-There are no server-initiated requests in this revision. A server that needs sampling,
-elicitation or roots **returns** the ask, and the client retries the original call carrying
-the answers. The specification calls this a multi round-trip request (MRTR).
+Some handlers cannot finish in one go: they need the user to confirm something, fill in a
+form, name a directory, or have the client's model draft a paragraph. The way to write that
+is to **return** the ask — an `InputRequiredResult` naming what you need — and read the
+answer off `RequestContext` when the call comes back.
 
-This is the shape to write handlers in even if you also serve handshake-era clients — the
-SDK fulfils the same ask over their connection instead. See
+Write it that way once and it serves both [protocol eras](../protocol-versions.md).
+Revision `2026-07-28` has no server-initiated requests at all, so the client retries the
+original call carrying the answers; the specification calls that a multi round-trip request
+(MRTR). On a handshake-era connection the SDK fulfils the same ask over that connection's own
+channel instead. Your handler does not fork on which — see
 [What a handler forks on](#what-a-handler-forks-on).
 
 ```php

@@ -1,5 +1,9 @@
 # Subscriptions
 
+> `subscriptions/listen` belongs to protocol revision `2026-07-28`; see
+> [Protocol versions](../protocol-versions.md). Handshake-era clients keep using the HTTP `GET` stream and
+> `resources/subscribe`, which the same server still answers.
+
 `subscriptions/listen` replaces the HTTP `GET` stream and `resources/subscribe`. The client
 opens a long-lived POST whose response stream carries the notification types it asked for;
 the server acknowledges first with `notifications/subscriptions/acknowledged`, reporting the
