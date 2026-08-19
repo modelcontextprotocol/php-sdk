@@ -1,8 +1,6 @@
 client:
   - elicitation-sep1034-client-defaults
   - sse-retry
-  - tools_call:tool-add-numbers
-  - json-schema-2020-12-preservation:json-schema-2020-12-client-echo-completed
   - auth/metadata-default
   - auth/metadata-var1
   - auth/metadata-var2

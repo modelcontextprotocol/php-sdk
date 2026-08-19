@@ -12,6 +12,7 @@
 namespace Mcp\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Wire\McpHeader;
 
 /**
  * Definition for a tool the client can call.
@@ -130,92 +131,9 @@ class Tool implements \JsonSerializable
         // the whole tool definition invalid, so it is refused where the tool
         // is defined rather than discovered when a header comparison
         // mysteriously fails.
-        if (null !== $reason = $this->checkHeaderAnnotations()) {
+        if (null !== $reason = McpHeader::checkAnnotations($this->inputSchema)) {
             throw new InvalidArgumentException(\sprintf('Tool "%s" has an invalid "x-mcp-header" annotation: %s', $this->name, $reason));
         }
-    }
-
-    /**
-     * Validates every `x-mcp-header` annotation reachable through `properties`
-     * in an input schema (SEP-2243).
-     *
-     * The value becomes an HTTP field name, so it has to be one; it has to be
-     * unique case-insensitively, or two arguments would fight over one header;
-     * and it may only sit on a primitive that is not `number`, because a float
-     * has no single decimal spelling for a receiver to compare against.
-     *
-     * @return string|null the reason it is invalid, or null when every annotation is well-formed
-     */
-    private function checkHeaderAnnotations(): ?string
-    {
-        $seen = [];
-
-        foreach ($this->headerAnnotations($this->inputSchema) as [$name, $type, $path]) {
-            if ('' === $name) {
-                return \sprintf('the annotation at "%s" is empty', $path);
-            }
-
-            // RFC 9110 tchar; excludes CR, LF and every other control character.
-            if (1 !== preg_match('/^[!#$%&\'*+\-.^_`|~0-9A-Za-z]+$/', $name)) {
-                return \sprintf('"%s" is not a valid HTTP field name', $name);
-            }
-
-            $folded = strtolower($name);
-            if (isset($seen[$folded])) {
-                return \sprintf('"%s" is declared twice, at "%s" and "%s"', $name, $seen[$folded], $path);
-            }
-            $seen[$folded] = $path;
-
-            if ('number' === $type) {
-                return \sprintf('"%s" is on a "number" property ("%s"), which cannot be mirrored', $name, $path);
-            }
-
-            if (null !== $type && !\in_array($type, ['string', 'integer', 'boolean'], true)) {
-                return \sprintf('"%s" is on a "%s" property ("%s"); only string, integer and boolean can be mirrored', $name, $type, $path);
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * Every annotation reachable through `properties` alone, as name, declared
-     * type and dotted path.
-     *
-     * @param array<string, mixed> $schema
-     *
-     * @return list<array{string, ?string, string}>
-     */
-    private function headerAnnotations(array $schema, string $prefix = ''): array
-    {
-        $properties = $schema['properties'] ?? null;
-
-        if (!\is_array($properties)) {
-            return [];
-        }
-
-        $found = [];
-
-        foreach ($properties as $property => $definition) {
-            if (!\is_array($definition)) {
-                continue;
-            }
-
-            $path = '' === $prefix ? (string) $property : $prefix.'.'.$property;
-            $annotation = $definition['x-mcp-header'] ?? null;
-
-            if (null !== $annotation) {
-                if (!\is_string($annotation)) {
-                    $found[] = ['', null, $path];
-                } else {
-                    $found[] = [$annotation, \is_string($definition['type'] ?? null) ? $definition['type'] : null, $path];
-                }
-            }
-
-            $found = [...$found, ...$this->headerAnnotations($definition, $path)];
-        }
-
-        return $found;
     }
 
     /**

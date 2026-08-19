@@ -13,6 +13,7 @@ namespace Mcp\Server\Stateless;
 
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Wire\McpHeader;
 
 /**
  * Checks that a request's HTTP headers agree with its JSON-RPC body (SEP-2243).
@@ -25,13 +26,9 @@ use Mcp\Exception\ToolNotFoundException;
  */
 final class StandardHeaderValidator
 {
-    public const METHOD_HEADER = 'Mcp-Method';
-    public const NAME_HEADER = 'Mcp-Name';
-    public const PARAM_HEADER_PREFIX = 'Mcp-Param-';
-
-    /** Wrapper marking a header value as Base64 of its UTF-8 representation. */
-    private const BASE64_PREFIX = '=?base64?';
-    private const BASE64_SUFFIX = '?=';
+    public const METHOD_HEADER = McpHeader::METHOD;
+    public const NAME_HEADER = McpHeader::NAME;
+    public const PARAM_HEADER_PREFIX = McpHeader::PARAM_PREFIX;
 
     public function __construct(
         private readonly ?RegistryInterface $registry = null,
@@ -113,14 +110,7 @@ final class StandardHeaderValidator
      */
     public static function nameFor(string $method, ?array $params): ?string
     {
-        $value = match ($method) {
-            'tools/call', 'prompts/get' => $params['name'] ?? null,
-            'resources/read' => $params['uri'] ?? null,
-            'tasks/get', 'tasks/update', 'tasks/cancel' => $params['taskId'] ?? null,
-            default => null,
-        };
-
-        return \is_string($value) ? $value : null;
+        return McpHeader::nameFor($method, $params);
     }
 
     /**
@@ -285,26 +275,10 @@ final class StandardHeaderValidator
 
     /**
      * Unwraps a `=?base64?…?=` value, or returns a plain value unchanged.
-     *
-     * Strict: PHP's decoder accepts mispadded input and returns plausible
-     * bytes, which would turn a corrupted header into a silent mismatch.
-     * Null when the wrapper is present but its contents are not valid Base64.
      */
     public static function decode(string $value): ?string
     {
-        if (!str_starts_with($value, self::BASE64_PREFIX) || !str_ends_with($value, self::BASE64_SUFFIX)) {
-            return $value;
-        }
-
-        $encoded = substr($value, \strlen(self::BASE64_PREFIX), -\strlen(self::BASE64_SUFFIX));
-
-        $decoded = base64_decode($encoded, true);
-
-        if (false === $decoded || base64_encode($decoded) !== $encoded) {
-            return null;
-        }
-
-        return $decoded;
+        return McpHeader::decode($value);
     }
 
     /**

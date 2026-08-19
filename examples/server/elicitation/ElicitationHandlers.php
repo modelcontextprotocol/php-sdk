@@ -17,6 +17,9 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
 use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 
@@ -43,10 +46,10 @@ final class ElicitationHandlers
      * - String field with date format for reservation date
      * - Enum field for dietary restrictions with human-readable labels
      *
-     * @return array{status: string, message: string, booking?: array{party_size: int, date: string, dietary: string}}
+     * @return array{status: string, message: string, booking?: array{party_size: int, date: string, dietary: string}}|InputRequiredResult
      */
     #[McpTool(name: 'book_restaurant', description: 'Book a restaurant reservation, collecting details via elicitation.')]
-    public function bookRestaurant(RequestContext $context, string $restaurantName): array
+    public function bookRestaurant(RequestContext $context, string $restaurantName): array|InputRequiredResult
     {
         if (!$context->getClientGateway()->supportsElicitation()) {
             return [
@@ -54,8 +57,6 @@ final class ElicitationHandlers
                 'message' => 'Client does not support elicitation. Please provide reservation details (party_size, date, dietary) as tool parameters instead.',
             ];
         }
-
-        $client = $context->getClientGateway();
 
         $this->logger->info(\sprintf('Starting reservation process for restaurant: %s', $restaurantName));
 
@@ -85,11 +86,18 @@ final class ElicitationHandlers
             required: ['party_size', 'date'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Please provide your reservation details for %s:', $restaurantName),
-            requestedSchema: $schema,
-            timeout: 120,
+        $result = $this->ask(
+            $context,
+            'details',
+            \sprintf('Please provide your reservation details for %s:', $restaurantName),
+            $schema,
         );
+
+        // Modern era, first round: the ask travels back as the result and the
+        // client retries this whole call carrying the answer.
+        if ($result instanceof InputRequiredResult) {
+            return $result;
+        }
 
         if ($result->isDeclined()) {
             $this->logger->info('User declined to provide reservation details.');
@@ -154,10 +162,10 @@ final class ElicitationHandlers
      *
      * Demonstrates the simplest elicitation pattern - a yes/no confirmation.
      *
-     * @return array{status: string, message: string}
+     * @return array{status: string, message: string}|InputRequiredResult
      */
     #[McpTool(name: 'confirm_action', description: 'Request user confirmation before proceeding with an action.')]
-    public function confirmAction(RequestContext $context, string $actionDescription): array
+    public function confirmAction(RequestContext $context, string $actionDescription): array|InputRequiredResult
     {
         if (!$context->getClientGateway()->supportsElicitation()) {
             return [
@@ -165,8 +173,6 @@ final class ElicitationHandlers
                 'message' => 'Client does not support elicitation. Please confirm the action explicitly in your request.',
             ];
         }
-
-        $client = $context->getClientGateway();
 
         $schema = new ElicitationSchema(
             properties: [
@@ -179,10 +185,16 @@ final class ElicitationHandlers
             required: ['confirm'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Are you sure you want to: %s?', $actionDescription),
-            requestedSchema: $schema,
+        $result = $this->ask(
+            $context,
+            'confirmation',
+            \sprintf('Are you sure you want to: %s?', $actionDescription),
+            $schema,
         );
+
+        if ($result instanceof InputRequiredResult) {
+            return $result;
+        }
 
         if (!$result->isAccepted()) {
             return [
@@ -222,10 +234,10 @@ final class ElicitationHandlers
      *
      * Demonstrates elicitation with optional fields and enum with labels.
      *
-     * @return array{status: string, message: string, feedback?: array{rating: string, comments: string}}
+     * @return array{status: string, message: string, feedback?: array{rating: string, comments: string}}|InputRequiredResult
      */
     #[McpTool(name: 'collect_feedback', description: 'Collect user feedback via elicitation form.')]
-    public function collectFeedback(RequestContext $context, string $topic): array
+    public function collectFeedback(RequestContext $context, string $topic): array|InputRequiredResult
     {
         if (!$context->getClientGateway()->supportsElicitation()) {
             return [
@@ -233,8 +245,6 @@ final class ElicitationHandlers
                 'message' => 'Client does not support elicitation. Please provide feedback (rating 1-5, comments) as tool parameters instead.',
             ];
         }
-
-        $client = $context->getClientGateway();
 
         $schema = new ElicitationSchema(
             properties: [
@@ -253,10 +263,16 @@ final class ElicitationHandlers
             required: ['rating'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Please provide your feedback about: %s', $topic),
-            requestedSchema: $schema,
+        $result = $this->ask(
+            $context,
+            'feedback',
+            \sprintf('Please provide your feedback about: %s', $topic),
+            $schema,
         );
+
+        if ($result instanceof InputRequiredResult) {
+            return $result;
+        }
 
         if (!$result->isAccepted()) {
             return [
@@ -287,5 +303,27 @@ final class ElicitationHandlers
                 'comments' => $comments,
             ],
         ];
+    }
+
+    /**
+     * Ask the user one question.
+     *
+     * Written the way revision 2026-07-28 asks: the question is *returned*, the
+     * client answers it and retries the whole call, and the answer comes back
+     * through the input context under the same key. Nothing here names an era —
+     * on a handshake-era connection the SDK fulfils the same ask over that
+     * connection's own channel and re-enters the tool with the answer.
+     *
+     * The caller gets an {@see ElicitResult} once there is one, or an
+     * {@see InputRequiredResult} to hand straight back to its own caller.
+     */
+    private function ask(
+        RequestContext $context,
+        string $key,
+        string $message,
+        ElicitationSchema $schema,
+    ): ElicitResult|InputRequiredResult {
+        return $context->getInputContext()?->elicitResult($key)
+            ?? new InputRequiredResult([$key => new ElicitRequest($message, $schema)]);
     }
 }
