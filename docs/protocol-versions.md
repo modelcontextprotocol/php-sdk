@@ -23,10 +23,69 @@ map; the mechanics live with the task they belong to.
 | HTTP entry | `StreamableHttpTransport` — the same one, for both |
 
 `ProtocolVersion::isModern()` tells the two apart, and
-`Mcp\Schema\Enum\ProtocolVersion::FIRST_MODERN_VERSION` is where the boundary sits. How the
-handshake era agrees on a revision is
-[Protocol version negotiation](run/server-builder.md#protocol-version-negotiation); the
-modern era negotiates nothing.
+`Mcp\Schema\Enum\ProtocolVersion::FIRST_MODERN_VERSION` is where the boundary sits.
+
+## Negotiating in the handshake era
+
+Revisions up to `2025-11-25` agree on one during `initialize`. The client names the revision it wants to speak, and
+the server answers with the revision the connection will actually use. Both sides disconnect if they cannot agree.
+This follows the
+[protocol version negotiation](https://modelcontextprotocol.io/specification/draft/basic/versioning#protocol-version-negotiation)
+section of the specification. The modern era negotiates nothing — each request names its own revision.
+
+The SDK's known revisions live in `Mcp\Schema\Enum\ProtocolVersion`, declared oldest to newest:
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
+ProtocolVersion::latestHandshake();   // newest revision reachable via `initialize`
+ProtocolVersion::handshakeVersions(); // every revision the server will negotiate, oldest first
+ProtocolVersion::modernVersions();    // every revision served without a handshake
+ProtocolVersion::V2025_11_25->isAtLeast(ProtocolVersion::V2025_06_18); // true
+```
+
+Comparisons go through declaration order rather than string collation. The identifiers happen to be ISO dates today,
+but they are an enumerated set rather than an ordered scalar, so nothing should assume they sort chronologically.
+
+### How the server answers
+
+| Client requests | Server responds with |
+| --- | --- |
+| A revision the server supports | That same revision |
+| An unknown or malformed revision | `ProtocolVersion::latestHandshake()` as a counter-offer |
+| A modern revision such as `2026-07-28` | `ProtocolVersion::latestHandshake()` as a counter-offer |
+
+A counter-offer is not an error: the client decides whether it can continue on the offered revision or must close the
+connection. The negotiated revision is stored on the session under `protocol_version`.
+
+The last row is not a rejection of an unknown revision — the SDK knows `2026-07-28`, it just cannot be reached through
+this handshake. The modern era replaced `initialize` with per-request metadata, so answering with one of its revisions
+would leave a connection neither side could use. A client speaking it never gets here: it sends the envelope instead
+of an `initialize` request, and the transport routes it to the modern dispatcher before any negotiation is attempted.
+See [Serving both eras](run/protocol-eras.md).
+
+This table is mirrored by the `provideNegotiationTable()` data provider in
+`tests/Unit/Server/Handler/Request/InitializeHandlerTest.php`, which drives its supported-revision rows off the enum so
+a newly declared revision is covered automatically.
+
+### Pinning a revision
+
+`Builder::setProtocolVersion()` pins the handshake to exactly one revision instead of negotiating across the supported
+set. The pin wins over the client's request, so a client asking for anything else receives the pinned revision as a
+counter-offer and has to decide whether to continue. Leave it unset unless you have a reason to refuse other
+revisions.
+
+It pins the handshake era only. `setModernVersions()` narrows what the modern leg answers for, and
+`withoutModernEra()` removes that leg altogether — see
+[Serving one era only](run/protocol-eras.md#serving-one-era-only).
+
+!!! note
+    On the Streamable HTTP transport, every handshake-era request after the handshake also carries an
+    `MCP-Protocol-Version` header, which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach
+    that check: the transport builds the middleware without access to the server configuration, so the header keeps
+    being accepted for every revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the
+    middleware yourself with the same revision — see
+    [Protocol Version Validation](run/http.md#protocol-version-validation).
 
 ## What changes, and where it is written down
 

@@ -82,7 +82,7 @@ Setting a modern revision such as `2026-07-28` selects the other lifecycle rathe
 `initialize` to negotiate with, so `connect()` sends none and every request carries its own revision instead. Nothing
 else about the client API changes. See [Clients on this revision](../protocol-versions.md) for what happens underneath.
 
-See [Protocol Version Negotiation](../run/server-builder.md#protocol-version-negotiation) for the server side of the
+See [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for the server side of the
 exchange.
 
 ### Capabilities

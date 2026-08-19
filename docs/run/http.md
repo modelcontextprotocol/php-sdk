@@ -154,7 +154,7 @@ The default set is `ProtocolVersion::handshakeVersions()` — every revision the
 header itself, so a header-less request cannot be newer than that.
 
 This header check is separate from, and happens after, the handshake itself. See
-[Protocol Version Negotiation](server-builder.md#protocol-version-negotiation) for how the revision is agreed in the
+[Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for how the revision is agreed in the
 first place. Being separate also means it is unaffected by `setProtocolVersion()`: the middleware validates against
 the set it was constructed with, not against the revision a given session negotiated, so a server that pins the
 handshake has to pass that revision here as well.
