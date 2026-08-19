@@ -1,6 +1,13 @@
 # Client Communication
 
-MCP supports various ways a server can communicate back to a server on top of the main request-response flow.
+MCP supports various ways a server can communicate back to a client on top of the main request-response flow.
+
+> **Protocol revision `2026-07-28`.** This page describes the handshake era, where a server sends its own
+> JSON-RPC requests to the client. The modern lifecycle removed that: sampling, elicitation and roots are
+> carried back inside the *result* instead, and `ClientGateway::sample()`, `elicit()` and `listRoots()`
+> raise a `LogicException` there. Logging and progress still work as described below — they simply travel
+> on the request's own response stream, and the client opts into each. See
+> [The 2026-07-28 Lifecycle](stateless-lifecycle.md).
 
 ## Table of Contents
 

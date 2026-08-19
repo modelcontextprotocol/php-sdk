@@ -26,7 +26,7 @@ jobs:
             baseline: conformance-baseline-2025-11-25.yml
           - spec-version: '2026-07-28'
             dist-tag: alpha
-            path: '/stateless'
+            path: '/'
             baseline: conformance-baseline-2026-07-28.yml
     steps:
       - uses: actions/checkout@v7
