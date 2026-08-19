@@ -1,6 +1,5 @@
 client:
   - elicitation-sep1034-client-defaults
-  - sse-retry
   - auth/metadata-default
   - auth/metadata-var1
   - auth/metadata-var2

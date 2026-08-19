@@ -102,6 +102,11 @@ try {
             $logger->info('Called tool: add_numbers');
             break;
 
+        case 'sse-retry':
+            $client->callTool('test_reconnection', []);
+            $logger->info('Completed tool call after SSE reconnection');
+            break;
+
         case 'elicitation-sep1034-client-defaults':
             $toolName = $toolsResult->tools[0]->name ?? 'test_client_elicitation_defaults';
             $client->callTool($toolName, []);
