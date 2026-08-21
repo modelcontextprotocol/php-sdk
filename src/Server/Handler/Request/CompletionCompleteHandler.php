@@ -25,6 +25,8 @@ use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Handles completion/complete requests.
@@ -38,6 +40,7 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
     public function __construct(
         private readonly RegistryInterface $registry,
         private readonly ?ContainerInterface $container = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -87,8 +90,12 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
         } catch (PromptNotFoundException|ResourceNotFoundException $e) {
             // The reference names something the server does not have, which is
             // a bad parameter rather than a missing resource.
+            $this->logger->warning(\sprintf('Completion requested for unknown reference: %s', $e->getMessage()), ['exception' => $e]);
+
             return Error::forInvalidParams($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
+            $this->logger->error(\sprintf('Error while handling completion request: %s', $e->getMessage()), ['exception' => $e]);
+
             return Error::forInternalError('Error while handling completion request', $request->getId());
         }
     }

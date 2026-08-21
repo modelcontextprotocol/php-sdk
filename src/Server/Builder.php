@@ -1079,7 +1079,7 @@ final class Builder
 
         $requestHandlers = array_merge($this->requestHandlers, [
             new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
-            new Handler\Request\CompletionCompleteHandler($registry, $container),
+            new Handler\Request\CompletionCompleteHandler($registry, $container, $logger),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
             new Handler\Request\InitializeHandler($configuration),
             new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
