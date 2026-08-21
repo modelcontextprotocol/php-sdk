@@ -26,6 +26,7 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
@@ -207,16 +208,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "failing_tool": "Tool execution failed".',
-                [
-                    'tool' => 'failing_tool',
-                    'arguments' => ['param' => 'value', '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -229,6 +222,61 @@ class CallToolHandlerTest extends TestCase
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertEquals('Tool execution failed', $result->content[0]->text);
+    }
+
+    public function testHandleToolCallExceptionLogsAtDebugLevel(): void
+    {
+        $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
+        $exception = new ToolCallException('Expected tool failure');
+        $logger = new class extends AbstractLogger {
+            public array $records = [];
+
+            // @phpstan-ignore missingType.parameter (compatible with psr/log 1.x)
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, $logger);
+        $toolReference = $this->createToolReference('failing_tool', static function () {
+            return 'unused';
+        });
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('failing_tool')
+            ->willReturn($toolReference);
+
+        $arguments = ['param' => 'value', '_session' => $this->session, '_request' => $request];
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, $arguments)
+            ->willThrowException($exception);
+
+        $handler->handle($request, $this->session);
+
+        $failureRecords = array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => str_contains($record['message'], 'Expected tool failure'),
+        ));
+
+        $this->assertSame([
+            [
+                'level' => 'debug',
+                'message' => 'Error while executing tool "failing_tool": "Expected tool failure".',
+                'context' => [
+                    'tool' => 'failing_tool',
+                    'arguments' => $arguments,
+                    'exception' => $exception,
+                ],
+            ],
+        ], $failureRecords);
+        $this->assertSame([], array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => \in_array($record['level'], ['error', 'critical'], true),
+        )));
     }
 
     public function testHandleWithNullResult(): void
@@ -270,7 +318,7 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
 
-    public function testHandleLogsErrorWithCorrectParameters(): void
+    public function testHandleLogsToolCallException(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException('Custom error message');
@@ -291,16 +339,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "test_tool": "Custom error message".',
-                [
-                    'tool' => 'test_tool',
-                    'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -335,6 +375,14 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['param' => 'value', '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Unhandled error during tool execution', [
+                'name' => 'failing_tool',
+                'exception' => $exception,
+            ]);
 
         $response = $this->handler->handle($request, $this->session);
 
