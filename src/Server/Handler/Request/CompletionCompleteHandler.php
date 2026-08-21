@@ -24,6 +24,8 @@ use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceReference;
 use Mcp\Schema\Result\CompletionCompleteResult;
 use Mcp\Server\Session\SessionInterface;
+use McpServer\Primitives\AbstractClaimsAwarePrimitive;
+use McpServer\Session\SessionClaimsService;
 use Psr\Container\ContainerInterface;
 
 /**
@@ -77,6 +79,13 @@ final class CompletionCompleteHandler implements RequestHandlerInterface
             if (!$provider instanceof ProviderInterface) {
                 return Error::forInternalError('Invalid completion provider type', $request->getId());
             }
+			if ($provider instanceof AbstractClaimsAwarePrimitive) {
+				$claimsService = $this->container->get(SessionClaimsService::class);
+				$claims = $claimsService->getClaims($session);
+				if ($claims) {
+					$provider->setClaims($claims);
+				}
+			}
 
             $completions = $provider->getCompletions($value);
             $total = \count($completions);

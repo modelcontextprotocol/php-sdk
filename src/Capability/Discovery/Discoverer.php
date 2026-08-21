@@ -30,6 +30,8 @@ use Mcp\Schema\PromptArgument;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use McpClient\Entity\ClientConfig;
+use McpServer\Attributes\McpPermissions;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Finder\Finder;
@@ -53,6 +55,7 @@ final class Discoverer implements DiscovererInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         private ?DocBlockParser $docBlockParser = null,
         private ?SchemaGeneratorInterface $schemaGenerator = null,
+		private readonly ?ClientConfig $clientConfig = null,
     ) {
         if (!class_exists(Finder::class)) {
             throw new RuntimeException('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
@@ -175,6 +178,9 @@ final class Discoverer implements DiscovererInterface
 
             if (!$processedViaClassAttribute) {
                 foreach ($reflectionClass->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
+					if ($this->clientConfig && !$this->matchesClaims($method)) {
+						continue;
+					}
                     if (
                         $method->getDeclaringClass()->getName() !== $reflectionClass->getName()
                         || $method->isStatic() || $method->isAbstract() || $method->isConstructor() || $method->isDestructor() || '__invoke' === $method->getName()
@@ -452,4 +458,51 @@ final class Discoverer implements DiscovererInterface
 
         return null;
     }
+
+	/**
+	 * @param \ReflectionMethod $method
+	 * @return bool
+	 */
+	private function matchesClaims(\ReflectionMethod $method): bool
+	{
+		$attrs = $method->getAttributes(McpPermissions::class);
+
+		if (empty($attrs)) {
+			return false;
+		}
+
+		/** @var McpPermissions $permissionAttrs */
+		$permissionAttrs = $attrs[0]->newInstance();
+
+		foreach (get_object_vars($permissionAttrs) as $key => $allowedValues) {
+			//skip attributes that aren't specified
+			if ($allowedValues === null) {
+				continue;
+			}
+
+			switch ($key) {
+				case 'permissions':
+					$claimValue = $this->clientConfig->getPermissions();
+					if (empty(array_intersect($allowedValues, $claimValue))) {
+						return false;
+					}
+					break;
+				case 'language':
+					$claimValue = $this->clientConfig->getLanguage()->getLanguageCode();
+					if (!in_array($claimValue, $allowedValues, false)) {
+						return false;
+					}
+					break;
+				case 'clientOrigin':
+					$claimValue = $this->clientConfig->getClientOrigin();
+					if (!in_array($claimValue, $allowedValues, false)) {
+						return false;
+					}
+					break;
+				default:
+					return false;
+			}
+		}
+		return true;
+	}
 }
