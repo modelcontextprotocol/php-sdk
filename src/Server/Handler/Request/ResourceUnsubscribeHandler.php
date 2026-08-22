@@ -58,9 +58,6 @@ final class ResourceUnsubscribeHandler implements RequestHandlerInterface
         } catch (ResourceNotFoundException $e) {
             $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
-            // SEP-2164 retired -32002 in favour of the JSON-RPC code that
-            // already meant this. Older peers still expect the old one, so the
-            // revision answering the request decides.
             return (new RequestContext($session, $request))->getProtocolVersion()->usesInvalidParamsForResourceNotFound()
                 ? Error::forInvalidParams($e->getMessage(), $request->getId(), ['uri' => $uri])
                 : Error::forResourceNotFound($e->getMessage(), $request->getId());
