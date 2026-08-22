@@ -62,6 +62,28 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame('payload', $store->read($id));
     }
 
+    #[TestDox('gc() only deletes expired session files, never foreign files in the directory')]
+    public function testGcLeavesForeignFilesAlone(): void
+    {
+        $store = new FileSessionStore($this->directory, ttl: 60);
+        $id = new UuidV4();
+        $store->write($id, 'payload');
+
+        $foreign = $this->directory.'/important.lock';
+        file_put_contents($foreign, 'not a session');
+
+        // Make everything stale
+        $expired = time() - 120;
+        touch($this->directory.'/'.$id->toRfc4122(), $expired);
+        touch($foreign, $expired);
+
+        $deleted = $store->gc();
+
+        $this->assertEquals([$id], $deleted);
+        $this->assertFileDoesNotExist($this->directory.'/'.$id->toRfc4122());
+        $this->assertFileExists($foreign);
+    }
+
     #[TestDox('rejects an unwritable directory with the SDK\'s own exception')]
     public function testUnwritableDirectoryThrowsPackageException(): void
     {
