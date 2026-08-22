@@ -110,15 +110,12 @@ class Session implements SessionInterface
         while (\count($segments) > 1) {
             $segment = array_shift($segments);
             if (!isset($data[$segment]) || !\is_array($data[$segment])) {
-                $data[$segment] = [];
+                return;
             }
             $data = &$data[$segment];
         }
 
-        $lastKey = array_shift($segments);
-        if (isset($data[$lastKey])) {
-            unset($data[$lastKey]);
-        }
+        unset($data[array_shift($segments)]);
     }
 
     public function clear(): void
