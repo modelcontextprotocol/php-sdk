@@ -126,7 +126,9 @@ Building something on top of the SDK? Open a pull request to add it to this list
 
 We are passionate about supporting contributors of all levels of experience and would love to see you get involved in
 the project. Start by [reporting issues](https://github.com/modelcontextprotocol/php-sdk/issues) or
-[sending pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
+[sending pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and what to run before
+opening a PR.
 
 ## Credits
 
