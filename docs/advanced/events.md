@@ -2,21 +2,12 @@
 
 The MCP SDK provides a PSR-14 compatible event system that allows you to hook into the server's lifecycle. Events enable request/response modification, and other user-defined behaviors.
 
-## Table of Contents
-
-- [Setup](#setup)
-- [Protocol Events](#protocol-events)
-  - [RequestEvent](#requestevent)
-  - [ResponseEvent](#responseevent)
-  - [ErrorEvent](#errorevent)
-  - [NotificationEvent](#notificationevent)
-- [List Change Events](#list-change-events)
-
 ## Setup
 
 Configure an event dispatcher when building your server:
 
 ```php
+use Mcp\Event\RequestEvent;
 use Mcp\Server;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
@@ -67,7 +58,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 **Properties**:
 - `getError(): Error` - The error being sent
 - `setError(Error $error): void` - Modify the error before sending
-- `getRequest(): Request` - The original request (null for parse errors)
+- `getRequest(): Request` - The original request. Messages that fail to parse are rejected before this event, so a listener never sees them.
 - `getThrowable(): ?\Throwable` - The exception that caused the error (if any)
 - `getSession(): SessionInterface` - The current session
 

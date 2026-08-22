@@ -24,6 +24,7 @@ use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
@@ -97,14 +98,35 @@ class StatelessProtocolTest extends TestCase
             )
             ->addTool(
                 static function (RequestContext $context): string {
-                    // The pattern this revision replaced: kept as a fixture so
-                    // the refusal has something to refuse.
-                    $context->getClientGateway()->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+                    $answer = $context->getClientGateway()->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+
+                    return 'hello '.($answer->content['n'] ?? '?');
+                },
+                name: 'elicits_directly',
+                description: 'Asks through the gateway, the way a handshake-era handler does',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $gateway = $context->getClientGateway();
+                    $gateway->progress(0, 100, 'starting');
+
+                    $answer = $gateway->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+
+                    return 'hello '.($answer->content['n'] ?? '?');
+                },
+                name: 'elicits_after_progress',
+                description: 'Reports progress, then asks through the gateway',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    // A kind this revision removed rather than reshaped: kept as
+                    // a fixture so the refusal has something to refuse.
+                    $context->getClientGateway()->request(new ListRootsRequest());
 
                     return 'unreachable';
                 },
-                name: 'elicits_directly',
-                description: 'Asks the client directly, which this revision forbids',
+                name: 'asks_for_roots',
+                description: 'Asks the client directly for something this revision removed',
             )
             ->addTool(
                 static fn (): InputRequiredResult => new InputRequiredResult([
@@ -414,15 +436,186 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $body['error']['code']);
     }
 
-    #[TestDox('a server-initiated request is refused with the pattern that replaced it')]
+    #[TestDox('a server-initiated request this revision removed is refused')]
     public function testServerInitiatedRequestIsRefused(): void
     {
-        $result = self::callStreaming(self::protocol(), 'elicits_directly');
+        $result = self::callStreaming(self::protocol(), 'asks_for_roots');
 
         $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
 
         $this->assertSame(500, $result->httpStatus);
-        $this->assertStringContainsString('InputRequiredResult', $body['error']['message']);
+        $this->assertStringContainsString('no server-initiated requests', $body['error']['message']);
+    }
+
+    #[TestDox('a gateway elicitation becomes the ask this revision carries in the result')]
+    public function testGatewayElicitationBecomesAnAsk(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'elicits_directly', 'arguments' => []],
+            ['Mcp-Name' => 'elicits_directly'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+        // Unnamed, so filed under its position among the handler's asks.
+        $this->assertSame('elicitation/create', $answer['body']['result']['inputRequests']['elicitation_1']['method']);
+        // Nothing is answered yet, so there is nothing to carry.
+        $this->assertArrayNotHasKey('requestState', $answer['body']['result']);
+    }
+
+    #[TestDox('the retry resumes the gateway call the ask came from')]
+    public function testGatewayElicitationResumesOnRetry(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            [
+                'name' => 'elicits_directly',
+                'arguments' => [],
+                'inputResponses' => ['elicitation_1' => ['action' => 'accept', 'content' => ['n' => 'ada']]],
+            ],
+            ['Mcp-Name' => 'elicits_directly'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('hello ada', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('a gateway ask that follows a notification ends the stream it opened')]
+    public function testGatewayElicitationEndsAnOpenStream(): void
+    {
+        $result = self::callStreaming(self::protocol(), 'elicits_after_progress', [
+            'progressToken' => 'p1',
+            RequestMeta::CLIENT_CAPABILITIES => ['elicitation' => new \stdClass()],
+        ]);
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+        $this->assertSame('notifications/progress', $frames[0]['method']);
+        $this->assertSame('input_required', $frames[1]['result']['resultType']);
+    }
+
+    #[TestDox('an ask the client did not declare it can answer is refused before it is minted')]
+    public function testUndeclaredGatewayElicitationIsRefused(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'elicits_directly', 'arguments' => []],
+            ['Mcp-Name' => 'elicits_directly'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $answer['body']['error']['code']);
+    }
+
+    /**
+     * A handler asking twice: the second round has to remember the first
+     * round's answer, which is what the `requestState` is for.
+     */
+    private static function twoAskProtocol(bool $signed = true): StatelessProtocol
+    {
+        $builder = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $gateway = $context->getClientGateway();
+                    $schema = new ElicitationSchema(['v' => new StringSchemaDefinition('V')], ['v']);
+
+                    $when = $gateway->elicit('When?', $schema, key: 'when');
+                    $seat = $gateway->elicit('Seat?', $schema, key: 'seat');
+
+                    return $when->content['v'].'/'.$seat->content['v'];
+                },
+                name: 'books_flight',
+                description: 'Asks twice before it answers',
+            );
+
+        if ($signed) {
+            $builder->setRequestState(str_repeat('k', 32));
+        }
+
+        return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     *
+     * @return array<string, mixed>
+     */
+    private static function book(StatelessProtocol $protocol, array $params = []): array
+    {
+        return self::call(
+            $protocol,
+            'tools/call',
+            ['name' => 'books_flight', 'arguments' => [], ...$params],
+            ['Mcp-Name' => 'books_flight'],
+            ['elicitation' => new \stdClass()],
+        );
+    }
+
+    #[TestDox('a handler asking twice is served one ask per round, remembering the first')]
+    public function testNamedAsksCarryAcrossRounds(): void
+    {
+        $protocol = self::twoAskProtocol();
+
+        $first = self::book($protocol);
+        $this->assertSame('input_required', $first['body']['result']['resultType']);
+        $this->assertSame(['when'], array_keys($first['body']['result']['inputRequests']));
+        // Nothing answered yet, so nothing to carry.
+        $this->assertArrayNotHasKey('requestState', $first['body']['result']);
+
+        $second = self::book($protocol, [
+            'inputResponses' => ['when' => ['action' => 'accept', 'content' => ['v' => 'morning']]],
+        ]);
+        $this->assertSame('input_required', $second['body']['result']['resultType']);
+        $this->assertSame(['seat'], array_keys($second['body']['result']['inputRequests']));
+        $this->assertIsString($second['body']['result']['requestState']);
+
+        // The client echoes the state and answers only what it was just asked.
+        $third = self::book($protocol, [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $second['body']['result']['requestState'],
+        ]);
+        $this->assertSame(200, $third['status']);
+        $this->assertSame('morning/aisle', $third['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('carrying an answer to the next round without a signing key fails loudly')]
+    public function testCarryingAnAnswerNeedsASigningKey(): void
+    {
+        $answer = self::book(self::twoAskProtocol(signed: false), [
+            'inputResponses' => ['when' => ['action' => 'accept', 'content' => ['v' => 'morning']]],
+        ]);
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::INTERNAL_ERROR, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('an answer that does not parse is asked for again')]
+    public function testMalformedAnswerIsAskedAgain(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            [
+                'name' => 'elicits_directly',
+                'arguments' => [],
+                // Accepted, but a form-mode acceptance carries content.
+                'inputResponses' => ['elicitation_1' => ['action' => 'accept']],
+            ],
+            ['Mcp-Name' => 'elicits_directly'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+        $this->assertArrayHasKey('elicitation_1', $answer['body']['result']['inputRequests']);
     }
 
     #[TestDox('a request\'s trace context reaches the handler')]

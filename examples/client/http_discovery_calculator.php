@@ -18,7 +18,7 @@
  * Usage: php examples/client/http_discovery_calculator.php
  *
  * Before running, start an HTTP MCP server:
- *   php -S localhost:8080 examples/server/http-discovery-calculator/server.php
+ *   php -S localhost:8000 examples/server/discovery-calculator/server.php
  */
 
 require_once __DIR__.'/../../vendor/autoload.php';

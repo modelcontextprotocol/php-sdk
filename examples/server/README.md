@@ -24,9 +24,9 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 
 ## The 2026-07-28 lifecycle
 
-`stateless-lifecycle/server.php` speaks protocol revision `2026-07-28`, which removed the `initialize`
-handshake and protocol-level sessions. It is HTTP-only and cannot be driven by the Inspector, which
-opens with `initialize`:
+`stateless-lifecycle/server.php` demonstrates protocol revision `2026-07-28`, which removed the
+`initialize` handshake and protocol-level sessions. Like every example it answers both eras — the
+Inspector's `initialize` still works — but the interesting part is the modern one:
 
 ```bash
 php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php

@@ -1,0 +1,3 @@
+# Toolchain for the documentation site under `docs/`, built by `make docs`.
+#
+zensical==0.0.50

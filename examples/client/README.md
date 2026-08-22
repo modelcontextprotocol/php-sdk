@@ -35,6 +35,25 @@ php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php
 php examples/client/stateless_lifecycle_client.php
 ```
 
+## Server-initiated requests
+
+The remaining examples answer requests the server sends back during a call:
+
+```bash
+# Sampling, log and progress messages (also available over HTTP)
+php examples/client/stdio_client_communication.php
+
+# Elicitation: answering the server's questions from an interactive prompt
+php examples/client/stdio_elicitation.php
+
+# Roots: exposing workspace folders and signalling roots/list_changed
+php examples/client/stdio_roots.php
+```
+
+> **Note**: `http_client_communication.php` needs a server that can answer a second request
+> mid-call; PHP's built-in web server only does that with worker processes, e.g.
+> `PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8000 …`.
+
 ## Requirements
 
 All examples require the server examples to be available. The STDIO examples spawn the server process, while the HTTP examples connect to a running HTTP server.
