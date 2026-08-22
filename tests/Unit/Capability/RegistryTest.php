@@ -19,6 +19,7 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
@@ -31,6 +32,7 @@ use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 
 class RegistryTest extends TestCase
@@ -720,6 +722,50 @@ class RegistryTest extends TestCase
         }
 
         $this->assertArrayHasKey('loaded', $registry->getTools()->references);
+    }
+
+    public function testListChangedEventsAreSuppressedDuringTheDeferredLoad(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $loader = new class($this->createValidTool('loaded'), $this->createValidResource('file:///loaded'), $this->createValidResourceTemplate('file:///loaded/{id}'), $this->createValidPrompt('loaded_prompt')) implements LoaderInterface {
+            public function __construct(
+                private readonly Tool $tool,
+                private readonly ResourceDefinition $resource,
+                private readonly ResourceTemplate $template,
+                private readonly Prompt $prompt,
+            ) {
+            }
+
+            public function load(RegistryInterface $registry): void
+            {
+                $registry->registerTool($this->tool, 'handler');
+                $registry->registerResource($this->resource, 'handler');
+                $registry->registerResourceTemplate($this->template, 'handler');
+                $registry->registerPrompt($this->prompt, 'handler');
+            }
+        };
+
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+
+        $this->assertTrue($registry->hasTools());
+        $this->assertTrue($registry->hasPrompts());
+    }
+
+    public function testListChangedEventsAreStillDispatchedForRuntimeRegistrations(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(ToolListChangedEvent::class))
+            ->willReturnArgument(0);
+
+        $loader = $this->toolLoader($this->createValidTool('loaded'));
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+        $registry->load();
+
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
     }
 
     public function testLoadRunsTheConfiguredLoaderEagerly(): void
