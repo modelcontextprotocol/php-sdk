@@ -23,5 +23,6 @@ SDK-internal deprecation) that introduced the deprecation and the earliest remov
 
 The SDK is pre-1.0 and experimental, and the public
 API can still change without a deprecation cycle where the spec itself hasn't moved. Once past 1.0, the SDK
-follows Symfony's backward-compatibility promise, and the twelve-month deprecation window above becomes the
+follows [Symfony's backward-compatibility promise](https://symfony.com/doc/current/contributing/code/bc.html),
+and the twelve-month deprecation window above becomes the
 floor for any BC break the SDK introduces on its own, not just ones the spec forces.
