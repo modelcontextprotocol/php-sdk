@@ -54,6 +54,9 @@ nav:
       - Events: advanced/events.md
       - Protocol extensions: advanced/extensions.md
       - Custom message handlers: advanced/custom-handlers.md
+  - Project:
+      - Deprecation policy: deprecation-policy.md
+      - SDK tier target: sdk-tier.md
   - Examples: examples.md
   - API Reference: https://php.sdk.modelcontextprotocol.io/api/
 
