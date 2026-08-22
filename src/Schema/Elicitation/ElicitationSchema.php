@@ -134,6 +134,26 @@ final class ElicitationSchema implements \JsonSerializable
     }
 
     /**
+     * Return the canonical response content for accepting this elicitation with its declared defaults.
+     *
+     * @return array<string, mixed>
+     */
+    public function extractDefaults(): array
+    {
+        $defaults = [];
+
+        foreach ($this->properties as $name => $property) {
+            $definition = $property->jsonSerialize();
+
+            if (\array_key_exists('default', $definition)) {
+                $defaults[$name] = $definition['default'];
+            }
+        }
+
+        return $defaults;
+    }
+
+    /**
      * @return array{
      *     type: string,
      *     properties: array<string, mixed>,

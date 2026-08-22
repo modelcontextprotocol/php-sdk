@@ -52,10 +52,10 @@ $builder = Client::builder()
     ->setLogger($logger);
 
 /**
- * Accepts every elicitation with an empty payload.
+ * Accepts every form elicitation with its declared defaults.
  *
- * Enough for the scenarios here, which check that the client asked and echoed
- * correctly rather than what a user would have typed.
+ * ElicitationSchema::extractDefaults() is the canonical accept-with-defaults
+ * path when the user does not provide explicit field values.
  */
 $acceptElicitation = new class($logger) implements RequestHandlerInterface {
     public function __construct(private readonly Psr\Log\LoggerInterface $logger)
@@ -69,9 +69,14 @@ $acceptElicitation = new class($logger) implements RequestHandlerInterface {
 
     public function handle(Request $request): Response
     {
-        $this->logger->info('Received elicitation request, accepting with empty content');
+        if (!$request instanceof ElicitRequest || null === $request->requestedSchema) {
+            throw new RuntimeException('Expected a form elicitation request with a requested schema.');
+        }
 
-        return new Response($request->getId(), new ElicitResult(ElicitAction::Accept, []));
+        $content = $request->requestedSchema->extractDefaults();
+        $this->logger->info(sprintf('Received elicitation request, accepting with %d defaults', count($content)));
+
+        return new Response($request->getId(), new ElicitResult(ElicitAction::Accept, $content));
     }
 };
 
