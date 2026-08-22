@@ -11,9 +11,11 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
+use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceTemplate;
@@ -23,6 +25,7 @@ use Mcp\Server\Session\SessionInterface;
 use Mcp\Tests\Unit\Capability\Attribute\CompletionProviderFixture;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
 
 class CompletionCompleteHandlerTest extends TestCase
 {
@@ -77,6 +80,42 @@ class CompletionCompleteHandlerTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $response);
         $this->assertEquals(new CompletionCompleteResult(['alpha'], 1, false), $response->result);
+    }
+
+    public function testLogsProviderFailureBeforeReturningInternalError(): void
+    {
+        $uri = 'file://users/alice';
+        $request = $this->createCompletionRequest($uri, ['name' => 'id', 'value' => 'al']);
+
+        $exception = new \RuntimeException('Provider blew up');
+        $provider = $this->createMock(ProviderInterface::class);
+        $provider->method('getCompletions')->willThrowException($exception);
+
+        $templateReference = new ResourceTemplateReference(
+            new ResourceTemplate('file://users/{id}', 'user'),
+            static fn () => null,
+            ['id' => $provider],
+        );
+
+        $this->registry
+            ->method('getResource')
+            ->with($uri)
+            ->willReturn($templateReference);
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger
+            ->expects($this->once())
+            ->method('error')
+            ->with(
+                'Error while handling completion request: Provider blew up',
+                ['exception' => $exception],
+            );
+
+        $handler = new CompletionCompleteHandler($this->registry, null, $logger);
+        $response = $handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertSame('Error while handling completion request', $response->message);
     }
 
     /**
