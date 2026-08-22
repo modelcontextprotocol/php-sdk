@@ -47,14 +47,6 @@ Roughly in priority order, per the audit's own recommendation:
    `elicitation-sep1034-client-defaults`, both scored at 2025-11-25).
 3. **Ship a stable 1.0.0+ release.**
 
-Two process gaps the audit also flagged, now addressed:
-
-- **Published dependency-update policy** — already enforced in CI
-  (`make deps-stable` / `make deps-low` test the newest and lowest allowed
-  dependency sets on every run) and declared in
-  [`.github/dependabot.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/.github/dependabot.yml).
-- **Versioning policy** — see below; this section is the fix.
-
 ## Versioning
 
 The SDK follows [Semantic Versioning](https://semver.org/):
