@@ -643,6 +643,53 @@ class StatelessProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('a native traceparent/tracestate header reaches the handler when `_meta` carries none')]
+    public function testHttpTraceHeadersReachTheHandler(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'probe_trace', 'arguments' => []],
+            [
+                'Mcp-Name' => 'probe_trace',
+                'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+                'tracestate' => 'acme=1',
+            ],
+        );
+
+        $this->assertSame(
+            'traceparent=00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01;tracestate=acme=1',
+            $answer['body']['result']['content'][0]['text'],
+        );
+    }
+
+    #[TestDox('`_meta` trace context wins over a conflicting native header')]
+    public function testMetaTraceContextWinsOverHeader(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            [
+                'name' => 'probe_trace',
+                'arguments' => [],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                    'traceparent' => '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                ],
+            ],
+            [
+                'Mcp-Name' => 'probe_trace',
+                'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+            ],
+        );
+
+        $this->assertSame(
+            'traceparent=00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+            $answer['body']['result']['content'][0]['text'],
+        );
+    }
+
     #[TestDox('notifications caused by a traced request carry its trace context')]
     public function testNotificationsCarryTheTraceContext(): void
     {
