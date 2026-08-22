@@ -56,6 +56,29 @@ final class SamplingTest extends IntegrationTestCase
         $this->assertSame(64, $seen[0]->maxTokens);
     }
 
+    #[TestDox('a gateway parameter is injected, not published in the schema')]
+    public function testGatewayParameterIsInjectedNotPublished(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling());
+
+        $tool = null;
+        foreach ($client->listTools()->tools as $candidate) {
+            if ('summarize_via_gateway' === $candidate->name) {
+                $tool = $candidate;
+            }
+        }
+
+        $this->assertNotNull($tool);
+        $this->assertArrayNotHasKey('client', $tool->inputSchema['properties']);
+        $this->assertArrayHasKey('text', $tool->inputSchema['properties']);
+        $this->assertSame(['text'], $tool->inputSchema['required']);
+
+        $result = $client->callTool('summarize_via_gateway', ['text' => 'a long report']);
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('test-model said: a long report', $result->content[0]->text);
+    }
+
     #[TestDox('a client that cannot sample refuses instead of stalling the tool')]
     public function testClientWithoutSamplingRefuses(): void
     {

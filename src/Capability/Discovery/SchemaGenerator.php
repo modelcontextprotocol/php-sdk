@@ -13,9 +13,9 @@ namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Capability\Registry\InjectableParameters;
 use Mcp\Exception\BadMethodCallException;
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
 /**
@@ -528,12 +528,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         foreach ($reflection->getParameters() as $rp) {
             $reflectionType = $rp->getType();
 
-            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
-                $typeName = $reflectionType->getName();
-
-                if (is_a($typeName, RequestContext::class, true)) {
-                    continue;
-                }
+            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()
+                && InjectableParameters::supports($reflectionType->getName())
+            ) {
+                continue;
             }
 
             $paramName = $rp->getName();

@@ -108,6 +108,32 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertInstanceOf(ClientGateway::class, $resourceHandler->receivedGateway);
     }
 
+    public function testHandleInjectsClientGatewayIntoReflectedHandler(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $handler = new class {
+            public ?ClientGateway $receivedGateway = null;
+
+            public function search(string $query, ClientGateway $gateway): string
+            {
+                $this->receivedGateway = $gateway;
+
+                return 'found: '.$query;
+            }
+        };
+
+        $result = (new ReferenceHandler())->handle(new ElementReference([$handler, 'search']), [
+            '_session' => $session,
+            '_request' => new \stdClass(),
+            'query' => 'foo',
+        ]);
+
+        $this->assertSame('found: foo', $result);
+        $this->assertInstanceOf(ClientGateway::class, $handler->receivedGateway);
+    }
+
     public function testHandleStillReflectsOrdinaryClosuresAndDoesNotInjectArgumentBag(): void
     {
         $session = $this->createMock(SessionInterface::class);
