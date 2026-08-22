@@ -72,6 +72,12 @@ For anything at the repo root (`CLAUDE.md`, `ROADMAP.md`, `CHANGELOG.md`), link 
 URL instead, matching the pattern already used across `docs/`. The class-level API reference is
 generated separately by phpDocumentor (`make docs-api`) and isn't hand-written.
 
+## Versioning
+
+The SDK follows [Semantic Versioning](https://semver.org/) — see
+[SDK tier target](docs/sdk-tier.md#versioning) for what that means pre- and post-1.0, and how it
+lines up with Symfony's backward compatibility promise.
+
 ## Licensing
 
 New contributions are licensed under Apache License, Version 2.0. Existing code predating this
