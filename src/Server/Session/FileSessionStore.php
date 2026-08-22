@@ -14,6 +14,8 @@ namespace Mcp\Server\Session;
 use Mcp\Exception\RuntimeException;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -26,9 +28,13 @@ class FileSessionStore implements SessionStoreInterface
         private readonly string $directory,
         private readonly int $ttl = 3600,
         private readonly ClockInterface $clock = new NativeClock(),
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
-        if (!is_dir($this->directory)) {
-            @mkdir($this->directory, 0775, true);
+        if (!is_dir($this->directory) && !@mkdir($this->directory, 0775, true) && !is_dir($this->directory)) {
+            $this->logger->warning('Failed to create session directory.', [
+                'directory' => $this->directory,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
         }
 
         if (!is_dir($this->directory) || !is_writable($this->directory)) {
@@ -59,13 +65,23 @@ class FileSessionStore implements SessionStoreInterface
 
         $mtime = @filemtime($path) ?: 0;
         if (($this->clock->now()->getTimestamp() - $mtime) > $this->ttl) {
-            @unlink($path);
+            if (!@unlink($path) && is_file($path)) {
+                $this->logger->warning('Failed to delete expired session file.', [
+                    'path' => $path,
+                    'error' => error_get_last()['message'] ?? 'unknown',
+                ]);
+            }
 
             return false;
         }
 
         $data = @file_get_contents($path);
         if (false === $data) {
+            $this->logger->warning('Failed to read session file.', [
+                'path' => $path,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
+
             return false;
         }
 
@@ -78,6 +94,11 @@ class FileSessionStore implements SessionStoreInterface
 
         $tmp = $path.'.tmp';
         if (false === @file_put_contents($tmp, $data, \LOCK_EX)) {
+            $this->logger->warning('Failed to write session file.', [
+                'path' => $tmp,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
+
             return false;
         }
 
@@ -85,6 +106,10 @@ class FileSessionStore implements SessionStoreInterface
         if (!@rename($tmp, $path)) {
             // Fallback if rename fails cross-device
             if (false === @copy($tmp, $path)) {
+                $this->logger->warning('Failed to move session file into place.', [
+                    'path' => $path,
+                    'error' => error_get_last()['message'] ?? 'unknown',
+                ]);
                 @unlink($tmp);
 
                 return false;
@@ -101,8 +126,11 @@ class FileSessionStore implements SessionStoreInterface
     {
         $path = $this->pathFor($id);
 
-        if (is_file($path)) {
-            @unlink($path);
+        if (is_file($path) && !@unlink($path) && is_file($path)) {
+            $this->logger->warning('Failed to delete session file.', [
+                'path' => $path,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
         }
 
         return true;
@@ -119,6 +147,11 @@ class FileSessionStore implements SessionStoreInterface
 
         $dir = @opendir($this->directory);
         if (false === $dir) {
+            $this->logger->warning('Failed to open session directory for garbage collection.', [
+                'directory' => $this->directory,
+                'error' => error_get_last()['message'] ?? 'unknown',
+            ]);
+
             return $deleted;
         }
 

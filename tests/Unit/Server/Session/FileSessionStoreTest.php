@@ -16,6 +16,8 @@ use Mcp\Exception\RuntimeException;
 use Mcp\Server\Session\FileSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 use Symfony\Component\Uid\UuidV4;
 
 class FileSessionStoreTest extends TestCase
@@ -107,6 +109,97 @@ class FileSessionStoreTest extends TestCase
             $this->assertInstanceOf(ExceptionInterface::class, $e);
 
             throw $e;
+        }
+    }
+
+    #[TestDox('logs a warning when a session file cannot be read')]
+    public function testUnreadableSessionFileLogsWarning(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+        $id = new UuidV4();
+
+        $store->write($id, 'payload');
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        chmod($path, 0000);
+        clearstatcache(true, $path);
+
+        if (is_readable($path)) {
+            $this->markTestSkipped('Permission bits do not restrict reads here (running as root, or a filesystem that ignores them).');
+        }
+
+        $this->assertFalse($store->read($id));
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Failed to read session file.', $logger->warnings[0]['message']);
+        $this->assertSame($path, $logger->warnings[0]['context']['path']);
+    }
+
+    #[TestDox('logs a warning when a session file cannot be written')]
+    public function testUnwritableSessionFileLogsWarning(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+
+        chmod($this->directory, 0555);
+        clearstatcache(true, $this->directory);
+
+        if (is_writable($this->directory)) {
+            $this->markTestSkipped('Permission bits do not restrict writes here (running as root, or a filesystem that ignores them).');
+        }
+
+        $this->assertFalse($store->write(new UuidV4(), 'payload'));
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Failed to write session file.', $logger->warnings[0]['message']);
+    }
+
+    #[TestDox('logs a warning when the session directory cannot be opened for garbage collection')]
+    public function testGcLogsWarningWhenDirectoryVanished(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+
+        rmdir($this->directory);
+
+        $this->assertSame([], $store->gc());
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Failed to open session directory for garbage collection.', $logger->warnings[0]['message']);
+        $this->assertSame($this->directory, $logger->warnings[0]['context']['directory']);
+    }
+
+    #[TestDox('stays silent on the happy path')]
+    public function testHappyPathLogsNothing(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+        $id = new UuidV4();
+
+        $store->write($id, 'payload');
+        $store->read($id);
+        $store->destroy($id);
+        $store->gc();
+
+        $this->assertSame([], $logger->warnings);
+    }
+}
+
+/**
+ * Keeps every warning with its context, so a silent failure can be told apart
+ * from one the operator was told about.
+ */
+final class WarningCollectingLogger extends AbstractLogger
+{
+    /** @var list<array{message: string, context: array<string, mixed>}> */
+    public array $warnings = [];
+
+    /**
+     * @param string|\Stringable   $message
+     * @param array<string, mixed> $context
+     */
+    public function log($level, $message, array $context = []): void
+    {
+        if (LogLevel::WARNING === $level) {
+            $this->warnings[] = ['message' => (string) $message, 'context' => $context];
         }
     }
 }
