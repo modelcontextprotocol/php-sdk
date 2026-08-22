@@ -303,9 +303,11 @@ class Protocol
                             $notification = $result['notification'];
                             $this->sendNotification($notification, $session);
                         } elseif ('request' === $result['type']) {
-                            $request = $result['request'];
+                            // Keep $request untouched: it is the inbound request the catch
+                            // blocks below answer under, not this outbound one.
+                            $outboundRequest = $result['request'];
                             $timeout = $result['timeout'] ?? 120;
-                            $this->sendRequest($request, $timeout, $session);
+                            $this->sendRequest($outboundRequest, $timeout, $session);
                         }
                     }
 

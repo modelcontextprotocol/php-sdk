@@ -25,7 +25,9 @@ use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
@@ -791,6 +793,63 @@ final class ProtocolTest extends TestCase
         $this->assertEquals(Error::INTERNAL_ERROR, $message['error']['code']);
         $this->assertSame('Internal server error.', $message['error']['message']);
         $this->assertStringNotContainsString('Unexpected error', $message['error']['message']);
+    }
+
+    #[TestDox('Failure while dispatching an outbound request is answered under the inbound request id')]
+    public function testOutboundRequestFailureIsAnsweredUnderInboundRequestId(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (): Response {
+            // Suspend with an outbound, id-less request, as sampling/elicitation handlers do.
+            \Fiber::suspend(['type' => 'request', 'request' => new PingRequest(), 'timeout' => 5]);
+
+            return new Response(1, []);
+        });
+
+        $exception = new \RuntimeException('Transport unavailable');
+        $this->transport->method('attachFiberToSession')->willThrowException($exception);
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+
+        $events = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events): object {
+            $events[] = $event;
+
+            return $event;
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
+            $sessionId
+        );
+
+        $errorEvents = array_values(array_filter($events, static fn (object $event): bool => $event instanceof ErrorEvent));
+        $this->assertCount(1, $errorEvents);
+        $this->assertSame($exception, $errorEvents[0]->getThrowable());
+        $this->assertSame(1, $errorEvents[0]->getError()->getId());
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $errors = array_values(array_filter(
+            array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $outgoing),
+            static fn (array $message): bool => isset($message['error']),
+        ));
+        $this->assertCount(1, $errors);
+        $this->assertSame(1, $errors[0]['id']);
+        $this->assertSame(Error::INTERNAL_ERROR, $errors[0]['error']['code']);
     }
 
     #[TestDox('Notification handler exceptions are caught and logged')]
