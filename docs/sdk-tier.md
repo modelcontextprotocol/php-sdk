@@ -9,9 +9,11 @@ where the PHP SDK stands against the Tier 2 bar and what's still missing.
 **Tier 2 now, Tier 1 after the 1.0 release.**
 
 Tier 1 requires a stable release with clear versioning. The SDK is currently
-pre-1.0 and experimental (see [CLAUDE.md](../CLAUDE.md)), so Tier 1 is
-structurally out of reach until 1.0 ships regardless of how complete any
-other Tier 1 criterion is. Tier 2 has no such blocker and is achievable now.
+pre-1.0 and experimental (see
+[CLAUDE.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/CLAUDE.md)),
+so Tier 1 is structurally out of reach until 1.0 ships regardless of how
+complete any other Tier 1 criterion is. Tier 2 has no such blocker and is
+achievable now.
 
 ## Gap analysis against Tier 2
 
@@ -53,6 +55,7 @@ Roughly in priority order:
 
 ## Roadmap
 
-See [ROADMAP.md](../ROADMAP.md) for the feature-level plan toward 1.0. This
-document only tracks the process/tier-classification gap, which is a
-narrower and more mechanical thing than the feature roadmap.
+See [ROADMAP.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/ROADMAP.md)
+for the feature-level plan toward 1.0. This document only tracks the
+process/tier-classification gap, which is a narrower and more mechanical
+thing than the feature roadmap.

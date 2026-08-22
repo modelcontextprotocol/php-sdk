@@ -39,7 +39,8 @@ floor for any BC break the SDK introduces on its own, not just ones the spec for
 
 This document covers deprecation as an API-surface concern: what gets tagged, for how long, with what
 migration note. It's a different (related) axis from
-[protocol era support](stateless-lifecycle.md#what-was-removed) — which protocol revisions the SDK serves at
+[protocol era support](protocol-versions.md#what-was-removed) — which protocol revisions the SDK serves at
 all, and what a given revision no longer accepts on the wire. A method can be removed from the modern
 revision's wire surface while its PHP binding stays present and undeprecated, because a handshake-era client
-still needs it; see the stateless lifecycle guide's "What was removed" section for the current list.
+still needs it; see [Protocol versions](protocol-versions.md)' "What was removed" and "Deprecations"
+sections for the current list.
