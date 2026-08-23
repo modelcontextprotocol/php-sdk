@@ -197,7 +197,7 @@ final class StatelessProtocol
         }
 
         try {
-            $meta = RequestMeta::fromParams($params);
+            $meta = RequestMeta::fromParams($params, $headers);
         } catch (MissingRequestMetaException $e) {
             return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
         }
