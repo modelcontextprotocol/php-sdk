@@ -43,7 +43,6 @@ make conformance-tests   # requires Docker
 This project follows [Symfony's coding standards](https://symfony.com/doc/current/contributing/code/standards.html)
 and [backward compatibility promise](https://symfony.com/doc/current/contributing/code/bc.html). In short:
 
-- `declare(strict_types=1);` in every file.
 - Type hints on every parameter and return value.
 - Final classes by default — only leave a class non-final when it's deliberately designed for extension.
 - Prefer immutable value objects.
