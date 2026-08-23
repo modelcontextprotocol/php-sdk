@@ -18,6 +18,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ResourceUnsubscribeRequest;
 use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
@@ -57,7 +58,9 @@ final class ResourceUnsubscribeHandler implements RequestHandlerInterface
         } catch (ResourceNotFoundException $e) {
             $this->logger->error('Resource not found', ['uri' => $uri, 'exception' => $e]);
 
-            return Error::forResourceNotFound($e->getMessage(), $request->getId());
+            return (new RequestContext($session, $request))->getProtocolVersion()->usesInvalidParamsForResourceNotFound()
+                ? Error::forInvalidParams($e->getMessage(), $request->getId(), ['uri' => $uri])
+                : Error::forResourceNotFound($e->getMessage(), $request->getId());
         }
 
         $this->logger->debug('Unsubscribing from resource', ['uri' => $uri]);
