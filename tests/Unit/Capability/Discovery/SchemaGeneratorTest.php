@@ -413,6 +413,17 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['inferredParam'], $schema['required']);
     }
 
+    public function testExcludesInjectableParameterTypesFromSchema(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'withInjectableParameters');
+        $schema = $this->schemaGenerator->generate($method);
+        $this->assertArrayNotHasKey('gateway', $schema['properties']);
+        $this->assertArrayNotHasKey('context', $schema['properties']);
+        $this->assertEquals(['type' => 'string', 'description' => 'The search query'], $schema['properties']['query']);
+        $this->assertEquals(['type' => 'integer', 'default' => 10], $schema['properties']['limit']);
+        $this->assertEquals(['query'], $schema['required']);
+    }
+
     public static function methodsWithForbiddenParameter(): array
     {
         return [
