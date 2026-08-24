@@ -128,6 +128,11 @@ class FileSessionStore implements SessionStoreInterface
                 continue;
             }
 
+            // Only delete files this store owns: sessions are named by their RFC 4122 UUID
+            if (!Uuid::isValid($entry)) {
+                continue;
+            }
+
             $path = $this->directory.\DIRECTORY_SEPARATOR.$entry;
             if (!is_file($path)) {
                 continue;
@@ -136,11 +141,7 @@ class FileSessionStore implements SessionStoreInterface
             $mtime = @filemtime($path) ?: 0;
             if (($now - $mtime) > $this->ttl) {
                 @unlink($path);
-                try {
-                    $deleted[] = Uuid::fromString($entry);
-                } catch (\Throwable) {
-                    // ignore non-UUID file names
-                }
+                $deleted[] = Uuid::fromString($entry);
             }
         }
 
