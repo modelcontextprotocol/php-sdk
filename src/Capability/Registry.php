@@ -390,12 +390,7 @@ final class Registry implements RegistryInterface
         return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
     }
 
-    /**
-     * List-changed events announce a change to a list a client may have already seen. The deferred
-     * load populates the initial state before any read returns, so nothing observable changes —
-     * dispatching there would publish one spurious frame per element onto a configured notification
-     * bus. Suppressed while the loader runs, dispatched as usual for runtime (un)registrations.
-     */
+    /** Suppressed while the deferred loader runs, since it only sets up initial state. */
     private function dispatch(object $event): void
     {
         if ($this->loading) {
