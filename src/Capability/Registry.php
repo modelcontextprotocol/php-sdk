@@ -390,7 +390,9 @@ final class Registry implements RegistryInterface
         return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
     }
 
-    /** Suppressed while the deferred loader runs, since it only sets up initial state. */
+    /**
+     * Suppressed while the deferred loader runs, since it only sets up initial state.
+     */
     private function dispatch(object $event): void
     {
         if ($this->loading) {
