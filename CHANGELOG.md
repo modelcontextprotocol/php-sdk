@@ -33,6 +33,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `annotations` to `ImageContent`.
 * Fix empty tool/resource schemas serializing as `[]` instead of `{}`.
 * Fix `PromptResultFormatter` dropping `annotations`, `_meta` and `mimeType` for plain-array content.
+* Fix one unregistrable element aborting the whole registry load: `ReflectedElementLoader` now logs and skips it instead of rethrowing a `ConfigurationException`, which under lazy loading answered every request with the failed element's message.
 
 0.7.0
 -----
