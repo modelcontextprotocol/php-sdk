@@ -1,0 +1,26 @@
+client:
+  - http-invalid-tool-headers:sep-2243-invalid-tool-tools-list-gate
+  - auth/metadata-default
+  - auth/metadata-var1
+  - auth/metadata-var2
+  - auth/metadata-var3
+  - auth/metadata-issuer-mismatch
+  - auth/basic-cimd
+  - auth/pre-registration
+  - auth/scope-from-www-authenticate
+  - auth/scope-from-scopes-supported
+  - auth/scope-omitted-when-undefined
+  - auth/scope-step-up
+  - auth/scope-retry-limit
+  - auth/token-endpoint-auth-basic
+  - auth/token-endpoint-auth-post
+  - auth/token-endpoint-auth-none
+  - auth/offline-access-scope
+  - auth/offline-access-not-supported
+  - auth/authorization-server-migration:sep-2352-reregister-on-as-change
+  - auth/iss-supported
+  - auth/iss-not-advertised
+  - auth/iss-supported-missing
+  - auth/iss-wrong-issuer
+  - auth/iss-unexpected
+  - auth/iss-normalized

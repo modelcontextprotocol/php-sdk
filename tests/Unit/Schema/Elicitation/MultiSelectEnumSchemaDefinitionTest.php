@@ -137,13 +137,26 @@ final class MultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->assertSame(3, $schema->maxItems);
     }
 
-    public function testFromArrayWithMissingTitle(): void
+    public function testFromArrayWithoutTitleIsAccepted(): void
+    {
+        // `title` is optional in the specification, so a server that omits it
+        // must still be readable.
+        $schema = MultiSelectEnumSchemaDefinition::fromArray([
+            'items' => ['type' => 'string', 'enum' => ['a']],
+        ]);
+
+        $this->assertNull($schema->title);
+        $this->assertArrayNotHasKey('title', $schema->jsonSerialize());
+    }
+
+    public function testFromArrayRejectsNonStringTitle(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Missing or invalid "title"');
+        $this->expectExceptionMessage('Invalid "title" for multi-select enum schema definition.');
 
         /* @phpstan-ignore argument.type */
         MultiSelectEnumSchemaDefinition::fromArray([
+            'title' => 42,
             'items' => ['type' => 'string', 'enum' => ['a']],
         ]);
     }

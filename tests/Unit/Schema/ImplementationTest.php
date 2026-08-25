@@ -26,6 +26,7 @@ final class ImplementationTest extends TestCase
         $this->assertNull($implementation->description);
         $this->assertNull($implementation->icons);
         $this->assertNull($implementation->websiteUrl);
+        $this->assertNull($implementation->title);
     }
 
     public function testFromArrayWithMinimalData(): void
@@ -146,6 +147,36 @@ final class ImplementationTest extends TestCase
 
         /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'icons' => 'nope']);
+    }
+
+    public function testFromArrayThrowsOnNonStringDescription(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid "description" in Implementation data.');
+
+        /* @phpstan-ignore argument.type */
+        Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'description' => 42]);
+    }
+
+    public function testFromArrayThrowsOnNonStringTitle(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid "title" in Implementation data.');
+
+        /* @phpstan-ignore argument.type */
+        Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'title' => ['nope']]);
+    }
+
+    public function testFromArrayReadsTitle(): void
+    {
+        $implementation = Implementation::fromArray([
+            'name' => 'my-client',
+            'version' => '1.0.0',
+            'title' => 'My Client',
+        ]);
+
+        $this->assertSame('My Client', $implementation->title);
+        $this->assertArrayHasKey('title', $implementation->jsonSerialize());
     }
 
     public function testJsonSerializeRoundTrip(): void

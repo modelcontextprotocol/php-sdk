@@ -42,17 +42,17 @@ final class InitializeRequest extends Request
 
     protected static function fromParams(?array $params): static
     {
-        if (!isset($params['protocolVersion'])) {
-            throw new InvalidArgumentException('protocolVersion is required');
+        if (!isset($params['protocolVersion']) || !\is_string($params['protocolVersion'])) {
+            throw new InvalidArgumentException('Missing or invalid "protocolVersion" parameter for initialize.');
         }
 
-        if (!isset($params['capabilities'])) {
-            throw new InvalidArgumentException('capabilities is required');
+        if (!isset($params['capabilities']) || !\is_array($params['capabilities'])) {
+            throw new InvalidArgumentException('Missing or invalid "capabilities" parameter for initialize.');
         }
         $capabilities = ClientCapabilities::fromArray($params['capabilities']);
 
-        if (!isset($params['clientInfo'])) {
-            throw new InvalidArgumentException('clientInfo is required');
+        if (!isset($params['clientInfo']) || !\is_array($params['clientInfo'])) {
+            throw new InvalidArgumentException('Missing or invalid "clientInfo" parameter for initialize.');
         }
         $clientInfo = Implementation::fromArray($params['clientInfo']);
 

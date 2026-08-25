@@ -2,6 +2,38 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.8.0
+-----
+
+* Support for MCP spec version 2026-07-28 incl. stateless HTTP transport
+  * Negotiate the protocol revision during `initialize`: the server counter-offers a revision it supports and the client fails the handshake instead of continuing on an unagreed one. Adds `Client::getProtocolVersion()`.
+  * Serve both protocol eras from one endpoint: `StreamableHttpTransport` classifies each request (`InboundClassifier`) and routes it to the matching dispatcher, so one URL answers modern and handshake-era clients alike. `Builder::withoutModernEra()` opts out, `Builder::setModernVersions()` narrows the modern leg.
+  * Speak the lifecycle from the client: `Client` opens with `server/discover`, stamps `_meta` with version, capabilities and client info, and sends the `Mcp-Method`/`Mcp-Name`/`Mcp-Param-*` headers (via `Client\Stateless\ToolCatalog`). `Schema\Wire\McpHeader` holds the shared header names.
+  * Add multi round-trip requests (SEP-2322): a handler returning `InputRequiredResult` yields `resultType: "input_required"` with an opaque, signed `requestState` (`RequestStateCodec`, key via `Builder::setRequestState()`); the client retries with `inputResponses`, read through `RequestContext::getInputContext()` and its typed `elicitResult()`/`samplingResult()`/`rootsResult()`. On the client, `InputRequestResolver` answers such results automatically from the host's elicitation, sampling and roots handlers.
+  * Serve `ClientGateway::elicit()`/`elicitUrl()` on every revision: where the client cannot be asked mid-request, `Server\Stateless\ElicitationReplay` turns the ask into `input_required` and resumes once re-sent — the handler is entered once per ask. `InputRequiredShim` does the reverse for handshake-era clients. `sample()`/`listRoots()` raise a `LogicException` on `2026-07-28`, which removed them.
+  * Run stateless handlers in a fiber so `$gateway->progress()`/`log()` stream over SSE when the handler emits something and the client accepts `text/event-stream`; honour `io.modelcontextprotocol/logLevel` (SEP-2575). Adds `LoggingLevel::severity()`/`isAtLeast()`.
+  * Deliver notifications on `subscriptions/listen` (SEP-2575) via `NotificationBusInterface` — `InMemoryNotificationBus` for persistent runtimes, `Psr16NotificationBus` for PHP-FPM — set with `Builder::setNotificationBus()`; `Builder::setSubscriptionLifetime()` replaces the hard-coded 30s ceiling.
+  * Validate the standard request headers (SEP-2243) with `StandardHeaderValidator` (`Builder::setHeaderValidator()`), answering `-32020` when they contradict the body.
+  * Add `Wire\CachePolicy` (`Builder::setCachePolicy()`) for SEP-2549 caching hints; defaults to `ttlMs: 0, cacheScope: private`. A `ReadResourceResult` may override with its own values.
+  * Carry W3C trace context (SEP-414): `traceparent`/`tracestate`/`baggage` from `_meta` are exposed via `RequestContext::getTraceContext()` and echoed onto the request's notifications.
+  * Close the schema gaps for `2025-06-18`/`2025-11-25` and add the `2026-07-28` surface (SEP-2106): url-mode elicitation (`ClientGateway::elicitUrl()`/`supportsElicitationUrl()`), `Implementation::title`, and `outputSchema`/`structuredContent` accepting any JSON value.
+  * Deprecate Roots, Sampling and Logging (SEP-2577, earliest removal `2027-07-28`); they keep working but trigger a deprecation notice.
+  * [BC Break] Answer a not-found subject with `-32602` instead of `-32002` (SEP-2164): `resources/read` picks the code by revision (`-32602` from `2026-07-28` on), `prompts/get`, `completion/complete` and `tools/call` switch on every revision. Adds `ProtocolVersion::usesInvalidParamsForResourceNotFound()`.
+  * [BC Break] A list-shaped tool result is only sent as `structuredContent` on `2026-07-28`+; older revisions keep the JSON-encoded value in `content`.
+* [BC Break] Add the extensions framework (SEP-2133) MCP Apps sits on: `ExtensionInterface::getId()` returns an `ExtensionIdentifier` value object, and the interface gains `getMessages()`/`getRequestHandlers()` (extend `AbstractExtension` to skip both). `MessageFactory::make()` takes an `$additional` message list; `RequestHandlerInterface`'s result template is covariant. `ServerExtensionInterface` is replaced by the side-agnostic `Schema\Extension\ExtensionInterface`.
+* Add client-side extension negotiation: `ClientGateway::supportsExtension()`, `Client\Builder::enableExtension()`, `ClientCapabilities::withExtensions()`.
+* Add sampling-with-tools: sampling requests can carry tools and tool-choice preferences, messages support tool-use/tool-result blocks, and clients advertise `sampling.context`/`sampling.tools` (`ClientGateway::supportsSamplingTools()`/`supportsSamplingContext()`). Requests violating the tool-flow rules are rejected with a JSON-RPC error.
+* [BC Break] `SamplingMessage::$content` and `CreateSamplingMessageResult::$content` may be a list of content blocks — use `getContentBlocks()`. `CreateSamplingMessageResult` rejects roles other than `assistant` and empty content.
+* Add client-side Roots support (`RootsCallbackInterface`, `Client::sendRootsListChanged()`) and server-side `ClientGateway::listRoots()`/`supportsRoots()`/`supportsSampling()`.
+* Add `Schema\Content\ResourceLink` to reference a resource by URI in tool results and prompt messages.
+* [BC Break] `Schema\JsonRpc\Error` accepts `null` as `$id`; an unreadable id now omits the member instead of sending `"id": ""`. `MessageFactory` decodes a missing or null id as an id-less error.
+* Preserve the request `id` on an invalid-but-parseable message (`-32600`) via `InvalidInputMessageException::getRequestId()`.
+* [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name`; the spec allows any string.
+* Log expected tool failures (`ToolCallException`) at debug level instead of error.
+* Add `annotations` to `ImageContent`.
+* Fix empty tool/resource schemas serializing as `[]` instead of `{}`.
+* Fix `PromptResultFormatter` dropping `annotations`, `_meta` and `mimeType` for plain-array content.
+
 0.7.0
 -----
 

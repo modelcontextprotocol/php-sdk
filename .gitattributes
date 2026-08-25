@@ -5,6 +5,8 @@
 /tests export-ignore
 /.php-cs-fixer.dist.php export-ignore
 /Makefile export-ignore
+/mkdocs.yml export-ignore
+/requirements-docs.txt export-ignore
 /phpdoc.dist.xml
 /phpstan* export-ignore
 /phpunit.xml.dist export-ignore

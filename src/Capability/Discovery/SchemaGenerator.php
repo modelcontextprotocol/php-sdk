@@ -13,9 +13,9 @@ namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Capability\Registry\InjectableParameters;
 use Mcp\Exception\BadMethodCallException;
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
 /**
@@ -237,7 +237,17 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Parameter-level takes highest precedence
         $parameterLevelSchema = $paramInfo['parameter_schema'];
         if (!empty($parameterLevelSchema)) {
-            $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
+            // A complete definition replaces the schema, as it does at method level.
+            if (isset($parameterLevelSchema['definition']) && \is_array($parameterLevelSchema['definition'])) {
+                $mergedSchema = $parameterLevelSchema['definition'];
+
+                // The default comes from the signature, not from the schema.
+                if (!\array_key_exists('default', $mergedSchema) && \array_key_exists('default', $inferredSchema)) {
+                    $mergedSchema['default'] = $inferredSchema['default'];
+                }
+            } else {
+                $mergedSchema = array_merge($mergedSchema, $parameterLevelSchema);
+            }
         }
 
         // Run after all merges so that when a Schema attribute reshapes the parameter
@@ -324,15 +334,22 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $paramSchema = ['type' => 'array'];
 
-        // Apply parameter-level Schema attributes first
-        if (!empty($paramInfo['parameter_schema'])) {
-            $paramSchema = array_merge($paramSchema, $paramInfo['parameter_schema']);
-            // Ensure type is always array for variadic
-            $paramSchema['type'] = 'array';
-        }
-
+        // Add description from docblock before parameter-level schema is merged in,
+        // so a definition's own description takes precedence (matches buildParameterSchema).
         if ($paramInfo['description']) {
             $paramSchema['description'] = $paramInfo['description'];
+        }
+
+        // Apply parameter-level Schema attributes first
+        if (!empty($paramInfo['parameter_schema'])) {
+            $parameterLevelSchema = $paramInfo['parameter_schema'];
+
+            $paramSchema = isset($parameterLevelSchema['definition']) && \is_array($parameterLevelSchema['definition'])
+                ? $parameterLevelSchema['definition']
+                : array_merge($paramSchema, $parameterLevelSchema);
+
+            // Ensure type is always array for variadic
+            $paramSchema['type'] = 'array';
         }
 
         // If no items specified by Schema attribute, infer from type
@@ -443,7 +460,23 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
         // Handle regular arrays
         elseif (\in_array('array', $this->mapPhpTypeToJsonSchemaType($typeString))) {
-            $itemsType = $this->inferArrayItemsType($typeString);
+            // `inferArrayItemsType()` expects a single array type, not a union — for
+            // `string[]|int` it would see the whole string, match nothing, and lose
+            // the element-type constraint. Isolate the branch(es) that are arrays.
+            $arrayBranches = array_values(array_filter(
+                self::splitUnion($typeString),
+                fn (string $branch): bool => \in_array('array', $this->mapPhpTypeToJsonSchemaType($branch), true),
+            ));
+            if ([] === $arrayBranches) {
+                $arrayBranches = [$typeString];
+            }
+
+            // Several array branches (`string[]|int[]`) can disagree on their
+            // element type. Applying just one would reject values valid under
+            // the other, so `items` only applies when every array branch agrees.
+            $itemsTypes = array_map($this->inferArrayItemsType(...), $arrayBranches);
+            $itemsType = 1 === \count(array_unique(array_map(json_encode(...), $itemsTypes))) ? $itemsTypes[0] : 'any';
+
             if ('any' !== $itemsType) {
                 if (\is_string($itemsType)) {
                     $paramSchema['items'] = ['type' => $itemsType];
@@ -455,11 +488,25 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                 }
             }
 
-            if ($allowsNull) {
-                $paramSchema['type'] = ['array', 'null'];
+            // Only when the parameter is an array and nothing else. A union
+            // like `string[]|int` keeps both branches: `items` constrains the
+            // instance only when it *is* an array, so the two coexist and
+            // overwriting the type here would drop the scalar branch —
+            // rejecting a value the handler accepts.
+            $otherTypes = array_values(array_diff(
+                (array) $paramSchema['type'],
+                ['array', 'null'],
+            ));
+
+            if ([] === $otherTypes) {
+                $paramSchema['type'] = $allowsNull ? ['array', 'null'] : 'array';
+
+                if (\is_array($paramSchema['type'])) {
+                    sort($paramSchema['type']);
+                }
+            } elseif ($allowsNull && !\in_array('null', (array) $paramSchema['type'], true)) {
+                $paramSchema['type'] = [...(array) $paramSchema['type'], 'null'];
                 sort($paramSchema['type']);
-            } else {
-                $paramSchema['type'] = 'array';
             }
         }
 
@@ -481,12 +528,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         foreach ($reflection->getParameters() as $rp) {
             $reflectionType = $rp->getType();
 
-            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
-                $typeName = $reflectionType->getName();
-
-                if (is_a($typeName, RequestContext::class, true)) {
-                    continue;
-                }
+            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()
+                && InjectableParameters::supports($reflectionType->getName())
+            ) {
+                continue;
             }
 
             $paramName = $rp->getName();
@@ -656,6 +701,42 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     }
 
     /**
+     * Splits a type string on its top-level `|`, leaving generics and shapes
+     * intact.
+     *
+     * `int|string` splits; `array<int|string>` and `array{a: int|string}` do
+     * not, because the `|` there is a parameter of the outer type rather than
+     * an alternative to it.
+     *
+     * @return list<string>
+     */
+    public static function splitUnion(string $type): array
+    {
+        $branches = [];
+        $depth = 0;
+        $current = '';
+
+        foreach (str_split($type) as $character) {
+            if (\in_array($character, ['<', '{', '('], true)) {
+                ++$depth;
+            } elseif (\in_array($character, ['>', '}', ')'], true)) {
+                $depth = max(0, $depth - 1);
+            } elseif ('|' === $character && 0 === $depth) {
+                $branches[] = trim($current);
+                $current = '';
+
+                continue;
+            }
+
+            $current .= $character;
+        }
+
+        $branches[] = trim($current);
+
+        return array_values(array_filter($branches, static fn (string $branch): bool => '' !== $branch));
+    }
+
+    /**
      * Maps a PHP type string (potentially a union) to an array of JSON Schema type names.
      *
      * @return string[]
@@ -664,12 +745,28 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $normalizedType = strtolower(trim($phpTypeString));
 
-        // PRIORITY 1: Check for array{} syntax which should be treated as object
+        // PRIORITY 1: Handle unions before anything else. A `|` at the top
+        // level joins alternatives; one inside `<>` or `{}` belongs to a
+        // generic (`array<int|string>`) and is not a union of the whole type.
+        // Checked first because a branch may itself be an array shape — and
+        // `string[]|int` read as "an array" silently loses the `int`.
+        $branches = self::splitUnion($normalizedType);
+
+        if (\count($branches) > 1) {
+            $jsonTypes = [];
+            foreach ($branches as $branch) {
+                $jsonTypes = array_merge($jsonTypes, $this->mapPhpTypeToJsonSchemaType($branch));
+            }
+
+            return array_values(array_unique($jsonTypes));
+        }
+
+        // PRIORITY 2: Check for array{} syntax which should be treated as object
         if (preg_match('/^array\s*{/i', $normalizedType)) {
             return ['object'];
         }
 
-        // PRIORITY 2: Check for array syntax first (T[] or generics)
+        // PRIORITY 3: Check for array syntax (T[] or generics)
         if (
             str_contains($normalizedType, '[]')
             || preg_match('/^(array|list|iterable|collection)</i', $normalizedType)
@@ -677,19 +774,12 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return ['array'];
         }
 
-        // PRIORITY 3: Handle unions (recursive)
-        if (str_contains($normalizedType, '|')) {
-            $types = explode('|', $normalizedType);
-            $jsonTypes = [];
-            foreach ($types as $type) {
-                $mapped = $this->mapPhpTypeToJsonSchemaType(trim($type));
-                $jsonTypes = array_merge($jsonTypes, $mapped);
-            }
-
-            return array_values(array_unique($jsonTypes));
+        // PRIORITY 4: Treat PHPStan/Psalm integer ranges as their base type
+        if (preg_match('/^int\s*<\s*[^<>]+\s*>$/i', $normalizedType)) {
+            return ['integer'];
         }
 
-        // PRIORITY 4: Handle simple built-in types
+        // PRIORITY 5: Handle simple built-in types
         return match ($normalizedType) {
             'string', 'scalar' => ['string'],
             '?string' => ['null', 'string'],

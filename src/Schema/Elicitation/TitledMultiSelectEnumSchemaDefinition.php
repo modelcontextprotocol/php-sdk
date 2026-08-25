@@ -23,7 +23,7 @@ use Mcp\Exception\InvalidArgumentException;
 final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string                                    $title       Human-readable title for the field
+     * @param ?string                                   $title       Optional human-readable title for the field
      * @param list<array{const: string, title: string}> $anyOf       Array of const/title pairs
      * @param string|null                               $description Optional description/help text
      * @param string[]|null                             $default     Optional default selected values (must be subset of anyOf consts)
@@ -31,7 +31,7 @@ final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefiniti
      * @param int|null                                  $maxItems    Optional maximum number of selections
      */
     public function __construct(
-        string $title,
+        ?string $title,
         public readonly array $anyOf,
         ?string $description = null,
         public readonly ?array $default = null,
@@ -78,7 +78,7 @@ final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefiniti
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     items: array{anyOf: list<array{const: string, title: string}>},
      *     description?: string,
      *     default?: string[],
@@ -95,7 +95,7 @@ final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefiniti
         }
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             anyOf: $data['items']['anyOf'],
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,

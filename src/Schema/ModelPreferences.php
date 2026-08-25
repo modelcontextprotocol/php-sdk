@@ -11,6 +11,8 @@
 
 namespace Mcp\Schema;
 
+use Mcp\Exception\InvalidArgumentException;
+
 /**
  * The server's preferences for model selection, requested of the client during sampling.
  *
@@ -32,6 +34,9 @@ namespace Mcp\Schema;
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Integrate with an LLM provider's API directly instead.
  */
 class ModelPreferences implements \JsonSerializable
 {
@@ -61,12 +66,33 @@ class ModelPreferences implements \JsonSerializable
      */
     public static function fromArray(array $preferences): self
     {
+        if (isset($preferences['hints']) && !\is_array($preferences['hints'])) {
+            throw new InvalidArgumentException('Invalid "hints" in ModelPreferences data.');
+        }
+
         return new self(
             $preferences['hints'] ?? null,
-            $preferences['costPriority'] ?? null,
-            $preferences['speedPriority'] ?? null,
-            $preferences['intelligencePriority'] ?? null,
+            self::priority($preferences, 'costPriority'),
+            self::priority($preferences, 'speedPriority'),
+            self::priority($preferences, 'intelligencePriority'),
         );
+    }
+
+    /**
+     * @param array<string, mixed> $preferences
+     */
+    private static function priority(array $preferences, string $key): ?float
+    {
+        if (!isset($preferences[$key])) {
+            return null;
+        }
+
+        // JSON numbers decode to int when they have no fractional part.
+        if (!\is_float($preferences[$key]) && !\is_int($preferences[$key])) {
+            throw new InvalidArgumentException(\sprintf('Invalid "%s" in ModelPreferences data; expected a number.', $key));
+        }
+
+        return (float) $preferences[$key];
     }
 
     /**

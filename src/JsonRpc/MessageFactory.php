@@ -95,10 +95,12 @@ final class MessageFactory
 
     /**
      * Creates a new Factory instance with all the protocol's default messages.
+     *
+     * @param list<class-string<Request>|class-string<Notification>> $additional message classes an extension defines
      */
-    public static function make(int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE): self
+    public static function make(int $maxBatchSize = self::DEFAULT_MAX_BATCH_SIZE, array $additional = []): self
     {
-        return new self(self::REGISTERED_MESSAGES, $maxBatchSize);
+        return new self([...self::REGISTERED_MESSAGES, ...$additional], $maxBatchSize);
     }
 
     /**
@@ -148,6 +150,11 @@ final class MessageFactory
 
                 $messages[] = $this->createFromArray($message);
             } catch (InvalidInputMessageException $e) {
+                // Recover the id only when it's a valid JSON-RPC scalar;
+                // a null or malformed id is left at the exception's null default.
+                if (\is_array($message) && isset($message['id']) && (\is_string($message['id']) || \is_int($message['id']))) {
+                    $e->setRequestId($message['id']);
+                }
                 $messages[] = $e;
             }
         }
@@ -175,6 +182,10 @@ final class MessageFactory
 
             if (!isset($data['method'])) {
                 throw new InvalidInputMessageException('Invalid JSON-RPC message: missing "method", "result", or "error" field.');
+            }
+
+            if (!\is_string($data['method'])) {
+                throw new InvalidInputMessageException('Invalid JSON-RPC message: "method" must be a string.');
             }
 
             $messageClass = $this->findMessageClassByMethod($data['method']);

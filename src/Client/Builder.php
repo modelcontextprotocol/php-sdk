@@ -14,8 +14,11 @@ namespace Mcp\Client;
 use Mcp\Client;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Implementation;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -30,8 +33,12 @@ final class Builder
     private string $name = 'mcp-php-client';
     private string $version = '1.0.0';
     private ?string $description = null;
+    private ?string $title = null;
     private ?ProtocolVersion $protocolVersion = null;
     private ?ClientCapabilities $capabilities = null;
+
+    /** @var array<string, array<string, mixed>> */
+    private array $extensions = [];
     private int $initTimeout = 30;
     private int $requestTimeout = 120;
     private int $maxRetries = 3;
@@ -45,12 +52,15 @@ final class Builder
 
     /**
      * Set the client name and version.
+     *
+     * @param ?string $title Display name for UI and end-user contexts. Falls back to $name when absent.
      */
-    public function setClientInfo(string $name, string $version, ?string $description = null): self
+    public function setClientInfo(string $name, string $version, ?string $description = null, ?string $title = null): self
     {
         $this->name = $name;
         $this->version = $version;
         $this->description = $description;
+        $this->title = $title;
 
         return $this;
     }
@@ -76,6 +86,28 @@ final class Builder
     }
 
     /**
+     * Enable one or more MCP protocol extensions, announced to the server under
+     * `capabilities.extensions` in the initialize request.
+     *
+     * @throws InvalidArgumentException if the identifier is not a valid `_meta` prefix
+     * @throws LogicException           if the same extension is enabled more than once
+     */
+    public function enableExtension(ExtensionInterface ...$extensions): self
+    {
+        foreach ($extensions as $extension) {
+            $id = (string) $extension->getId();
+
+            if (isset($this->extensions[$id])) {
+                throw new LogicException(\sprintf('Extension "%s" is already enabled.', $id));
+            }
+
+            $this->extensions[$id] = $extension->getCapabilities();
+        }
+
+        return $this;
+    }
+
+    /**
      * Set initialization timeout in seconds.
      */
     public function setInitTimeout(int $seconds): self
@@ -96,7 +128,11 @@ final class Builder
     }
 
     /**
-     * Set maximum retry attempts for failed connections.
+     * Set the number of times a failed connection attempt is retried.
+     *
+     * Counts retries, not attempts: 3 means one initial attempt plus up to three
+     * retries. Pass 0 to fail on the first failure. Only applies to
+     * {@see Client::connect()}; individual requests are never retried.
      */
     public function setMaxRetries(int $retries): self
     {
@@ -148,11 +184,20 @@ final class Builder
             $this->name,
             $this->version,
             $this->description,
+            title: $this->title,
         );
+
+        $capabilities = $this->capabilities ?? new ClientCapabilities();
+
+        // Extensions enabled via enableExtension() are folded into caller-supplied
+        // capabilities too, so setCapabilities() does not silently drop them.
+        if ([] !== $this->extensions) {
+            $capabilities = $capabilities->withExtensions($this->extensions);
+        }
 
         $config = new Configuration(
             clientInfo: $clientInfo,
-            capabilities: $this->capabilities ?? new ClientCapabilities(),
+            capabilities: $capabilities,
             protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_11_25,
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,

@@ -27,7 +27,7 @@ use Psr\Http\Server\RequestHandlerInterface;
  *  - inside the MCP transport, wrapped by {@see \Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware};
  *  - as a bare PSR-7 handler in a hand-rolled front controller;
  *  - as a framework callable controller (Symfony/Laravel), by converting the framework
- *    request to PSR-7 and the returned PSR-7 response back — see docs/authorization.md.
+ *    request to PSR-7 and the returned PSR-7 response back — see docs/run/authorization.md.
  *
  * It performs no path or method matching: routing is the caller's responsibility (the
  * middleware's guard, or the framework router).

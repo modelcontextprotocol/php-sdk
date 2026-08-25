@@ -35,6 +35,9 @@ use Psr\Http\Server\RequestHandlerInterface;
  * the `initialize` round-trip does not carry the header, and legacy clients
  * that omit it are tolerated.
  *
+ * Validation is against a fixed set, not against the version a particular session
+ * negotiated: PSR-15 middleware runs before the transport resolves the session.
+ *
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
@@ -47,8 +50,11 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
     /** @var list<string> */
     private readonly array $supportedVersions;
 
+    /** @var list<ProtocolVersion> */
+    private readonly array $supported;
+
     /**
-     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to all values of {@see ProtocolVersion}.
+     * @param list<ProtocolVersion>|null    $supportedVersions Versions the server accepts. Defaults to {@see ProtocolVersion::handshakeVersions()}. {@see StreamableHttpTransport::handshakeMiddleware()} always uses that default: it runs only on traffic already classified as handshake-era, so this middleware never needs to know about modern revisions there.
      * @param ResponseFactoryInterface|null $responseFactory   PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory     PSR-17 stream factory (auto-discovered if null)
      */
@@ -57,8 +63,9 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
-        $versions = $supportedVersions ?? ProtocolVersion::cases();
-        $this->supportedVersions = array_values(array_map(static fn (ProtocolVersion $v): string => $v->value, $versions));
+        $versions = $supportedVersions ?? ProtocolVersion::handshakeVersions();
+        $this->supported = array_values($versions);
+        $this->supportedVersions = array_map(static fn (ProtocolVersion $v): string => $v->value, $this->supported);
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
@@ -70,29 +77,20 @@ final class ProtocolVersionMiddleware implements MiddlewareInterface
         // Spec backwards-compat: when the header is absent, the server SHOULD assume
         // protocol version 2025-03-26 — the release in which Streamable HTTP and the
         // header itself were introduced. This is deliberately lower than the SDK's
-        // own default (V2025_06_18) so clients predating the header convention still
-        // get a deterministic protocol version applied. Servers that whitelist only
-        // newer versions in $supportedVersions will reject such requests with 400.
-        $version = '' === $headerValue ? ProtocolVersion::V2025_03_26->value : $headerValue;
+        // own default so clients predating the header convention still get a
+        // deterministic protocol version applied. Servers that whitelist only newer
+        // versions in $supportedVersions will reject such requests with 400.
+        $version = '' === $headerValue ? ProtocolVersion::DEFAULT_HEADER_VERSION->value : $headerValue;
 
         if (\in_array($version, $this->supportedVersions, true)) {
             return $handler->handle($request);
         }
 
-        $message = '' === $headerValue
-            ? \sprintf(
-                'Missing %s header; backwards-compat default %s is not accepted. Supported versions: %s.',
-                StreamableHttpTransport::PROTOCOL_VERSION_HEADER,
-                $version,
-                implode(', ', $this->supportedVersions),
-            )
-            : \sprintf(
-                'Unsupported %s header value: %s. Supported versions: %s.',
-                StreamableHttpTransport::PROTOCOL_VERSION_HEADER,
-                $headerValue,
-                implode(', ', $this->supportedVersions),
-            );
+        // The client is expected to pick a mutually supported version from the
+        // error payload and retry, so the supported set travels as structured
+        // data rather than only inside the message.
+        $error = Error::forUnsupportedProtocolVersion($version, $this->supported);
 
-        return JsonRpcErrorResponse::create($this->responseFactory, $this->streamFactory, 400, Error::forInvalidParams($message));
+        return JsonRpcErrorResponse::create($this->responseFactory, $this->streamFactory, 400, $error);
     }
 }

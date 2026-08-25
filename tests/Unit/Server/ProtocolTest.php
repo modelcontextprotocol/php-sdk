@@ -32,6 +32,8 @@ use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -81,6 +83,30 @@ final class ProtocolTest extends TestCase
         $protocol->processInput(
             $this->transport,
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            $sessionId
+        );
+    }
+
+    #[TestDox('An id-less error response from the client is logged and ignored, not stored under a collapsed session key')]
+    public function testIdLessErrorResponseIsIgnored(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->expects($this->never())->method('set');
+
+        $this->sessionManager->method('exists')->willReturn(true);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $sessionId = Uuid::v4();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}}',
             $sessionId
         );
     }
@@ -302,6 +328,40 @@ final class ProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('Unrecoverable parse error does not fabricate an empty-string id')]
+    public function testParseErrorDoesNotFabricateEmptyStringId(): void
+    {
+        $sentPayload = null;
+        $this->transport->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function ($data) use (&$sentPayload) {
+                $sentPayload = $data;
+            });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        // Well-formed JSON nested past PHP's json_decode() depth limit (512), mirroring
+        // issue #333: json_decode() throws "Maximum stack depth exceeded" so the request
+        // carries a real numeric id (900512) that cannot be recovered once decoding fails.
+        $deeplyNested = str_repeat('[', 600).str_repeat(']', 600);
+        $input = '{"jsonrpc":"2.0","id":900512,"method":"initialize","params":'.$deeplyNested.'}';
+
+        $protocol->processInput($this->transport, $input, null);
+
+        $this->assertNotNull($sentPayload);
+        $decoded = json_decode($sentPayload, true);
+        $this->assertSame(Error::PARSE_ERROR, $decoded['error']['code']);
+        // The original id is genuinely unrecoverable after a parse failure: it must never be
+        // fabricated as an empty string, and — per the MCP `RequestId` schema, which never
+        // allows `null` — the key must be omitted rather than sent as `id: null`.
+        $this->assertArrayNotHasKey('id', $decoded, 'Unrecoverable parse error must omit id, not fabricate one');
+    }
+
     #[TestDox('Invalid message structure returns error')]
     public function testInvalidMessageStructureReturnsError(): void
     {
@@ -352,6 +412,221 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
+    }
+
+    #[TestDox('An unexpected throwable while creating a message returns an internal error under its id')]
+    public function testUnexpectedThrowableWhileCreatingMessagesReturnsInternalError(): void
+    {
+        $sent = null;
+        $this->transport->expects($this->once())
+            ->method('send')
+            ->willReturnCallback(static function ($data) use (&$sent) {
+                $sent = $data;
+            });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: new MessageFactory([ThrowingRequest::class]),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "test/throwing"}',
+            Uuid::v4()
+        );
+
+        $decoded = json_decode((string) $sent, true);
+        $this->assertSame(Error::INTERNAL_ERROR, $decoded['error']['code']);
+        $this->assertSame(1, $decoded['id'], 'The peer must be able to correlate the failure with its request.');
+        $this->assertStringNotContainsString('must not leak', $decoded['error']['message']);
+    }
+
+    #[TestDox('A batch that fails to hydrate is answered once, under the empty id')]
+    public function testBatchThatFailsToHydrateIsAnsweredOnce(): void
+    {
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function ($data) use (&$sent) {
+            $sent[] = $data;
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: new MessageFactory([PingRequest::class, ThrowingRequest::class]),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '[{"jsonrpc": "2.0", "id": 1, "method": "ping"}, {"jsonrpc": "2.0", "id": 2, "method": "test/throwing"}]',
+            Uuid::v4()
+        );
+
+        $this->assertCount(1, $sent);
+
+        $decoded = json_decode($sent[0], true);
+        $this->assertSame(Error::INTERNAL_ERROR, $decoded['error']['code']);
+        $this->assertSame('', $decoded['id'], 'The failure cannot be attributed to one request of the batch.');
+    }
+
+    #[TestDox('A batch holding only notifications is not answered when processing fails')]
+    public function testBatchOfNotificationsIsNotAnsweredWhenProcessingFails(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '[{"jsonrpc": "2.0", "method": "notifications/initialized"}]',
+            Uuid::v4()
+        );
+    }
+
+    #[TestDox('An unexpected throwable while saving the session does not answer a notification')]
+    public function testUnexpectedThrowableWhileSavingSessionDoesNotEscape(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        // JSON-RPC forbids answering a notification, so the failure is only logged.
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            Uuid::v4()
+        );
+    }
+
+    #[TestDox('A failing notification event listener does not produce a response')]
+    public function testFailingNotificationListenerDoesNotProduceResponse(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            return '_mcp.outgoing_queue' === $key ? $queue : $default;
+        });
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function ($event) {
+            if ($event instanceof NotificationEvent) {
+                throw new \RuntimeException('listener blew up');
+            }
+
+            return $event;
+        });
+
+        $this->transport->expects($this->never())->method('send');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $sessionId = Uuid::v4();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
+            $sessionId
+        );
+
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
+    }
+
+    /**
+     * @return iterable<string, array{string, string|int}>
+     */
+    public static function recoverableIdProvider(): iterable
+    {
+        yield 'positive int' => ['{"jsonrpc": "2.0", "id": 42, "params": {}}', 42];
+        yield 'zero int (truthiness trap)' => ['{"jsonrpc": "2.0", "id": 0, "params": {}}', 0];
+        yield 'string id' => ['{"jsonrpc": "2.0", "id": "req-1", "params": {}}', 'req-1'];
+    }
+
+    #[DataProvider('recoverableIdProvider')]
+    #[TestDox('Invalid but parseable message preserves its recoverable id')]
+    public function testInvalidMessagePreservesRecoverableId(string $input, string|int $expectedId): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        // Configure session mock for queue operations (mirrors testInvalidMessageStructureReturnsError).
+        $queue = [];
+        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                return $queue;
+            }
+
+            return $default;
+        });
+
+        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
+            if ('_mcp.outgoing_queue' === $key) {
+                $queue = $value;
+            }
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $sessionId = Uuid::v4();
+        // Valid JSON carrying a real id but missing method/result/error: the message is
+        // structurally invalid, yet its id IS recoverable from the decoded payload.
+        $protocol->processInput(
+            $this->transport,
+            $input,
+            $sessionId
+        );
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+
+        $message = json_decode($outgoing[0]['message'], true);
+        $this->assertArrayHasKey('error', $message);
+        $this->assertEquals(Error::INVALID_REQUEST, $message['error']['code']);
+        $this->assertSame($expectedId, $message['id'], 'Invalid-but-parseable message must preserve its recoverable id, not return ""');
     }
 
     #[TestDox('Request without handler returns method not found error')]
@@ -518,7 +793,8 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('error', $message);
         $this->assertEquals(Error::INTERNAL_ERROR, $message['error']['code']);
-        $this->assertStringContainsString('Unexpected error', $message['error']['message']);
+        $this->assertSame('Internal server error.', $message['error']['message']);
+        $this->assertStringNotContainsString('Unexpected error', $message['error']['message']);
     }
 
     #[TestDox('Notification handler exceptions are caught and logged')]

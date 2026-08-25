@@ -23,14 +23,14 @@ use Mcp\Exception\InvalidArgumentException;
 final class EnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param string        $title       Human-readable title for the field
+     * @param ?string       $title       Optional human-readable title for the field
      * @param string[]      $enum        Array of allowed string values
      * @param string|null   $description Optional description/help text
      * @param string|null   $default     Optional default value (must be in enum)
      * @param string[]|null $enumNames   Optional human-readable labels for each enum value
      */
     public function __construct(
-        string $title,
+        ?string $title,
         public readonly array $enum,
         ?string $description = null,
         public readonly ?string $default = null,
@@ -59,7 +59,7 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
 
     /**
      * @param array{
-     *     title: string,
+     *     title?: string,
      *     enum: string[],
      *     description?: string,
      *     default?: string,
@@ -75,7 +75,7 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
         }
 
         return new self(
-            title: $data['title'],
+            title: $data['title'] ?? null,
             enum: $data['enum'],
             description: $data['description'] ?? null,
             default: $data['default'] ?? null,
@@ -86,7 +86,7 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
     /**
      * @return array{
      *     type: string,
-     *     title: string,
+     *     title?: string,
      *     enum: string[],
      *     description?: string,
      *     default?: string,
@@ -95,11 +95,13 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
      */
     public function jsonSerialize(): array
     {
-        $data = [
-            'type' => 'string',
-            'title' => $this->title,
-            'enum' => $this->enum,
-        ];
+        $data = ['type' => 'string'];
+
+        if (null !== $this->title) {
+            $data['title'] = $this->title;
+        }
+
+        $data['enum'] = $this->enum;
 
         if (null !== $this->description) {
             $data['description'] = $this->description;

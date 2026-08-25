@@ -14,6 +14,7 @@ namespace Mcp\Server\Handler\Request;
 use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -22,12 +23,17 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<CallToolResult>
+ * A tools/call answers with the tool's output or, under MRTR, with a request
+ * for the input it still needs.
+ *
+ * @implements RequestHandlerInterface<CallToolResult|InputRequiredResult>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
@@ -51,7 +57,7 @@ final class CallToolHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<CallToolResult>|Error
+     * @return Response<CallToolResult|InputRequiredResult>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -67,7 +73,9 @@ final class CallToolHandler implements RequestHandlerInterface
         } catch (ToolNotFoundException $e) {
             $this->logger->error('Tool not found', ['name' => $toolName, 'exception' => $e]);
 
-            return new Error($request->getId(), Error::METHOD_NOT_FOUND, $e->getMessage());
+            // -32601 answers an unknown *method*; tools/call exists, it is the
+            // name in its params that does not.
+            return Error::forInvalidParams($e->getMessage(), $request->getId());
         }
 
         $inputSchema = $reference->tool->inputSchema;
@@ -92,13 +100,44 @@ final class CallToolHandler implements RequestHandlerInterface
         $arguments['_session'] = $session;
         $arguments['_request'] = $request;
 
+        $context = new RequestContext($session, $request);
+
         try {
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            // An ask is a result in its own right, not tool output.
+            if ($result instanceof InputRequiredResult) {
+                return new Response($request->getId(), $result);
+            }
+
+            $protocolVersion = $context->getProtocolVersion();
+
             $structuredContent = null;
             if (!$result instanceof CallToolResult) {
-                $structuredContent = $reference->extractStructuredContent($result);
+                $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
+
+                if (null === $structuredContent && null !== $reference->tool->outputSchema) {
+                    $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
+                        'name' => $toolName,
+                        'result_type' => get_debug_type($result),
+                    ]);
+                }
+
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
+            } elseif ($protocolVersion->requiresObjectStructuredContent()
+                && null !== $result->structuredContent
+                && [] !== $result->structuredContent
+                && !self::isJsonObject($result->structuredContent)
+            ) {
+                // A tool building its own `CallToolResult` bypasses the extraction
+                // rules on purpose, so the value is sent as it was set — but before
+                // SEP-2106 only a JSON object is valid here, whether the value is a
+                // list or a scalar, and clients may reject it.
+                $this->logger->warning('Tool returned a "CallToolResult" whose "structuredContent" is not a JSON object, which the negotiated protocol revision requires; sending it unchanged.', [
+                    'name' => $toolName,
+                    'protocol_version' => $protocolVersion->value,
+                    'structured_content_type' => get_debug_type($result->structuredContent),
+                ]);
             }
 
             $this->logger->debug('Tool executed successfully', [
@@ -108,8 +147,12 @@ final class CallToolHandler implements RequestHandlerInterface
             ]);
 
             return new Response($request->getId(), $result);
+        } catch (MissingRequiredClientCapabilityException $e) {
+            // Not a tool failure — the request was unservable, and the client
+            // needs to retry declaring the capability. Rendered as -32021.
+            throw $e;
         } catch (ToolCallException $e) {
-            $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
+            $this->logger->debug(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
                 'exception' => $e,
@@ -126,5 +169,14 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInternalError('Error while executing tool', $request->getId());
         }
+    }
+
+    /**
+     * Whether a `structuredContent` value encodes as a JSON object — the only shape
+     * revisions predating SEP-2106 accept.
+     */
+    private static function isJsonObject(mixed $value): bool
+    {
+        return \is_array($value) && !array_is_list($value);
     }
 }

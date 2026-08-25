@@ -92,6 +92,58 @@ final class SchemaGeneratorTest extends TestCase
         ], $schema);
     }
 
+    public function testUsesCompleteSchemaDefinitionFromParameterLevelSchemaAttribute(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'parameterLevelCompleteDefinition');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals([
+            'type' => 'string',
+            'description' => 'The region to query.',
+            'x-mcp-header' => 'Region',
+            'default' => 'eu',
+        ], $schema['properties']['region']);
+
+        $this->assertEquals([
+            'type' => 'integer',
+            'minimum' => 1,
+            'maximum' => 10,
+            'default' => 3,
+        ], $schema['properties']['limit']);
+
+        $this->assertArrayNotHasKey('required', $schema);
+    }
+
+    public function testUsesCompleteSchemaDefinitionFromVariadicParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicCompleteDefinition');
+        $schema = $this->schemaGenerator->generate($method);
+
+        // The array type is forced: a variadic always arrives as one.
+        $this->assertEquals([
+            'type' => 'array',
+            'description' => 'Tags to apply.',
+            'items' => ['type' => 'string'],
+        ], $schema['properties']['tags']);
+    }
+
+    public function testDefinitionDescriptionWinsOverDocblockOnVariadicParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'variadicCompleteDefinitionWithDocblockDescription');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertSame('Tags to apply.', $schema['properties']['tags']['description']);
+    }
+
+    public function testKeepsTheSignatureDefaultWhenADefinitionReshapesTheParameter(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'definitionReshapingTheParameter');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertSame('{}', $schema['properties']['payload']['default']);
+        $this->assertSame('object', $schema['properties']['payload']['type']);
+    }
+
     public function testGeneratesSchemaFromMethodLevelSchemaAttributeWithProperties(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'methodLevelWithProperties');
@@ -188,6 +240,16 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['minLength' => 3, 'pattern' => '^[a-zA-Z0-9_]+$', 'type' => 'string', 'description' => "The user's name"], $schema['properties']['username']);
         $this->assertEquals(['minimum' => 1, 'maximum' => 10, 'type' => 'integer', 'description' => 'Task priority level'], $schema['properties']['priority']);
         $this->assertEqualsCanonicalizing(['username', 'priority'], $schema['required']);
+    }
+
+    public function testMapsPhpStanAndPsalmIntegerRangesToBaseIntegerType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'integerRangeTypes');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals(['type' => 'integer', 'description' => 'Positive offset', 'minimum' => 0], $schema['properties']['offset']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Negative value'], $schema['properties']['negative']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Bounded value'], $schema['properties']['bounded']);
     }
 
     public function testGeneratesCorrectSchemaForEnumParameters(): void
@@ -349,6 +411,17 @@ final class SchemaGeneratorTest extends TestCase
         $schema = $this->schemaGenerator->generate($method);
         $this->assertEquals(['description' => 'Some parameter', 'minLength' => 3], $schema['properties']['inferredParam']);
         $this->assertEquals(['inferredParam'], $schema['required']);
+    }
+
+    public function testExcludesInjectableParameterTypesFromSchema(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'withInjectableParameters');
+        $schema = $this->schemaGenerator->generate($method);
+        $this->assertArrayNotHasKey('gateway', $schema['properties']);
+        $this->assertArrayNotHasKey('context', $schema['properties']);
+        $this->assertEquals(['type' => 'string', 'description' => 'The search query'], $schema['properties']['query']);
+        $this->assertEquals(['type' => 'integer', 'default' => 10], $schema['properties']['limit']);
+        $this->assertEquals(['query'], $schema['required']);
     }
 
     public static function methodsWithForbiddenParameter(): array

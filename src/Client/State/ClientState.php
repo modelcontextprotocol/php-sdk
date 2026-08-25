@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\State;
 
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -28,6 +29,7 @@ class ClientState implements ClientStateInterface
 {
     private int $requestIdCounter = 1;
     private bool $initialized = false;
+    private ?ProtocolVersion $protocolVersion = null;
     private ?Implementation $serverInfo = null;
     private ?string $instructions = null;
 
@@ -94,6 +96,16 @@ class ClientState implements ClientStateInterface
     public function isInitialized(): bool
     {
         return $this->initialized;
+    }
+
+    public function setProtocolVersion(ProtocolVersion $protocolVersion): void
+    {
+        $this->protocolVersion = $protocolVersion;
+    }
+
+    public function getProtocolVersion(): ?ProtocolVersion
+    {
+        return $this->protocolVersion;
     }
 
     public function setServerInfo(Implementation $serverInfo): void

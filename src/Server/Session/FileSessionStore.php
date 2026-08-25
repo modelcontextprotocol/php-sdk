@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Session;
 
+use Mcp\Exception\RuntimeException;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;
@@ -31,7 +32,7 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         if (!is_dir($this->directory) || !is_writable($this->directory)) {
-            throw new \RuntimeException(\sprintf('Session directory "%s" is not writable.', $this->directory));
+            throw new RuntimeException(\sprintf('Session directory "%s" is not writable.', $this->directory));
         }
     }
 
@@ -127,6 +128,11 @@ class FileSessionStore implements SessionStoreInterface
                 continue;
             }
 
+            // Only delete files this store owns: sessions are named by their RFC 4122 UUID
+            if (!Uuid::isValid($entry)) {
+                continue;
+            }
+
             $path = $this->directory.\DIRECTORY_SEPARATOR.$entry;
             if (!is_file($path)) {
                 continue;
@@ -135,11 +141,7 @@ class FileSessionStore implements SessionStoreInterface
             $mtime = @filemtime($path) ?: 0;
             if (($now - $mtime) > $this->ttl) {
                 @unlink($path);
-                try {
-                    $deleted[] = Uuid::fromString($entry);
-                } catch (\Throwable) {
-                    // ignore non-UUID file names
-                }
+                $deleted[] = Uuid::fromString($entry);
             }
         }
 

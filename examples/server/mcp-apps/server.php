@@ -18,12 +18,14 @@ use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\ToolVisibility;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
 use Mcp\Server;
+use Mcp\Server\Session\FileSessionStore;
 
 logger()->info('Starting MCP Apps Example Server...');
 
 $server = Server::builder()
     ->setServerInfo('MCP Apps Weather Example', '1.0.0')
     ->setLogger(logger())
+    ->setSession(new FileSessionStore(__DIR__.'/sessions'))
     ->enableExtension(new McpApps())
     ->addResource(
         [WeatherApp::class, 'getWeatherApp'],

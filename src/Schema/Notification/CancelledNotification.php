@@ -48,6 +48,10 @@ class CancelledNotification extends Notification
             throw new InvalidArgumentException('Invalid or missing "requestId" parameter for "notifications/cancelled" notification.');
         }
 
+        if (isset($params['reason']) && !\is_string($params['reason'])) {
+            throw new InvalidArgumentException('Invalid "reason" parameter for "notifications/cancelled" notification.');
+        }
+
         return new self($params['requestId'], $params['reason'] ?? null);
     }
 

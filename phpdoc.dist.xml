@@ -6,16 +6,19 @@
     xsi:noNamespaceSchemaLocation="https://docs.phpdoc.org/latest/phpdoc.xsd"
 >
     <title>MCP PHP SDK</title>
+    <!--
+        phpDocumentor only renders the class-level API reference now; the guides
+        under docs/ are built by Zensical (see mkdocs.yml). `make docs` copies
+        this build into the site as /api/.
+    -->
     <paths>
-        <output>.phpdoc/build</output>
+        <output>.phpdoc/build/api</output>
     </paths>
     <version number="latest">
-        <folder>latest</folder>
         <api ignore-packages="true">
             <source dsn=".">
                 <path>src</path>
             </source>
-            <output>api</output>
             <ignore>
                 <path>vendor/**/*</path>
                 <path>tests/**/*</path>
@@ -31,14 +34,8 @@
                 <ignore-tag>implements</ignore-tag>
             </ignore-tags>
         </api>
-        <guide format="md">
-            <source dsn=".">
-                <path>docs</path>
-            </source>
-            <output>/</output>
-        </guide>
     </version>
-    <setting name="guides.enabled" value="true"/>
+    <setting name="guides.enabled" value="false"/>
     <setting name="graphs.enabled" value="false"/>
     <setting name="template.color" value="black"/>
 </phpdocumentor>

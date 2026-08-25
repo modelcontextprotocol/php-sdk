@@ -19,15 +19,20 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
+use Mcp\Schema\Content\ResourceLink;
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 
 class RegistryTest extends TestCase
@@ -494,46 +499,153 @@ class RegistryTest extends TestCase
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
     }
 
-    public function testExtractStructuredContentReturnsArrayDirectlyForArrayOutputSchema(): void
+    /**
+     * @dataProvider provideHandshakeVersions
+     */
+    public function testExtractStructuredContentDropsListResultsBeforeSep2106(?ProtocolVersion $version): void
     {
-        // Arrange
+        // Up to 2025-11-25 a PHP list serializes to something `structuredContent`
+        // does not allow — a JSON array — and `Tool::fromArray()` enforces the
+        // matching rule by rejecting any outputSchema whose type is not "object".
         $outputSchema = [
-            'type' => 'array',
-            'items' => [
-                'type' => 'object',
-                'properties' => [
-                    'foo' => [
-                        'type' => 'string',
-                        'description' => 'A static value',
-                    ],
-                ],
-                'required' => ['foo'],
+            'type' => 'object',
+            'properties' => [
+                'foo' => ['type' => 'string'],
             ],
+            'required' => ['foo'],
         ];
 
         $tool = $this->createValidTool('list_static_data', $outputSchema);
         $toolReturnValue = [
             ['foo' => 'bar'],
             ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
         ];
 
         $this->registry->registerTool($tool, static fn () => $toolReturnValue);
 
-        // Act
         $toolRef = $this->registry->getTool('list_static_data');
-        $structuredContent = $toolRef->extractStructuredContent($toolReturnValue);
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, $version));
+    }
 
-        // Assert
-        $this->assertNotNull($structuredContent);
-        $this->assertCount(4, $structuredContent);
-        $this->assertEquals([
+    /**
+     * The revision is optional, and omitting it has to keep the strict rule: it is
+     * what every revision reachable through the `initialize` handshake requires.
+     *
+     * @return iterable<string, array{?ProtocolVersion}>
+     */
+    public static function provideHandshakeVersions(): iterable
+    {
+        yield 'unspecified' => [null];
+
+        foreach (ProtocolVersion::handshakeVersions() as $version) {
+            yield $version->value => [$version];
+        }
+    }
+
+    public function testExtractStructuredContentKeepsListResultsFromSep2106On(): void
+    {
+        // SEP-2106 widened `structuredContent` to any JSON value conforming to
+        // `outputSchema`, and `outputSchema` to any JSON Schema 2020-12 — the spec's
+        // own example of a legal result is a list of records like this one.
+        $outputSchema = [
+            'type' => 'array',
+            'items' => [
+                'type' => 'object',
+                'properties' => ['foo' => ['type' => 'string']],
+            ],
+        ];
+
+        $tool = $this->createValidTool('list_static_data', $outputSchema);
+        $toolReturnValue = [
             ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
-            ['foo' => 'bar'],
-        ], $structuredContent);
+            ['foo' => 'baz'],
+        ];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_static_data');
+        $this->assertSame($toolReturnValue, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentDropsListOfScalarsBeforeSep2106(): void
+    {
+        $tool = $this->createValidTool('list_ids', null);
+        $toolReturnValue = ['101', '102', '103'];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_ids');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame($toolReturnValue, $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentEncodesObjectResults(): void
+    {
+        $tool = $this->createValidTool('describe_thing', null);
+        $toolReturnValue = new \stdClass();
+        $toolReturnValue->id = 1;
+        $toolReturnValue->label = 'thing';
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('describe_thing');
+        $this->assertSame(['id' => 1, 'label' => 'thing'], $toolRef->extractStructuredContent($toolReturnValue));
+    }
+
+    public function testExtractStructuredContentAppliesTheListRuleToObjectResultsToo(): void
+    {
+        // `JsonSerializable` can hand back a list just as a raw array result can,
+        // and it is no more — and no less — valid for having come from an object.
+        $tool = $this->createValidTool('list_things', null);
+        $toolReturnValue = new class implements \JsonSerializable {
+            public function jsonSerialize(): array
+            {
+                return [['id' => 1], ['id' => 2]];
+            }
+        };
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('list_things');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertSame([['id' => 1], ['id' => 2]], $toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentReturnsNullForObjectsSerializingToAScalar(): void
+    {
+        // SEP-2106 allows a scalar `structuredContent`, but `CallToolResult` types
+        // the field as `?array` and cannot carry one — so it is dropped in every
+        // revision until that type widens.
+        $tool = $this->createValidTool('count_things', null);
+        $toolReturnValue = new class implements \JsonSerializable {
+            public function jsonSerialize(): int
+            {
+                return 42;
+            }
+        };
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('count_things');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentReturnsNullForArrayOfContentItems(): void
+    {
+        // Unlike the list rule, this one is revision-independent: the items are
+        // already carried in the result's `content`.
+        $tool = $this->createValidTool('lookup_thing', null);
+        $toolReturnValue = [
+            new TextContent('Found it.'),
+            new ResourceLink(uri: 'thing://1', name: 'thing_1'),
+        ];
+
+        $this->registry->registerTool($tool, static fn () => $toolReturnValue);
+
+        $toolRef = $this->registry->getTool('lookup_thing');
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2025_11_25));
+        $this->assertNull($toolRef->extractStructuredContent($toolReturnValue, ProtocolVersion::V2026_07_28));
     }
 
     public function testConfiguredLoaderIsNotRunUntilFirstRead(): void
@@ -612,6 +724,50 @@ class RegistryTest extends TestCase
         $this->assertArrayHasKey('loaded', $registry->getTools()->references);
     }
 
+    public function testListChangedEventsAreSuppressedDuringTheDeferredLoad(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $loader = new class($this->createValidTool('loaded'), $this->createValidResource('file:///loaded'), $this->createValidResourceTemplate('file:///loaded/{id}'), $this->createValidPrompt('loaded_prompt')) implements LoaderInterface {
+            public function __construct(
+                private readonly Tool $tool,
+                private readonly ResourceDefinition $resource,
+                private readonly ResourceTemplate $template,
+                private readonly Prompt $prompt,
+            ) {
+            }
+
+            public function load(RegistryInterface $registry): void
+            {
+                $registry->registerTool($this->tool, 'handler');
+                $registry->registerResource($this->resource, 'handler');
+                $registry->registerResourceTemplate($this->template, 'handler');
+                $registry->registerPrompt($this->prompt, 'handler');
+            }
+        };
+
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+
+        $this->assertTrue($registry->hasTools());
+        $this->assertTrue($registry->hasPrompts());
+    }
+
+    public function testListChangedEventsAreStillDispatchedForRuntimeRegistrations(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(ToolListChangedEvent::class))
+            ->willReturnArgument(0);
+
+        $loader = $this->toolLoader($this->createValidTool('loaded'));
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+        $registry->load();
+
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
+    }
+
     public function testLoadRunsTheConfiguredLoaderEagerly(): void
     {
         $loader = $this->createMock(LoaderInterface::class);
@@ -641,6 +797,46 @@ class RegistryTest extends TestCase
                 $registry->registerTool($this->tool, 'handler');
             }
         };
+    }
+
+    public function testExtractStructuredContentKeepsAScalarFromSep2106On(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'string']);
+        $this->registry->registerTool($tool, static fn () => 'sunny');
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        $this->assertSame('sunny', $toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
+        $this->assertNull($toolRef->extractStructuredContent('sunny', ProtocolVersion::V2025_11_25));
+    }
+
+    public function testExtractStructuredContentDropsAScalarWithoutAnOutputSchema(): void
+    {
+        $tool = $this->createValidTool('test_tool', null);
+        $this->registry->registerTool($tool, static fn () => 'sunny');
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        // Without a declared schema the value is already carried in `content`;
+        // advertising it as structured too would duplicate it.
+        $this->assertNull($toolRef->extractStructuredContent('sunny', ProtocolVersion::V2026_07_28));
+    }
+
+    public function testExtractStructuredContentKeepsAJsonSerializableScalarFromSep2106On(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'number']);
+        $result = new class implements \JsonSerializable {
+            public function jsonSerialize(): float
+            {
+                return 22.5;
+            }
+        };
+        $this->registry->registerTool($tool, static fn () => $result);
+
+        $toolRef = $this->registry->getTool('test_tool');
+
+        $this->assertSame(22.5, $toolRef->extractStructuredContent($result, ProtocolVersion::V2026_07_28));
+        $this->assertNull($toolRef->extractStructuredContent($result, ProtocolVersion::V2025_11_25));
     }
 
     private function createValidTool(string $name, ?array $outputSchema = null): Tool

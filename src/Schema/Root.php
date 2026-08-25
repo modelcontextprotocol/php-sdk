@@ -22,6 +22,10 @@ use Mcp\Exception\InvalidArgumentException;
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ *
+ * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
+ *  Pass directories or files through tool arguments, resource
+ * URIs or server configuration instead.
  */
 class Root implements \JsonSerializable
 {
@@ -52,6 +56,10 @@ class Root implements \JsonSerializable
     {
         if (empty($data['uri']) || !\is_string($data['uri'])) {
             throw new InvalidArgumentException('Invalid or missing "uri" in Root data.');
+        }
+
+        if (isset($data['name']) && !\is_string($data['name'])) {
+            throw new InvalidArgumentException('Invalid "name" in Root data.');
         }
 
         return new self($data['uri'], $data['name'] ?? null);

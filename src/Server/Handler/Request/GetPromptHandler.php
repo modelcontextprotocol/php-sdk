@@ -13,6 +13,7 @@ namespace Mcp\Server\Handler\Request;
 
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
@@ -20,12 +21,13 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<GetPromptResult>
+ * @implements RequestHandlerInterface<GetPromptResult|InputRequiredResult>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -44,7 +46,7 @@ final class GetPromptHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<GetPromptResult>|Error
+     * @return Response<GetPromptResult|InputRequiredResult>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -61,9 +63,18 @@ final class GetPromptHandler implements RequestHandlerInterface
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 
+            // An ask is a result in its own right, not prompt content.
+            if ($result instanceof InputRequiredResult) {
+                return new Response($request->getId(), $result);
+            }
+
             $formatted = $reference->formatResult($result);
 
             return new Response($request->getId(), new GetPromptResult($formatted));
+        } catch (MissingRequiredClientCapabilityException $e) {
+            // Not a handler failure — the request was unservable, and the client
+            // needs to retry declaring the capability. Rendered as -32021.
+            throw $e;
         } catch (PromptGetException $e) {
             $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 
@@ -71,7 +82,9 @@ final class GetPromptHandler implements RequestHandlerInterface
         } catch (PromptNotFoundException $e) {
             $this->logger->error('Prompt not found', ['prompt_name' => $promptName, 'exception' => $e]);
 
-            return Error::forResourceNotFound($e->getMessage(), $request->getId());
+            // An unknown prompt name is a bad parameter, not a missing
+            // resource: -32002 was never the code for this.
+            return Error::forInvalidParams($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 

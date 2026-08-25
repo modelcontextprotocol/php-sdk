@@ -67,6 +67,18 @@ class CompletionCompleteResult implements ResultInterface
     public static function fromArray(array $data): self
     {
         $completion = $data['completion'] ?? [];
+        if (!\is_array($completion)) {
+            throw new InvalidArgumentException('Invalid "completion" in CompletionCompleteResult data.');
+        }
+        if (isset($completion['values']) && !\is_array($completion['values'])) {
+            throw new InvalidArgumentException('Invalid "completion.values" in CompletionCompleteResult data.');
+        }
+        if (isset($completion['total']) && !\is_int($completion['total'])) {
+            throw new InvalidArgumentException('Invalid "completion.total" in CompletionCompleteResult data.');
+        }
+        if (isset($completion['hasMore']) && !\is_bool($completion['hasMore'])) {
+            throw new InvalidArgumentException('Invalid "completion.hasMore" in CompletionCompleteResult data.');
+        }
 
         return new self(
             $completion['values'] ?? [],

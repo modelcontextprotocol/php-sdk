@@ -33,11 +33,6 @@ use Mcp\Exception\InvalidArgumentException;
 class ResourceTemplate implements \JsonSerializable
 {
     /**
-     * Resource name pattern regex - must contain only alphanumeric characters, underscores, and hyphens.
-     */
-    private const RESOURCE_NAME_PATTERN = '/^[a-zA-Z0-9_-]+$/';
-
-    /**
      * URI Template pattern regex - requires a valid scheme followed by colon and path with at least one placeholder (RFC 3986).
      * Example patterns: file://{path}/contents.txt, db://{table}/{id}, config:{key}, etc.
      */
@@ -61,9 +56,6 @@ class ResourceTemplate implements \JsonSerializable
         public readonly ?Annotations $annotations = null,
         public readonly ?array $meta = null,
     ) {
-        if (!preg_match(self::RESOURCE_NAME_PATTERN, $name)) {
-            throw new InvalidArgumentException(\sprintf('Invalid resource name "%s": must contain only alphanumeric characters, underscores, and hyphens.', $name));
-        }
         if (!preg_match(self::URI_TEMPLATE_PATTERN, $uriTemplate)) {
             throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder.', $uriTemplate));
         }
@@ -81,8 +73,14 @@ class ResourceTemplate implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "name" in ResourceTemplate data.');
         }
 
-        if (!empty($data['_meta']) && !\is_array($data['_meta'])) {
+        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
             throw new InvalidArgumentException('Invalid "_meta" in ResourceTemplate data.');
+        }
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in ResourceTemplate data.');
+        }
+        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in ResourceTemplate data.');
         }
 
         return new self(
@@ -91,7 +89,7 @@ class ResourceTemplate implements \JsonSerializable
             title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
             description: $data['description'] ?? null,
             mimeType: $data['mimeType'] ?? null,
-            annotations: isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null,
+            annotations: Annotations::tryFromArray($data['annotations'] ?? null, 'ResourceTemplate'),
             meta: isset($data['_meta']) ? $data['_meta'] : null
         );
     }

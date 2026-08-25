@@ -17,6 +17,7 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
 use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Result\ElicitResult;
 use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 
@@ -55,8 +56,6 @@ final class ElicitationHandlers
             ];
         }
 
-        $client = $context->getClientGateway();
-
         $this->logger->info(\sprintf('Starting reservation process for restaurant: %s', $restaurantName));
 
         $schema = new ElicitationSchema(
@@ -85,10 +84,11 @@ final class ElicitationHandlers
             required: ['party_size', 'date'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Please provide your reservation details for %s:', $restaurantName),
-            requestedSchema: $schema,
-            timeout: 120,
+        $result = $this->ask(
+            $context,
+            'details',
+            \sprintf('Please provide your reservation details for %s:', $restaurantName),
+            $schema,
         );
 
         if ($result->isDeclined()) {
@@ -166,8 +166,6 @@ final class ElicitationHandlers
             ];
         }
 
-        $client = $context->getClientGateway();
-
         $schema = new ElicitationSchema(
             properties: [
                 'confirm' => new BooleanSchemaDefinition(
@@ -179,9 +177,11 @@ final class ElicitationHandlers
             required: ['confirm'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Are you sure you want to: %s?', $actionDescription),
-            requestedSchema: $schema,
+        $result = $this->ask(
+            $context,
+            'confirmation',
+            \sprintf('Are you sure you want to: %s?', $actionDescription),
+            $schema,
         );
 
         if (!$result->isAccepted()) {
@@ -234,8 +234,6 @@ final class ElicitationHandlers
             ];
         }
 
-        $client = $context->getClientGateway();
-
         $schema = new ElicitationSchema(
             properties: [
                 'rating' => new EnumSchemaDefinition(
@@ -253,9 +251,11 @@ final class ElicitationHandlers
             required: ['rating'],
         );
 
-        $result = $client->elicit(
-            message: \sprintf('Please provide your feedback about: %s', $topic),
-            requestedSchema: $schema,
+        $result = $this->ask(
+            $context,
+            'feedback',
+            \sprintf('Please provide your feedback about: %s', $topic),
+            $schema,
         );
 
         if (!$result->isAccepted()) {
@@ -287,5 +287,24 @@ final class ElicitationHandlers
                 'comments' => $comments,
             ],
         ];
+    }
+
+    /**
+     * Ask the user one question.
+     *
+     * One call, every revision. Where the client can be interrupted mid-tool it
+     * is, and this returns the answer to that; from 2026-07-28 on there is no
+     * interrupting, so the SDK ends the call with the ask and returns here when
+     * the client re-sends it with the answer — which means everything above this
+     * line runs once per question. The `$key` is what ties an answer to the
+     * question it belongs to across those rounds.
+     */
+    private function ask(
+        RequestContext $context,
+        string $key,
+        string $message,
+        ElicitationSchema $schema,
+    ): ElicitResult {
+        return $context->getClientGateway()->elicit($message, $schema, key: $key);
     }
 }

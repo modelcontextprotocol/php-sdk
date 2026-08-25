@@ -49,8 +49,21 @@ class ListToolsResult implements ResultInterface
             throw new InvalidArgumentException('Missing or invalid "tools" array in ListToolsResult data.');
         }
 
+        if (isset($data['nextCursor']) && !\is_string($data['nextCursor'])) {
+            throw new InvalidArgumentException('Invalid "nextCursor" in ListToolsResult data.');
+        }
+
         return new self(
-            array_map(static fn (array $tool) => Tool::fromArray($tool), $data['tools']),
+            array_map(
+                static function (mixed $entry): Tool {
+                    if (!\is_array($entry)) {
+                        throw new InvalidArgumentException('Each entry in "tools" of ListToolsResult data must be an array.');
+                    }
+
+                    return Tool::fromArray($entry);
+                },
+                $data['tools'],
+            ),
             $data['nextCursor'] ?? null
         );
     }

@@ -251,7 +251,7 @@ class GetPromptHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::RESOURCE_NOT_FOUND, $response->code);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
         $this->assertEquals('Prompt not found: "nonexistent_prompt".', $response->message);
     }
 

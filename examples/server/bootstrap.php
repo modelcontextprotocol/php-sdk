@@ -28,6 +28,13 @@ set_exception_handler(static function (Throwable $t): never {
 });
 
 /**
+ * The transport every example runs on.
+ *
+ * Over HTTP that is one endpoint serving both protocol eras: `StreamableHttpTransport`
+ * classifies each request and routes it to the lifecycle it belongs to, so every
+ * example here answers an `initialize` handshake and a 2026-07-28 envelope alike.
+ * Over stdio there is no such choice to make — that binding carries the handshake era.
+ *
  * @return TransportInterface<int>|TransportInterface<ResponseInterface>
  */
 function transport(): TransportInterface

@@ -26,6 +26,7 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
@@ -183,7 +184,7 @@ class CallToolHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
-        $this->assertEquals(Error::METHOD_NOT_FOUND, $response->code);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
     }
 
     public function testHandleToolCallExceptionReturnsResponseWithErrorResult(): void
@@ -207,16 +208,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "failing_tool": "Tool execution failed".',
-                [
-                    'tool' => 'failing_tool',
-                    'arguments' => ['param' => 'value', '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -229,6 +222,61 @@ class CallToolHandlerTest extends TestCase
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertEquals('Tool execution failed', $result->content[0]->text);
+    }
+
+    public function testHandleToolCallExceptionLogsAtDebugLevel(): void
+    {
+        $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
+        $exception = new ToolCallException('Expected tool failure');
+        $logger = new class extends AbstractLogger {
+            public array $records = [];
+
+            // @phpstan-ignore missingType.parameter (compatible with psr/log 1.x)
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, $logger);
+        $toolReference = $this->createToolReference('failing_tool', static function () {
+            return 'unused';
+        });
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('failing_tool')
+            ->willReturn($toolReference);
+
+        $arguments = ['param' => 'value', '_session' => $this->session, '_request' => $request];
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, $arguments)
+            ->willThrowException($exception);
+
+        $handler->handle($request, $this->session);
+
+        $failureRecords = array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => str_contains($record['message'], 'Expected tool failure'),
+        ));
+
+        $this->assertSame([
+            [
+                'level' => 'debug',
+                'message' => 'Error while executing tool "failing_tool": "Expected tool failure".',
+                'context' => [
+                    'tool' => 'failing_tool',
+                    'arguments' => $arguments,
+                    'exception' => $exception,
+                ],
+            ],
+        ], $failureRecords);
+        $this->assertSame([], array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => \in_array($record['level'], ['error', 'critical'], true),
+        )));
     }
 
     public function testHandleWithNullResult(): void
@@ -270,7 +318,7 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
 
-    public function testHandleLogsErrorWithCorrectParameters(): void
+    public function testHandleLogsToolCallException(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException('Custom error message');
@@ -291,16 +339,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "test_tool": "Custom error message".',
-                [
-                    'tool' => 'test_tool',
-                    'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -335,6 +375,14 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['param' => 'value', '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Unhandled error during tool execution', [
+                'name' => 'failing_tool',
+                'exception' => $exception,
+            ]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -475,6 +523,143 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($callToolResult, $response->result);
         $this->assertArrayNotHasKey('structuredContent', $response->result->jsonSerialize());
+    }
+
+    /**
+     * @dataProvider provideStructuredContentRevisions
+     */
+    public function testStructuredContentFollowsTheNegotiatedRevision(?string $negotiated, ?array $expected): void
+    {
+        $listResult = [['id' => 1], ['id' => 2]];
+        $request = $this->createCallToolRequest('list_things', []);
+        $toolReference = $this->createToolReference('list_things', static fn () => $listResult);
+
+        $this->session
+            ->method('get')
+            ->with('protocol_version')
+            ->willReturn($negotiated);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($listResult);
+
+        $toolReference
+            ->method('formatResult')
+            ->willReturn([new TextContent('[{"id":1},{"id":2}]')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($expected, $response->result->structuredContent);
+    }
+
+    /**
+     * How a revision is resolved is {@see \Mcp\Server\RequestContext}'s business
+     * and covered there; this only pins that the handler applies it.
+     *
+     * @return iterable<string, array{?string, ?array<mixed>}>
+     */
+    public static function provideStructuredContentRevisions(): iterable
+    {
+        // A list is only emittable from 2026-07-28 (SEP-2106) on. Without a
+        // negotiated revision the handler assumes the stricter handshake rule.
+        yield 'no negotiated revision' => [null, null];
+        yield '2025-11-25' => ['2025-11-25', null];
+        yield '2026-07-28' => ['2026-07-28', [['id' => 1], ['id' => 2]]];
+    }
+
+    /**
+     * @dataProvider provideSelfBuiltResults
+     */
+    public function testSelfBuiltResultIsSentUnchangedAndOnlyWarnedAbout(
+        ?string $negotiated,
+        ?array $structuredContent,
+        int $expectedWarnings,
+    ): void {
+        $request = $this->createCallToolRequest('build_result', []);
+        $toolReference = $this->createToolReference('build_result', static fn () => null);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, $structuredContent);
+
+        $this->session
+            ->method('get')
+            ->with('protocol_version')
+            ->willReturn($negotiated);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($callToolResult);
+
+        $toolReference
+            ->expects($this->never())
+            ->method('formatResult');
+
+        $this->logger
+            ->expects($this->exactly($expectedWarnings))
+            ->method('warning');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        // Warned about, never rewritten: building the result is an explicit opt-out.
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($callToolResult, $response->result);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    /**
+     * @return iterable<string, array{?string, ?array<mixed>, int}>
+     */
+    public static function provideSelfBuiltResults(): iterable
+    {
+        yield 'list before SEP-2106' => ['2025-11-25', [['id' => 1]], 1];
+        yield 'list without a negotiated revision' => [null, [['id' => 1]], 1];
+        yield 'list from SEP-2106 on' => ['2026-07-28', [['id' => 1]], 0];
+        yield 'object before SEP-2106' => ['2025-11-25', ['items' => [['id' => 1]]], 0];
+        yield 'none at all' => ['2025-11-25', null, 0];
+        // Dropped by `CallToolResult::jsonSerialize()` anyway, so nothing to warn about.
+        yield 'empty' => ['2025-11-25', [], 0];
+    }
+
+    public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void
+    {
+        $listResult = [['id' => 1]];
+        $request = $this->createCallToolRequest('list_things', []);
+        $toolReference = $this->createToolReference('list_things', static fn () => $listResult, [
+            'type' => 'object',
+            'properties' => ['items' => ['type' => 'array']],
+        ]);
+
+        $this->registry
+            ->method('getTool')
+            ->willReturn($toolReference);
+
+        $this->referenceHandler
+            ->method('handle')
+            ->willReturn($listResult);
+
+        $toolReference
+            ->method('formatResult')
+            ->willReturn([new TextContent('[{"id":1}]')]);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('warning')
+            ->with(
+                $this->stringContains('outputSchema'),
+                $this->callback(static fn (array $context): bool => 'list_things' === $context['name'] && 'array' === $context['result_type']),
+            );
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertNull($response->result->structuredContent);
     }
 
     public function testValidationError(): void

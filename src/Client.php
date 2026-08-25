@@ -17,11 +17,14 @@ use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\RootsListChangedNotification;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
@@ -55,6 +58,8 @@ use Psr\Log\NullLogger;
  */
 class Client
 {
+    private const RETRY_BASE_DELAY_MS = 100;
+
     private ?TransportInterface $transport = null;
 
     public function __construct(
@@ -75,16 +80,44 @@ class Client
     /**
      * Connect to an MCP server using the provided transport.
      *
-     * @throws ConnectionException If connection or initialization fails
+     * A failed attempt is closed and retried, see {@see Builder::setMaxRetries()}.
+     *
+     * @throws ConnectionException If connection or initialization fails on every attempt
      */
     public function connect(TransportInterface $transport): void
     {
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
-        $transport->connect();
+        $maxAttempts = $this->config->maxRetries + 1;
 
-        $this->logger->info('Client connected and initialized');
+        for ($attempt = 1; $attempt <= $maxAttempts; ++$attempt) {
+            try {
+                $transport->connect();
+
+                $this->logger->info('Client connected and initialized', ['attempt' => $attempt]);
+
+                return;
+            } catch (ConnectionException $e) {
+                // initialize() flags the session before sending the initialized
+                // notification, so a failure in between leaves the flag set.
+                $this->protocol->getState()->setInitialized(false);
+
+                $transport->close();
+
+                if ($attempt === $maxAttempts) {
+                    throw $e;
+                }
+
+                $this->logger->warning('Connection attempt failed, retrying', [
+                    'attempt' => $attempt,
+                    'max_attempts' => $maxAttempts,
+                    'exception' => $e,
+                ]);
+
+                usleep($attempt * self::RETRY_BASE_DELAY_MS * 1000);
+            }
+        }
     }
 
     /**
@@ -112,6 +145,18 @@ class Client
     }
 
     /**
+     * Protocol revision negotiated during the handshake.
+     *
+     * This is the version the server answered with, which is not necessarily the
+     * one configured on the builder: a server that cannot speak the requested
+     * revision counter-offers one it supports. Null until the handshake completed.
+     */
+    public function getProtocolVersion(): ?ProtocolVersion
+    {
+        return $this->protocol->getState()->getProtocolVersion();
+    }
+
+    /**
      * Send a ping request to the server.
      */
     public function ping(): void
@@ -130,7 +175,16 @@ class Client
 
         $response = $this->sendRequest($request);
 
-        return ListToolsResult::fromArray($response->result);
+        $result = $response->result;
+
+        // Filtered before parsing, because parsing is where a malformed
+        // `x-mcp-header` annotation throws. One broken definition must cost the
+        // caller that tool, not the whole listing (SEP-2243).
+        if (\is_array($result['tools'] ?? null)) {
+            $result['tools'] = $this->protocol->getToolCatalog()->record($result['tools']);
+        }
+
+        return ListToolsResult::fromArray($result);
     }
 
     /**
@@ -143,6 +197,15 @@ class Client
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
     {
+        $catalog = $this->protocol->getToolCatalog();
+
+        // A tool the listing showed to be malformed is refused here rather than
+        // sent: the client cannot produce the headers its annotations demand,
+        // so the call could only go out misdescribed (SEP-2243).
+        if ($catalog->isRejected($name)) {
+            throw new RuntimeException(\sprintf('Refusing to call tool "%s": its "x-mcp-header" annotations are invalid (%s).', $name, $catalog->reasonFor($name)));
+        }
+
         $request = new CallToolRequest($name, $arguments);
 
         $response = $this->sendRequest($request, $onProgress);
@@ -242,6 +305,27 @@ class Client
         $request = new SetLogLevelRequest($level);
 
         $this->sendRequest($request);
+    }
+
+    /**
+     * Notify the server that the client's list of roots has changed.
+     *
+     * The server should react by requesting an updated list via roots/list.
+     *
+     * @throws RuntimeException    if the client did not advertise the `roots.listChanged` capability
+     * @throws ConnectionException if the client is not connected
+     */
+    public function sendRootsListChanged(): void
+    {
+        if (true !== $this->config->capabilities->rootsListChanged) {
+            throw new RuntimeException('Cannot send a "roots/list_changed" notification without advertising the "roots.listChanged" capability. Build the client with new ClientCapabilities(roots: true, rootsListChanged: true).');
+        }
+
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        $this->protocol->sendNotification(new RootsListChangedNotification());
     }
 
     /**

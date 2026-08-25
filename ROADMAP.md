@@ -10,6 +10,12 @@ This roadmap is a living document that outlines the planned features and improve
 - **Client**
 - [x] Implement client-side support
 - [x] Implement client examples and documentation
+- [ ] Implement OAuth2 authentication for client
 - **Schema**
 - [ ] Implement schema generation based on TS or JSON Schema
+- [ ] Achieve full spec conformance
+- **Extensions**
+- [ ] Implement the Tasks extension
+- **Architecture**
+- [ ] Split the SDK into multiple packages
 

@@ -47,6 +47,13 @@ class PromptArgument implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "name" in PromptArgument data.');
         }
 
+        if (isset($data['description']) && !\is_string($data['description'])) {
+            throw new InvalidArgumentException('Invalid "description" in PromptArgument data.');
+        }
+        if (isset($data['required']) && !\is_bool($data['required'])) {
+            throw new InvalidArgumentException('Invalid "required" in PromptArgument data.');
+        }
+
         return new self(
             name: $data['name'],
             description: $data['description'] ?? null,

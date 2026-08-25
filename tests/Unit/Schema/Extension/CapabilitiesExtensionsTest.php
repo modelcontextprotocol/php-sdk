@@ -57,6 +57,24 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $json['extensions']);
     }
 
+    public function testServerCapabilitiesSerializeSettinglessExtensionAsObject(): void
+    {
+        $caps = new ServerCapabilities(tools: true, extensions: ['acme/thing' => []]);
+
+        $json = json_encode($caps->jsonSerialize(), \JSON_UNESCAPED_SLASHES);
+
+        $this->assertStringContainsString('"acme/thing":{}', (string) $json);
+    }
+
+    public function testClientCapabilitiesSerializeSettinglessExtensionAsObject(): void
+    {
+        $caps = new ClientCapabilities(elicitation: true, extensions: ['acme/thing' => []]);
+
+        $json = json_encode($caps->jsonSerialize(), \JSON_UNESCAPED_SLASHES);
+
+        $this->assertStringContainsString('"acme/thing":{}', (string) $json);
+    }
+
     public function testServerCapabilitiesJsonSerializeWithoutExtensions(): void
     {
         $caps = new ServerCapabilities(tools: true);
@@ -110,6 +128,17 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertSame(['x' => 1], $merged->extensions['a']);
         $this->assertSame(['y' => 99], $merged->extensions['b'], 'new entry overrides existing id');
         $this->assertSame(['z' => 3], $merged->extensions['c']);
+        $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
+    }
+
+    public function testClientCapabilitiesWithExtensionsMerges(): void
+    {
+        $caps = new ClientCapabilities(elicitation: true, extensions: ['a' => ['x' => 1], 'b' => ['y' => 2]]);
+
+        $merged = $caps->withExtensions(['b' => ['y' => 99], 'c' => ['z' => 3]]);
+
+        $this->assertTrue($merged->elicitation);
+        $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 99], 'c' => ['z' => 3]], $merged->extensions);
         $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
     }
 

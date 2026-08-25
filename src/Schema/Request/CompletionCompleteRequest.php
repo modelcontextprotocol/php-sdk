@@ -45,8 +45,8 @@ final class CompletionCompleteRequest extends Request
         }
 
         $ref = match ($params['ref']['type'] ?? null) {
-            'ref/prompt' => new PromptReference($params['ref']['name']),
-            'ref/resource' => new ResourceReference($params['ref']['uri']),
+            'ref/prompt' => new PromptReference(self::refString($params['ref'], 'name')),
+            'ref/resource' => new ResourceReference(self::refString($params['ref'], 'uri')),
             default => throw new InvalidArgumentException('Invalid "ref" parameter for completion/complete.'),
         };
 
@@ -55,6 +55,18 @@ final class CompletionCompleteRequest extends Request
         }
 
         return new self($ref, $params['argument']);
+    }
+
+    /**
+     * @param array<mixed> $ref
+     */
+    private static function refString(array $ref, string $key): string
+    {
+        if (!isset($ref[$key]) || !\is_string($ref[$key])) {
+            throw new InvalidArgumentException(\sprintf('Missing or invalid "ref.%s" parameter for completion/complete.', $key));
+        }
+
+        return $ref[$key];
     }
 
     /**

@@ -108,7 +108,7 @@ final class Registry implements RegistryInterface
         $reference = new ToolReference($tool, $handler);
         $this->tools[$tool->name] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->dispatch(new ToolListChangedEvent());
 
         return $reference;
     }
@@ -118,7 +118,7 @@ final class Registry implements RegistryInterface
         $reference = new ResourceReference($resource, $handler);
         $this->resources[$resource->uri] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->dispatch(new ResourceListChangedEvent());
 
         return $reference;
     }
@@ -131,7 +131,7 @@ final class Registry implements RegistryInterface
         $reference = new ResourceTemplateReference($template, $handler, $completionProviders);
         $this->resourceTemplates[$template->uriTemplate] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        $this->dispatch(new ResourceTemplateListChangedEvent());
 
         return $reference;
     }
@@ -144,7 +144,7 @@ final class Registry implements RegistryInterface
         $reference = new PromptReference($prompt, $handler, $completionProviders);
         $this->prompts[$prompt->name] = $reference;
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->dispatch(new PromptListChangedEvent());
 
         return $reference;
     }
@@ -157,7 +157,7 @@ final class Registry implements RegistryInterface
 
         unset($this->tools[$name]);
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->dispatch(new ToolListChangedEvent());
     }
 
     public function unregisterResource(string $uri): void
@@ -168,7 +168,7 @@ final class Registry implements RegistryInterface
 
         unset($this->resources[$uri]);
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->dispatch(new ResourceListChangedEvent());
     }
 
     public function unregisterResourceTemplate(string $uriTemplate): void
@@ -179,7 +179,7 @@ final class Registry implements RegistryInterface
 
         unset($this->resourceTemplates[$uriTemplate]);
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        $this->dispatch(new ResourceTemplateListChangedEvent());
     }
 
     public function unregisterPrompt(string $name): void
@@ -190,7 +190,7 @@ final class Registry implements RegistryInterface
 
         unset($this->prompts[$name]);
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->dispatch(new PromptListChangedEvent());
     }
 
     public function hasTool(string $name): bool
@@ -388,6 +388,18 @@ final class Registry implements RegistryInterface
         $this->load();
 
         return $this->prompts[$name] ?? throw new PromptNotFoundException($name);
+    }
+
+    /**
+     * Suppressed while the deferred loader runs, since it only sets up initial state.
+     */
+    private function dispatch(object $event): void
+    {
+        if ($this->loading) {
+            return;
+        }
+
+        $this->eventDispatcher?->dispatch($event);
     }
 
     /**

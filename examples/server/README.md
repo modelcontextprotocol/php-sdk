@@ -22,6 +22,33 @@ Run with Inspector:
 npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/server.php
 ```
 
+## The 2026-07-28 lifecycle
+
+`stateless-lifecycle/server.php` demonstrates protocol revision `2026-07-28`, which removed the
+`initialize` handshake and protocol-level sessions. Like every example it answers both eras — the
+Inspector's `initialize` still works — but the interesting part is the modern one:
+
+```bash
+php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php
+```
+
+Every request carries its own protocol version and client capabilities, so a call is a single POST with
+no handshake before it:
+
+```bash
+curl -sS http://127.0.0.1:8000/ \
+  -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -H 'MCP-Protocol-Version: 2026-07-28' \
+  -H 'Mcp-Method: server/discover' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"server/discover","params":{"_meta":{
+        "io.modelcontextprotocol/protocolVersion":"2026-07-28",
+        "io.modelcontextprotocol/clientCapabilities":{}}}}'
+```
+
+`tests/Integration/StatelessLifecycleTest.php` drives this example end to end — discovery, a tool call,
+the multi round-trip flow, and the response stream carrying progress and log notifications.
+
 ## Debugging
 
 You can enable debug output by setting the `DEBUG` environment variable to `1`, and additionally log to a file by

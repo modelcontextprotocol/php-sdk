@@ -1,13 +1,8 @@
 name: conformance-weekly
 
-# Runs the MCP conformance suite weekly against the latest
-# @modelcontextprotocol/conformance release. The on:pull_request pipeline
-# pins to whatever version is available at PR time; this schedule catches
-# upstream releases that add scenarios between PRs.
-#
-# It also scores each run and publishes the client/server pass-rate as
-# shields.io endpoint JSON to the orphan `badges` branch (consumed by the
-# README); that branch is created on the first run.
+# Tracks the newest published @modelcontextprotocol/conformance; the
+# on:pull_request pipeline pins an exact version instead. Also publishes
+# score badges to the orphan `badges` branch, consumed by the README.
 on:
   schedule:
     - cron: '0 6 * * 1' # Mondays 06:00 UTC
@@ -19,8 +14,20 @@ permissions:
 
 jobs:
   server:
-    name: conformance / server (latest)
+    name: conformance / server (${{ matrix.spec-version }}, ${{ matrix.dist-tag }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            dist-tag: latest
+            path: '/'
+            baseline: conformance-baseline-2025-11-25.yml
+          - spec-version: '2026-07-28'
+            dist-tag: alpha
+            path: '/'
+            baseline: conformance-baseline-2026-07-28.yml
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -35,10 +42,16 @@ jobs:
           sleep 5
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: npx --yes @modelcontextprotocol/conformance@latest server --url http://localhost:8000/ --expected-failures conformance-baseline.yml --output-dir results
+        run: >-
+          npx --yes @modelcontextprotocol/conformance@${{ matrix.dist-tag }} server
+          --url http://localhost:8000${{ matrix.path }}
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
+          --output-dir results
       - name: Generate score badge
         if: always()
-        run: php tests/Conformance/score.php server
+        run: php tests/Conformance/score.php server ${{ matrix.spec-version }}
       - name: Show docker logs on failure
         if: failure()
         run: docker compose -f tests/Conformance/Fixtures/docker-compose.yml logs
@@ -46,7 +59,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-server-results
+          name: conformance-server-results-${{ matrix.spec-version }}
           path: |
             tests/Conformance/logs
             tests/Conformance/results
@@ -54,12 +67,22 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: server-badge
-          path: tests/Conformance/server-conformance.json
+          name: badge-server-${{ matrix.spec-version }}
+          path: tests/Conformance/server-conformance-${{ matrix.spec-version }}.json
 
   client:
-    name: conformance / client (latest)
+    name: conformance / client (${{ matrix.spec-version }}, ${{ matrix.dist-tag }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - spec-version: '2025-11-25'
+            dist-tag: latest
+            baseline: conformance-baseline-2025-11-25.yml
+          - spec-version: '2026-07-28'
+            dist-tag: alpha
+            baseline: conformance-baseline-2026-07-28.yml
     steps:
       - uses: actions/checkout@v7
       - uses: shivammathur/setup-php@v2
@@ -73,15 +96,21 @@ jobs:
       - run: mkdir -p tests/Conformance/logs
       - name: Run conformance tests
         working-directory: ./tests/Conformance
-        run: npx --yes @modelcontextprotocol/conformance@latest client --command "php ${{ github.workspace }}/tests/Conformance/client.php" --suite all --expected-failures conformance-baseline.yml --output-dir results
+        run: >-
+          npx --yes @modelcontextprotocol/conformance@${{ matrix.dist-tag }} client
+          --command "php ${{ github.workspace }}/tests/Conformance/client.php"
+          --suite all
+          --spec-version ${{ matrix.spec-version }}
+          --expected-failures ${{ matrix.baseline }}
+          --output-dir results
       - name: Generate score badge
         if: always()
-        run: php tests/Conformance/score.php client
+        run: php tests/Conformance/score.php client ${{ matrix.spec-version }}
       - name: Upload conformance results
         if: failure()
         uses: actions/upload-artifact@v7
         with:
-          name: conformance-client-results
+          name: conformance-client-results-${{ matrix.spec-version }}
           path: |
             tests/Conformance/logs
             tests/Conformance/results
@@ -89,8 +118,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: client-badge
-          path: tests/Conformance/client-conformance.json
+          name: badge-client-${{ matrix.spec-version }}
+          path: tests/Conformance/client-conformance-${{ matrix.spec-version }}.json
 
   notify:
     name: Open issue on failure
@@ -116,26 +145,21 @@ jobs:
           - Run: $RUN_URL
           - Triggered: $(date -u +%FT%TZ)
 
-          Upstream likely published a release whose scenarios the SDK does not satisfy. Either fix the SDK, update the conformance fixtures, or add the new failure to \`tests/Conformance/conformance-baseline.yml\`."
+          Upstream likely published a release whose scenarios the SDK does not satisfy. Either fix the SDK, update the conformance fixtures, or add the new failure to \`tests/Conformance/conformance-baseline-2025-11-25.yml\`."
           fi
 
   publish:
     name: Publish conformance badges
     runs-on: ubuntu-latest
     needs: [server, client]
-    # Publish even when the suite regressed (the badge should reflect reality);
-    # skip on forks, which cannot push the `badges` branch.
     if: ${{ !cancelled() && github.repository == 'modelcontextprotocol/php-sdk' }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v8
         with:
-          name: server-badge
+          pattern: badge-*
           path: badges-in
-      - uses: actions/download-artifact@v8
-        with:
-          name: client-badge
-          path: badges-in
+          merge-multiple: true
       - name: Publish to badges branch
         run: |
           git config user.name "github-actions[bot]"
@@ -150,7 +174,8 @@ jobs:
             git -C badges-wt rm -rf --quiet . >/dev/null 2>&1 || true
           fi
 
-          cp badges-in/server-conformance.json badges-in/client-conformance.json badges-wt/
+          rm -f badges-wt/server-conformance.json badges-wt/client-conformance.json
+          cp badges-in/*.json badges-wt/
 
           cd badges-wt
           git add -A
