@@ -206,6 +206,23 @@ final class ReferenceHandlerTest extends TestCase
         ]);
     }
 
+    public function testHandleKeepsArgumentOrderWhenAnInjectableParameterPrecedesAVariadic(): void
+    {
+        // Injectable and regular parameters are assigned by position while variadic
+        // elements are appended, so the final order only holds because a variadic is
+        // always the last parameter.
+        $closure = static fn (ClientGateway $gateway, string $sep = ',', string ...$parts): string => implode($sep, $parts);
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            '_request' => new \stdClass(),
+            'parts' => ['a', 'b'],
+        ]);
+
+        $this->assertSame('a,b', $result);
+    }
+
     public function testHandleIncludesParameterNameAndIndexWhenAVariadicElementFailsToCast(): void
     {
         $closure = static fn (string $name, int ...$scores): int => \count($scores);
