@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RegistryException;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
@@ -166,5 +167,100 @@ final class ReferenceHandlerTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         (new ReferenceHandler())->handle($reference, ['_session' => $session]);
+    }
+
+    public function testHandleCastsEachElementOfAnArrayArgumentForAVariadicParameter(): void
+    {
+        // SchemaGenerator advertises variadic parameters as a JSON "array" schema,
+        // so the array arrives here as a single named argument (not spread across
+        // multiple keys) and must be cast element-by-element to the variadic's type.
+        $closure = static fn (string $name, int ...$scores): string => \sprintf('%s:%d', $name, array_sum($scores));
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'total',
+            'scores' => ['1', '2', '3'],
+        ]);
+
+        $this->assertSame('total:6', $result);
+    }
+
+    public function testHandleTreatsOmittedVariadicArgumentAsZeroElements(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'empty',
+        ]);
+
+        $this->assertSame(0, $result);
+    }
+
+    public function testHandleWrapsANonArrayVariadicArgumentAsASingleElement(): void
+    {
+        // Tool arguments follow the advertised "array" schema, but MCP prompt
+        // arguments are always Record<string,string> per the protocol - a
+        // client sends a plain string for a variadic prompt parameter, and
+        // that must still work rather than being rejected.
+        $closure = static fn (string $name, string ...$topics): array => $topics;
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'single',
+            'topics' => 'php',
+        ]);
+
+        $this->assertSame(['php'], $result);
+    }
+
+    public function testHandleThrowsRegistryExceptionWhenVariadicArgumentIsAnObjectNotAList(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionMessage('Parameter `scores` must be a list of values, not an object.');
+
+        (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'bad',
+            'scores' => ['a' => 1, 'b' => 2],
+        ]);
+    }
+
+    public function testHandleKeepsArgumentOrderWhenAnInjectableParameterPrecedesAVariadic(): void
+    {
+        // Injectable and regular parameters are assigned by position while variadic
+        // elements are appended, so the final order only holds because a variadic is
+        // always the last parameter.
+        $closure = static fn (ClientGateway $gateway, string $sep = ',', string ...$parts): string => implode($sep, $parts);
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            '_request' => new \stdClass(),
+            'parts' => ['a', 'b'],
+        ]);
+
+        $this->assertSame('a,b', $result);
+    }
+
+    public function testHandleIncludesParameterNameAndIndexWhenAVariadicElementFailsToCast(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionMessage('Parameter `scores[1]`: Cannot cast value to integer. Expected integer representation.');
+
+        (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'bad',
+            'scores' => ['1', 'not-a-number', '3'],
+        ]);
     }
 }
