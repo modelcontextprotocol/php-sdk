@@ -88,10 +88,28 @@ final class Registry implements RegistryInterface
             return;
         }
 
+        $this->loadFrom($this->loader);
+
+        // Only on success: a failure propagates, so it is retried on the next read.
+        $this->loaded = true;
+    }
+
+    /**
+     * Runs $loader with the change events its registrations would dispatch suppressed, since they
+     * describe the registry filling up rather than changing.
+     *
+     * Re-entrant-safe, and failure propagates. Does not mark the registry loaded: $loader is the
+     * caller's, and the one the constructor took is still owed its run.
+     */
+    public function loadFrom(LoaderInterface $loader): void
+    {
+        if ($this->loading) {
+            return;
+        }
+
         $this->loading = true;
         try {
-            $this->loader->load($this);
-            $this->loaded = true;
+            $loader->load($this);
         } finally {
             $this->loading = false;
         }

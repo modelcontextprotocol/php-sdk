@@ -522,7 +522,8 @@ final class Builder
      *
      * Lazy (the default) defers loading to the first registry read so a persistent runtime does not
      * freeze the registry to a source not yet ready at build time. Disable to load eagerly at build.
-     * A registry supplied via setRegistry() is always loaded eagerly.
+     * A registry supplied via setRegistry() is always loaded eagerly; its own constructor loader,
+     * if it has one, still runs on the first read.
      */
     public function setLazyLoading(bool $lazyLoading = true): self
     {
@@ -1045,8 +1046,13 @@ final class Builder
 
         if ($this->hasCustomRegistry) {
             // Builder can't inject the loader into an already-constructed instance, so load it eagerly.
+            // Via loadFrom(), which suppresses the change events the load would otherwise dispatch.
             $registry = $this->registry;
-            $chainLoader->load($registry);
+            if ($registry instanceof Registry) {
+                $registry->loadFrom($chainLoader);
+            } else {
+                $chainLoader->load($registry);
+            }
             $eagerlyLoaded = true;
         } else {
             $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
