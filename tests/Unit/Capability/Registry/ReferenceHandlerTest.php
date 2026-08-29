@@ -173,18 +173,51 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertSame(0, $result);
     }
 
-    public function testHandleThrowsRegistryExceptionWhenVariadicArgumentIsNotAnArray(): void
+    public function testHandleWrapsANonArrayVariadicArgumentAsASingleElement(): void
+    {
+        // Tool arguments follow the advertised "array" schema, but MCP prompt
+        // arguments are always Record<string,string> per the protocol - a
+        // client sends a plain string for a variadic prompt parameter, and
+        // that must still work rather than being rejected.
+        $closure = static fn (string $name, string ...$topics): array => $topics;
+        $reference = new ElementReference($closure);
+
+        $result = (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'single',
+            'topics' => 'php',
+        ]);
+
+        $this->assertSame(['php'], $result);
+    }
+
+    public function testHandleThrowsRegistryExceptionWhenVariadicArgumentIsAnObjectNotAList(): void
     {
         $closure = static fn (string $name, int ...$scores): int => \count($scores);
         $reference = new ElementReference($closure);
 
         $this->expectException(RegistryException::class);
-        $this->expectExceptionMessage('Parameter `scores` must be an array of values.');
+        $this->expectExceptionMessage('Parameter `scores` must be a list of values, not an object.');
 
         (new ReferenceHandler())->handle($reference, [
             '_session' => $this->createMock(SessionInterface::class),
             'name' => 'bad',
-            'scores' => 'not-an-array',
+            'scores' => ['a' => 1, 'b' => 2],
+        ]);
+    }
+
+    public function testHandleIncludesParameterNameAndIndexWhenAVariadicElementFailsToCast(): void
+    {
+        $closure = static fn (string $name, int ...$scores): int => \count($scores);
+        $reference = new ElementReference($closure);
+
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionMessage('Parameter `scores[1]`: Cannot cast value to integer. Expected integer representation.');
+
+        (new ReferenceHandler())->handle($reference, [
+            '_session' => $this->createMock(SessionInterface::class),
+            'name' => 'bad',
+            'scores' => ['1', 'not-a-number', '3'],
         ]);
     }
 }

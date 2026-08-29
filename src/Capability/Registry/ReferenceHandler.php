@@ -103,24 +103,23 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             $paramPosition = $parameter->getPosition();
 
             if ($parameter->isVariadic()) {
-                // SchemaGenerator advertises variadic parameters as a JSON "array"
-                // schema (see buildVariadicParameterSchema()), so the incoming value
-                // here is an array whose elements each need casting to the variadic's
-                // element type. Falling through to castArgumentType() below would try
-                // to cast the whole array as a single scalar and fail (e.g. "Cannot
-                // cast value to integer" for `int ...$extra`). Variadic is always the
-                // last parameter, so appending here preserves correct final ordering.
+                // Each element is cast individually below; a non-array value is
+                // wrapped as a single element, since prompt arguments arrive as
+                // plain strings (Record<string,string> per the protocol) even
+                // though tool arguments follow the advertised "array" schema.
                 $values = $arguments[$paramName] ?? [];
                 if (!\is_array($values)) {
-                    throw RegistryException::invalidParams(\sprintf('Parameter `%s` must be an array of values.', $paramName));
+                    $values = [$values];
+                } elseif (!array_is_list($values)) {
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s` must be a list of values, not an object.', $paramName));
                 }
-                foreach (array_values($values) as $value) {
+                foreach ($values as $index => $value) {
                     try {
                         $finalArgs[] = $this->castArgumentType($value, $parameter);
                     } catch (InvalidArgumentException $e) {
-                        throw RegistryException::invalidParams($e->getMessage(), $e);
+                        throw RegistryException::invalidParams(\sprintf('Parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
                     } catch (\Throwable $e) {
-                        throw RegistryException::internalError("Error processing parameter `{$paramName}`: {$e->getMessage()}", $e);
+                        throw RegistryException::internalError(\sprintf('Error processing parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
                     }
                 }
                 continue;
