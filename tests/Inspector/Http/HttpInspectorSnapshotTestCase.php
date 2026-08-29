@@ -38,16 +38,29 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
         $out = $this->serverProcess->getOutput();
         $err = $this->serverProcess->getErrorOutput();
 
-        if ('' !== $out || '' !== $err) {
-            fwrite(\STDERR, \sprintf(
-                "\n[DIAG] server on port %d (pid target %s), exit code %s\n--- stdout ---\n%s\n--- stderr ---\n%s\n[/DIAG]\n",
-                $this->serverPort,
-                (string) getmypid(),
-                var_export($this->serverProcess->getExitCode(), true),
-                $out,
-                $err,
-            ));
+        // Both throw unless the process has actually terminated, and losing
+        // the dump to an exception in tearDown is the one outcome that would
+        // make this pointless.
+        try {
+            $exit = var_export($this->serverProcess->getExitCode(), true);
+            $signal = var_export($this->serverProcess->getTermSignal(), true);
+        } catch (\Throwable $e) {
+            $exit = $signal = 'unavailable ('.$e->getMessage().')';
         }
+
+        // Unconditional: a server killed by a signal (a stack overflow, say)
+        // exits without writing anything, and the exit code is then the only
+        // thing that says so.
+        fwrite(\STDERR, \sprintf(
+            "\n[DIAG] server on port %d (pid target %s), running %s, exit code %s, signal %s\n--- stdout ---\n%s\n--- stderr ---\n%s\n[/DIAG]\n",
+            $this->serverPort,
+            (string) getmypid(),
+            var_export($this->serverProcess->isRunning(), true),
+            $exit,
+            $signal,
+            $out,
+            $err,
+        ));
     }
 
     abstract protected function getServerScript(): string;
