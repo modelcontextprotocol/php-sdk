@@ -90,7 +90,6 @@ final class Registry implements RegistryInterface
 
         $this->loadFrom($this->loader);
 
-        // Only on success: a failure propagates, so it is retried on the next read.
         $this->loaded = true;
     }
 
