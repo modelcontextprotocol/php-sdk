@@ -65,21 +65,40 @@ final class SchemaComplexityGuard
      *
      * @return string|null the reason to refuse, or null when the schema is within bounds
      */
+    private static function gtrace(string $m): void
+    {
+        file_put_contents('php://stderr', '[GTRACE] '.$m."\n", \FILE_APPEND);
+    }
+
     public function check(array|object $schema): ?string
     {
+        self::gtrace('toArray:in type='.get_debug_type($schema));
+
         try {
             $root = self::toArray($schema);
         } catch (\JsonException $e) {
             return \sprintf('Schema could not be decoded as JSON: %s', $e->getMessage());
         }
 
+        $json = (string) json_encode($root);
+        self::gtrace('toArray:out bytes='.\strlen($json).' keys='.implode(',', array_slice(array_keys($root), 0, 12)));
+        self::gtrace('schema='.substr($json, 0, 1500));
+
+        self::gtrace('extref:in');
         if (null !== $reason = $this->findExternalRef($root, 0)) {
+            self::gtrace('extref:refused');
+
             return $reason;
         }
+        self::gtrace('extref:out');
 
         try {
+            self::gtrace('cost:in');
             $this->cost($root, $root, [], 0, new \stdClass());
+            self::gtrace('cost:out');
         } catch (\OverflowException $e) {
+            self::gtrace('cost:overflow');
+
             return $e->getMessage();
         }
 
