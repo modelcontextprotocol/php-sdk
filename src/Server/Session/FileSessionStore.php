@@ -173,7 +173,15 @@ class FileSessionStore implements SessionStoreInterface
 
             $mtime = @filemtime($path) ?: 0;
             if (($now - $mtime) > $this->ttl) {
-                @unlink($path);
+                if (!@unlink($path) && is_file($path)) {
+                    $this->logger->warning('Failed to delete expired session file.', [
+                        'path' => $path,
+                        'error' => error_get_last()['message'] ?? 'unknown',
+                    ]);
+
+                    continue;
+                }
+
                 $deleted[] = Uuid::fromString($entry);
             }
         }

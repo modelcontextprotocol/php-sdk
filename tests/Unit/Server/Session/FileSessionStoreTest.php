@@ -167,6 +167,32 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame($this->directory, $logger->warnings[0]['context']['directory']);
     }
 
+    #[TestDox('gc() warns and does not report a session whose file survived deletion')]
+    public function testGcLogsWarningWhenExpiredFileCannotBeDeleted(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, ttl: 60, logger: $logger);
+        $id = new UuidV4();
+        $store->write($id, 'payload');
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        touch($path, time() - 120);
+
+        chmod($this->directory, 0555);
+        clearstatcache(true, $this->directory);
+
+        if (is_writable($this->directory)) {
+            $this->markTestSkipped('Permission bits do not restrict writes here (running as root, or a filesystem that ignores them).');
+        }
+
+        // The file is still there, so its id must not be reported as deleted.
+        $this->assertSame([], $store->gc());
+        $this->assertFileExists($path);
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Failed to delete expired session file.', $logger->warnings[0]['message']);
+        $this->assertSame($path, $logger->warnings[0]['context']['path']);
+    }
+
     #[TestDox('stays silent on the happy path')]
     public function testHappyPathLogsNothing(): void
     {
