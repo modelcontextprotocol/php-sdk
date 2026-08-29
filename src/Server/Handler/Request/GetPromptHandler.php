@@ -19,15 +19,15 @@ use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
-use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * @implements RequestHandlerInterface<GetPromptResult|InputRequiredResult>
+ * @implements RequestHandlerInterface<ResultInterface>
  *
  * @author Tobias Nyholm <tobias.nyholm@gmail.com>
  */
@@ -46,7 +46,7 @@ final class GetPromptHandler implements RequestHandlerInterface
     }
 
     /**
-     * @return Response<GetPromptResult|InputRequiredResult>|Error
+     * @return Response<ResultInterface>|Error
      */
     public function handle(Request $request, SessionInterface $session): Response|Error
     {
@@ -63,8 +63,9 @@ final class GetPromptHandler implements RequestHandlerInterface
 
             $result = $this->referenceHandler->handle($reference, $arguments);
 
-            // An ask is a result in its own right, not prompt content.
-            if ($result instanceof InputRequiredResult) {
+            // A handler that built a whole result of another kind — an
+            // extension's, say — keeps what it decided; it is not prompt messages.
+            if ($result instanceof ResultInterface) {
                 return new Response($request->getId(), $result);
             }
 

@@ -48,6 +48,120 @@ public function getWeather(string $city, RequestContext $context): string
 }
 ```
 
+An extension that hands handlers an object of its own implements
+`ArgumentProvidingExtensionInterface` on top: a handler declaring a parameter
+of a provided type receives it for the request being served, the way it
+receives a `RequestContext` — and it stays out of the generated input schemas.
+
+## Tasks (`io.modelcontextprotocol/tasks`)
+
+The [Tasks extension][ext-tasks] (SEP-2663) lets a server hand back a durable
+handle instead of holding a connection open for a long-running request. The
+client polls `tasks/get` until the task settles, answers anything it asks for
+through `tasks/update`, and may `tasks/cancel` it.
+
+```php
+use Mcp\Server;
+use Mcp\Server\Task\InMemoryTaskStore;
+use Mcp\Server\Task\Psr16TaskStore;
+use Mcp\Server\Task\TasksExtension;
+
+$server = Server::builder()
+    ->enableExtension(new TasksExtension(new InMemoryTaskStore()))
+    ->build();
+```
+
+`InMemoryTaskStore` is right for stdio and any single-process runtime and drops
+its oldest task past a configurable limit (1000 by default). Under PHP-FPM the
+worker that creates a task is not the one polled for it, so use
+`Psr16TaskStore` over a shared cache there — a filesystem adapter is enough.
+
+Creating a task is the *server's* decision, made per request by returning a
+`CreateTaskResult` from any tool, prompt or resource handler. The extension
+hands handlers a `TaskContext` — declare the parameter and it arrives, like a
+`RequestContext` does:
+
+```php
+use Mcp\Schema\Result\CreateTaskResult;
+use Mcp\Server\Task\TaskContext;
+
+static function (TaskContext $tasks) use ($queue): CreateTaskResult|string {
+    if (!$tasks->isSupported()) {
+        return runSynchronously();          // the client cannot poll, so answer now
+    }
+
+    $created = $tasks->create(ttlMs: 600_000, pollIntervalMs: 1000);
+    $queue->push($created->task->taskId);   // a worker calls $store->save() as it progresses
+
+    return $created;
+}
+```
+
+`create()` stores the task *before* returning it, so the first `tasks/get`
+cannot arrive before the task exists. A client that did not declare the
+extension during `initialize` cannot redeem a handle, so `create()` refuses
+with `-32021` (missing required client capability) instead of handing one out —
+the right answer for a handler whose task support is *required*, and what
+`isSupported()` lets an optional one avoid.
+
+The SDK owns storage and the `tasks/get` / `tasks/update` / `tasks/cancel`
+surface; **advancing** a task is the application's job. A worker (or a
+handler, through `TaskContext::getStore()`) saves the task with a new status
+as it goes:
+
+```php
+use Mcp\Schema\Enum\TaskStatus;
+
+$store->save($task->with(TaskStatus::Completed, result: ['content' => [/* ... */]]));
+```
+
+A task that needs the client's input parks itself as `input_required` with
+`inputRequests` (elicitation, sampling or roots requests keyed by name); the
+client answers through `tasks/update`, and a `TaskInputHandlerInterface` passed
+to `TasksExtension` decides what those answers mean for the task.
+
+Status semantics worth getting right: a tool that ran and reported a problem is
+`completed` with `isError` on its result — `failed` is reserved for
+protocol-level errors, and carries the error inlined instead of a result.
+`Task` refuses to be constructed the other way round.
+
+### On the client
+
+A client declares the extension the same way, and then handles whichever
+result shape arrives. `TaskClient` wraps a connected `Client`: its `callTool()`,
+`getPrompt()` and `readResource()` return a `CreateTaskResult` when the server
+chose to answer with a task, and `get()` / `update()` / `cancel()` drive it:
+
+```php
+use Mcp\Client;
+use Mcp\Client\Task\TaskClient;
+use Mcp\Schema\Result\CallToolResult;
+use Mcp\Schema\Result\CreateTaskResult;
+use Mcp\Server\Task\TasksExtension;
+
+$client = Client::builder()
+    ->enableExtension(new TasksExtension())
+    ->build();
+$client->connect($transport);
+
+$tasks = new TaskClient($client);
+$result = $tasks->callTool('long_job');
+
+if ($result instanceof CreateTaskResult) {
+    do {
+        usleep(1000 * ($result->task->pollIntervalMs ?? 1000));
+        $task = $tasks->get($result->task->taskId);
+    } while (!$task->status->isTerminal());
+
+    $result = CallToolResult::fromArray($task->result);   // once completed
+}
+```
+
+A task waiting as `input_required` lists its `inputRequests`; answer them with
+`update($taskId, ['<key>' => $answer])`, keyed as the requests were, and
+`cancel($taskId)` asks the server to stop. The core `Client` itself stays
+task-agnostic; `Client::request()` sends any request for code like this.
+
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
 The [MCP Apps extension][ext-apps] lets servers expose interactive HTML UIs as
@@ -158,3 +272,4 @@ working minimal view is included in
 [`examples/server/mcp-apps/weather-app.html`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/mcp-apps/weather-app.html).
 
 [ext-apps]: https://github.com/modelcontextprotocol/ext-apps
+[ext-tasks]: https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2663

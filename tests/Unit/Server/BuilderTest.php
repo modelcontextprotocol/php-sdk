@@ -32,6 +32,9 @@ use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Task\InMemoryTaskStore;
+use Mcp\Server\Task\TaskContext;
+use Mcp\Server\Task\TasksExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
@@ -136,6 +139,29 @@ final class BuilderTest extends TestCase
         $this->expectExceptionMessage(McpApps::EXTENSION_ID);
 
         Server::builder()->enableExtension(new McpApps(), new McpApps());
+    }
+
+    #[TestDox('enableExtension() lets an extension hand its own object to handlers, and keeps it out of the schema')]
+    public function testEnableExtensionProvidesHandlerArguments(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->enableExtension(new TasksExtension(new InMemoryTaskStore()))
+            ->addTool(static fn (TaskContext $tasks): string => $tasks->isSupported() ? 'tasks' : 'no tasks', name: 'probe')
+            ->build();
+
+        $this->assertArrayHasKey(TasksExtension::ID, $this->extractServerCapabilities($server)->extensions ?? []);
+        $this->assertSame('no tasks', $this->callTool($server, 'probe'));
+
+        $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);
+        foreach ((new \ReflectionClass($protocol))->getProperty('requestHandlers')->getValue($protocol) as $handler) {
+            if ($handler instanceof CallToolHandler) {
+                $registry = (new \ReflectionClass($handler))->getProperty('registry')->getValue($handler);
+                $schema = $registry->getTool('probe')->tool->inputSchema;
+                $this->assertArrayNotHasKey('required', $schema);
+                $this->assertSame([], (array) ($schema['properties'] ?? []));
+            }
+        }
     }
 
     #[TestDox('enableExtension() extensions are merged into capabilities set via setCapabilities()')]

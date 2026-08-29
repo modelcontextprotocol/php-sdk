@@ -16,6 +16,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -324,6 +325,12 @@ class Protocol
                 }
 
                 $this->sendResponse($transport, $finalResult, $session);
+            } catch (MissingRequiredClientCapabilityException $e) {
+                $error = Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $request->getId());
+                $errorEvent = $this->dispatchEvent(new ErrorEvent($error, $request, $session, $e));
+                $error = $errorEvent->getError();
+
+                $this->sendResponse($transport, $error, $session);
             } catch (\InvalidArgumentException $e) {
                 $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
 
