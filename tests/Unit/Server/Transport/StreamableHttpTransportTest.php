@@ -12,19 +12,23 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Server\Transport\TransportInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class StreamableHttpTransportTest extends TestCase
 {
@@ -345,6 +349,92 @@ final class StreamableHttpTransportTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 0);
+    }
+
+    #[TestDox('an immediate response is consumed once and not replayed on a later POST')]
+    public function testImmediateResponseIsNotReplayedOnSecondPost(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $calls = 0;
+        $transport->onMessage(static function (TransportInterface $transport, string $payload) use (&$calls): void {
+            if (1 === ++$calls) {
+                $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}', ['status_code' => 200]);
+            }
+        });
+
+        $first = $transport->listen();
+
+        $this->assertSame(200, $first->getStatusCode());
+        $this->assertSame('{"jsonrpc":"2.0","id":1,"result":{}}', (string) $first->getBody());
+
+        $second = $transport->listen();
+
+        $this->assertSame(2, $calls);
+        $this->assertSame(202, $second->getStatusCode());
+        $this->assertSame('', (string) $second->getBody());
+    }
+
+    #[TestDox('the polling loop times out a pending request via the injected clock')]
+    public function testPollingLoopTimesOutPendingRequestViaInjectedClock(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $requestedAt = 1_000_000;
+
+        // Frozen 121s after the pending request was issued — past its 120s timeout.
+        $clock = new class($requestedAt + 121) implements ClockInterface {
+            public function __construct(private readonly int $timestamp)
+            {
+            }
+
+            public function now(): \DateTimeImmutable
+            {
+                return (new \DateTimeImmutable())->setTimestamp($this->timestamp);
+            }
+        };
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            clock: $clock,
+        );
+
+        $received = null;
+        $fiber = new \Fiber(static function () use (&$received) {
+            $received = \Fiber::suspend();
+
+            return null;
+        });
+        $fiber->start();
+
+        $transport->onMessage(static function (TransportInterface $transport) use ($fiber): void {
+            $transport->attachFiberToSession($fiber, Uuid::v4());
+        });
+        $transport->setOutgoingMessagesProvider(static fn (): array => []);
+        $transport->setResponseFinder(static fn () => null);
+        $transport->setPendingRequestsProvider(static fn (): array => [
+            ['request_id' => 1, 'timestamp' => $requestedAt, 'timeout' => 120],
+        ]);
+
+        $response = $transport->listen();
+
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+
+        $this->expectOutputString('');
+        $response->getBody()->getContents();
+
+        $this->assertTrue($fiber->isTerminated());
+        $this->assertInstanceOf(Error::class, $received);
     }
 
     private function stubAuth401(): MiddlewareInterface
