@@ -36,7 +36,7 @@ class SchemaValidator
      * make the larger cost of the two. {@see SchemaComplexityGuard} is what
      * bounds the walk.
      */
-    private const MAX_REPORTED_ERRORS = 100;
+    private const MAX_REPORTED_ERRORS = 1;
 
     private ?Validator $jsonSchemaValidator = null;
 
