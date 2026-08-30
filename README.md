@@ -115,6 +115,7 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 - [api-platform/mcp](https://github.com/api-platform/mcp) — MCP integration for API Platform
 - [bnomei/kirby-mcp](https://github.com/bnomei/kirby-mcp) — MCP server for the Kirby CMS
 - [drupal/mcp_server](https://www.drupal.org/project/mcp_server) — MCP server for Drupal exposing configuration and entities as MCP elements
+- [Faneraiy14/wordpress-mcp](https://github.com/Faneraiy14/wordpress-mcp) — MCP server for WordPress, exposing site health, posts, and plugins as tools
 - [josbeir/cakephp-synapse](https://github.com/josbeir/cakephp-synapse) — CakePHP plugin exposing application functionality over MCP
 - [nette/mcp-inspector](https://github.com/nette/mcp-inspector) — MCP server for introspecting Nette applications
 - [symfony/ai-mate](https://github.com/symfony/ai-mate) — AI development assistant MCP server for Symfony projects
