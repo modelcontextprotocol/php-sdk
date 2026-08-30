@@ -29,6 +29,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `Schema\JsonRpc\Error` accepts `null` as `$id`; an unreadable id now omits the member instead of sending `"id": ""`. `MessageFactory` decodes a missing or null id as an id-less error.
 * Preserve the request `id` on an invalid-but-parseable message (`-32600`) via `InvalidInputMessageException::getRequestId()`.
 * [BC Break] Drop the SDK-only name pattern on `ResourceDefinition`/`ResourceTemplate` `$name`; the spec allows any string.
+* Refuse a JSON Schema that is unsafe or ruinous to validate before `opis/json-schema` walks it (SEP-2106): a `$ref` naming anything outside the document, and a composition expanding past a subschema budget, nesting depth or property-map size. New `Capability\Discovery\SchemaComplexityGuard`, wired into `SchemaValidator` by default and configurable through its constructor — sixteen nested two-branch `anyOf`s went from 9.0s to refused in 0.1s. `SchemaValidator` also caps reported errors at 100 and names an unsupported `$schema` dialect instead of reporting an internal fault.
 * Log expected tool failures (`ToolCallException`) at debug level instead of error.
 * Add `annotations` to `ImageContent`.
 * Fix empty tool/resource schemas serializing as `[]` instead of `{}`.
