@@ -97,9 +97,31 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         $finalArgs = [];
 
         foreach ($reflection->getParameters() as $parameter) {
-            // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
+
+            if ($parameter->isVariadic()) {
+                // Each element is cast individually below; a non-array value is
+                // wrapped as a single element, since prompt arguments arrive as
+                // plain strings (Record<string,string> per the protocol) even
+                // though tool arguments follow the advertised "array" schema.
+                $values = $arguments[$paramName] ?? [];
+                if (!\is_array($values)) {
+                    $values = [$values];
+                } elseif (!array_is_list($values)) {
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s` must be a list of values, not an object.', $paramName));
+                }
+                foreach ($values as $index => $value) {
+                    try {
+                        $finalArgs[] = $this->castArgumentType($value, $parameter);
+                    } catch (InvalidArgumentException $e) {
+                        throw RegistryException::invalidParams(\sprintf('Parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    } catch (\Throwable $e) {
+                        throw RegistryException::internalError(\sprintf('Error processing parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    }
+                }
+                continue;
+            }
 
             // Check if parameter is a special injectable type
             $type = $parameter->getType();

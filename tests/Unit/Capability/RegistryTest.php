@@ -753,6 +753,74 @@ class RegistryTest extends TestCase
         $this->assertTrue($registry->hasPrompts());
     }
 
+    public function testListChangedEventsAreSuppressedWhenTheLoaderIsSuppliedFromOutside(): void
+    {
+        // As quiet as the deferred load above: these are the initial contents, not a change.
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $registry = new Registry($eventDispatcher, $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('loaded')));
+
+        $this->assertTrue($registry->hasTool('loaded'));
+    }
+
+    public function testARuntimeRegistrationAfterAnExternalLoadIsStillDispatched(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(ToolListChangedEvent::class))
+            ->willReturnArgument(0);
+
+        $registry = new Registry($eventDispatcher, $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('loaded')));
+
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
+    }
+
+    public function testAnExternalLoadDoesNotConsumeTheRegistrysOwnLoader(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger, loader: $this->toolLoader($this->createValidTool('own')));
+        $registry->loadFrom($this->toolLoader($this->createValidTool('external')));
+
+        $this->assertTrue($registry->hasTool('external'));
+        $this->assertTrue($registry->hasTool('own'));
+    }
+
+    public function testAnExternalLoadCanRunMoreThanOnce(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('first')));
+        $registry->loadFrom($this->toolLoader($this->createValidTool('second')));
+
+        $this->assertTrue($registry->hasTool('first'));
+        $this->assertTrue($registry->hasTool('second'));
+    }
+
+    public function testAFailedExternalLoadLeavesTheRegistryRetryable(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger);
+        $failing = new class implements LoaderInterface {
+            public function load(RegistryInterface $registry): void
+            {
+                // Reads during its own run, as discovery's identity check does.
+                $registry->hasTool('anything');
+
+                throw new \RuntimeException('data source not ready');
+            }
+        };
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                $registry->loadFrom($failing);
+                $this->fail('The loader was expected to fail.');
+            } catch (\RuntimeException $e) {
+                $this->assertSame('data source not ready', $e->getMessage());
+            }
+        }
+    }
+
     public function testListChangedEventsAreStillDispatchedForRuntimeRegistrations(): void
     {
         $eventDispatcher = $this->createMock(EventDispatcherInterface::class);

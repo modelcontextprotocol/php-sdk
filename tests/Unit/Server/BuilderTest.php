@@ -15,6 +15,7 @@ use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
@@ -32,6 +33,8 @@ use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
@@ -403,6 +406,42 @@ final class BuilderTest extends TestCase
         }
 
         $this->fail('CallToolHandler not found in request handlers');
+    }
+
+    public function testBuildingWithASuppliedRegistryDoesNotAnnounceTheLoadAsAChange(): void
+    {
+        // Otherwise every build publishes one list_changed per element, for no change.
+        $bus = new InMemoryNotificationBus();
+        $registry = new Registry(new PublishingEventDispatcher($bus));
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->setNotificationBus($bus)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->addTool(static fn (): string => 'ok', 'beta')
+            ->build();
+
+        $this->assertSame(0, $bus->cursor());
+        $this->assertTrue($registry->hasTool('alpha'));
+        $this->assertTrue($registry->hasTool('beta'));
+
+        // A real change after the build is still published.
+        $registry->unregisterTool('alpha');
+
+        $this->assertSame(1, $bus->cursor());
+    }
+
+    public function testAThirdPartyRegistryIsStillLoadedThroughThePlainLoader(): void
+    {
+        $registry = $this->createMock(RegistryInterface::class);
+        $registry->expects($this->once())
+            ->method('registerTool')
+            ->with($this->callback(static fn (Tool $tool): bool => 'alpha' === $tool->name));
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->build();
     }
 }
 
