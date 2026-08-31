@@ -11,8 +11,14 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\Event\ClientResponseEvent;
+use Mcp\Event\ErrorEvent;
+use Mcp\Event\RequestEvent;
+use Mcp\Event\ResponseEvent;
+use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
@@ -20,16 +26,20 @@ use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
@@ -40,15 +50,16 @@ use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class StatelessProtocolTest extends TestCase
 {
     /**
      * @param array<string, mixed> $capabilities
      */
-    private static function protocol(array $capabilities = []): StatelessProtocol
+    private static function protocol(array $capabilities = [], ?EventDispatcherInterface $eventDispatcher = null): StatelessProtocol
     {
-        return Server::builder()
+        $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
             ->addTool(static fn (): string => 'ok', name: 'plain_tool', description: 'Returns a fixed string')
             ->addTool(
@@ -174,8 +185,13 @@ class StatelessProtocolTest extends TestCase
                 'test://gated',
                 'gated',
                 'A resource that asks who is reading before it answers',
-            )
-            ->buildStateless([ProtocolVersion::V2026_07_28]);
+            );
+
+        if (null !== $eventDispatcher) {
+            $builder->setEventDispatcher($eventDispatcher);
+        }
+
+        return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
     }
 
     /**
@@ -1202,5 +1218,213 @@ class StatelessProtocolTest extends TestCase
         );
 
         $this->assertSame('elicitation', $answer['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * @param list<object> $captured
+     */
+    private function capturingDispatcher(array &$captured): EventDispatcherInterface
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher
+            ->method('dispatch')
+            ->willReturnCallback(static function (object $event) use (&$captured): object {
+                $captured[] = $event;
+
+                return $event;
+            });
+
+        return $eventDispatcher;
+    }
+
+    #[TestDox('RequestEvent and ResponseEvent are dispatched on a modern-era tool call')]
+    public function testRequestAndResponseEventsAreDispatched(): void
+    {
+        $captured = [];
+        $answer = self::call(
+            self::protocol([], $this->capturingDispatcher($captured)),
+            'tools/call',
+            ['name' => 'plain_tool', 'arguments' => []],
+            ['Mcp-Name' => 'plain_tool'],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertCount(2, $captured);
+        $this->assertInstanceOf(RequestEvent::class, $captured[0]);
+        $this->assertSame('tools/call', $captured[0]->getMethod());
+        $this->assertInstanceOf(ResponseEvent::class, $captured[1]);
+        $this->assertSame('tools/call', $captured[1]->getMethod());
+        $this->assertInstanceOf(CallToolResult::class, $captured[1]->getResponse()->result);
+    }
+
+    #[TestDox('RequestEvent setRequest() is used by the handler')]
+    public function testRequestEventModificationIsUsed(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher
+            ->method('dispatch')
+            ->willReturnCallback(static function (object $event): object {
+                if ($event instanceof RequestEvent) {
+                    $event->setRequest(CallToolRequest::fromArray([
+                        'jsonrpc' => '2.0',
+                        'id' => $event->getRequest()->getId(),
+                        'method' => 'tools/call',
+                        'params' => [
+                            'name' => 'probe_capabilities',
+                            'arguments' => [],
+                        ],
+                    ]));
+                }
+
+                return $event;
+            });
+
+        $answer = self::call(
+            self::protocol([], $eventDispatcher),
+            'tools/call',
+            ['name' => 'plain_tool', 'arguments' => []],
+            ['Mcp-Name' => 'plain_tool'],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('none', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('ResponseEvent setResponse() is encoded')]
+    public function testResponseEventModificationIsUsed(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher
+            ->method('dispatch')
+            ->willReturnCallback(static function (object $event): object {
+                if ($event instanceof ResponseEvent) {
+                    $event->setResponse(new Response(
+                        $event->getResponse()->getId(),
+                        new CallToolResult([new TextContent('modified')]),
+                    ));
+                }
+
+                return $event;
+            });
+
+        $answer = self::call(
+            self::protocol([], $eventDispatcher),
+            'tools/call',
+            ['name' => 'plain_tool', 'arguments' => []],
+            ['Mcp-Name' => 'plain_tool'],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('modified', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('a gateway elicitation is observed as ResponseEvent with InputRequiredResult')]
+    public function testGatewayElicitationDispatchesResponseEvent(): void
+    {
+        $captured = [];
+        $answer = self::call(
+            self::protocol([], $this->capturingDispatcher($captured)),
+            'tools/call',
+            ['name' => 'elicits_directly', 'arguments' => []],
+            ['Mcp-Name' => 'elicits_directly'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+        $this->assertInstanceOf(RequestEvent::class, $captured[0]);
+        $this->assertInstanceOf(ResponseEvent::class, $captured[1]);
+        $this->assertInstanceOf(InputRequiredResult::class, $captured[1]->getResponse()->result);
+        $this->assertSame([], array_filter($captured, static fn (object $event): bool => $event instanceof ServerRequestEvent || $event instanceof ClientResponseEvent));
+    }
+
+    #[TestDox('an explicit InputRequiredResult is observed as ResponseEvent')]
+    public function testExplicitAskDispatchesResponseEvent(): void
+    {
+        $captured = [];
+        $answer = self::call(
+            self::protocol([], $this->capturingDispatcher($captured)),
+            'tools/call',
+            ['name' => 'asks_by_url', 'arguments' => []],
+            ['Mcp-Name' => 'asks_by_url'],
+            ['elicitation' => ['url' => new \stdClass()]],
+        );
+
+        $this->assertSame('input_required', $answer['body']['result']['resultType']);
+        $this->assertInstanceOf(ResponseEvent::class, $captured[1]);
+        $this->assertInstanceOf(InputRequiredResult::class, $captured[1]->getResponse()->result);
+        $this->assertArrayHasKey('consent', $captured[1]->getResponse()->result->inputRequests);
+    }
+
+    #[TestDox('an elicitation retry exposes InputContext on RequestEvent')]
+    public function testElicitationRetryExposesInputContextOnRequestEvent(): void
+    {
+        $captured = [];
+        $input = null;
+
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher
+            ->method('dispatch')
+            ->willReturnCallback(static function (object $event) use (&$captured, &$input): object {
+                $captured[] = $event;
+
+                if ($event instanceof RequestEvent) {
+                    $context = $event->getSession()->get(InputContext::class);
+                    $input = $context instanceof InputContext ? $context : null;
+                }
+
+                return $event;
+            });
+
+        $answer = self::call(
+            self::protocol([], $eventDispatcher),
+            'tools/call',
+            [
+                'name' => 'elicits_directly',
+                'arguments' => [],
+                'inputResponses' => ['elicitation_1' => ['action' => 'accept', 'content' => ['n' => 'ada']]],
+            ],
+            ['Mcp-Name' => 'elicits_directly'],
+            ['elicitation' => new \stdClass()],
+        );
+
+        $this->assertSame('hello ada', $answer['body']['result']['content'][0]['text']);
+        $this->assertInstanceOf(RequestEvent::class, $captured[0]);
+        $this->assertInstanceOf(InputContext::class, $input);
+        $this->assertTrue($input->has('elicitation_1'));
+        $this->assertInstanceOf(ResponseEvent::class, $captured[1]);
+        $this->assertInstanceOf(CallToolResult::class, $captured[1]->getResponse()->result);
+        $this->assertSame([], array_filter($captured, static fn (object $event): bool => $event instanceof ServerRequestEvent || $event instanceof ClientResponseEvent));
+    }
+
+    #[TestDox('ErrorEvent is dispatched when a handler throws')]
+    public function testErrorEventIsDispatchedOnHandlerException(): void
+    {
+        $captured = [];
+        $answer = self::call(
+            self::protocol([], $this->capturingDispatcher($captured)),
+            'tools/call',
+            ['name' => 'capability_tool', 'arguments' => []],
+            ['Mcp-Name' => 'capability_tool'],
+        );
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertInstanceOf(RequestEvent::class, $captured[0]);
+        $this->assertInstanceOf(ErrorEvent::class, $captured[1]);
+        $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $captured[1]->getError()->code);
+        $this->assertInstanceOf(MissingRequiredClientCapabilityException::class, $captured[1]->getThrowable());
+    }
+
+    #[TestDox('parse errors are rejected before RequestEvent')]
+    public function testParseErrorDoesNotDispatchEvents(): void
+    {
+        $captured = [];
+        $eventDispatcher = $this->capturingDispatcher($captured);
+
+        $result = self::protocol([], $eventDispatcher)->handle('not json', [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+        ]);
+
+        $this->assertSame(400, $result->httpStatus);
+        $this->assertSame([], $captured);
     }
 }

@@ -28,11 +28,13 @@ $server = Server::builder()
 
 ## Protocol Events
 
-The SDK dispatches 6 broad event types at the protocol level, allowing you to observe and modify all server operations:
+`RequestEvent`, `ResponseEvent` and `ErrorEvent` fire on both the handshake era and the modern (`2026-07-28`) era.
+
+On the modern era the session carried by these events is per-request and discarded after the response.
 
 ### RequestEvent
 
-**Dispatched**: When any request is received from the client, before it's processed by handlers.
+**Dispatched**: When any request is received from the client, before it's processed by handlers. On the modern era this includes a multi round-trip retry MRTR : if the client sent `inputResponses`, they are already lifted onto the session as `InputContext` (`$event->getSession()->get(InputContext::class)`). They are not on the typed `Request` (for example `CallToolRequest` only carries `name` and `arguments`).
 
 **Properties**:
 - `getRequest(): Request` - The incoming request
@@ -42,7 +44,10 @@ The SDK dispatches 6 broad event types at the protocol level, allowing you to ob
 
 ### ResponseEvent
 
-**Dispatched**: When a successful response is ready to be sent to the client, after handler execution. Also dispatched when a suspended Fiber completes (e.g. after elicitation or sampling).
+**Dispatched**: When a successful response is ready to be sent to the client, after handler execution.
+Also dispatched when a suspended Fiber completes (e.g. after elicitation or sampling on a handshake connection).
+
+On the modern era an elicitation is a successful result of the original method (`resultType: input_required`). Listen for `ResponseEvent` whose `$event->getResponse()->result` is an `InputRequiredResult`.
 
 **Properties**:
 - `getResponse(): Response` - The response being sent
@@ -61,6 +66,10 @@ The SDK dispatches 6 broad event types at the protocol level, allowing you to ob
 - `getRequest(): Request` - The original request. Messages that fail to parse are rejected before this event, so a listener never sees them.
 - `getThrowable(): ?\Throwable` - The exception that caused the error (if any)
 - `getSession(): SessionInterface` - The current session
+
+## Handshake era only, before MCP 2026-07-28
+
+These events are dispatched only on handshake-era connections (protocol revisions before `2026-07-28`). The modern revision has no client-to-server notification handlers over HTTP, and no server-initiated JSON-RPC requests.
 
 ### NotificationEvent
 
