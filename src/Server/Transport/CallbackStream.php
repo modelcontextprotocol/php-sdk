@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

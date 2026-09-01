@@ -1,0 +1,18 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"label\": \"latency\",\n    \"count\": 3,\n    \"sum\": 6.75,\n    \"average\": 2.25,\n    \"min\": 1.5,\n    \"max\": 3.25\n}"
+    }
+  ],
+  "structuredContent": {
+    "label": "latency",
+    "count": 3,
+    "sum": 6.75,
+    "average": 2.25,
+    "min": 1.5,
+    "max": 3.25
+  },
+  "isError": false
+}
+

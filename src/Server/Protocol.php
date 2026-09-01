@@ -11,18 +11,18 @@
 
 namespace Mcp\Server;
 
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\NotificationEvent;
-use Mcp\Event\RequestEvent;
-use Mcp\Event\ResponseEvent;
-use Mcp\Exception\InvalidInputMessageException;
-use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Exception\InvalidInputMessageException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\NotificationEvent;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;

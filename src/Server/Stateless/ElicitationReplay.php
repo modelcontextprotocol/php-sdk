@@ -11,11 +11,11 @@
 
 namespace Mcp\Server\Stateless;
 
-use Mcp\Exception\LogicException;
 use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Exception\LogicException;
 
 /**
  * Answers a handler's {@see \Mcp\Server\ClientGateway::elicit()} on a lifecycle

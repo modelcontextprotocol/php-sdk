@@ -11,18 +11,18 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ResourceTemplateReference;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\MissingRequiredClientCapabilityException;
-use Mcp\Exception\ResourceNotFoundException;
-use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\Registry\ResourceTemplateReference;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Server\Exception\ResourceNotFoundException;
+use Mcp\Server\Exception\ResourceReadException;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;

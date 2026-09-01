@@ -7,7 +7,7 @@ The client throws exceptions for various error conditions:
 Thrown when connection or initialization fails:
 
 ```php
-use Mcp\Exception\ConnectionException;
+use Mcp\Client\Exception\ConnectionException;
 
 try {
     $client->connect($transport);
@@ -21,7 +21,7 @@ try {
 Thrown when a request returns an error response:
 
 ```php
-use Mcp\Exception\RequestException;
+use Mcp\Client\Exception\RequestException;
 
 try {
     $result = $client->callTool('unknown_tool', []);
@@ -38,12 +38,12 @@ Here's a comprehensive example demonstrating client usage:
 ```php-file
 <?php
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Transport\StdioTransport;
-use Mcp\Exception\SamplingException;
+use Mcp\Client\Exception\SamplingException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;

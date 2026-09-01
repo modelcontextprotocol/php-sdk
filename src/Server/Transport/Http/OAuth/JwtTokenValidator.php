@@ -16,7 +16,7 @@ use Firebase\JWT\ExpiredException;
 use Firebase\JWT\JWK;
 use Firebase\JWT\JWT;
 use Firebase\JWT\SignatureInvalidException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 
 /**
  * Validates JWT access tokens using JWKS from an OAuth 2.0 / OpenID Connect provider.

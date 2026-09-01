@@ -12,7 +12,7 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;

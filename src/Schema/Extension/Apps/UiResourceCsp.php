@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Extension\Apps;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Content Security Policy configuration for MCP App resources.

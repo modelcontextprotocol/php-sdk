@@ -11,17 +11,17 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ToolReference;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\ToolCallException;
-use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\Registry\ToolReference;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\ToolCallException;
+use Mcp\Server\Exception\ToolNotFoundException;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;

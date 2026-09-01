@@ -1,0 +1,15 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"label\": \"latency\",\n    \"count\": 0,\n    \"note\": \"No samples provided - a variadic parameter is always optional.\"\n}"
+    }
+  ],
+  "structuredContent": {
+    "label": "latency",
+    "count": 0,
+    "note": "No samples provided - a variadic parameter is always optional."
+  },
+  "isError": false
+}
+

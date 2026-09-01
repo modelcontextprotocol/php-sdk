@@ -17,7 +17,7 @@ use Mcp\Example\Server\CustomDependencies\Service\InMemoryTaskRepository;
 use Mcp\Example\Server\CustomDependencies\Service\StatsServiceInterface;
 use Mcp\Example\Server\CustomDependencies\Service\SystemStatsService;
 use Mcp\Example\Server\CustomDependencies\Service\TaskRepositoryInterface;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 logger()->info('Starting MCP Custom Dependencies Server...');

@@ -48,7 +48,7 @@ Authorization in MCP is implemented at the transport level using PSR-15 middlewa
 ## Quick Start
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;

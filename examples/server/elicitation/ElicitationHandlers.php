@@ -11,13 +11,13 @@
 
 namespace Mcp\Example\Server\Elicitation;
 
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
 use Mcp\Schema\Elicitation\NumberSchemaDefinition;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Result\ElicitResult;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 

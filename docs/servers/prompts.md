@@ -3,7 +3,7 @@
 Prompts generate templates for AI interactions.
 
 ```php
-use Mcp\Capability\Attribute\McpPrompt;
+use Mcp\Server\Capability\Attribute\McpPrompt;
 
 class PromptGenerator
 {
@@ -104,7 +104,7 @@ Prompt handlers can throw any exception, but the type determines how it's handle
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
-use Mcp\Exception\PromptGetException;
+use Mcp\Server\Exception\PromptGetException;
 
 #[McpPrompt]
 public function generatePrompt(string $topic, string $style): array

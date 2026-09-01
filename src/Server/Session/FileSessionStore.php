@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\NativeClock;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Uid\Uuid;

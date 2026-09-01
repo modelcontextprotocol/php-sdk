@@ -11,17 +11,17 @@
 
 namespace Mcp\Tests\Unit\Server;
 
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\NotificationEvent;
-use Mcp\Event\RequestEvent;
-use Mcp\Event\ResponseEvent;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\NotificationEvent;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Event\ResponseEvent;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;

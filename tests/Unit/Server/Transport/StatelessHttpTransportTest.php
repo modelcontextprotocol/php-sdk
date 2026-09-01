@@ -12,8 +12,8 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
+use Mcp\Server\Server;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Tests\Unit\Server\Transport\Fixture\ShortReadStream;

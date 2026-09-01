@@ -13,7 +13,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('Client Logging', '1.0.0', 'Demonstration of MCP logging in capability handlers.')

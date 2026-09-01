@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Icon;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;

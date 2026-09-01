@@ -13,8 +13,8 @@ namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Http\Client\ClientInterface;

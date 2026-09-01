@@ -13,7 +13,7 @@
 require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 logger()->info('Starting MCP Calculator Server...');

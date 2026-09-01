@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Wire;
 
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
 use Mcp\Server\Wire\InboundClassifier;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;

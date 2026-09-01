@@ -19,7 +19,7 @@ Every reference of a MCP element, that translates to an actual method call, can 
 `RequestContext` and the SDK will take care to include the gateway in the arguments of the method call:
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 class MyService

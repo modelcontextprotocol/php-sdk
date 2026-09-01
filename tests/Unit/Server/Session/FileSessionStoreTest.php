@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
-use Mcp\Exception\ExceptionInterface;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\ExceptionInterface;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Session\FileSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

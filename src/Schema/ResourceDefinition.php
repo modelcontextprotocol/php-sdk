@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * A known resource that the server is capable of reading.

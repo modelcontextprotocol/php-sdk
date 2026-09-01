@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Transport;
 
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -37,7 +38,7 @@ interface TransportInterface
      * - Initialization completes successfully
      * - Connection fails (throws ConnectionException)
      *
-     * @throws \Mcp\Exception\ConnectionException
+     * @throws ConnectionException
      */
     public function connect(): void;
 

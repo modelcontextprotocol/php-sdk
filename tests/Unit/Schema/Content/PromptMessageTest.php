@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class PromptMessageTest extends TestCase

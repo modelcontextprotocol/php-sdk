@@ -11,9 +11,6 @@
 
 namespace Mcp\Server;
 
-use Mcp\Exception\ClientException;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\ImageContent;
@@ -39,6 +36,9 @@ use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolChoice;
+use Mcp\Server\Exception\ClientException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Session\SessionInterface;
 
 /**

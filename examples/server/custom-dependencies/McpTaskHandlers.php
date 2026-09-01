@@ -11,10 +11,10 @@
 
 namespace Mcp\Example\Server\CustomDependencies;
 
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Example\Server\CustomDependencies\Service\StatsServiceInterface;
 use Mcp\Example\Server\CustomDependencies\Service\TaskRepositoryInterface;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Psr\Log\LoggerInterface;
 
 /**

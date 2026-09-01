@@ -11,11 +11,11 @@
 
 namespace Mcp\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\CacheScope;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**

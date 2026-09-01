@@ -3,7 +3,7 @@
 Tools are callable functions that perform actions and return results.
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 class Calculator
 {
@@ -210,7 +210,7 @@ Tool handlers can throw any exception, but the type determines how it's handled:
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
-use Mcp\Exception\ToolCallException;
+use Mcp\Server\Exception\ToolCallException;
 
 #[McpTool]
 public function divideNumbers(float $a, float $b): float

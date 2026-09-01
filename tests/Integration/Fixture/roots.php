@@ -13,8 +13,8 @@
  * Server for {@see \Mcp\Tests\Integration\RootsTest}.
  */
 
-use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 require_once dirname(__DIR__, 3).'/vendor/autoload.php';

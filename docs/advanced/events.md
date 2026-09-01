@@ -7,8 +7,8 @@ The MCP SDK provides a PSR-14 compatible event system that allows you to hook in
 Configure an event dispatcher when building your server:
 
 ```php
-use Mcp\Event\RequestEvent;
-use Mcp\Server;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Server;
 use Symfony\Component\EventDispatcher\EventDispatcher;
 
 $dispatcher = new EventDispatcher();
@@ -86,7 +86,7 @@ These events are dispatched when the lists of available capabilities change:
 These events carry no data and are used to notify clients that they should refresh their capability lists.
 
 ```php
-use Mcp\Event\ToolListChangedEvent;
+use Mcp\Server\Event\ToolListChangedEvent;
 
 $dispatcher->addListener(ToolListChangedEvent::class, function (ToolListChangedEvent $event) {
     $logger->info('Tool list has changed, clients should refresh');

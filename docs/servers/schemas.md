@@ -32,7 +32,7 @@ public function processUser(
 Add validation rules to specific parameters:
 
 ```php
-use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\Capability\Attribute\Schema;
 
 #[McpTool]
 public function validateUser(

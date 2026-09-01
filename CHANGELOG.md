@@ -2,6 +2,26 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.0
+-----
+
+* [BC Break] Split the root namespace into `Mcp\Schema`, `Mcp\Client` and `Mcp\Server` to prepare package slicing. `Mcp\Schema` depends on nothing, `Mcp\Client` and `Mcp\Server` depend on `Mcp\Schema` only — enforced by Deptrac (`make deptrac`).
+  * `Mcp\Server` => `Mcp\Server\Server`
+  * `Mcp\Client` => `Mcp\Client\Client`
+  * `Mcp\Capability\*` => `Mcp\Server\Capability\*` (`Attribute`, `Completion`, `Discovery`, `Formatter`, `Logger`, `Registry`, `Tool`, plus `Registry` and `RegistryInterface`)
+  * `Mcp\Event\*` => `Mcp\Server\Event\*`
+  * `Mcp\JsonRpc\MessageFactory` => `Mcp\Schema\MessageFactory`
+  * `Mcp\Server\Stateless\RequestMeta` => `Mcp\Schema\RequestMeta`
+* [BC Break] Distribute `Mcp\Exception\*` across the three namespaces.
+  * `Mcp\Exception\{ExceptionInterface,InvalidArgumentException,LogicException,RuntimeException}` => the same names under `Mcp\Schema\Exception\`, `Mcp\Client\Exception\` and `Mcp\Server\Exception\` — pick the one matching the package you catch around
+  * `Mcp\Exception\Exception` => `Mcp\Client\Exception\Exception` and `Mcp\Server\Exception\Exception`
+  * `Mcp\Exception\{InvalidInputMessageException,MissingRequestMetaException}` => `Mcp\Schema\Exception\*`
+  * `Mcp\Exception\{ConnectionException,ElicitationException,RequestException,RootsException,SamplingException}` => `Mcp\Client\Exception\*`
+  * `Mcp\Exception\{BadMethodCallException,ClientException,ClientRegistrationException,ConfigurationException,ContainerException,InvalidCursorException,MissingRequiredClientCapabilityException,NotFoundExceptionInterface,PromptGetException,PromptNotFoundException,RegistryException,RequestStateException,ResourceNotFoundException,ResourceReadException,ServiceNotFoundException,ToolCallException,ToolNotFoundException}` => `Mcp\Server\Exception\*`
+  * `Mcp\Exception\TimeoutException` and `Mcp\Exception\HandlerNotFoundException` are removed; both were unused.
+  * `Mcp\Server\Exception\ExceptionInterface` and `Mcp\Client\Exception\ExceptionInterface` extend `Mcp\Schema\Exception\ExceptionInterface`, so catching the latter still catches any SDK exception.
+  * The named exceptions now extend their package's `RuntimeException`/`InvalidArgumentException` instead of the global ones, so `catch (Mcp\Server\Exception\RuntimeException)` reaches `ToolCallException`, `PromptGetException` and friends.
+
 0.8.0
 -----
 

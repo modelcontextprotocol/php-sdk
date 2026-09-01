@@ -11,14 +11,14 @@
 
 namespace Mcp\Server;
 
-use Mcp\Capability\Logger\ClientLogger;
-use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\RequestMeta;
+use Mcp\Server\Capability\Logger\ClientLogger;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\InputContext;
-use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\RequestStateCodec;
 
 /**

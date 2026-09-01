@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Request;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\ResourceReference;

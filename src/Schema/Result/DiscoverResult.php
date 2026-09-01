@@ -11,9 +11,8 @@
 
 namespace Mcp\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\Enum\ResultType;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\ServerCapabilities;
 

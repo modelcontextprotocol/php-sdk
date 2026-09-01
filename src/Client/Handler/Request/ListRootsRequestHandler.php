@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Handler\Request;
 
-use Mcp\Exception\RootsException;
+use Mcp\Client\Exception\RootsException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;

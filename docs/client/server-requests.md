@@ -10,9 +10,8 @@ needs; your callback presents them to the user and returns an `ElicitResult` wit
 three actions — accept (with the collected content), decline, or cancel:
 
 ```php
-use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
-use Mcp\Exception\ElicitationException;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
@@ -84,14 +83,14 @@ elicitation demo server.
 Handle server requests for LLM completions:
 
 ```php
-use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Exception\SamplingException;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
-use Mcp\Exception\SamplingException;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Schema\ClientCapabilities;
-use Mcp\Schema\Request\CreateSamplingMessageRequest;
-use Mcp\Schema\Result\CreateSamplingMessageResult;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
 
 class LlmSamplingCallback implements SamplingCallbackInterface
 {

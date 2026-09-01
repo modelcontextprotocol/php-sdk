@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;

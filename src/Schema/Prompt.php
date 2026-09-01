@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * A prompt or prompt template that the server offers.

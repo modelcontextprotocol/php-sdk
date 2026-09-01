@@ -13,11 +13,11 @@
  * Server for {@see \Mcp\Tests\Integration\ElicitationTest}.
  */
 
-use Mcp\Exception\ClientException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
-use Mcp\Server;
+use Mcp\Server\Exception\ClientException;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 require_once dirname(__DIR__, 3).'/vendor/autoload.php';

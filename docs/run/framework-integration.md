@@ -20,10 +20,10 @@ Here's a simplified example using PSR-17 discovery and Laminas emitter:
 
 ```php
 use Http\Discovery\Psr17Factory;
-use Mcp\Server;
-use Mcp\Server\Transport\StreamableHttpTransport;
-use Mcp\Server\Session\FileSessionStore;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
+use Mcp\Server\Server;
+use Mcp\Server\Session\FileSessionStore;
+use Mcp\Server\Transport\StreamableHttpTransport;
 
 $psr17Factory = new Psr17Factory();
 $request = $psr17Factory->createServerRequestFromGlobals();
@@ -57,13 +57,13 @@ Then create a controller that uses Symfony's PSR-7 bridge:
 
 ```php
 // In a Symfony controller
+use Mcp\Server\Server;
+use Mcp\Server\Transport\StreamableHttpTransport;
+use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
+use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
-use Symfony\Bridge\PsrHttpMessage\Factory\PsrHttpFactory;
-use Symfony\Bridge\PsrHttpMessage\Factory\HttpFoundationFactory;
-use Mcp\Server;
-use Mcp\Server\Transport\StreamableHttpTransport;
 
 class McpController
 {
@@ -99,10 +99,10 @@ Then create a controller that type-hints `ServerRequestInterface`:
 
 ```php
 // In a Laravel controller
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Message\ResponseInterface;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
 
 class McpController
 {
@@ -128,9 +128,9 @@ Slim Framework works natively with PSR-7.
 Create a route handler using Slim's built-in factories and container:
 
 ```php
-use Slim\Factory\AppFactory;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Slim\Factory\AppFactory;
 
 $app = AppFactory::create();
 

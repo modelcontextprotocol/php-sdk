@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Request\ElicitRequest;

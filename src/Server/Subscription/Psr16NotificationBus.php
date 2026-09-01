@@ -11,9 +11,9 @@
 
 namespace Mcp\Server\Subscription;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Schema\MessageFactory;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;

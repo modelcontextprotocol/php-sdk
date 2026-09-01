@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Schema definition for string enum fields in elicitation requests.

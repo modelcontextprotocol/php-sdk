@@ -12,8 +12,8 @@
 namespace Mcp\Client\Stateless;
 
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Wire\McpHeader;
-use Mcp\Server\Stateless\RequestMeta;
 
 /**
  * The HTTP headers a modern-era client puts on every POST (SEP-2243, SEP-2575).

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use PHPUnit\Framework\Attributes\TestDox;
 use Psr\Http\Message\ServerRequestInterface;

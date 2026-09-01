@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Handler\Request;
 
-use Mcp\Exception\ElicitationException;
+use Mcp\Client\Exception\ElicitationException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;

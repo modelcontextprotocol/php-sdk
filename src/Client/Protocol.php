@@ -11,6 +11,7 @@
 
 namespace Mcp\Client;
 
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Notification\ProgressNotificationHandler;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
@@ -22,19 +23,18 @@ use Mcp\Client\Stateless\RequestEnvelope;
 use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\ConnectionException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\InitializeResult;
-use Mcp\Server\Stateless\RequestMeta;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

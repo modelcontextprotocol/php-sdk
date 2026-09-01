@@ -19,8 +19,8 @@ use Mcp\Schema\Content\ToolResultContent;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Tool;
-use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 require_once dirname(__DIR__, 3).'/vendor/autoload.php';

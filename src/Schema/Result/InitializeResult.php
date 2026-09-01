@@ -11,11 +11,10 @@
 
 namespace Mcp\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\MessageInterface;
-use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\ServerCapabilities;
 

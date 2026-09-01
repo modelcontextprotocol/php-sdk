@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\ClientRegistrationException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\ClientRegistrationException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\ClientRegistrationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\ClientRegistrarInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;

@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Covariant because a Response only hands its result out, never consumes it,

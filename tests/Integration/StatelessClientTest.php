@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;

@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\ClientRegistrationException;
+use Mcp\Server\Exception\ClientRegistrationException;
 
 /**
  * Interface for OAuth 2.0 Dynamic Client Registration (RFC 7591).

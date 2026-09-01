@@ -184,7 +184,7 @@ exhaust memory. A value below `1` throws `InvalidArgumentException`.
 
 A JSON-RPC batch (top-level array) is capped at 100 messages. Oversized batches are rejected before any
 message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap
-lives on `Mcp\JsonRpc\MessageFactory` and is not currently configurable through the builder — a server built
+lives on `Mcp\Schema\MessageFactory` and is not currently configurable through the builder — a server built
 with `Server::builder()` always uses the default of 100.
 
 Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON array

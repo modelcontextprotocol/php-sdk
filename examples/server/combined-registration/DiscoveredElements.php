@@ -11,8 +11,8 @@
 
 namespace Mcp\Example\Server\CombinedRegistration;
 
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 final class DiscoveredElements
 {

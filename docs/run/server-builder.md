@@ -11,7 +11,7 @@ There are two ways to obtain a server builder instance:
 ### Method 1: Static Builder Method (Recommended)
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My MCP Server', '1.0.0')
@@ -41,7 +41,7 @@ Set the server's identity with name, version, and optional description:
 
 ```php
 use Mcp\Schema\Icon;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo(
@@ -204,7 +204,7 @@ The container is used to resolve handlers and their dependencies when handlers i
 The SDK includes a basic container with simple auto-wiring capabilities.
 
 ```php
-use Mcp\Capability\Registry\Container;
+use Mcp\Server\Capability\Registry\Container;
 
 // Use the default basic container
 $container = new Container();
@@ -254,13 +254,13 @@ $server = Server::builder()
 Here's a comprehensive example showing all major configuration options:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Capability\Registry\Container;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
-use Mcp\Capability\Registry\Container;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
-use Monolog\Logger;
-use Monolog\Handler\StreamHandler;
 
 // Setup dependencies
 $logger = new Logger('mcp-server');

@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * @phpstan-type NotificationData array{

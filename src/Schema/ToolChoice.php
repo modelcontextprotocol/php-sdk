@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ToolChoiceMode;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Controls how the model uses tools during sampling.

@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Represents blob resource contents in MCP.

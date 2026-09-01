@@ -9,7 +9,7 @@ Completion providers help MCP clients offer auto-completion suggestions for Reso
 Provide a static list of possible values:
 
 ```php
-use Mcp\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
 
 #[McpPrompt]
 public function generateContent(
@@ -63,7 +63,7 @@ public function getTask(
 For dynamic completion logic:
 
 ```php
-use Mcp\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Completion\ProviderInterface;
 
 class UserIdCompletionProvider implements ProviderInterface
 {

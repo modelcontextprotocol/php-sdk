@@ -11,9 +11,9 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\RuntimeException;
 
 /**
  * Represents audio content in MCP.

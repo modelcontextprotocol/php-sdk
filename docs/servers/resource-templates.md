@@ -9,7 +9,7 @@ is supported — `{var}`, one path segment each. Operators such as `{+var}`, `{#
 cannot contain `/`.
 
 ```php
-use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
 
 class UserProvider
 {

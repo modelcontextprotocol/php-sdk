@@ -11,9 +11,9 @@
 
 namespace Mcp\Server\Stateless;
 
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Wire\McpHeader;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\ToolNotFoundException;
 
 /**
  * Checks that a request's HTTP headers agree with its JSON-RPC body (SEP-2243).

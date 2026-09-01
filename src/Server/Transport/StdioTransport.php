@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
 use Mcp\Server\Transport\Stdio\RunnerState;

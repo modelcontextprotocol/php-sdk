@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
-use Mcp\Client;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;

@@ -12,11 +12,11 @@
 namespace Mcp\Tests\Unit\Client;
 
 use Mcp\Client\Configuration;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\LogicException;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
@@ -24,7 +24,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

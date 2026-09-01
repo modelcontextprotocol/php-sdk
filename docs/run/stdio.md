@@ -32,7 +32,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/vendor/autoload.php';
 
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 $server = Server::builder()

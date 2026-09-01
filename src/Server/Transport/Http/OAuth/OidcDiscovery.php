@@ -13,7 +13,7 @@ namespace Mcp\Server\Transport\Http\OAuth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
