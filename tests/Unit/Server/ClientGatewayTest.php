@@ -11,8 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server;
 
-use Mcp\Exception\ClientException;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
@@ -27,6 +25,8 @@ use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\ClientGateway;
+use Mcp\Server\Exception\ClientException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;

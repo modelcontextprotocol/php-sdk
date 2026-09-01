@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

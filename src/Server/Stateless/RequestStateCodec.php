@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Stateless;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RequestStateException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RequestStateException;
 
 /**
  * Seals and verifies the opaque `requestState` carried across the rounds of a

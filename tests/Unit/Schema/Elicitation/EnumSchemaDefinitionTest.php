@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Elicitation\EnumSchemaDefinition;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class EnumSchemaDefinitionTest extends TestCase

@@ -5,7 +5,7 @@ discover what it offers, and call it. The API is synchronous — every method re
 result or throws.
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\StdioTransport;
 
 // Build and configure the client

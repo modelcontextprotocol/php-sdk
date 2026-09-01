@@ -11,7 +11,6 @@
 
 namespace Mcp\Example\Server\ClientCommunication;
 
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
@@ -19,6 +18,7 @@ use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 

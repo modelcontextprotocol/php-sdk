@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;

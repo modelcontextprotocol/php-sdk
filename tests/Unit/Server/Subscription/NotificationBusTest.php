@@ -11,11 +11,11 @@
 
 namespace Mcp\Tests\Unit\Server\Subscription;
 
-use Mcp\Event\ToolListChangedEvent;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Server\Event\ToolListChangedEvent;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Subscription\Psr16NotificationBus;

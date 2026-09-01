@@ -15,7 +15,7 @@ chdir(__DIR__);
 
 use Mcp\Example\Server\CombinedRegistration\ManualHandlers;
 use Mcp\Example\Server\CombinedRegistration\PreconfiguredGreeter;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 // Built here so its constructor dependencies (a scalar the container cannot

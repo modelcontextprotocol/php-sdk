@@ -13,7 +13,8 @@ namespace Mcp\Server\Wire;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Schema\RequestMeta;
+use Mcp\Schema\Wire\McpHeader;
 
 /**
  * Decides which protocol era one inbound HTTP request belongs to.
@@ -73,7 +74,7 @@ final class InboundClassifier
             return EraClassification::legacy();
         }
 
-        $headerVersion = self::header($headers, self::PROTOCOL_VERSION_HEADER);
+        $headerVersion = McpHeader::lookup($headers, self::PROTOCOL_VERSION_HEADER);
 
         if (array_is_list($decoded)) {
             return $this->classifyBatch($decoded, $headerVersion);
@@ -98,22 +99,6 @@ final class InboundClassifier
         }
 
         return \sprintf('MCP-Protocol-Version header "%s" contradicts the "%s" declared in _meta.', $headerVersion, $claimedVersion);
-    }
-
-    /**
-     * Case-insensitive header lookup, since PSR-7 preserves the sender's casing.
-     *
-     * @param array<string, string> $headers
-     */
-    public static function header(array $headers, string $name): ?string
-    {
-        foreach ($headers as $key => $value) {
-            if (0 === strcasecmp($key, $name)) {
-                return '' === $value ? null : $value;
-            }
-        }
-
-        return null;
     }
 
     /**

@@ -11,26 +11,27 @@
 
 namespace Mcp\Tests\Unit\Server;
 
-use Mcp\Capability\Registry;
-use Mcp\Capability\Registry\ElementReference;
-use Mcp\Capability\Registry\Loader\LoaderInterface;
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\LogicException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidArgumentException as SchemaInvalidArgumentException;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
-use Mcp\Server;
 use Mcp\Server\Builder;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\Registry\ElementReference;
+use Mcp\Server\Capability\Registry\Loader\LoaderInterface;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\InvalidArgumentException as ServerInvalidArgumentException;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
+use Mcp\Server\Server;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
@@ -231,7 +232,7 @@ final class BuilderTest extends TestCase
     #[TestDox('setModernVersions() rejects a handshake-era revision, which the classifier would never route there')]
     public function testSetModernVersionsRejectsHandshakeRevision(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(ServerInvalidArgumentException::class);
         $this->expectExceptionMessage(ProtocolVersion::V2025_11_25->value);
 
         Server::builder()->setModernVersions([ProtocolVersion::V2025_11_25]);
@@ -247,7 +248,7 @@ final class BuilderTest extends TestCase
     #[TestDox('An extension identifier must be a valid _meta prefix')]
     public function testEnableExtensionRejectsUnprefixedIdentifier(): void
     {
-        $this->expectException(InvalidArgumentException::class);
+        $this->expectException(SchemaInvalidArgumentException::class);
         $this->expectExceptionMessage('has no prefix');
 
         Server::builder()->enableExtension(new ThingExtension('things'));

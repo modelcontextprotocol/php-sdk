@@ -13,7 +13,7 @@ The `Client\Builder` provides fluent configuration of client instances.
 ### Basic Configuration
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 
 $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')

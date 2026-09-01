@@ -188,6 +188,22 @@ final class McpHeader
         return $found;
     }
 
+    /**
+     * Case-insensitive header lookup, since PSR-7 preserves the sender's casing.
+     *
+     * @param array<string, string> $headers
+     */
+    public static function lookup(array $headers, string $name): ?string
+    {
+        foreach ($headers as $key => $value) {
+            if (0 === strcasecmp($key, $name)) {
+                return '' === $value ? null : $value;
+            }
+        }
+
+        return null;
+    }
+
     private static function wrap(string $value): string
     {
         return self::BASE64_PREFIX.base64_encode($value).self::BASE64_SUFFIX;

@@ -15,7 +15,7 @@ chdir(__DIR__);
 
 use Mcp\Example\Server\ExplicitRegistration\SimpleHandlers;
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 logger()->info('Starting MCP Manual Registration Server...');
 

@@ -12,8 +12,8 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Exception\ClientRegistrationException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\ClientRegistrationException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\ClientRegistrarInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;

@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RequestStateException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RequestStateException;
 use Mcp\Server\Stateless\RequestStateCodec;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

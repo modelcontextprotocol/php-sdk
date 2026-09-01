@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;

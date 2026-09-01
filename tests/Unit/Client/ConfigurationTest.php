@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client;
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Configuration;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Implementation;
 use PHPUnit\Framework\Attributes\DataProvider;

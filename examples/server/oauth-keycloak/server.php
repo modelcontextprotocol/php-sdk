@@ -13,7 +13,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;

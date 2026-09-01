@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
-use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Elicitation\ElicitationSchema;
@@ -25,12 +24,13 @@ use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Server\RequestContext;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Server;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;

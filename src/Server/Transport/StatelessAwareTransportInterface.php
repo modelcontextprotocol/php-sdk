@@ -17,7 +17,7 @@ use Mcp\Server\Stateless\StatelessProtocol;
  * A transport that can carry the modern (SEP-2575) lifecycle as well as the
  * handshake one.
  *
- * {@see \Mcp\Server::run()} hands such a transport both dispatchers; deciding
+ * {@see \Mcp\Server\Server::run()} hands such a transport both dispatchers; deciding
  * which of them answers is the transport's job, because the evidence is in the
  * request it just read.
  *

@@ -11,12 +11,12 @@
 
 namespace Mcp\Tests\Unit\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Result\CallToolResult;
 use PHPUnit\Framework\TestCase;
 

@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\StdioTransport;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

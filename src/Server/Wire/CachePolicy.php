@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Wire;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\CacheScope;
+use Mcp\Server\Exception\InvalidArgumentException;
 
 /**
  * How long, and to whom, a server's answers may be cached (SEP-2549).

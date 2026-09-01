@@ -11,8 +11,8 @@
 
 namespace Mcp\Example\Server\CachedDiscovery;
 
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\ToolCallException;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Exception\ToolCallException;
 
 /**
  * Example MCP elements for demonstrating cached discovery.

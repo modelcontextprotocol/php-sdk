@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Enum;
 
-use Mcp\Exception\LogicException;
+use Mcp\Schema\Exception\LogicException;
 
 /**
  * Registry of the MCP protocol revisions this SDK knows about.

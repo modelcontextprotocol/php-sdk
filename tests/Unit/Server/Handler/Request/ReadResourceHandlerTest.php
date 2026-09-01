@@ -11,11 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\Registry\ResourceReference;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\ResourceNotFoundException;
-use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\JsonRpc\Error;
@@ -23,6 +18,11 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\Registry\ResourceReference;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\ResourceNotFoundException;
+use Mcp\Server\Exception\ResourceReadException;
 use Mcp\Server\Handler\Request\ReadResourceHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;

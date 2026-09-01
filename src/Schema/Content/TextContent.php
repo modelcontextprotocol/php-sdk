@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Represents text content in MCP.

@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Wire;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\CacheScope;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Server\Wire\Rev2026Codec;
 use PHPUnit\Framework\Attributes\TestDox;

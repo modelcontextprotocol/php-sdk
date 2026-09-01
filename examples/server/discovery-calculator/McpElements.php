@@ -11,10 +11,10 @@
 
 namespace Mcp\Example\Server\DiscoveryCalculator;
 
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Exception\ToolCallException;
 use Mcp\Schema\Icon;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
+use Mcp\Server\Exception\ToolCallException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

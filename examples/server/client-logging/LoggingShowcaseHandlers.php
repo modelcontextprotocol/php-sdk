@@ -11,8 +11,7 @@
 
 namespace Mcp\Example\Server\ClientLogging;
 
-use Mcp\Capability\Attribute\McpTool;
-use Mcp\Capability\Logger\ClientLogger;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 /**

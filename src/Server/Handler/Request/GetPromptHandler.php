@@ -11,17 +11,17 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\MissingRequiredClientCapabilityException;
-use Mcp\Exception\PromptGetException;
-use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Server\Exception\PromptGetException;
+use Mcp\Server\Exception\PromptNotFoundException;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

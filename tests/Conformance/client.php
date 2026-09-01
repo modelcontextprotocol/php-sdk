@@ -11,7 +11,7 @@
 
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;

@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Firebase\JWT\JWT;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;

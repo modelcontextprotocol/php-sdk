@@ -7,7 +7,7 @@ the SDK places the advertisement correctly for whichever era the client speaks:
 
 ```php
 use Mcp\Schema\Extension\Apps\McpApps;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
@@ -112,11 +112,11 @@ descriptor marker: `McpApps::resourceMarker()` is a method call and cannot appea
 in an attribute, so spell it as `new \stdClass()` there.
 
 ```php
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\ToolVisibility;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 final class WeatherApp
 {

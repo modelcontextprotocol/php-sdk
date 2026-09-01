@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\Request\ElicitRequest;
 use PHPUnit\Framework\Attributes\TestDox;

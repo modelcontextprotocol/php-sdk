@@ -31,7 +31,7 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;

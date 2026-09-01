@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Nyholm\Psr7\Factory\Psr17Factory;

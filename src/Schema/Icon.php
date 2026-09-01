@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\IconTheme;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * A url pointing to an icon URL or a base64-encoded data URI.

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\StdioTransport;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

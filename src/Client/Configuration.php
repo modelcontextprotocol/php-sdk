@@ -11,7 +11,7 @@
 
 namespace Mcp\Client;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;

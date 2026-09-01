@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Transport;
 
+use Mcp\Client\Exception\RuntimeException;
 use Mcp\Client\State\ClientStateInterface;
-use Mcp\Exception\RuntimeException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

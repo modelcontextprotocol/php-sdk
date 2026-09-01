@@ -25,7 +25,7 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Client\Transport\StdioTransport;

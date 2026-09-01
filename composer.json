@@ -84,7 +84,7 @@
       "Mcp\\Tests\\": "tests/"
     },
     "classmap": [
-      "tests/Unit/Capability/Discovery/Fixtures/AlternativeFileNameToolHandler.class.inc"
+      "tests/Unit/Server/Capability/Discovery/Fixtures/AlternativeFileNameToolHandler.class.inc"
     ]
   },
   "config": {

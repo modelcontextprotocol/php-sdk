@@ -190,9 +190,9 @@ template variables.
 
 ```php
 use Mcp\Schema\Tool;
-use Mcp\Server;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ToolHandlerInterface;
+use Mcp\Server\Server;
 
 final class WeatherHandler implements ToolHandlerInterface
 {
@@ -220,7 +220,7 @@ $server = Server::builder()
 ```
 
 `Builder::add()` validates the pairing at registration time. Pairing a `Tool` definition with, for example, a
-`PromptHandlerInterface` raises `Mcp\Exception\InvalidArgumentException`. The schema value objects validate some of
+`PromptHandlerInterface` raises `Mcp\Server\Exception\InvalidArgumentException`. The schema value objects validate some of
 their own input as well — `Tool` requires an object-typed input schema, `ResourceDefinition` and `ResourceTemplate`
 check the name pattern and URI — but an invalid tool or prompt *name* is not rejected, it is only logged as a warning
 when the element is registered.

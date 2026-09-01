@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Transport;
 
-use Mcp\Exception\ConnectionException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\ConnectionException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Log\LoggerInterface;

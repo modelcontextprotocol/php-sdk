@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
 use PHPUnit\Framework\TestCase;

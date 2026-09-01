@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Handler\Request;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\SamplingException;
+use Mcp\Client\Exception\SamplingException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;

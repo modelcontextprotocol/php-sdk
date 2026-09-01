@@ -11,9 +11,9 @@
 
 namespace Mcp\Schema\Request;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Request;
 
 /**

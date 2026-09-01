@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client\Stateless;
 
+use Mcp\Client\Exception\RuntimeException;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Stateless\InputRequestResolver;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;

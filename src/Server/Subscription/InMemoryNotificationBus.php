@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Subscription;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Notification;
+use Mcp\Server\Exception\InvalidArgumentException;
 
 /**
  * A notification bus held in one process's memory.

@@ -12,9 +12,9 @@
 namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;

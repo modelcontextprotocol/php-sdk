@@ -11,11 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry\PromptReference;
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\PromptGetException;
-use Mcp\Exception\PromptNotFoundException;
 use Mcp\Schema\Content\PromptMessage;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
@@ -23,6 +18,11 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Result\GetPromptResult;
+use Mcp\Server\Capability\Registry\PromptReference;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\PromptGetException;
+use Mcp\Server\Exception\PromptNotFoundException;
 use Mcp\Server\Handler\Request\GetPromptHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;

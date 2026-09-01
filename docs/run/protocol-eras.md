@@ -5,7 +5,7 @@
 which of them answers. There is nothing to configure:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 $server = Server::builder()

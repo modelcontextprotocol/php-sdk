@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Elicitation;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Base class for schema definitions in elicitation requests.

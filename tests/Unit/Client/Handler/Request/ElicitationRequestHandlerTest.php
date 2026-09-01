@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client\Handler\Request;
 
+use Mcp\Client\Exception\ElicitationException;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
-use Mcp\Exception\ElicitationException;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;

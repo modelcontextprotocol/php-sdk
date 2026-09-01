@@ -11,13 +11,13 @@
 
 namespace Mcp\Server;
 
-use Mcp\Exception\RequestStateException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Exception\RequestStateException;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\InputContext;
