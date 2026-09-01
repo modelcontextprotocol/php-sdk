@@ -42,7 +42,7 @@ class ListRootsResult implements ResultInterface
      * @param array{
      *     roots: array<array{uri: string, name?: string}>,
      *     _meta?: ?array<string, mixed>
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

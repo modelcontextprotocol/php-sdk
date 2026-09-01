@@ -247,7 +247,24 @@ class Protocol
      */
     private function dispatchEvent(object $event): object
     {
-        return $this->eventDispatcher?->dispatch($event) ?? $event;
+        if (null === $this->eventDispatcher) {
+            return $event;
+        }
+
+        $dispatched = $this->eventDispatcher->dispatch($event);
+
+        // PSR-14 dispatchers return the event they were given; a dispatcher that
+        // swaps it for something else is not what the caller asked to dispatch.
+        if (!$dispatched instanceof $event) {
+            $this->logger->debug('Event dispatcher returned a different object than it was given; keeping the original.', [
+                'event' => $event::class,
+                'returned' => $dispatched::class,
+            ]);
+
+            return $event;
+        }
+
+        return $dispatched;
     }
 
     /**

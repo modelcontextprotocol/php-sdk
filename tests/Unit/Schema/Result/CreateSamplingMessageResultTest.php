@@ -33,11 +33,11 @@ final class CreateSamplingMessageResultTest extends TestCase
             '_meta' => ['traceId' => 'trace-1'],
         ]);
 
-        $this->assertInstanceOf(TextContent::class, $result->content[0]);
-        $this->assertInstanceOf(ToolUseContent::class, $result->content[1]);
+        $this->assertInstanceOf(TextContent::class, $result->getContentBlocks()[0]);
+        $this->assertInstanceOf(ToolUseContent::class, $result->getContentBlocks()[1]);
         $this->assertSame('toolUse', $result->stopReason);
-        $this->assertSame('toolUse', $result->jsonSerialize()['stopReason']);
-        $this->assertSame(['traceId' => 'trace-1'], $result->jsonSerialize()['_meta']);
+        $this->assertSame('toolUse', $result->jsonSerialize()['stopReason'] ?? null);
+        $this->assertSame(['traceId' => 'trace-1'], $result->jsonSerialize()['_meta'] ?? null);
     }
 
     public function testProviderSpecificStopReasonIsPreserved(): void
@@ -50,7 +50,7 @@ final class CreateSamplingMessageResultTest extends TestCase
         ]);
 
         $this->assertSame('provider-specific', $result->stopReason);
-        $this->assertSame('provider-specific', $result->jsonSerialize()['stopReason']);
+        $this->assertSame('provider-specific', $result->jsonSerialize()['stopReason'] ?? null);
     }
 
     public function testKnownStopReasonStaysAString(): void

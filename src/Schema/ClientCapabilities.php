@@ -146,11 +146,11 @@ class ClientCapabilities implements \JsonSerializable
 
     /**
      * @return array{
-     *     roots?: object,
-     *     sampling?: object,
-     *     elicitation?: object,
-     *     experimental?: object,
-     *     extensions?: object,
+     *     roots?: \stdClass,
+     *     sampling?: \stdClass,
+     *     elicitation?: \stdClass,
+     *     experimental?: \stdClass,
+     *     extensions?: \stdClass,
      * }|\stdClass
      */
     public function jsonSerialize(): array|object

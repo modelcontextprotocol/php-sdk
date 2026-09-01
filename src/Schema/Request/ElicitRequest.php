@@ -12,6 +12,7 @@
 namespace Mcp\Schema\Request;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\LogicException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Enum\ElicitationMode;
 use Mcp\Schema\JsonRpc\Request;
@@ -110,11 +111,19 @@ final class ElicitRequest extends Request
     protected function getParams(): array
     {
         if (ElicitationMode::Url === $this->mode) {
+            if (null === $this->url) {
+                throw new LogicException('A url-mode elicitation has no "url" to send.');
+            }
+
             return [
                 'message' => $this->message,
                 'mode' => $this->mode->value,
                 'url' => $this->url,
             ];
+        }
+
+        if (null === $this->requestedSchema) {
+            throw new LogicException('A form-mode elicitation has no "requestedSchema" to send.');
         }
 
         // We don't need to send the mode if it's the default (form).

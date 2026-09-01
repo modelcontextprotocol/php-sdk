@@ -530,7 +530,7 @@ final class StatelessProtocol
      * server genuinely does not implement it — but naming the extension turns
      * an opaque refusal into something the caller can act on.
      */
-    private function unknownMethod(string $method, string|int $id): Error
+    private function unknownMethod(string $method, string|int|null $id): Error
     {
         $extension = $this->extensionMethods[$method] ?? null;
 

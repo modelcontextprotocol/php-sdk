@@ -43,10 +43,14 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
     {
         echo "\n[ELICIT] {$request->message}\n";
 
+        if (null === $request->requestedSchema) {
+            return new ElicitResult(ElicitAction::Decline);
+        }
+
         $content = [];
         foreach ($request->requestedSchema->properties as $name => $definition) {
             $default = $this->defaultFor($definition);
-            $label = $this->labelFor($definition);
+            $label = $this->labelFor($definition, $name);
 
             if (null !== $default) {
                 $display = is_bool($default) ? ($default ? 'true' : 'false') : (string) $default;
@@ -76,9 +80,11 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
         };
     }
 
-    private function labelFor(AbstractSchemaDefinition $definition): string
+    private function labelFor(AbstractSchemaDefinition $definition, string $name): string
     {
-        return $definition->title;
+        // A schema is not obliged to carry a title, and the field's own name is
+        // a far better prompt than a blank one.
+        return $definition->title ?? $name;
     }
 
     private function cast(object $definition, string $input): mixed

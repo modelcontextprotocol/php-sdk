@@ -50,7 +50,7 @@ class Root implements \JsonSerializable
     }
 
     /**
-     * @param RootData $data
+     * @param RootData|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

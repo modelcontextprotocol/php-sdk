@@ -32,10 +32,15 @@ final class WeatherApp
             prefersBorder: true,
         );
 
+        $html = file_get_contents(__DIR__.'/weather-app.html');
+        if (false === $html) {
+            throw new \RuntimeException('Could not read the weather app template.');
+        }
+
         return new TextResourceContents(
             uri: 'ui://weather-app',
             mimeType: McpApps::MIME_TYPE,
-            text: file_get_contents(__DIR__.'/weather-app.html'),
+            text: $html,
             meta: ['ui' => $contentMeta],
         );
     }

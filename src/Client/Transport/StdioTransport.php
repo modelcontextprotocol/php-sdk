@@ -88,15 +88,16 @@ class StdioTransport extends BaseTransport
     {
         $this->spawnProcess();
 
-        $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
+        $fiber = new \Fiber(fn () => $this->handleInitialize());
+        $this->activeFiber = $fiber;
 
-        $this->activeFiber->start();
+        $fiber->start();
 
-        while (!$this->activeFiber->isTerminated()) {
+        while (!$fiber->isTerminated()) {
             $this->tick();
         }
 
-        $result = $this->activeFiber->getReturn();
+        $result = $fiber->getReturn();
         $this->activeFiber = null;
 
         if ($result instanceof Error) {
@@ -175,7 +176,7 @@ class StdioTransport extends BaseTransport
             $cmd .= ' '.escapeshellarg($arg);
         }
 
-        $this->process = proc_open(
+        $process = proc_open(
             $cmd,
             $descriptors,
             $pipes,
@@ -183,9 +184,11 @@ class StdioTransport extends BaseTransport
             $this->env
         );
 
-        if (!\is_resource($this->process)) {
+        if (!\is_resource($process)) {
             throw new ConnectionException('Failed to start process: '.$cmd);
         }
+
+        $this->process = $process;
 
         $this->stdin = $pipes[0];
         $this->stdout = $pipes[1];

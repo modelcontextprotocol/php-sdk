@@ -154,7 +154,6 @@ final class MultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for multi-select enum schema definition.');
 
-        /* @phpstan-ignore argument.type */
         MultiSelectEnumSchemaDefinition::fromArray([
             'title' => 42,
             'items' => ['type' => 'string', 'enum' => ['a']],
@@ -166,7 +165,6 @@ final class MultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "items.enum"');
 
-        /* @phpstan-ignore argument.type */
         MultiSelectEnumSchemaDefinition::fromArray([
             'title' => 'Test',
             'items' => ['type' => 'string'],

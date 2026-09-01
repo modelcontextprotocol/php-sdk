@@ -138,7 +138,12 @@ final class ResourceResultFormatter
 
         if ($readResult instanceof \SplFileInfo && $readResult->isFile() && $readResult->isReadable()) {
             if ($mimeType && str_contains(strtolower($mimeType), 'text')) {
-                return [new TextResourceContents($uri, $mimeType, file_get_contents($readResult->getPathname()), $meta)];
+                $text = file_get_contents($readResult->getPathname());
+                if (false === $text) {
+                    throw new RuntimeException(\sprintf('Could not read file: "%s".', $readResult->getPathname()));
+                }
+
+                return [new TextResourceContents($uri, $mimeType, $text, $meta)];
             }
 
             return [BlobResourceContents::fromSplFileInfo($uri, $readResult, $mimeType, $meta)];

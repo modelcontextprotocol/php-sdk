@@ -104,7 +104,8 @@ final class ReflectedElementLoader implements LoaderInterface
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_tool_'.spl_object_id($data['handler']);
+                    $handler = $data['handler'];
+                    $name = $data['name'] ?? ($handler instanceof \Closure ? 'closure_tool_'.spl_object_id($handler) : $reflection->getName());
                     $description = $data['description'] ?? null;
                 } else {
                     $name = ElementMetadataResolver::resolveName($reflection, $data['name'] ?? null);
@@ -142,7 +143,8 @@ final class ReflectedElementLoader implements LoaderInterface
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_resource_'.spl_object_id($data['handler']);
+                    $handler = $data['handler'];
+                    $name = $data['name'] ?? ($handler instanceof \Closure ? 'closure_resource_'.spl_object_id($handler) : $reflection->getName());
                     $description = $data['description'] ?? null;
                 } else {
                     $name = ElementMetadataResolver::resolveName($reflection, $data['name'] ?? null);
@@ -179,7 +181,8 @@ final class ReflectedElementLoader implements LoaderInterface
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_template_'.spl_object_id($data['handler']);
+                    $handler = $data['handler'];
+                    $name = $data['name'] ?? ($handler instanceof \Closure ? 'closure_template_'.spl_object_id($handler) : $reflection->getName());
                     $description = $data['description'] ?? null;
                 } else {
                     $name = ElementMetadataResolver::resolveName($reflection, $data['name'] ?? null);
@@ -215,7 +218,8 @@ final class ReflectedElementLoader implements LoaderInterface
                 $reflection = HandlerResolver::resolve($data['handler']);
 
                 if ($reflection instanceof \ReflectionFunction) {
-                    $name = $data['name'] ?? 'closure_prompt_'.spl_object_id($data['handler']);
+                    $handler = $data['handler'];
+                    $name = $data['name'] ?? ($handler instanceof \Closure ? 'closure_prompt_'.spl_object_id($handler) : $reflection->getName());
                     $description = $data['description'] ?? null;
                 } else {
                     $name = ElementMetadataResolver::resolveName($reflection, $data['name'] ?? null);

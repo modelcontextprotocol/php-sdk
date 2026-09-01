@@ -67,7 +67,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
      *     format?: string,
      *     minLength?: int,
      *     maxLength?: int,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

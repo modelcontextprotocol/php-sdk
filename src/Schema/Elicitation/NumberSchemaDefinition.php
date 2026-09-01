@@ -65,7 +65,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
      *     default?: int|float,
      *     minimum?: int|float,
      *     maximum?: int|float,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

@@ -49,6 +49,8 @@ use Symfony\Component\Uid\Uuid;
  *
  * @extends BaseTransport<ResponseInterface>
  *
+ * @phpstan-import-type McpFiber from TransportInterface
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface
@@ -246,17 +248,23 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createStreamedResponse(): ResponseInterface
     {
-        $callback = function (): void {
+        $fiber = $this->sessionFiber;
+
+        $callback = function () use ($fiber): void {
+            if (null === $fiber) {
+                return;
+            }
+
             try {
                 $this->logger->info('SSE: Starting request processing loop');
 
-                while ($this->sessionFiber->isSuspended()) {
+                while ($fiber->isSuspended()) {
                     $this->flushOutgoingMessages($this->sessionId);
 
                     $pendingRequests = $this->getPendingRequests($this->sessionId);
 
                     if (empty($pendingRequests)) {
-                        $yielded = $this->sessionFiber->resume();
+                        $yielded = $fiber->resume();
                         $this->handleFiberYield($yielded, $this->sessionId);
                         continue;
                     }
@@ -270,7 +278,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                         $response = $this->checkForResponse($requestId, $this->sessionId);
 
                         if (null !== $response) {
-                            $yielded = $this->sessionFiber->resume($response);
+                            $yielded = $fiber->resume($response);
                             $this->handleFiberYield($yielded, $this->sessionId);
                             $resumed = true;
                             break;
@@ -278,7 +286,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
                         if ($this->clock->now()->getTimestamp() - $timestamp >= $timeout) {
                             $error = Error::forInternalError('Request timed out', $requestId);
-                            $yielded = $this->sessionFiber->resume($error);
+                            $yielded = $fiber->resume($error);
                             $this->handleFiberYield($yielded, $this->sessionId);
                             $resumed = true;
                             break;
@@ -290,7 +298,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     } // Prevent tight loop
                 }
 
-                $this->handleFiberTermination();
+                $this->handleFiberTermination($fiber);
             } finally {
                 $this->sessionFiber = null;
             }
@@ -311,9 +319,12 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         return $response;
     }
 
-    protected function handleFiberTermination(): void
+    /**
+     * @param McpFiber $fiber
+     */
+    protected function handleFiberTermination(\Fiber $fiber): void
     {
-        $finalResult = $this->sessionFiber->getReturn();
+        $finalResult = $fiber->getReturn();
 
         if (null !== $finalResult) {
             try {
