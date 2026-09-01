@@ -63,7 +63,6 @@ final class TitledEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Each oneOf item must have a string "const" property');
 
-        /* @phpstan-ignore argument.type */
         new TitledEnumSchemaDefinition('Test', [['title' => 'A']]);
     }
 
@@ -72,7 +71,6 @@ final class TitledEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Each oneOf item must have a string "title" property');
 
-        /* @phpstan-ignore argument.type */
         new TitledEnumSchemaDefinition('Test', [['const' => 'a']]);
     }
 
@@ -139,7 +137,6 @@ final class TitledEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for titled enum schema definition.');
 
-        /* @phpstan-ignore argument.type */
         TitledEnumSchemaDefinition::fromArray(['title' => 42]);
     }
 
@@ -148,7 +145,6 @@ final class TitledEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "oneOf"');
 
-        /* @phpstan-ignore argument.type */
         TitledEnumSchemaDefinition::fromArray(['title' => 'Test']);
     }
 

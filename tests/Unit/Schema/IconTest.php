@@ -24,13 +24,14 @@ class IconTest extends TestCase
 
         $this->assertSame('https://www.php.net/images/logos/php-logo-white.svg', $icon->src);
         $this->assertSame('image/svg+xml', $icon->mimeType);
-        $this->assertSame('any', $icon->sizes[0]);
+        $this->assertSame('any', $icon->sizes[0] ?? null);
     }
 
     public function testConstructorWithMultipleSizes(): void
     {
         $icon = new Icon('https://example.com/icon.png', 'image/png', ['48x48', '96x96']);
 
+        $this->assertNotNull($icon->sizes);
         $this->assertCount(2, $icon->sizes);
         $this->assertSame(['48x48', '96x96'], $icon->sizes);
     }
@@ -92,7 +93,7 @@ class IconTest extends TestCase
         $icon = Icon::fromArray(['src' => 'https://example.com/icon.png', 'theme' => 'dark']);
 
         $this->assertSame(IconTheme::Dark, $icon->theme);
-        $this->assertSame('dark', $icon->jsonSerialize()['theme']);
+        $this->assertSame('dark', $icon->jsonSerialize()['theme'] ?? null);
     }
 
     public function testFromArrayRejectsUnknownTheme(): void

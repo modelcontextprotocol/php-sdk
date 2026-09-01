@@ -69,7 +69,7 @@ class ResourceDefinition implements \JsonSerializable
     }
 
     /**
-     * @param ResourceDefinitionData $data
+     * @param ResourceDefinitionData|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

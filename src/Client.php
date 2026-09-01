@@ -280,6 +280,10 @@ class Client
      */
     public function readResource(string $uri, ?callable $onProgress = null): ReadResourceResult
     {
+        if ('' === $uri) {
+            throw new InvalidArgumentException('Resource URI must not be empty.');
+        }
+
         $request = new ReadResourceRequest($uri);
 
         $response = $this->sendRequest($request, $onProgress);
@@ -373,13 +377,14 @@ class Client
      */
     private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
-        if (!$this->isConnected()) {
+        $transport = $this->transport;
+        if (null === $transport || !$this->protocol->getState()->isInitialized()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');
         }
 
         $withProgress = null !== $onProgress;
         $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds));
-        $response = $this->transport->runRequest($fiber, $onProgress);
+        $response = $transport->runRequest($fiber, $onProgress);
 
         if ($response instanceof Error) {
             throw RequestException::fromError($response);

@@ -58,7 +58,7 @@ final class StdioCustomDependenciesTest extends StdioInspectorSnapshotTestCase
 
     protected function normalizeTestOutput(string $output, ?string $testName = null): string
     {
-        return match ($testName) {
+        $normalized = match ($testName) {
             'add_task' => preg_replace(
                 '/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}/',
                 '2025-01-01T00:00:00+00:00',
@@ -71,5 +71,7 @@ final class StdioCustomDependenciesTest extends StdioInspectorSnapshotTestCase
             ),
             default => $output,
         };
+
+        return $normalized ?? $output;
     }
 }

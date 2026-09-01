@@ -160,7 +160,7 @@ class SchemaValidator
     /**
      * Recursively collects leaf validation errors.
      *
-     * @param Error[] $collectedErrors
+     * @param list<Error> $collectedErrors
      */
     private function collectSubErrors(ValidationError $error, array &$collectedErrors): void
     {
@@ -314,13 +314,12 @@ class SchemaValidator
                 $builtInMessage = $error->message();
                 if ($builtInMessage && 'The data must match the schema' !== $builtInMessage) {
                     $placeholders = $args;
-                    $builtInMessage = preg_replace_callback('/\{(\w+)\}/', static function ($match) use ($placeholders) {
+                    $message = preg_replace_callback('/\{(\w+)\}/', static function (array $match) use ($placeholders): string {
                         $key = $match[1];
                         $value = $placeholders[$key] ?? '{'.$key.'}';
 
-                        return \is_array($value) ? json_encode($value) : (string) $value;
-                    }, $builtInMessage);
-                    $message = $builtInMessage;
+                        return \is_array($value) ? (json_encode($value) ?: '{}') : (string) $value;
+                    }, $builtInMessage) ?? $builtInMessage;
                 }
                 break;
         }

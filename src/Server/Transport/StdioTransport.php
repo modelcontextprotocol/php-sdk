@@ -21,6 +21,8 @@ use Psr\Log\LoggerInterface;
 /**
  * @extends BaseTransport<int>
  *
+ * @phpstan-import-type McpFiber from TransportInterface
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class StdioTransport extends BaseTransport
@@ -32,6 +34,9 @@ class StdioTransport extends BaseTransport
 
     /** Whether the current over-length line is still being drained and discarded. */
     private bool $discardingLine = false;
+
+    /** @var positive-int */
+    private readonly int $maxLineBytes;
 
     /**
      * @param resource $input
@@ -46,13 +51,15 @@ class StdioTransport extends BaseTransport
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
         private readonly RunnerControlInterface $runnerControl = new RunnerControl(),
-        private readonly int $maxLineBytes = self::DEFAULT_MAX_LINE_BYTES,
+        int $maxLineBytes = self::DEFAULT_MAX_LINE_BYTES,
     ) {
         parent::__construct($logger);
 
         if ($maxLineBytes < 1) {
             throw new InvalidArgumentException(\sprintf('The maximum line size must be a positive number of bytes, got %d.', $maxLineBytes));
         }
+
+        $this->maxLineBytes = $maxLineBytes;
     }
 
     public function send(string $data, array $context): void
@@ -129,7 +136,7 @@ class StdioTransport extends BaseTransport
         }
 
         if ($this->sessionFiber->isTerminated()) {
-            $this->handleFiberTermination();
+            $this->handleFiberTermination($this->sessionFiber);
 
             return;
         }
@@ -171,9 +178,12 @@ class StdioTransport extends BaseTransport
         }
     }
 
-    private function handleFiberTermination(): void
+    /**
+     * @param McpFiber $fiber
+     */
+    private function handleFiberTermination(\Fiber $fiber): void
     {
-        $finalResult = $this->sessionFiber->getReturn();
+        $finalResult = $fiber->getReturn();
 
         if (null !== $finalResult) {
             try {

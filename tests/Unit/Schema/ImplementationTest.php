@@ -93,7 +93,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid or missing "name" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['version' => '1.0.0']);
     }
 
@@ -110,7 +109,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid or missing "name" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 123, 'version' => '1.0.0']);
     }
 
@@ -119,7 +117,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid or missing "version" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client']);
     }
 
@@ -136,7 +133,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid or missing "version" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client', 'version' => 1]);
     }
 
@@ -145,7 +141,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "icons" in Implementation data; expected an array.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'icons' => 'nope']);
     }
 
@@ -154,7 +149,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "description" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'description' => 42]);
     }
 
@@ -163,7 +157,6 @@ final class ImplementationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" in Implementation data.');
 
-        /* @phpstan-ignore argument.type */
         Implementation::fromArray(['name' => 'my-client', 'version' => '1.0.0', 'title' => ['nope']]);
     }
 
