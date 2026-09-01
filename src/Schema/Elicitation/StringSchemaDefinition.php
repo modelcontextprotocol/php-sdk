@@ -60,14 +60,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
-     * @param array{
-     *     title?: string,
-     *     description?: string,
-     *     default?: string,
-     *     format?: string,
-     *     minLength?: int,
-     *     maxLength?: int,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

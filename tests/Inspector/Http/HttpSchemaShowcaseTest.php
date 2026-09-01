@@ -92,7 +92,7 @@ final class HttpSchemaShowcaseTest extends HttpInspectorSnapshotTestCase
 
     protected function normalizeTestOutput(string $output, ?string $testName = null): string
     {
-        return match ($testName) {
+        $normalized = match ($testName) {
             'validate_profile' => preg_replace(
                 '/\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}/',
                 '2025-01-01 00:00:00',
@@ -112,5 +112,7 @@ final class HttpSchemaShowcaseTest extends HttpInspectorSnapshotTestCase
             ], $output),
             default => $output,
         };
+
+        return $normalized ?? $output;
     }
 }

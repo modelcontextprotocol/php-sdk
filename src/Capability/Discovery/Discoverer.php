@@ -49,10 +49,13 @@ use Symfony\Component\Finder\SplFileInfo;
  */
 final class Discoverer implements DiscovererInterface
 {
+    private readonly DocBlockParser $docBlockParser;
+    private readonly SchemaGeneratorInterface $schemaGenerator;
+
     public function __construct(
         private readonly LoggerInterface $logger = new NullLogger(),
-        private ?DocBlockParser $docBlockParser = null,
-        private ?SchemaGeneratorInterface $schemaGenerator = null,
+        ?DocBlockParser $docBlockParser = null,
+        ?SchemaGeneratorInterface $schemaGenerator = null,
     ) {
         if (!class_exists(Finder::class)) {
             throw new RuntimeException('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
@@ -223,76 +226,65 @@ final class Discoverer implements DiscovererInterface
         try {
             $instance = $attribute->newInstance();
 
-            switch ($attributeClassName) {
-                case McpTool::class:
-                    $name = ElementMetadataResolver::resolveName($method, $instance->name);
-                    $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
-                    $inputSchema = $this->schemaGenerator->generate($method);
-                    $outputSchema = $this->schemaGenerator->generateOutputSchema($method);
-                    $tool = new Tool(
-                        name: $name,
-                        title: $instance->title,
-                        inputSchema: $inputSchema,
-                        description: $description,
-                        annotations: $instance->annotations,
-                        icons: $instance->icons,
-                        meta: $instance->meta,
-                        outputSchema: $outputSchema,
-                    );
-                    $tools[$name] = new ToolReference($tool, [$className, $methodName]);
-                    ++$discoveredCount['tools'];
-                    break;
+            if ($instance instanceof McpTool) {
+                $name = ElementMetadataResolver::resolveName($method, $instance->name);
+                $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
+                $inputSchema = $this->schemaGenerator->generate($method);
+                $outputSchema = $this->schemaGenerator->generateOutputSchema($method);
+                $tool = new Tool(
+                    name: $name,
+                    title: $instance->title,
+                    inputSchema: $inputSchema,
+                    description: $description,
+                    annotations: $instance->annotations,
+                    icons: $instance->icons,
+                    meta: $instance->meta,
+                    outputSchema: $outputSchema,
+                );
+                $tools[$name] = new ToolReference($tool, [$className, $methodName]);
+                ++$discoveredCount['tools'];
+            } elseif ($instance instanceof McpResource) {
+                $name = ElementMetadataResolver::resolveName($method, $instance->name);
+                $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
+                $resource = new ResourceDefinition(
+                    $instance->uri,
+                    $name,
+                    $instance->title,
+                    $description,
+                    $instance->mimeType,
+                    $instance->annotations,
+                    $instance->size,
+                    $instance->icons,
+                    $instance->meta,
+                );
+                $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName]);
 
-                case McpResource::class:
-                    $name = ElementMetadataResolver::resolveName($method, $instance->name);
-                    $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
-                    $resource = new ResourceDefinition(
-                        $instance->uri,
-                        $name,
-                        $instance->title,
-                        $description,
-                        $instance->mimeType,
-                        $instance->annotations,
-                        $instance->size,
-                        $instance->icons,
-                        $instance->meta,
-                    );
-                    $resources[$instance->uri] = new ResourceReference($resource, [$className, $methodName]);
-
-                    ++$discoveredCount['resources'];
-                    break;
-
-                case McpPrompt::class:
-                    $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
-                    $name = ElementMetadataResolver::resolveName($method, $instance->name);
-                    $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
-                    $arguments = [];
-                    $paramTags = $this->docBlockParser->getParamTags($docBlock);
-                    foreach ($method->getParameters() as $param) {
-                        $reflectionType = $param->getType();
-                        if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
-                            continue;
-                        }
-                        $paramTag = $paramTags['$'.$param->getName()] ?? null;
-                        $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
+                ++$discoveredCount['resources'];
+            } elseif ($instance instanceof McpPrompt) {
+                $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
+                $name = ElementMetadataResolver::resolveName($method, $instance->name);
+                $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
+                $arguments = [];
+                $paramTags = $this->docBlockParser->getParamTags($docBlock);
+                foreach ($method->getParameters() as $param) {
+                    $reflectionType = $param->getType();
+                    if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
+                        continue;
                     }
-                    $prompt = new Prompt($name, $instance->title, $description, $arguments, $instance->icons, $instance->meta);
-                    $completionProviders = $this->getCompletionProviders($method);
-                    $prompts[$name] = new PromptReference($prompt, [$className, $methodName], $completionProviders);
-                    ++$discoveredCount['prompts'];
-                    break;
-
-                case McpResourceTemplate::class:
-                    $name = ElementMetadataResolver::resolveName($method, $instance->name);
-                    $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
-                    $mimeType = $instance->mimeType;
-                    $annotations = $instance->annotations;
-                    $meta = $instance->meta ?? null;
-                    $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $instance->title, $description, $mimeType, $annotations, $meta);
-                    $completionProviders = $this->getCompletionProviders($method);
-                    $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], $completionProviders);
-                    ++$discoveredCount['resourceTemplates'];
-                    break;
+                    $paramTag = $paramTags['$'.$param->getName()] ?? null;
+                    $arguments[] = new PromptArgument($param->getName(), $paramTag ? trim((string) $paramTag->getDescription()) : null, !$param->isOptional() && !$param->isDefaultValueAvailable());
+                }
+                $prompt = new Prompt($name, $instance->title, $description, $arguments, $instance->icons, $instance->meta);
+                $completionProviders = $this->getCompletionProviders($method);
+                $prompts[$name] = new PromptReference($prompt, [$className, $methodName], $completionProviders);
+                ++$discoveredCount['prompts'];
+            } elseif ($instance instanceof McpResourceTemplate) {
+                $name = ElementMetadataResolver::resolveName($method, $instance->name);
+                $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
+                $resourceTemplate = new ResourceTemplate($instance->uriTemplate, $name, $instance->title, $description, $instance->mimeType, $instance->annotations, $instance->meta);
+                $completionProviders = $this->getCompletionProviders($method);
+                $resourceTemplates[$instance->uriTemplate] = new ResourceTemplateReference($resourceTemplate, [$className, $methodName], $completionProviders);
+                ++$discoveredCount['resourceTemplates'];
             }
         } catch (ExceptionInterface $e) {
             $this->logger->error("Failed to process MCP attribute on {$className}::{$methodName}", [
@@ -308,7 +300,7 @@ final class Discoverer implements DiscovererInterface
     }
 
     /**
-     * @return array<string, string|ProviderInterface>
+     * @return array<string, class-string<ProviderInterface>|ProviderInterface>
      */
     private function getCompletionProviders(\ReflectionMethod $reflectionMethod): array
     {
@@ -326,7 +318,7 @@ final class Discoverer implements DiscovererInterface
                 if ($attributeInstance->provider) {
                     $completionProviders[$param->getName()] = $attributeInstance->provider;
                 } elseif ($attributeInstance->providerClass) {
-                    $completionProviders[$param->getName()] = $attributeInstance->provider;
+                    $completionProviders[$param->getName()] = $attributeInstance->providerClass;
                 } elseif ($attributeInstance->values) {
                     $completionProviders[$param->getName()] = new ListCompletionProvider($attributeInstance->values);
                 } elseif ($attributeInstance->enum) {
@@ -433,17 +425,13 @@ final class Discoverer implements DiscovererInterface
         }
 
         foreach ($potentialClasses as $potentialClass) {
-            if (class_exists($potentialClass, true)) {
+            if (class_exists($potentialClass, true) || interface_exists($potentialClass, true) || trait_exists($potentialClass, true)) {
                 return $potentialClass;
             }
         }
 
         if (!empty($potentialClasses)) {
-            if (!class_exists($potentialClasses[0], false)) {
-                $this->logger->debug('getClassFromFile returning potential non-class type. Are you sure this class has been autoloaded?', ['file' => $file->getPathname(), 'type' => $potentialClasses[0]]);
-            }
-
-            return $potentialClasses[0];
+            $this->logger->debug('getClassFromFile found no loadable type. Are you sure this class has been autoloaded?', ['file' => $file->getPathname(), 'type' => $potentialClasses[0]]);
         }
 
         return null;

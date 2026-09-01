@@ -81,7 +81,7 @@ class SamplingMessage extends Content
     }
 
     /**
-     * @param SamplingMessageData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

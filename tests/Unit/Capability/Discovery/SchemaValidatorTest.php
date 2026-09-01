@@ -181,7 +181,7 @@ class SchemaValidatorTest extends TestCase
     public function testValidatesDataPassedAsStdClassObject(): void
     {
         $schema = $this->getSimpleSchema();
-        $dataObj = json_decode(json_encode($this->getValidData())); // Convert to stdClass
+        $dataObj = json_decode(json_encode($this->getValidData(), \JSON_THROW_ON_ERROR)); // Convert to stdClass
 
         $errors = $this->validator->validateAgainstJsonSchema($dataObj, $schema);
         $this->assertEmpty($errors);

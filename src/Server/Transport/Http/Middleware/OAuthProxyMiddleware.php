@@ -210,7 +210,7 @@ final class OAuthProxyMiddleware implements MiddlewareInterface
 
     private function createErrorResponse(int $status, string $message): ResponseInterface
     {
-        $body = json_encode(['error' => 'server_error', 'error_description' => $message]);
+        $body = json_encode(['error' => 'server_error', 'error_description' => $message], \JSON_THROW_ON_ERROR);
 
         return $this->responseFactory
             ->createResponse($status)

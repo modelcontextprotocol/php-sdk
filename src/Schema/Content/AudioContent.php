@@ -40,7 +40,7 @@ class AudioContent extends Content
     }
 
     /**
-     * @param AudioContentData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

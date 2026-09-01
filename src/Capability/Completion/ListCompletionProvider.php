@@ -17,11 +17,16 @@ namespace Mcp\Capability\Completion;
 class ListCompletionProvider implements ProviderInterface
 {
     /**
-     * @param string[] $values
+     * @var string[]
      */
-    public function __construct(
-        private array $values,
-    ) {
+    private array $values;
+
+    /**
+     * @param array<int|float|string> $values
+     */
+    public function __construct(array $values)
+    {
+        $this->values = array_values(array_map(strval(...), $values));
     }
 
     public function getCompletions(string $currentValue): array

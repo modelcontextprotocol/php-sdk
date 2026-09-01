@@ -48,7 +48,11 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
-                return \call_user_func($instance, ...$arguments);
+                if (!\is_callable($instance)) {
+                    throw new InvalidArgumentException(\sprintf('Handler "%s" is not invokable.', $reference->handler));
+                }
+
+                return $instance(...$arguments);
             }
 
             if (\function_exists($reference->handler)) {
@@ -67,12 +71,17 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         }
 
         if (\is_array($reference->handler)) {
-            [$className, $methodName] = $reference->handler;
-            $reflection = new \ReflectionMethod($className, $methodName);
-            $instance = $this->getClassInstance($className);
+            [$classOrObject, $methodName] = $reference->handler;
+            $reflection = new \ReflectionMethod($classOrObject, $methodName);
+            $instance = \is_object($classOrObject) ? $classOrObject : $this->getClassInstance($classOrObject);
             $arguments = $this->prepareArguments($reflection, $arguments);
 
-            return \call_user_func([$instance, $methodName], ...$arguments);
+            $callable = [$instance, $methodName];
+            if (!\is_callable($callable)) {
+                throw new InvalidArgumentException(\sprintf('Handler "%s::%s" is not callable.', $instance::class, $methodName));
+            }
+
+            return $callable(...$arguments);
         }
 
         throw new InvalidArgumentException('Invalid handler type');

@@ -70,7 +70,6 @@ final class TitledMultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Each anyOf item must have a string "const" property');
 
-        /* @phpstan-ignore argument.type */
         new TitledMultiSelectEnumSchemaDefinition('Test', [['title' => 'A']]);
     }
 
@@ -79,7 +78,6 @@ final class TitledMultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Each anyOf item must have a string "title" property');
 
-        /* @phpstan-ignore argument.type */
         new TitledMultiSelectEnumSchemaDefinition('Test', [['const' => 'a']]);
     }
 
@@ -183,7 +181,6 @@ final class TitledMultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for titled multi-select enum schema definition.');
 
-        /* @phpstan-ignore argument.type */
         TitledMultiSelectEnumSchemaDefinition::fromArray([
             'title' => 42,
             'items' => ['anyOf' => [['const' => 'a', 'title' => 'A']]],
@@ -195,7 +192,6 @@ final class TitledMultiSelectEnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "items.anyOf"');
 
-        /* @phpstan-ignore argument.type */
         TitledMultiSelectEnumSchemaDefinition::fromArray([
             'title' => 'Test',
             'items' => [],

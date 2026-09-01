@@ -38,7 +38,7 @@ trait ManagesTransportCallbacks
     /** @var callable(Uuid): array<int, array<string, mixed>> */
     protected $pendingRequestsProvider;
 
-    /** @var callable(int, Uuid): Response<array<string, mixed>>|Error|null */
+    /** @var (callable(int, Uuid): (Response<array<string, mixed>>|Error|null))|null */
     protected $responseFinder;
 
     /** @var callable(FiberSuspend|null, ?Uuid): void */

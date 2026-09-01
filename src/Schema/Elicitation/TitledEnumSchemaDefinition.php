@@ -24,14 +24,19 @@ use Mcp\Exception\InvalidArgumentException;
 final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param ?string                                   $title       Optional human-readable title for the field
-     * @param list<array{const: string, title: string}> $oneOf       Array of const/title pairs
-     * @param string|null                               $description Optional description/help text
-     * @param string|null                               $default     Optional default value (must match a const)
+     * @var list<array{const: string, title: string}>
+     */
+    public readonly array $oneOf;
+
+    /**
+     * @param ?string      $title       Optional human-readable title for the field
+     * @param array<mixed> $oneOf       Array of const/title pairs
+     * @param string|null  $description Optional description/help text
+     * @param string|null  $default     Optional default value (must match a const)
      */
     public function __construct(
         ?string $title,
-        public readonly array $oneOf,
+        array $oneOf,
         ?string $description = null,
         public readonly ?string $default = null,
     ) {
@@ -42,15 +47,19 @@ final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
         }
 
         $consts = [];
+        $pairs = [];
         foreach ($oneOf as $item) {
-            if (!isset($item['const']) || !\is_string($item['const'])) {
+            if (!\is_array($item) || !isset($item['const']) || !\is_string($item['const'])) {
                 throw new InvalidArgumentException('Each oneOf item must have a string "const" property.');
             }
             if (!isset($item['title']) || !\is_string($item['title'])) {
                 throw new InvalidArgumentException('Each oneOf item must have a string "title" property.');
             }
             $consts[] = $item['const'];
+            $pairs[] = ['const' => $item['const'], 'title' => $item['title']];
         }
+
+        $this->oneOf = $pairs;
 
         if (null !== $default && !\in_array($default, $consts, true)) {
             throw new InvalidArgumentException(\sprintf('Default value "%s" is not in the oneOf const values.', $default));
@@ -58,12 +67,7 @@ final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
-     * @param array{
-     *     title?: string,
-     *     oneOf: list<array{const: string, title: string}>,
-     *     description?: string,
-     *     default?: string,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

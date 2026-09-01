@@ -43,7 +43,7 @@ class BlobResourceContents extends ResourceContents
     }
 
     /**
-     * @param BlobResourceContentsData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -71,6 +71,9 @@ class BlobResourceContents extends ResourceContents
     public static function fromStream(string $uri, $stream, string $mimeType, ?array $meta = null): self
     {
         $blob = stream_get_contents($stream);
+        if (false === $blob) {
+            throw new InvalidArgumentException('Could not read stream.');
+        }
 
         return new self($uri, $mimeType, base64_encode($blob), $meta);
     }
@@ -80,8 +83,11 @@ class BlobResourceContents extends ResourceContents
      * */
     public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?array $meta = null): self
     {
-        $mimeType = $explicitMimeType ?? mime_content_type($file->getPathname());
+        $mimeType = $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null);
         $blob = file_get_contents($file->getPathname());
+        if (false === $blob) {
+            throw new InvalidArgumentException(\sprintf('Could not read file: "%s".', $file->getPathname()));
+        }
 
         return new self($uri, $mimeType, base64_encode($blob), $meta);
     }

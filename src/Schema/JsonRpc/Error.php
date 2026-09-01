@@ -73,7 +73,7 @@ class Error implements MessageInterface
     }
 
     /**
-     * @param ErrorData $data
+     * @param array<string, mixed> $data
      */
     final public static function fromArray(array $data): self
     {

@@ -47,11 +47,7 @@ final class ElicitationSchema implements \JsonSerializable
     /**
      * Create an ElicitationSchema from array data.
      *
-     * @param array{
-     *     type?: string,
-     *     properties: array<string, array{type: string, title: string, ...}>,
-     *     required?: string[],
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

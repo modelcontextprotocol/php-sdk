@@ -59,7 +59,7 @@ class ToolTest extends TestCase
 
         $this->assertSame($expectedKeys, array_keys($serialized));
         if (null !== $title) {
-            $this->assertSame($title, $serialized['title']);
+            $this->assertSame($title, $serialized['title'] ?? null);
         } else {
             $this->assertArrayNotHasKey('title', $serialized);
         }
@@ -108,7 +108,7 @@ class ToolTest extends TestCase
             annotations: null,
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties'] ?? null);
         $this->assertSame('{"name":"no_params","inputSchema":{"type":"object","properties":{},"required":null}}', json_encode($tool));
     }
 
@@ -120,7 +120,7 @@ class ToolTest extends TestCase
 
         $tool = new Tool('t', null, $schema, null, null);
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties'] ?? null);
         $this->assertStringContainsString('"properties":{}', (string) json_encode($tool));
     }
 
@@ -137,8 +137,12 @@ class ToolTest extends TestCase
             ],
         ]);
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['filter']['properties']);
-        $this->assertStringContainsString('"properties":{}', (string) json_encode($tool->inputSchema['properties']['filter']));
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $filter = $properties['filter'] ?? null;
+        $this->assertIsArray($filter);
+        $this->assertInstanceOf(\stdClass::class, $filter['properties'] ?? null);
+        $this->assertStringContainsString('"properties":{}', (string) json_encode($filter));
     }
 
     public function testConstructorNormalizesEmptyOutputSchemaProperties(): void
@@ -152,7 +156,7 @@ class ToolTest extends TestCase
             outputSchema: ['type' => 'object', 'properties' => []],
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->outputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->outputSchema['properties'] ?? null);
         $this->assertStringContainsString('"outputSchema":{"type":"object","properties":{}}', (string) json_encode($tool));
     }
 
@@ -175,7 +179,13 @@ class ToolTest extends TestCase
             annotations: null,
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['rows']['items']['properties']);
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $rows = $properties['rows'] ?? null;
+        $this->assertIsArray($rows);
+        $items = $rows['items'] ?? null;
+        $this->assertIsArray($items);
+        $this->assertInstanceOf(\stdClass::class, $items['properties'] ?? null);
     }
 
     /**

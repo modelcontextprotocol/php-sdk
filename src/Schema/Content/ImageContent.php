@@ -44,7 +44,7 @@ class ImageContent extends Content
     }
 
     /**
-     * @param ImageContentData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -77,7 +77,12 @@ class ImageContent extends Content
             throw new InvalidArgumentException(\sprintf('Image file not found: "%s".', $path));
         }
 
-        $data = base64_encode(file_get_contents($path));
+        $contents = file_get_contents($path);
+        if (false === $contents) {
+            throw new InvalidArgumentException(\sprintf('Could not read image file: "%s".', $path));
+        }
+
+        $data = base64_encode($contents);
         $detectedMime = $mimeType ?? mime_content_type($path) ?: 'image/png';
 
         return new self($data, $detectedMime, $annotations);
@@ -101,7 +106,7 @@ class ImageContent extends Content
     public function jsonSerialize(): array
     {
         $result = [
-            'type' => $this->type,
+            'type' => 'image',
             'data' => $this->data,
             'mimeType' => $this->mimeType,
         ];

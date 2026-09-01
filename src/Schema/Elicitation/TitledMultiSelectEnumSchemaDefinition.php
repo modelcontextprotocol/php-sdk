@@ -23,16 +23,21 @@ use Mcp\Exception\InvalidArgumentException;
 final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
 {
     /**
-     * @param ?string                                   $title       Optional human-readable title for the field
-     * @param list<array{const: string, title: string}> $anyOf       Array of const/title pairs
-     * @param string|null                               $description Optional description/help text
-     * @param string[]|null                             $default     Optional default selected values (must be subset of anyOf consts)
-     * @param int|null                                  $minItems    Optional minimum number of selections
-     * @param int|null                                  $maxItems    Optional maximum number of selections
+     * @var list<array{const: string, title: string}>
+     */
+    public readonly array $anyOf;
+
+    /**
+     * @param ?string       $title       Optional human-readable title for the field
+     * @param array<mixed>  $anyOf       Array of const/title pairs
+     * @param string|null   $description Optional description/help text
+     * @param string[]|null $default     Optional default selected values (must be subset of anyOf consts)
+     * @param int|null      $minItems    Optional minimum number of selections
+     * @param int|null      $maxItems    Optional maximum number of selections
      */
     public function __construct(
         ?string $title,
-        public readonly array $anyOf,
+        array $anyOf,
         ?string $description = null,
         public readonly ?array $default = null,
         public readonly ?int $minItems = null,
@@ -45,15 +50,19 @@ final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefiniti
         }
 
         $consts = [];
+        $pairs = [];
         foreach ($anyOf as $item) {
-            if (!isset($item['const']) || !\is_string($item['const'])) {
+            if (!\is_array($item) || !isset($item['const']) || !\is_string($item['const'])) {
                 throw new InvalidArgumentException('Each anyOf item must have a string "const" property.');
             }
             if (!isset($item['title']) || !\is_string($item['title'])) {
                 throw new InvalidArgumentException('Each anyOf item must have a string "title" property.');
             }
             $consts[] = $item['const'];
+            $pairs[] = ['const' => $item['const'], 'title' => $item['title']];
         }
+
+        $this->anyOf = $pairs;
 
         if (null !== $minItems && $minItems < 0) {
             throw new InvalidArgumentException('minItems must be non-negative.');
@@ -77,14 +86,7 @@ final class TitledMultiSelectEnumSchemaDefinition extends AbstractSchemaDefiniti
     }
 
     /**
-     * @param array{
-     *     title?: string,
-     *     items: array{anyOf: list<array{const: string, title: string}>},
-     *     description?: string,
-     *     default?: string[],
-     *     minItems?: int,
-     *     maxItems?: int,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

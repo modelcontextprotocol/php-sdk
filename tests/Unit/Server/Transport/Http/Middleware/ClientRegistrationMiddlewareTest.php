@@ -45,7 +45,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
             ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->factory->createStream(json_encode(['redirect_uris' => ['https://example.com/callback']])));
+            ->withBody($this->factory->createStream(json_encode(['redirect_uris' => ['https://example.com/callback']], \JSON_THROW_ON_ERROR)));
 
         $response = $middleware->process($request, $this->createPassthroughHandler(404));
 
@@ -139,7 +139,7 @@ class ClientRegistrationMiddlewareTest extends TestCase
         $body = json_encode([
             'redirect_uris' => ['https://example.com/callback'],
             'jwks' => ['keys' => [['kty' => 'RSA', 'n' => 'abc', 'e' => 'AQAB']]],
-        ]);
+        ], \JSON_THROW_ON_ERROR);
 
         $request = $this->factory->createServerRequest('POST', 'http://localhost:8000/register')
             ->withHeader('Content-Type', 'application/json')

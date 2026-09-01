@@ -76,8 +76,10 @@ final class HandshakeTest extends IntegrationTestCase
     {
         $client = $this->connect('handshake');
 
-        $this->assertSame('integration-server', $client->getServerInfo()->name);
-        $this->assertSame('1.0.0', $client->getServerInfo()->version);
+        $serverInfo = $client->getServerInfo();
+        $this->assertNotNull($serverInfo);
+        $this->assertSame('integration-server', $serverInfo->name);
+        $this->assertSame('1.0.0', $serverInfo->version);
         $this->assertSame('Be brief.', $client->getInstructions());
         $this->assertTrue($client->isConnected());
     }

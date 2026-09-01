@@ -108,6 +108,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
         }
 
         $expected = file_get_contents($snapshotFile);
+        $this->assertNotFalse($expected, \sprintf('Could not read snapshot "%s".', $snapshotFile));
 
         $message = \sprintf('Output does not match snapshot "%s".', $snapshotFile);
         $this->assertJsonStringEqualsJsonString($expected, $normalizedOutput, $message);

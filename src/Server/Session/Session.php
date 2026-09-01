@@ -66,18 +66,17 @@ class Session implements SessionInterface
     public function set(string $key, mixed $value, bool $overwrite = true): void
     {
         $segments = explode('.', $key);
+        $lastKey = array_pop($segments);
         $this->readData();
         $data = &$this->data;
 
-        while (\count($segments) > 1) {
-            $segment = array_shift($segments);
+        foreach ($segments as $segment) {
             if (!isset($data[$segment]) || !\is_array($data[$segment])) {
                 $data[$segment] = [];
             }
             $data = &$data[$segment];
         }
 
-        $lastKey = array_shift($segments);
         if ($overwrite || !isset($data[$lastKey])) {
             $data[$lastKey] = $value;
         }
@@ -104,18 +103,18 @@ class Session implements SessionInterface
     public function forget(string $key): void
     {
         $segments = explode('.', $key);
+        $lastKey = array_pop($segments);
         $this->readData();
         $data = &$this->data;
 
-        while (\count($segments) > 1) {
-            $segment = array_shift($segments);
+        foreach ($segments as $segment) {
             if (!isset($data[$segment]) || !\is_array($data[$segment])) {
                 return;
             }
             $data = &$data[$segment];
         }
 
-        unset($data[array_shift($segments)]);
+        unset($data[$lastKey]);
     }
 
     public function clear(): void

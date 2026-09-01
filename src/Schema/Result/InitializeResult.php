@@ -44,13 +44,7 @@ class InitializeResult implements ResultInterface
     }
 
     /**
-     * @param array{
-     *     protocolVersion: string,
-     *     capabilities: array<string, mixed>,
-     *     serverInfo: array<string, mixed>,
-     *     instructions?: string,
-     *     _meta?: array<string, mixed>,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

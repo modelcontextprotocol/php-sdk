@@ -63,7 +63,7 @@ class Icon implements \JsonSerializable
     }
 
     /**
-     * @param IconData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
