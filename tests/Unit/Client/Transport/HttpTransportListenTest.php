@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
-use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;

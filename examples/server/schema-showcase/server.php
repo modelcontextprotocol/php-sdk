@@ -14,7 +14,7 @@ require_once dirname(__DIR__).'/bootstrap.php';
 chdir(__DIR__);
 
 use Mcp\Schema\Icon;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 
 $server = Server::builder()

@@ -15,7 +15,7 @@ chdir(__DIR__);
 use Http\Discovery\Psr17Factory;
 use Mcp\Example\Server\ReactPhp\ReactFiberScheduler;
 use Mcp\Example\Server\ReactPhp\SlowTools;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;

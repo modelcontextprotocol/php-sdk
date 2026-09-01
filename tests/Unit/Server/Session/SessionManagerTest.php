@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use PHPUnit\Framework\TestCase;

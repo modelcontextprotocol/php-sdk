@@ -1,9 +1,9 @@
 # Error handling
 
-Every exception `Client` throws implements `Mcp\Exception\ExceptionInterface`. Catch it to handle
+Every exception `Client` throws implements `Mcp\Schema\Exception\ExceptionInterface`. Catch it to handle
 client errors in one place. Creating an `HttpTransport` is different: if no PSR-18 client or PSR-17
 factory can be found, the constructor throws an exception from `php-http/discovery`. All classes below
-live in the `Mcp\Exception` namespace:
+live in the `Mcp\Client\Exception` namespace:
 
 | Exception | Thrown when |
 | --- | --- |
@@ -21,7 +21,7 @@ wait for the request timeout.
 ## ConnectionException
 
 ```php
-use Mcp\Exception\ConnectionException;
+use Mcp\Client\Exception\ConnectionException;
 
 try {
     $client->connect($transport);
@@ -31,14 +31,14 @@ try {
 ```
 
 A malformed result during `connect()` also throws a `ConnectionException`. In this case, `$e->getPrevious()`
-returns the `InvalidArgumentException`.
+returns the `Mcp\Schema\Exception\InvalidArgumentException`.
 
 ## AuthorizationException
 
 This exception also reports a failed [authorization](authorization.md) flow. The message of a refused request contains the `WWW-Authenticate` header of the response, if the server sends one:
 
 ```php
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 
 try {
     $result = $client->callTool('get_weather', ['city' => 'Paris']);
@@ -52,7 +52,7 @@ During `connect()`, the client doesn't retry the request. It throws a `Connectio
 ## RequestException
 
 ```php
-use Mcp\Exception\RequestException;
+use Mcp\Client\Exception\RequestException;
 
 try {
     $result = $client->callTool('unknown_tool', []);
@@ -68,8 +68,8 @@ Thrown when the request timeout or the `timeoutSeconds` of a `callTool()` call r
 `RequestException`, so catch it first to tell a timeout from an error response:
 
 ```php
-use Mcp\Exception\RequestException;
-use Mcp\Exception\TimeoutException;
+use Mcp\Client\Exception\RequestException;
+use Mcp\Client\Exception\TimeoutException;
 
 try {
     $result = $client->callTool('slow_tool', []);
@@ -102,7 +102,7 @@ This script connects to a `server.php` next to it, which provides a `process_dat
 
 require __DIR__.'/vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Transport\StdioTransport;

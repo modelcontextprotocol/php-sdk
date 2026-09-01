@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\TaskSupport;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Execution-related properties of a Tool.

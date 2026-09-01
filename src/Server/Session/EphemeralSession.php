@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\SessionRequiredException;
+use Mcp\Server\Exception\SessionRequiredException;
 
 /**
  * The session of one request on a server built without {@see \Mcp\Server\Builder::setSession()}.

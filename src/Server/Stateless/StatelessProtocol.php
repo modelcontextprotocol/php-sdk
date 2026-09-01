@@ -11,29 +11,31 @@
 
 namespace Mcp\Server\Stateless;
 
-use Mcp\Event\ErrorEvent;
-use Mcp\Event\RequestEvent;
-use Mcp\Event\ResponseEvent;
-use Mcp\Exception\ConfigurationException;
-use Mcp\Exception\InvalidInputMessageException;
-use Mcp\Exception\LogicException;
-use Mcp\Exception\MissingRequestMetaException;
-use Mcp\Exception\MissingRequiredClientCapabilityException;
-use Mcp\Exception\RequestStateException;
-use Mcp\Exception\UnknownMethodException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidInputMessageException;
+use Mcp\Schema\Exception\MissingRequestMetaException;
+use Mcp\Schema\Exception\UnknownMethodException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\RequestMeta;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Schema\Wire\McpHeader;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
+use Mcp\Server\Event\ErrorEvent;
+use Mcp\Server\Event\RequestEvent;
+use Mcp\Server\Event\ResponseEvent;
+use Mcp\Server\Exception\ConfigurationException;
+use Mcp\Server\Exception\LogicException;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Server\Exception\RequestStateException;
 use Mcp\Server\Fiber\FiberContextInterface;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
@@ -312,7 +314,7 @@ final class StatelessProtocol
      */
     private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id, bool $headerLayer = true): ?StatelessResult
     {
-        $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
+        $headerVersion = McpHeader::lookup($headers, 'MCP-Protocol-Version');
 
         // REQUIRED on every POST. The 2025-03-26 fallback for a header-less
         // request exists only for servers choosing to serve pre-2025-06-18
@@ -986,13 +988,5 @@ final class StatelessProtocol
         }
 
         return false;
-    }
-
-    /**
-     * @param array<string, string> $headers
-     */
-    private function header(array $headers, string $name): ?string
-    {
-        return InboundClassifier::header($headers, $name);
     }
 }

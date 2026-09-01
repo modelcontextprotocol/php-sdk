@@ -5,7 +5,7 @@ answering. `StdioTransport`, `StreamableHttpTransport` and `InMemoryTransport` i
 `TransportInterface` and are used the same way:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')

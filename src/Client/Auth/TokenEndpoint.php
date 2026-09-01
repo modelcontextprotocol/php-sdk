@@ -12,10 +12,10 @@
 namespace Mcp\Client\Auth;
 
 use Firebase\JWT\JWT;
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\OAuthErrorException;
-use Mcp\Exception\TokenEndpointUnavailableException;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\OAuthErrorException;
+use Mcp\Client\Exception\TokenEndpointUnavailableException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;

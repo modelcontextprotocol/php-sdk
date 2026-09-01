@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
-use Mcp\Capability\Registry;
-use Mcp\Capability\RegistryInterface;
 use Mcp\Schema\Tool;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;

@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;

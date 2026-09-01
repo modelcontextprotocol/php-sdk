@@ -9,8 +9,8 @@ parameters:
         - tests/
     excludePaths:
         - examples/cli/vendor/* (?)
-        - tests/Unit/Capability/Discovery/Fixtures/
-        - tests/Unit/Capability/Discovery/SchemaGeneratorFixture.php
+        - tests/Unit/Server/Capability/Discovery/Fixtures/
+        - tests/Unit/Server/Capability/Discovery/SchemaGeneratorFixture.php
     treatPhpDocTypesAsCertain: false
     ignoreErrors:
         -
@@ -20,5 +20,5 @@ parameters:
         # These errors should actually be fixed, but are ignored for now
         -
             identifier: missingType.iterableValue
-            path: src/Capability/Discovery/SchemaGenerator.php
+            path: src/Server/Capability/Discovery/SchemaGenerator.php
             count: 12

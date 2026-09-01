@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\ProtectedResourceMetadata;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

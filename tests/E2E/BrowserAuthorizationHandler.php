@@ -12,7 +12,7 @@
 namespace Mcp\Tests\E2E;
 
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Symfony\Component\HttpClient\HttpClient;
 use Symfony\Contracts\HttpClient\HttpClientInterface;
 

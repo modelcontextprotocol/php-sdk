@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\Attributes\DataProvider;

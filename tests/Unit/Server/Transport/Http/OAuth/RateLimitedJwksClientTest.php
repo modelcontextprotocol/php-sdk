@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\JwksRefreshRateLimitException;
+use Mcp\Server\Exception\JwksRefreshRateLimitException;
 use Mcp\Server\Transport\Http\OAuth\RateLimitedJwksClient;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;

@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Fiber;
 
-use Mcp\Exception\LogicException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Exception\LogicException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 

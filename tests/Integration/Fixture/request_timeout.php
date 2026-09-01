@@ -17,7 +17,7 @@
  * given up on once.
  */
 
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 require_once dirname(__DIR__, 3).'/vendor/autoload.php';

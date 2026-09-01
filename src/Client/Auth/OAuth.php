@@ -12,9 +12,8 @@
 namespace Mcp\Client\Auth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Transport\NoRedirects;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;

@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Result;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\PromptMessage;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**

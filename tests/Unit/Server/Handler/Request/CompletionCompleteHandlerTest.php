@@ -11,18 +11,18 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Completion\ProviderInterface;
-use Mcp\Capability\Registry\ResourceReference;
-use Mcp\Capability\Registry\ResourceTemplateReference;
-use Mcp\Capability\RegistryInterface;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CompletionCompleteRequest;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\CompletionCompleteResult;
+use Mcp\Server\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\Registry\ResourceReference;
+use Mcp\Server\Capability\Registry\ResourceTemplateReference;
+use Mcp\Server\Capability\RegistryInterface;
 use Mcp\Server\Handler\Request\CompletionCompleteHandler;
 use Mcp\Server\Session\SessionInterface;
-use Mcp\Tests\Unit\Capability\Attribute\CompletionProviderFixture;
+use Mcp\Tests\Unit\Server\Capability\Attribute\CompletionProviderFixture;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;

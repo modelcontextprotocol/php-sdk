@@ -11,10 +11,10 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
-use Mcp\Exception\SessionLockException;
-use Mcp\Exception\SessionLockTimeoutException;
+use Mcp\Server\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\RuntimeException;
+use Mcp\Server\Exception\SessionLockException;
+use Mcp\Server\Exception\SessionLockTimeoutException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;

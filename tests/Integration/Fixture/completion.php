@@ -13,8 +13,8 @@
  * Server for {@see \Mcp\Tests\Integration\CompletionTest}.
  */
 
-use Mcp\Capability\Registry\Container;
-use Mcp\Server;
+use Mcp\Server\Capability\Registry\Container;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Tests\Integration\Fixture\Completion\SeatCompletionProvider;
 

@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * Incremental parser for a text/event-stream body.

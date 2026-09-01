@@ -11,12 +11,12 @@
 
 namespace Mcp\Server\Stateless;
 
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\ReadResourceRequest;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Exception\RuntimeException;
 
 /**
  * Binds a `requestState` to what the specification recommends: the

@@ -11,12 +11,11 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\AuthorizationPendingException;
-use Mcp\Exception\OAuthErrorException;
-use Mcp\Exception\RuntimeException;
-use Mcp\Exception\TokenEndpointUnavailableException;
-use Mcp\Server\Transport\Http\OAuth\SecureUrl;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationPendingException;
+use Mcp\Client\Exception\OAuthErrorException;
+use Mcp\Client\Exception\RuntimeException;
+use Mcp\Client\Exception\TokenEndpointUnavailableException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;

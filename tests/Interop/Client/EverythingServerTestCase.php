@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Interop\Client;
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;

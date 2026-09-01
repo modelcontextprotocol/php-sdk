@@ -12,10 +12,10 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server;
+use Mcp\Schema\RequestMeta;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\RequestContext;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;

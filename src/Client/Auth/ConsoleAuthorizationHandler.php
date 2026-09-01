@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 
 /**
  * Prints the authorization URL and reads the redirected URL back, for a shell without a browser.

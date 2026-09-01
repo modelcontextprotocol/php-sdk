@@ -18,10 +18,9 @@ needs; your callback presents them to the user and returns an `ElicitResult` wit
 three actions — accept (with the collected content), decline, or cancel:
 
 ```php
-use Mcp\Client;
-use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
-use Mcp\Exception\ElicitationException;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Elicitation\AbstractSchemaDefinition;
 use Mcp\Schema\Elicitation\BooleanSchemaDefinition;
@@ -145,15 +144,15 @@ elicitation demo server.
 Handle server requests for LLM completions:
 
 ```php
-use Mcp\Client;
-use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\SamplingException;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
-use Mcp\Exception\SamplingException;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Schema\ClientCapabilities;
-use Mcp\Schema\Request\CreateSamplingMessageRequest;
-use Mcp\Schema\Result\CreateSamplingMessageResult;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\CreateSamplingMessageResult;
 
 class LlmSamplingCallback implements SamplingCallbackInterface
 {
@@ -202,7 +201,7 @@ Clients that support tool-enabled sampling should advertise that capability and 
 `ToolUseContent` blocks:
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\ToolUseContent;
@@ -263,7 +262,7 @@ blocks in a user message. The client should pass those blocks back to the LLM pr
 Receive structured log messages from the server:
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\LoggingMessageNotification;
@@ -302,7 +301,7 @@ is allowed to operate on. Advertise the `roots` capability and register a handle
 that answers server `roots/list` requests:
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Schema\ClientCapabilities;

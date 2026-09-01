@@ -10,7 +10,7 @@ serves handshake-era clients [without sessions](#serving-without-sessions). Over
 session, which stays in memory unless `setSession()` names a store. Configure session storage and lifecycle:
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;

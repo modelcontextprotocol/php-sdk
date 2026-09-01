@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
+use Mcp\Client\Exception\InvalidArgumentException;
 use Mcp\Client\Transport\SseParser;
-use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

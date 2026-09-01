@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * The client's identity at one authorization server.

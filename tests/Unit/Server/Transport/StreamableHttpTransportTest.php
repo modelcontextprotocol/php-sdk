@@ -11,13 +11,13 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\ClientException;
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\PingRequest;
-use Mcp\Server;
+use Mcp\Server\Exception\ClientException;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Server;
 use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;

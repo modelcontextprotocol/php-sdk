@@ -20,7 +20,7 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;

@@ -51,7 +51,7 @@ interface ExtensionInterface
     /**
      * Every message class this extension defines.
      *
-     * These are registered with the {@see \Mcp\JsonRpc\MessageFactory}, without
+     * These are registered with the {@see \Mcp\Schema\MessageFactory}, without
      * which an extension's method cannot be decoded off the wire at all, and
      * their method names are what let a server distinguish an extension it does
      * not serve from a method that does not exist. An extension with no methods

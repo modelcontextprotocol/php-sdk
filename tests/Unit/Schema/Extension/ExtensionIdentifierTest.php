@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Schema\Extension;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Extension\ExtensionIdentifier;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;

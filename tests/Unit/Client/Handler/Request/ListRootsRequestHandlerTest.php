@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Client\Handler\Request;
 
+use Mcp\Client\Exception\RootsException;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
-use Mcp\Exception\RootsException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ListRootsRequest;

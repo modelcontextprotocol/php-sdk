@@ -11,14 +11,6 @@
 
 namespace Mcp\Server\Handler\Request;
 
-use Mcp\Capability\Discovery\SchemaValidator;
-use Mcp\Capability\Registry\ReferenceHandlerInterface;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\MissingRequiredClientCapabilityException;
-use Mcp\Exception\RegistryException;
-use Mcp\Exception\SessionRequiredException;
-use Mcp\Exception\ToolCallException;
-use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\StructuredContent;
 use Mcp\Schema\JsonRpc\Error;
@@ -28,6 +20,14 @@ use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Tool;
+use Mcp\Server\Capability\Discovery\SchemaValidator;
+use Mcp\Server\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Server\Exception\RegistryException;
+use Mcp\Server\Exception\SessionRequiredException;
+use Mcp\Server\Exception\ToolCallException;
+use Mcp\Server\Exception\ToolNotFoundException;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;

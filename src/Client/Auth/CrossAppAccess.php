@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * Reaches an MCP server through the identity a user already has at their company.

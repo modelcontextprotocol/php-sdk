@@ -7,7 +7,7 @@ A server opts in with `Builder::enableExtension()`. The SDK announces the extens
 
 ```php
 use Mcp\Schema\Extension\Apps\McpApps;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
@@ -111,7 +111,7 @@ use Mcp\Schema\Extension\Apps\UiResourceContentMeta;
 use Mcp\Schema\Extension\Apps\UiResourceCsp;
 use Mcp\Schema\Extension\Apps\UiResourcePermissions;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     ->enableExtension(new McpApps())
@@ -157,12 +157,12 @@ descriptor marker: `McpApps::resourceMarker()` is a method call and cannot appea
 in an attribute, so spell it as `new \stdClass()` there.
 
 ```php
-use Mcp\Capability\Attribute\McpResource;
-use Mcp\Capability\Attribute\McpTool;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\Extension\Apps\ToolVisibility;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
+use Mcp\Server\Capability\Attribute\McpResource;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 final class WeatherApp
 {

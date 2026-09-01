@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Represents text resource contents in MCP.

@@ -11,11 +11,11 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry;
-use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Request\ListResourceTemplatesRequest;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Exception\InvalidCursorException;
 use Mcp\Server\Handler\Request\ListResourceTemplatesHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;

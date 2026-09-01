@@ -11,10 +11,10 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Exception\SessionStoreException;
 use Mcp\Server\Fiber\HandlerFibers;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;

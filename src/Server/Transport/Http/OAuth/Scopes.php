@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Server\Exception\InvalidArgumentException;
 
 /**
  * Validates and dedupes a list of OAuth scopes.

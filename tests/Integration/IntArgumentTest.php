@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Client;
-use Mcp\Exception\RequestException;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\RequestException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Enum\ProtocolVersion;

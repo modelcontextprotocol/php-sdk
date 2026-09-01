@@ -11,9 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server;
 
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\MessageFactory;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Transport\TransportInterface;

@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Integration\Fixture\Completion;
 
-use Mcp\Capability\Attribute\CompletionProvider;
-use Mcp\Capability\Attribute\McpPrompt;
+use Mcp\Server\Capability\Attribute\CompletionProvider;
+use Mcp\Server\Capability\Attribute\McpPrompt;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>

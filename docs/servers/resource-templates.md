@@ -10,8 +10,8 @@ cannot contain `/`. The SDK doesn't reject a template that uses them: it lists t
 template, but no real URI matches it.
 
 ```php
-use Mcp\Capability\Attribute\McpResourceTemplate;
-use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Server\Capability\Attribute\McpResourceTemplate;
+use Mcp\Server\Exception\ResourceNotFoundException;
 
 class UserProvider
 {

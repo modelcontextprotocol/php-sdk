@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Implementation;
 use PHPUnit\Framework\TestCase;
 

@@ -11,13 +11,13 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\InvalidInputMessageException;
-use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Exception\InvalidInputMessageException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
+use Mcp\Schema\MessageFactory;
 use Mcp\Schema\Notification\CancelledNotification;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Transport\Stdio\RunnerControl;

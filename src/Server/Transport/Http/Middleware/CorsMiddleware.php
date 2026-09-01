@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Wire\McpHeader;
+use Mcp\Server\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;

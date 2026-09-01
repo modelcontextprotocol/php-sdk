@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\TaskSupport;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolExecution;
 use PHPUnit\Framework\Attributes\DataProvider;

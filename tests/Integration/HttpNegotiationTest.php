@@ -11,10 +11,10 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Client;
 use Mcp\Client\Builder as ClientBuilder;
+use Mcp\Client\Client;
+use Mcp\Client\Exception\ConnectionException;
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\ConnectionException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Tests\Support\ServerProcess;

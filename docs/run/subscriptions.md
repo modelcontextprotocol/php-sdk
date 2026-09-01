@@ -38,8 +38,8 @@ without an event dispatcher, unless you pass your own registry with `setRegistry
 it to the bus yourself, and the builder announces `listChanged` for it:
 
 ```php
-use Mcp\Capability\Registry;
-use Mcp\Server;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Server;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 

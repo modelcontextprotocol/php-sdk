@@ -11,8 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\Transport\Http\OAuth\SecureUrl;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * An authorization server's metadata document (RFC 8414 or OpenID Connect discovery).

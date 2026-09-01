@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Fixtures;
 
-use Mcp\Exception\LogicException;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Fiber\FiberContextInterface;
 
 /**

@@ -56,7 +56,7 @@ composer require firebase/php-jwt symfony/cache symfony/http-client nyholm/psr7 
 ```php
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -325,7 +325,7 @@ The validated token reaches handlers through the `RequestContext`. It lives for 
 arrived with only: it is never written to a session store.
 
 ```php
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 use Mcp\Server\RequestContext;
 
 #[McpTool(name: 'whoami')]

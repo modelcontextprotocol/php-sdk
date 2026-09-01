@@ -11,13 +11,13 @@
 
 namespace Mcp\Tests\Unit\Server\Fiber;
 
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
-use Mcp\Server;
+use Mcp\Schema\RequestMeta;
 use Mcp\Server\Builder;
+use Mcp\Server\Exception\RuntimeException;
 use Mcp\Server\RequestContext;
-use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Server;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Server\Transport\StdioTransport;

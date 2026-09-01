@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Describes a message issued to or received from an LLM API during sampling.

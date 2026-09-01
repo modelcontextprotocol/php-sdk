@@ -11,8 +11,8 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\IconTheme;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\Icon;
 use PHPUnit\Framework\TestCase;
 

@@ -11,11 +11,10 @@
 
 namespace Mcp\Client;
 
-use Mcp\Client;
+use Mcp\Client\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\LogicException;
 use Mcp\Client\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\ExtensionInterface;

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\LogicException;
+use Mcp\Server\Exception\LogicException;
 use Mcp\Server\Transport\CallbackStream;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;

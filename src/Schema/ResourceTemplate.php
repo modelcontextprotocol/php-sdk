@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * A template description for resources available on the server.

@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 
 /**
  * An OAuth 2.1 token response: the access token plus everything needed to keep using it.

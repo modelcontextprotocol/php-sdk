@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Extension;
 
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * An extension identifier (SEP-2133): a `_meta` key with a mandatory vendor

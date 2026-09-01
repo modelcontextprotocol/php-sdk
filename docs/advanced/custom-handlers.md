@@ -25,7 +25,7 @@ built-in defaults:
 
 ```php
 use Mcp\Schema\ServerCapabilities;
-use Mcp\Server;
+use Mcp\Server\Server;
 
 $server = Server::builder()
     // the SDK detects capabilities from registered elements, so declare what your handlers serve
@@ -65,7 +65,7 @@ return anything - they perform side effects only.
 Attach notification handlers with `addNotificationHandler()` (single) or `addNotificationHandlers()` (multiple):
 
 ```php
-use Mcp\Server;
+use Mcp\Server\Server;
 
 // Handlers are your own classes implementing NotificationHandlerInterface;
 // the SDK ships only its internal ones.

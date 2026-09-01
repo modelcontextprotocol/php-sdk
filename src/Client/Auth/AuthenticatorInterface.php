@@ -11,7 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationException;
+use Mcp\Client\Exception\AuthorizationException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 

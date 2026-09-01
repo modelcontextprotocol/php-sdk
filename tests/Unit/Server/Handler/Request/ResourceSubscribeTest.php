@@ -11,15 +11,15 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry\ResourceReference;
-use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\ResourceNotFoundException;
+use Mcp\Schema\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ResourceSubscribeRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\Result\EmptyResult;
+use Mcp\Server\Capability\Registry\ResourceReference;
+use Mcp\Server\Capability\RegistryInterface;
+use Mcp\Server\Exception\ResourceNotFoundException;
 use Mcp\Server\Handler\Request\ResourceSubscribeHandler;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\SessionInterface;

@@ -23,7 +23,7 @@
 
 require_once __DIR__.'/../../vendor/autoload.php';
 
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Transport\StdioTransport;

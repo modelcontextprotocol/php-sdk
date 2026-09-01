@@ -3,7 +3,7 @@
 A remote MCP server can require an OAuth access token. It answers a request without a token with `401 Unauthorized`. Pass an authenticator to the HTTP transport and the client gets a token and sends the request again:
 
 ```php
-use Mcp\Client;
+use Mcp\Client\Client;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Transport\HttpTransport;
 
@@ -120,7 +120,7 @@ When the client needs a token, the handler throws an `AuthorizationPendingExcept
 
 ```php
 use Mcp\Client\Transport\HttpTransport;
-use Mcp\Exception\AuthorizationPendingException;
+use Mcp\Client\Exception\AuthorizationPendingException;
 
 try {
     $client->connect(new HttpTransport('https://mcp.example.com/mcp', auth: createAuthenticator()));
@@ -307,8 +307,8 @@ A `resource` can name a parent path of the MCP server. All paths below it then b
 `connect()` reports a failed authorization as a `ConnectionException`. The cause is an `AuthorizationException`:
 
 ```php
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\ConnectionException;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\ConnectionException;
 
 try {
     $client->connect($transport);

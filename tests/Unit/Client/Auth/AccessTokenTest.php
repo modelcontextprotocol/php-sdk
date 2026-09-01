@@ -12,7 +12,7 @@
 namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\AccessToken;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;

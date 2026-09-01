@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Integration;
 
-use Mcp\Exception\ConnectionException;
+use Mcp\Client\Exception\ConnectionException;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**

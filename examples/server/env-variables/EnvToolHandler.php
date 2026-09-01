@@ -11,7 +11,7 @@
 
 namespace Mcp\Example\Server\EnvVariables;
 
-use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\Capability\Attribute\McpTool;
 
 final class EnvToolHandler
 {

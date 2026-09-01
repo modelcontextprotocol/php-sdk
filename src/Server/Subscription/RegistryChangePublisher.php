@@ -11,13 +11,13 @@
 
 namespace Mcp\Server\Subscription;
 
-use Mcp\Event\PromptListChangedEvent;
-use Mcp\Event\ResourceListChangedEvent;
-use Mcp\Event\ResourceTemplateListChangedEvent;
-use Mcp\Event\ToolListChangedEvent;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceListChangedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Server\Event\PromptListChangedEvent;
+use Mcp\Server\Event\ResourceListChangedEvent;
+use Mcp\Server\Event\ResourceTemplateListChangedEvent;
+use Mcp\Server\Event\ToolListChangedEvent;
 
 /**
  * Turns the registry's own change events into the notifications a

@@ -11,11 +11,11 @@
 
 namespace Mcp\Tests\Unit\Server\Handler\Request;
 
-use Mcp\Capability\Registry;
-use Mcp\Exception\InvalidCursorException;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Result\ListPromptsResult;
+use Mcp\Server\Capability\Registry;
+use Mcp\Server\Exception\InvalidCursorException;
 use Mcp\Server\Handler\Request\ListPromptsHandler;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;

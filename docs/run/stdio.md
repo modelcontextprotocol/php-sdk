@@ -34,7 +34,7 @@ connection uses, see [Serving both eras](protocol-eras.md#over-stdio).
 
 require __DIR__.'/vendor/autoload.php';
 
-use Mcp\Server;
+use Mcp\Server\Server;
 use Mcp\Server\Transport\StdioTransport;
 
 $server = Server::builder()

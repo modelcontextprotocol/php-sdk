@@ -11,8 +11,8 @@
 
 namespace Mcp\Client\Auth;
 
-use Mcp\Exception\AuthorizationException;
-use Mcp\Exception\InvalidArgumentException;
+use Mcp\Client\Exception\AuthorizationException;
+use Mcp\Client\Exception\InvalidArgumentException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;

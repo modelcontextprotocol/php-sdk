@@ -12,9 +12,9 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server;
+use Mcp\Schema\RequestMeta;
+use Mcp\Server\Server;
 use Mcp\Server\Session\InMemorySessionStore;
-use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\TestDox;

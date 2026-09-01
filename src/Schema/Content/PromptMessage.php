@@ -11,8 +11,8 @@
 
 namespace Mcp\Schema\Content;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Exception\InvalidArgumentException;
 
 /**
  * Describes a message returned as part of a prompt.

@@ -11,8 +11,8 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Exception\InvalidArgumentException;
 
 /**
  * Describes the outcome of an authorization decision.
