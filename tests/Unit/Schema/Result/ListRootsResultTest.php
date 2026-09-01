@@ -59,7 +59,6 @@ final class ListRootsResultTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "roots"');
 
-        /* @phpstan-ignore argument.type */
         ListRootsResult::fromArray([]);
     }
 
@@ -68,7 +67,6 @@ final class ListRootsResultTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid root in ListRootsResult data, expected an array.');
 
-        /* @phpstan-ignore argument.type */
         ListRootsResult::fromArray([
             'roots' => ['file:///tmp'],
         ]);
@@ -96,7 +94,7 @@ final class ListRootsResultTest extends TestCase
 
         $result = ListRootsResult::fromArray($data);
 
-        $this->assertSame($data, json_decode(json_encode($result), true));
+        $this->assertSame($data, json_decode(json_encode($result, \JSON_THROW_ON_ERROR), true));
     }
 
     public function testJsonSerializeWithoutMeta(): void
@@ -105,6 +103,6 @@ final class ListRootsResultTest extends TestCase
 
         $this->assertSame([
             'roots' => [['uri' => 'file:///tmp']],
-        ], json_decode(json_encode($result), true));
+        ], json_decode(json_encode($result, \JSON_THROW_ON_ERROR), true));
     }
 }

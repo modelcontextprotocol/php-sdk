@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Loader\ReflectedElementLoader;
+use Mcp\Capability\Registry\ResourceReference;
 use PHPUnit\Framework\TestCase;
 
 class ReflectedElementLoaderResourceTitleTest extends TestCase
@@ -40,6 +41,7 @@ class ReflectedElementLoaderResourceTitleTest extends TestCase
         $loader->load($registry);
 
         $resourceRef = $registry->getResource('config://app/settings');
+        $this->assertInstanceOf(ResourceReference::class, $resourceRef);
         $this->assertSame('Application Settings', $resourceRef->resource->title);
     }
 

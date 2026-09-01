@@ -36,7 +36,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
      *     title?: string,
      *     description?: string,
      *     default?: bool,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

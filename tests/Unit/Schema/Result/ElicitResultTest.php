@@ -80,7 +80,6 @@ final class ElicitResultTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "action"');
 
-        /* @phpstan-ignore argument.type */
         ElicitResult::fromArray([]);
     }
 

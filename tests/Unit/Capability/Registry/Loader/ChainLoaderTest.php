@@ -40,7 +40,9 @@ class ChainLoaderTest extends TestCase
 
         (new ChainLoader([$first, $second]))->load($registry);
 
-        $this->assertSame('second', ($registry->getTool('shared')->handler)());
+        $handler = $registry->getTool('shared')->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertSame('second', $handler());
     }
 
     public function testEmptyChainIsNoop(): void
