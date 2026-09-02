@@ -853,6 +853,104 @@ class RegistryTest extends TestCase
         $this->assertFalse($registry->hasTools());
     }
 
+    public function testDeferLoadingFromDoesNotRunUntilFirstRead(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->never())->method('load');
+
+        $registry = new Registry(null, $this->logger);
+        $registry->deferLoadingFrom($loader);
+    }
+
+    public function testDeferLoadingFromRunsOnFirstReadAndPopulatesTheRegistry(): void
+    {
+        $registry = new Registry(null, $this->logger);
+        $registry->deferLoadingFrom($this->toolLoader($this->createValidTool('deferred')));
+
+        $this->assertTrue($registry->hasTools());
+        $this->assertArrayHasKey('deferred', $registry->getTools()->references);
+    }
+
+    public function testDeferLoadingFromRunsTheLoaderExactlyOnceAcrossManyReads(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->once())->method('load');
+
+        $registry = new Registry(null, $this->logger);
+        $registry->deferLoadingFrom($loader);
+
+        $registry->hasTools();
+        $registry->getTools();
+        $registry->hasResources();
+    }
+
+    public function testDeferLoadingFromChainsBehindTheConstructorLoader(): void
+    {
+        // Both register 'shared'; last-write-wins proves the run order, since
+        // ChainLoader lets the later loader overwrite the earlier one's registration.
+        $constructorLoader = $this->toolLoader($this->createValidTool('shared', null, 'from constructor'));
+        $deferredLoader = $this->toolLoader($this->createValidTool('shared', null, 'from deferred'));
+
+        $registry = new Registry(null, $this->logger, loader: $constructorLoader);
+        $registry->deferLoadingFrom($deferredLoader);
+
+        $tools = $registry->getTools()->references;
+
+        $this->assertArrayHasKey('shared', $tools);
+        $this->assertSame('from deferred', $tools['shared']->description);
+    }
+
+    public function testDeferLoadingFromRunsTheAdoptedLoaderAfterTheConstructorLoaderAlreadyRan(): void
+    {
+        // A read before deferLoadingFrom() runs the constructor loader and sets $loaded, the bug
+        // this covers: the adopted loader was then stored but never run because load() returned on
+        // $loaded before consulting it.
+        $constructorLoader = new class implements LoaderInterface {
+            public int $calls = 0;
+
+            public function load(RegistryInterface $registry): void
+            {
+                ++$this->calls;
+            }
+        };
+        $adoptedLoader = new class implements LoaderInterface {
+            public int $calls = 0;
+
+            public function load(RegistryInterface $registry): void
+            {
+                ++$this->calls;
+            }
+        };
+
+        $registry = new Registry(null, $this->logger, loader: $constructorLoader);
+        $registry->hasTools();
+
+        $registry->deferLoadingFrom($adoptedLoader);
+        $registry->hasTools();
+        $registry->hasResources();
+
+        $this->assertSame(1, $constructorLoader->calls);
+        $this->assertSame(1, $adoptedLoader->calls);
+    }
+
+    public function testIsEmptyIsTrueForAFreshRegistryAndDoesNotTriggerTheLoader(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->never())->method('load');
+
+        $registry = new Registry(null, $this->logger, loader: $loader);
+
+        $this->assertTrue($registry->isEmpty());
+    }
+
+    public function testIsEmptyIsFalseAfterRegisterTool(): void
+    {
+        $registry = new Registry(null, $this->logger);
+        $registry->registerTool($this->createValidTool('registered'), 'handler');
+
+        $this->assertFalse($registry->isEmpty());
+    }
+
     private function toolLoader(Tool $tool): LoaderInterface
     {
         return new class($tool) implements LoaderInterface {
@@ -907,7 +1005,7 @@ class RegistryTest extends TestCase
         $this->assertNull($toolRef->extractStructuredContent($result, ProtocolVersion::V2025_11_25));
     }
 
-    private function createValidTool(string $name, ?array $outputSchema = null): Tool
+    private function createValidTool(string $name, ?array $outputSchema = null, ?string $description = null): Tool
     {
         return new Tool(
             name: $name,
@@ -919,7 +1017,7 @@ class RegistryTest extends TestCase
                 ],
                 'required' => null,
             ],
-            description: "Test tool: {$name}",
+            description: $description ?? "Test tool: {$name}",
             annotations: null,
             icons: null,
             meta: null,

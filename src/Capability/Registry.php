@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability;
 
+use Mcp\Capability\Registry\Loader\ChainLoader;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\PromptReference;
 use Mcp\Capability\Registry\ResourceReference;
@@ -69,7 +70,7 @@ final class Registry implements RegistryInterface
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly NameValidator $nameValidator = new NameValidator(),
-        private readonly ?LoaderInterface $loader = null,
+        private ?LoaderInterface $loader = null,
     ) {
     }
 
@@ -112,6 +113,28 @@ final class Registry implements RegistryInterface
         } finally {
             $this->loading = false;
         }
+    }
+
+    /**
+     * Adopts $loader for the deferred load, so a registry the caller constructed can still load at
+     * first read instead of at build time. Chains behind a loader the constructor already took,
+     * but only when that loader is still owed its run: once it has already run, chaining would run
+     * it a second time — discovery would rescan — so $loader replaces it instead. Resetting $loaded
+     * is what makes the adopted loader actually run on the next read.
+     */
+    public function deferLoadingFrom(LoaderInterface $loader): void
+    {
+        $this->loader = null === $this->loader || $this->loaded ? $loader : new ChainLoader([$this->loader, $loader]);
+        $this->loaded = false;
+    }
+
+    /**
+     * True when nothing is registered yet. Reads the backing arrays directly, so unlike has*() it
+     * never triggers the loader.
+     */
+    public function isEmpty(): bool
+    {
+        return [] === $this->tools && [] === $this->resources && [] === $this->resourceTemplates && [] === $this->prompts;
     }
 
     public function registerTool(Tool $tool, callable|array|string $handler): ToolReference

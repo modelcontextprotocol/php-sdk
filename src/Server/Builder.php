@@ -522,8 +522,9 @@ final class Builder
      *
      * Lazy (the default) defers loading to the first registry read so a persistent runtime does not
      * freeze the registry to a source not yet ready at build time. Disable to load eagerly at build.
-     * A registry supplied via setRegistry() is always loaded eagerly; its own constructor loader,
-     * if it has one, still runs on the first read.
+     * A registry supplied via setRegistry() is deferred the same way, whatever it already holds is
+     * still advertised by capability detection. Either way its own constructor loader, if it has
+     * one, still runs on the first read.
      */
     public function setLazyLoading(bool $lazyLoading = true): self
     {
@@ -1043,17 +1044,25 @@ final class Builder
         }
 
         $chainLoader = new ChainLoader($loaders);
+        $hasPreloadedElements = false;
 
         if ($this->hasCustomRegistry) {
-            // Builder can't inject the loader into an already-constructed instance, so load it eagerly.
-            // Via loadFrom(), which suppresses the change events the load would otherwise dispatch.
             $registry = $this->registry;
-            if ($registry instanceof Registry) {
-                $registry->loadFrom($chainLoader);
+
+            if ($this->lazyLoading && $registry instanceof Registry) {
+                $hasPreloadedElements = !$registry->isEmpty();
+                $registry->deferLoadingFrom($chainLoader);
+                $eagerlyLoaded = false;
             } else {
-                $chainLoader->load($registry);
+                // A foreign RegistryInterface cannot be deferred into, so it is loaded eagerly here.
+                // loadFrom() suppresses the change events the load would otherwise dispatch.
+                if ($registry instanceof Registry) {
+                    $registry->loadFrom($chainLoader);
+                } else {
+                    $chainLoader->load($registry);
+                }
+                $eagerlyLoaded = true;
             }
-            $eagerlyLoaded = true;
         } else {
             $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
             if (!$this->lazyLoading) {
@@ -1064,7 +1073,7 @@ final class Builder
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
-        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded, $eventDispatcher);
+        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded, $eventDispatcher, $hasPreloadedElements);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
@@ -1118,9 +1127,11 @@ final class Builder
     /**
      * When loaded, capabilities are read from the registry. When deferred, reading it would force
      * the load, so they are advertised from the configured sources instead — opaque sources (custom
-     * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
+     * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics. A
+     * custom registry deferred while already holding elements ($hasPreloadedElements) counts as an
+     * opaque source too, for the same reason: reading it would force the load it is deferred to avoid.
      */
-    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded, ?EventDispatcherInterface $eventDispatcher): ServerCapabilities
+    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded, ?EventDispatcherInterface $eventDispatcher, bool $hasPreloadedElements): ServerCapabilities
     {
         // Without a dispatcher the registry announces nothing, so there is no
         // list-changed notification to advertise.
@@ -1143,7 +1154,7 @@ final class Builder
             );
         }
 
-        $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
+        $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath || $hasPreloadedElements;
         $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources;
 
         return new ServerCapabilities(

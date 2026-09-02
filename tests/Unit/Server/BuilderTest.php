@@ -443,6 +443,92 @@ final class BuilderTest extends TestCase
             ->addTool(static fn (): string => 'ok', 'alpha')
             ->build();
     }
+
+    #[TestDox('An empty custom registry with lazy loading defers its configured loader past build(), running it on the first registry read')]
+    public function testEmptyCustomRegistryDefersLoaderPastBuild(): void
+    {
+        $loader = new class implements LoaderInterface {
+            public int $calls = 0;
+
+            public function load(RegistryInterface $registry): void
+            {
+                ++$this->calls;
+            }
+        };
+
+        $registry = new Registry();
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addLoader($loader)
+            ->build();
+
+        $this->assertSame(0, $loader->calls);
+
+        $registry->hasTools();
+
+        $this->assertSame(1, $loader->calls);
+    }
+
+    #[TestDox('An empty custom registry with lazy loading advertises tools from the configured loader without forcing a load')]
+    public function testEmptyCustomRegistryAdvertisesToolsFromConfiguredLoaderWithoutLoading(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->never())->method('load');
+
+        $registry = new Registry();
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry($registry)
+            ->addLoader($loader)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('setLazyLoading(false) with an empty custom registry loads it eagerly during build()')]
+    public function testSetLazyLoadingFalseWithEmptyCustomRegistryLoadsEagerly(): void
+    {
+        $loader = $this->createMock(LoaderInterface::class);
+        $loader->expects($this->once())->method('load');
+
+        $registry = new Registry();
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->setLazyLoading(false)
+            ->addLoader($loader)
+            ->build();
+    }
+
+    #[TestDox('A pre-populated custom registry with lazy loading also defers its configured loader past build(), instead of the old isEmpty() gate loading it eagerly')]
+    public function testPreloadedCustomRegistryDefersLoaderPastBuild(): void
+    {
+        $loader = new class implements LoaderInterface {
+            public int $calls = 0;
+
+            public function load(RegistryInterface $registry): void
+            {
+                ++$this->calls;
+            }
+        };
+
+        $registry = new Registry();
+        $registry->registerTool(
+            new Tool(name: 'preloaded_tool', title: null, inputSchema: ['type' => 'object', 'properties' => [], 'required' => null], description: 'A preloaded tool', annotations: null),
+            static fn (): string => 'result',
+        );
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addLoader($loader)
+            ->build();
+
+        $this->assertSame(0, $loader->calls);
+    }
 }
 
 /**
