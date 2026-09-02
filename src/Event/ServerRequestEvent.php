@@ -15,7 +15,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Server\Session\SessionInterface;
 
 /**
- * Event dispatched when the server sends a request to the client (e.g. elicitation/create, sampling/create).
+ * Event dispatched when the server sends a request to the client (e.g. elicitation/create, sampling/createMessage).
  *
  * @author Olivier Mouren <mouren.olivier@gmail.com>
  */

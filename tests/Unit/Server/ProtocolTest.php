@@ -1723,6 +1723,17 @@ final class ProtocolTest extends TestCase
 
         $this->assertInstanceOf(ClientResponseEvent::class, $capturedEvent);
         $this->assertTrue($capturedEvent->isError());
+        $this->assertSame(1000, $capturedEvent->getId());
+    }
+
+    #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
+    public function testClientResponseEventGetIdCanBeNull(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $event = new ClientResponseEvent(Error::forParseError('bad json'), $session);
+
+        $this->assertNull($event->getId());
+        $this->assertTrue($event->isError());
     }
 
     #[TestDox('ResponseEvent is dispatched when a suspended Fiber completes')]
@@ -1752,6 +1763,7 @@ final class ProtocolTest extends TestCase
         $session->method('pull')
             ->with('_mcp.fiber_parent_request')
             ->willReturn($parentRequest->jsonSerialize());
+        $session->expects($this->once())->method('save');
 
         $this->sessionManager->method('createWithId')->willReturn($session);
 
@@ -1804,6 +1816,7 @@ final class ProtocolTest extends TestCase
         $session->method('pull')
             ->with('_mcp.fiber_parent_request')
             ->willReturn($parentRequest->jsonSerialize());
+        $session->expects($this->once())->method('save');
 
         $this->sessionManager->method('createWithId')->willReturn($session);
 
@@ -1822,6 +1835,40 @@ final class ProtocolTest extends TestCase
         $this->assertCount(1, $capturedEvents);
         $this->assertInstanceOf(ErrorEvent::class, $capturedEvents[0]);
         $this->assertSame('ping', $capturedEvents[0]->getRequest()::getMethod());
+    }
+
+    #[TestDox('Fiber termination still persists session when parent request is missing')]
+    public function testFiberTerminationSavesSessionWhenParentRequestIsMissing(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $sessionId = Uuid::v4();
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn($sessionId);
+        $session->method('pull')
+            ->with('_mcp.fiber_parent_request')
+            ->willReturn(null);
+        $session->expects($this->once())->method('save');
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $finalResult = Response::fromArray([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'result' => ['status' => 'ok'],
+        ]);
+        $result = $protocol->handleFiberTermination($finalResult, $sessionId);
+
+        $this->assertSame($finalResult, $result);
     }
 
     #[TestDox('Fiber parent request is stored when handler suspends')]

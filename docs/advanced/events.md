@@ -83,7 +83,7 @@ These events are dispatched only on handshake-era connections (protocol revision
 
 ### ServerRequestEvent
 
-**Dispatched**: When the server sends a request to the client (e.g. `elicitation/create`, `sampling/create`).
+**Dispatched**: When the server sends a request to the client (e.g. `elicitation/create`, `sampling/createMessage`).
 
 **Properties**:
 - `getRequest(): Request` - The outgoing request (with server-assigned ID)
@@ -98,7 +98,7 @@ These events are dispatched only on handshake-era connections (protocol revision
 **Properties**:
 - `getResponse(): Response|Error` - The client's reply
 - `getSession(): SessionInterface` - The current session
-- `getId(): string|int` - The JSON-RPC message ID
+- `getId(): string|int|null` - The JSON-RPC message ID
 - `isError(): bool` - Whether the client returned a JSON-RPC error
 
 ## List Change Events

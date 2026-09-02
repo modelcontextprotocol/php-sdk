@@ -44,7 +44,7 @@ final class ClientResponseEvent
         return $this->session;
     }
 
-    public function getId(): string|int
+    public function getId(): string|int|null
     {
         return $this->response->getId();
     }
