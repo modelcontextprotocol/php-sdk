@@ -308,6 +308,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         $finalResult = $this->sessionFiber->getReturn();
 
         if (null !== $finalResult) {
+            $finalResult = $this->handleFiberTerminationResult($finalResult);
+
             try {
                 $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
                 echo "event: message\n";

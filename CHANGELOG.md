@@ -2,6 +2,13 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.0
+-----
+
+* Add `ServerRequestEvent` and `ClientResponseEvent` for handshake-era server-initiated requests (`elicitation/create`, `sampling/createMessage`) and the client's replies.
+* Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes. On `2026-07-28`, `StatelessProtocol` fires the same `RequestEvent` / `ResponseEvent` / `ErrorEvent`: an elicitation ask is a `ResponseEvent` (`InputRequiredResult`), the follow-up request with `inputResponses` is a `RequestEvent` with `InputContext`.
+* [BC Break] Add `TransportInterface::setFiberTerminationHandler()`. Custom transports must implement it, SDK transports already do via `ManagesTransportCallbacks`.
+
 0.8.0
 -----
 
