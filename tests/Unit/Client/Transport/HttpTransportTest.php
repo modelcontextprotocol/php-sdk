@@ -94,6 +94,53 @@ final class HttpTransportTest extends TestCase
         $this->assertSame('test-server', $client->getServerInfo()?->name);
     }
 
+    #[TestDox('the server-minted session ID is exposed while connected and cleared on close')]
+    public function testSessionIdIsExposedAndClearedOnClose(): void
+    {
+        $httpClient = new class implements ClientInterface {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $decoded = json_decode((string) $request->getBody(), true);
+
+                if ('initialize' !== ($decoded['method'] ?? null)) {
+                    return new Response(202);
+                }
+
+                $payload = json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $decoded['id'],
+                    'result' => [
+                        'protocolVersion' => '2025-11-25',
+                        'capabilities' => ['tools' => ['listChanged' => false]],
+                        'serverInfo' => ['name' => 'test-server', 'version' => '1.0.0'],
+                    ],
+                ]);
+
+                return new Response(200, [
+                    'Content-Type' => 'application/json',
+                    'Mcp-Session-Id' => 'session-abc123',
+                ], $payload);
+            }
+        };
+
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+
+        $this->assertNull($transport->getSessionId());
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setInitTimeout(1)
+            ->build();
+
+        $client->connect($transport);
+
+        $this->assertSame('session-abc123', $transport->getSessionId());
+
+        $client->disconnect();
+
+        $this->assertNull($transport->getSessionId());
+    }
+
     #[TestDox('SSE stream is aborted before the buffer can exceed the configured cap')]
     public function testSseBufferIsBoundedByConfiguredCap(): void
     {

@@ -121,6 +121,23 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->headerCallback = $callback;
     }
 
+    /**
+     * The session ID minted by the server for this connection, if any.
+     *
+     * Captured from the Mcp-Session-Id response header of legacy-era stateful
+     * servers. Callers that cannot keep the transport alive between protocol
+     * interactions (request-scoped PHP runtimes, for example) can persist this
+     * value and pass it back through the constructor's $headers parameter on a
+     * later transport, which deliberately wins over the internally tracked
+     * value, to address the same server-side session again.
+     *
+     * @return string|null null until the server mints a session, and again after close()
+     */
+    public function getSessionId(): ?string
+    {
+        return $this->sessionId;
+    }
+
     public function send(string $data): void
     {
         $request = $this->requestFactory->createRequest('POST', $this->endpoint)
