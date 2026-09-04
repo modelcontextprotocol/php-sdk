@@ -15,6 +15,7 @@ use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\NativeClock;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -22,6 +23,7 @@ use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Mcp\Server\Transport\Http\StatelessResponder;
 use Mcp\Server\Wire\InboundClassifier;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -79,12 +81,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
      * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables all middleware
      */
     public function __construct(
-        private ServerRequestInterface $request,
+        private readonly ServerRequestInterface $request,
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
         ?LoggerInterface $logger = null,
         ?iterable $middleware = null,
         private readonly int $maxBodyBytes = self::DEFAULT_MAX_BODY_BYTES,
+        private readonly ClockInterface $clock = new NativeClock(),
     ) {
         parent::__construct($logger);
 
@@ -185,12 +188,17 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     {
         $this->handleMessage($body, $this->sessionId);
 
-        if (null !== $this->immediateResponse) {
-            $response = $this->responseFactory->createResponse($this->immediateStatusCode ?? 200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($this->streamFactory->createStream($this->immediateResponse));
+        // Consume the immediate response exactly once, so a transport instance
+        // reused for a later POST does not replay it.
+        $immediateResponse = $this->immediateResponse;
+        $immediateStatusCode = $this->immediateStatusCode;
+        $this->immediateResponse = null;
+        $this->immediateStatusCode = null;
 
-            return $response;
+        if (null !== $immediateResponse) {
+            return $this->responseFactory->createResponse($immediateStatusCode ?? 200)
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody($this->streamFactory->createStream($immediateResponse));
         }
 
         if (null !== $this->sessionFiber) {
@@ -268,7 +276,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                             break;
                         }
 
-                        if (time() - $timestamp >= $timeout) {
+                        if ($this->clock->now()->getTimestamp() - $timestamp >= $timeout) {
                             $error = Error::forInternalError('Request timed out', $requestId);
                             $yielded = $this->sessionFiber->resume($error);
                             $this->handleFiberYield($yielded, $this->sessionId);
@@ -376,8 +384,6 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     private function handleRequest(ServerRequestInterface $request): ResponseInterface
     {
-        $this->request = $request;
-
         if ('OPTIONS' === $request->getMethod()) {
             return $this->handleOptionsRequest();
         }
@@ -405,7 +411,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         }
 
         if ($classification->modern) {
-            return $this->handleModernRequest($body ?? '', $classification->claimedVersion ?? '');
+            return $this->handleModernRequest($request, $body ?? '', $classification->claimedVersion ?? '');
         }
 
         // The version-header rule only reaches the traffic it is about. Running
@@ -443,7 +449,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     /**
      * Answers a request that claimed the modern era's per-request envelope.
      */
-    private function handleModernRequest(string $body, string $claimedVersion): ResponseInterface
+    private function handleModernRequest(ServerRequestInterface $request, string $body, string $claimedVersion): ResponseInterface
     {
         if (null === $this->stateless) {
             return $this->responder->error(
@@ -452,7 +458,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             );
         }
 
-        return $this->responder->respond($this->stateless->handle($body, self::headers($this->request)));
+        return $this->responder->respond($this->stateless->handle($body, self::headers($request)));
     }
 
     /**
