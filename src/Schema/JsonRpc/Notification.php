@@ -74,7 +74,7 @@ abstract class Notification implements HasMethodInterface, MessageInterface
             $array['params'] = $params;
         }
 
-        if (null !== $this->meta && !isset($params['meta'])) {
+        if (null !== $this->meta && !isset($params['_meta'])) {
             $array['params']['_meta'] = $this->meta;
         }
 
