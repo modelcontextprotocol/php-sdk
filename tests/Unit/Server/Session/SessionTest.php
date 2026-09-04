@@ -245,6 +245,21 @@ class SessionTest extends TestCase
         $this->assertFalse($this->session->has('nonexistent'));
     }
 
+    public function testForgetDoesNotCreateIntermediateSegments(): void
+    {
+        $this->session->forget('a.b');
+
+        $this->assertSame([], $this->session->all());
+    }
+
+    public function testForgetDoesNotOverwriteNonArrayIntermediateValue(): void
+    {
+        $this->session->set('key', 'string_value');
+        $this->session->forget('key.nested');
+
+        $this->assertSame('string_value', $this->session->get('key'));
+    }
+
     public function testSessionCanStoreVariousDataTypes(): void
     {
         $this->session->set('string', 'value');
