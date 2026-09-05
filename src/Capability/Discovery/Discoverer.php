@@ -325,8 +325,6 @@ final class Discoverer implements DiscovererInterface
 
                 if ($attributeInstance->provider) {
                     $completionProviders[$param->getName()] = $attributeInstance->provider;
-                } elseif ($attributeInstance->providerClass) {
-                    $completionProviders[$param->getName()] = $attributeInstance->provider;
                 } elseif ($attributeInstance->values) {
                     $completionProviders[$param->getName()] = new ListCompletionProvider($attributeInstance->values);
                 } elseif ($attributeInstance->enum) {

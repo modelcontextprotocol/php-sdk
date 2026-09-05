@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
+* [BC Break] Remove the `providerClass` argument of `#[CompletionProvider]`: constructing it always threw, so it never worked. Use `provider:`, which takes the same class-string and is now the first positional argument.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 
 0.8.0

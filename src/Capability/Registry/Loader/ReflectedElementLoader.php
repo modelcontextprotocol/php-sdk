@@ -287,7 +287,7 @@ final class ReflectedElementLoader implements LoaderInterface
     }
 
     /**
-     * @return array<string, ProviderInterface>
+     * @return array<string, class-string<ProviderInterface>|ProviderInterface>
      */
     private function getCompletionProviders(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
@@ -307,8 +307,6 @@ final class ReflectedElementLoader implements LoaderInterface
 
                 if ($attributeInstance->provider) {
                     $completionProviders[$param->getName()] = $attributeInstance->provider;
-                } elseif ($attributeInstance->providerClass) {
-                    $completionProviders[$param->getName()] = $attributeInstance->providerClass;
                 } elseif ($attributeInstance->values) {
                     $completionProviders[$param->getName()] = new ListCompletionProvider($attributeInstance->values);
                 } elseif ($attributeInstance->enum) {
