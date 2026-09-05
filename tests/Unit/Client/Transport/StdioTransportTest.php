@@ -84,6 +84,7 @@ final class StdioTransportTest extends TestCase
     private function stream(string $contents)
     {
         $stream = fopen('php://temp', 'r+');
+        $this->assertNotFalse($stream);
         fwrite($stream, $contents);
         rewind($stream);
 

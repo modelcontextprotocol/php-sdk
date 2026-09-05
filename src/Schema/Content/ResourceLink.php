@@ -68,7 +68,7 @@ class ResourceLink extends Content
     }
 
     /**
-     * @param ResourceLinkData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -124,7 +124,7 @@ class ResourceLink extends Content
     public function jsonSerialize(): array
     {
         $data = [
-            'type' => $this->type,
+            'type' => 'resource_link',
             'uri' => $this->uri,
             'name' => $this->name,
         ];

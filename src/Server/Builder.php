@@ -1036,7 +1036,7 @@ final class Builder
         if (null !== $this->discoveryBasePath) {
             if (null !== $this->discoverer || class_exists(Finder::class)) {
                 $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
-                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
+                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns ?? DiscovererInterface::DEFAULT_NAME_PATERNS, $logger);
             } else {
                 $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
             }

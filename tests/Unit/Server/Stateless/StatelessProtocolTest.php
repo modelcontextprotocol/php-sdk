@@ -296,8 +296,10 @@ class StatelessProtocolTest extends TestCase
     private static function frames(StatelessResult $result): array
     {
         $frames = [];
+        $stream = $result->frames;
+        self::assertNotNull($stream);
 
-        foreach (($result->frames)() as $frame) {
+        foreach ($stream() as $frame) {
             if (null !== $frame) {
                 $frames[] = $frame;
             }
@@ -530,7 +532,7 @@ class StatelessProtocolTest extends TestCase
                     $when = $gateway->elicit('When?', $schema, key: 'when');
                     $seat = $gateway->elicit('Seat?', $schema, key: 'seat');
 
-                    return $when->content['v'].'/'.$seat->content['v'];
+                    return ($when->content['v'] ?? '').'/'.($seat->content['v'] ?? '');
                 },
                 name: 'books_flight',
                 description: 'Asks twice before it answers',
@@ -851,6 +853,7 @@ class StatelessProtocolTest extends TestCase
         $this->assertTrue($result->isStream());
 
         $frames = self::frames($result);
+        $this->assertNotEmpty($frames);
         $last = json_decode(json_encode($frames[array_key_last($frames)], \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
 
         $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $last['error']['code']);
@@ -953,8 +956,10 @@ class StatelessProtocolTest extends TestCase
 
         $frames = [];
         $published = false;
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
 
-        foreach (($result->frames)() as $frame) {
+        foreach ($stream() as $frame) {
             if (null === $frame) {
                 // Publish once the stream is established, so the notifications
                 // arrive the way a concurrent request would deliver them.
@@ -1023,7 +1028,10 @@ class StatelessProtocolTest extends TestCase
         ]);
 
         $first = null;
-        foreach (($result->frames)() as $frame) {
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        foreach ($stream() as $frame) {
             if (null !== $frame) {
                 $first = $frame;
                 break;

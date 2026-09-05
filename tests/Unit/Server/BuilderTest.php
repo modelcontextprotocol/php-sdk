@@ -357,6 +357,8 @@ final class BuilderTest extends TestCase
 
         foreach ($requestHandlers as $handler) {
             if ($handler instanceof InitializeHandler) {
+                $this->assertNotNull($handler->configuration);
+
                 return $handler->configuration->serverInfo;
             }
         }
@@ -371,6 +373,8 @@ final class BuilderTest extends TestCase
 
         foreach ($requestHandlers as $handler) {
             if ($handler instanceof InitializeHandler) {
+                $this->assertNotNull($handler->configuration);
+
                 return $handler->configuration->capabilities;
             }
         }

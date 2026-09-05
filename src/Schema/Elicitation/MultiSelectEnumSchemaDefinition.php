@@ -72,14 +72,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
-     * @param array{
-     *     title?: string,
-     *     items: array{type: string, enum: string[]},
-     *     description?: string,
-     *     default?: string[],
-     *     minItems?: int,
-     *     maxItems?: int,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

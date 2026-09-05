@@ -45,12 +45,17 @@ class DiscoveryTest extends TestCase
         $this->assertEquals('greet_user', $tools['greet_user']->tool->name);
         $this->assertEquals('Greets a user by name.', $tools['greet_user']->tool->description);
         $this->assertEquals([DiscoverableToolHandler::class, 'greet'], $tools['greet_user']->handler);
-        $this->assertArrayHasKey('name', $tools['greet_user']->tool->inputSchema['properties'] ?? []);
+        $greetProperties = $tools['greet_user']->tool->inputSchema['properties'] ?? [];
+        $this->assertIsArray($greetProperties);
+        $this->assertArrayHasKey('name', $greetProperties);
 
         $this->assertArrayHasKey('repeatAction', $tools);
         $this->assertEquals('A tool with more complex parameters and inferred name/description.', $tools['repeatAction']->tool->description);
+        $this->assertNotNull($tools['repeatAction']->tool->annotations);
         $this->assertTrue($tools['repeatAction']->tool->annotations->readOnlyHint);
-        $this->assertEquals(['count', 'loudly', 'mode'], array_keys($tools['repeatAction']->tool->inputSchema['properties'] ?? []));
+        $repeatProperties = $tools['repeatAction']->tool->inputSchema['properties'] ?? [];
+        $this->assertIsArray($repeatProperties);
+        $this->assertEquals(['count', 'loudly', 'mode'], array_keys($repeatProperties));
 
         $this->assertArrayHasKey('InvokableCalculator', $tools);
         $this->assertInstanceOf(ToolReference::class, $tools['InvokableCalculator']);
@@ -75,16 +80,17 @@ class DiscoveryTest extends TestCase
 
         $this->assertArrayHasKey('ui://widget/clock', $resources);
         $this->assertEquals(McpApps::MIME_TYPE, $resources['ui://widget/clock']->resource->mimeType);
-        $this->assertJsonStringEqualsJsonString('{"ui":{}}', json_encode($resources['ui://widget/clock']->resource->meta));
+        $this->assertJsonStringEqualsJsonString('{"ui":{}}', json_encode($resources['ui://widget/clock']->resource->meta, \JSON_THROW_ON_ERROR));
         $this->assertJsonStringEqualsJsonString(
             '{"ui":{"resourceUri":"ui://widget/clock","visibility":["app"]}}',
-            json_encode($tools['show_clock']->tool->meta),
+            json_encode($tools['show_clock']->tool->meta, \JSON_THROW_ON_ERROR),
         );
 
         $prompts = $discovery->getPrompts();
         $this->assertCount(4, $prompts);
 
         $this->assertArrayHasKey('creative_story_prompt', $prompts);
+        $this->assertNotNull($prompts['creative_story_prompt']->prompt->arguments);
         $this->assertCount(2, $prompts['creative_story_prompt']->prompt->arguments);
         $this->assertEquals(CompletionProviderFixture::class, $prompts['creative_story_prompt']->completionProviders['genre']);
 

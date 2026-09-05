@@ -86,7 +86,6 @@ final class BooleanSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for boolean schema definition.');
 
-        /* @phpstan-ignore argument.type */
         BooleanSchemaDefinition::fromArray(['title' => 42]);
     }
 

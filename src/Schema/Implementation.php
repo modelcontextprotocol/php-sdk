@@ -37,14 +37,7 @@ class Implementation implements \JsonSerializable
     }
 
     /**
-     * @param array{
-     *     name: string,
-     *     version: string,
-     *     description?: string,
-     *     icons?: IconData[],
-     *     websiteUrl?: string,
-     *     title?: string,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -55,12 +48,13 @@ class Implementation implements \JsonSerializable
             throw new InvalidArgumentException('Invalid or missing "version" in Implementation data.');
         }
 
+        $icons = null;
         if (isset($data['icons'])) {
             if (!\is_array($data['icons'])) {
                 throw new InvalidArgumentException('Invalid "icons" in Implementation data; expected an array.');
             }
 
-            $data['icons'] = Icon::listFromArray($data['icons'], 'Implementation');
+            $icons = Icon::listFromArray($data['icons'], 'Implementation');
         }
 
         if (isset($data['description']) && !\is_string($data['description'])) {
@@ -77,7 +71,7 @@ class Implementation implements \JsonSerializable
             $data['name'],
             $data['version'],
             $data['description'] ?? null,
-            $data['icons'] ?? null,
+            $icons,
             $data['websiteUrl'] ?? null,
             $data['title'] ?? null,
         );

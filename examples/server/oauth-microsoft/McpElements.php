@@ -106,7 +106,7 @@ final class McpElements
                 'id' => 'msg_'.uniqid(),
                 'subject' => "Sample Email #{$i}",
                 'from' => "sender{$i}@example.com",
-                'receivedDateTime' => date('c', strtotime("-{$i} hours")),
+                'receivedDateTime' => date('c', strtotime("-{$i} hours") ?: time()),
             ], range(1, $count)),
         ];
     }

@@ -245,6 +245,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->tools;
     }
 
+    /**
+     * @return Page<Tool>
+     */
     public function getTools(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -283,6 +286,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->resources;
     }
 
+    /**
+     * @return Page<ResourceDefinition>
+     */
     public function getResources(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -338,6 +344,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->resourceTemplates;
     }
 
+    /**
+     * @return Page<ResourceTemplate>
+     */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -376,6 +385,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->prompts;
     }
 
+    /**
+     * @return Page<Prompt>
+     */
     public function getPrompts(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -449,11 +461,13 @@ final class Registry implements RegistryInterface
     /**
      * Helper method to paginate results using cursor-based pagination.
      *
-     * @param array<int|string, mixed> $items  The full array of items to paginate The full array of items to paginate
-     * @param int                      $limit  Maximum number of items to return
-     * @param string|null              $cursor Base64 encoded offset position
+     * @template T
      *
-     * @return array<int|string, mixed> Paginated results
+     * @param array<int|string, T> $items  The full array of items to paginate
+     * @param int                  $limit  Maximum number of items to return
+     * @param string|null          $cursor Base64 encoded offset position
+     *
+     * @return list<T> Paginated results
      *
      * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
      */

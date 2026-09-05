@@ -67,7 +67,7 @@ final class RegistryChangePublisher
      * Shaped for a dispatcher that wants a map; a framework's own subscriber
      * conventions can read it too rather than restating the list.
      *
-     * @return array<class-string, callable(object): void>
+     * @return array<class-string, callable>
      */
     public function listeners(): array
     {

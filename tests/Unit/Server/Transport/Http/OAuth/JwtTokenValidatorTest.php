@@ -578,6 +578,7 @@ class JwtTokenValidatorTest extends TestCase
         } else {
             // If expectedCalls > count(responses), keep returning the last response.
             $sequence = $responses;
+            $this->assertNotEmpty($responses);
             while (\count($sequence) < $expectedCalls) {
                 $sequence[] = $responses[array_key_last($responses)];
             }

@@ -58,14 +58,7 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
-     * @param array{
-     *     type: string,
-     *     title?: string,
-     *     description?: string,
-     *     default?: int|float,
-     *     minimum?: int|float,
-     *     maximum?: int|float,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

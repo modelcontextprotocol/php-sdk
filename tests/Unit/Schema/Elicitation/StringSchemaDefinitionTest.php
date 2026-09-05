@@ -129,7 +129,6 @@ final class StringSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for string schema definition.');
 
-        /* @phpstan-ignore argument.type */
         StringSchemaDefinition::fromArray(['title' => 42]);
     }
 

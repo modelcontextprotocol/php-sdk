@@ -47,7 +47,7 @@ class Response implements MessageInterface
     }
 
     /**
-     * @param ResponseData $data
+     * @param array<string, mixed> $data
      *
      * @return self<array<string, mixed>>
      */
@@ -65,11 +65,19 @@ class Response implements MessageInterface
         if (!isset($data['result'])) {
             throw new InvalidArgumentException('Response must contain "result" field.');
         }
-        if (!\is_array($data['result'])) {
+        $result = $data['result'];
+        if (!\is_array($result)) {
             throw new InvalidArgumentException('Response "result" must be an array.');
         }
 
-        return new self($data['id'], $data['result']);
+        // A decoded JSON object is already string-keyed; re-keying only restates
+        // that for the result type, and PHP folds numeric keys back to integers.
+        $members = [];
+        foreach ($result as $key => $value) {
+            $members[(string) $key] = $value;
+        }
+
+        return new self($data['id'], $members);
     }
 
     /**

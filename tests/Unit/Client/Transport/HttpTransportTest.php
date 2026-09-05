@@ -114,7 +114,7 @@ final class HttpTransportTest extends TestCase
                         'capabilities' => ['tools' => ['listChanged' => false]],
                         'serverInfo' => ['name' => 'test-server', 'version' => '1.0.0'],
                     ],
-                ]);
+                ], \JSON_THROW_ON_ERROR);
 
                 return new Response(200, [
                     'Content-Type' => 'application/json',

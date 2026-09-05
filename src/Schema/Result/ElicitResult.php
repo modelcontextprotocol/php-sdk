@@ -42,7 +42,7 @@ final class ElicitResult implements ResultInterface
      * answers has to be passed in: it decides whether an accepted response is
      * expected to carry content.
      *
-     * @param array{action: string, content?: array<string, mixed>} $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data, ElicitationMode $mode = ElicitationMode::Form): self
     {

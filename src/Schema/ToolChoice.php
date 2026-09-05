@@ -28,16 +28,19 @@ final class ToolChoice implements \JsonSerializable
     }
 
     /**
-     * @param array{mode?: string} $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (\array_key_exists('mode', $data) && !\is_string($data['mode'])) {
+        if (!\array_key_exists('mode', $data)) {
+            return new self(ToolChoiceMode::Auto);
+        }
+
+        if (!\is_string($data['mode'])) {
             throw new InvalidArgumentException('Invalid "mode" in ToolChoice data.');
         }
 
-        $mode = \array_key_exists('mode', $data) ? ToolChoiceMode::tryFrom($data['mode']) : ToolChoiceMode::Auto;
-        if (null === $mode) {
+        if (null === $mode = ToolChoiceMode::tryFrom($data['mode'])) {
             throw new InvalidArgumentException(\sprintf('Invalid tool choice mode "%s".', $data['mode']));
         }
 

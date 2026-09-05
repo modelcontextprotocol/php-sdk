@@ -70,7 +70,6 @@ class NonObjectOutputSchemaTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        /* @phpstan-ignore-next-line argument.type (deliberately invalid: an array root must be rejected) */
         Tool::fromArray([
             'name' => 'demo',
             'inputSchema' => ['type' => 'array', 'properties' => [], 'required' => null],
@@ -117,7 +116,7 @@ class NonObjectOutputSchemaTest extends TestCase
         $serialized = $result->jsonSerialize();
 
         $this->assertArrayHasKey('structuredContent', $serialized);
-        $this->assertSame($value, $serialized['structuredContent']);
+        $this->assertSame($value, $serialized['structuredContent'] ?? null);
     }
 
     #[TestDox('a null structuredContent is omitted entirely')]
@@ -149,7 +148,7 @@ class NonObjectOutputSchemaTest extends TestCase
         ]);
 
         $this->assertSame(['temperature' => 22.5], $result->structuredContent);
-        $this->assertSame(['temperature' => 22.5], $result->jsonSerialize()['structuredContent']);
+        $this->assertSame(['temperature' => 22.5], $result->jsonSerialize()['structuredContent'] ?? null);
     }
 
     #[TestDox('the empty root schema serializes as {} rather than []')]
@@ -161,6 +160,6 @@ class NonObjectOutputSchemaTest extends TestCase
             'outputSchema' => [],
         ]);
 
-        $this->assertSame('{}', json_encode($tool->jsonSerialize()['outputSchema']));
+        $this->assertSame('{}', json_encode($tool->jsonSerialize()['outputSchema'] ?? null));
     }
 }

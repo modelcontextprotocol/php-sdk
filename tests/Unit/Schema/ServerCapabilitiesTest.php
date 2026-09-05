@@ -287,23 +287,29 @@ class ServerCapabilitiesTest extends TestCase
         $json = $capabilities->jsonSerialize();
 
         $this->assertArrayHasKey('logging', $json);
-        $this->assertEquals(new \stdClass(), $json['logging']);
+        $this->assertEquals(new \stdClass(), $json['logging'] ?? null);
 
         $this->assertArrayHasKey('completions', $json);
-        $this->assertEquals(new \stdClass(), $json['completions']);
+        $this->assertEquals(new \stdClass(), $json['completions'] ?? null);
 
         $this->assertArrayHasKey('prompts', $json);
-        $this->assertTrue($json['prompts']->listChanged);
+        $prompts = $json['prompts'] ?? null;
+        $this->assertNotNull($prompts);
+        $this->assertTrue($prompts->listChanged);
 
         $this->assertArrayHasKey('resources', $json);
-        $this->assertTrue($json['resources']->subscribe);
-        $this->assertTrue($json['resources']->listChanged);
+        $resources = $json['resources'] ?? null;
+        $this->assertNotNull($resources);
+        $this->assertTrue($resources->subscribe);
+        $this->assertTrue($resources->listChanged);
 
         $this->assertArrayHasKey('tools', $json);
-        $this->assertTrue($json['tools']->listChanged);
+        $tools = $json['tools'] ?? null;
+        $this->assertNotNull($tools);
+        $this->assertTrue($tools->listChanged);
 
         $this->assertArrayHasKey('experimental', $json);
-        $this->assertEquals((object) $experimental, $json['experimental']);
+        $this->assertEquals((object) $experimental, $json['experimental'] ?? null);
     }
 
     public function testJsonSerializeWithFalseValues(): void

@@ -110,17 +110,25 @@ final class ElicitRequest extends Request
     protected function getParams(): array
     {
         if (ElicitationMode::Url === $this->mode) {
-            return [
+            $params = [
                 'message' => $this->message,
                 'mode' => $this->mode->value,
-                'url' => $this->url,
             ];
+
+            if (null !== $this->url) {
+                $params['url'] = $this->url;
+            }
+
+            return $params;
         }
 
         // We don't need to send the mode if it's the default (form).
-        return [
-            'message' => $this->message,
-            'requestedSchema' => $this->requestedSchema,
-        ];
+        $params = ['message' => $this->message];
+
+        if (null !== $this->requestedSchema) {
+            $params['requestedSchema'] = $this->requestedSchema;
+        }
+
+        return $params;
     }
 }

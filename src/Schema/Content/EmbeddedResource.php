@@ -40,7 +40,7 @@ class EmbeddedResource extends Content
     }
 
     /**
-     * @param EmbeddedResourceData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -121,7 +121,7 @@ class EmbeddedResource extends Content
             throw new RuntimeException(\sprintf('Could not read file: "%s".', $file->getPathname()));
         }
 
-        return new self(new BlobResourceContents($uri, $explicitMimeType ?? mime_content_type($file->getPathname()), base64_encode($content)), $annotations);
+        return new self(new BlobResourceContents($uri, $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null), base64_encode($content)), $annotations);
     }
 
     /**
@@ -134,7 +134,7 @@ class EmbeddedResource extends Content
     public function jsonSerialize(): array
     {
         $data = [
-            'type' => $this->type,
+            'type' => 'resource',
             'resource' => $this->resource,
         ];
         if (null !== $this->annotations) {

@@ -32,11 +32,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
     }
 
     /**
-     * @param array{
-     *     title?: string,
-     *     description?: string,
-     *     default?: bool,
-     * } $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {

@@ -43,6 +43,10 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
     {
         echo "\n[ELICIT] {$request->message}\n";
 
+        if (null === $request->requestedSchema) {
+            return new ElicitResult(ElicitAction::Decline);
+        }
+
         $content = [];
         foreach ($request->requestedSchema->properties as $name => $definition) {
             $default = $this->defaultFor($definition);
@@ -78,7 +82,7 @@ $elicitationRequestHandler = new ElicitationRequestHandler(new class implements 
 
     private function labelFor(AbstractSchemaDefinition $definition): string
     {
-        return $definition->title;
+        return $definition->title ?? '';
     }
 
     private function cast(object $definition, string $input): mixed

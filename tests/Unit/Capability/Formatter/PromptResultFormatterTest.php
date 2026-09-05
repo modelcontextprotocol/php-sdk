@@ -208,7 +208,9 @@ class PromptResultFormatterTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('text/plain', $result[0]->content->resource->mimeType);
+        $content = $result[0]->content;
+        $this->assertInstanceOf(EmbeddedResource::class, $content);
+        $this->assertSame('text/plain', $content->resource->mimeType);
     }
 
     public function testFormatTypedBlobResourceContentDefaultsMimeType(): void
@@ -223,7 +225,9 @@ class PromptResultFormatterTest extends TestCase
             ],
         ]);
 
-        $this->assertSame('application/octet-stream', $result[0]->content->resource->mimeType);
+        $content = $result[0]->content;
+        $this->assertInstanceOf(EmbeddedResource::class, $content);
+        $this->assertSame('application/octet-stream', $content->resource->mimeType);
     }
 
     public function testFormatTypedContentRejectsInvalidDataWithIndexContext(): void

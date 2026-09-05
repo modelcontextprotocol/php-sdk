@@ -47,14 +47,14 @@ final class PromptMessageTest extends TestCase
                 'uri' => 'file:///a.png',
                 'name' => 'a.png',
             ],
-        ], json_decode(json_encode($message), true));
+        ], json_decode(json_encode($message, \JSON_THROW_ON_ERROR), true));
     }
 
     public function testRoundTripWithResourceLink(): void
     {
         $original = new PromptMessage(Role::User, new ResourceLink('file:///a.png', 'a.png', mimeType: 'image/png'));
 
-        $decoded = json_decode(json_encode($original), true);
+        $decoded = json_decode(json_encode($original, \JSON_THROW_ON_ERROR), true);
         $rehydrated = PromptMessage::fromArray($decoded);
 
         $this->assertSame(Role::User, $rehydrated->role);
@@ -67,7 +67,6 @@ final class PromptMessageTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        /* @phpstan-ignore argument.type */
         PromptMessage::fromArray([
             'role' => 'user',
             'content' => ['type' => 'not-a-real-type'],

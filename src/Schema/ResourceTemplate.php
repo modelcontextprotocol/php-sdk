@@ -62,7 +62,7 @@ class ResourceTemplate implements \JsonSerializable
     }
 
     /**
-     * @param ResourceTemplateData $data
+     * @param array<string, mixed> $data
      */
     public static function fromArray(array $data): self
     {
