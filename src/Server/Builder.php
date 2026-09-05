@@ -69,7 +69,6 @@ use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
-use Symfony\Component\Finder\Finder;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -1034,12 +1033,8 @@ final class Builder
         ];
 
         if (null !== $this->discoveryBasePath) {
-            if (null !== $this->discoverer || class_exists(Finder::class)) {
-                $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
-                $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
-            } else {
-                $logger->warning('File-based discovery requires symfony/finder. Skipping automatic discovery. Run: composer require symfony/finder');
-            }
+            $discoverer = $this->discoverer ?? $this->createDiscoverer($logger);
+            $loaders[] = new DiscoveryLoader($this->discoveryBasePath, $this->discoveryScanDirs, $this->discoveryExcludeDirs, $discoverer, $this->discoveryNamePatterns, $logger);
         }
 
         $chainLoader = new ChainLoader($loaders);
