@@ -21,9 +21,12 @@ use Mcp\Exception\InvalidArgumentException;
 class CompletionProvider
 {
     /**
-     * @param class-string<ProviderInterface>|ProviderInterface|null $provider if a class-string, it will be resolved
-     *                                                                         from the container at the point of use
-     * @param ?array<int, int|float|string>                          $values   a list of values to use for completion
+     * @param class-string<ProviderInterface>|null                   $providerClass a provider class, resolved from the
+     *                                                                              container at the point of use
+     * @param class-string<ProviderInterface>|ProviderInterface|null $provider      if a class-string, it will be resolved
+     *                                                                              from the container at the point of use
+     * @param ?array<int, int|float|string>                          $values        a list of values to use for completion
+     * @param class-string|null                                      $enum          an enum whose cases are the completions
      */
     public function __construct(
         public ?string $providerClass = null,
@@ -31,8 +34,8 @@ class CompletionProvider
         public ?array $values = null,
         public ?string $enum = null,
     ) {
-        if (1 !== \count(array_filter([$provider, $values, $enum]))) {
-            throw new InvalidArgumentException('Only one of provider, values, or enum can be set.');
+        if (1 !== \count(array_filter([$providerClass, $provider, $values, $enum]))) {
+            throw new InvalidArgumentException('Only one of providerClass, provider, values, or enum can be set.');
         }
     }
 }

@@ -22,6 +22,17 @@ class CompletionProviderTest extends TestCase
         $attribute = new CompletionProvider(provider: CompletionProviderFixture::class);
 
         $this->assertSame(CompletionProviderFixture::class, $attribute->provider);
+        $this->assertNull($attribute->providerClass);
+        $this->assertNull($attribute->values);
+        $this->assertNull($attribute->enum);
+    }
+
+    public function testCanBeConstructedWithProviderClassArgument(): void
+    {
+        $attribute = new CompletionProvider(providerClass: CompletionProviderFixture::class);
+
+        $this->assertSame(CompletionProviderFixture::class, $attribute->providerClass);
+        $this->assertNull($attribute->provider);
         $this->assertNull($attribute->values);
         $this->assertNull($attribute->enum);
     }
@@ -58,14 +69,14 @@ class CompletionProviderTest extends TestCase
     public function testThrowsExceptionWhenNoParametersProvided(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
+        $this->expectExceptionMessage('Only one of providerClass, provider, values, or enum can be set');
         new CompletionProvider();
     }
 
     public function testThrowsExceptionWhenMultipleParametersProvided(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
+        $this->expectExceptionMessage('Only one of providerClass, provider, values, or enum can be set');
         new CompletionProvider(
             provider: CompletionProviderFixture::class,
             values: ['test']
@@ -75,8 +86,9 @@ class CompletionProviderTest extends TestCase
     public function testThrowsExceptionWhenAllParametersProvided(): void
     {
         $this->expectException(\InvalidArgumentException::class);
-        $this->expectExceptionMessage('Only one of provider, values, or enum can be set');
+        $this->expectExceptionMessage('Only one of providerClass, provider, values, or enum can be set');
         new CompletionProvider(
+            providerClass: CompletionProviderFixture::class,
             provider: CompletionProviderFixture::class,
             values: ['test'],
             enum: StatusEnum::class
