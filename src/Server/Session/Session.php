@@ -162,7 +162,9 @@ class Session implements SessionInterface
             return $this->data = [];
         }
 
-        $decoded = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
+        // A payload that cannot be decoded - an empty file, a truncated write - degrades to an
+        // empty session: the data is gone either way, and throwing here takes the request down.
+        $decoded = json_decode($rawData, true);
 
         if (!\is_array($decoded)) {
             return $this->data = [];
