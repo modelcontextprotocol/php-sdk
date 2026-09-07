@@ -232,16 +232,21 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame([], $logger->warnings);
     }
 
-    #[TestDox('reads a zero-byte session file back as an empty string')]
-    public function testReadReturnsEmptyStringForZeroByteFile(): void
+    #[TestDox('reports a zero-byte session file as nothing read, and says so')]
+    public function testReadReportsZeroByteFileAsNothingRead(): void
     {
-        $store = new FileSessionStore($this->directory);
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
         $id = new UuidV4();
         $store->write($id, '{"initialized":true}');
 
-        file_put_contents($this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122(), '');
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        file_put_contents($path, '');
 
-        $this->assertSame('', $store->read($id));
+        $this->assertFalse($store->read($id));
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Ignored an empty session file.', $logger->warnings[0]['message']);
+        $this->assertSame($path, $logger->warnings[0]['context']['path']);
     }
 
     #[TestDox('never serves a partial payload while another process writes the same session')]

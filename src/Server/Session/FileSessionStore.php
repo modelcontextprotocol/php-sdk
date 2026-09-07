@@ -85,6 +85,14 @@ class FileSessionStore implements SessionStoreInterface
             return false;
         }
 
+        // Nothing was read, which is what the interface asks us to report as false: an empty file
+        // is what a write interrupted before its rename leaves behind, never a stored payload.
+        if ('' === $data) {
+            $this->logger->warning('Ignored an empty session file.', ['path' => $path]);
+
+            return false;
+        }
+
         return $data;
     }
 
