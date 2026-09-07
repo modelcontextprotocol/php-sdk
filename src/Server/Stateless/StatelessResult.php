@@ -133,11 +133,11 @@ final class StatelessResult
         }
 
         if ($this->bodyless) {
-            throw new \LogicException('This result carries no body; send its status alone.');
+            throw new LogicException('This result carries no body; send its status alone.');
         }
 
         if (null === $this->message) {
-            throw new \LogicException('A streaming or empty result has no single JSON body; check isStream()/isEmpty() first.');
+            throw new LogicException('A streaming or empty result has no single JSON body; check isStream()/isEmpty() first.');
         }
 
         return json_encode($this->message, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
