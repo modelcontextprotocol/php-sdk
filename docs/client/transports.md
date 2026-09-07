@@ -45,7 +45,13 @@ $transport = new HttpTransport(
 - `requestFactory` (RequestFactoryInterface|null): PSR-17 request factory (auto-discovered)
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
-- `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
+- `maxSseBufferBytes` (int): Maximum bytes buffered for one incomplete SSE event (default: 8 MiB)
+- `maxReconnectAttempts` (int): Maximum GET attempts to resume an interrupted SSE stream (default: 5)
+- `initialReconnectDelayMs` (int): Initial fallback delay when the server sends no `retry` field (default: 1000 ms)
+- `maxReconnectDelayMs` (int): Cap for the fallback exponential backoff (default: 10000 ms)
+- `clock` (callable|null): Optional monotonic millisecond clock, primarily for deterministic tests
+
+When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected.
 
 **PSR-18 Auto-Discovery:**
 
