@@ -265,6 +265,7 @@ class FileSessionStoreTest extends TestCase
         // filling, and never one it has just emptied.
         $reads = 0;
         $partial = 0;
+        $exitCodes = [];
         $deadline = microtime(true) + 20.0;
         do {
             $raw = $store->read($id);
@@ -274,14 +275,25 @@ class FileSessionStoreTest extends TestCase
                 ++$partial;
             }
 
-            $running = false;
-            foreach ($writers as $writer) {
-                $running = $running || proc_get_status($writer)['running'];
+            foreach ($writers as $i => $writer) {
+                // Take the exit code from the first status that reports the writer as gone: before
+                // PHP 8.3, that call reaps the process, and every later one reports -1 instead.
+                if (!isset($exitCodes[$i]) && !($status = proc_get_status($writer))['running']) {
+                    $exitCodes[$i] = $status['exitcode'];
+                }
             }
-        } while ($running && microtime(true) < $deadline);
+        } while (\count($exitCodes) < \count($writers) && microtime(true) < $deadline);
 
-        foreach ($writers as $i => $writer) {
-            $this->assertSame(0, proc_close($writer));
+        foreach ($writers as $writer) {
+            proc_close($writer);
+        }
+
+        // The writers finish in whatever order they like.
+        ksort($exitCodes);
+
+        $this->assertSame([0, 0, 0], $exitCodes, 'The concurrent writers did not all run to completion.');
+
+        foreach (array_keys($writers) as $i) {
             $this->assertSame('', file_get_contents($this->directory.\DIRECTORY_SEPARATOR.'writer-'.$i.'.err'));
         }
 
