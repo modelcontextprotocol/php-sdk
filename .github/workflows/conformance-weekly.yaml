@@ -125,10 +125,11 @@ jobs:
     name: Open issue on failure
     runs-on: ubuntu-latest
     needs: [server, client]
-    if: failure() && github.event_name == 'schedule'
+    if: failure()
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       GH_REPO: ${{ github.repository }}
+      EVENT_NAME: ${{ github.event_name }}
       RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
     steps:
       - name: File or comment tracking issue
@@ -140,12 +141,13 @@ jobs:
             gh issue create \
               --title '[conformance] Weekly conformance run failed' \
               --label conformance-weekly \
-              --body "Weekly conformance against \`@modelcontextprotocol/conformance@latest\` failed.
+              --body "Conformance against the newest published \`@modelcontextprotocol/conformance\` failed.
 
           - Run: $RUN_URL
-          - Triggered: $(date -u +%FT%TZ)
+          - Trigger: $EVENT_NAME
+          - Date: $(date -u +%FT%TZ)
 
-          Upstream likely published a release whose scenarios the SDK does not satisfy. Either fix the SDK, update the conformance fixtures, or add the new failure to \`tests/Conformance/conformance-baseline-2025-11-25.yml\`."
+          Upstream likely published a release whose scenarios the SDK does not satisfy. Either fix the SDK, update the conformance fixtures, or add the new failure to the matching \`tests/Conformance/conformance-baseline-<spec-version>.yml\`."
           fi
 
   publish:
