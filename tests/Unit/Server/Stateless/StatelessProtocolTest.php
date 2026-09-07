@@ -158,6 +158,18 @@ class StatelessProtocolTest extends TestCase
                 description: 'Emits progress, then asks through a url-mode elicitation',
             )
             ->addTool(
+                static function (RequestContext $context): InputRequiredResult {
+                    $context->getClientGateway()->progress(0, 100, 'starting');
+
+                    // A paramless ask: InputRequiredResult encodes its `params`
+                    // as `{}` rather than `[]`, which is what makes this tool
+                    // able to tell the two encoding paths apart.
+                    return new InputRequiredResult(['r' => new ListRootsRequest()]);
+                },
+                name: 'asks_paramless_after_progress',
+                description: 'Emits progress, then asks with a request that carries no params',
+            )
+            ->addTool(
                 static function (RequestContext $context): string {
                     $pairs = [];
                     foreach ($context->getTraceContext() as $key => $value) {
@@ -372,6 +384,37 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertFalse($result->isStream());
         $this->assertSame(200, $result->httpStatus);
+    }
+
+    #[TestDox('a streamed answer is byte-for-byte the answer the non-streamed path sends')]
+    public function testStreamedAnswerEncodesLikeTheNonStreamedOne(): void
+    {
+        // Same tool, same request, same declared capabilities: the only thing
+        // that differs is the progress token, which is what decides whether the
+        // answer leaves as a frame or as a single response. finalize() promises
+        // the two cannot disagree about the shape of the result.
+        $capabilities = [RequestMeta::CLIENT_CAPABILITIES => (object) ['roots' => new \stdClass()]];
+
+        $plain = self::callStreaming(self::protocol(), 'asks_paramless_after_progress', $capabilities);
+
+        $this->assertFalse($plain->isStream());
+
+        $streamed = self::callStreaming(
+            self::protocol(),
+            'asks_paramless_after_progress',
+            ['progressToken' => 'tok-1', ...$capabilities],
+        );
+
+        $this->assertTrue($streamed->isStream());
+
+        $frames = self::frames($streamed);
+        $final = $frames[array_key_last($frames)];
+
+        // Encoded exactly as StatelessResponder::sse() writes a frame.
+        $written = json_encode($final, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+
+        $this->assertStringContainsString('"params":{}', $written);
+        $this->assertSame($plain->toJson(), $written);
     }
 
     #[TestDox('a client that will not read a stream gets its notifications dropped, not a stream')]

@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Stateless;
 
+use Mcp\Exception\LogicException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 
@@ -88,6 +89,37 @@ final class StatelessResult
     public function isError(): bool
     {
         return $this->message instanceof Error;
+    }
+
+    /**
+     * The same answer as {@see self::toJson()}, one step earlier: the frame a
+     * response stream yields, before the responder encodes it.
+     *
+     * Structural rather than a decode of toJson(): a `\stdClass` a result
+     * deliberately carries so an empty member encodes as `{}` survives, where
+     * an associative decode would flatten it to `[]`.
+     *
+     * @return array<string, mixed>
+     */
+    public function toFrame(): array
+    {
+        if (null !== $this->body) {
+            return [
+                'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+                'id' => $this->id,
+                'result' => $this->body,
+            ];
+        }
+
+        if ($this->bodyless) {
+            throw new LogicException('This result carries no body; send its status alone.');
+        }
+
+        if (null === $this->message) {
+            throw new LogicException('A streaming or empty result has no single frame; check isStream()/isEmpty() first.');
+        }
+
+        return (array) $this->message->jsonSerialize();
     }
 
     public function toJson(): string
