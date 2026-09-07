@@ -85,8 +85,6 @@ class FileSessionStore implements SessionStoreInterface
             return false;
         }
 
-        // Nothing was read, which is what the interface asks us to report as false: an empty file
-        // is what a write interrupted before its rename leaves behind, never a stored payload.
         if ('' === $data) {
             $this->logger->warning('Ignored an empty session file.', ['path' => $path]);
 
@@ -100,8 +98,6 @@ class FileSessionStore implements SessionStoreInterface
     {
         $path = $this->pathFor($id);
 
-        // The temporary file is private to this write: sharing its name across concurrent writers
-        // lets one of them publish a file another is still filling, or has just emptied.
         $tmp = $path.'.'.bin2hex(random_bytes(6)).'.tmp';
         if (false === @file_put_contents($tmp, $data)) {
             $this->logger->warning('Failed to write session file.', [
@@ -172,8 +168,6 @@ class FileSessionStore implements SessionStoreInterface
                 continue;
             }
 
-            // Only delete files this store owns: sessions are named by their RFC 4122 UUID, and
-            // the leftovers of a write that died before its rename by that UUID plus a suffix.
             $isSession = Uuid::isValid($entry);
             if (!$isSession && !$this->isTemporaryFile($entry)) {
                 continue;
