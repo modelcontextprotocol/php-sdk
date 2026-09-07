@@ -100,6 +100,7 @@ makes the prompt handler throw.
 ### Error Handling
 
 Prompt handlers can throw any exception, but the type determines how it's handled:
+
 - **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 

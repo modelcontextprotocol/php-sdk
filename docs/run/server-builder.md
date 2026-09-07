@@ -54,6 +54,7 @@ $server = Server::builder()
 ```
 
 **Parameters:**
+
 - `$name` (string): The server name
 - `$version` (string): Version string (semantic versioning recommended)
 - `$description` (string|null): Optional description
@@ -152,6 +153,7 @@ $server = Server::builder()
 ```
 
 **Parameters:**
+
 - `$basePath` (string): Base directory for discovery (typically `__DIR__`)
 - `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are included. (default: `['.', 'src']`)
 - `$excludeDirs` (array): Directory names to exclude **within** the scanned directories during recursive scanning
@@ -189,6 +191,7 @@ $server = Server::builder()
 ```
 
 **How `excludeDirs` works:**
+
 - If scanning `src/` and there's `src/vendor/`, it will be excluded
 - If scanning `lib/` and there's `lib/tests/`, it will be excluded
 - But if `vendor/` and `tests/` are at the same level as `src/`, they're not scanned anyway (not in `scanDirs`)
@@ -217,6 +220,7 @@ $server = Server::builder()
 ```
 
 **Basic Container Features:**
+
 - Supports constructor auto-wiring for classes with parameterless constructors
 - Resolves dependencies where all parameters are type-hinted classes/interfaces known to the container
 - Supports parameters with default values

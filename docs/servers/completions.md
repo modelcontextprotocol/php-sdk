@@ -87,6 +87,7 @@ public function getUserProfile(
 ```
 
 **Provider Resolution:**
+
 - **Class strings** (`Provider::class`) → Resolved from PSR-11 container
 - **Instances** (`new Provider()`) → Used directly
 - **Values** (`['a', 'b']`) → Wrapped in `ListCompletionProvider`

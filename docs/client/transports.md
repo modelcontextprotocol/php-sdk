@@ -18,6 +18,7 @@ $transport = new StdioTransport(
 ```
 
 **Parameters:**
+
 - `command` (string): The command to execute
 - `args` (array): Command arguments
 - `cwd` (string|null): Working directory for the process
@@ -39,6 +40,7 @@ $transport = new HttpTransport(
 ```
 
 **Parameters:**
+
 - `endpoint` (string): The MCP server URL
 - `headers` (array): Additional HTTP headers
 - `httpClient` (ClientInterface|null): PSR-18 HTTP client (auto-discovered)
@@ -50,6 +52,7 @@ $transport = new HttpTransport(
 **PSR-18 Auto-Discovery:**
 
 The transport automatically discovers PSR-18 HTTP clients from:
+
 - `php-http/guzzle7-adapter`
 - `php-http/curl-client`
 - `symfony/http-client`
