@@ -94,7 +94,7 @@ class DiscoveryTest extends TestCase
         $this->assertEquals([InvocablePromptFixture::class, '__invoke'], $prompts['InvokableGreeterPrompt']->handler);
 
         $this->assertArrayHasKey('content_creator', $prompts);
-        $this->assertCount(3, $prompts['content_creator']->completionProviders);
+        $this->assertCount(4, $prompts['content_creator']->completionProviders);
 
         $templates = $discovery->getResourceTemplates();
         $this->assertCount(4, $templates);
@@ -165,7 +165,7 @@ class DiscoveryTest extends TestCase
         $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
 
         $this->assertArrayHasKey('content_creator', $prompts = $discovery->getPrompts());
-        $this->assertCount(3, $prompts['content_creator']->completionProviders);
+        $this->assertCount(4, $prompts['content_creator']->completionProviders);
 
         $typeProvider = $prompts['content_creator']->completionProviders['type'];
         $this->assertInstanceOf(ListCompletionProvider::class, $typeProvider);
@@ -181,5 +181,15 @@ class DiscoveryTest extends TestCase
 
         $categoryProvider = $templates['content://{category}/{slug}']->completionProviders['category'];
         $this->assertInstanceOf(ListCompletionProvider::class, $categoryProvider);
+    }
+
+    public function testDiscoversPositionalCompletionProviderAsClassString(): void
+    {
+        $discovery = $this->discoverer->discover(__DIR__, ['Fixtures']);
+
+        $this->assertArrayHasKey('content_creator', $prompts = $discovery->getPrompts());
+
+        // Kept as a class-string so the container resolves it at the point of use.
+        $this->assertEquals(CompletionProviderFixture::class, $prompts['content_creator']->completionProviders['author']);
     }
 }

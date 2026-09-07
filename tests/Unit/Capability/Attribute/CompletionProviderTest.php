@@ -26,6 +26,15 @@ class CompletionProviderTest extends TestCase
         $this->assertNull($attribute->enum);
     }
 
+    public function testCanBeConstructedWithAPositionalProviderClass(): void
+    {
+        $attribute = new CompletionProvider(CompletionProviderFixture::class);
+
+        $this->assertSame(CompletionProviderFixture::class, $attribute->provider);
+        $this->assertNull($attribute->values);
+        $this->assertNull($attribute->enum);
+    }
+
     public function testCanBeConstructedWithProviderInstance(): void
     {
         $instance = new CompletionProviderFixture();
