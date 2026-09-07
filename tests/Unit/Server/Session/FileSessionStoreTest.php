@@ -86,6 +86,30 @@ class FileSessionStoreTest extends TestCase
         $this->assertFileExists($foreign);
     }
 
+    #[TestDox('gc() collects the temporary files of writes that never made it into place')]
+    public function testGcCollectsOrphanedTemporaryFiles(): void
+    {
+        $store = new FileSessionStore($this->directory, ttl: 60);
+        $id = new UuidV4();
+        $store->write($id, 'payload');
+
+        $orphan = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122().'.0123456789ab.tmp';
+        file_put_contents($orphan, 'half a payload');
+        touch($orphan, time() - 120);
+
+        $fresh = $this->directory.\DIRECTORY_SEPARATOR.(new UuidV4())->toRfc4122().'.ba9876543210.tmp';
+        file_put_contents($fresh, 'a write still in flight');
+
+        $deleted = $store->gc();
+
+        // The orphan belongs to a session that is still alive, so collecting it is not a session
+        // deletion, and a write that is still running must be left alone.
+        $this->assertSame([], $deleted);
+        $this->assertFileDoesNotExist($orphan);
+        $this->assertFileExists($fresh);
+        $this->assertFileExists($this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122());
+    }
+
     #[TestDox('rejects an unwritable directory with the SDK\'s own exception')]
     public function testUnwritableDirectoryThrowsPackageException(): void
     {
@@ -206,6 +230,117 @@ class FileSessionStoreTest extends TestCase
         $store->gc();
 
         $this->assertSame([], $logger->warnings);
+    }
+
+    #[TestDox('reports a zero-byte session file as nothing read, and says so')]
+    public function testReadReportsZeroByteFileAsNothingRead(): void
+    {
+        $logger = new WarningCollectingLogger();
+        $store = new FileSessionStore($this->directory, logger: $logger);
+        $id = new UuidV4();
+        $store->write($id, '{"initialized":true}');
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122();
+        file_put_contents($path, '');
+
+        $this->assertFalse($store->read($id));
+        $this->assertCount(1, $logger->warnings);
+        $this->assertSame('Ignored an empty session file.', $logger->warnings[0]['message']);
+        $this->assertSame($path, $logger->warnings[0]['context']['path']);
+    }
+
+    #[TestDox('never serves a partial payload while another process writes the same session')]
+    public function testConcurrentWritesNeverPublishAPartialPayload(): void
+    {
+        if (!\function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open() is needed to run truly concurrent writers.');
+        }
+
+        $store = new FileSessionStore($this->directory);
+        $id = new UuidV4();
+        $store->write($id, '{"initialized":true}');
+
+        $writers = [];
+        for ($i = 0; $i < 3; ++$i) {
+            $writers[] = $this->spawnWriter($id, $i);
+        }
+
+        // Read the session while the other processes write it. Every payload the store hands out
+        // has to be complete: a writer must never be able to publish a file another one is still
+        // filling, and never one it has just emptied.
+        $reads = 0;
+        $partial = 0;
+        $exitCodes = [];
+        $deadline = microtime(true) + 20.0;
+        do {
+            $raw = $store->read($id);
+            ++$reads;
+
+            if (false !== $raw && !\is_array(json_decode($raw, true))) {
+                ++$partial;
+            }
+
+            foreach ($writers as $i => $writer) {
+                // Take the exit code from the first status that reports the writer as gone: before
+                // PHP 8.3, that call reaps the process, and every later one reports -1 instead.
+                if (!isset($exitCodes[$i]) && !($status = proc_get_status($writer))['running']) {
+                    $exitCodes[$i] = $status['exitcode'];
+                }
+            }
+        } while (\count($exitCodes) < \count($writers) && microtime(true) < $deadline);
+
+        foreach ($writers as $writer) {
+            proc_close($writer);
+        }
+
+        // The writers finish in whatever order they like.
+        ksort($exitCodes);
+
+        $this->assertSame([0, 0, 0], $exitCodes, 'The concurrent writers did not all run to completion.');
+
+        foreach (array_keys($writers) as $i) {
+            $this->assertSame('', file_get_contents($this->directory.\DIRECTORY_SEPARATOR.'writer-'.$i.'.err'));
+        }
+
+        $this->assertSame(0, $partial, \sprintf('%d of %d reads returned a partial session payload.', $partial, $reads));
+    }
+
+    /**
+     * Writes the same session from another process, so the writes really do overlap.
+     *
+     * @return resource
+     */
+    private function spawnWriter(UuidV4 $id, int $index)
+    {
+        $script = <<<'PHP'
+            <?php
+
+            require $argv[1];
+
+            $store = new Mcp\Server\Session\FileSessionStore($argv[2]);
+            $id = Symfony\Component\Uid\Uuid::fromString($argv[3]);
+            $payload = json_encode(['queue' => array_fill(0, 200, str_repeat('x', 200))]);
+
+            for ($i = 0; $i < 200; ++$i) {
+                $store->write($id, $payload);
+            }
+            PHP;
+
+        $file = $this->directory.\DIRECTORY_SEPARATOR.'writer.php';
+        file_put_contents($file, $script);
+
+        $process = proc_open(
+            [\PHP_BINARY, $file, \dirname(__DIR__, 4).'/vendor/autoload.php', $this->directory, $id->toRfc4122()],
+            [
+                1 => ['file', $this->directory.\DIRECTORY_SEPARATOR.'writer-'.$index.'.out', 'w'],
+                2 => ['file', $this->directory.\DIRECTORY_SEPARATOR.'writer-'.$index.'.err', 'w'],
+            ],
+            $pipes,
+        );
+
+        $this->assertIsResource($process);
+
+        return $process;
     }
 }
 

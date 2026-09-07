@@ -162,7 +162,8 @@ class Session implements SessionInterface
             return $this->data = [];
         }
 
-        $decoded = json_decode($rawData, true, flags: \JSON_THROW_ON_ERROR);
+        // Empty session should not throw
+        $decoded = json_decode($rawData, true);
 
         if (!\is_array($decoded)) {
             return $this->data = [];
