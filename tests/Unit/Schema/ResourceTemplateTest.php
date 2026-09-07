@@ -38,7 +38,7 @@ class ResourceTemplateTest extends TestCase
         $uri = '/list-books';
 
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid URI template : "/list-books" must be a valid URI template with at least one placeholder.');
+        $this->expectExceptionMessage('Invalid URI template : "/list-books" must be a valid URI template with at least one placeholder. A URI without a placeholder addresses a single resource, register it as a resource instead.');
 
         $resource = new ResourceTemplate(
             uriTemplate: $uri,
@@ -63,6 +63,24 @@ class ResourceTemplateTest extends TestCase
         yield 'custom scheme without slashes' => ['config:{key}'];
         yield 'custom scheme with slashes' => ['config://{key}'];
         yield 'urn-style template' => ['urn:resource:{id}'];
+    }
+
+    #[DataProvider('provideInvalidTemplates')]
+    public function testConstructorRejectsNonTemplates(string $uriTemplate): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new ResourceTemplate(
+            uriTemplate: $uriTemplate,
+            name: 'test-template',
+        );
+    }
+
+    public static function provideInvalidTemplates(): iterable
+    {
+        yield 'no scheme' => ['/list-books'];
+        yield 'no placeholder' => ['data://tags'];
+        yield 'empty placeholder' => ['data://tags/{}'];
     }
 
     public function testFromArrayValid(): void

@@ -22,7 +22,6 @@ use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\RegistryInterface;
-use Mcp\Exception\ConfigurationException;
 use Mcp\Schema\Annotations;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Prompt;
@@ -36,6 +35,11 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
+ * An element that cannot be registered is logged and skipped, never rethrown: loading is lazy by
+ * default and therefore runs while a request is being served, where aborting takes every other
+ * element down with it and answers unrelated calls with the failed element's message. This matches
+ * how `Discoverer` already treats a bad attribute.
+ *
  * @author Antoine Bluchet <soyuka@gmail.com>
  *
  * @phpstan-import-type Handler from ElementReference
@@ -132,7 +136,6 @@ final class ReflectedElementLoader implements LoaderInterface
                     'Failed to register manual tool',
                     ['handler' => $data['handler'], 'name' => $data['name'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual tool '{$data['name']}': {$e->getMessage()}", 0, $e);
             }
         }
 
@@ -169,7 +172,6 @@ final class ReflectedElementLoader implements LoaderInterface
                     'Failed to register manual resource',
                     ['handler' => $data['handler'], 'uri' => $data['uri'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual resource '{$data['uri']}': {$e->getMessage()}", 0, $e);
             }
         }
 
@@ -205,7 +207,6 @@ final class ReflectedElementLoader implements LoaderInterface
                     'Failed to register manual template',
                     ['handler' => $data['handler'], 'uriTemplate' => $data['uriTemplate'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual resource template '{$data['uriTemplate']}': {$e->getMessage()}", 0, $e);
             }
         }
 
@@ -259,7 +260,6 @@ final class ReflectedElementLoader implements LoaderInterface
                     'Failed to register manual prompt',
                     ['handler' => $data['handler'], 'name' => $data['name'], 'exception' => $e],
                 );
-                throw new ConfigurationException("Error registering manual prompt '{$data['name']}': {$e->getMessage()}", 0, $e);
             }
         }
 

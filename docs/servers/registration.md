@@ -136,7 +136,9 @@ $server = Server::builder()
 #### Parameters
 
 - `handler` (callable|string): The resource template handler
-- `uriTemplate` (string): The resource URI template
+- `uriTemplate` (string): The resource URI template. It must carry at least one `{placeholder}`, which is what lets it
+  address more than one resource. A URI without one is a single resource: register it with `addResource()` instead.
+  A template that does not qualify is logged and skipped when the registry loads; the rest of the server keeps working.
 - `name` (string|null): Optional resource template name
 - `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional resource template description
