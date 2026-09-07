@@ -42,10 +42,10 @@ class McpAppsTest extends TestCase
 
         $serialized = $csp->jsonSerialize();
 
-        $this->assertSame(['https://api.example.com'], $serialized['connectDomains']);
-        $this->assertSame(['https://cdn.example.com'], $serialized['resourceDomains']);
-        $this->assertSame(['https://embed.example.com'], $serialized['frameDomains']);
-        $this->assertSame(['https://example.com'], $serialized['baseUriDomains']);
+        $this->assertSame(['https://api.example.com'], $serialized['connectDomains'] ?? null);
+        $this->assertSame(['https://cdn.example.com'], $serialized['resourceDomains'] ?? null);
+        $this->assertSame(['https://embed.example.com'], $serialized['frameDomains'] ?? null);
+        $this->assertSame(['https://example.com'], $serialized['baseUriDomains'] ?? null);
     }
 
     public function testUiResourceCspOmitsNullFields(): void
@@ -142,8 +142,8 @@ class McpAppsTest extends TestCase
 
         $this->assertArrayHasKey('csp', $serialized);
         $this->assertArrayHasKey('permissions', $serialized);
-        $this->assertSame('example.com', $serialized['domain']);
-        $this->assertTrue($serialized['prefersBorder']);
+        $this->assertSame('example.com', $serialized['domain'] ?? null);
+        $this->assertTrue($serialized['prefersBorder'] ?? null);
     }
 
     public function testUiResourceContentMetaOmitsNullFields(): void
@@ -184,8 +184,8 @@ class McpAppsTest extends TestCase
 
         $serialized = $meta->jsonSerialize();
 
-        $this->assertSame('ui://my-app', $serialized['resourceUri']);
-        $this->assertSame(['model', 'app'], $serialized['visibility']);
+        $this->assertSame('ui://my-app', $serialized['resourceUri'] ?? null);
+        $this->assertSame(['model', 'app'], $serialized['visibility'] ?? null);
     }
 
     public function testUiToolMetaOmitsNullFields(): void

@@ -50,7 +50,7 @@ class InitializeResult implements ResultInterface
      *     serverInfo: array<string, mixed>,
      *     instructions?: string,
      *     _meta?: array<string, mixed>,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

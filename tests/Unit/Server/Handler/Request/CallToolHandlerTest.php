@@ -554,6 +554,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertSame($expected, $response->result->structuredContent);
     }
 
@@ -659,6 +660,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertNull($response->result->structuredContent);
     }
 
@@ -715,6 +717,10 @@ class CallToolHandlerTest extends TestCase
         ]);
     }
 
+    /**
+     * @param array<string, mixed>|null $outputSchema
+     * @param list<non-empty-string>    $methodsToMock
+     */
     private function createToolReference(
         string $name,
         callable $handler,

@@ -157,12 +157,13 @@ class ClientGateway
         if (\is_string($message)) {
             $message = new TextContent($message);
         }
-        if (\is_object($message) && \in_array($message::class, [TextContent::class, AudioContent::class, ImageContent::class], true)) {
-            $message = [new SamplingMessage(Role::User, $message)];
-        }
+
+        $messages = $message instanceof TextContent || $message instanceof AudioContent || $message instanceof ImageContent
+            ? [new SamplingMessage(Role::User, $message)]
+            : $message;
 
         $request = new CreateSamplingMessageRequest(
-            messages: $message,
+            messages: $messages,
             maxTokens: $maxTokens,
             preferences: $preferences,
             systemPrompt: $options['systemPrompt'] ?? null,

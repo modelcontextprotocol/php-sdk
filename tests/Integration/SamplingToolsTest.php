@@ -51,12 +51,18 @@ final class SamplingToolsTest extends IntegrationTestCase
         $client->callTool('weather_report', ['city' => 'Paris']);
 
         $this->assertCount(2, $seen);
-        $this->assertSame('get_weather', $seen[0]->tools[0]->name);
+
+        $first = $seen[0];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $first);
+        $this->assertNotNull($first->tools);
+        $this->assertSame('get_weather', $first->tools[0]->name);
 
         // Second turn carries the assistant's tool use and the server's tool result.
-        $this->assertCount(3, $seen[1]->messages);
-        $this->assertInstanceOf(ToolUseContent::class, $seen[1]->messages[1]->getContentBlocks()[0]);
-        $toolResult = $seen[1]->messages[2]->getContentBlocks()[0];
+        $second = $seen[1];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $second);
+        $this->assertCount(3, $second->messages);
+        $this->assertInstanceOf(ToolUseContent::class, $second->messages[1]->getContentBlocks()[0]);
+        $toolResult = $second->messages[2]->getContentBlocks()[0];
         $this->assertInstanceOf(ToolResultContent::class, $toolResult);
         $this->assertSame('call-1', $toolResult->toolUseId);
     }

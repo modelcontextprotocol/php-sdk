@@ -12,6 +12,7 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Capability\Formatter\ResourceResultFormatter;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Content\ResourceContents;
 use Mcp\Schema\ResourceTemplate;
 
@@ -96,6 +97,10 @@ class ResourceTemplateReference extends ElementReference
         $regexParts = [];
 
         $segments = preg_split('/(\{\w+\})/', $this->resourceTemplate->uriTemplate, -1, \PREG_SPLIT_DELIM_CAPTURE | \PREG_SPLIT_NO_EMPTY);
+
+        if (false === $segments) {
+            throw new InvalidArgumentException(\sprintf('Invalid URI template "%s".', $this->resourceTemplate->uriTemplate));
+        }
 
         foreach ($segments as $segment) {
             if (preg_match('/^\{(\w+)\}$/', $segment, $matches)) {

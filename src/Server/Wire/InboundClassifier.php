@@ -175,7 +175,7 @@ final class InboundClassifier
             return self::eraOf($claim);
         }
 
-        if (!self::namesModern($headerVersion)) {
+        if (null === $headerVersion || !self::namesModern($headerVersion)) {
             return EraClassification::legacy();
         }
 
@@ -215,8 +215,8 @@ final class InboundClassifier
      * version this endpoint does not serve, and the handshake leg's version
      * middleware is what says so, naming everything the endpoint does serve.
      */
-    private static function namesModern(?string $version): bool
+    private static function namesModern(string $version): bool
     {
-        return null !== $version && true === ProtocolVersion::tryFrom($version)?->isModern();
+        return true === ProtocolVersion::tryFrom($version)?->isModern();
     }
 }

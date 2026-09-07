@@ -6,6 +6,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * [BC Break] Remove the `providerClass` argument of `#[CompletionProvider]`. Use `provider:`, which takes the same class-string and is now the first positional argument.
+* [BC Break] `StreamableHttpTransport::handleFiberTermination()` takes the terminated `\Fiber` as its first argument; a subclass overriding it has to accept it too.
+* [BC Break] Reject a `Tool` input schema whose `properties` is not an object or whose `required` is neither a list nor `null`, instead of silently replacing the member. Reject a `completion/complete` whose `argument` is missing `name` or `value`, instead of completing against an empty prefix.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 
 0.8.0

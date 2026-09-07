@@ -80,7 +80,13 @@ enum ProtocolVersion: string
      */
     public static function handshakeVersions(): array
     {
-        return array_values(array_filter(self::cases(), static fn (self $v): bool => !$v->isModern()));
+        $versions = array_values(array_filter(self::cases(), static fn (self $v): bool => !$v->isModern()));
+
+        if ([] === $versions) {
+            throw new LogicException('No handshake-era protocol revision is declared.');
+        }
+
+        return $versions;
     }
 
     /**
@@ -90,7 +96,13 @@ enum ProtocolVersion: string
      */
     public static function modernVersions(): array
     {
-        return array_values(array_filter(self::cases(), static fn (self $v): bool => $v->isModern()));
+        $versions = array_values(array_filter(self::cases(), static fn (self $v): bool => $v->isModern()));
+
+        if ([] === $versions) {
+            throw new LogicException('No modern-era protocol revision is declared.');
+        }
+
+        return $versions;
     }
 
     /**

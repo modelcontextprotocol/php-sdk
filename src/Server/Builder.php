@@ -239,9 +239,9 @@ final class Builder
     private array $discoveryExcludeDirs = [];
 
     /**
-     * @var string[]|null
+     * @var string[]
      */
-    private ?array $discoveryNamePatterns = null;
+    private array $discoveryNamePatterns = DiscovererInterface::DEFAULT_NAME_PATERNS;
 
     private ?ServerCapabilities $serverCapabilities = null;
 

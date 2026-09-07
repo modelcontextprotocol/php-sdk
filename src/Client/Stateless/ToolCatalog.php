@@ -32,7 +32,7 @@ use Psr\Log\NullLogger;
  */
 final class ToolCatalog
 {
-    /** @var array<string, array<string, mixed>> tool name to input schema */
+    /** @var array<string, array<mixed>> tool name to input schema */
     private array $schemas = [];
 
     /** @var array<string, string> tool name to the reason it was refused */
@@ -50,17 +50,17 @@ final class ToolCatalog
      * is how the client "rejects" it: it never reaches the caller, so it cannot
      * be called, and the tools listed beside it are untouched.
      *
-     * @param list<array<string, mixed>> $tools raw `tools/list` entries
+     * @param array<mixed> $tools raw `tools/list` entries
      *
-     * @return list<array<string, mixed>>
+     * @return list<mixed>
      */
     public function record(array $tools): array
     {
         $usable = [];
 
         foreach ($tools as $tool) {
-            $name = $tool['name'] ?? null;
-            $schema = $tool['inputSchema'] ?? null;
+            $name = \is_array($tool) ? $tool['name'] ?? null : null;
+            $schema = \is_array($tool) ? $tool['inputSchema'] ?? null : null;
 
             if (!\is_string($name) || !\is_array($schema)) {
                 $usable[] = $tool;

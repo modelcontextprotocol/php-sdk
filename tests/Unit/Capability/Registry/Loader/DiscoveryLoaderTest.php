@@ -81,7 +81,9 @@ class DiscoveryLoaderTest extends TestCase
 
         $updatedResource = $this->registry->getResource('r://1', false);
         $this->assertInstanceOf(ResourceReference::class, $updatedResource);
-        $this->assertSame('r1-updated', ($updatedResource->handler)());
+        $handler = $updatedResource->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertSame('r1-updated', $handler());
 
         $this->expectException(ToolNotFoundException::class);
         $this->registry->getTool('t1');
@@ -150,7 +152,9 @@ class DiscoveryLoaderTest extends TestCase
         );
         $loader->load($this->registry);
 
-        $this->assertSame('v2', ($this->registry->getTool('t')->handler)());
+        $handler = $this->registry->getTool('t')->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertSame('v2', $handler());
         $this->assertSame(['arg' => ListCompletionProvider::class], $this->registry->getPrompt('p')->completionProviders);
     }
 
@@ -166,7 +170,9 @@ class DiscoveryLoaderTest extends TestCase
         ));
         (new DiscoveryLoader('/base', [], [], $discoverer))->load($this->registry);
 
-        $this->assertSame('runtime', ($this->registry->getTool('shared')->handler)());
+        $handler = $this->registry->getTool('shared')->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertSame('runtime', $handler());
     }
 
     public function testLoadPreservesRuntimeOverrideOfPreviouslyOwnedEntry(): void
@@ -187,7 +193,9 @@ class DiscoveryLoaderTest extends TestCase
         );
         $loader->load($this->registry);
 
-        $this->assertSame('runtime', ($this->registry->getTool('shared')->handler)());
+        $handler = $this->registry->getTool('shared')->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertSame('runtime', $handler());
     }
 
     public function testLoadDoesNotUnregisterRuntimeAdditions(): void

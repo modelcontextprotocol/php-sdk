@@ -135,6 +135,33 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertInstanceOf(ClientGateway::class, $handler->receivedGateway);
     }
 
+    public function testHandleResolvesAClassStringAndMethodPairToAnInstance(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $result = (new ReferenceHandler())->handle(new ElementReference([ArrayHandlerFixture::class, 'greet']), [
+            '_session' => $session,
+            '_request' => new \stdClass(),
+            'who' => 'bob',
+        ]);
+
+        $this->assertSame('hi bob', $result);
+    }
+
+    public function testHandleRefusesAnArrayHandlerWhoseMethodIsNotCallable(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $this->expectException(InvalidArgumentException::class);
+
+        (new ReferenceHandler())->handle(new ElementReference([new ArrayHandlerFixture(), 'hidden']), [
+            '_session' => $session,
+            '_request' => new \stdClass(),
+        ]);
+    }
+
     public function testHandleStillReflectsOrdinaryClosuresAndDoesNotInjectArgumentBag(): void
     {
         $session = $this->createMock(SessionInterface::class);
@@ -262,5 +289,22 @@ final class ReferenceHandlerTest extends TestCase
             'name' => 'bad',
             'scores' => ['1', 'not-a-number', '3'],
         ]);
+    }
+}
+
+class ArrayHandlerFixture
+{
+    public function greet(string $who): string
+    {
+        return 'hi '.$who;
+    }
+
+    /**
+     * Not public, so `[$instance, 'hidden']` is not a callable and the handler
+     * has to refuse it rather than invoke it.
+     */
+    protected function hidden(): string
+    {
+        return 'unreachable';
     }
 }

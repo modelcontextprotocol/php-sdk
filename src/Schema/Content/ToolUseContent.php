@@ -70,7 +70,7 @@ final class ToolUseContent extends Content
     public function jsonSerialize(): array
     {
         $data = [
-            'type' => $this->type,
+            'type' => 'tool_use',
             'id' => $this->id,
             'name' => $this->name,
             'input' => $this->input ?: new \stdClass(),

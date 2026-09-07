@@ -59,7 +59,7 @@ final class CallToolRequest extends Request
     }
 
     /**
-     * @return array{name: string, arguments: array<string, mixed>}
+     * @return array{name: string, arguments: array<string, mixed>|\stdClass}
      */
     protected function getParams(): array
     {

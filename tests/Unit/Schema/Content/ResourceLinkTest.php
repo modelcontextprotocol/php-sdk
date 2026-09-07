@@ -100,13 +100,13 @@ final class ResourceLinkTest extends TestCase
         $this->assertSame('resource_link', $data['type']);
         $this->assertSame(self::VALID_URI, $data['uri']);
         $this->assertSame('main.rs', $data['name']);
-        $this->assertSame('Main Source File', $data['title']);
-        $this->assertSame('Primary application entry point', $data['description']);
-        $this->assertSame('text/x-rust', $data['mimeType']);
-        $this->assertSame($annotations, $data['annotations']);
-        $this->assertSame(1024, $data['size']);
-        $this->assertSame($icons, $data['icons']);
-        $this->assertSame(['origin' => 'test'], $data['_meta']);
+        $this->assertSame('Main Source File', $data['title'] ?? null);
+        $this->assertSame('Primary application entry point', $data['description'] ?? null);
+        $this->assertSame('text/x-rust', $data['mimeType'] ?? null);
+        $this->assertSame($annotations, $data['annotations'] ?? null);
+        $this->assertSame(1024, $data['size'] ?? null);
+        $this->assertSame($icons, $data['icons'] ?? null);
+        $this->assertSame(['origin' => 'test'], $data['_meta'] ?? null);
     }
 
     public function testOptionalFieldsOmittedWhenNull(): void
@@ -159,8 +159,9 @@ final class ResourceLinkTest extends TestCase
         $this->assertSame('text/x-rust', $link->mimeType);
         $this->assertInstanceOf(Annotations::class, $link->annotations);
         $this->assertSame(1024, $link->size);
+        $this->assertNotNull($link->icons);
         $this->assertCount(1, $link->icons);
-        $this->assertInstanceOf(Icon::class, $link->icons[0]);
+        $this->assertInstanceOf(Icon::class, $link->icons[0] ?? null);
         $this->assertSame(['origin' => 'test'], $link->meta);
     }
 
@@ -178,7 +179,7 @@ final class ResourceLinkTest extends TestCase
             meta: ['origin' => 'test'],
         );
 
-        $decoded = json_decode(json_encode($original), true);
+        $decoded = json_decode(json_encode($original, \JSON_THROW_ON_ERROR), true);
         $rehydrated = ResourceLink::fromArray($decoded);
 
         $this->assertSame($original->uri, $rehydrated->uri);
@@ -196,7 +197,6 @@ final class ResourceLinkTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid type for ResourceLink.');
 
-        /* @phpstan-ignore argument.type */
         ResourceLink::fromArray([
             'type' => 'resource',
             'uri' => self::VALID_URI,

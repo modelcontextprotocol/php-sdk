@@ -79,7 +79,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
      *     default?: string[],
      *     minItems?: int,
      *     maxItems?: int,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

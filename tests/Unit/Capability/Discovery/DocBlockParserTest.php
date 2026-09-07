@@ -105,7 +105,9 @@ class DocBlockParserTest extends TestCase
         $deprecatedTags = $docBlock->getTagsByName('deprecated');
         $this->assertCount(1, $deprecatedTags);
         $this->assertInstanceOf(Deprecated::class, $deprecatedTags[0]);
-        $this->assertEquals('use newMethod() instead', $deprecatedTags[0]->getDescription()->render());
+        $deprecatedDescription = $deprecatedTags[0]->getDescription();
+        $this->assertNotNull($deprecatedDescription);
+        $this->assertEquals('use newMethod() instead', $deprecatedDescription->render());
 
         $seeTags = $docBlock->getTagsByName('see');
         $this->assertCount(1, $seeTags);

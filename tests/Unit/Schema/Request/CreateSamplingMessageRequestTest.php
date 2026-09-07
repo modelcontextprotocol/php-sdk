@@ -65,11 +65,15 @@ final class CreateSamplingMessageRequestTest extends TestCase
         );
 
         $payload = $request->withId(1)->jsonSerialize();
-        $this->assertSame('weather', $payload['params']['tools'][0]->name);
-        $this->assertSame(ToolChoiceMode::Required, $payload['params']['toolChoice']->mode);
+        $params = $payload['params'] ?? null;
+        $this->assertIsArray($params);
+        $this->assertSame('weather', $params['tools'][0]->name);
+        $this->assertSame(ToolChoiceMode::Required, $params['toolChoice']->mode);
 
         $hydrated = CreateSamplingMessageRequest::fromArray(json_decode(json_encode($payload, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR));
+        $this->assertNotNull($hydrated->tools);
         $this->assertSame('weather', $hydrated->tools[0]->name);
+        $this->assertNotNull($hydrated->toolChoice);
         $this->assertSame(ToolChoiceMode::Required, $hydrated->toolChoice->mode);
     }
 

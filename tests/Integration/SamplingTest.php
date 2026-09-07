@@ -51,9 +51,12 @@ final class SamplingTest extends IntegrationTestCase
         $client->callTool('summarize', ['text' => 'inspect me']);
 
         $this->assertCount(1, $seen);
-        $this->assertInstanceOf(TextContent::class, $seen[0]->messages[0]->content);
-        $this->assertSame('inspect me', $seen[0]->messages[0]->content->text);
-        $this->assertSame(64, $seen[0]->maxTokens);
+
+        $request = $seen[0];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $request);
+        $this->assertInstanceOf(TextContent::class, $request->messages[0]->content);
+        $this->assertSame('inspect me', $request->messages[0]->content->text);
+        $this->assertSame(64, $request->maxTokens);
     }
 
     #[TestDox('a gateway parameter is injected, not published in the schema')]
@@ -69,9 +72,12 @@ final class SamplingTest extends IntegrationTestCase
         }
 
         $this->assertNotNull($tool);
-        $this->assertArrayNotHasKey('client', $tool->inputSchema['properties']);
-        $this->assertArrayHasKey('text', $tool->inputSchema['properties']);
-        $this->assertSame(['text'], $tool->inputSchema['required']);
+
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $this->assertArrayNotHasKey('client', $properties);
+        $this->assertArrayHasKey('text', $properties);
+        $this->assertSame(['text'], $tool->inputSchema['required'] ?? null);
 
         $result = $client->callTool('summarize_via_gateway', ['text' => 'a long report']);
 

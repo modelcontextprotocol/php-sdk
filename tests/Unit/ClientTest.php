@@ -31,6 +31,17 @@ final class ClientTest extends TestCase
         $this->assertInstanceOf(Builder::class, Client::builder());
     }
 
+    #[TestDox('readResource() refuses an empty URI before it reaches the wire')]
+    public function testReadResourceRejectsAnEmptyUri(): void
+    {
+        $client = Client::builder()->build();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Resource URI must not be empty.');
+
+        $client->readResource('');
+    }
+
     #[TestDox('connect() succeeds on the first attempt without retrying')]
     public function testConnectSucceedsWithoutRetrying(): void
     {

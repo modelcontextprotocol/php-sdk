@@ -64,7 +64,7 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
      *     description?: string,
      *     default?: string,
      *     enumNames?: string[],
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
