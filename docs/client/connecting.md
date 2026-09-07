@@ -169,6 +169,7 @@ $client->connect($transport);
 ```
 
 The `connect()` method performs the MCP initialization handshake:
+
 1. Opens the transport connection
 2. Sends InitializeRequest with client capabilities
 3. Waits for InitializeResult from server

@@ -6,6 +6,7 @@ registry somehow. There are three ways to get it there, and they mix freely.
 ## Attribute-Based Discovery
 
 **Advantages:**
+
 - Declarative and readable
 - Automatic parameter inference
 - DocBlock integration
@@ -25,6 +26,7 @@ Register MCP elements programmatically without using attributes. The handler is 
 any PHP callable.
 
 **Advantages:**
+
 - Fine-grained control
 - Runtime configuration
 - Conditional registration

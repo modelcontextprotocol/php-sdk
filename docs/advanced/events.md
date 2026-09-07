@@ -35,6 +35,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 **Dispatched**: When any request is received from the client, before it's processed by handlers.
 
 **Properties**:
+
 - `getRequest(): Request` - The incoming request
 - `setRequest(Request $request): void` - Modify the request before processing
 - `getSession(): SessionInterface` - The current session
@@ -45,6 +46,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 **Dispatched**: When a successful response is ready to be sent to the client, after handler execution.
 
 **Properties**:
+
 - `getResponse(): Response` - The response being sent
 - `setResponse(Response $response): void` - Modify the response before sending
 - `getRequest(): Request` - The original request
@@ -56,6 +58,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 **Dispatched**: When an error occurs during request processing.
 
 **Properties**:
+
 - `getError(): Error` - The error being sent
 - `setError(Error $error): void` - Modify the error before sending
 - `getRequest(): Request` - The original request. Messages that fail to parse are rejected before this event, so a listener never sees them.
@@ -67,6 +70,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 **Dispatched**: When a notification is received from the client, before it's processed by handlers.
 
 **Properties**:
+
 - `getNotification(): Notification` - The incoming notification
 - `setNotification(Notification $notification): void` - Modify the notification before processing
 - `getSession(): SessionInterface` - The current session

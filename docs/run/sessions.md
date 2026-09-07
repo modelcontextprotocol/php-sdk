@@ -74,6 +74,7 @@ $server = Server::builder()
 ```
 
 **Parameters:**
+
 - `$gcProbability` (int): The numerator of the GC probability fraction (default: `1`). Set to `0` to disable GC.
 - `$gcDivisor` (int): The denominator of the GC probability fraction (default: `100`). Must be >= 1.
 
@@ -81,6 +82,7 @@ $server = Server::builder()
 > the `gcProbability` and `gcDivisor` settings are ignored — you control GC behavior in your own implementation.
 
 **Available Session Stores:**
+
 - `InMemorySessionStore`: Fast in-memory storage (default)
 - `FileSessionStore`: Persistent file-based storage
 - `Psr16SessionStore`: PSR-16 compliant cache-based storage
