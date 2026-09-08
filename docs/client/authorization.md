@@ -164,10 +164,19 @@ No browser, no redirect, no authorization handler: the client authenticates as i
 gets a token. Where the authorization server prefers a signed assertion to a shared
 secret:
 
+```bash
+composer require firebase/php-jwt
+```
+
 ```php
 OAuth::forServiceAccount('My Job', 'my-client-id')
     ->setPrivateKeyJwt(file_get_contents('/etc/my-job/private-key.pem'), 'ES256');
 ```
+
+The package is suggested rather than required, because this is the only path that needs
+it. Pick whichever algorithm the authorization server advertises in
+`token_endpoint_auth_signing_alg_values_supported`: `RS256`, `RS384`, `RS512`, `PS256`,
+`ES256`, `ES256K`, `ES384` or `EdDSA`.
 
 ### A user who already signed in at work
 

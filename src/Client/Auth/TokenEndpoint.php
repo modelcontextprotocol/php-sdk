@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Firebase\JWT\JWT;
 use Mcp\Exception\AuthorizationException;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -29,6 +30,15 @@ use Psr\Log\NullLogger;
  */
 final class TokenEndpoint
 {
+    /**
+     * Signature algorithms a client assertion may use.
+     *
+     * The asymmetric half of RFC 7518, which is what `private_key_jwt` means: the
+     * authorization server holds the public key. `PS256` additionally needs
+     * phpseclib and `EdDSA` needs ext-sodium; both report that themselves.
+     */
+    private const ASSERTION_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'PS256', 'ES256', 'ES256K', 'ES384', 'EdDSA'];
+
     public function __construct(
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
@@ -131,92 +141,32 @@ final class TokenEndpoint
      */
     private function createClientAssertion(string $clientId, string $audience, string $privateKeyPem, string $algorithm): string
     {
-        if (!\extension_loaded('openssl')) {
-            throw new AuthorizationException('Private key JWT client authentication needs the OpenSSL extension.');
+        if (!class_exists(JWT::class)) {
+            throw new AuthorizationException('For using private_key_jwt client authentication, the firebase/php-jwt package is required. Try running "composer require firebase/php-jwt".');
         }
 
-        $digest = match ($algorithm) {
-            'RS256', 'ES256' => \OPENSSL_ALGO_SHA256,
-            'RS384', 'ES384' => \OPENSSL_ALGO_SHA384,
-            'RS512', 'ES512' => \OPENSSL_ALGO_SHA512,
-            default => throw new AuthorizationException(\sprintf('Unsupported client assertion algorithm "%s". Use one of RS256, RS384, RS512, ES256, ES384 or ES512.', $algorithm)),
-        };
+        // Asymmetric algorithms only. The HMAC family is what `client_secret_jwt` signs
+        // with, and handing a private key to one would sign the assertion with the key
+        // material as a shared secret -- a quiet downgrade rather than an error.
+        if (!\in_array($algorithm, self::ASSERTION_ALGORITHMS, true)) {
+            throw new AuthorizationException(\sprintf('Unsupported client assertion algorithm "%s". Use one of %s.', $algorithm, implode(', ', self::ASSERTION_ALGORITHMS)));
+        }
 
         $now = time();
-        $segments = [
-            self::base64Url((string) json_encode(['alg' => $algorithm, 'typ' => 'JWT'])),
-            self::base64Url((string) json_encode([
+
+        try {
+            return JWT::encode([
                 'iss' => $clientId,
                 'sub' => $clientId,
                 'aud' => $audience,
+                // Single-use, so an assertion observed in transit cannot be replayed.
                 'jti' => bin2hex(random_bytes(16)),
                 'iat' => $now,
                 'exp' => $now + 300,
-            ])),
-        ];
-
-        $key = openssl_pkey_get_private($privateKeyPem);
-
-        if (false === $key) {
-            throw new AuthorizationException('The configured private key could not be read: '.(openssl_error_string() ?: 'unknown error').'.');
+            ], $privateKeyPem, $algorithm);
+        } catch (\Throwable $e) {
+            throw new AuthorizationException(\sprintf('Signing the client assertion with %s failed: %s', $algorithm, $e->getMessage()), 0, $e);
         }
-
-        if (!openssl_sign(implode('.', $segments), $signature, $key, $digest)) {
-            throw new AuthorizationException('Signing the client assertion failed: '.(openssl_error_string() ?: 'unknown error').'.');
-        }
-
-        if (str_starts_with($algorithm, 'ES')) {
-            $signature = self::derToJose($signature, match ($algorithm) {
-                'ES256' => 32,
-                'ES384' => 48,
-                default => 66,
-            });
-        }
-
-        $segments[] = self::base64Url($signature);
-
-        return implode('.', $segments);
-    }
-
-    /**
-     * Convert OpenSSL's DER-encoded ECDSA signature into the raw R||S pair JWS wants.
-     *
-     * DER carries each half as a minimally-encoded signed integer, so it may be shorter
-     * than the curve's field size or a byte longer when the leading bit would read as
-     * negative; JWS wants both halves fixed-width and unsigned.
-     */
-    private static function derToJose(string $der, int $partLength): string
-    {
-        if ('' === $der || "\x30" !== $der[0]) {
-            throw new AuthorizationException('The ECDSA signature is not a DER sequence.');
-        }
-
-        $offset = 2;
-
-        // A sequence longer than 127 bytes states its length over several bytes.
-        if (\ord($der[1]) > 0x80) {
-            $offset += \ord($der[1]) - 0x80;
-        }
-
-        $parts = [];
-
-        for ($i = 0; $i < 2; ++$i) {
-            if (!isset($der[$offset + 1]) || "\x02" !== $der[$offset]) {
-                throw new AuthorizationException('The ECDSA signature does not contain two integers.');
-            }
-
-            $length = \ord($der[$offset + 1]);
-            $value = ltrim(substr($der, $offset + 2, $length), "\x00");
-            $offset += 2 + $length;
-
-            if (\strlen($value) > $partLength) {
-                throw new AuthorizationException('The ECDSA signature does not match the algorithm\'s curve.');
-            }
-
-            $parts[] = str_pad($value, $partLength, "\x00", \STR_PAD_LEFT);
-        }
-
-        return implode('', $parts);
     }
 
     /**
@@ -228,10 +178,5 @@ final class TokenEndpoint
         $description = \is_string($response['error_description'] ?? null) ? $response['error_description'] : null;
 
         return null === $description ? $error : $error.' ('.$description.')';
-    }
-
-    private static function base64Url(string $bytes): string
-    {
-        return rtrim(strtr(base64_encode($bytes), '+/', '-_'), '=');
     }
 }

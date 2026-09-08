@@ -147,8 +147,13 @@ final class OAuth
     /**
      * Authenticate at the token endpoint with a signed assertion instead of a secret.
      *
+     * Needs the firebase/php-jwt package, which this SDK suggests rather than requires:
+     * every other way of authenticating a client works without it.
+     *
      * @param string $privateKeyPem a PEM-encoded private key
-     * @param string $algorithm     one of RS256, RS384, RS512, ES256, ES384 or ES512
+     * @param string $algorithm     one of RS256, RS384, RS512, PS256, ES256, ES256K,
+     *                              ES384 or EdDSA -- whichever the authorization server
+     *                              advertises in token_endpoint_auth_signing_alg_values_supported
      */
     public function setPrivateKeyJwt(string $privateKeyPem, string $algorithm = 'RS256'): self
     {
