@@ -18,9 +18,9 @@ use Mcp\Exception\AuthorizationException;
  *
  * The fallback for environments where nothing can listen on a loopback port -- a remote
  * shell, a container without a browser, a redirect URI the authorization server insists
- * must be a real https address. The user is asked to paste the full redirected URL, so
- * `state` and `iss` survive the round trip and can still be verified; pasting only the
- * code is accepted too, at the cost of those checks having nothing to compare against.
+ * must be a real https address. The user pastes the whole redirected URL rather than
+ * just the code, so `state` and `iss` survive the round trip and can still be checked --
+ * a bare code would leave both with nothing to compare against, and is refused.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -53,8 +53,9 @@ final class ConsoleAuthorizationHandler implements AuthorizationHandlerInterface
         $query = parse_url($answer, \PHP_URL_QUERY);
 
         if (!\is_string($query) || '' === $query) {
-            // Not a URL: treat it as the bare authorization code.
-            return ['code' => $answer];
+            // A bare code cannot carry the state and issuer the response is checked
+            // against, so accepting one would quietly skip both checks.
+            throw new AuthorizationException('Paste the whole URL you were redirected to, not just the code: the rest of it is what proves the response belongs to this request.');
         }
 
         parse_str($query, $parameters);

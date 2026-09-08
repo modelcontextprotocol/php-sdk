@@ -54,7 +54,7 @@ final class OAuthConfiguration
         public readonly string $signingAlgorithm = 'RS256',
         public readonly array $scopes = [],
         public readonly bool $offlineAccess = true,
-        public readonly bool $legacyDiscovery = true,
+        public readonly bool $legacyDiscovery = false,
         public readonly ?string $resource = null,
         public readonly ?CrossAppAccess $crossAppAccess = null,
     ) {

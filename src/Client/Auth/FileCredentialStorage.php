@@ -136,10 +136,23 @@ final class FileCredentialStorage implements CredentialStorageInterface
 
         $encoded = json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
 
-        if (false === $encoded || false === @file_put_contents($this->path, $encoded, \LOCK_EX)) {
-            throw new RuntimeException(\sprintf('Could not write the credential file "%s".', $this->path));
+        if (false === $encoded) {
+            throw new RuntimeException(\sprintf('Could not encode the credentials for "%s".', $this->path));
         }
 
-        @chmod($this->path, 0600);
+        // Written to a private temporary file and moved into place, rather than written
+        // in place and then chmod'ed: the file exists for a moment either way, and this
+        // way it never exists world-readable, and never exists half-written.
+        $temporary = @tempnam($directory, '.credentials');
+
+        if (false === $temporary) {
+            throw new RuntimeException(\sprintf('Could not create a temporary file next to "%s".', $this->path));
+        }
+
+        if (false === @file_put_contents($temporary, $encoded) || !@chmod($temporary, 0600) || !@rename($temporary, $this->path)) {
+            @unlink($temporary);
+
+            throw new RuntimeException(\sprintf('Could not write the credential file "%s".', $this->path));
+        }
     }
 }

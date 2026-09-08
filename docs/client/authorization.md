@@ -62,7 +62,8 @@ $auth = OAuth::forApplication('My App')
   line applications; the authorization code never touches the clipboard.
 - **`ConsoleAuthorizationHandler`** prints the URL and reads the redirected URL back from
   standard input. For a remote shell, a container without a browser, or a server that
-  will not accept a loopback redirect URI.
+  will not accept a loopback redirect URI. It wants the whole URL, not just the code —
+  the rest of it is what the response is checked against.
 - **`HeadlessAuthorizationHandler`** requests the authorization endpoint itself and reads
   the code out of the redirect, with no user at all. Only works where the authorization
   server grants without prompting — a test harness, or an enterprise identity provider
@@ -209,6 +210,12 @@ Left alone, the client asks for what it is told to ask for: the scopes named in 
 challenge if there are any, otherwise every scope the resource advertises, otherwise
 nothing at all. Inventing scopes only earns a rejection, so it does not.
 
+By default the client will not authorize against a server that publishes no protected
+resource metadata: every revision since 2025-06-18 requires it, and without it there is
+nothing to check the authorization server against. `setLegacyDiscovery(true)` opts back
+in to the 2025-03-26 behaviour of treating the MCP server as its own authorization
+server.
+
 Where the authorization server offers `offline_access`, the client asks for it too, so an
 expired token can be refreshed instead of sending the user back to the browser. A server
 that advertises the scope but will not grant it to this client is not a failure — the
@@ -235,6 +242,41 @@ $http = new AuthenticatingHttpClient($yourPsr18Client, $auth);
 It authenticates every request and retries a challenged one, capped at three
 authorization attempts so a server stuck on "insufficient scope" cannot spin the client
 in a loop.
+
+## What the client refuses to do
+
+A remote MCP server is not a trusted party. It chooses its own `WWW-Authenticate`
+challenge, its own metadata document, and therefore which authorization server the
+client is about to talk to. The client treats all of that as input, and there are
+several answers it will not accept:
+
+| The server says | The client does |
+| --- | --- |
+| metadata naming a `resource` that is not the endpoint being called | refuses; a token for somewhere else is how a token ends up at the wrong party |
+| authorization server metadata whose own `issuer` is not the issuer it was fetched for | refuses, and does not use any endpoint from that document |
+| an `authorization_endpoint` or `token_endpoint` that is not `https` | refuses, unless the host is loopback |
+| an authorization response without the `state` this client sent | refuses |
+| an `iss` that is not the issuer the flow started with, compared byte for byte | refuses |
+| an `iss` missing when the server said it would send one | refuses |
+| no protected resource metadata at all | refuses, unless `setLegacyDiscovery(true)` |
+| `401` again, forever | gives up after three authorization attempts |
+
+Two further properties are worth knowing because they are what keeps a mistake elsewhere
+from becoming a leak:
+
+- **A token is only ever sent to the resource it was minted for.** Not to the host, to
+  the resource: `https://example.com/mcp` does not authorize a request to
+  `https://example.com/other`. Sharing one authenticator across two servers by accident
+  cannot leak the first server's token to the second.
+- **Credentials are stored per authorization server issuer.** A resource that starts
+  pointing somewhere new gets a fresh registration; the previous server's client id is
+  never presented to the new one.
+
+What the client cannot defend against is an authorization server the user genuinely
+approves. If a hostile MCP server points at an authorization server, and the user signs
+in there and consents, the resulting token is exactly what they agreed to. The
+authorization URL is shown to the user for that reason — it is the one point in the flow
+where a human decides.
 
 ## When it does not work
 

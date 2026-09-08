@@ -62,7 +62,19 @@ final class ProtectedResourceMetadata
      */
     public function covers(string $url): bool
     {
-        $resource = parse_url($this->resource);
+        return self::isWithin($url, $this->resource);
+    }
+
+    /**
+     * Whether $url sits at or below the resource identifier $resource.
+     *
+     * Exposed statically because the same question has to be asked again on every
+     * outgoing request, long after the metadata document itself is out of scope: a token
+     * minted for one resource must not be attached to a request aimed at another.
+     */
+    public static function isWithin(string $url, string $resource): bool
+    {
+        $resource = parse_url($resource);
         $target = parse_url($url);
 
         if (!\is_array($resource) || !\is_array($target)) {

@@ -225,6 +225,47 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-2', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
     }
 
+    // The transport builds one authenticator per endpoint, but an authenticator is an
+    // ordinary object: sharing one across two servers must not carry the first server's
+    // token to the second.
+    #[TestDox('a token is not attached to a request aimed at a different server')]
+    public function testTokenIsBoundToItsResource(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $elsewhere = (new Psr17Factory())->createRequest('POST', 'https://other.example.com/mcp');
+
+        $this->assertSame('', $authenticator->authenticate($elsewhere)->getHeaderLine('Authorization'));
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('an authorization response with no state at all is refused')]
+    public function testRejectsAMissingState(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, new StubAuthorizationHandler($server, state: ''));
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('state parameter');
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+    }
+
+    #[TestDox('an authorization server offering plain HTTP endpoints is not followed')]
+    public function testRejectsInsecureEndpoints(): void
+    {
+        $server = new FakeOAuthServer(insecureEndpoints: true);
+        $authenticator = $this->authenticator($server);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('No usable metadata');
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+    }
+
     #[TestDox('a client id configured up front is used instead of registering')]
     public function testSkipsRegistrationForAKnownClient(): void
     {
@@ -293,7 +334,8 @@ final class StubAuthorizationHandler implements AuthorizationHandlerInterface
 
         return array_filter([
             'code' => 'test-authorization-code',
-            'state' => $this->state ?? ($query['state'] ?? null),
+            // An empty configured state stands for a response that carries none at all.
+            'state' => '' === $this->state ? null : ($this->state ?? ($query['state'] ?? null)),
             'iss' => $this->issuer,
         ], static fn (?string $value): bool => null !== $value);
     }
@@ -326,6 +368,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly string $resource = 'https://mcp.example.com/mcp',
         private readonly ?array $resourceScopes = null,
         private readonly array $serverScopes = [],
+        private readonly bool $insecureEndpoints = false,
     ) {
     }
 
@@ -358,9 +401,9 @@ final class FakeOAuthServer implements ClientInterface
 
             'https://auth.example.com/.well-known/oauth-authorization-server' => self::json([
                 'issuer' => 'https://auth.example.com',
-                'authorization_endpoint' => 'https://auth.example.com/authorize',
-                'token_endpoint' => 'https://auth.example.com/token',
-                'registration_endpoint' => 'https://auth.example.com/register',
+                'authorization_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/authorize',
+                'token_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/token',
+                'registration_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/register',
                 'scopes_supported' => $this->serverScopes,
                 'grant_types_supported' => ['authorization_code', 'refresh_token'],
                 'code_challenge_methods_supported' => ['S256'],

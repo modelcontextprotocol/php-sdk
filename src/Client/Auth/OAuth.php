@@ -59,7 +59,7 @@ final class OAuth
     /** @var string[] */
     private array $scopes = [];
     private bool $offlineAccess = true;
-    private bool $legacyDiscovery = true;
+    private bool $legacyDiscovery = false;
     private ?string $resource = null;
     private ?CrossAppAccess $crossAppAccess = null;
 
@@ -183,6 +183,12 @@ final class OAuth
     /**
      * Whether to fall back to pre-2025-06-18 discovery for servers that publish no
      * protected resource metadata.
+     *
+     * Off by default. Every revision of the specification since 2025-06-18 requires a
+     * protected resource server to publish that document, so a server that does not is
+     * either much older than this SDK or is not the server it appears to be -- and
+     * without the document there is nothing to check the authorization server against.
+     * Turn it on knowingly, to reach a server built against 2025-03-26.
      */
     public function setLegacyDiscovery(bool $legacyDiscovery): self
     {

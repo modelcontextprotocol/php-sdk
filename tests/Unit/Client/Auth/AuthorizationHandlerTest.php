@@ -97,10 +97,15 @@ final class AuthorizationHandlerTest extends TestCase
         );
     }
 
-    #[TestDox('the console handler also accepts a bare code')]
-    public function testConsoleHandlerParsesABareCode(): void
+    // A bare code carries neither state nor iss, so accepting one would silently skip
+    // both of the checks that tie the response to this request.
+    #[TestDox('the console handler refuses a bare code, which would skip the response checks')]
+    public function testConsoleHandlerRefusesABareCode(): void
     {
-        $this->assertSame(['code' => 'abc'], $this->console("abc\n"));
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Paste the whole URL');
+
+        $this->console("abc\n");
     }
 
     #[TestDox('the console handler shows the URL it wants opened')]
@@ -109,7 +114,7 @@ final class AuthorizationHandlerTest extends TestCase
         $output = fopen('php://memory', 'r+');
         $this->assertIsResource($output);
 
-        $this->console("abc\n", $output);
+        $this->console("http://127.0.0.1:8765/callback?code=abc\n", $output);
         rewind($output);
 
         $this->assertStringContainsString('https://auth.example.com/authorize', (string) stream_get_contents($output));

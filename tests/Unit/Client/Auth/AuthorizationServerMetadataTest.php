@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\AuthorizationServerMetadata;
 use Mcp\Exception\InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -62,6 +63,57 @@ final class AuthorizationServerMetadataTest extends TestCase
 
         $this->assertTrue($metadata->supportsGrant('authorization_code'));
         $this->assertFalse($metadata->supportsGrant('refresh_token'));
+    }
+
+    // These URLs come out of a document whose location a hostile MCP server chose, and
+    // one of them is opened in the user's browser.
+    #[TestDox('endpoints that are not HTTPS are refused')]
+    public function testRejectsInsecureEndpoints(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('neither an HTTPS URL nor a loopback address');
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'http://auth.example.com/token',
+        ]);
+    }
+
+    #[DataProvider('loopbackProvider')]
+    #[TestDox('plain HTTP is allowed on a loopback address: $_dataName')]
+    public function testAllowsLoopbackOverHttp(string $endpoint): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'http://localhost:8080',
+            'authorization_endpoint' => $endpoint.'/authorize',
+            'token_endpoint' => $endpoint.'/token',
+        ]);
+
+        $this->assertSame($endpoint.'/token', $metadata->tokenEndpoint);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function loopbackProvider(): iterable
+    {
+        yield 'localhost' => ['http://localhost:8080'];
+        yield 'the loopback address' => ['http://127.0.0.1:8080'];
+        yield 'anywhere in 127/8' => ['http://127.13.2.9:8080'];
+        yield 'IPv6 loopback' => ['http://[::1]:8080'];
+    }
+
+    #[TestDox('a host that merely looks like loopback is still refused')]
+    public function testRejectsLookalikeHosts(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'http://localhost.evil.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
     }
 
     #[TestDox('a server that publishes nothing gets the endpoint names its era prescribed')]

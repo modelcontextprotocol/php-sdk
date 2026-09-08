@@ -61,6 +61,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $request;
         }
 
+        // A token is minted for one resource and means nothing at another, so the
+        // request has to be aimed at the resource this one was obtained for. Normally it
+        // is -- the transport builds one authenticator per endpoint -- but an
+        // authenticator is an ordinary object a caller may reuse, and the cost of one
+        // mistake there is handing a hostile server somebody else's token.
+        if (null === $this->resource || !ProtectedResourceMetadata::isWithin(self::canonicalize((string) $request->getUri()), $this->resource)) {
+            return $request;
+        }
+
         return $request->withHeader('Authorization', $this->token->getAuthorizationHeader());
     }
 
@@ -385,11 +394,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
         }
 
-        // A response that came back without the state this client sent did not come from
-        // the request this client made (RFC 6749 section 10.12). Only skipped when the
-        // handler could not observe it at all, as when a user pastes a bare code.
-        if (isset($callback['state']) && !hash_equals($state, $callback['state'])) {
-            throw new AuthorizationException('The authorization response carried a state parameter that does not match the request.');
+        // A response that did not carry back the state this client sent did not come from
+        // the request this client made (RFC 6749 section 10.12). Required, not merely
+        // checked when present: the loopback listener accepts a connection from any local
+        // process, and an absent state would let one of them feed the client a code.
+        if (!isset($callback['state']) || !hash_equals($state, $callback['state'])) {
+            throw new AuthorizationException('The authorization response did not carry back the state parameter this client sent.');
         }
 
         // RFC 9207: where the issuer is named it must be the one the flow was started

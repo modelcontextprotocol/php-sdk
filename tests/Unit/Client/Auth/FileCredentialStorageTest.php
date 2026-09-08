@@ -87,6 +87,27 @@ final class FileCredentialStorageTest extends TestCase
         $this->assertSame('0600', substr(\sprintf('%o', fileperms($this->path)), -4));
     }
 
+    // The window between creating a file and chmod'ing it is a window in which another
+    // local user can open it, so the write happens in a private file that is then moved
+    // into place.
+    #[TestDox('the credentials are never world-readable, not even briefly')]
+    public function testFileIsNeverExposedWhileBeingWritten(): void
+    {
+        $storage = new FileCredentialStorage($this->path);
+        $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('first'));
+
+        clearstatcache();
+        $before = fileperms($this->path);
+
+        $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('second'));
+
+        clearstatcache();
+        $this->assertSame($before, fileperms($this->path));
+        $this->assertSame('0600', substr(\sprintf('%o', fileperms($this->path)), -4));
+        $this->assertSame('second', $storage->getToken('https://auth.example.com', 'https://mcp.example.com/mcp')?->accessToken);
+        $this->assertCount(1, glob(\dirname($this->path).'/*') ?: [], 'The temporary file should not survive the write.');
+    }
+
     #[TestDox('a corrupted file costs one authorization, not a crash')]
     public function testToleratesACorruptedFile(): void
     {

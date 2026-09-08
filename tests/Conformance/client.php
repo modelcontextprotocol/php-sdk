@@ -151,6 +151,13 @@ function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInte
         $oauth->setClientCredentials($context['client_id'], $context['client_secret'] ?? null);
     }
 
+    // These two scenarios are 2025-03-26 servers: no protected resource metadata, and
+    // the authorization endpoints either at the server's root well-known location or at
+    // the fixed paths that revision named. Opt in, since the SDK does not by default.
+    if (str_starts_with($scenario, 'auth/2025-03-26-')) {
+        $oauth->setLegacyDiscovery(true);
+    }
+
     // The client metadata document only needs to be a stable URL the authorization
     // server recognises; the harness never dereferences it.
     if ('auth/basic-cimd' === $scenario) {

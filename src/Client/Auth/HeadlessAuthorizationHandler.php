@@ -42,9 +42,6 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
     public function authorize(string $authorizationUrl, string $redirectUri): array
     {
         $location = $this->fetchRedirect($authorizationUrl);
-
-        $this->logger->debug('Authorization endpoint redirected', ['location' => $location]);
-
         $query = parse_url($location, \PHP_URL_QUERY);
 
         if (!\is_string($query) || '' === $query) {
@@ -52,8 +49,13 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
         }
 
         parse_str($query, $parameters);
+        $parameters = array_map(strval(...), array_filter($parameters, is_scalar(...)));
 
-        return array_map(strval(...), array_filter($parameters, is_scalar(...)));
+        // Only the parameter names: the query carries the authorization code, and a
+        // single-use credential in a log file is still a credential in a log file.
+        $this->logger->debug('Authorization endpoint redirected', ['parameters' => array_keys($parameters)]);
+
+        return $parameters;
     }
 
     /**

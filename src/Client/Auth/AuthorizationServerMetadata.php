@@ -61,6 +61,12 @@ final class AuthorizationServerMetadata
             }
         }
 
+        foreach (['authorization_endpoint', 'token_endpoint', 'registration_endpoint'] as $endpoint) {
+            if (\is_string($data[$endpoint] ?? null) && !self::isTransportSecure($data[$endpoint])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata declares "%s" as "%s", which is neither an HTTPS URL nor a loopback address.', $endpoint, $data[$endpoint]));
+            }
+        }
+
         /* @var array{issuer: string, authorization_endpoint: string, token_endpoint: string} $data */
         return new self(
             $data['issuer'],
@@ -99,6 +105,39 @@ final class AuthorizationServerMetadata
     public function supportsScope(string $scope): bool
     {
         return \in_array($scope, $this->scopesSupported, true);
+    }
+
+    /**
+     * Whether an endpoint is one this client is willing to send credentials to, or send
+     * the user's browser to.
+     *
+     * OAuth 2.1 requires TLS on every endpoint. The exception is a loopback address,
+     * which never leaves the machine and is how local development and test servers are
+     * reached -- everything else has to be https, because these URLs come out of a
+     * document whose location a hostile MCP server chose.
+     */
+    private static function isTransportSecure(string $url): bool
+    {
+        $parts = parse_url($url);
+
+        if (!\is_array($parts) || !isset($parts['scheme'], $parts['host'])) {
+            return false;
+        }
+
+        if ('https' === strtolower($parts['scheme'])) {
+            return true;
+        }
+
+        return 'http' === strtolower($parts['scheme']) && self::isLoopback($parts['host']);
+    }
+
+    private static function isLoopback(string $host): bool
+    {
+        $host = strtolower(trim($host, '[]'));
+
+        return 'localhost' === $host
+            || '::1' === $host
+            || 1 === preg_match('/^127(?:\.\d{1,3}){3}$/', $host);
     }
 
     /**
