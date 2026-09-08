@@ -129,6 +129,13 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
             return;
         }
 
+        // The SDK only ever passes an endpoint it has already validated, but this string
+        // reaches the desktop's protocol-handler dispatcher, so it is worth not relying
+        // on that staying true.
+        if (!AuthorizationServerMetadata::isTransportSecure($url)) {
+            throw new AuthorizationException(\sprintf('Refusing to open "%s": an authorization URL must be HTTPS, or HTTP on a loopback address.', $url));
+        }
+
         $this->logger->info('Opening the authorization page in the browser', ['url' => $url]);
 
         // Backgrounded, because the launcher may not return until the browser exits.

@@ -41,6 +41,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private ?string $resource = null;
     private ?AccessToken $token = null;
 
+    /**
+     * The resource the current token may be sent to.
+     *
+     * Distinct from $resource, which is what was asked for: an application that
+     * overrides the RFC 8707 resource parameter is choosing which token to obtain, not
+     * granting itself permission to spend it somewhere else.
+     */
+    private ?string $audience = null;
+
     /** @var string[] The scopes the last authorization asked for, which a step-up challenge adds to. */
     private array $requestedScopes = [];
 
@@ -66,7 +75,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         // is -- the transport builds one authenticator per endpoint -- but an
         // authenticator is an ordinary object a caller may reuse, and the cost of one
         // mistake there is handing a hostile server somebody else's token.
-        if (null === $this->resource || !ProtectedResourceMetadata::isWithin(self::canonicalize((string) $request->getUri()), $this->resource)) {
+        if (null === $this->audience || !ProtectedResourceMetadata::isWithin(self::canonicalize((string) $request->getUri()), $this->audience)) {
             return $request;
         }
 
@@ -78,7 +87,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $challenge = AuthorizationChallenge::fromResponse($response);
         $endpoint = self::canonicalize((string) $request->getUri());
 
-        [$resource, $metadata, $scopesSupported] = $this->discover($endpoint, $challenge);
+        [$resource, $audience, $metadata, $scopesSupported] = $this->discover($endpoint, $challenge);
 
         if ($metadata->issuer !== $this->issuer) {
             // A different authorization server is a different world: its predecessor's
@@ -91,6 +100,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
+        $this->audience = $audience;
 
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata);
         $stored = $this->storage->getToken($metadata->issuer, $resource);
@@ -119,14 +129,20 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     /**
      * Work out which resource is being protected, and by whom.
      *
-     * @return array{string, AuthorizationServerMetadata, ?string[]}
+     * Two resource identifiers come out of this, and they are not always the same one.
+     * The first is what goes in the RFC 8707 `resource` parameter, which an application
+     * may override. The second is the resource this server actually is, and it is what
+     * the resulting token may be sent to -- an override says which token to ask for, not
+     * where it is safe to spend.
+     *
+     * @return array{string, string, AuthorizationServerMetadata, ?string[]}
      */
     private function discover(string $endpoint, AuthorizationChallenge $challenge): array
     {
         $metadata = $this->discovery->discoverProtectedResource($endpoint, self::trustedMetadataUrl($endpoint, $challenge));
 
         if (null === $metadata) {
-            return [$this->configuration->resource ?? $endpoint, $this->discoverLegacyServer($endpoint), null];
+            return [$this->configuration->resource ?? $endpoint, $endpoint, $this->discoverLegacyServer($endpoint), null];
         }
 
         if (!$metadata->covers($endpoint)) {
@@ -143,13 +159,20 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names no authorization server.', $endpoint));
         }
 
+        // Checked before the document is fetched, not after: this identifier is a string
+        // the server chose, and building well-known URLs out of it and requesting them is
+        // already a request made on the server's behalf, from wherever the client runs.
+        if (!AuthorizationServerMetadata::isTransportSecure($issuer)) {
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is neither an HTTPS URL nor a loopback address.', $endpoint, $issuer));
+        }
+
         $server = $this->discovery->discoverAuthorizationServer($issuer);
 
         if (null === $server) {
             throw new AuthorizationException(\sprintf('No usable metadata was found for the authorization server "%s".', $issuer));
         }
 
-        return [$this->configuration->resource ?? $metadata->resource, $server, $metadata->scopesSupported];
+        return [$this->configuration->resource ?? $metadata->resource, $metadata->resource, $server, $metadata->scopesSupported];
     }
 
     /**

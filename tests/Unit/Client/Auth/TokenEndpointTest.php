@@ -145,6 +145,22 @@ final class TokenEndpointTest extends TestCase
         $this->endpoint($server)->request($this->metadata(), new ClientRegistration('a-client'), ['grant_type' => 'authorization_code']);
     }
 
+    // A token endpoint answering 200 in a shape this client cannot read is still handing
+    // over a live token; quoting the body back would put it in every log downstream.
+    #[TestDox('an unreadable success body is never quoted into the exception')]
+    public function testDoesNotLeakAnUnreadableSuccessBody(): void
+    {
+        $server = new CapturingTokenServer(new Response(200, ['Content-Type' => 'application/x-www-form-urlencoded'], 'access_token=super-secret-token&token_type=bearer'));
+
+        try {
+            $this->endpoint($server)->request($this->metadata(), new ClientRegistration('a-client'), ['grant_type' => 'authorization_code']);
+            $this->fail('An unreadable token response should not have been accepted.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringNotContainsString('super-secret-token', $e->getMessage());
+            $this->assertStringContainsString('could not read as JSON', $e->getMessage());
+        }
+    }
+
     private function endpoint(ClientInterface $client): TokenEndpoint
     {
         $factory = new Psr17Factory();

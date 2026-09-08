@@ -114,7 +114,13 @@ final class TokenEndpoint
         $decoded = json_decode($body, true);
 
         if (200 !== $response->getStatusCode() || !\is_array($decoded)) {
-            throw new AuthorizationException(\sprintf('The authorization server refused the token request with %d: %s', $response->getStatusCode(), \is_array($decoded) ? self::describeError($decoded) : trim($body)));
+            // Only an error document is quoted back. A 200 that failed to decode is a
+            // successful token response in a shape this client cannot read, and putting
+            // its body in the message would put a live access token into every log the
+            // exception reaches.
+            throw new AuthorizationException(\sprintf('The authorization server answered the token request with %d%s.', $response->getStatusCode(), match (true) {
+                200 === $response->getStatusCode() => ', and a body this client could not read as JSON', \is_array($decoded) => ': '.self::describeError($decoded), default => '',
+            }));
         }
 
         return $decoded;

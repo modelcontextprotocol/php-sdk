@@ -115,8 +115,12 @@ final class AuthorizationServerMetadata
      * which never leaves the machine and is how local development and test servers are
      * reached -- everything else has to be https, because these URLs come out of a
      * document whose location a hostile MCP server chose.
+     *
+     * Public because the same question has to be asked of an issuer identifier *before*
+     * its document is fetched: a check that only runs on the response has already let
+     * the request out.
      */
-    private static function isTransportSecure(string $url): bool
+    public static function isTransportSecure(string $url): bool
     {
         $parts = parse_url($url);
 

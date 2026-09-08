@@ -59,6 +59,17 @@ final class AuthorizationChallengeTest extends TestCase
         $this->assertSame(['mcp:read'], $challenge->getScopes());
     }
 
+    #[TestDox('a quoted backslash unescapes one character, not a C escape sequence')]
+    public function testUnescapesTheHttpWay(): void
+    {
+        $challenge = AuthorizationChallenge::fromResponse(new Response(401, [
+            'WWW-Authenticate' => 'Bearer error="say \\"hi\\" now", scope="a\\nb"',
+        ]));
+
+        $this->assertSame('say "hi" now', $challenge->getError());
+        $this->assertSame(['anb'], $challenge->getScopes());
+    }
+
     #[TestDox('a Basic challenge alongside Bearer does not shadow it')]
     public function testIgnoresOtherSchemes(): void
     {

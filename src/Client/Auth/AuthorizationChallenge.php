@@ -82,7 +82,9 @@ final class AuthorizationChallenge
 
         foreach ($matches as $match) {
             $value = '' !== $match[2] ? $match[2] : ($match[3] ?? '');
-            $parsed[strtolower($match[1])] = stripcslashes($value);
+            // RFC 9110 quoted-string escaping is one backslash before one character; a
+            // C-style unescape would turn a literal "\n" in the header into a newline.
+            $parsed[strtolower($match[1])] = stripslashes($value);
         }
 
         return $parsed;

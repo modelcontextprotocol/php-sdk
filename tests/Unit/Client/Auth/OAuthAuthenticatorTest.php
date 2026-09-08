@@ -293,6 +293,40 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertContains('https://mcp.example.com/custom/location.json', $server->requested);
     }
 
+    // Building the well-known URLs out of this identifier and requesting them is already
+    // a request made on the server's behalf, so the check has to precede the fetch.
+    #[TestDox('an authorization server on a plain-HTTP host is refused before it is contacted')]
+    public function testRefusesAnInsecureIssuerWithoutFetchingIt(): void
+    {
+        $server = new FakeOAuthServer(authorizationServer: 'http://10.0.0.5:8080/internal');
+        $authenticator = $this->authenticator($server);
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The insecure authorization server should have been refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('neither an HTTPS URL nor a loopback address', $e->getMessage());
+        }
+
+        foreach ($server->requested as $url) {
+            $this->assertStringNotContainsString('10.0.0.5', $url, 'The issuer must not be contacted before it is validated.');
+        }
+    }
+
+    // An application overriding the RFC 8707 resource parameter is choosing which token
+    // to ask for, not where it may be spent -- the token still has to reach the server.
+    #[TestDox('an overridden resource parameter does not stop the token reaching the server')]
+    public function testOverriddenResourceStillAuthenticatesTheEndpoint(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setResource('https://api.example.com/v1'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('https://api.example.com/v1', $server->authorization['resource'] ?? null);
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('a client id configured up front is used instead of registering')]
     public function testSkipsRegistrationForAKnownClient(): void
     {
@@ -396,6 +430,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly ?array $resourceScopes = null,
         private readonly array $serverScopes = [],
         private readonly bool $insecureEndpoints = false,
+        private readonly string $authorizationServer = 'https://auth.example.com',
     ) {
     }
 
@@ -423,7 +458,7 @@ final class FakeOAuthServer implements ClientInterface
             'https://mcp.example.com/custom/location.json',
             'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(array_filter([
                 'resource' => $this->resource,
-                'authorization_servers' => ['https://auth.example.com'],
+                'authorization_servers' => [$this->authorizationServer],
                 'scopes_supported' => $this->resourceScopes,
             ], static fn (mixed $value): bool => null !== $value)),
 
