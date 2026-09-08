@@ -220,6 +220,32 @@ jobs:
             echo ""
           done || echo "No results found"
 
+  e2e:
+    name: end-to-end / client authorization
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: "none"
+
+      - name: Install Composer
+        uses: "ramsey/composer-install@v4"
+
+      # Keycloak, a real MCP server, and a client that has to authorize its way in.
+      # See tests/E2E/README.md.
+      - name: Run the authorization end-to-end suite
+        # Kept up so the next step can read the containers' logs when it fails.
+        run: E2E_KEEP=1 tests/E2E/run.sh
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f tests/E2E/docker-compose.yml logs
+
   qa:
     runs-on: ubuntu-latest
     steps:

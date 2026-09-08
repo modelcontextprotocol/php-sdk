@@ -47,6 +47,7 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`http_client_communication.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/http_client_communication.php) | The same handlers over HTTP — see the note on PHP's built-in server below | [Server-initiated requests](client/server-requests.md) |
 | [`stdio_elicitation.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_elicitation.php) | Answering elicitation requests from an interactive prompt | [Server-initiated requests](client/server-requests.md) |
 | [`stdio_roots.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_roots.php) | Exposing workspace roots and signalling `roots/list_changed` | [Server-initiated requests](client/server-requests.md) |
+| [`oauth_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/oauth_client.php) | Authorizing against a protected server — discovery, PKCE and the browser | [Authorization](client/authorization.md) |
 | [`stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php) | A client pinned to revision `2026-07-28` — see [Modern-era client](#modern-era-client) | [Connecting to a server](client/connecting.md) |
 
 Client examples run directly:

@@ -6,11 +6,13 @@ vendor
 examples/**/dev.log
 examples/**/cache
 examples/**/sessions
-tests/Conformance/client-conformance.json
-tests/Conformance/server-conformance.json
+examples/client/.oauth-credentials.json
+tests/Conformance/client-conformance*.json
+tests/Conformance/server-conformance*.json
 tests/Conformance/results*
 tests/Conformance/sessions
 tests/Conformance/logs/*.log
+tests/E2E/sessions
 
 # phpDocumentor
 .phpdoc/build/

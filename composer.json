@@ -36,6 +36,7 @@
     "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "suggest": {
+    "ext-openssl": "Required for private_key_jwt client authentication in the OAuth client.",
     "symfony/finder": "Required for file-based discovery."
   },
   "require-dev": {

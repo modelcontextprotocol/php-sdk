@@ -22,6 +22,19 @@ php -S localhost:8000 examples/server/discovery-calculator/server.php
 php examples/client/http_discovery_calculator.php
 ```
 
+## OAuth client
+
+Connects to a server that requires authorization. The client starts with nothing: the
+server's `401` is what triggers discovery, registration, the browser, and the token.
+
+```bash
+# First, start the Keycloak-protected server example
+cd examples/server/oauth-keycloak && docker compose up -d
+
+# Then run the client, and sign in as demo / demo123 when the browser opens
+php examples/client/oauth_client.php
+```
+
 ## Modern-era client (2026-07-28)
 
 Speaks the stateless lifecycle: no `initialize`, a `_meta` envelope and SEP-2243 headers on every

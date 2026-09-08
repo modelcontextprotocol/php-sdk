@@ -31,6 +31,8 @@ $client->disconnect();
   and what the server told you about itself during initialization.
 * **[Transports](transports.md)** — launching a local server process (STDIO) or talking
   to a remote one (HTTP).
+* **[Authorization](authorization.md)** — connecting to a server that wants an OAuth
+  token, and how the client goes and gets one.
 * **[Tools, resources & prompts](capabilities.md)** — listing and calling everything a
   server exposes, including progress callbacks and completions.
 * **[Server-initiated requests](server-requests.md)** — the other direction: log

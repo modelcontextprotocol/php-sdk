@@ -13,6 +13,9 @@ namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Client\Auth\AuthenticatingHttpClient;
+use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
@@ -74,6 +77,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *                                                        and exhaust client memory; reaching the cap aborts the
      *                                                        stream instead. Raise it for servers that legitimately
      *                                                        emit single events larger than the default.
+     * @param AuthenticatorInterface|null  $auth              Credentials for a server that requires authorization.
+     *                                                        Pass {@see \Mcp\Client\Auth\OAuth} to negotiate them
+     *                                                        on demand, or {@see \Mcp\Client\Auth\BearerToken}
+     *                                                        when the token is already at hand. Every request the
+     *                                                        transport makes is authenticated, and one the server
+     *                                                        challenges is retried once credentials are obtained.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -83,6 +92,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         ?StreamFactoryInterface $streamFactory = null,
         ?LoggerInterface $logger = null,
         int $maxSseBufferBytes = self::DEFAULT_MAX_SSE_BUFFER_BYTES,
+        ?AuthenticatorInterface $auth = null,
     ) {
         parent::__construct($logger);
 
@@ -91,7 +101,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $this->maxSseBufferBytes = $maxSseBufferBytes;
-        $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
+        $client = $httpClient ?? Psr18ClientDiscovery::find();
+        $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
@@ -163,9 +174,22 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationException $e) {
+            // Not a connection problem, and not one a second attempt would solve: the
+            // client already did everything it could and the server said no. Retrying
+            // would send the user back to the browser for the same refusal.
+            $this->handleError($e);
+            throw $e;
         } catch (\Throwable $e) {
             $this->handleError($e);
             throw new ConnectionException('HTTP request failed: '.$e->getMessage(), 0, $e);
+        }
+
+        if (\in_array($response->getStatusCode(), [401, 403], true)) {
+            // The authenticator, if there is one, already had its turn inside the HTTP
+            // client and could not satisfy the server. Failing here beats letting the
+            // request sit until it times out with nothing to say about why.
+            throw new AuthorizationException(\sprintf('The server at "%s" rejected the request with %d %s. %s', $this->endpoint, $response->getStatusCode(), $response->getReasonPhrase(), $response->getHeaderLine('WWW-Authenticate') ?: 'No challenge was provided.'));
         }
 
         if ($response->hasHeader('Mcp-Session-Id')) {

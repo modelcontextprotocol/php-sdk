@@ -12,6 +12,10 @@
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 use Mcp\Client;
+use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Auth\CrossAppAccess;
+use Mcp\Client\Auth\HeadlessAuthorizationHandler;
+use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
@@ -36,7 +40,18 @@ if (!$url || !$scenario) {
 $version = ProtocolVersion::tryFrom(getenv('MCP_CONFORMANCE_PROTOCOL_VERSION') ?: '')
     ?? ProtocolVersion::V2025_11_25;
 
-// Scenario-specific data (tool arguments, credentials) the runner passes in.
+// Scenario-specific data the runner passes in as JSON. Which keys are present depends
+// on the scenario:
+//
+//   toolCalls           http-custom-headers: the exact calls to make
+//   client_id           auth/pre-registration, auth/client-credentials-*,
+//   client_secret       auth/enterprise-managed-authorization: credentials an
+//                       administrator would have configured out of band
+//   private_key_pem     auth/client-credentials-jwt: the key to sign the client
+//   signing_algorithm   assertion with, and the algorithm to sign it with
+//   idp_token_endpoint  auth/enterprise-managed-authorization: the identity provider
+//   idp_id_token        the user is already signed in to, the token proving it, and
+//   idp_client_id       this client's identifier there
 $context = json_decode(getenv('MCP_CONFORMANCE_CONTEXT') ?: '[]', true);
 $context = is_array($context) ? $context : [];
 
@@ -80,8 +95,73 @@ if (in_array($scenario, ['elicitation-sep1034-client-defaults', 'sep-2322-client
     $builder->addRequestHandler($acceptElicitation);
 }
 
+/**
+ * Wires up OAuth for the scenarios that need it.
+ *
+ * The authorization endpoint of the harness grants without asking a human, so the
+ * headless handler stands in for the browser. Everything else -- discovery, PKCE,
+ * registration, scope selection -- is the SDK doing what it would do in production.
+ */
+function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
+{
+    if (!str_starts_with($scenario, 'auth/')) {
+        return null;
+    }
+
+    $handler = new HeadlessAuthorizationHandler(logger: $logger);
+
+    // A client authenticating as itself: the harness hands over the credentials the
+    // authorization server already knows about, since nobody can consent to a registration.
+    if (str_starts_with($scenario, 'auth/client-credentials')) {
+        $oauth = OAuth::forServiceAccount(
+            'mcp-conformance-test-client',
+            $context['client_id'] ?? 'conformance-test-client',
+            $context['client_secret'] ?? null,
+        );
+
+        if (isset($context['private_key_pem'])) {
+            $oauth->setPrivateKeyJwt($context['private_key_pem'], $context['signing_algorithm'] ?? 'ES256');
+        }
+
+        return $oauth->setLogger($logger)->build();
+    }
+
+    // Enterprise-managed authorization: the user already signed in at the company
+    // identity provider, so the runner hands over that token instead of a browser.
+    if ('auth/enterprise-managed-authorization' === $scenario) {
+        return OAuth::forApplication('mcp-conformance-test-client')
+            ->setClientCredentials($context['client_id'], $context['client_secret'])
+            ->setCrossAppAccess(new CrossAppAccess(
+                $context['idp_token_endpoint'],
+                $context['idp_id_token'],
+                clientId: $context['idp_client_id'] ?? null,
+            ))
+            ->setLogger($logger)
+            ->build();
+    }
+
+    $oauth = OAuth::forApplication('mcp-conformance-test-client')
+        ->setRedirectUri('http://localhost:3000/callback')
+        ->setAuthorizationHandler($handler)
+        ->setLogger($logger);
+
+    // Pre-registration: the server does not offer dynamic registration, so the runner
+    // passes the credentials an administrator would have configured.
+    if (isset($context['client_id'])) {
+        $oauth->setClientCredentials($context['client_id'], $context['client_secret'] ?? null);
+    }
+
+    // The client metadata document only needs to be a stable URL the authorization
+    // server recognises; the harness never dereferences it.
+    if ('auth/basic-cimd' === $scenario) {
+        $oauth->setClientMetadataUrl('https://conformance-test.local/client-metadata.json');
+    }
+
+    return $oauth->build();
+}
+
 $client = $builder->build();
-$transport = new HttpTransport($url, logger: $logger);
+$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($scenario, $context, $logger));
 
 try {
     $client->connect($transport);
@@ -177,6 +257,14 @@ try {
             break;
 
         default:
+            if (str_starts_with($scenario, 'auth/')) {
+                // Every auth scenario serves the same tool; calling it is what proves the
+                // token survived past the handshake, and drives the step-up challenge.
+                $client->callTool($toolsResult->tools[0]->name ?? 'test-tool', []);
+                $logger->info('Called the protected tool');
+                break;
+            }
+
             $logger->warning(sprintf('Unknown scenario: %s', $scenario));
             break;
     }

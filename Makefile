@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests e2e-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
@@ -34,6 +34,11 @@ integration-tests:
 
 inspector-tests:
 	vendor/bin/phpunit --testsuite=inspector
+
+# Client authorization against a real Keycloak and a real MCP server, over Docker.
+# See tests/E2E/README.md; not part of `make ci`, since it needs Docker.
+e2e-tests:
+	tests/E2E/run.sh
 
 conformance-tests: conformance-server conformance-client
 

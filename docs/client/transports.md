@@ -35,7 +35,7 @@ use Mcp\Client\Transport\HttpTransport;
 
 $transport = new HttpTransport(
     endpoint: 'http://localhost:8000',
-    headers: ['Authorization' => 'Bearer token'],
+    headers: ['X-Tenant' => 'acme'],
 );
 ```
 
@@ -48,6 +48,8 @@ $transport = new HttpTransport(
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
+- `auth` (AuthenticatorInterface|null): Credentials for a server that requires
+  authorization — see [Authorization](authorization.md)
 
 **PSR-18 Auto-Discovery:**
 
