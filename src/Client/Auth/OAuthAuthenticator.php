@@ -123,7 +123,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function discover(string $endpoint, AuthorizationChallenge $challenge): array
     {
-        $metadata = $this->discovery->discoverProtectedResource($endpoint, $challenge->getResourceMetadataUrl());
+        $metadata = $this->discovery->discoverProtectedResource($endpoint, self::trustedMetadataUrl($endpoint, $challenge));
 
         if (null === $metadata) {
             return [$this->configuration->resource ?? $endpoint, $this->discoverLegacyServer($endpoint), null];
@@ -150,6 +150,32 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return [$this->configuration->resource ?? $metadata->resource, $server, $metadata->scopesSupported];
+    }
+
+    /**
+     * The metadata location named by the challenge, but only when it belongs to the
+     * server that issued the challenge.
+     *
+     * RFC 9728 derives the location from the resource identifier, so a document that
+     * describes this resource lives on this resource. A challenge pointing anywhere else
+     * is asking the client to make a request on the server's behalf -- to a host the
+     * server picked, from wherever the client happens to run, which may be inside a
+     * network the server cannot reach itself. Ignoring it costs nothing: the well-known
+     * locations are probed instead, exactly as for a challenge that named none.
+     */
+    private static function trustedMetadataUrl(string $endpoint, AuthorizationChallenge $challenge): ?string
+    {
+        $url = $challenge->getResourceMetadataUrl();
+
+        if (null === $url) {
+            return null;
+        }
+
+        if (self::origin($url) === self::origin($endpoint)) {
+            return $url;
+        }
+
+        return null;
     }
 
     /**

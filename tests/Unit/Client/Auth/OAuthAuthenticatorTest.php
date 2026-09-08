@@ -266,6 +266,33 @@ final class OAuthAuthenticatorTest extends TestCase
         $authenticator->handleChallenge($this->request(), $server->challenge());
     }
 
+    // A challenge pointing at somebody else's host is asking the client to fetch a URL
+    // on the server's behalf, from wherever the client happens to run.
+    #[TestDox('a metadata location on another host is ignored, not fetched')]
+    public function testIgnoresACrossOriginMetadataUrl(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+
+        $challenge = new Response(401, ['WWW-Authenticate' => 'Bearer resource_metadata="http://169.254.169.254/latest/meta-data/"']);
+        $authenticator->handleChallenge($this->request(), $challenge);
+
+        $this->assertNotContains('http://169.254.169.254/latest/meta-data/', $server->requested);
+        // The well-known locations are probed instead, so the flow still completes.
+        $this->assertContains('https://mcp.example.com/.well-known/oauth-protected-resource/mcp', $server->requested);
+    }
+
+    #[TestDox('a metadata location on the same server is followed')]
+    public function testFollowsASameOriginMetadataUrl(): void
+    {
+        $server = new FakeOAuthServer();
+        $challenge = new Response(401, ['WWW-Authenticate' => 'Bearer resource_metadata="https://mcp.example.com/custom/location.json"']);
+
+        $this->authenticator($server)->handleChallenge($this->request(), $challenge);
+
+        $this->assertContains('https://mcp.example.com/custom/location.json', $server->requested);
+    }
+
     #[TestDox('a client id configured up front is used instead of registering')]
     public function testSkipsRegistrationForAKnownClient(): void
     {
@@ -393,6 +420,7 @@ final class FakeOAuthServer implements ClientInterface
         parse_str((string) $request->getBody(), $form);
 
         return match ($url) {
+            'https://mcp.example.com/custom/location.json',
             'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(array_filter([
                 'resource' => $this->resource,
                 'authorization_servers' => ['https://auth.example.com'],
