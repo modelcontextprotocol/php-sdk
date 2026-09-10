@@ -288,12 +288,14 @@ class Protocol
 
                 // One fiber for the whole exchange: with the shim, the handler
                 // re-enters inside it each round rather than needing a new one.
-                /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
+                $exchange = static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
                     $result = $handler->handle($request, $session);
 
                     return $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
-                });
+                };
+
+                /** @var McpFiber $fiber */
+                $fiber = new \Fiber(static fn (): Response|Error => self::runShielded($exchange));
 
                 $result = $fiber->start();
 
@@ -354,6 +356,39 @@ class Protocol
 
             $this->sendResponse($transport, $error, $session);
         }
+    }
+
+    /**
+     * Runs the exchange in a fiber of its own, so only MCP payloads leave it.
+     *
+     * Fibers are process-wide, so any library between here and the handler may
+     * suspend the running fiber for its own scheduling, with no protocol
+     * meaning. The SDK has no scheduler to hand such a suspension to, so it is
+     * resumed on the spot; a {@see FiberSuspend} is re-yielded to the session
+     * fiber, and the peer's answer handed back to the handler.
+     *
+     * @param callable(): (Response<array<string, mixed>>|Error) $exchange
+     *
+     * @return Response<array<string, mixed>>|Error
+     */
+    private static function runShielded(callable $exchange): Response|Error
+    {
+        /** @var \Fiber<null, mixed, Response<array<string, mixed>>|Error, mixed> $fiber */
+        $fiber = new \Fiber($exchange);
+        $yielded = $fiber->start();
+
+        while (!$fiber->isTerminated()) {
+            if (\is_array($yielded) && isset($yielded['type'])) {
+                /** @var FiberSuspend $yielded */
+                $yielded = $fiber->resume(\Fiber::suspend($yielded));
+
+                continue;
+            }
+
+            $yielded = $fiber->resume();
+        }
+
+        return $fiber->getReturn();
     }
 
     /**

@@ -795,6 +795,142 @@ final class ProtocolTest extends TestCase
         $this->assertStringNotContainsString('Unexpected error', $message['error']['message']);
     }
 
+    #[TestDox('A suspension from the host framework is driven to completion in band')]
+    public function testForeignFiberSuspensionDoesNotReachTheTransport(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (): Response {
+            // A host framework batching slow lookups suspends the running fiber
+            // with a value of its own; Drupal's entity loader passes a resume
+            // hint, its theme registry passes nothing at all.
+            \Fiber::suspend('Immediate');
+            \Fiber::suspend(null);
+
+            return new Response(1, ['status' => 'ok']);
+        });
+
+        $this->transport->expects($this->never())->method('attachFiberToSession');
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
+            $sessionId
+        );
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+
+        $message = json_decode($outgoing[0]['message'], true);
+        $this->assertSame(['status' => 'ok'], $message['result']);
+    }
+
+    #[TestDox('An outbound notification still reaches the transport')]
+    public function testOutboundNotificationStillReachesTheTransport(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (): Response {
+            \Fiber::suspend('Immediate');
+            \Fiber::suspend([
+                'type' => 'notification',
+                'notification' => new LoggingMessageNotification(LoggingLevel::Info, 'working'),
+            ]);
+
+            return new Response(1, ['status' => 'ok']);
+        });
+
+        $this->transport->expects($this->once())->method('attachFiberToSession');
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
+            $sessionId
+        );
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+
+        $message = json_decode($outgoing[0]['message'], true);
+        $this->assertSame(LoggingMessageNotification::getMethod(), $message['method']);
+    }
+
+    #[TestDox('An outbound request still receives the peer answer, around foreign suspensions')]
+    public function testOutboundRequestStillReceivesThePeerAnswer(): void
+    {
+        $answered = null;
+
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function () use (&$answered): Response {
+            \Fiber::suspend('Immediate');
+            $answered = \Fiber::suspend(['type' => 'request', 'request' => new PingRequest(), 'timeout' => 5]);
+            \Fiber::suspend('Immediate');
+
+            return new Response(1, ['status' => 'ok']);
+        });
+
+        $sessionFiber = null;
+        $this->transport->method('attachFiberToSession')->willReturnCallback(
+            static function (\Fiber $fiber) use (&$sessionFiber): void {
+                $sessionFiber = $fiber;
+            }
+        );
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
+            $session->getId()
+        );
+
+        $this->assertInstanceOf(\Fiber::class, $sessionFiber);
+
+        $peerAnswer = new Response(2, ['pong' => true]);
+        $sessionFiber->resume($peerAnswer);
+
+        $this->assertTrue($sessionFiber->isTerminated());
+        $this->assertSame($peerAnswer, $answered);
+        $this->assertEquals(new Response(1, ['status' => 'ok']), $sessionFiber->getReturn());
+    }
+
     #[TestDox('Failure while dispatching an outbound request is answered under the inbound request id')]
     public function testOutboundRequestFailureIsAnsweredUnderInboundRequestId(): void
     {
