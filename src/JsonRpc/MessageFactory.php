@@ -148,7 +148,7 @@ final class MessageFactory
                     throw new InvalidInputMessageException('A JSON-RPC message must be a JSON object.');
                 }
 
-                $messages[] = $this->createMessage($message);
+                $messages[] = $this->createFromArray($message);
             } catch (InvalidInputMessageException $e) {
                 // Recover the id only when it's a valid JSON-RPC scalar;
                 // a null or malformed id is left at the exception's null default.
@@ -169,7 +169,7 @@ final class MessageFactory
      *
      * @throws InvalidInputMessageException
      */
-    private function createMessage(array $data): MessageInterface
+    public function createFromArray(array $data): MessageInterface
     {
         try {
             if (isset($data['error'])) {

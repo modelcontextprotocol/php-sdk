@@ -982,6 +982,7 @@ final class Builder
             cachePolicy: $this->cachePolicy,
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
+            eventDispatcher: $parts['eventDispatcher'],
         );
     }
 
