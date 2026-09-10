@@ -755,7 +755,7 @@ final class StatelessProtocol
             return;
         }
 
-        yield json_decode($this->finalize($result, $request, $session, $meta, $method, $id, $cacheable)->toJson(), true, flags: \JSON_THROW_ON_ERROR);
+        yield $this->finalize($result, $request, $session, $meta, $method, $id, $cacheable)->toFrame();
     }
 
     /**
