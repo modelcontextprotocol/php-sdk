@@ -146,8 +146,8 @@ class OidcDiscovery implements OidcDiscoveryInterface
      */
     private function fetchMetadata(string $issuer): array
     {
-        $issuer = rtrim($issuer, '/');
-        $parsed = parse_url($issuer);
+        $discoveryIssuer = rtrim($issuer, '/');
+        $parsed = parse_url($discoveryIssuer);
 
         if (false === $parsed || !isset($parsed['scheme'], $parsed['host'])) {
             throw new RuntimeException(\sprintf('Invalid issuer URL: %s', $issuer));
@@ -170,7 +170,7 @@ class OidcDiscovery implements OidcDiscoveryInterface
             // 2. OIDC path insertion
             $discoveryUrls[] = $baseUrl.'/.well-known/openid-configuration'.$path;
             // 3. OIDC path appending
-            $discoveryUrls[] = $issuer.'/.well-known/openid-configuration';
+            $discoveryUrls[] = $discoveryIssuer.'/.well-known/openid-configuration';
         } else {
             // For issuer URLs without path components
             $discoveryUrls[] = $baseUrl.'/.well-known/oauth-authorization-server';
