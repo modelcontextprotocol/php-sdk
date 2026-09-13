@@ -34,6 +34,7 @@ use Mcp\Schema\Annotations;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\AbstractExtension;
 use Mcp\Schema\Extension\ExtensionInterface;
+use Mcp\Schema\Extension\Skills\McpSkills;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
@@ -56,6 +57,8 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Skill\SkillProvider;
+use Mcp\Server\Skill\SkillRegistry;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
@@ -249,6 +252,12 @@ final class Builder
      * @var array<string, array<string, mixed>>
      */
     private array $extensions = [];
+
+    /**
+     * The registry backing {@see McpSkills} once {@see self::addSkillsFromDirectory()} has been
+     * called at least once, shared across calls so multiple directories accumulate into one extension.
+     */
+    private ?SkillRegistry $skillRegistry = null;
 
     /**
      * @var LoaderInterface[]
@@ -455,6 +464,28 @@ final class Builder
                 $this->requestHandlers[] = $handler;
             }
         }
+
+        return $this;
+    }
+
+    /**
+     * Expose a directory of skills (SEP-2640) as `skill://` resources.
+     *
+     * Enables the {@see McpSkills} extension (unless already enabled) and registers every
+     * `SKILL.md` found under $directory — together with its supporting files — as resources,
+     * making them servable through `skills/list` and `skills/get`. Calling this more than once
+     * accumulates every directory's skills into the same extension.
+     *
+     * @see SkillProvider
+     */
+    public function addSkillsFromDirectory(string $directory, ?SkillProvider $provider = null): self
+    {
+        if (null === $this->skillRegistry) {
+            $this->skillRegistry = new SkillRegistry();
+            $this->enableExtension(new McpSkills($this->skillRegistry));
+        }
+
+        ($provider ?? new SkillProvider())->registerInto($this, $this->skillRegistry, $directory);
 
         return $this;
     }
