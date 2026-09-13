@@ -113,6 +113,43 @@ class SkillProviderTest extends TestCase
         $this->assertNotNull($registry->get('skill://acme/billing/refunds/SKILL.md'));
     }
 
+    public function testNestedSkillIsRegisteredOnceWithItsOwnMetadata(): void
+    {
+        $builder = Server::builder();
+
+        $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), __DIR__.'/Fixtures/nested');
+
+        $this->assertCount(2, $skills);
+
+        // Registered as a resource exactly once, under its own frontmatter — not the generic
+        // "supporting file" metadata a naive walk of the parent skill's directory would produce.
+        $resource = $this->resourceByUri($builder, 'skill://parent-skill/nested-skill/SKILL.md');
+        $this->assertSame('nested-skill', $resource['name']);
+        $this->assertSame('A skill nested inside another skill\'s directory.', $resource['description']);
+
+        $uris = array_column($this->registeredResources($builder), 'uri');
+        $this->assertCount(1, array_filter($uris, static fn ($uri) => 'skill://parent-skill/nested-skill/SKILL.md' === $uri));
+    }
+
+    public function testNestedSkillManifestListsItInBothEntries(): void
+    {
+        $builder = Server::builder();
+
+        $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), __DIR__.'/Fixtures/nested');
+
+        $parent = current(array_filter($skills, static fn ($s) => 'parent-skill' === $s->frontmatter->name));
+        $nested = current(array_filter($skills, static fn ($s) => 'nested-skill' === $s->frontmatter->name));
+        $this->assertNotFalse($parent);
+        $this->assertNotFalse($nested);
+
+        $this->assertIsArray($parent->resources);
+        $this->assertCount(2, $parent->resources); // its own SKILL.md + the nested one
+
+        $this->assertIsArray($nested->resources);
+        $this->assertCount(1, $nested->resources); // just its own SKILL.md
+        $this->assertSame('skill://parent-skill/nested-skill/SKILL.md', $nested->resources[0]->uri);
+    }
+
     public function testThrowsWhenFrontmatterNameDoesNotMatchFolder(): void
     {
         $this->expectException(InvalidArgumentException::class);

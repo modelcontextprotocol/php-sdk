@@ -111,17 +111,24 @@ final class SkillProvider
             $size = (int) filesize($filePath);
             $digest = 'sha256:'.hash_file('sha256', $filePath);
 
-            $this->registerFile(
-                $builder,
-                $base,
-                $filePath,
-                $uri,
-                name: basename($filePath),
-                mimeType: $this->guessMimeType($filePath),
-                description: null,
-                size: $size,
-                meta: null,
-            );
+            // A nested skill's own SKILL.md is a supporting file of this skill's manifest too
+            // (the spec allows the same file in both entries), but it must be registered as a
+            // resource exactly once, by its own registerSkill() call below with its own
+            // frontmatter — registering it again here, generically, would make which metadata
+            // wins depend on filesystem walk order instead of always being the nested skill's own.
+            if (McpSkills::ENTRY_POINT !== basename($filePath)) {
+                $this->registerFile(
+                    $builder,
+                    $base,
+                    $filePath,
+                    $uri,
+                    name: basename($filePath),
+                    mimeType: $this->guessMimeType($filePath),
+                    description: null,
+                    size: $size,
+                    meta: null,
+                );
+            }
 
             $resources[] = new SkillResource($uri, $digest, $size);
         }
