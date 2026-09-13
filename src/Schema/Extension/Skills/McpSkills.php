@@ -27,8 +27,12 @@ use Mcp\Server\Skill\SkillRegistry;
  * manifest of a skill's files, so a host can build its registry, present a skill for approval, and
  * verify every later read without first fetching the files.
  *
- * Enable on the server via {@see \Mcp\Server\Builder::enableExtension()}, or use the
- * {@see \Mcp\Server\Builder::addSkillsFromDirectory()} convenience to expose a directory of skills.
+ * Enable on the server either via {@see \Mcp\Server\Builder::addSkillsFromDirectory()}, which
+ * builds and owns the {@see SkillRegistry} for you, or by constructing a `SkillRegistry` yourself,
+ * registering it with {@see \Mcp\Server\Builder::enableExtension()}, and feeding it via
+ * {@see \Mcp\Server\Skill\SkillProvider::registerInto()} for full control. Pick one: calling
+ * `addSkillsFromDirectory()` after the extension is already enabled throws, since it always tries
+ * to enable its own instance.
  *
  * `resources/directory/read`, gated behind the `directoryRead` capability setting, is not yet
  * implemented and is not declared.

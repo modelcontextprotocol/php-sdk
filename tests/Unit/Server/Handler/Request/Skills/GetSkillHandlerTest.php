@@ -64,6 +64,9 @@ class GetSkillHandlerTest extends TestCase
         $handler->handle($this->request('skill://unknown/SKILL.md'), $this->session);
     }
 
+    /**
+     * @param non-empty-string $uri
+     */
     private function request(string $uri): GetSkillRequest
     {
         return (new GetSkillRequest($uri))->withId('test-request-id');
