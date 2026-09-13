@@ -74,12 +74,13 @@ class SkillProviderTest extends TestCase
 
         $this->assertCount(2, $skills);
 
-        $codeReview = current(array_filter($skills, static fn ($s) => 'code-review' === $s->frontmatter->name));
+        $codeReview = array_values(array_filter($skills, static fn ($s) => 'code-review' === $s->frontmatter->name))[0];
+        $this->assertIsArray($codeReview->resources);
         $this->assertNotFalse($codeReview);
         $this->assertIsArray($codeReview->resources);
         $this->assertCount(2, $codeReview->resources); // SKILL.md + references/SECURITY.md
 
-        $manifestEntry = current(array_filter($codeReview->resources, static fn (SkillResource $r) => $r->uri === $codeReview->uri));
+        $manifestEntry = array_values(array_filter($codeReview->resources, static fn (SkillResource $r) => $r->uri === $codeReview->uri))[0];
         $this->assertNotFalse($manifestEntry);
         $this->assertMatchesRegularExpression('/^sha256:[0-9a-f]{64}$/', $manifestEntry->digest);
         $this->assertGreaterThan(0, $manifestEntry->size);
@@ -90,14 +91,15 @@ class SkillProviderTest extends TestCase
         $builder = Server::builder();
 
         $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), self::FIXTURES);
-        $codeReview = current(array_filter($skills, static fn ($s) => 'code-review' === $s->frontmatter->name));
+        $codeReview = array_values(array_filter($skills, static fn ($s) => 'code-review' === $s->frontmatter->name))[0];
+        $this->assertIsArray($codeReview->resources);
 
         $resource = $this->resourceByUri($builder, $codeReview->uri);
         /** @var \SplFileInfo $file */
         $file = ($resource['handler'])();
         $served = (string) file_get_contents($file->getPathname());
 
-        $manifestEntry = current(array_filter($codeReview->resources, static fn (SkillResource $r) => $r->uri === $codeReview->uri));
+        $manifestEntry = array_values(array_filter($codeReview->resources, static fn (SkillResource $r) => $r->uri === $codeReview->uri))[0];
         $this->assertSame('sha256:'.hash('sha256', $served), $manifestEntry->digest);
         $this->assertSame(\strlen($served), $manifestEntry->size);
     }
@@ -111,6 +113,43 @@ class SkillProviderTest extends TestCase
 
         $this->assertNotNull($registry->get('skill://code-review/SKILL.md'));
         $this->assertNotNull($registry->get('skill://acme/billing/refunds/SKILL.md'));
+    }
+
+    public function testNestedSkillIsRegisteredOnceWithItsOwnMetadata(): void
+    {
+        $builder = Server::builder();
+
+        $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), __DIR__.'/Fixtures/nested');
+
+        $this->assertCount(2, $skills);
+
+        // Registered as a resource exactly once, under its own frontmatter — not the generic
+        // "supporting file" metadata a naive walk of the parent skill's directory would produce.
+        $resource = $this->resourceByUri($builder, 'skill://parent-skill/nested-skill/SKILL.md');
+        $this->assertSame('nested-skill', $resource['name']);
+        $this->assertSame('A skill nested inside another skill\'s directory.', $resource['description']);
+
+        $uris = array_column($this->registeredResources($builder), 'uri');
+        $this->assertCount(1, array_filter($uris, static fn ($uri) => 'skill://parent-skill/nested-skill/SKILL.md' === $uri));
+    }
+
+    public function testNestedSkillManifestListsItInBothEntries(): void
+    {
+        $builder = Server::builder();
+
+        $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), __DIR__.'/Fixtures/nested');
+
+        $parent = array_values(array_filter($skills, static fn ($s) => 'parent-skill' === $s->frontmatter->name))[0];
+        $nested = array_values(array_filter($skills, static fn ($s) => 'nested-skill' === $s->frontmatter->name))[0];
+        $this->assertNotFalse($parent);
+        $this->assertNotFalse($nested);
+
+        $this->assertIsArray($parent->resources);
+        $this->assertCount(2, $parent->resources); // its own SKILL.md + the nested one
+
+        $this->assertIsArray($nested->resources);
+        $this->assertCount(1, $nested->resources); // just its own SKILL.md
+        $this->assertSame('skill://parent-skill/nested-skill/SKILL.md', $nested->resources[0]->uri);
     }
 
     public function testThrowsWhenFrontmatterNameDoesNotMatchFolder(): void

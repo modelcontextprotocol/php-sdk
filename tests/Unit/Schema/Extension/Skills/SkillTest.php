@@ -31,8 +31,10 @@ class SkillTest extends TestCase
 
         $this->assertSame('skill://code-review/SKILL.md', $serialized['uri']);
         $this->assertInstanceOf(SkillMetadata::class, $serialized['frontmatter']);
-        $this->assertCount(1, $serialized['resources']);
-        $this->assertInstanceOf(SkillResource::class, $serialized['resources'][0]);
+        $resources = $serialized['resources'];
+        $this->assertIsArray($resources);
+        $this->assertCount(1, $resources);
+        $this->assertInstanceOf(SkillResource::class, $resources[0]);
     }
 
     public function testSerializationWithDynamicResources(): void

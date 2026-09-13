@@ -34,7 +34,7 @@ class McpSkillsTest extends TestCase
     {
         $capabilities = new ServerCapabilities(extensions: [McpSkills::EXTENSION_ID => (new McpSkills(new SkillRegistry()))->getCapabilities()]);
 
-        $json = json_encode($capabilities, \JSON_UNESCAPED_SLASHES);
+        $json = json_encode($capabilities, \JSON_UNESCAPED_SLASHES | \JSON_THROW_ON_ERROR);
 
         // The empty extension payload MUST serialize to `{}`, not `[]`.
         $this->assertStringContainsString('"io.modelcontextprotocol/skills":{}', $json);
