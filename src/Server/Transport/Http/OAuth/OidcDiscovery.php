@@ -146,6 +146,8 @@ class OidcDiscovery implements OidcDiscoveryInterface
      */
     private function fetchMetadata(string $issuer): array
     {
+        // The trailing slash is dropped to build discovery URLs (RFC 8414 §3.1),
+        // but the issuer is matched verbatim (RFC 8414 §3.3, OIDC Discovery §4.3).
         $discoveryIssuer = rtrim($issuer, '/');
         $parsed = parse_url($discoveryIssuer);
 

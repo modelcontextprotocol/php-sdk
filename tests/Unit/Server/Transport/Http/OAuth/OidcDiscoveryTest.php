@@ -293,6 +293,88 @@ class OidcDiscoveryTest extends TestCase
         $this->assertSame('https://auth.example.com/.well-known/openid-configuration', $requestedUrls[1]);
     }
 
+    #[TestDox('issuer with path and trailing slash is discovered and matched verbatim')]
+    public function testIssuerWithPathAndTrailingSlash(): void
+    {
+        $this->skipIfPsrHttpClientIsMissing();
+
+        $factory = new Psr17Factory();
+        $requestedUrls = [];
+        $issuer = 'https://auth.example.com/application/o/mcp/';
+        $validMetadata = [
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/application/o/authorize/',
+            'token_endpoint' => 'https://auth.example.com/application/o/token/',
+            'jwks_uri' => 'https://auth.example.com/application/o/mcp/jwks/',
+            'code_challenge_methods_supported' => ['S256'],
+        ];
+
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->expects($this->exactly(3))
+            ->method('sendRequest')
+            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $validMetadata): ResponseInterface {
+                $requestedUrls[] = (string) $request->getUri();
+
+                if (3 !== \count($requestedUrls)) {
+                    return $factory->createResponse(404);
+                }
+
+                return $factory->createResponse(200)->withBody(
+                    $factory->createStream(json_encode($validMetadata, \JSON_THROW_ON_ERROR)),
+                );
+            });
+
+        $discovery = new OidcDiscovery(
+            httpClient: $httpClient,
+            requestFactory: $factory,
+        );
+
+        $metadata = $discovery->discover($issuer);
+
+        $this->assertSame($issuer, $metadata['issuer']);
+        $this->assertSame('https://auth.example.com/.well-known/oauth-authorization-server/application/o/mcp', $requestedUrls[0]);
+        $this->assertSame('https://auth.example.com/.well-known/openid-configuration/application/o/mcp', $requestedUrls[1]);
+        $this->assertSame('https://auth.example.com/application/o/mcp/.well-known/openid-configuration', $requestedUrls[2]);
+    }
+
+    #[TestDox('issuer without path but with trailing slash is discovered and matched verbatim')]
+    public function testIssuerWithoutPathWithTrailingSlash(): void
+    {
+        $this->skipIfPsrHttpClientIsMissing();
+
+        $factory = new Psr17Factory();
+        $requestedUrls = [];
+        $issuer = 'https://auth.example.com/';
+        $validMetadata = [
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/oauth/token',
+            'jwks_uri' => 'https://auth.example.com/.well-known/jwks.json',
+            'code_challenge_methods_supported' => ['S256'],
+        ];
+
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->expects($this->once())
+            ->method('sendRequest')
+            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $validMetadata): ResponseInterface {
+                $requestedUrls[] = (string) $request->getUri();
+
+                return $factory->createResponse(200)->withBody(
+                    $factory->createStream(json_encode($validMetadata, \JSON_THROW_ON_ERROR)),
+                );
+            });
+
+        $discovery = new OidcDiscovery(
+            httpClient: $httpClient,
+            requestFactory: $factory,
+        );
+
+        $metadata = $discovery->discover($issuer);
+
+        $this->assertSame($issuer, $metadata['issuer']);
+        $this->assertSame(['https://auth.example.com/.well-known/oauth-authorization-server'], $requestedUrls);
+    }
+
     private function skipIfPsrHttpClientIsMissing(): void
     {
         if (!interface_exists(ClientInterface::class)) {
