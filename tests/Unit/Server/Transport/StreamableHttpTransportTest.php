@@ -12,7 +12,12 @@
 namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Handler\Request\PingHandler;
+use Mcp\Server\Protocol;
+use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
@@ -435,6 +440,140 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertTrue($fiber->isTerminated());
         $this->assertInstanceOf(Error::class, $received);
+    }
+
+    #[TestDox('concurrent POSTs sharing a session each receive only their own response')]
+    public function testConcurrentPostsSharingASessionEachReceiveTheirOwnResponse(): void
+    {
+        [$protocol, $sessionId] = $this->createSessionProtocol();
+
+        $first = $this->createSessionPost('{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
+        $second = $this->createSessionPost('{"jsonrpc":"2.0","id":2,"method":"ping"}', $sessionId);
+        $protocol->connect($first);
+        $protocol->connect($second);
+
+        // The second worker finishes its request while the first one is still between queueing and reading.
+        $secondResponse = null;
+        $first->setOutgoingMessagesProvider(static function (Uuid $id, ?array $responseIds = null) use ($protocol, $second, &$secondResponse): array {
+            $secondResponse = $second->listen();
+
+            return $protocol->consumeOutgoingMessages($id, $responseIds);
+        });
+
+        $firstResponse = $first->listen();
+
+        $this->assertInstanceOf(ResponseInterface::class, $secondResponse);
+        $this->assertSingleJsonRpcResponse(2, $secondResponse);
+        $this->assertSingleJsonRpcResponse(1, $firstResponse);
+    }
+
+    #[TestDox('a batch POST is answered with its own responses only')]
+    public function testBatchPostReceivesOnlyItsOwnResponses(): void
+    {
+        [$protocol, $sessionId] = $this->createSessionProtocol();
+        $this->queueForeignResponse($protocol, $sessionId);
+
+        $transport = $this->createSessionPost('[{"jsonrpc":"2.0","id":3,"method":"ping"},{"jsonrpc":"2.0","id":4,"method":"ping"}]', $sessionId);
+        $protocol->connect($transport);
+
+        $response = $transport->listen();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = json_decode((string) $response->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        $this->assertIsArray($body);
+        $this->assertTrue(array_is_list($body));
+        $this->assertSame([3, 4], array_column($body, 'id'));
+        $this->assertForeignResponseStillQueued($protocol, $sessionId);
+    }
+
+    #[TestDox('a POST without requests is accepted without taking responses queued for other requests')]
+    public function testPostWithoutRequestsLeavesOtherResponsesQueued(): void
+    {
+        [$protocol, $sessionId] = $this->createSessionProtocol();
+        $this->queueForeignResponse($protocol, $sessionId);
+
+        $transport = $this->createSessionPost('{"jsonrpc":"2.0","method":"notifications/initialized"}', $sessionId);
+        $protocol->connect($transport);
+
+        $response = $transport->listen();
+
+        $this->assertSame(202, $response->getStatusCode());
+        $this->assertSame('', (string) $response->getBody());
+        $this->assertForeignResponseStillQueued($protocol, $sessionId);
+    }
+
+    #[TestDox('an invalid message without a usable id is still answered with its error')]
+    public function testInvalidMessageWithoutIdIsAnsweredWithItsError(): void
+    {
+        [$protocol, $sessionId] = $this->createSessionProtocol();
+        $this->queueForeignResponse($protocol, $sessionId);
+
+        $transport = $this->createSessionPost('{"jsonrpc":"2.0","method":42}', $sessionId);
+        $protocol->connect($transport);
+
+        $response = $transport->listen();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $body = json_decode((string) $response->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+        $this->assertIsArray($body);
+        $this->assertFalse(array_is_list($body));
+        $this->assertSame(Error::INVALID_REQUEST, $body['error']['code']);
+        $this->assertArrayNotHasKey('id', $body);
+        $this->assertForeignResponseStillQueued($protocol, $sessionId);
+    }
+
+    /**
+     * @return array{Protocol, Uuid}
+     */
+    private function createSessionProtocol(): array
+    {
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $session = $sessionManager->create();
+        $session->save();
+
+        $protocol = new Protocol(
+            requestHandlers: [new PingHandler()],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        return [$protocol, $session->getId()];
+    }
+
+    private function createSessionPost(string $body, Uuid $sessionId): StreamableHttpTransport
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, $sessionId->toRfc4122())
+            ->withBody($this->factory->createStream($body));
+
+        return new StreamableHttpTransport($request, $this->factory, $this->factory);
+    }
+
+    private function queueForeignResponse(Protocol $protocol, Uuid $sessionId): void
+    {
+        $protocol->processInput($this->createMock(TransportInterface::class), '{"jsonrpc":"2.0","id":9,"method":"ping"}', $sessionId);
+    }
+
+    private function assertForeignResponseStillQueued(Protocol $protocol, Uuid $sessionId): void
+    {
+        $queued = $protocol->consumeOutgoingMessages($sessionId);
+
+        $this->assertCount(1, $queued);
+        $this->assertSame(9, json_decode($queued[0]['message'], true, flags: \JSON_THROW_ON_ERROR)['id']);
+    }
+
+    private function assertSingleJsonRpcResponse(int $id, ResponseInterface $response): void
+    {
+        $this->assertSame(200, $response->getStatusCode());
+
+        $body = json_decode((string) $response->getBody(), true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertIsArray($body);
+        $this->assertFalse(array_is_list($body), 'Expected a single JSON-RPC object.');
+        $this->assertSame($id, $body['id']);
     }
 
     private function stubAuth401(): MiddlewareInterface

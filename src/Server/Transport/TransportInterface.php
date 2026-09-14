@@ -84,11 +84,12 @@ interface TransportInterface
     public function onSessionEnd(callable $listener): void;
 
     /**
-     * Set a provider function to retrieve all queued outgoing messages.
+     * Set a provider function to retrieve queued outgoing messages.
      *
-     * The transport calls this to retrieve all queued messages for a session.
+     * The transport calls this to retrieve queued messages for a session. When response ids
+     * are passed, only the responses to those requests are returned.
      *
-     * @param callable(Uuid $sessionId): array<int, array{message: string, context: array<string, mixed>}> $provider
+     * @param callable(Uuid $sessionId, list<int|string|null>|null $responseIds=): array<int, array{message: string, context: array<string, mixed>}> $provider
      */
     public function setOutgoingMessagesProvider(callable $provider): void;
 
