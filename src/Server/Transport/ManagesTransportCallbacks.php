@@ -32,7 +32,7 @@ trait ManagesTransportCallbacks
     /** @var callable(Uuid): void */
     protected $sessionEndListener;
 
-    /** @var callable(Uuid): array<int, array{message: string, context: array<string, mixed>}> */
+    /** @var callable(Uuid, list<int|string|null>|null=): array<int, array{message: string, context: array<string, mixed>}> */
     protected $outgoingMessagesProvider;
 
     /** @var callable(Uuid): array<int, array<string, mixed>> */

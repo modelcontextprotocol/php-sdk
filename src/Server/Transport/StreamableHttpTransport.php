@@ -74,6 +74,10 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
+    /** @var list<int|string|null> */
+    private array $expectedResponseIds = [];
+    private bool $batchRequest = false;
+
     /** @var list<MiddlewareInterface>|null null until {@see self::listen()} resolves the defaults */
     private ?array $middleware;
 
@@ -186,6 +190,9 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
      */
     protected function handlePostRequest(string $body): ResponseInterface
     {
+        // Concurrent requests of one session share the outgoing queue.
+        [$this->expectedResponseIds, $this->batchRequest] = self::expectedResponses($body);
+
         $this->handleMessage($body, $this->sessionId);
 
         // Consume the immediate response exactly once, so a transport instance
@@ -223,7 +230,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createJsonResponse(): ResponseInterface
     {
-        $outgoingMessages = $this->getOutgoingMessages($this->sessionId);
+        $outgoingMessages = $this->getOutgoingResponses($this->sessionId, $this->expectedResponseIds);
 
         if (empty($outgoingMessages)) {
             return $this->responseFactory->createResponse(202)
@@ -231,7 +238,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         }
 
         $messages = array_column($outgoingMessages, 'message');
-        $responseBody = 1 === \count($messages) ? $messages[0] : '['.implode(',', $messages).']';
+        $responseBody = $this->batchRequest ? '['.implode(',', $messages).']' : $messages[0];
 
         $response = $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', 'application/json')
@@ -459,6 +466,39 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         }
 
         return $this->responder->respond($this->stateless->handle($body, self::headers($request)));
+    }
+
+    /**
+     * Ids the body expects responses for (null for a message without a usable id), and whether it is a batch.
+     *
+     * @return array{list<int|string|null>, bool}
+     */
+    private static function expectedResponses(string $body): array
+    {
+        try {
+            $data = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            // Parse errors are sent directly, not queued.
+            return [[], false];
+        }
+
+        if (!\is_array($data) || [] === $data) {
+            return [[null], false];
+        }
+
+        $batch = array_is_list($data);
+        $ids = [];
+
+        foreach ($batch ? $data : [$data] as $message) {
+            if (\is_array($message) && (isset($message['result']) || isset($message['error']))) {
+                continue;
+            }
+
+            $id = \is_array($message) ? ($message['id'] ?? null) : null;
+            $ids[] = \is_int($id) || \is_string($id) ? $id : null;
+        }
+
+        return [$ids, $batch];
     }
 
     /**
