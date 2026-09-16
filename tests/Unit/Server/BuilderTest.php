@@ -11,6 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server;
 
+use Composer\Autoload\ClassLoader;
+use Mcp\Capability\Discovery\Discoverer;
+use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
@@ -18,6 +21,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -38,11 +42,19 @@ use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
+use Symfony\Component\Finder\Finder;
 
 final class BuilderTest extends TestCase
 {
+    private const DISCOVERY_DEPENDENCY_ERROR = 'File-based discovery requires symfony/finder. Run: composer require symfony/finder';
+    private const FINDER_LOADED_ERROR = 'Symfony Finder was loaded after Composer autoloaders were disabled.';
+    private const TEST_SERVER_NAME = 'test';
+    private const TEST_SERVER_VERSION = '1.0.0';
+
     #[TestDox('setReferenceHandler() returns the builder for fluent chaining')]
     public function testSetReferenceHandlerReturnsSelf(): void
     {
@@ -75,6 +87,48 @@ final class BuilderTest extends TestCase
             ->build();
 
         $this->assertInstanceOf(Server::class, $server);
+    }
+
+    #[RunInSeparateProcess]
+    #[TestDox('build() fails when file-based discovery is configured without Symfony Finder')]
+    public function testBuildFailsWhenDiscoveryDependencyIsMissing(): void
+    {
+        Server::builder()->setServerInfo(self::TEST_SERVER_NAME, self::TEST_SERVER_VERSION)->build();
+        Server::builder()
+            ->setServerInfo(self::TEST_SERVER_NAME, self::TEST_SERVER_VERSION)
+            ->setDiscovery(__DIR__)
+            ->setDiscoverer($this->createStub(DiscovererInterface::class))
+            ->build();
+        class_exists(Discoverer::class);
+        class_exists(RuntimeException::class);
+        class_exists(LogLevel::class);
+
+        $autoloaders = array_values(array_filter(
+            spl_autoload_functions(),
+            static fn (mixed $autoloader): bool => \is_array($autoloader) && $autoloader[0] instanceof ClassLoader,
+        ));
+        $this->assertNotEmpty($autoloaders);
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage(self::DISCOVERY_DEPENDENCY_ERROR);
+
+        foreach ($autoloaders as $autoloader) {
+            $autoloader[0]->unregister();
+        }
+
+        try {
+            if (class_exists(Finder::class)) {
+                throw new LogicException(self::FINDER_LOADED_ERROR);
+            }
+
+            Server::builder()
+                ->setServerInfo(self::TEST_SERVER_NAME, self::TEST_SERVER_VERSION)
+                ->setDiscovery(__DIR__)
+                ->build();
+        } finally {
+            foreach ($autoloaders as $autoloader) {
+                $autoloader[0]->register(true);
+            }
+        }
     }
 
     #[TestDox('Custom ReferenceHandler is used when calling a tool')]
