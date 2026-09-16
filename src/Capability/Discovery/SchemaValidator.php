@@ -137,7 +137,7 @@ class SchemaValidator
     {
         if (\is_array($data)) {
             // Check if it's an associative array (keys are not sequential numbers 0..N-1)
-            if (!empty($data) && array_keys($data) !== range(0, \count($data) - 1)) {
+            if (!array_is_list($data)) {
                 $obj = new \stdClass();
                 foreach ($data as $key => $value) {
                     $obj->{$key} = $this->convertDataForValidator($value);
