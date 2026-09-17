@@ -98,6 +98,23 @@ final class BuilderTest extends TestCase
         $this->assertSame('intercepted', $result);
     }
 
+    #[TestDox('Custom SchemaValidator is used when calling a tool')]
+    public function testCustomSchemaValidatorIsUsedForToolCalls(): void
+    {
+        $schemaValidator = $this->createMock(\Mcp\Capability\Discovery\SchemaValidator::class);
+        $schemaValidator->expects($this->once())
+            ->method('validateAgainstJsonSchema')
+            ->willReturn([]);
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setSchemaValidator($schemaValidator)
+            ->addTool(static fn (): string => 'validated', name: 'test_tool', description: 'A test tool')
+            ->build();
+
+        $this->assertSame('validated', $this->callTool($server, 'test_tool'));
+    }
+
     #[TestDox('A pre-built instance handler with constructor dependencies is registered and invoked on that instance')]
     public function testPreBuiltInstanceHandlerIsInvokedOnTheGivenInstance(): void
     {

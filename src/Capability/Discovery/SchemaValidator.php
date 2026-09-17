@@ -30,9 +30,8 @@ use Psr\Log\NullLogger;
  */
 class SchemaValidator
 {
-    private ?Validator $jsonSchemaValidator = null;
-
     public function __construct(
+        private ?Validator $jsonSchemaValidator = null,
         private LoggerInterface $logger = new NullLogger(),
     ) {
     }

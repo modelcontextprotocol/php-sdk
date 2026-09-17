@@ -48,7 +48,7 @@ final class CallToolHandler implements RequestHandlerInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         ?SchemaValidator $schemaValidator = null,
     ) {
-        $this->schemaValidator = $schemaValidator ?? new SchemaValidator($logger);
+        $this->schemaValidator = $schemaValidator ?? new SchemaValidator(logger: $logger);
     }
 
     public function supports(Request $request): bool
