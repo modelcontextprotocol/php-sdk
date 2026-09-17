@@ -67,6 +67,39 @@ final class ElicitationSchemaTest extends TestCase
         $this->assertInstanceOf(EnumSchemaDefinition::class, $schema->properties['rating']);
     }
 
+    public function testExtractDefaults(): void
+    {
+        $schema = ElicitationSchema::fromArray([
+            'type' => 'object',
+            'properties' => [
+                'name' => ['type' => 'string', 'title' => 'Name', 'default' => 'Ada'],
+                'age' => ['type' => 'integer', 'title' => 'Age', 'default' => 0],
+                'score' => ['type' => 'number', 'title' => 'Score', 'default' => 95.5],
+                'color' => ['type' => 'string', 'title' => 'Color', 'enum' => ['red', 'blue'], 'default' => 'blue'],
+                'plan' => [
+                    'type' => 'string',
+                    'title' => 'Plan',
+                    'oneOf' => [
+                        ['const' => 'free', 'title' => 'Free'],
+                        ['const' => 'pro', 'title' => 'Pro'],
+                    ],
+                    'default' => 'pro',
+                ],
+                'subscribe' => ['type' => 'boolean', 'title' => 'Subscribe', 'default' => false],
+                'withoutDefault' => ['type' => 'string', 'title' => 'Without default'],
+            ],
+        ]);
+
+        $this->assertSame([
+            'name' => 'Ada',
+            'age' => 0,
+            'score' => 95.5,
+            'color' => 'blue',
+            'plan' => 'pro',
+            'subscribe' => false,
+        ], $schema->extractDefaults());
+    }
+
     public function testConstructorWithEmptyProperties(): void
     {
         $this->expectException(InvalidArgumentException::class);
