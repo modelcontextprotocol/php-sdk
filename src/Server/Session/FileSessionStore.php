@@ -85,6 +85,12 @@ class FileSessionStore implements SessionStoreInterface
             return false;
         }
 
+        if ('' === $data) {
+            $this->logger->warning('Ignored an empty session file.', ['path' => $path]);
+
+            return false;
+        }
+
         return $data;
     }
 
@@ -92,8 +98,8 @@ class FileSessionStore implements SessionStoreInterface
     {
         $path = $this->pathFor($id);
 
-        $tmp = $path.'.tmp';
-        if (false === @file_put_contents($tmp, $data, \LOCK_EX)) {
+        $tmp = $path.'.'.bin2hex(random_bytes(6)).'.tmp';
+        if (false === @file_put_contents($tmp, $data)) {
             $this->logger->warning('Failed to write session file.', [
                 'path' => $tmp,
                 'error' => error_get_last()['message'] ?? 'unknown',
@@ -137,7 +143,8 @@ class FileSessionStore implements SessionStoreInterface
     }
 
     /**
-     * Remove sessions older than the configured TTL.
+     * Remove sessions older than the configured TTL, along with the temporary files
+     * of writes that never made it into place.
      * Returns an array of deleted session IDs (UUID instances).
      */
     public function gc(): array
@@ -161,8 +168,8 @@ class FileSessionStore implements SessionStoreInterface
                 continue;
             }
 
-            // Only delete files this store owns: sessions are named by their RFC 4122 UUID
-            if (!Uuid::isValid($entry)) {
+            $isSession = Uuid::isValid($entry);
+            if (!$isSession && !$this->isTemporaryFile($entry)) {
                 continue;
             }
 
@@ -182,13 +189,24 @@ class FileSessionStore implements SessionStoreInterface
                     continue;
                 }
 
-                $deleted[] = Uuid::fromString($entry);
+                if ($isSession) {
+                    $deleted[] = Uuid::fromString($entry);
+                }
             }
         }
 
         closedir($dir);
 
         return $deleted;
+    }
+
+    private function isTemporaryFile(string $entry): bool
+    {
+        if (1 !== preg_match('/^(?<id>[^.]+)\\.[0-9a-f]{12}\\.tmp$/', $entry, $matches)) {
+            return false;
+        }
+
+        return Uuid::isValid($matches['id']);
     }
 
     private function pathFor(Uuid $id): string
