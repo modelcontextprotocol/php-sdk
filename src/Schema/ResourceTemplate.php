@@ -57,7 +57,7 @@ class ResourceTemplate implements \JsonSerializable
         public readonly ?array $meta = null,
     ) {
         if (!preg_match(self::URI_TEMPLATE_PATTERN, $uriTemplate)) {
-            throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder.', $uriTemplate));
+            throw new InvalidArgumentException(\sprintf('Invalid URI template : "%s" must be a valid URI template with at least one placeholder. A URI without a placeholder addresses a single resource, register it as a resource instead.', $uriTemplate));
         }
     }
 
