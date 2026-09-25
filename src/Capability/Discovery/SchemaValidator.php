@@ -30,11 +30,23 @@ use Psr\Log\NullLogger;
  */
 class SchemaValidator
 {
+    /**
+     * Ceiling on reported errors. Opis walks the whole schema regardless — this
+     * only bounds the array built out of it, which a composition blow-up can
+     * make the larger cost of the two. {@see SchemaComplexityGuard} is what
+     * bounds the walk.
+     */
+    private const MAX_REPORTED_ERRORS = 100;
+
     private ?Validator $jsonSchemaValidator = null;
+
+    private SchemaComplexityGuard $complexityGuard;
 
     public function __construct(
         private LoggerInterface $logger = new NullLogger(),
+        ?SchemaComplexityGuard $complexityGuard = null,
     ) {
+        $this->complexityGuard = $complexityGuard ?? new SchemaComplexityGuard();
     }
 
     /**
@@ -45,8 +57,15 @@ class SchemaValidator
      *
      * @return list<array{pointer: string, keyword: string, message: string}> array of validation errors, empty if valid
      */
+    private static function trace(string $phase): void
+    {
+        // STDERR is not defined under the cli-server SAPI; php://stderr is.
+        file_put_contents('php://stderr', '[TRACE] '.$phase."\n", \FILE_APPEND);
+    }
+
     public function validateAgainstJsonSchema(mixed $data, array|object $schema): array
     {
+        self::trace('enter');
         if (\is_array($data) && empty($data)) {
             $data = new \stdClass();
         }
@@ -66,7 +85,9 @@ class SchemaValidator
 
             // --- Data Preparation ---
             // Opis Validator generally prefers objects for object validation
+            self::trace('convertData:in');
             $dataToValidate = $this->convertDataForValidator($data);
+            self::trace('convertData:out');
         } catch (\JsonException $e) {
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation (JSON conversion failed).', ['exception' => $e]);
 
@@ -81,10 +102,23 @@ class SchemaValidator
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Internal validation preparation error.']];
         }
 
+        // Before the validator sees it: a schema can be cheap to send and
+        // ruinous to walk, and refusing it is only possible up front.
+        self::trace('guard:in');
+        $reason = $this->complexityGuard->check($schemaObject);
+        self::trace('guard:out');
+        if (null !== $reason) {
+            $this->logger->warning('MCP SDK: Refused a schema the complexity guard rejected.', ['reason' => $reason]);
+
+            return [['pointer' => '', 'keyword' => 'schema', 'message' => $reason]];
+        }
+
         $validator = $this->getJsonSchemaValidator();
 
         try {
+            self::trace('opis:in');
             $result = $validator->validate($dataToValidate, $schemaObject);
+            self::trace('opis:out');
         } catch (\Throwable $e) {
             $this->logger->error('MCP SDK: JSON Schema validation failed internally.', [
                 'exception' => $e,
@@ -92,18 +126,31 @@ class SchemaValidator
                 'schema' => json_encode($schemaObject),
             ]);
 
+            // "Unsupported draft-XXXX" is the one failure here that is the
+            // schema's doing rather than ours, and the spec asks for an error
+            // that names the dialect.
+            if (str_contains($e->getMessage(), 'Unsupported draft')) {
+                return [['pointer' => '', 'keyword' => '$schema', 'message' => \sprintf('Unsupported JSON Schema dialect: %s. This validator supports 2020-12 (the default when no "$schema" is given) and the drafts opis/json-schema implements.', $e->getMessage())]];
+            }
+
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Schema validation process failed: '.$e->getMessage()]];
         }
 
         if ($result->isValid()) {
+            self::trace('valid:done');
+
             return [];
         }
+
+        self::trace('invalid:collecting');
 
         $formattedErrors = [];
         $topError = $result->error();
 
         if ($topError) {
+            self::trace('collect:in');
             $this->collectSubErrors($topError, $formattedErrors);
+            self::trace('collect:out');
         }
 
         if (empty($formattedErrors) && $topError) { // Fallback
@@ -124,7 +171,12 @@ class SchemaValidator
     {
         if (null === $this->jsonSchemaValidator) {
             $this->jsonSchemaValidator = new Validator();
-            // Potentially configure resolver here if needed later
+            $this->jsonSchemaValidator->setMaxErrors(self::MAX_REPORTED_ERRORS);
+            // No resolver is registered, and none should be: a `$ref` naming an
+            // absolute URI must never be fetched, which is a MUST in the
+            // specification's JSON Schema rules. SchemaComplexityGuard refuses
+            // such a schema before it reaches here, so this is the second of
+            // two locks rather than the only one.
         }
 
         return $this->jsonSchemaValidator;
@@ -169,6 +221,13 @@ class SchemaValidator
      */
     private function collectSubErrors(ValidationError $error, array &$collectedErrors): void
     {
+        // The error tree fans out with the schema, so a composition-heavy
+        // schema produces far more leaves than Opis's own cap admits. Past the
+        // ceiling there is nothing left to learn from another one.
+        if (\count($collectedErrors) >= self::MAX_REPORTED_ERRORS) {
+            return;
+        }
+
         $subErrors = $error->subErrors();
         if (empty($subErrors)) {
             $collectedErrors[] = [
