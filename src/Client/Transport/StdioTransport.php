@@ -46,10 +46,19 @@ class StdioTransport extends BaseTransport
 
     private string $inputBuffer = '';
 
+    private string $stderrBuffer = '';
+
+    private ?int $processExitCode = null;
+
     /**
      * Default cap on the bytes buffered while waiting for a complete line.
      */
     public const DEFAULT_MAX_BUFFER_SIZE = 4 * 1024 * 1024;
+
+    /**
+     * Bytes of the most recent stderr kept to explain a failed start.
+     */
+    public const MAX_STDERR_BUFFER_SIZE = 8 * 1024;
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
@@ -164,6 +173,13 @@ class StdioTransport extends BaseTransport
 
     private function spawnProcess(): void
     {
+        // A transport may be respawned on a retry, so clear anything the
+        // previous process left behind — otherwise a fresh child would inherit
+        // the old one's exit code and stderr.
+        $this->processExitCode = null;
+        $this->stderrBuffer = '';
+        $this->inputBuffer = '';
+
         $descriptors = [
             0 => ['pipe', 'r'], // stdin
             1 => ['pipe', 'w'], // stdout
@@ -238,8 +254,13 @@ class StdioTransport extends BaseTransport
             return;
         }
 
-        $data = fread($this->stdout, 8192);
-        if (false !== $data && '' !== $data) {
+        // Drain everything currently available, not just one 8 KiB chunk, so a
+        // response larger than the read size is fully read within the tick.
+        // Otherwise a process that emits a big frame and exits could be seen as
+        // dead by processFiber() before its response has finished arriving.
+        // Complete frames are dispatched after each chunk so the buffer cap
+        // still bounds a single unterminated frame, not a burst of whole ones.
+        while (false !== ($data = fread($this->stdout, 8192)) && '' !== $data) {
             if (\strlen($this->inputBuffer) + \strlen($data) > $this->maxBufferSize) {
                 $this->abortInput(\sprintf('buffered %d bytes without a newline, exceeding the %d byte limit', \strlen($this->inputBuffer) + \strlen($data), $this->maxBufferSize));
 
@@ -247,8 +268,16 @@ class StdioTransport extends BaseTransport
             }
 
             $this->inputBuffer .= $data;
+            $this->dispatchCompleteFrames();
         }
+    }
 
+    /**
+     * Hand every newline-delimited frame currently in the buffer to the message
+     * handler, leaving any trailing partial frame behind.
+     */
+    private function dispatchCompleteFrames(): void
+    {
         while (false !== ($pos = strpos($this->inputBuffer, "\n"))) {
             $line = substr($this->inputBuffer, 0, $pos);
             $this->inputBuffer = substr($this->inputBuffer, $pos + 1);
@@ -314,6 +343,24 @@ class StdioTransport extends BaseTransport
                 return;
             }
 
+            // Fail fast if the server process is already gone: no response can
+            // arrive from a dead child, so waiting out the timeout only hides
+            // why it died.
+            $exitCode = $this->checkProcessExit();
+            if (null !== $exitCode) {
+                $this->logger->warning('Server process exited before responding', [
+                    'request_id' => $requestId,
+                    'exit_code' => $exitCode,
+                ]);
+                // A dead child will never answer this request, so drop it: a
+                // reused transport must not carry it into the next attempt.
+                $this->state->removePendingRequest($requestId);
+                $error = Error::forInternalError($this->processExitMessage($exitCode), $requestId);
+                $this->activeFiber->resume($error);
+
+                return;
+            }
+
             // Check timeout
             if (time() - $timestamp >= $timeout) {
                 $this->logger->warning('Request timed out', ['request_id' => $requestId]);
@@ -327,13 +374,62 @@ class StdioTransport extends BaseTransport
 
     private function processStderr(): void
     {
+        $this->drainStderr();
+    }
+
+    /**
+     * Read whatever stderr is currently available, log it, and keep a bounded
+     * tail so a failed start can be explained. Non-blocking, so it returns as
+     * soon as the pipe is drained.
+     */
+    private function drainStderr(): void
+    {
         if (null === $this->stderr || !\is_resource($this->stderr)) {
             return;
         }
 
-        $stderr = fread($this->stderr, 8192);
-        if (false !== $stderr && '' !== $stderr) {
-            $this->logger->debug('Server stderr', ['output' => trim($stderr)]);
+        while (false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
+            $this->logger->debug('Server stderr', ['output' => trim($chunk)]);
+
+            $this->stderrBuffer .= $chunk;
+            if (\strlen($this->stderrBuffer) > self::MAX_STDERR_BUFFER_SIZE) {
+                $this->stderrBuffer = substr($this->stderrBuffer, -self::MAX_STDERR_BUFFER_SIZE);
+            }
         }
+    }
+
+    /**
+     * Return the child's exit code once it has terminated, or null while it is
+     * still running. proc_get_status() only reports a real exit code the first
+     * time it is called after the process ends, so it is captured and cached
+     * here, together with the final stderr.
+     */
+    private function checkProcessExit(): ?int
+    {
+        if (null !== $this->processExitCode) {
+            return $this->processExitCode;
+        }
+
+        if (null === $this->process || !\is_resource($this->process)) {
+            return null;
+        }
+
+        $status = proc_get_status($this->process);
+        if ($status['running']) {
+            return null;
+        }
+
+        $this->drainStderr();
+
+        return $this->processExitCode = $status['exitcode'];
+    }
+
+    private function processExitMessage(int $exitCode): string
+    {
+        $message = \sprintf('Server process exited with code %d before responding', $exitCode);
+
+        $stderr = trim($this->stderrBuffer);
+
+        return '' !== $stderr ? $message.': '.$stderr : $message.'.';
     }
 }

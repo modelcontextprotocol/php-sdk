@@ -60,8 +60,8 @@ abstract class IntegrationTestCase extends TestCase
         try {
             $this->client->connect($this->transport($fixture, $env));
         } catch (ConnectionException $e) {
-            // The transport discards the child's stderr, so a fixture dying on
-            // startup arrives here as a bare timeout.
+            // A fixture dying on startup surfaces here with its exit code and
+            // stderr, so the message below is usually enough to see why.
             $this->fail(\sprintf('Could not connect to fixture server "%s": %s. Run `%s %s` to see why.', $fixture, $e->getMessage(), \PHP_BINARY, self::script($fixture)));
         }
 
