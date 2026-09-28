@@ -200,6 +200,32 @@ Either way the data reaches the client: a return value with no structured repres
 A tool that wants to branch on the revision itself can read it from the injected `RequestContext`, see
 [Talking back to the client](../handlers/client-communication.md#clientgateway).
 
+#### Output validation
+
+The specification states that a server **must** produce structured results that conform to the declared schema. The SDK
+holds you to it: when a tool declares an `outputSchema` and the result carries `structuredContent`, the SDK validates
+that value against the schema before sending it. A mismatch becomes a tool error result, so the model reads the reason
+and can retry:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Invalid structured output for tool 'get_weather': Missing required properties: `temperature`."
+    }
+  ],
+  "isError": true
+}
+```
+
+The check applies to a `CallToolResult` you build yourself as well as to one the SDK wraps for you. It is skipped in
+three cases:
+
+- The tool declares no `outputSchema`.
+- The result carries no `structuredContent`, which is the warning case described above.
+- The result is already marked `isError: true`, because its content is a failure message and not the declared output.
+
 [sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
 
 ### Error Handling
