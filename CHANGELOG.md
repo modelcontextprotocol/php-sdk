@@ -14,6 +14,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
+* [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error.
 
 0.8.0
 -----
