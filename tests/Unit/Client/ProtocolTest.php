@@ -11,19 +11,24 @@
 
 namespace Mcp\Tests\Unit\Client;
 
+use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\LogicException;
+use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\TimeoutException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Server\Stateless\RequestMeta;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -163,6 +168,7 @@ final class ProtocolTest extends TestCase
     public function testErrorResponseWithIdIsStoredForItsPendingRequest(): void
     {
         $protocol = new Protocol();
+        $protocol->getState()->addPendingRequest(7, 30);
 
         $protocol->processMessage('{"jsonrpc": "2.0", "id": 7, "error": {"code": -32601, "message": "Method not found"}}');
 
@@ -171,6 +177,18 @@ final class ProtocolTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertSame(7, $response->getId());
         $this->assertSame(Error::METHOD_NOT_FOUND, $response->code);
+    }
+
+    #[TestDox('a response for a cancelled request cannot accumulate in state')]
+    public function testIgnoresResponseForNoLongerPendingRequest(): void
+    {
+        $protocol = new Protocol();
+        $protocol->getState()->addPendingRequest(7, 30);
+        $protocol->getState()->removePendingRequest(7);
+
+        $protocol->processMessage('{"jsonrpc": "2.0", "id": 7, "result": {}}');
+
+        $this->assertNull($protocol->getState()->consumeResponse(7));
     }
 
     #[TestDox('reconnecting starts with a fresh tool catalog, not the previous server\'s verdicts')]
@@ -206,6 +224,171 @@ final class ProtocolTest extends TestCase
         $this->assertInstanceOf(Response::class, $result);
         $this->assertStringContainsString('"inputResponses":{}', $transport->retryBody);
         $this->assertStringNotContainsString('"inputResponses":[]', $transport->retryBody);
+    }
+
+    /** @return iterable<string, array{bool}> */
+    public static function suspendedInterruptionProvider(): iterable
+    {
+        yield 'cancelled token' => [false];
+        yield 'expired deadline' => [true];
+    }
+
+    #[DataProvider('suspendedInterruptionProvider')]
+    public function testInterruptedSuspendedRequestRejectsBufferedResponse(bool $expireDeadline): void
+    {
+        $messages = [];
+        $transport = $this->createMock(TransportInterface::class);
+        $transport->method('send')->willReturnCallback(static function (string $data) use (&$messages): void {
+            $messages[] = json_decode($data, true, flags: \JSON_THROW_ON_ERROR);
+        });
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+        $token = new TestCancellationToken();
+        $fiber = new \Fiber(static fn () => $protocol->request(new CallToolRequest('slow', []), 5, false, $token, $expireDeadline ? 0.02 : null));
+        $suspend = $fiber->start();
+        $this->assertTrue($fiber->isSuspended());
+
+        if ($expireDeadline) {
+            // Wait for the actual suspended deadline, not an assumed timing window.
+            for ($attempt = 0; $attempt < 1000 && microtime(true) < $suspend['deadline']; ++$attempt) {
+                usleep(100);
+            }
+            $this->assertGreaterThanOrEqual($suspend['deadline'], microtime(true));
+        } else {
+            $token->cancelled = true;
+        }
+
+        $state = $protocol->getState();
+        $requestId = $suspend['request_id'];
+        $state->storeResponse($requestId, ['jsonrpc' => '2.0', 'id' => $requestId, 'result' => []]);
+        // Match STDIO's response-first ordering: consume the reply, then resume.
+        try {
+            $fiber->resume($state->consumeResponse($requestId));
+            $this->fail('An interrupted suspended request must reject its buffered reply.');
+        } catch (RequestCancelledException|TimeoutException $e) {
+            $this->assertInstanceOf($expireDeadline ? TimeoutException::class : RequestCancelledException::class, $e);
+        }
+
+        $this->assertSame([], $state->getPendingRequests());
+        $this->assertNull($state->consumeResponse($requestId));
+        $this->assertSame('notifications/cancelled', $messages[1]['method']);
+        $this->assertSame($requestId, $messages[1]['params']['requestId']);
+
+        $next = new \Fiber(static fn () => $protocol->request(new CallToolRequest('fast', []), 5));
+        $nextSuspend = $next->start();
+        $reply = new Response($nextSuspend['request_id'], ['content' => []]);
+        $next->resume($reply);
+        $this->assertSame($reply, $next->getReturn());
+        $this->assertSame([], $state->getPendingRequests());
+    }
+
+    #[TestDox('a token that flips while the answer is on the wire cancels the request')]
+    public function testCancellationDuringTheSendIsReported(): void
+    {
+        $token = new TestCancellationToken();
+        $transport = new InterruptingTransport(static function (array $message) use ($token): void {
+            if ('slow' === ($message['params']['name'] ?? null)) {
+                $token->cancelled = true;
+            }
+        });
+
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        try {
+            $protocol->request(new CallToolRequest('slow', []), 5, false, $token);
+            $this->fail('A cancelled request must not return the answer that arrived for it.');
+        } catch (RequestCancelledException $e) {
+            $this->assertSame('The client cancelled the request.', $e->getMessage());
+        }
+
+        // The buffered answer and the pending entry go together: neither may
+        // survive to confuse the next request.
+        $this->assertNull($protocol->getState()->consumeResponse($transport->requestId('slow')));
+        $this->assertSame([], $protocol->getState()->getPendingRequests());
+        $this->assertSame('fast', $this->toolText($protocol->request(new CallToolRequest('fast', []), 5)));
+    }
+
+    #[TestDox('a deadline that passes while the answer is on the wire cancels the request')]
+    public function testDeadlineDuringTheSendIsReported(): void
+    {
+        $transport = new InterruptingTransport(function (array $message): void {
+            if ('slow' === ($message['params']['name'] ?? null)) {
+                $this->waitPastDeadline();
+            }
+        });
+
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        try {
+            $protocol->request(new CallToolRequest('slow', []), 5, false, null, self::DEADLINE_SECONDS);
+            $this->fail('A request past its deadline must not return the answer that arrived for it.');
+        } catch (TimeoutException $e) {
+            $this->assertSame('The request deadline expired.', $e->getMessage());
+        }
+
+        $this->assertNull($protocol->getState()->consumeResponse($transport->requestId('slow')));
+        $this->assertSame([], $protocol->getState()->getPendingRequests());
+        $this->assertSame('fast', $this->toolText($protocol->request(new CallToolRequest('fast', []), 5)));
+    }
+
+    #[TestDox('a cancellation notification that cannot be sent is logged, and the interruption still propagates')]
+    public function testNotificationFailureKeepsTheInterruption(): void
+    {
+        $token = new TestCancellationToken();
+        $transport = new InterruptingTransport(static function (array $message) use ($token): void {
+            if ('slow' === ($message['params']['name'] ?? null)) {
+                $token->cancelled = true;
+            }
+        });
+        $transport->failsNotifications = true;
+
+        $protocol = new Protocol(logger: $logger = new CollectingLogger());
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        try {
+            $protocol->request(new CallToolRequest('slow', []), 5, false, $token);
+            $this->fail('A cancelled request must not return the answer that arrived for it.');
+        } catch (RequestCancelledException $e) {
+            $this->assertSame('The client cancelled the request.', $e->getMessage());
+        }
+
+        $this->assertCount(1, $logger->warnings);
+        $this->assertInstanceOf(ConnectionException::class, $logger->warnings[0]['exception'] ?? null);
+        $this->assertSame('fast', $this->toolText($protocol->request(new CallToolRequest('fast', []), 5)));
+    }
+
+    /**
+     * @param Response<array<string, mixed>>|Error $response
+     */
+    private function toolText(Response|Error $response): mixed
+    {
+        $this->assertInstanceOf(Response::class, $response);
+
+        return CallToolResult::fromArray($response->result)->content[0]->text ?? null;
+    }
+
+    /**
+     * A per-call timeout small enough that waiting it out costs microseconds.
+     */
+    private const DEADLINE_SECONDS = 0.001;
+
+    /**
+     * Wait until the per-call deadline has certainly passed. The deadline is
+     * stamped as `microtime(true) + DEADLINE_SECONDS` before the send, so the
+     * clock reaching twice that is a condition the test checks rather than
+     * assumes. Bounded, so a clock that cannot advance fails instead of hanging.
+     */
+    private function waitPastDeadline(): void
+    {
+        $boundary = microtime(true) + 2 * self::DEADLINE_SECONDS;
+
+        for ($attempt = 0; $attempt < 1000 && microtime(true) < $boundary; ++$attempt) {
+            usleep(100);
+        }
+
+        $this->assertGreaterThanOrEqual($boundary, microtime(true), 'The clock must pass the per-call deadline for this assertion to be about the deadline.');
     }
 
     private function createConfiguration(ProtocolVersion $protocolVersion): Configuration
@@ -433,5 +616,122 @@ final class CollectingLogger extends AbstractLogger
         if (LogLevel::WARNING === $level) {
             $this->warnings[] = $context;
         }
+    }
+}
+
+/**
+ * Token the tests flip from inside a transport, standing in for whatever asked
+ * for a request to stop while it was already on the wire.
+ */
+final class TestCancellationToken implements CancellationTokenInterface
+{
+    public bool $cancelled = false;
+
+    public function isCancellationRequested(): bool
+    {
+        return $this->cancelled;
+    }
+}
+
+/**
+ * Transport that runs a hook while a request is on the wire and then answers it
+ * inline — the shape of a send whose reply is already buffered by the time the
+ * caller can observe a token flip or a spent deadline.
+ */
+final class InterruptingTransport implements TransportInterface
+{
+    /** @var list<array<string, mixed>> */
+    public array $messages = [];
+
+    /** Fail notification delivery, as a transport that has died would. */
+    public bool $failsNotifications = false;
+
+    /** @var \Closure(array<string, mixed>): void */
+    private \Closure $duringRequest;
+
+    private ClientStateInterface $state;
+
+    /**
+     * @param (\Closure(array<string, mixed>): void)|null $duringRequest
+     */
+    public function __construct(?\Closure $duringRequest = null)
+    {
+        $this->duringRequest = $duringRequest ?? static function (): void {
+        };
+    }
+
+    public function setState(ClientStateInterface $state): void
+    {
+        $this->state = $state;
+    }
+
+    public function send(string $data): void
+    {
+        /** @var array<string, mixed> $message */
+        $message = json_decode($data, true, flags: \JSON_THROW_ON_ERROR);
+        $this->messages[] = $message;
+
+        if (!\array_key_exists('id', $message)) {
+            if ($this->failsNotifications) {
+                throw new ConnectionException('The transport is gone.');
+            }
+
+            return;
+        }
+
+        ($this->duringRequest)($message);
+
+        $this->state->storeResponse($message['id'], [
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => $message['id'],
+            'result' => ['content' => [['type' => 'text', 'text' => $message['params']['name'] ?? '']]],
+        ]);
+    }
+
+    /**
+     * The request id recorded for this tool name.
+     */
+    public function requestId(string $name): int|string
+    {
+        foreach ($this->messages as $message) {
+            if ($name === ($message['params']['name'] ?? null)) {
+                $id = $message['id'] ?? null;
+
+                if (\is_int($id) || \is_string($id)) {
+                    return $id;
+                }
+            }
+        }
+
+        throw new \RuntimeException(\sprintf('No request recorded for tool "%s".', $name));
+    }
+
+    public function connect(): void
+    {
+    }
+
+    public function close(): void
+    {
+    }
+
+    public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
+    {
+        throw new LogicException('Not used in these tests.');
+    }
+
+    public function onInitialize(callable $callback): void
+    {
+    }
+
+    public function onMessage(callable $callback): void
+    {
+    }
+
+    public function onError(callable $callback): void
+    {
+    }
+
+    public function onClose(callable $callback): void
+    {
     }
 }

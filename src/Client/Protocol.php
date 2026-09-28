@@ -21,8 +21,11 @@ use Mcp\Client\Stateless\InputRequestResolver;
 use Mcp\Client\Stateless\RequestEnvelope;
 use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
+use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
@@ -30,6 +33,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
@@ -364,8 +368,9 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    public function request(Request $request, int $timeout, bool $withProgress = false): Response|Error
+    public function request(Request $request, int $timeout, bool $withProgress = false, ?CancellationTokenInterface $cancellation = null, ?float $callTimeout = null): Response|Error
     {
+        $deadline = null !== $callTimeout ? microtime(true) + $callTimeout : null;
         $payload = $request->withId(0)->jsonSerialize();
         unset($payload['id']);
 
@@ -374,11 +379,11 @@ class Protocol
         }
 
         if (null === $this->envelope) {
-            return $this->exchange($payload, $timeout);
+            return $this->exchange($payload, $timeout, $cancellation, $deadline);
         }
 
         for ($attempt = 0; $attempt < self::MAX_ROUND_TRIPS; ++$attempt) {
-            $response = $this->exchange($payload, $timeout);
+            $response = $this->exchange($payload, $timeout, $cancellation, $deadline);
 
             if ($response instanceof Error) {
                 $retry = $this->withAcceptedVersion($response);
@@ -477,8 +482,12 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    private function exchange(array $payload, int $timeout): Response|Error
+    private function exchange(array $payload, int $timeout, ?CancellationTokenInterface $cancellation = null, ?float $deadline = null): Response|Error
     {
+        if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+            throw $interruption;
+        }
+
         $requestId = $this->state->nextRequestId();
         $payload['id'] = $requestId;
 
@@ -486,6 +495,12 @@ class Protocol
 
         try {
             $this->send($payload, 'request');
+
+            // send() can block and leave a JSON answer already buffered: drop it
+            // and report the interruption instead of a success nobody awaits.
+            if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+                throw $interruption;
+            }
 
             $immediate = $this->state->consumeResponse($requestId);
             if (null !== $immediate) {
@@ -496,15 +511,66 @@ class Protocol
 
             $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
 
-            return \Fiber::suspend([
+            $response = \Fiber::suspend([
                 'type' => 'await_response',
                 'request_id' => $requestId,
                 'timeout' => $timeout,
+                'cancellation' => $cancellation,
+                'deadline' => $deadline,
             ]);
+
+            // A transport may resume with a buffered reply before checking interruption.
+            if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+                throw $interruption;
+            }
+
+            return $response;
+        } catch (RequestCancelledException|TimeoutException $e) {
+            $this->state->consumeResponse($requestId);
+            $this->notifyCancellation($requestId, $e->getMessage());
+
+            throw $e;
         } finally {
             // Only the response path clears it, so a request that timed out or
             // whose send() threw would stay pending and fail every later one.
             $this->state->removePendingRequest($requestId);
+        }
+    }
+
+    /**
+     * The interruption an in-flight request is subject to, if any. Checked on
+     * both sides of a send and after the transport resumes a suspended request.
+     *
+     * @phpstan-impure
+     */
+    private static function interruption(?CancellationTokenInterface $cancellation, ?float $deadline): RequestCancelledException|TimeoutException|null
+    {
+        if ($cancellation?->isCancellationRequested()) {
+            return new RequestCancelledException('The client cancelled the request.');
+        }
+
+        if (null !== $deadline && microtime(true) >= $deadline) {
+            return new TimeoutException('The request deadline expired.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Tell the server an abandoned request's result will go unused. Only stdio and
+     * handshake-era HTTP need it: a modern connection signals by closing the
+     * response stream. Best effort — a send failure is logged, not raised.
+     */
+    private function notifyCancellation(int $requestId, string $reason): void
+    {
+        if ($this->transport instanceof HttpTransport && true === $this->state->getProtocolVersion()?->isModern()) {
+            return;
+        }
+
+        try {
+            $this->sendNotification(new CancelledNotification($requestId, $reason));
+        } catch (\Throwable $notificationError) {
+            $this->logger->warning('Could not send request cancellation notification.', ['request_id' => $requestId, 'exception' => $notificationError]);
         }
     }
 
@@ -607,6 +673,12 @@ class Protocol
 
         if (null === $requestId) {
             $this->logger->warning('Received an id-less error response; cannot correlate it to a request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
+
+        if (!\array_key_exists($requestId, $this->state->getPendingRequests())) {
+            $this->logger->debug('Ignoring response for a request that is no longer pending.', ['id' => $requestId]);
 
             return;
         }
