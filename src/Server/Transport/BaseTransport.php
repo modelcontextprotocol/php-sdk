@@ -85,6 +85,20 @@ abstract class BaseTransport implements TransportInterface
     }
 
     /**
+     * @param list<int|string|null> $responseIds
+     *
+     * @return array<int, array{message: string, context: array<string, mixed>}>
+     */
+    protected function getOutgoingResponses(?Uuid $sessionId, array $responseIds): array
+    {
+        if ($sessionId && \is_callable($this->outgoingMessagesProvider)) {
+            return ($this->outgoingMessagesProvider)($sessionId, $responseIds);
+        }
+
+        return [];
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     protected function getPendingRequests(?Uuid $sessionId): array

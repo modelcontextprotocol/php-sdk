@@ -509,18 +509,63 @@ class Protocol
     }
 
     /**
-     * Consume (get and clear) all outgoing messages for a session.
+     * Consume (get and clear) outgoing messages for a session.
+     *
+     * With response ids only the matching responses are taken, the rest stays queued.
+     * A null id matches an error without an id.
+     *
+     * @param list<int|string|null>|null $responseIds
      *
      * @return array<int, array{message: string, context: array<string, mixed>}>
      */
-    public function consumeOutgoingMessages(Uuid $sessionId): array
+    public function consumeOutgoingMessages(Uuid $sessionId, ?array $responseIds = null): array
     {
         $session = $this->sessionManager->createWithId($sessionId);
+        /** @var array<int, array{message: string, context: array<string, mixed>}> $queue */
         $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
-        $session->set(self::SESSION_OUTGOING_QUEUE, []);
-        $session->save();
 
-        return $queue;
+        if (null === $responseIds) {
+            $session->set(self::SESSION_OUTGOING_QUEUE, []);
+            $session->save();
+
+            return $queue;
+        }
+
+        $consumed = [];
+        $remaining = [];
+        foreach ($queue as $message) {
+            if (self::isResponseTo($message, $responseIds)) {
+                $consumed[] = $message;
+            } else {
+                $remaining[] = $message;
+            }
+        }
+
+        if ([] !== $consumed) {
+            $session->set(self::SESSION_OUTGOING_QUEUE, $remaining);
+            $session->save();
+        }
+
+        return $consumed;
+    }
+
+    /**
+     * @param array{message: string, context: array<string, mixed>} $message
+     * @param list<int|string|null>                                 $responseIds
+     */
+    private static function isResponseTo(array $message, array $responseIds): bool
+    {
+        if ('response' !== ($message['context']['type'] ?? null)) {
+            return false;
+        }
+
+        try {
+            $decoded = json_decode($message['message'], true, flags: \JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            return false;
+        }
+
+        return \is_array($decoded) && \in_array($decoded['id'] ?? null, $responseIds, true);
     }
 
     /**
