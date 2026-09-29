@@ -57,7 +57,6 @@ final class ToolChoiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "mode" in ToolChoice data.');
 
-        /* @phpstan-ignore argument.type */
         ToolChoice::fromArray(['mode' => 1]);
     }
 
@@ -66,7 +65,6 @@ final class ToolChoiceTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "mode" in ToolChoice data.');
 
-        /* @phpstan-ignore argument.type (deliberately null, as malformed wire data would be) */
         ToolChoice::fromArray(['mode' => null]);
     }
 }

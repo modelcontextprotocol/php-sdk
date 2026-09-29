@@ -38,7 +38,7 @@ use Psr\Log\LoggerInterface;
 class RegistryTest extends TestCase
 {
     private Registry $registry;
-    private LoggerInterface|MockObject $logger;
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
@@ -100,7 +100,9 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($second, static fn () => 'second');
 
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertEquals('second', ($toolRef->handler)());
+        $handler = $toolRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetToolThrowsExceptionForUnregisteredTool(): void
@@ -157,7 +159,9 @@ class RegistryTest extends TestCase
         $this->registry->registerResource($second, static fn () => 'second');
 
         $resourceRef = $this->registry->getResource('test://resource');
-        $this->assertEquals('second', ($resourceRef->handler)());
+        $handler = $resourceRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetResourceThrowsExceptionForUnregisteredResource(): void
@@ -267,7 +271,9 @@ class RegistryTest extends TestCase
         $this->registry->registerResourceTemplate($second, static fn () => 'second');
 
         $templateRef = $this->registry->getResourceTemplate('test://{id}');
-        $this->assertEquals('second', ($templateRef->handler)());
+        $handler = $templateRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testResourceTemplateMatchingPrefersMoreSpecificMatches(): void
@@ -349,7 +355,9 @@ class RegistryTest extends TestCase
         $this->registry->registerPrompt($second, static fn () => 'second');
 
         $promptRef = $this->registry->getPrompt('test_prompt');
-        $this->assertEquals('second', ($promptRef->handler)());
+        $handler = $promptRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetPromptThrowsExceptionForUnregisteredPrompt(): void
@@ -454,7 +462,9 @@ class RegistryTest extends TestCase
 
         // Second registration should override the first
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertEquals('second', ($toolRef->handler)());
+        $handler = $toolRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testExtractStructuredContentReturnsNullWhenOutputSchemaIsNull(): void

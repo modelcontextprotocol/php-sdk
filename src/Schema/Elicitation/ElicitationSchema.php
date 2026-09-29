@@ -51,7 +51,7 @@ final class ElicitationSchema implements \JsonSerializable
      *     type?: string,
      *     properties: array<string, array{type: string, title: string, ...}>,
      *     required?: string[],
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

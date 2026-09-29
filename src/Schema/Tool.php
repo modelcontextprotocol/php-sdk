@@ -22,16 +22,10 @@ use Mcp\Schema\Wire\McpHeader;
  *
  * @phpstan-type ToolInputSchema array{
  *     type: 'object',
- *     properties: array<string, mixed>|\stdClass,
- *     required: string[]|null
+ *     properties?: array<mixed>|\stdClass,
+ *     required?: array<mixed>|null
  * }
- * @phpstan-type ToolOutputSchema array{
- *     type?: string,
- *     properties?: array<string, mixed>|\stdClass,
- *     required?: string[]|null,
- *     additionalProperties?: bool|array<string, mixed>|\stdClass,
- *     description?: string
- * }
+ * @phpstan-type ToolOutputSchema array<string, mixed>
  * @phpstan-type ToolData array{
  *     name: string,
  *     title?: string,
@@ -95,18 +89,18 @@ class Tool implements \JsonSerializable
     public readonly ?array $outputSchema;
 
     /**
-     * @param string                $name         the name of the tool
-     * @param ?string               $title        Optional human-readable title for display in UI
-     * @param ToolInputSchema       $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ?string               $description  A human-readable description of the tool.
-     *                                            This can be used by clients to improve the LLM's understanding of
-     *                                            available tools. It can be thought of like a "hint" to the model.
-     * @param ?ToolAnnotations      $annotations  optional additional tool information
-     * @param ?Icon[]               $icons        optional icons representing the tool
-     * @param ?array<string, mixed> $meta         Optional metadata
-     * @param ToolOutputSchema|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
-     *                                            structuredContent. Unlike $inputSchema its root is unconstrained —
-     *                                            it may describe an array, a primitive, or a composition.
+     * @param string                    $name         the name of the tool
+     * @param ?string                   $title        Optional human-readable title for display in UI
+     * @param array<string, mixed>      $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
+     * @param ?string                   $description  A human-readable description of the tool.
+     *                                                This can be used by clients to improve the LLM's understanding of
+     *                                                available tools. It can be thought of like a "hint" to the model.
+     * @param ?ToolAnnotations          $annotations  optional additional tool information
+     * @param ?Icon[]                   $icons        optional icons representing the tool
+     * @param ?array<string, mixed>     $meta         Optional metadata
+     * @param array<string, mixed>|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
+     *                                                structuredContent. Unlike $inputSchema its root is unconstrained —
+     *                                                it may describe an array, a primitive, or a composition.
      */
     public function __construct(
         public readonly string $name,
@@ -118,13 +112,9 @@ class Tool implements \JsonSerializable
         public readonly ?array $meta = null,
         ?array $outputSchema = null,
     ) {
-        if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
-            throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
-        }
-
         // Always normalize here so every construction path emits `{}` for empty
         // sub-schemas — not only SchemaGenerator / fromArray.
-        $this->inputSchema = self::normalizeSchema($inputSchema);
+        $this->inputSchema = self::normalizeInputSchema($inputSchema);
         $this->outputSchema = null !== $outputSchema ? self::normalizeSchema($outputSchema) : null;
 
         // An out-of-bounds `x-mcp-header` reachable through `properties` makes
@@ -137,7 +127,7 @@ class Tool implements \JsonSerializable
     }
 
     /**
-     * @param ToolData $data
+     * @param ToolData|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -204,6 +194,42 @@ class Tool implements \JsonSerializable
         }
 
         return $data;
+    }
+
+    /**
+     * Normalize an input schema and refuse members that are not what they claim.
+     *
+     * `fromArray()` feeds this untrusted wire data, so a member of the wrong
+     * type is rejected rather than replaced: quietly turning `properties: "x"`
+     * into `{}` would publish a tool contract nobody declared.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return ToolInputSchema
+     */
+    private static function normalizeInputSchema(array $schema): array
+    {
+        $normalized = self::normalizeSchema($schema);
+
+        if (!isset($normalized['type']) || 'object' !== $normalized['type']) {
+            throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
+        }
+
+        if (\array_key_exists('properties', $normalized)
+            && !\is_array($normalized['properties'])
+            && !$normalized['properties'] instanceof \stdClass
+        ) {
+            throw new InvalidArgumentException('Tool inputSchema "properties" must be an object.');
+        }
+
+        if (\array_key_exists('required', $normalized)
+            && null !== $normalized['required']
+            && !\is_array($normalized['required'])
+        ) {
+            throw new InvalidArgumentException('Tool inputSchema "required" must be a list of property names.');
+        }
+
+        return $normalized;
     }
 
     /**

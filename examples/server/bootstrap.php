@@ -51,7 +51,7 @@ function transport(): TransportInterface
 
 function shutdown(ResponseInterface|int $result): never
 {
-    if ('cli' === \PHP_SAPI) {
+    if (is_int($result)) {
         exit($result);
     }
 

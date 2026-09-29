@@ -112,6 +112,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered tools.
+     *
+     * @return Page<Tool>
      */
     public function getTools(?int $limit = null, ?string $cursor = null): Page;
 
@@ -129,6 +131,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered resources.
+     *
+     * @return Page<ResourceDefinition>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): Page;
 
@@ -146,6 +150,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered resource templates.
+     *
+     * @return Page<ResourceTemplate>
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page;
 
@@ -163,6 +169,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered prompts.
+     *
+     * @return Page<Prompt>
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): Page;
 

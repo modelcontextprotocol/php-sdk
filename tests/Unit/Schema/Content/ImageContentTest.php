@@ -61,14 +61,14 @@ final class ImageContentTest extends TestCase
 
         $data = $content->jsonSerialize();
 
-        $this->assertSame($annotations, $data['annotations']);
+        $this->assertSame($annotations, $data['annotations'] ?? null);
     }
 
     public function testRoundTripWithAnnotations(): void
     {
         $original = new ImageContent(base64_encode('binary'), 'image/png', new Annotations([Role::User], 0.5));
 
-        $decoded = json_decode(json_encode($original), true);
+        $decoded = json_decode(json_encode($original, \JSON_THROW_ON_ERROR), true);
         $rehydrated = ImageContent::fromArray($decoded);
 
         $this->assertSame($original->data, $rehydrated->data);

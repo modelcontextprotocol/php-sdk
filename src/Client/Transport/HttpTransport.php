@@ -98,15 +98,16 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     public function connect(): void
     {
-        $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
+        $fiber = new \Fiber(fn () => $this->handleInitialize());
+        $this->activeFiber = $fiber;
 
-        $this->activeFiber->start();
+        $fiber->start();
 
-        while (!$this->activeFiber->isTerminated()) {
+        while (!$fiber->isTerminated()) {
             $this->tick();
         }
 
-        $result = $this->activeFiber->getReturn();
+        $result = $fiber->getReturn();
         $this->activeFiber = null;
 
         if ($result instanceof Error) {
@@ -288,7 +289,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             }
         }
 
-        if ($this->activeStream->eof()) {
+        if (null !== $this->activeStream && $this->activeStream->eof()) {
             // The stream ended without a trailing blank line: dispatch what is left.
             if (!empty(trim($this->sseBuffer))) {
                 $this->processSSEEvent($this->sseBuffer);

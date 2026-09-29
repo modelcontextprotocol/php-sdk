@@ -140,13 +140,13 @@ class ServerCapabilities implements \JsonSerializable
 
     /**
      * @return array{
-     *     logging?: object,
-     *     completions?: object,
-     *     prompts?: object,
-     *     resources?: object,
-     *     tools?: object,
-     *     experimental?: object,
-     *     extensions?: object,
+     *     logging?: \stdClass,
+     *     completions?: \stdClass,
+     *     prompts?: \stdClass,
+     *     resources?: \stdClass,
+     *     tools?: \stdClass,
+     *     experimental?: \stdClass,
+     *     extensions?: \stdClass,
      * }
      */
     public function jsonSerialize(): array

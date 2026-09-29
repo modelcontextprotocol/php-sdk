@@ -99,7 +99,7 @@ final class ToolResultContent extends Content
     public function jsonSerialize(): array
     {
         $data = [
-            'type' => $this->type,
+            'type' => 'tool_result',
             'toolUseId' => $this->toolUseId,
             'content' => $this->content,
         ];

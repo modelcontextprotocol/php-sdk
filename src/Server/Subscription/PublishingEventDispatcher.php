@@ -30,7 +30,7 @@ use Psr\EventDispatcher\EventDispatcherInterface;
  */
 final class PublishingEventDispatcher implements EventDispatcherInterface
 {
-    /** @var array<class-string, callable(object): void> */
+    /** @var array<class-string, callable> */
     private readonly array $listeners;
 
     public function __construct(
