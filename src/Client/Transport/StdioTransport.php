@@ -13,6 +13,8 @@ namespace Mcp\Client\Transport;
 
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Log\LoggerInterface;
@@ -27,6 +29,7 @@ use Psr\Log\LoggerInterface;
  * - Managing Fibers waiting for responses
  *
  * @phpstan-import-type McpFiber from TransportInterface
+ * @phpstan-import-type FiberSuspend from TransportInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -53,6 +56,9 @@ class StdioTransport extends BaseTransport
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
+
+    /** @var FiberSuspend|null */
+    private ?array $activeSuspend = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
     private $activeProgressCallback;
@@ -127,16 +133,19 @@ class StdioTransport extends BaseTransport
     {
         $this->activeFiber = $fiber;
         $this->activeProgressCallback = $onProgress;
-        $fiber->start();
+        try {
+            $this->activeSuspend = $fiber->start();
 
-        while (!$fiber->isTerminated()) {
-            $this->tick();
+            while (!$fiber->isTerminated()) {
+                $this->tick();
+            }
+
+            return $fiber->getReturn();
+        } finally {
+            $this->activeFiber = null;
+            $this->activeProgressCallback = null;
+            $this->activeSuspend = null;
         }
-
-        $this->activeFiber = null;
-        $this->activeProgressCallback = null;
-
-        return $fiber->getReturn();
     }
 
     public function close(): void
@@ -309,16 +318,33 @@ class StdioTransport extends BaseTransport
 
             if (null !== $response) {
                 $this->logger->debug('Resuming fiber with response', ['request_id' => $requestId]);
-                $this->activeFiber->resume($response);
+                $this->activeSuspend = $this->activeFiber->resume($response);
 
                 return;
+            }
+
+            if (($this->activeSuspend['request_id'] ?? null) === $requestId) {
+                if (($this->activeSuspend['cancellation'] ?? null)?->isCancellationRequested()) {
+                    $this->activeFiber->throw(new RequestCancelledException('The client cancelled the request.'));
+
+                    return;
+                }
+
+                $deadline = $this->activeSuspend['deadline'] ?? null;
+                if (null !== $deadline) {
+                    if (microtime(true) >= $deadline) {
+                        $this->activeFiber->throw(new TimeoutException('The request deadline expired.'));
+                    }
+
+                    return;
+                }
             }
 
             // Check timeout
             if (time() - $timestamp >= $timeout) {
                 $this->logger->warning('Request timed out', ['request_id' => $requestId]);
                 $error = Error::forInternalError('Request timed out', $requestId);
-                $this->activeFiber->resume($error);
+                $this->activeSuspend = $this->activeFiber->resume($error);
 
                 return;
             }

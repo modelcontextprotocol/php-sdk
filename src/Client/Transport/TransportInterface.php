@@ -23,7 +23,7 @@ use Mcp\Schema\JsonRpc\Response;
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (Response<mixed>|Error)
- * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int}
+ * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int, cancellation?: \Mcp\Client\CancellationTokenInterface|null, deadline?: float|null}
  * @phpstan-type McpFiber \Fiber<null, FiberResume, FiberReturn, FiberSuspend>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>

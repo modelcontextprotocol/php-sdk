@@ -15,6 +15,8 @@ use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Psr\Http\Client\ClientInterface;
@@ -29,6 +31,7 @@ use Psr\Log\LoggerInterface;
  * PSR-18 HTTP clients are auto-discovered if not provided.
  *
  * @phpstan-import-type McpFiber from TransportInterface
+ * @phpstan-import-type FiberSuspend from TransportInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
@@ -45,6 +48,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
+
+    /** @var FiberSuspend|null */
+    private ?array $activeSuspend = null;
 
     /** @var (callable(float, ?float, ?string): void)|null */
     private $activeProgressCallback;
@@ -173,6 +179,14 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             $this->logger->debug('Received session ID', ['session_id' => $this->sessionId]);
         }
 
+        // A notification carries no id, so nobody is waiting for this body: it is
+        // discarded rather than read as the answer to some other request.
+        if (self::isNotification($data)) {
+            $response->getBody()->close();
+
+            return;
+        }
+
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if (str_contains($contentType, 'text/event-stream')) {
@@ -187,6 +201,17 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
+     * Whether the outgoing message is a notification: a `method` and no `id`, so
+     * it asks the server for nothing and no answer of its own can exist.
+     */
+    private static function isNotification(string $data): bool
+    {
+        $payload = json_decode($data, true);
+
+        return \is_array($payload) && \array_key_exists('method', $payload) && !\array_key_exists('id', $payload);
+    }
+
+    /**
      * @param McpFiber                                                                $fiber
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      */
@@ -194,17 +219,21 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     {
         $this->activeFiber = $fiber;
         $this->activeProgressCallback = $onProgress;
-        $fiber->start();
+        try {
+            $this->activeSuspend = $fiber->start();
+            while (!$fiber->isTerminated()) {
+                $this->tick();
+            }
 
-        while (!$fiber->isTerminated()) {
-            $this->tick();
+            return $fiber->getReturn();
+        } finally {
+            $this->activeFiber = null;
+            $this->activeSuspend = null;
+            $this->activeProgressCallback = null;
+            $this->activeStream?->close();
+            $this->activeStream = null;
+            $this->sseBuffer = '';
         }
-
-        $this->activeFiber = null;
-        $this->activeProgressCallback = null;
-        $this->activeStream = null;
-
-        return $fiber->getReturn();
     }
 
     public function close(): void
@@ -253,11 +282,33 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     private function tick(): void
     {
+        $this->checkInterruption();
         $this->processSSEStream();
         $this->processProgress();
+        $this->checkInterruption();
         $this->processFiber();
 
         usleep(1000); // 1ms
+    }
+
+    private function checkInterruption(): void
+    {
+        if (null === $this->activeSuspend || !$this->activeFiber?->isSuspended()) {
+            return;
+        }
+
+        $error = null;
+        if (($this->activeSuspend['cancellation'] ?? null)?->isCancellationRequested()) {
+            $error = new RequestCancelledException('The client cancelled the request.');
+        } elseif (null !== ($deadline = $this->activeSuspend['deadline'] ?? null) && microtime(true) >= $deadline) {
+            $error = new TimeoutException('The request deadline expired.');
+        }
+
+        if (null !== $error) {
+            // A blocking read may have delivered a response after cancellation.
+            $this->state?->consumeResponse($this->activeSuspend['request_id']);
+            $this->activeFiber->throw($error);
+        }
     }
 
     /**
@@ -422,15 +473,16 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
             if (null !== $response) {
                 $this->logger->debug('Resuming fiber with response', ['request_id' => $requestId]);
-                $this->activeFiber->resume($response);
+                $this->activeSuspend = $this->activeFiber->resume($response);
 
                 return;
             }
 
-            if (time() - $timestamp >= $timeout) {
+            // The explicit per-call deadline replaces the default request timeout.
+            if (null === ($this->activeSuspend['deadline'] ?? null) && time() - $timestamp >= $timeout) {
                 $this->logger->warning('Request timed out', ['request_id' => $requestId]);
                 $error = Error::forInternalError('Request timed out', $requestId);
-                $this->activeFiber->resume($error);
+                $this->activeSuspend = $this->activeFiber->resume($error);
 
                 return;
             }
