@@ -31,6 +31,15 @@ use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
 {
+    private const WEATHER_OUTPUT_SCHEMA = [
+        'type' => 'object',
+        'properties' => [
+            'temperature' => ['type' => 'number'],
+            'conditions' => ['type' => 'string'],
+        ],
+        'required' => ['temperature', 'conditions'],
+    ];
+
     private CallToolHandler $handler;
     private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
@@ -697,6 +706,116 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
         $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+    }
+
+    public function testStructuredContentMissingARequiredPropertyIsReportedAsAToolError(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => ['conditions' => 'sunny'], self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn(['conditions' => 'sunny']);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertTrue($response->result->isError);
+        $this->assertNull($response->result->structuredContent);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+        $this->assertStringContainsString('temperature', $this->firstText($response->result));
+    }
+
+    public function testStructuredContentOfTheWrongTypeIsReportedAsAToolError(): void
+    {
+        $structuredContent = ['temperature' => 'warm', 'conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent, self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":"warm","conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertTrue($response->result->isError);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+    }
+
+    public function testConformingStructuredContentIsSentUnchanged(): void
+    {
+        $structuredContent = ['temperature' => 22.5, 'conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent, self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":22.5,"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    public function testStructuredContentIsNotValidatedWithoutAnOutputSchema(): void
+    {
+        $structuredContent = ['conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    public function testSelfBuiltResultIsValidatedAgainstTheOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, ['conditions' => 'sunny']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertNotSame($callToolResult, $response->result);
+        $this->assertTrue($response->result->isError);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+    }
+
+    public function testErrorResultIsNotValidatedAgainstTheOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('The weather service is down.')], true, ['reason' => 'timeout']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertSame($callToolResult, $response->result);
+        $this->assertSame('The weather service is down.', $this->firstText($response->result));
+    }
+
+    private function firstText(CallToolResult $result): string
+    {
+        $content = $result->content[0];
+        $this->assertInstanceOf(TextContent::class, $content);
+
+        return $content->text;
     }
 
     /**
