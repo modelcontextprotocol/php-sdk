@@ -157,4 +157,93 @@ TypeScript SDK (`@modelcontextprotocol/ext-apps`), and view-side examples. A
 working minimal view is included in
 [`examples/server/mcp-apps/weather-app.html`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/mcp-apps/weather-app.html).
 
+## Skills (`io.modelcontextprotocol/skills`)
+
+The [Skills extension][ext-skills] (SEP-2640) lets servers ship **skills** —
+multi-step workflow instructions that tell an agent *how to orchestrate* tools to
+reach a goal. Each skill file is served through the existing **Resources**
+primitive (`skill://<skill-path>/SKILL.md` plus any supporting files), and the
+extension adds two mandatory RPC methods:
+
+- `skills/list` — enumerates the skills a server serves, paginated like
+  `resources/list`.
+- `skills/get` — returns the entry for a single skill by its `SKILL.md` URI.
+
+Both return a `Skill` entry: the skill's frontmatter verbatim, and a complete,
+`{uri, digest, size}` manifest of every file the skill comprises (`SKILL.md`
+included), so a host can build its registry, present the skill for approval, and
+verify every later read without fetching anything first.
+
+The simplest way to expose a directory of skills is `addSkillsFromDirectory()`,
+which auto-enables the extension and registers every skill it finds:
+
+```php
+use Mcp\Server;
+
+$server = Server::builder()
+    ->setServerInfo('My Server', '1.0.0')
+    ->addSkillsFromDirectory(__DIR__.'/skills')
+    ->build();
+```
+
+Given this layout, the following `skill://` resources are registered, and a
+matching `Skill` entry is added to the `skills/list`/`skills/get` catalog:
+
+```
+skills/
+├── code-review/
+│   ├── SKILL.md                 → skill://code-review/SKILL.md
+│   └── references/SECURITY.md   → skill://code-review/references/SECURITY.md
+└── acme/billing/refunds/
+    └── SKILL.md                 → skill://acme/billing/refunds/SKILL.md
+```
+
+Each `SKILL.md` is served as `text/markdown`. Its YAML frontmatter's `name` and
+`description` become the resource `name`/`description`; any remaining frontmatter
+keys are exposed under the `io.modelcontextprotocol.skills/` `_meta` namespace on
+the resource, and pass through verbatim in the `skills/list`/`skills/get` entry's
+`frontmatter`. Supporting files are served with a MIME type guessed from their
+extension/content.
+
+```yaml
+---
+name: code-review
+description: Review a pull request for correctness, security, and style.
+version: 1.0.0
+tags: [review, quality]
+---
+
+# Code Review
+...
+```
+
+> The frontmatter `name` **must** equal the final segment of the skill's directory
+> path (`code-review/` → `name: code-review`), and `description` is required; a
+> violation throws an `InvalidArgumentException`.
+
+The extension fixes two per-skill limits so every conforming host knows what it
+must accept: 512 resources and 16 MiB total content. `addSkillsFromDirectory()`
+throws if a skill exceeds either.
+
+Parsing `SKILL.md` frontmatter requires the [`symfony/yaml`][symfony-yaml]
+component, which is a dependency of this SDK.
+
+### Server-side classes
+
+| Class | Purpose |
+| --- | --- |
+| `McpSkills` | Extension; provides `EXTENSION_ID`, `MIME_TYPE`, `URI_SCHEME`, `ENTRY_POINT`, `META_PREFIX` constants and the `skills/list`/`skills/get` handlers. |
+| `SkillProvider` | Walks a directory and registers each skill (and its files) as `skill://` resources, recording each skill's manifest in a `SkillRegistry`. |
+| `SkillRegistry` | The skills a server serves, keyed by `SKILL.md` URI; backs `skills/list`/`skills/get`. |
+| `FrontmatterParser` | Splits a `SKILL.md` into its YAML frontmatter and markdown body. |
+| `SkillMetadata` | Value object for parsed frontmatter: `name`, `description`, `extra`. |
+| `Skill` | One `skills/list`/`skills/get` entry: `uri`, `frontmatter`, `resources`. |
+| `SkillResource` | One file of a skill's manifest: `uri`, `digest`, `size`. |
+
+A complete example lives in
+[`examples/server/skills/`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/skills/).
+
+[ext-skills]: https://github.com/modelcontextprotocol/ext-skills
+[symfony-yaml]: https://github.com/symfony/yaml
+
 [ext-apps]: https://github.com/modelcontextprotocol/ext-apps
