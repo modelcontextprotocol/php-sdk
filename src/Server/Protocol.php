@@ -178,7 +178,8 @@ class Protocol
      */
     private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId): void
     {
-        $this->logger->info('Received message to process.', ['message' => $input]);
+        $this->logger->info('Received message to process.');
+        $this->logger->debug('Received message payload.', ['message' => $input]);
 
         $this->sessionManager->gc();
 
@@ -257,7 +258,7 @@ class Protocol
      */
     private function handleRequest(TransportInterface $transport, Request $request, SessionInterface $session): void
     {
-        $this->logger->info('Handling request.', ['request' => $request]);
+        $this->logger->info('Handling request.', ['method' => $request::getMethod(), 'request_id' => $request->getId()]);
 
         $session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
 
@@ -361,7 +362,7 @@ class Protocol
      */
     private function handleResponse(Response|Error $response, SessionInterface $session): void
     {
-        $this->logger->info('Handling response from client.', ['response' => $response]);
+        $this->logger->info('Handling response from client.', ['message_id' => $response->getId()]);
 
         $messageId = $response->getId();
 
@@ -381,7 +382,7 @@ class Protocol
 
     private function handleNotification(Notification $notification, SessionInterface $session): void
     {
-        $this->logger->info('Handling notification.', ['notification' => $notification]);
+        $this->logger->info('Handling notification.', ['method' => $notification::getMethod()]);
 
         $event = $this->dispatchEvent(new NotificationEvent($notification, $session));
         $notification = $event->getNotification();

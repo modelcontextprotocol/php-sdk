@@ -15,6 +15,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
 * [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error.
+* Stop the server `Protocol` from logging full JSON-RPC payloads (tool arguments, client replies) at info level: info records now carry only the method and id, the raw message is logged at debug level.
 
 0.8.0
 -----
