@@ -36,6 +36,8 @@ use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Psr\Log\AbstractLogger;
+use Psr\Log\LogLevel;
 use Symfony\Component\Uid\Uuid;
 
 final class ProtocolTest extends TestCase
@@ -1647,5 +1649,91 @@ final class ProtocolTest extends TestCase
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             $sessionId
         );
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideMessagesCarryingPayloads(): iterable
+    {
+        yield 'tools/call request' => [
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "login", "arguments": {"password": "s3cr3t-payload"}}}',
+            'tools/call',
+        ];
+        yield 'client response to an elicitation' => [
+            '{"jsonrpc": "2.0", "id": 1000, "result": {"action": "accept", "content": {"password": "s3cr3t-payload"}}}',
+            '1000',
+        ];
+        yield 'notification' => [
+            '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 1, "reason": "s3cr3t-payload"}}',
+            'notifications/cancelled',
+        ];
+    }
+
+    #[TestDox('Message payloads are only logged at debug level, info and above carry the method and id')]
+    #[DataProvider('provideMessagesCarryingPayloads')]
+    public function testMessagePayloadsAreOnlyLoggedAtDebugLevel(string $input, string $identifier): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturn(new Response(1, ['content' => []]));
+
+        $session = $this->createMock(SessionInterface::class);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $logger = new LevelRecordingLogger();
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            logger: $logger,
+        );
+
+        $protocol->processInput($this->transport, $input, Uuid::v4());
+
+        $debug = $logger->contextsAt([LogLevel::DEBUG]);
+        $infoAndAbove = $logger->contextsAt([LogLevel::INFO, LogLevel::NOTICE, LogLevel::WARNING, LogLevel::ERROR, LogLevel::CRITICAL, LogLevel::ALERT, LogLevel::EMERGENCY]);
+
+        $this->assertStringNotContainsString('s3cr3t-payload', $infoAndAbove);
+        $this->assertStringContainsString($identifier, $infoAndAbove);
+        $this->assertStringContainsString('s3cr3t-payload', $debug);
+    }
+}
+
+/**
+ * Records every log entry with its level, so a test can tell what a logger
+ * configured at a given minimum level would have written.
+ */
+final class LevelRecordingLogger extends AbstractLogger
+{
+    /** @var list<array{level: mixed, context: array<string, mixed>}> */
+    private array $records = [];
+
+    /**
+     * @param string|\Stringable   $message
+     * @param array<string, mixed> $context
+     */
+    public function log($level, $message, array $context = []): void
+    {
+        $this->records[] = ['level' => $level, 'context' => $context];
+    }
+
+    /**
+     * The JSON-encoded contexts of every record logged at one of the given levels.
+     *
+     * @param list<string> $levels
+     */
+    public function contextsAt(array $levels): string
+    {
+        $contexts = [];
+        foreach ($this->records as $record) {
+            if (\in_array($record['level'], $levels, true)) {
+                $contexts[] = $record['context'];
+            }
+        }
+
+        return json_encode($contexts, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
     }
 }
