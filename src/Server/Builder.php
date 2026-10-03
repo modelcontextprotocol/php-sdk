@@ -16,6 +16,7 @@ use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -104,6 +105,8 @@ final class Builder
     private ?ContainerInterface $container = null;
 
     private ?SchemaGeneratorInterface $schemaGenerator = null;
+
+    private ?SchemaValidator $schemaValidator = null;
 
     private ?ReferenceHandlerInterface $referenceHandler = null;
 
@@ -578,6 +581,13 @@ final class Builder
     public function setSchemaGenerator(SchemaGeneratorInterface $schemaGenerator): self
     {
         $this->schemaGenerator = $schemaGenerator;
+
+        return $this;
+    }
+
+    public function setSchemaValidator(SchemaValidator $schemaValidator): self
+    {
+        $this->schemaValidator = $schemaValidator;
 
         return $this;
     }
@@ -1084,7 +1094,7 @@ final class Builder
         $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
-            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
+            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger, $this->schemaValidator),
             new Handler\Request\CompletionCompleteHandler($registry, $container, $logger),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
             new Handler\Request\InitializeHandler($configuration),
