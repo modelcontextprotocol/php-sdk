@@ -78,7 +78,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     private ?array $middleware;
 
     /**
-     * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables all middleware
+     * A non-null `$middleware` list replaces {@see self::defaultMiddleware()}.
+     * An empty list is treated as a likely mistake and logs a warning on every
+     * request. When the host application already handles CORS and host
+     * validation, opt out explicitly with a middleware that only calls
+     * `$handler->handle($request)`.
+     *
+     * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables them and logs a warning
      */
     public function __construct(
         private readonly ServerRequestInterface $request,

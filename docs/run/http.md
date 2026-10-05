@@ -21,7 +21,7 @@ $transport = new StreamableHttpTransport(
 - **`responseFactory`** (optional): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses. Auto-discovered if not provided.
 - **`streamFactory`** (optional): `StreamFactoryInterface` - PSR-17 factory for creating response body streams. Auto-discovered if not provided.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
-- **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). `[]` disables all defaults — useful when the surrounding application already handles CORS, host validation, etc.
+- **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). A list replaces the defaults. When the surrounding application already handles CORS, host validation, etc., see [Opting Out of All Middleware](#opting-out-of-all-middleware).
 - **`maxBodyBytes`** (optional): `int` - Upper bound on the POST request body read, in bytes. Defaults to 4 MiB (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). See [Request Body Size Limit](#request-body-size-limit).
 
 ## PSR-17 Auto-Discovery
@@ -250,7 +250,7 @@ $transport = new StreamableHttpTransport(
 );
 ```
 
-Pass `middleware: []` to disable every default and run only your own chain:
+Leave the defaults out of the list to run only your own chain:
 
 ```php
 $transport = new StreamableHttpTransport(
@@ -258,3 +258,32 @@ $transport = new StreamableHttpTransport(
     middleware: [new AuthMiddleware($responseFactory)],
 );
 ```
+
+### Opting Out of All Middleware
+
+When the surrounding application already handles CORS and host validation, pass a middleware that only hands the
+request to the next handler:
+
+```php
+use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Server\MiddlewareInterface;
+use Psr\Http\Server\RequestHandlerInterface;
+
+final class PassThroughMiddleware implements MiddlewareInterface
+{
+    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
+    {
+        return $handler->handle($request);
+    }
+}
+
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [new PassThroughMiddleware()],
+);
+```
+
+Do not pass `middleware: []`. The transport treats an empty list as a likely mistake and logs a warning on every
+request. The pass-through makes the opt-out explicit. The transport still applies
+`StreamableHttpTransport::handshakeMiddleware()` to handshake-era requests.
