@@ -13,103 +13,80 @@ namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
-use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Tests ProtectedResourceMetadata serialization and input validation.
- *
- * @author Volodymyr Panivko <sveneld300@gmail.com>
- */
-class ProtectedResourceMetadataTest extends TestCase
+final class ProtectedResourceMetadataTest extends TestCase
 {
-    #[TestDox('serializes RFC 9728 metadata including human-readable fields')]
-    public function testJsonSerializeIncludesHumanReadableFields(): void
+    public function testSerializesRfc9728Document(): void
     {
         $metadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['openid', 'profile'],
-            resource: 'https://api.example.com/mcp',
-            resourceName: 'Example MCP API',
-            resourceDocumentation: 'https://api.example.com/docs',
-            resourcePolicyUri: 'https://api.example.com/policy',
-            resourceTosUri: 'https://api.example.com/tos',
-            localizedHumanReadable: [
-                'resource_name#en' => 'Example MCP API',
-            ],
-            extra: [
-                'bearer_methods_supported' => ['header'],
-            ],
-            metadataPaths: ['.well-known/oauth-protected-resource'],
+            resource: 'https://mcp.example.com/mcp',
+            authorizationServers: ['https://auth.example.com', 'https://auth.example.com'],
+            scopesSupported: ['mcp:read'],
+            resourceName: 'Example',
         );
 
-        $this->assertSame(
-            [
-                'bearer_methods_supported' => ['header'],
-                'authorization_servers' => ['https://auth.example.com'],
-                'scopes_supported' => ['openid', 'profile'],
-                'resource' => 'https://api.example.com/mcp',
-                'resource_name' => 'Example MCP API',
-                'resource_documentation' => 'https://api.example.com/docs',
-                'resource_policy_uri' => 'https://api.example.com/policy',
-                'resource_tos_uri' => 'https://api.example.com/tos',
-                'resource_name#en' => 'Example MCP API',
-            ],
-            $metadata->jsonSerialize(),
-        );
-        $this->assertSame('/.well-known/oauth-protected-resource', $metadata->getPrimaryMetadataPath());
-        $this->assertSame(['openid', 'profile'], $metadata->getScopesSupported());
+        $this->assertSame([
+            'resource' => 'https://mcp.example.com/mcp',
+            'authorization_servers' => ['https://auth.example.com'],
+            'scopes_supported' => ['mcp:read'],
+            'bearer_methods_supported' => ['header'],
+            'resource_name' => 'Example',
+        ], $metadata->jsonSerialize());
     }
 
-    #[TestDox('invalid localized human-readable field is rejected')]
-    public function testInvalidLocalizedHumanReadableFieldThrows(): void
+    public function testOmitsEmptyScopes(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid localized human-readable field');
+        $metadata = new ProtectedResourceMetadata('https://mcp.example.com', ['https://auth.example.com'], []);
 
-        new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            localizedHumanReadable: [
-                'invalid#en' => 'value',
-            ],
-        );
-    }
-
-    #[TestDox('empty authorization servers are rejected')]
-    public function testEmptyAuthorizationServersThrows(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('requires at least one authorization server');
-
-        new ProtectedResourceMetadata([]);
-    }
-
-    #[TestDox('the SDK advertises exactly the scopes it was given, and never adds offline_access')]
-    public function testScopesAreOperatorSuppliedOnly(): void
-    {
-        // SEP-2207: `offline_access` is a refresh-token scope, not something a
-        // resource requires. Nothing in the SDK injects it — this pins that, so
-        // a future default cannot quietly start advertising one.
-        $metadata = new ProtectedResourceMetadata(
-            resource: 'https://api.example.com/mcp',
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['mcp:read', 'mcp:write'],
-        );
-
-        $data = $metadata->jsonSerialize();
-
-        $this->assertSame(['mcp:read', 'mcp:write'], $data['scopes_supported']);
-        $this->assertNotContains('offline_access', $data['scopes_supported']);
-    }
-
-    #[TestDox('no scopes given means no scopes_supported member at all')]
-    public function testNoScopesMeansNoMember(): void
-    {
-        $metadata = new ProtectedResourceMetadata(
-            resource: 'https://api.example.com/mcp',
-            authorizationServers: ['https://auth.example.com'],
-        );
-
+        $this->assertNull($metadata->getScopesSupported());
         $this->assertArrayNotHasKey('scopes_supported', $metadata->jsonSerialize());
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function provideResources(): iterable
+    {
+        yield 'root' => ['https://mcp.example.com', '/.well-known/oauth-protected-resource', 'https://mcp.example.com/.well-known/oauth-protected-resource'];
+        yield 'trailing slash' => ['https://mcp.example.com/', '/.well-known/oauth-protected-resource', 'https://mcp.example.com/.well-known/oauth-protected-resource'];
+        yield 'path' => ['https://mcp.example.com/mcp', '/.well-known/oauth-protected-resource/mcp', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'];
+        yield 'port' => ['http://localhost:8000/mcp', '/.well-known/oauth-protected-resource/mcp', 'http://localhost:8000/.well-known/oauth-protected-resource/mcp'];
+    }
+
+    #[DataProvider('provideResources')]
+    public function testDerivesMetadataLocationFromResource(string $resource, string $path, string $url): void
+    {
+        $metadata = new ProtectedResourceMetadata($resource, ['https://auth.example.com']);
+
+        $this->assertSame($path, $metadata->getMetadataPath());
+        $this->assertSame($url, $metadata->getMetadataUrl());
+    }
+
+    /**
+     * @return iterable<string, array{string, list<string>, list<string>|null}>
+     */
+    public static function provideInvalidArguments(): iterable
+    {
+        yield 'relative resource' => ['/mcp', ['https://auth.example.com'], null];
+        yield 'insecure resource' => ['http://mcp.example.com', ['https://auth.example.com'], null];
+        yield 'resource with fragment' => ['https://mcp.example.com#a', ['https://auth.example.com'], null];
+        yield 'no authorization server' => ['https://mcp.example.com', [], null];
+        yield 'insecure authorization server' => ['https://mcp.example.com', ['http://auth.example.com'], null];
+        yield 'scope with whitespace' => ['https://mcp.example.com', ['https://auth.example.com'], ['a b']];
+        yield 'scope with quote' => ['https://mcp.example.com', ['https://auth.example.com'], ['a"']];
+    }
+
+    /**
+     * @param list<string>      $authorizationServers
+     * @param list<string>|null $scopes
+     */
+    #[DataProvider('provideInvalidArguments')]
+    public function testRejectsInvalidArguments(string $resource, array $authorizationServers, ?array $scopes): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new ProtectedResourceMetadata($resource, $authorizationServers, $scopes);
     }
 }

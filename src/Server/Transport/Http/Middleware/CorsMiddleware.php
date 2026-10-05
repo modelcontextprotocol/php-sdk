@@ -58,7 +58,7 @@ final class CorsMiddleware implements MiddlewareInterface
             StreamableHttpTransport::PROTOCOL_VERSION_HEADER,
             StreamableHttpTransport::SESSION_HEADER,
         ],
-        array $exposedHeaders = [StreamableHttpTransport::SESSION_HEADER],
+        array $exposedHeaders = [StreamableHttpTransport::SESSION_HEADER, 'WWW-Authenticate'],
         private readonly bool $allowCredentials = false,
     ) {
         $this->isWildcard = \in_array('*', $allowedOrigins, true);

@@ -12,655 +12,235 @@
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
 use Firebase\JWT\JWT;
-use Mcp\Exception\RuntimeException;
-use Mcp\Server\Transport\Http\OAuth\JwksProvider;
-use Mcp\Server\Transport\Http\OAuth\JwksProviderInterface;
+use Firebase\JWT\Key;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
-use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
-/**
- * Tests JwtTokenValidator for signature, claims, and scope extraction.
- *
- * @author Volodymyr Panivko <sveneld300@gmail.com>
- */
-class JwtTokenValidatorTest extends TestCase
+final class JwtTokenValidatorTest extends TestCase
 {
-    #[TestDox('valid JWT is allowed and claims/scopes are exposed as request attributes')]
-    public function testValidJwtAllowsAndExposesAttributes(): void
+    private const ISSUER = 'https://auth.example.com';
+    private const AUDIENCE = 'https://mcp.example.com/mcp';
+
+    private static string $privateKey;
+    private static string $publicKey;
+
+    public static function setUpBeforeClass(): void
     {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
+        $resource = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => \OPENSSL_KEYTYPE_RSA]);
+        self::assertNotFalse($resource);
+        openssl_pkey_export($resource, $privateKey);
+        $details = openssl_pkey_get_details($resource);
+        self::assertIsArray($details);
 
-        $jwksUri = 'https://auth.example.com/.well-known/jwks.json';
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
+        self::$privateKey = $privateKey;
+        self::$publicKey = $details['key'];
+    }
 
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'client_id' => 'client-abc',
-                'azp' => 'client-abc',
-                'scope' => 'mcp:read mcp:write',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
+    public function testValidTokenYieldsAccessToken(): void
+    {
+        $result = $this->validator()->validate($this->token([
+            'sub' => 'user-123',
+            'client_id' => 'client-abc',
+            'scope' => 'mcp:read mcp:write',
+        ]));
 
         $this->assertTrue($result->isAllowed());
-        $attributes = $result->getAttributes();
-
-        $this->assertArrayHasKey('oauth.claims', $attributes);
-        $this->assertArrayHasKey('oauth.scopes', $attributes);
-        $this->assertSame(['mcp:read', 'mcp:write'], $attributes['oauth.scopes']);
-        $this->assertSame('user-123', $attributes['oauth.subject']);
-        $this->assertSame('client-abc', $attributes['oauth.client_id']);
-        $this->assertSame('client-abc', $attributes['oauth.authorized_party']);
+        $token = $result->getAccessToken();
+        $this->assertNotNull($token);
+        $this->assertSame(['mcp:read', 'mcp:write'], $token->getScopes());
+        $this->assertSame('user-123', $token->getSubject());
+        $this->assertSame('client-abc', $token->getClientId());
+        $this->assertSame(self::ISSUER, $token->getClaim('iss'));
     }
 
-    #[TestDox('issuer mismatch yields unauthorized result without fetching JWKS')]
-    public function testIssuerMismatchIsUnauthorized(): void
+    public function testScopesFromArrayClaim(): void
     {
-        [$privateKeyPem] = $this->generateRsaKeypairAsJwk('test-kid');
+        $result = $this->validator(scopeClaim: 'scp')->validate($this->token(['scp' => ['a', 'b', 3]]));
 
-        $jwksProvider = $this->createMock(JwksProviderInterface::class);
-        $jwksProvider->expects($this->never())->method('getJwks');
+        $this->assertSame(['a', 'b'], $result->getAccessToken()?->getScopes());
+    }
 
-        $validator = new JwtTokenValidator(
-            issuer: ['https://auth.example.com', 'https://alias.example.com'],
-            audience: 'mcp-api',
-            jwksProvider: $jwksProvider,
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://other-issuer.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'scope' => 'mcp:read',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
+    public function testRejectsWrongAudience(): void
+    {
+        $result = $this->validator()->validate($this->token(['aud' => 'https://graph.example.com']));
 
         $this->assertFalse($result->isAllowed());
         $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Token issuer mismatch.', $result->getErrorDescription());
-    }
-
-    #[TestDox('token from a later configured issuer is verified with that issuer\'s keys')]
-    public function testTokenFromSecondIssuerIsVerifiedWithItsKeys(): void
-    {
-        [, $firstJwk] = $this->generateRsaKeypairAsJwk('first-kid');
-        [$secondPrivateKeyPem, $secondJwk] = $this->generateRsaKeypairAsJwk('second-kid');
-
-        $validator = new JwtTokenValidator(
-            issuer: ['https://first.example.com', 'https://second.example.com'],
-            audience: 'mcp-api',
-            jwksProvider: $this->createJwksProviderStub([
-                'https://first.example.com' => $firstJwk,
-                'https://second.example.com' => $secondJwk,
-            ]),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://second.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $secondPrivateKeyPem,
-            'RS256',
-            keyId: 'second-kid',
-        );
-
-        $result = $validator->validate($token);
-
-        $this->assertTrue($result->isAllowed());
-        $this->assertSame('user-123', $result->getAttributes()['oauth.subject']);
-    }
-
-    #[TestDox('token signed by the first issuer but claiming the second issuer is rejected')]
-    public function testTokenClaimingOtherIssuerIsRejected(): void
-    {
-        [$firstPrivateKeyPem, $firstJwk] = $this->generateRsaKeypairAsJwk('first-kid');
-        [, $secondJwk] = $this->generateRsaKeypairAsJwk('second-kid');
-
-        $validator = new JwtTokenValidator(
-            issuer: ['https://first.example.com', 'https://second.example.com'],
-            audience: 'mcp-api',
-            jwksProvider: $this->createJwksProviderStub([
-                'https://first.example.com' => $firstJwk,
-                'https://second.example.com' => $secondJwk,
-            ]),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://second.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $firstPrivateKeyPem,
-            'RS256',
-            keyId: 'first-kid',
-        );
-
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
-    }
-
-    #[TestDox('audience mismatch yields unauthorized result')]
-    public function testAudienceMismatchIsUnauthorized(): void
-    {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-
-        $jwksUri = 'https://auth.example.com/.well-known/jwks.json';
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: ['mcp-api'],
-            jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'different-aud',
-                'sub' => 'user-123',
-                'scope' => 'mcp:read',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
         $this->assertSame('Token audience mismatch.', $result->getErrorDescription());
     }
 
-    #[TestDox('expired token yields unauthorized invalid_token with expired message')]
-    public function testExpiredTokenIsUnauthorized(): void
+    public function testAcceptsAnyConfiguredAudience(): void
     {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
+        $validator = $this->validator(audience: ['api://client', self::AUDIENCE]);
 
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
+        $this->assertTrue($validator->validate($this->token(['aud' => ['other', 'api://client']]))->isAllowed());
+    }
 
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
+    public function testRejectsWrongIssuer(): void
+    {
+        $result = $this->validator()->validate($this->token(['iss' => 'https://evil.example.com']));
 
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time() - 7200,
-                'exp' => time() - 10,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
+        $this->assertSame('Token issuer mismatch.', $result->getErrorDescription());
+    }
 
-        $result = $validator->validate($token);
+    public function testRejectsExpiredToken(): void
+    {
+        $result = $this->validator()->validate($this->token(['exp' => time() - 30]));
 
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
         $this->assertSame('Token has expired.', $result->getErrorDescription());
     }
 
-    #[TestDox('token with future nbf yields unauthorized invalid_token with not-yet-valid message')]
-    public function testBeforeValidTokenIsUnauthorized(): void
+    public function testLeewayToleratesClockSkew(): void
     {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
+        $this->assertTrue($this->validator(leeway: 60)->validate($this->token(['exp' => time() - 30]))->isAllowed());
+        $this->assertSame(0, JWT::$leeway, 'the global leeway is restored');
+    }
 
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
+    public function testRejectsTokenNotYetValid(): void
+    {
+        $result = $this->validator()->validate($this->token(['nbf' => time() + 300]));
 
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time(),
-                'nbf' => time() + 3600,
-                'exp' => time() + 7200,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
         $this->assertSame('Token is not yet valid.', $result->getErrorDescription());
     }
 
-    #[TestDox('signature verification failure yields unauthorized invalid_token with signature message')]
-    public function testSignatureInvalidIsUnauthorized(): void
+    public function testRejectsAlgorithmOutsideAllowlist(): void
+    {
+        $token = JWT::encode($this->claims([]), 'shared-secret-that-is-long-enough-for-hs256', 'HS256', 'kid-1');
+
+        $result = $this->validator()->validate($token);
+
+        $this->assertSame('Token algorithm is not accepted.', $result->getErrorDescription());
+    }
+
+    public function testRejectsBadSignatureWithoutLeakingDetails(): void
+    {
+        $other = openssl_pkey_new(['private_key_bits' => 2048, 'private_key_type' => \OPENSSL_KEYTYPE_RSA]);
+        $this->assertNotFalse($other);
+        openssl_pkey_export($other, $otherKey);
+
+        $result = $this->validator()->validate(JWT::encode($this->claims([]), $otherKey, 'RS256', 'kid-1'));
+
+        $this->assertSame('Token validation failed.', $result->getErrorDescription());
+    }
+
+    public function testRejectsUnknownKeyId(): void
+    {
+        $result = $this->validator()->validate(JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'unknown'));
+
+        $this->assertSame('Token validation failed.', $result->getErrorDescription());
+    }
+
+    public function testRejectsMalformedToken(): void
+    {
+        $this->assertSame('Token is malformed.', $this->validator()->validate('not-a-jwt')->getErrorDescription());
+        $this->assertSame('Token is malformed.', $this->validator()->validate('a.b.c')->getErrorDescription());
+    }
+
+    public function testRequiredTokenType(): void
+    {
+        $validator = $this->validator(tokenType: 'at+jwt');
+
+        $this->assertTrue($validator->validate($this->token([], ['typ' => 'at+jwt']))->isAllowed());
+        $this->assertTrue($validator->validate($this->token([], ['typ' => 'application/AT+JWT']))->isAllowed());
+        $this->assertSame('Token type is not accepted.', $validator->validate($this->token([], ['typ' => 'JWT']))->getErrorDescription());
+        $this->assertSame('Token type is not accepted.', $validator->validate($this->token([]))->getErrorDescription());
+    }
+
+    public function testRequiresAudienceAndAlgorithm(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new JwtTokenValidator(self::ISSUER, [], ['kid-1' => new Key(self::$publicKey, 'RS256')]);
+    }
+
+    public function testFromIssuerDiscoversAndCachesKeys(): void
     {
         $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-
-        // Create a mismatched JWK with the same kid so the key lookup succeeds but signature verification fails.
-        [, $mismatchedJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-        $mismatchedJwk['kid'] = $publicJwk['kid'];
-
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$mismatchedJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
-
-        $this->assertFalse($result->isAllowed());
-        $this->assertSame(401, $result->getStatusCode());
-        $this->assertSame('invalid_token', $result->getError());
-        $this->assertSame('Token signature verification failed.', $result->getErrorDescription());
-    }
-
-    #[TestDox('JWKS HTTP error results in RuntimeException')]
-    public function testJwksHttpErrorThrowsRuntimeException(): void
-    {
-        $factory = new Psr17Factory();
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $this->createHttpClientMock([$factory->createResponse(500)]), requestFactory: $factory),
-        );
-
-        $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
-
-        $this->expectException(RuntimeException::class);
-        $validator->validate($token);
-    }
-
-    #[TestDox('Invalid JWKS JSON results in RuntimeException')]
-    public function testInvalidJwksJsonThrowsRuntimeException(): void
-    {
-        $factory = new Psr17Factory();
-
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream('{not-json')),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
-
-        $this->expectException(RuntimeException::class);
-        $validator->validate($token);
-    }
-
-    #[TestDox('JWKS without keys array results in RuntimeException')]
-    public function testJwksMissingKeysThrowsRuntimeException(): void
-    {
-        $factory = new Psr17Factory();
-
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['nope' => []], \JSON_THROW_ON_ERROR))),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = $this->unsignedJwt(['iss' => 'https://auth.example.com', 'aud' => 'mcp-api']);
-
-        $this->expectException(RuntimeException::class);
-        $validator->validate($token);
-    }
-
-    #[TestDox('requireScopes returns forbidden when any required scope is missing')]
-    public function testRequireScopesForbiddenWhenMissing(): void
-    {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'scope' => 'mcp:read',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
-        $this->assertTrue($result->isAllowed());
-
-        $scoped = $validator->requireScopes($result, ['mcp:read', 'mcp:write']);
-        $this->assertFalse($scoped->isAllowed());
-        $this->assertSame(403, $scoped->getStatusCode());
-        $this->assertSame('insufficient_scope', $scoped->getError());
-        $this->assertSame(['mcp:read', 'mcp:write'], $scoped->getScopes());
-    }
-
-    #[TestDox('requireScopes passes through when all required scopes are present')]
-    public function testRequireScopesPassesWhenPresent(): void
-    {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
-
-        $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $token = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'scope' => ['mcp:read', 'mcp:write'],
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $result = $validator->validate($token);
-        $this->assertTrue($result->isAllowed());
-
-        $scoped = $validator->requireScopes($result, ['mcp:read']);
-        $this->assertTrue($scoped->isAllowed());
-    }
-
-    #[TestDox('extractScopes returns empty array when scope claim is missing or invalid type')]
-    public function testExtractScopesEdgeCases(): void
-    {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
-
-        $jwksResponse = $factory->createResponse(200)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR)));
-
-        $httpClient = $this->createHttpClientMock([$jwksResponse]);
-
-        // missing scope
-        $validatorMissing = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
-        );
-
-        $tokenMissing = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $resultMissing = $validatorMissing->validate($tokenMissing);
-        $this->assertTrue($resultMissing->isAllowed());
-        $this->assertSame([], $resultMissing->getAttributes()['oauth.scopes']);
-
-        // invalid scope type
-        $httpClient2 = $this->createHttpClientMock([$jwksResponse]);
-
-        $validatorInvalid = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
-            audience: 'mcp-api',
-            jwksUri: 'https://auth.example.com/jwks',
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient2, requestFactory: $factory),
-        );
-
-        $tokenInvalid = JWT::encode(
-            [
-                'iss' => 'https://auth.example.com',
-                'aud' => 'mcp-api',
-                'sub' => 'user-123',
-                'scope' => 123,
-                'iat' => time() - 10,
-                'exp' => time() + 600,
-            ],
-            $privateKeyPem,
-            'RS256',
-            keyId: 'test-kid',
-        );
-
-        $resultInvalid = $validatorInvalid->validate($tokenInvalid);
-        $this->assertTrue($resultInvalid->isAllowed());
-        $this->assertSame([], $resultInvalid->getAttributes()['oauth.scopes']);
-    }
-
-    private function unsignedJwt(array $claims): string
-    {
-        $header = $this->b64urlEncode(json_encode(['alg' => 'none', 'typ' => 'JWT'], \JSON_THROW_ON_ERROR));
-        $payload = $this->b64urlEncode(json_encode($claims, \JSON_THROW_ON_ERROR));
-
-        return $header.'.'.$payload.'.';
-    }
-
-    /**
-     * @return array{0: string, 1: array<string, mixed>}
-     */
-    private function generateRsaKeypairAsJwk(string $kid): array
-    {
-        $key = openssl_pkey_new([
-            'private_key_type' => \OPENSSL_KEYTYPE_RSA,
-            'private_key_bits' => 2048,
-        ]);
-
-        if (false === $key) {
-            $this->fail('Failed to generate RSA keypair via OpenSSL.');
-        }
-
-        $privateKeyPem = '';
-        if (!openssl_pkey_export($key, $privateKeyPem)) {
-            $this->fail('Failed to export RSA private key.');
-        }
-
-        $details = openssl_pkey_get_details($key);
-        if (false === $details || !isset($details['rsa']['n'], $details['rsa']['e'])) {
-            $this->fail('Failed to read RSA key details.');
-        }
-
-        $n = $this->b64urlEncode($details['rsa']['n']);
-        $e = $this->b64urlEncode($details['rsa']['e']);
-
-        $publicJwk = [
+        $modulus = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey))['rsa'] ?? [];
+        $jwk = [
             'kty' => 'RSA',
-            'kid' => $kid,
+            'kid' => 'kid-1',
             'use' => 'sig',
-            'alg' => 'RS256',
-            'n' => $n,
-            'e' => $e,
+            'n' => rtrim(strtr(base64_encode($modulus['n']), '+/', '-_'), '='),
+            'e' => rtrim(strtr(base64_encode($modulus['e']), '+/', '-_'), '='),
         ];
 
-        return [$privateKeyPem, $publicJwk];
-    }
+        $client = new class($factory, $jwk) implements ClientInterface {
+            /** @var list<string> */
+            public array $requested = [];
 
-    private function b64urlEncode(string $data): string
-    {
-        return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
-    }
-
-    /**
-     * @param array<string, array<string, mixed>> $jwkByIssuer
-     */
-    private function createJwksProviderStub(array $jwkByIssuer): JwksProviderInterface
-    {
-        $jwksProvider = $this->createStub(JwksProviderInterface::class);
-        $jwksProvider->method('getJwks')->willReturnCallback(
-            static fn (string $issuer): array => ['keys' => [$jwkByIssuer[$issuer]]],
-        );
-
-        return $jwksProvider;
-    }
-
-    private function createDiscoveryStub(): OidcDiscoveryInterface
-    {
-        return $this->createStub(OidcDiscoveryInterface::class);
-    }
-
-    /**
-     * @param list<ResponseInterface> $responses
-     */
-    private function createHttpClientMock(array $responses, ?int $expectedCalls = null): ClientInterface
-    {
-        $expectedCalls ??= \count($responses);
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $expectation = $httpClient
-            ->expects($this->exactly($expectedCalls))
-            ->method('sendRequest')
-            ->with($this->isInstanceOf(RequestInterface::class));
-
-        if (1 === $expectedCalls) {
-            $expectation->willReturn($responses[0]);
-        } else {
-            // If expectedCalls > count(responses), keep returning the last response.
-            $sequence = $responses;
-            while (\count($sequence) < $expectedCalls) {
-                $sequence[] = $responses[array_key_last($responses)];
+            /** @param array<string, string> $jwk */
+            public function __construct(private Psr17Factory $factory, private array $jwk)
+            {
             }
-            $expectation->willReturnOnConsecutiveCalls(...$sequence);
-        }
 
-        return $httpClient;
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $url = (string) $request->getUri();
+                $this->requested[] = $url;
+
+                $body = match ($url) {
+                    'https://auth.example.com/.well-known/oauth-authorization-server' => ['issuer' => 'https://auth.example.com', 'jwks_uri' => 'https://auth.example.com/jwks'],
+                    'https://auth.example.com/jwks' => ['keys' => [$this->jwk]],
+                    default => null,
+                };
+
+                return null === $body
+                    ? $this->factory->createResponse(404)
+                    : $this->factory->createResponse(200)->withBody($this->factory->createStream(json_encode($body, \JSON_THROW_ON_ERROR)));
+            }
+        };
+
+        $cache = new ArrayAdapter();
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
+
+        $again = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+        $this->assertTrue($again->validate($this->token([]))->isAllowed());
+
+        $this->assertSame([
+            'https://auth.example.com/.well-known/oauth-authorization-server',
+            'https://auth.example.com/jwks',
+        ], $client->requested);
+    }
+
+    /**
+     * @param string|list<string> $audience
+     */
+    private function validator(string|array $audience = self::AUDIENCE, string $scopeClaim = 'scope', ?string $tokenType = null, int $leeway = 0): JwtTokenValidator
+    {
+        return new JwtTokenValidator(
+            issuer: self::ISSUER,
+            audience: $audience,
+            keys: ['kid-1' => new Key(self::$publicKey, 'RS256')],
+            scopeClaim: $scopeClaim,
+            tokenType: $tokenType,
+            leeway: $leeway,
+        );
+    }
+
+    /**
+     * @param array<string, mixed>  $claims
+     * @param array<string, string> $header
+     */
+    private function token(array $claims, array $header = []): string
+    {
+        return JWT::encode($this->claims($claims), self::$privateKey, 'RS256', 'kid-1', $header);
+    }
+
+    /**
+     * @param array<string, mixed> $claims
+     *
+     * @return array<string, mixed>
+     */
+    private function claims(array $claims): array
+    {
+        return array_merge(['iss' => self::ISSUER, 'aud' => self::AUDIENCE, 'iat' => time(), 'exp' => time() + 600], $claims);
     }
 }

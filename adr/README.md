@@ -8,3 +8,4 @@ a pull request that conflicts with an accepted decision.
 ## Records
 
 - [0001 — The MCP server is an OAuth Resource Server, not an Authorization Server](0001-oauth-authorization-server-out-of-scope.md)
+- [0002 — Resource Server only: no delegation of the OAuth flow](0002-resource-server-only.md)

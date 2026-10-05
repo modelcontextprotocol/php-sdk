@@ -28,7 +28,7 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
         $response = $middleware->process($request, $this->passthroughHandler);
 
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
-        $this->assertTrue($response->hasHeader('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
         // Non-preflight: Methods/Headers must NOT be emitted per CORS spec.
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Headers'));

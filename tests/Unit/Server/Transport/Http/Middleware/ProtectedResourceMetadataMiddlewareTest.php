@@ -11,115 +11,54 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\Attributes\TestDox;
-use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseFactoryInterface;
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Server\RequestHandlerInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
- * Tests ProtectedResourceMetadataMiddleware responses for metadata endpoints.
- *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
-class ProtectedResourceMetadataMiddlewareTest extends TestCase
+final class ProtectedResourceMetadataMiddlewareTest extends MiddlewareTestCase
 {
-    #[TestDox('default metadata endpoint returns protected resource metadata JSON')]
-    public function testDefaultMetadataEndpointReturnsJson(): void
+    public function testServesMetadataAtPathDerivedFromResource(): void
     {
-        $factory = new Psr17Factory();
-
-        $metadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['mcp:read', 'mcp:write'],
-            resource: 'https://mcp.example.com/mcp',
-            resourceName: 'Example MCP API',
-            resourceDocumentation: 'https://mcp.example.com/docs',
-            localizedHumanReadable: [
-                'resource_name#uk' => 'Pryklad MCP API',
-            ],
+        $response = $this->middleware()->process(
+            $this->factory->createServerRequest('GET', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'),
+            $this->handlerReturning(404),
         );
-
-        $middleware = new ProtectedResourceMetadataMiddleware(
-            metadata: $metadata,
-            responseFactory: $factory,
-            streamFactory: $factory,
-        );
-
-        $request = $factory->createServerRequest(
-            'GET',
-            'https://mcp.example.com/.well-known/oauth-protected-resource',
-        );
-
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(404);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
 
         $payload = json_decode($response->getBody()->__toString(), true, 512, \JSON_THROW_ON_ERROR);
-        $this->assertSame(['https://auth.example.com'], $payload['authorization_servers']);
-        $this->assertSame(['mcp:read', 'mcp:write'], $payload['scopes_supported']);
         $this->assertSame('https://mcp.example.com/mcp', $payload['resource']);
-        $this->assertSame('Example MCP API', $payload['resource_name']);
-        $this->assertSame('https://mcp.example.com/docs', $payload['resource_documentation']);
-        $this->assertSame('Pryklad MCP API', $payload['resource_name#uk']);
+        $this->assertSame(['https://auth.example.com'], $payload['authorization_servers']);
     }
 
-    #[TestDox('non metadata request passes to next middleware')]
-    public function testNonMetadataRequestPassesThrough(): void
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideOtherRequests(): iterable
     {
-        $factory = new Psr17Factory();
+        yield 'MCP endpoint' => ['GET', 'https://mcp.example.com/mcp'];
+        yield 'root metadata path' => ['GET', 'https://mcp.example.com/.well-known/oauth-protected-resource'];
+        yield 'POST to metadata path' => ['POST', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'];
+    }
 
-        $metadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-        );
-
-        $middleware = new ProtectedResourceMetadataMiddleware(
-            metadata: $metadata,
-            responseFactory: $factory,
-            streamFactory: $factory,
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(204);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
+    #[DataProvider('provideOtherRequests')]
+    public function testOtherRequestsPassThrough(string $method, string $uri): void
+    {
+        $response = $this->middleware()->process($this->factory->createServerRequest($method, $uri), $this->handlerReturning(204));
 
         $this->assertSame(204, $response->getStatusCode());
     }
 
-    #[TestDox('empty authorization servers are rejected')]
-    public function testEmptyAuthorizationServersThrows(): void
+    private function middleware(): ProtectedResourceMetadataMiddleware
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('requires at least one authorization server');
-
-        new ProtectedResourceMetadata([]);
+        return new ProtectedResourceMetadataMiddleware(
+            new ProtectedResourceMetadata('https://mcp.example.com/mcp', ['https://auth.example.com']),
+            $this->factory,
+            $this->factory,
+        );
     }
 }

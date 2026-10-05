@@ -16,6 +16,7 @@ use Mcp\Exception\LogicException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Request;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestMeta;
@@ -76,6 +77,18 @@ final class RequestContext
         }
 
         return ProtocolVersion::tryFrom($requested) ?? ProtocolVersion::latestHandshake();
+    }
+
+    /**
+     * The access token this request was authorized with, or null when the
+     * transport does not authorize requests — see
+     * {@see Transport\Http\Middleware\AuthorizationMiddleware}.
+     */
+    public function getAccessToken(): ?AccessToken
+    {
+        $accessToken = $this->session->get(AccessToken::class);
+
+        return $accessToken instanceof AccessToken ? $accessToken : null;
     }
 
     public function getClientGateway(): ClientGateway

@@ -16,89 +16,86 @@ use Mcp\Exception\InvalidArgumentException;
 /**
  * OAuth 2.0 Protected Resource Metadata (RFC 9728).
  *
+ * The resource identifier is the canonical URI of the MCP server. It decides
+ * where the metadata is served — `/.well-known/oauth-protected-resource`
+ * followed by the resource's path (RFC 9728, Section 3.1) — and which URL the
+ * `WWW-Authenticate` challenge points clients to.
+ *
  * @see https://datatracker.ietf.org/doc/html/rfc9728
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
 final class ProtectedResourceMetadata implements \JsonSerializable
 {
-    public const DEFAULT_METADATA_PATH = '/.well-known/oauth-protected-resource';
-
-    private const LOCALIZED_HUMAN_READABLE_FIELD_PATTERN = '/^(resource_name|resource_documentation|resource_policy_uri|resource_tos_uri)#[A-Za-z0-9-]+$/';
+    private const WELL_KNOWN_PATH = '/.well-known/oauth-protected-resource';
 
     /** @var list<string> */
-    private array $authorizationServers;
+    private readonly array $authorizationServers;
 
     /** @var list<string>|null */
-    private ?array $scopesSupported;
+    private readonly ?array $scopesSupported;
 
-    /** @var list<string> */
-    private array $metadataPaths;
-
-    /** @var array<string, string> */
-    private array $localizedHumanReadable;
-
-    /** @var array<string, mixed> */
-    private array $extra;
-
-    private ?string $resource;
-    private ?string $resourceName;
-    private ?string $resourceDocumentation;
-    private ?string $resourcePolicyUri;
-    private ?string $resourceTosUri;
+    private readonly string $metadataPath;
+    private readonly string $metadataUrl;
 
     /**
-     * @param list<string>          $authorizationServers
-     * @param list<string>|null     $scopesSupported
-     * @param array<string, string> $localizedHumanReadable Locale-specific values, e.g. resource_name#en => "My Resource"
-     * @param array<string, mixed>  $extra                  Additional RFC 9728 metadata fields
-     * @param list<string>          $metadataPaths
+     * @param string            $resource             canonical URI of the MCP server, e.g. `https://mcp.example.com/mcp`
+     * @param list<string>      $authorizationServers issuer identifiers of the authorization servers that issue tokens for it
+     * @param list<string>|null $scopesSupported      minimal scopes for basic functionality
      */
     public function __construct(
+        private readonly string $resource,
         array $authorizationServers,
         ?array $scopesSupported = null,
-        ?string $resource = null,
-        ?string $resourceName = null,
-        ?string $resourceDocumentation = null,
-        ?string $resourcePolicyUri = null,
-        ?string $resourceTosUri = null,
-        array $localizedHumanReadable = [],
-        array $extra = [],
-        array $metadataPaths = [self::DEFAULT_METADATA_PATH],
+        private readonly ?string $resourceName = null,
+        private readonly ?string $resourceDocumentation = null,
     ) {
-        $this->authorizationServers = $this->normalizeStringList($authorizationServers, 'authorizationServers');
-        if ([] === $this->authorizationServers) {
+        $parts = SecureUrl::parse($resource, 'resource');
+        if (isset($parts['fragment'])) {
+            throw new InvalidArgumentException(\sprintf('The resource "%s" must not contain a fragment.', $resource));
+        }
+
+        $authority = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+        $path = rtrim($parts['path'] ?? '', '/');
+        $this->metadataPath = self::WELL_KNOWN_PATH.$path;
+        $this->metadataUrl = $authority.$this->metadataPath;
+
+        foreach ($authorizationServers as $issuer) {
+            SecureUrl::parse($issuer, 'authorization server');
+        }
+        if ([] === $authorizationServers) {
             throw new InvalidArgumentException('Protected resource metadata requires at least one authorization server.');
         }
+        $this->authorizationServers = array_values(array_unique($authorizationServers));
 
-        $normalizedScopes = $this->normalizeStringList($scopesSupported ?? [], 'scopesSupported');
-        $this->scopesSupported = [] === $normalizedScopes ? null : $normalizedScopes;
-
-        $this->resource = $this->normalizeNullableString($resource);
-        $this->resourceName = $this->normalizeNullableString($resourceName);
-        $this->resourceDocumentation = $this->normalizeNullableString($resourceDocumentation);
-        $this->resourcePolicyUri = $this->normalizeNullableString($resourcePolicyUri);
-        $this->resourceTosUri = $this->normalizeNullableString($resourceTosUri);
-        $this->localizedHumanReadable = $this->normalizeLocalizedHumanReadable($localizedHumanReadable);
-        $this->extra = $extra;
-
-        $this->metadataPaths = $this->normalizePaths($metadataPaths);
-        if ([] === $this->metadataPaths) {
-            throw new InvalidArgumentException('Protected resource metadata requires at least one metadata path.');
+        $scopesSupported = array_values(array_unique($scopesSupported ?? []));
+        foreach ($scopesSupported as $scope) {
+            if (!\is_string($scope) || '' === trim($scope) || preg_match('/[\s"\\\\]/', $scope)) {
+                throw new InvalidArgumentException('Scopes must be non-empty strings without whitespace, quotes or backslashes.');
+            }
         }
+        $this->scopesSupported = [] === $scopesSupported ? null : $scopesSupported;
+    }
+
+    public function getResource(): string
+    {
+        return $this->resource;
     }
 
     /**
-     * @return list<string>
+     * Path the metadata document is served at.
      */
-    public function getMetadataPaths(): array
+    public function getMetadataPath(): string
     {
-        return $this->metadataPaths;
+        return $this->metadataPath;
     }
 
-    public function getPrimaryMetadataPath(): string
+    /**
+     * Absolute URL of the metadata document, as advertised in `WWW-Authenticate`.
+     */
+    public function getMetadataUrl(): string
     {
-        return $this->metadataPaths[0];
+        return $this->metadataUrl;
     }
 
     /**
@@ -114,132 +111,13 @@ final class ProtectedResourceMetadata implements \JsonSerializable
      */
     public function jsonSerialize(): array
     {
-        $data = [
+        return array_filter([
+            'resource' => $this->resource,
             'authorization_servers' => $this->authorizationServers,
-        ];
-
-        if (null !== $this->scopesSupported) {
-            $data['scopes_supported'] = $this->scopesSupported;
-        }
-
-        if (null !== $this->resource) {
-            $data['resource'] = $this->resource;
-        }
-
-        if (null !== $this->resourceName) {
-            $data['resource_name'] = $this->resourceName;
-        }
-
-        if (null !== $this->resourceDocumentation) {
-            $data['resource_documentation'] = $this->resourceDocumentation;
-        }
-
-        if (null !== $this->resourcePolicyUri) {
-            $data['resource_policy_uri'] = $this->resourcePolicyUri;
-        }
-
-        if (null !== $this->resourceTosUri) {
-            $data['resource_tos_uri'] = $this->resourceTosUri;
-        }
-
-        foreach ($this->localizedHumanReadable as $key => $value) {
-            $data[$key] = $value;
-        }
-
-        return array_merge($this->extra, $data);
-    }
-
-    /**
-     * @param list<string> $values
-     *
-     * @return list<string>
-     */
-    private function normalizeStringList(array $values, string $parameterName): array
-    {
-        $normalized = [];
-
-        foreach ($values as $value) {
-            if (!\is_string($value)) {
-                throw new InvalidArgumentException(\sprintf('Protected resource metadata parameter "%s" must contain strings.', $parameterName));
-            }
-
-            $value = trim($value);
-            if ('' === $value) {
-                continue;
-            }
-
-            $normalized[] = $value;
-        }
-
-        return array_values(array_unique($normalized));
-    }
-
-    private function normalizeNullableString(?string $value): ?string
-    {
-        if (null === $value) {
-            return null;
-        }
-
-        $value = trim($value);
-
-        return '' === $value ? null : $value;
-    }
-
-    /**
-     * @param list<string> $paths
-     *
-     * @return list<string>
-     */
-    private function normalizePaths(array $paths): array
-    {
-        $normalized = [];
-
-        foreach ($paths as $path) {
-            if (!\is_string($path)) {
-                throw new InvalidArgumentException('Protected resource metadata paths must be strings.');
-            }
-
-            $path = trim($path);
-            if ('' === $path) {
-                continue;
-            }
-
-            if ('/' !== $path[0]) {
-                $path = '/'.$path;
-            }
-
-            $normalized[] = $path;
-        }
-
-        return array_values(array_unique($normalized));
-    }
-
-    /**
-     * @param array<string, string> $localizedHumanReadable
-     *
-     * @return array<string, string>
-     */
-    private function normalizeLocalizedHumanReadable(array $localizedHumanReadable): array
-    {
-        $normalized = [];
-
-        foreach ($localizedHumanReadable as $field => $value) {
-            if (!\is_string($field) || !preg_match(self::LOCALIZED_HUMAN_READABLE_FIELD_PATTERN, $field)) {
-                throw new InvalidArgumentException(\sprintf('Invalid localized human-readable field: "%s".', (string) $field));
-            }
-
-            if (!\is_string($value)) {
-                throw new InvalidArgumentException(\sprintf('Localized human-readable value for "%s" must be a string.', $field));
-            }
-
-            $value = trim($value);
-            if ('' === $value) {
-                continue;
-            }
-
-            $normalized[$field] = $value;
-        }
-
-        return $normalized;
+            'scopes_supported' => $this->scopesSupported,
+            'bearer_methods_supported' => ['header'],
+            'resource_name' => $this->resourceName,
+            'resource_documentation' => $this->resourceDocumentation,
+        ], static fn (mixed $value): bool => null !== $value);
     }
 }

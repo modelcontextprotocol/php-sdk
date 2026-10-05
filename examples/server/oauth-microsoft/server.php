@@ -13,62 +13,36 @@ require_once dirname(__DIR__).'/bootstrap.php';
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
-use Mcp\Example\Server\OAuthMicrosoft\MicrosoftJwtTokenValidator;
 use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
-use Mcp\Server\Transport\Http\Middleware\OAuthProxyMiddleware;
-use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
-use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
-use Mcp\Server\Transport\Http\OAuth\LenientOidcDiscoveryMetadataPolicy;
-use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
 $tenantId = getenv('AZURE_TENANT_ID') ?: throw new RuntimeException('AZURE_TENANT_ID environment variable is required');
 $clientId = getenv('AZURE_CLIENT_ID') ?: throw new RuntimeException('AZURE_CLIENT_ID environment variable is required');
 
-$issuerV2 = "https://login.microsoftonline.com/{$tenantId}/v2.0";
-$issuerV1 = "https://sts.windows.net/{$tenantId}/";
-$localBaseUrl = 'http://localhost:8000';
+// v2.0 access tokens; set "accessTokenAcceptedVersion": 2 in the app manifest.
+$issuer = "https://login.microsoftonline.com/{$tenantId}/v2.0";
+$scope = "api://{$clientId}/mcp.access";
 
-$discovery = new OidcDiscovery(
-    metadataPolicy: new LenientOidcDiscoveryMetadataPolicy(),
-);
-
-$jwtTokenValidator = new JwtTokenValidator(
-    issuer: [$issuerV2, $issuerV1],
-    audience: $clientId,
-    jwksProvider: new JwksProvider($discovery),
-    jwksUri: 'https://login.microsoftonline.com/common/discovery/v2.0/keys',
+$validator = JwtTokenValidator::fromIssuer(
+    issuer: $issuer,
+    // v2.0 tokens name the API by its client id, v1.0 tokens by its Application ID URI.
+    audience: [$clientId, "api://{$clientId}"],
+    cache: new FilesystemAdapter('mcp-entra', 3600, __DIR__.'/cache'),
     scopeClaim: 'scp',
 );
 
-$validator = new MicrosoftJwtTokenValidator($jwtTokenValidator);
-
 $protectedResourceMetadata = new ProtectedResourceMetadata(
-    authorizationServers: [$localBaseUrl],
-    scopesSupported: ['openid', 'profile', 'email'],
+    resource: 'http://localhost:8000/mcp',
+    authorizationServers: [$issuer],
+    scopesSupported: [$scope],
     resourceName: 'OAuth Microsoft Example MCP Server',
-    resourceDocumentation: $localBaseUrl,
-);
-
-$metadataMiddleware = new ProtectedResourceMetadataMiddleware($protectedResourceMetadata);
-
-$clientSecret = getenv('AZURE_CLIENT_SECRET') ?: null;
-
-$oauthProxyMiddleware = new OAuthProxyMiddleware(
-    upstreamIssuer: $issuerV2,
-    localBaseUrl: $localBaseUrl,
-    discovery: $discovery,
-    clientSecret: $clientSecret,
-);
-
-$authMiddleware = new AuthorizationMiddleware(
-    $validator,
-    $protectedResourceMetadata,
 );
 
 $server = Server::builder()
@@ -83,10 +57,9 @@ $transport = new StreamableHttpTransport(
     logger: logger(),
     middleware: [
         ...StreamableHttpTransport::defaultMiddleware(),
-        $oauthProxyMiddleware,
-        $metadataMiddleware,
-        $authMiddleware,
-        new OAuthRequestMetaMiddleware(),
+        new ProtectedResourceMetadataMiddleware($protectedResourceMetadata),
+        // Entra puts delegated scopes into "scp" without the api:// prefix.
+        new AuthorizationMiddleware($validator, $protectedResourceMetadata, new ScopePolicy(default: ['mcp.access'])),
     ],
 );
 

@@ -12,86 +12,105 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
+use Mcp\Server\Transport\ReadsBoundedBody;
+use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
+use Psr\Http\Message\StreamFactoryInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Enforces MCP HTTP authorization requirements.
+ * Enforces MCP HTTP authorization: the MCP server as OAuth 2.1 resource server.
  *
  * This middleware:
  * - Validates Bearer tokens via the configured validator
  * - Returns 401 with WWW-Authenticate header on missing/invalid tokens
- * - Returns 403 on insufficient scope
+ * - Returns 403 insufficient_scope when the token lacks a scope the {@see ScopePolicy} requires
+ * - Hands the validated {@see AccessToken} to the transport as request attribute,
+ *   from where handlers read it via {@see \Mcp\Server\RequestContext::getAccessToken()}
  *
- * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
+ * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
 final class AuthorizationMiddleware implements MiddlewareInterface
 {
+    use ReadsBoundedBody;
+
     private ResponseFactoryInterface $responseFactory;
+    private StreamFactoryInterface $streamFactory;
 
     /**
      * @param AuthorizationTokenValidatorInterface $validator        Token validator implementation
-     * @param ProtectedResourceMetadata            $resourceMetadata Protected resource metadata object used for challenge hints
-     * @param ResponseFactoryInterface|null        $responseFactory  PSR-17 response factory (auto-discovered if null)
+     * @param ProtectedResourceMetadata            $resourceMetadata Metadata of this resource, its URL is advertised in challenges
+     * @param ScopePolicy|null                     $scopePolicy      Scopes required per request, none if null
+     * @param int                                  $maxBodyBytes     Upper bound for reading the body when the scope policy inspects it
      */
     public function __construct(
-        private AuthorizationTokenValidatorInterface $validator,
-        private ProtectedResourceMetadata $resourceMetadata,
+        private readonly AuthorizationTokenValidatorInterface $validator,
+        private readonly ProtectedResourceMetadata $resourceMetadata,
+        private readonly ?ScopePolicy $scopePolicy = null,
         ?ResponseFactoryInterface $responseFactory = null,
+        ?StreamFactoryInterface $streamFactory = null,
+        private readonly int $maxBodyBytes = StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES,
     ) {
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
+        $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
         $authorization = $request->getHeaderLine('Authorization');
         if ('' === $authorization) {
-            return $this->buildErrorResponse($request, AuthorizationResult::unauthorized());
+            return $this->buildErrorResponse(AuthorizationResult::unauthorized());
         }
 
         $accessToken = $this->parseBearerToken($authorization);
         if (null === $accessToken) {
-            return $this->buildErrorResponse(
-                $request,
-                AuthorizationResult::badRequest('invalid_request', 'Malformed Authorization header.'),
-            );
+            return $this->buildErrorResponse(AuthorizationResult::badRequest('invalid_request', 'Malformed Authorization header.'));
         }
 
         $result = $this->validator->validate($accessToken);
-        if (!$result->isAllowed()) {
-            return $this->buildErrorResponse($request, $result);
+        $token = $result->getAccessToken();
+        if (!$result->isAllowed() || null === $token) {
+            return $this->buildErrorResponse($result);
         }
 
-        return $handler->handle($this->applyAttributes($request, $result->getAttributes()));
+        if (null !== $this->scopePolicy) {
+            $payload = null;
+            if ('POST' === $request->getMethod() && $this->scopePolicy->inspectsBody()) {
+                $body = $this->readBoundedBody($request->getBody(), $this->maxBodyBytes);
+                if (null === $body) {
+                    return $this->buildErrorResponse(AuthorizationResult::badRequest('invalid_request', 'Request body is too large.'));
+                }
+
+                // Handed on byte for byte: the transport reads the body again.
+                $request = $request->withBody($this->streamFactory->createStream($body));
+                $payload = json_decode($body, true);
+            }
+
+            $required = $this->scopePolicy->requiredFor($payload);
+            if (!$this->scopePolicy->isSatisfied($required, $token->getScopes())) {
+                return $this->buildErrorResponse(AuthorizationResult::forbidden('insufficient_scope', 'The access token lacks a required scope.', $required));
+            }
+        }
+
+        return $handler->handle($request->withAttribute(AccessToken::class, $token));
     }
 
-    private function buildErrorResponse(ServerRequestInterface $request, AuthorizationResult $result): ResponseInterface
+    private function buildErrorResponse(AuthorizationResult $result): ResponseInterface
     {
-        $response = $this->responseFactory->createResponse($result->getStatusCode());
-        $header = $this->buildAuthenticateHeader($request, $result);
+        $parts = ['resource_metadata="'.$this->escapeHeaderValue($this->resourceMetadata->getMetadataUrl()).'"'];
 
-        $response = $response->withHeader('WWW-Authenticate', $header);
-
-        return $response;
-    }
-
-    private function buildAuthenticateHeader(ServerRequestInterface $request, AuthorizationResult $result): string
-    {
-        $parts = [];
-
-        $parts[] = 'resource_metadata="'.$this->escapeHeaderValue($this->resolveResourceMetadataUrl($request)).'"';
-
-        $scopes = $this->resolveScopes($result);
-        if (null !== $scopes) {
+        $scopes = $result->getScopes() ?? $this->resourceMetadata->getScopesSupported();
+        if (null !== $scopes && [] !== $scopes) {
             $parts[] = 'scope="'.$this->escapeHeaderValue(implode(' ', $scopes)).'"';
         }
 
@@ -103,80 +122,25 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             $parts[] = 'error_description="'.$this->escapeHeaderValue($result->getErrorDescription()).'"';
         }
 
-        return 'Bearer '.implode(', ', $parts);
-    }
-
-    /**
-     * @return list<string>|null
-     */
-    private function resolveScopes(AuthorizationResult $result): ?array
-    {
-        $scopes = $this->normalizeScopes($result->getScopes());
-        if (null !== $scopes) {
-            return $scopes;
-        }
-
-        return $this->normalizeScopes($this->resourceMetadata->getScopesSupported());
-    }
-
-    /**
-     * @param list<string>|null $scopes
-     *
-     * @return list<string>|null
-     */
-    private function normalizeScopes(?array $scopes): ?array
-    {
-        if (null === $scopes) {
-            return null;
-        }
-
-        $normalized = array_values(array_filter(array_map('trim', $scopes), static function (string $scope): bool {
-            return '' !== $scope;
-        }));
-
-        return [] === $normalized ? null : $normalized;
-    }
-
-    private function resolveResourceMetadataUrl(ServerRequestInterface $request): string
-    {
-        $metadataPath = $this->resourceMetadata->getPrimaryMetadataPath();
-
-        $uri = $request->getUri();
-        $scheme = $uri->getScheme();
-        $authority = $uri->getAuthority();
-
-        if ('' === $scheme || '' === $authority) {
-            throw new RuntimeException('Cannot resolve resource metadata URL: request URI must have scheme and authority');
-        }
-
-        return $scheme.'://'.$authority.$metadataPath;
-    }
-
-    /**
-     * @param array<string, mixed> $attributes
-     */
-    private function applyAttributes(ServerRequestInterface $request, array $attributes): ServerRequestInterface
-    {
-        foreach ($attributes as $name => $value) {
-            $request = $request->withAttribute($name, $value);
-        }
-
-        return $request;
+        return $this->responseFactory
+            ->createResponse($result->getStatusCode())
+            ->withHeader('WWW-Authenticate', 'Bearer '.implode(', ', $parts));
     }
 
     private function parseBearerToken(string $authorization): ?string
     {
-        if (!preg_match('/^Bearer\\s+(.+)$/i', $authorization, $matches)) {
+        if (!preg_match('/^Bearer +([A-Za-z0-9\-._~+\/]+=*) *$/i', $authorization, $matches)) {
             return null;
         }
 
-        $token = trim($matches[1]);
-
-        return '' === $token ? null : $token;
+        return $matches[1];
     }
 
+    /**
+     * Quoted-string per RFC 9110: no control characters, quotes and backslashes escaped.
+     */
     private function escapeHeaderValue(string $value): string
     {
-        return str_replace(['\\', '"'], ['\\\\', '\\"'], $value);
+        return str_replace(['\\', '"'], ['\\\\', '\\"'], preg_replace('/[\x00-\x1F\x7F]/', '', $value) ?? '');
     }
 }

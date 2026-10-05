@@ -1,145 +1,73 @@
 # OAuth Microsoft Entra ID Example
 
-This example demonstrates MCP server authorization using Microsoft Entra ID (formerly Azure AD) as the OAuth 2.0 / OpenID Connect provider.
+This example protects an MCP server with access tokens issued by Microsoft Entra ID (formerly Azure AD).
+The MCP server is a pure OAuth resource server: it validates tokens, it does not take part in the login flow.
 
 ## Features
 
-- JWT token validation with Microsoft Entra ID
-- Microsoft-specific validator/discovery overrides for Entra quirks
-- Protected Resource Metadata (RFC 9728)
-- MCP tools that access Microsoft claims
-- Optional Microsoft Graph API integration
-
-## Prerequisites
-
-1. **Azure Subscription** with access to Entra ID
-2. **App Registration** in Azure Portal
+- JWT validation via `JwtTokenValidator::fromIssuer()`: Entra's metadata and keys are discovered over https and cached
+- Audience bound to this server's app registration, so tokens for other APIs (e.g. Microsoft Graph) are rejected
+- Every request needs the `mcp.access` scope, enforced with a `ScopePolicy`
+- Protected Resource Metadata (RFC 9728) at `/.well-known/oauth-protected-resource/mcp`
+- Tools read the caller's claims via `RequestContext::getAccessToken()`
 
 ## Azure Setup
 
-### 1. Create App Registration
+### 1. Register the MCP server (the API)
 
-1. Go to [Azure Portal](https://portal.azure.com) > **Entra ID** > **App registrations**
-2. Click **New registration**
-3. Configure:
-   - **Name**: `MCP Server`
-   - **Supported account types**: Choose based on your needs
-   - **Redirect URI**: Leave empty for now (this is a resource server)
-4. Click **Register**
+1. [Azure Portal](https://portal.azure.com) > **Entra ID** > **App registrations** > **New registration**, name it `MCP Server`, no redirect URI.
+2. Copy **Application (client) ID** → `AZURE_CLIENT_ID` and **Directory (tenant) ID** → `AZURE_TENANT_ID`.
+3. **Expose an API**: set the Application ID URI to `api://<client-id>` and add the scope `mcp.access`.
+4. **Manifest**: set `"accessTokenAcceptedVersion": 2`, so tokens carry the v2.0 issuer the server expects.
 
-### 2. Configure the App
+### 2. Register the MCP client
 
-After registration:
+Create a second app registration for the client, add a redirect URI of the client's choice
+(public client/native for desktop clients) and grant it the `mcp.access` permission of the `MCP Server` API.
 
-1. **Copy values for `.env`**:
-   - **Application (client) ID** → `AZURE_CLIENT_ID`
-   - **Directory (tenant) ID** → `AZURE_TENANT_ID`
-
-2. **Expose an API** (optional, for custom scopes):
-   - Go to **Expose an API**
-   - Set **Application ID URI** (e.g., `api://your-client-id`)
-   - Add scopes like `mcp.read`, `mcp.write`
-
-3. **Create client secret** (for Graph API calls):
-   - Go to **Certificates & secrets**
-   - Click **New client secret**
-   - Copy the secret value → `AZURE_CLIENT_SECRET`
-
-4. **API Permissions** (for Graph API):
-   - Go to **API permissions**
-   - Add **Microsoft Graph** > **Delegated permissions**:
-     - `User.Read` (for profile)
-     - `Mail.Read` (for emails, optional)
-   - Grant admin consent if required
-
-### 3. Create a Client App (for testing)
-
-Create a separate app registration for the client:
-
-1. **New registration**:
-   - **Name**: `MCP Client`
-   - **Redirect URI**: `http://localhost` (Public client/native)
-
-2. **Authentication**:
-   - Enable **Allow public client flows** for PKCE
-
-3. **API permissions**:
-   - Add permission to your MCP Server app's exposed API
+Entra ID supports neither Dynamic Client Registration nor Client ID Metadata Documents, so the
+MCP client has to be configured with this pre-registered client ID. Entra also omits
+`code_challenge_methods_supported` from its metadata, which MCP clients following the
+2026-07-28 specification treat as missing PKCE support and refuse. Serving such clients takes an
+authorization server or gateway in front of Entra; that is a deployment concern, not one of this
+SDK (see `adr/0002-resource-server-only.md`).
 
 ## Quick Start
 
-1. **Copy environment file:**
+1. **Configure:**
 
 ```bash
 cp env.example .env
+# set AZURE_TENANT_ID and AZURE_CLIENT_ID
 ```
 
-2. **Edit `.env` with your Azure values:**
-
-```bash
-AZURE_TENANT_ID=your-tenant-id
-AZURE_CLIENT_ID=your-client-id
-AZURE_CLIENT_SECRET=your-client-secret  # Optional, for Graph API
-```
-
-3. **Start the services:**
+2. **Start the services:**
 
 ```bash
 docker compose up -d
 ```
 
-4. **Get an access token:**
+3. **Get an access token** for the exposed API, e.g. with the Azure CLI (pre-authorize the
+   Azure CLI client `04b07795-8ddb-461a-bbee-02f9e1bf7b46` on the `mcp.access` scope first):
 
-Using Azure CLI:
 ```bash
-# Login
-az login
-
-# Get token for your app
-TOKEN=$(az account get-access-token \
-  --resource api://your-client-id \
-  --query accessToken -o tsv)
+TOKEN=$(az account get-access-token --scope api://your-client-id/mcp.access --query accessToken -o tsv)
 ```
 
-Or using MSAL / OAuth flow in your client application.
-
-5. **Test the MCP server:**
+4. **Test the MCP server:**
 
 ```bash
-# Get Protected Resource Metadata
-curl http://localhost:8000/.well-known/oauth-protected-resource
+# Protected Resource Metadata
+curl http://localhost:8000/.well-known/oauth-protected-resource/mcp
 
-# Call MCP endpoint without token (should get 401)
+# Without token: 401 with a WWW-Authenticate challenge
 curl -i http://localhost:8000/mcp
 
-# Call MCP endpoint with token
+# With token
 curl -X POST http://localhost:8000/mcp \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'
-```
-
-## Architecture
-
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   MCP Client    │────▶│     Nginx       │────▶│    PHP-FPM      │
-│                 │     │   (port 8000)   │     │   MCP Server    │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-        │                                               │
-        │ Get Token                                     │ Validate JWT
-        ▼                                               ▼
-┌─────────────────┐                            ┌─────────────────┐
-│  Microsoft      │◀───────────────────────────│   JWKS Fetch    │
-│  Entra ID       │                            │                 │
-└─────────────────┘                            └─────────────────┘
-        │
-        │ (Optional) Graph API
-        ▼
-┌─────────────────┐
-│   Microsoft     │
-│   Graph API     │
-└─────────────────┘
 ```
 
 ## Files
@@ -148,73 +76,49 @@ curl -X POST http://localhost:8000/mcp \
 - `Dockerfile` - PHP-FPM container
 - `nginx/default.conf` - Nginx configuration
 - `env.example` - Environment variables template
-- `server.php` - MCP server with OAuth middleware (uses built-in `LenientOidcDiscoveryMetadataPolicy` for metadata validation)
-- `MicrosoftJwtTokenValidator.php` - Example-specific validator for Graph/non-Graph tokens
-- `McpElements.php` - MCP tools including Graph API integration
+- `server.php` - MCP server with the authorization middleware
+- `McpElements.php` - MCP tools reading the caller's claims
 
 ## Environment Variables
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `AZURE_TENANT_ID` | Yes | Azure AD tenant ID |
-| `AZURE_CLIENT_ID` | Yes | Application (client) ID |
-| `AZURE_CLIENT_SECRET` | No | Client secret for Graph API calls |
+| `AZURE_TENANT_ID` | Yes | Entra ID tenant ID |
+| `AZURE_CLIENT_ID` | Yes | Application (client) ID of the MCP server app registration |
 
-## Microsoft Token Structure
-
-Microsoft Entra ID tokens include these common claims:
+## Microsoft Token Claims
 
 | Claim | Description |
 |-------|-------------|
 | `oid` | Object ID (unique user identifier in tenant) |
 | `tid` | Tenant ID |
-| `sub` | Subject (unique user identifier) |
+| `sub` | Subject (pairwise user identifier) |
+| `azp` | Client the token was issued to |
+| `scp` | Delegated scopes, e.g. `mcp.access` |
 | `name` | Display name |
 | `preferred_username` | Usually the UPN |
-| `email` | Email address (if available) |
-| `upn` | User Principal Name |
 
 ## Troubleshooting
 
-### "Invalid issuer" error
+### "Token issuer mismatch"
 
-Microsoft uses different issuer URLs depending on the token flow:
-- v2.0 endpoint (user/delegated flows): `https://login.microsoftonline.com/{tenant}/v2.0`
-- v1.0 endpoint (client credentials flow): `https://sts.windows.net/{tenant}/`
+The token carries the v1.0 issuer `https://sts.windows.net/{tenant}/`. Set
+`"accessTokenAcceptedVersion": 2` in the manifest of the `MCP Server` app registration.
 
-This example **automatically accepts both formats** by configuring multiple issuers in the `MicrosoftJwtTokenValidator`.
-Check your token's `iss` claim to verify which format is being used.
+### "Token audience mismatch"
 
-### "Invalid audience" error
+The token was issued for another API, e.g. Microsoft Graph (`openid`/`profile` scopes alone yield
+Graph tokens). Request the `api://<client-id>/mcp.access` scope instead.
 
-The `aud` claim must match `AZURE_CLIENT_ID`. For v2.0 tokens with custom scopes,
-the audience might be `api://your-client-id`.
+### 403 insufficient_scope
 
-### JWKS fetch fails
+The token lacks `mcp.access` in its `scp` claim; grant the client the API permission.
 
-Microsoft's JWKS endpoint is public. Ensure your container can reach:
-`https://login.microsoftonline.com/{tenant}/discovery/v2.0/keys`
+### Calling Microsoft Graph
 
-### `code_challenge_methods_supported` missing in discovery metadata
-
-The default `StrictOidcDiscoveryMetadataPolicy` requires `code_challenge_methods_supported`.
-Microsoft Entra ID omits this field despite supporting PKCE with S256.
-This example uses the built-in `LenientOidcDiscoveryMetadataPolicy` which accepts missing
-`code_challenge_methods_supported` (defaults to S256 downstream).
-
-### Graph API errors
-
-1. Ensure `AZURE_CLIENT_SECRET` is set
-2. Verify API permissions have admin consent
-3. Check that the user exists in your tenant
-
-## Security Notes
-
-1. **Never commit `.env` files** - they contain secrets
-2. **Use managed identities** in Azure deployments instead of client secrets
-3. **Implement proper token refresh** in production clients
-4. **Validate scopes** for sensitive operations
-5. **Important:** `MicrosoftJwtTokenValidator` in this example accepts `nonce` Graph-style tokens via claim checks only (`iss`/`exp`/`nbf`) without signature verification. Treat this as demo-only behavior and replace it with full signature validation for production.
+The token this server receives is for this server only and must not be passed on. To call Graph
+on behalf of the user, exchange it with the On-Behalf-Of flow, which needs a client credential
+for the `MCP Server` app registration.
 
 ## Cleanup
 

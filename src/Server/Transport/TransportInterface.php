@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Authorization\AccessToken;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -70,7 +71,9 @@ interface TransportInterface
      *
      * The transport calls this whenever ANY message arrives, regardless of source.
      *
-     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId): void $listener
+     * The access token is the one the message was authorized with, if the transport authorizes requests.
+     *
+     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId, ?AccessToken $accessToken): void $listener
      */
     public function onMessage(callable $listener): void;
 

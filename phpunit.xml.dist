@@ -16,9 +16,6 @@
         <testsuite name="integration">
             <directory>tests/Integration</directory>
         </testsuite>
-        <testsuite name="examples">
-            <directory>examples/server/oauth-microsoft/tests</directory>
-        </testsuite>
         <testsuite name="interop">
             <directory>tests/Interop</directory>
         </testsuite>

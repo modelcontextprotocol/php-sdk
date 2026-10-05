@@ -230,7 +230,7 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame(401, $response->getStatusCode());
         // CORS middleware is outermost — Expose-Headers is emitted on all responses, including 401.
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('defaults can be filtered to drop DNS rebinding for proxy deployments')]
@@ -262,7 +262,7 @@ final class StreamableHttpTransportTest extends TestCase
         // Auth short-circuits with 401 — proves DNS rebinding didn't reject the request first.
         $this->assertSame(401, $response->getStatusCode());
         // CORS middleware is still in the chain — Expose-Headers attached to the 401.
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('configured CorsMiddleware reflects matching Origin')]

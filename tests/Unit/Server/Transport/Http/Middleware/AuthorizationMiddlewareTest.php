@@ -11,274 +11,205 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 
-use Mcp\Exception\RuntimeException;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
-use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\Attributes\TestDox;
-use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseFactoryInterface;
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Tests AuthorizationMiddleware behavior for token validation and challenges.
- *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
-class AuthorizationMiddlewareTest extends TestCase
+final class AuthorizationMiddlewareTest extends MiddlewareTestCase
 {
-    #[TestDox('missing Authorization header returns 401 with metadata and scope guidance')]
-    public function testMissingAuthorizationReturns401(): void
+    private const METADATA_URL = 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp';
+
+    public function testMissingTokenIsChallengedWithMetadataAndScopes(): void
     {
-        $factory = new Psr17Factory();
-        $resourceMetadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['mcp:read'],
-        );
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                throw new RuntimeException('Validator should not be called without a token.');
-            }
-        };
-
-        $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            resourceMetadata: $resourceMetadata,
-            responseFactory: $factory,
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
+        $response = $this->middleware()->process($this->request(), $this->passthroughHandler);
 
         $this->assertSame(401, $response->getStatusCode());
-        $header = $response->getHeaderLine('WWW-Authenticate');
-        $this->assertStringContainsString('Bearer', $header);
-        $this->assertStringContainsString(
-            'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"',
-            $header,
+        $this->assertSame(
+            'Bearer resource_metadata="'.self::METADATA_URL.'", scope="mcp:read"',
+            $response->getHeaderLine('WWW-Authenticate'),
         );
-        $this->assertStringContainsString('scope="mcp:read"', $header);
     }
 
-    #[TestDox('malformed Authorization header returns 400 with invalid_request')]
-    public function testMalformedAuthorizationReturns400(): void
+    public function testMetadataUrlDoesNotFollowHostHeader(): void
     {
-        $factory = new Psr17Factory();
-        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                return AuthorizationResult::allow();
-            }
-        };
+        $request = $this->factory->createServerRequest('POST', 'http://evil.example.com/mcp')->withHeader('Host', 'evil.example.com');
 
-        $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            resourceMetadata: $resourceMetadata,
-            responseFactory: $factory,
-        );
+        $response = $this->middleware()->process($request, $this->passthroughHandler);
 
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')
-            ->withHeader('Authorization', 'Basic abc');
+        $this->assertStringContainsString('resource_metadata="'.self::METADATA_URL.'"', $response->getHeaderLine('WWW-Authenticate'));
+    }
 
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideMalformedHeaders(): iterable
+    {
+        yield 'other scheme' => ['Basic dXNlcjpwYXNz'];
+        yield 'empty token' => ['Bearer '];
+        yield 'token with space' => ['Bearer abc def'];
+        yield 'token with quote' => ['Bearer abc"def'];
+    }
 
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
+    #[DataProvider('provideMalformedHeaders')]
+    public function testMalformedHeaderIsBadRequest(string $header): void
+    {
+        $response = $this->middleware()->process($this->request()->withHeader('Authorization', $header), $this->passthroughHandler);
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertStringContainsString('error="invalid_request"', $response->getHeaderLine('WWW-Authenticate'));
     }
 
-    #[TestDox('insufficient scopes return 403 with scope challenge')]
-    public function testInsufficientScopeReturns403(): void
+    public function testInvalidTokenIsChallengedWithValidatorError(): void
     {
-        $factory = new Psr17Factory();
-        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                return AuthorizationResult::forbidden('insufficient_scope', 'Need more scopes.', ['mcp:write']);
-            }
-        };
+        $validator = $this->validator(AuthorizationResult::unauthorized('invalid_token', "Token \"expired\"\r\n."));
 
-        $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            resourceMetadata: $resourceMetadata,
-            responseFactory: $factory,
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')
-            ->withHeader('Authorization', 'Bearer token');
-
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
-
-        $this->assertSame(403, $response->getStatusCode());
-        $header = $response->getHeaderLine('WWW-Authenticate');
-        $this->assertStringContainsString('error="insufficient_scope"', $header);
-        $this->assertStringContainsString('scope="mcp:write"', $header);
-    }
-
-    #[TestDox('metadata scopes are used in challenge when result has no scopes')]
-    public function testMetadataScopesAreUsedWhenResultHasNoScopes(): void
-    {
-        $factory = new Psr17Factory();
-        $resourceMetadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['openid', 'profile'],
-        );
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                throw new RuntimeException('Validator should not be called without a token.');
-            }
-        };
-
-        $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            resourceMetadata: $resourceMetadata,
-            responseFactory: $factory,
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
-        $header = $response->getHeaderLine('WWW-Authenticate');
-
-        $this->assertStringContainsString(
-            'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource"',
-            $header,
-        );
-        $this->assertStringContainsString('scope="openid profile"', $header);
-    }
-
-    #[TestDox('resource metadata object path and scopes are reflected in challenge')]
-    public function testResourceMetadataObjectProvidesMetadataAndScopes(): void
-    {
-        $factory = new Psr17Factory();
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                throw new RuntimeException('Validator should not be called without a token.');
-            }
-        };
-
-        $resourceMetadata = new ProtectedResourceMetadata(
-            authorizationServers: ['https://auth.example.com'],
-            scopesSupported: ['openid', 'profile'],
-            metadataPaths: ['/oauth/resource-meta'],
-        );
-
-        $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            responseFactory: $factory,
-            resourceMetadata: $resourceMetadata,
-        );
-
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp');
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
-            {
-            }
-
-            public function handle(ServerRequestInterface $request): ResponseInterface
-            {
-                return $this->factory->createResponse(200);
-            }
-        };
-
-        $response = $middleware->process($request, $handler);
-        $header = $response->getHeaderLine('WWW-Authenticate');
+        $response = $this->middleware($validator)->process($this->request('Bearer abc'), $this->passthroughHandler);
 
         $this->assertSame(401, $response->getStatusCode());
-        $this->assertStringContainsString(
-            'resource_metadata="https://mcp.example.com/oauth/resource-meta"',
-            $header,
+        $this->assertSame(
+            'Bearer resource_metadata="'.self::METADATA_URL.'", scope="mcp:read", error="invalid_token", error_description="Token \"expired\"."',
+            $response->getHeaderLine('WWW-Authenticate'),
         );
-        $this->assertStringContainsString('scope="openid profile"', $header);
     }
 
-    #[TestDox('authorized requests reach the handler with attributes applied')]
-    public function testAllowedRequestPassesAttributes(): void
+    public function testValidTokenReachesHandlerAsAttribute(): void
     {
-        $factory = new Psr17Factory();
-        $resourceMetadata = new ProtectedResourceMetadata(['https://auth.example.com']);
-        $validator = new class implements AuthorizationTokenValidatorInterface {
-            public function validate(string $accessToken): AuthorizationResult
-            {
-                return AuthorizationResult::allow(['subject' => 'user-1']);
-            }
-        };
+        $token = new AccessToken(['mcp:read'], ['sub' => 'user-1']);
+        $handler = $this->capturingHandler();
 
+        $response = $this->middleware($this->validator(AuthorizationResult::allow($token)))->process($this->request('Bearer abc.def-ghi_~+/='), $handler);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame($token, $handler->request?->getAttribute(AccessToken::class));
+    }
+
+    public function testDefaultScopesAreEnforcedWithoutReadingTheBody(): void
+    {
+        $policy = new ScopePolicy(default: ['mcp:read', 'mcp:write']);
+        $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['mcp:read']))), $policy);
+
+        $response = $middleware->process($this->request('Bearer abc')->withMethod('GET'), $this->passthroughHandler);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame(
+            'Bearer resource_metadata="'.self::METADATA_URL.'", scope="mcp:read mcp:write", error="insufficient_scope", error_description="The access token lacks a required scope."',
+            $response->getHeaderLine('WWW-Authenticate'),
+        );
+    }
+
+    public function testToolScopesAreChallengedAsOneSet(): void
+    {
+        $policy = new ScopePolicy(default: ['mcp:read'], tools: ['delete_file' => ['files:write']]);
+        $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['mcp:read']))), $policy);
+
+        $response = $middleware->process($this->request('Bearer abc', $this->toolCall('delete_file')), $this->passthroughHandler);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('scope="mcp:read files:write"', $response->getHeaderLine('WWW-Authenticate'));
+    }
+
+    public function testBodyIsHandedOnUnchanged(): void
+    {
+        $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['files:admin']))), new ScopePolicy(
+            tools: ['delete_file' => ['files:write']],
+            implies: ['files:admin' => ['files:write']],
+        ));
+        $body = $this->toolCall('delete_file');
+        $handler = $this->capturingHandler();
+
+        $response = $middleware->process($this->request('Bearer abc', $body), $handler);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame($body, $handler->request?->getBody()->__toString());
+    }
+
+    public function testOversizedBodyIsRejected(): void
+    {
         $middleware = new AuthorizationMiddleware(
-            validator: $validator,
-            resourceMetadata: $resourceMetadata,
-            responseFactory: $factory,
+            $this->validator(AuthorizationResult::allow(new AccessToken())),
+            $this->metadata(),
+            new ScopePolicy(tools: ['x' => ['y']]),
+            $this->factory,
+            $this->factory,
+            maxBodyBytes: 10,
         );
 
-        $request = $factory->createServerRequest('GET', 'https://mcp.example.com/mcp')
-            ->withHeader('Authorization', 'Bearer token');
+        $response = $middleware->process($this->request('Bearer abc', $this->toolCall('x')), $this->passthroughHandler);
 
-        $handler = new class($factory) implements RequestHandlerInterface {
-            public function __construct(private ResponseFactoryInterface $factory)
+        $this->assertSame(400, $response->getStatusCode());
+    }
+
+    private function middleware(?AuthorizationTokenValidatorInterface $validator = null, ?ScopePolicy $policy = null): AuthorizationMiddleware
+    {
+        return new AuthorizationMiddleware(
+            $validator ?? $this->validator(AuthorizationResult::unauthorized()),
+            $this->metadata(),
+            $policy,
+            $this->factory,
+            $this->factory,
+        );
+    }
+
+    private function metadata(): ProtectedResourceMetadata
+    {
+        return new ProtectedResourceMetadata('https://mcp.example.com/mcp', ['https://auth.example.com'], ['mcp:read']);
+    }
+
+    private function validator(AuthorizationResult $result): AuthorizationTokenValidatorInterface
+    {
+        return new class($result) implements AuthorizationTokenValidatorInterface {
+            public function __construct(private AuthorizationResult $result)
+            {
+            }
+
+            public function validate(string $accessToken): AuthorizationResult
+            {
+                return $this->result;
+            }
+        };
+    }
+
+    private function request(?string $authorization = null, string $body = ''): ServerRequestInterface
+    {
+        $request = $this->factory->createServerRequest('POST', 'https://mcp.example.com/mcp')
+            ->withBody($this->factory->createStream($body));
+
+        return null === $authorization ? $request : $request->withHeader('Authorization', $authorization);
+    }
+
+    private function toolCall(string $name): string
+    {
+        return json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => ['name' => $name, 'arguments' => new \stdClass()]], \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return RequestHandlerInterface&object{request: ?ServerRequestInterface}
+     */
+    private function capturingHandler(): RequestHandlerInterface
+    {
+        return new class($this->passthroughHandler) implements RequestHandlerInterface {
+            public ?ServerRequestInterface $request = null;
+
+            public function __construct(private RequestHandlerInterface $inner)
             {
             }
 
             public function handle(ServerRequestInterface $request): ResponseInterface
             {
-                return $this->factory->createResponse(200)
-                    ->withHeader('X-Subject', (string) $request->getAttribute('subject'));
+                $this->request = $request;
+
+                return $this->inner->handle($request);
             }
         };
-
-        $response = $middleware->process($request, $handler);
-
-        $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('user-1', $response->getHeaderLine('X-Subject'));
     }
 }

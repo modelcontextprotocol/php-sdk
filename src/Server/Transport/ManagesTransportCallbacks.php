@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Authorization\AccessToken;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -26,7 +27,7 @@ use Symfony\Component\Uid\Uuid;
  * */
 trait ManagesTransportCallbacks
 {
-    /** @var callable(TransportInterface<mixed>, string, ?Uuid): void */
+    /** @var callable(TransportInterface<mixed>, string, ?Uuid, ?AccessToken): void */
     protected $messageListener;
 
     /** @var callable(Uuid): void */
