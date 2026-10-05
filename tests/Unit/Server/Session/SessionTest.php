@@ -326,4 +326,43 @@ class SessionTest extends TestCase
 
         $this->assertSame([], $result);
     }
+
+    public function testGetReturnsDefaultForEmptyPayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->get('outgoing_queue', []));
+    }
+
+    public function testAllReturnsEmptyArrayForEmptyPayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->all());
+    }
+
+    public function testAllReturnsEmptyArrayForUndecodablePayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('{"initialized":');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->all());
+    }
 }
