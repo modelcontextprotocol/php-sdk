@@ -11,6 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\Event\ErrorEvent;
+use Mcp\Event\RequestEvent;
+use Mcp\Event\ResponseEvent;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextResourceContents;
@@ -23,6 +26,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\InputRequiredResult;
@@ -40,15 +44,16 @@ use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class StatelessProtocolTest extends TestCase
 {
     /**
      * @param array<string, mixed> $capabilities
      */
-    private static function protocol(array $capabilities = []): StatelessProtocol
+    private static function protocol(array $capabilities = [], ?EventDispatcherInterface $eventDispatcher = null): StatelessProtocol
     {
-        return Server::builder()
+        $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
             ->addTool(static fn (): string => 'ok', name: 'plain_tool', description: 'Returns a fixed string')
             ->addTool(
@@ -174,8 +179,13 @@ class StatelessProtocolTest extends TestCase
                 'test://gated',
                 'gated',
                 'A resource that asks who is reading before it answers',
-            )
-            ->buildStateless([ProtocolVersion::V2026_07_28]);
+            );
+
+        if (null !== $eventDispatcher) {
+            $builder->setEventDispatcher($eventDispatcher);
+        }
+
+        return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
     }
 
     /**
@@ -1202,5 +1212,102 @@ class StatelessProtocolTest extends TestCase
         );
 
         $this->assertSame('elicitation', $answer['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * @param list<object>                  $events
+     * @param (\Closure(object): void)|null $listener
+     */
+    private function eventDispatcher(array &$events, ?\Closure $listener = null): EventDispatcherInterface
+    {
+        $eventDispatcher = $this->createStub(EventDispatcherInterface::class);
+        $eventDispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events, $listener): object {
+            $events[] = $event;
+
+            if (null !== $listener) {
+                $listener($event);
+            }
+
+            return $event;
+        });
+
+        return $eventDispatcher;
+    }
+
+    #[TestDox('request and response events are dispatched for a modern-era request')]
+    public function testRequestAndResponseEventsAreDispatched(): void
+    {
+        $events = [];
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events)),
+            'tools/call',
+            ['name' => 'plain_tool', 'arguments' => []],
+            ['Mcp-Name' => 'plain_tool'],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertSame('tools/call', $events[0]->getMethod());
+        $this->assertInstanceOf(ResponseEvent::class, $events[1]);
+    }
+
+    #[TestDox('a request replaced by a RequestEvent listener is the one handled')]
+    public function testRequestEventCanReplaceTheRequest(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof RequestEvent) {
+                $request = $event->getRequest();
+                $event->setRequest((new CallToolRequest('plain_tool', []))->withId($request->getId())->withMeta($request->getMeta()));
+            }
+        };
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
+            'tools/call',
+            ['name' => 'probe_trace', 'arguments' => []],
+            ['Mcp-Name' => 'probe_trace'],
+        );
+
+        $this->assertSame('ok', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('an error event is dispatched and can replace the error of a modern-era request')]
+    public function testErrorEventIsDispatched(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof ErrorEvent) {
+                $event->setError(Error::forInvalidParams('replaced', $event->getError()->id));
+            }
+        };
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
+            'tools/call',
+            ['name' => 'capability_tool', 'arguments' => []],
+            ['Mcp-Name' => 'capability_tool'],
+        );
+
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertInstanceOf(ErrorEvent::class, $events[1]);
+        $this->assertInstanceOf(MissingRequiredClientCapabilityException::class, $events[1]->getThrowable());
+        $this->assertSame('replaced', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('a response event is dispatched for a streamed response too')]
+    public function testResponseEventIsDispatchedWhenStreamed(): void
+    {
+        $events = [];
+
+        $frames = self::frames(self::callStreaming(self::protocol(eventDispatcher: $this->eventDispatcher($events)), 'progress_tool', ['progressToken' => 'tok-1']));
+
+        $this->assertCount(3, $frames);
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertInstanceOf(ResponseEvent::class, $events[1]);
     }
 }
