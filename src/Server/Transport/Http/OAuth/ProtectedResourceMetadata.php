@@ -68,12 +68,7 @@ final class ProtectedResourceMetadata implements \JsonSerializable
         }
         $this->authorizationServers = array_values(array_unique($authorizationServers));
 
-        $scopesSupported = array_values(array_unique($scopesSupported ?? []));
-        foreach ($scopesSupported as $scope) {
-            if (!\is_string($scope) || '' === trim($scope) || preg_match('/[\s"\\\\]/', $scope)) {
-                throw new InvalidArgumentException('Scopes must be non-empty strings without whitespace, quotes or backslashes.');
-            }
-        }
+        $scopesSupported = Scopes::normalize($scopesSupported ?? []);
         $this->scopesSupported = [] === $scopesSupported ? null : $scopesSupported;
     }
 

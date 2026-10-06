@@ -100,4 +100,19 @@ final class ScopePolicyTest extends TestCase
 
         new ScopePolicy(tools: ['x' => ['has space']]);
     }
+
+    public function testRejectsEmptyScopes(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new ScopePolicy(default: ['']);
+    }
+
+    public function testRejectsNonStringScopes(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        /* @phpstan-ignore argument.type */
+        new ScopePolicy(methods: ['tools/call' => ['mcp', ['tools']]]);
+    }
 }

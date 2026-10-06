@@ -66,7 +66,7 @@ final class ProtectedResourceMetadataTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{string, list<string>, list<string>|null}>
+     * @return iterable<string, array{string, list<string>, list<mixed>|null}>
      */
     public static function provideInvalidArguments(): iterable
     {
@@ -77,11 +77,13 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'insecure authorization server' => ['https://mcp.example.com', ['http://auth.example.com'], null];
         yield 'scope with whitespace' => ['https://mcp.example.com', ['https://auth.example.com'], ['a b']];
         yield 'scope with quote' => ['https://mcp.example.com', ['https://auth.example.com'], ['a"']];
+        yield 'empty scope' => ['https://mcp.example.com', ['https://auth.example.com'], ['']];
+        yield 'non-string scope' => ['https://mcp.example.com', ['https://auth.example.com'], ['mcp:read', ['mcp:write']]];
     }
 
     /**
-     * @param list<string>      $authorizationServers
-     * @param list<string>|null $scopes
+     * @param list<string>     $authorizationServers
+     * @param list<mixed>|null $scopes
      */
     #[DataProvider('provideInvalidArguments')]
     public function testRejectsInvalidArguments(string $resource, array $authorizationServers, ?array $scopes): void

@@ -52,7 +52,7 @@ final class ScopePolicy
         array $tools = [],
         array $implies = [],
     ) {
-        $this->default = self::normalize($default);
+        $this->default = Scopes::normalize($default);
         $this->methods = self::normalizeMap($methods);
         $this->tools = self::normalizeMap($tools);
         $this->implies = self::normalizeMap($implies);
@@ -122,25 +122,6 @@ final class ScopePolicy
     }
 
     /**
-     * @param array<mixed> $scopes
-     *
-     * @return list<string>
-     */
-    private static function normalize(array $scopes): array
-    {
-        $normalized = [];
-        foreach ($scopes as $scope) {
-            if (!\is_string($scope) || '' === trim($scope) || preg_match('/[\s"\\\\]/', $scope)) {
-                throw new InvalidArgumentException('Scopes must be non-empty strings without whitespace, quotes or backslashes.');
-            }
-
-            $normalized[$scope] = $scope;
-        }
-
-        return array_values($normalized);
-    }
-
-    /**
      * @param array<mixed> $map
      *
      * @return array<string, list<string>>
@@ -153,7 +134,7 @@ final class ScopePolicy
                 throw new InvalidArgumentException('Scope maps must map a name to a list of scopes.');
             }
 
-            $normalized[$key] = self::normalize($scopes);
+            $normalized[$key] = Scopes::normalize($scopes);
         }
 
         return $normalized;
