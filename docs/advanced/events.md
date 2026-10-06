@@ -76,6 +76,15 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 - `getSession(): SessionInterface` - The current session
 - `getMethod(): string` - Convenience method to get the notification method
 
+### Protocol `2026-07-28`
+
+Requests on protocol version `2026-07-28` dispatch the same request, response and error events, with a few differences:
+
+- `ResponseEvent` fires on every `InputRequiredResult` round, not only on the final result. Listeners that only care about completed calls need to check the result type.
+- `getSession()` returns a new in-memory session for each request. Anything a listener stores there is gone by the next request.
+- `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers.
+- `server/discover` and `subscriptions/listen` dispatch no events.
+
 ## List Change Events
 
 These events are dispatched when the lists of available capabilities change:
