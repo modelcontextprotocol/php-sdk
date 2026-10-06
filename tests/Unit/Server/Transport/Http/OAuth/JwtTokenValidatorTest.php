@@ -98,6 +98,16 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token has expired.', $result->getErrorDescription());
     }
 
+    public function testRejectsTokenWithoutExpiration(): void
+    {
+        $claims = $this->claims([]);
+        unset($claims['exp']);
+
+        $result = $this->validator()->validate(JWT::encode($claims, self::$privateKey, 'RS256', 'kid-1'));
+
+        $this->assertSame('Token has no expiration.', $result->getErrorDescription());
+    }
+
     public function testLeewayToleratesClockSkew(): void
     {
         $this->assertTrue($this->validator(leeway: 60)->validate($this->token(['exp' => time() - 30]))->isAllowed());

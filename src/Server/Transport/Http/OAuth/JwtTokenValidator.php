@@ -31,7 +31,7 @@ use Psr\Http\Message\RequestFactoryInterface;
  * Validates JWT access tokens issued by one authorization server.
  *
  * Checks, in order: the `alg` header against the allowlist, the `typ` header when
- * required, the signature and time claims, the issuer, and the audience. The
+ * required, the signature and time claims, the presence of `exp`, the issuer, and the audience. The
  * audience must name this MCP server — accepting tokens minted for another
  * resource is the token passthrough the MCP specification forbids.
  *
@@ -134,6 +134,11 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token signing key could not be resolved.');
         } finally {
             JWT::$leeway = $previousLeeway;
+        }
+
+        // php-jwt only checks `exp` when present; a token without it would never expire.
+        if (!isset($claims['exp'])) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token has no expiration.');
         }
 
         if (($claims['iss'] ?? null) !== $this->issuer) {
