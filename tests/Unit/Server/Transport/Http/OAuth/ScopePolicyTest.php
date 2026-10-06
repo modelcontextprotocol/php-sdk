@@ -73,16 +73,15 @@ final class ScopePolicyTest extends TestCase
         $this->assertSame(['mcp'], $policy->requiredFor([['method' => 42], 'x']));
     }
 
-    public function testSatisfiedWhenAllRequiredScopesAreGranted(): void
+    public function testExpandWithoutHierarchyKeepsGrantedScopes(): void
     {
         $policy = new ScopePolicy();
 
-        $this->assertTrue($policy->isSatisfied([], []));
-        $this->assertTrue($policy->isSatisfied(['a', 'b'], ['b', 'c', 'a']));
-        $this->assertFalse($policy->isSatisfied(['a', 'b'], ['a']));
+        $this->assertSame([], $policy->expand([]));
+        $this->assertSame(['a', 'c', 'b'], $policy->expand(['b', 'c', 'a', 'a']));
     }
 
-    public function testHonorsScopeHierarchy(): void
+    public function testExpandFollowsScopeHierarchy(): void
     {
         $policy = new ScopePolicy(implies: [
             'files:admin' => ['files:write'],
@@ -90,10 +89,9 @@ final class ScopePolicyTest extends TestCase
             'loop' => ['loop'],
         ]);
 
-        $this->assertTrue($policy->isSatisfied(['files:read', 'files:write'], ['files:admin']));
-        $this->assertFalse($policy->isSatisfied(['files:admin'], ['files:write']));
-        $this->assertTrue($policy->isSatisfied(['loop'], ['loop']));
         $this->assertSame(['files:admin', 'files:write', 'files:read'], $policy->expand(['files:admin']));
+        $this->assertSame(['files:write', 'files:read'], $policy->expand(['files:write']));
+        $this->assertSame(['loop'], $policy->expand(['loop']));
     }
 
     public function testRejectsInvalidScopes(): void

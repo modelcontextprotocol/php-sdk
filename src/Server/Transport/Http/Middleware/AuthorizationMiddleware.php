@@ -98,12 +98,13 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             }
 
             $required = $this->scopePolicy->requiredFor($payload);
-            if (!$this->scopePolicy->isSatisfied($required, $token->getScopes())) {
+            $granted = $this->scopePolicy->expand($token->getScopes());
+            if ([] !== array_diff($required, $granted)) {
                 return $this->buildErrorResponse(AuthorizationResult::forbidden('insufficient_scope', 'The access token lacks a required scope.', $required));
             }
 
             // Handlers checking AccessToken::hasScope() see the hierarchy the policy enforces.
-            $token = new AccessToken($this->scopePolicy->expand($token->getScopes()), $token->getClaims());
+            $token = new AccessToken($granted, $token->getClaims());
         }
 
         return $handler->handle($request->withAttribute(AccessToken::class, $token));

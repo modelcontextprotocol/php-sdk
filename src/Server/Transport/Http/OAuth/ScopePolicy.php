@@ -98,17 +98,6 @@ final class ScopePolicy
     }
 
     /**
-     * Whether the granted scopes cover the required ones, honoring the hierarchy.
-     *
-     * @param list<string> $required
-     * @param list<string> $granted
-     */
-    public function isSatisfied(array $required, array $granted): bool
-    {
-        return [] === array_diff($required, $this->expand($granted));
-    }
-
-    /**
      * The granted scopes plus all scopes they imply through the hierarchy.
      *
      * @param list<string> $granted
