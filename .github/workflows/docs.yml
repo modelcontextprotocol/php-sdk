@@ -2,12 +2,13 @@ name: Documentation
 
 # The site is built by `make docs`: Zensical renders the guides under docs/
 # (see mkdocs.yml) and phpDocumentor renders the API reference into /api/.
-# Pull requests build only — the build is strict, so a broken internal link
-# fails CI instead of shipping a dead link to the site.
+# The site is deployed on version tags, so it documents the latest release
+# rather than unreleased main. Pull requests build only — the build is strict,
+# so a broken internal link fails CI instead of shipping a dead link to the site.
 
 on:
   push:
-    branches: [main]
+    tags: ['v*']
   pull_request:
   workflow_dispatch:
 
