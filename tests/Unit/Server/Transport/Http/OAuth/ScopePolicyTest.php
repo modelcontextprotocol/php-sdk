@@ -51,6 +51,13 @@ final class ScopePolicyTest extends TestCase
         ]));
     }
 
+    public function testDeduplicatesAndKeepsNumericScopesStrings(): void
+    {
+        $policy = new ScopePolicy(default: ['mcp', 'mcp', '42'], methods: ['tools/list' => ['42', 'tools']]);
+
+        $this->assertSame(['mcp', '42', 'tools'], $policy->requiredFor(['method' => 'tools/list']));
+    }
+
     public function testToolScopesOnlyApplyToToolCalls(): void
     {
         $policy = new ScopePolicy(tools: ['greeting' => ['tools']]);

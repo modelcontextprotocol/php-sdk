@@ -73,7 +73,8 @@ final class ScopePolicy
      */
     public function requiredFor(mixed $payload = null): array
     {
-        $required = $this->default;
+        // Keyed by scope to dedupe on insert, read back by value: keys would turn "42" into an int.
+        $required = array_combine($this->default, $this->default);
 
         $messages = \is_array($payload) && array_is_list($payload) ? $payload : [$payload];
         foreach ($messages as $message) {
@@ -81,15 +82,19 @@ final class ScopePolicy
                 continue;
             }
 
-            $required = [...$required, ...($this->methods[$method] ?? [])];
+            foreach ($this->methods[$method] ?? [] as $scope) {
+                $required[$scope] = $scope;
+            }
 
             $name = $message['params']['name'] ?? null;
             if ('tools/call' === $method && \is_string($name)) {
-                $required = [...$required, ...($this->tools[$name] ?? [])];
+                foreach ($this->tools[$name] ?? [] as $scope) {
+                    $required[$scope] = $scope;
+                }
             }
         }
 
-        return array_values(array_unique($required));
+        return array_values($required);
     }
 
     /**
@@ -128,13 +133,16 @@ final class ScopePolicy
      */
     private static function normalize(array $scopes): array
     {
+        $normalized = [];
         foreach ($scopes as $scope) {
             if (!\is_string($scope) || '' === trim($scope) || preg_match('/[\s"\\\\]/', $scope)) {
                 throw new InvalidArgumentException('Scopes must be non-empty strings without whitespace, quotes or backslashes.');
             }
+
+            $normalized[$scope] = $scope;
         }
 
-        return array_values(array_unique($scopes));
+        return array_values($normalized);
     }
 
     /**
