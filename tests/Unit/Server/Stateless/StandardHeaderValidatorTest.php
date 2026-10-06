@@ -291,6 +291,36 @@ class StandardHeaderValidatorTest extends TestCase
         ));
     }
 
+    #[TestDox('a mirrored header without its argument in the body is rejected')]
+    public function testMirroredHeaderWithoutArgumentIsRejected(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertStringContainsString('Mcp-Param-Retries header is present', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => []],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => '3'],
+        ));
+
+        $this->assertStringContainsString('Mcp-Param-Region header is present', (string) $validator->validate(
+            'tools/call',
+            ['name' => 'mirrored'],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Region' => 'us-west1'],
+        ));
+    }
+
+    #[TestDox('an unknown Mcp-Param header is ignored even without a matching argument')]
+    public function testUnknownParamHeaderIsIgnored(): void
+    {
+        $validator = new StandardHeaderValidator(self::registryWithMirroredTool());
+
+        $this->assertNull($validator->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => []],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Unknown' => 'x'],
+        ));
+    }
+
     private static function registryWithMirroredTool(): RegistryInterface
     {
         $registry = new Registry();
