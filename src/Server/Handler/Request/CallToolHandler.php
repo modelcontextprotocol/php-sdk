@@ -165,7 +165,7 @@ final class CallToolHandler implements RequestHandlerInterface
      * A tool declaring an `outputSchema` promises every `structuredContent` it sends
      * conforms to it, in every revision. A mismatch is the server's own bug, but it
      * is reported as a tool execution error rather than a protocol error so that the
-     * model sees it and can fall back to `content`.
+     * model sees what went wrong.
      *
      * @return CallToolResult|null the error result to send instead, or null when there is nothing to report
      */

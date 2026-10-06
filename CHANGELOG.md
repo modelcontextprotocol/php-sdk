@@ -6,7 +6,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
-* Add `Builder::setSchemaValidator()` to configure the validator used for `tools/call` input, e.g. with a resolver for external `$ref` schemas.
+* [BC Break] `SchemaValidator::validateAgainstJsonSchema()` no longer validates an empty array as an object. Pass `new \stdClass()` for an empty object.
+* Add `Builder::setSchemaValidator()` to configure the validator used for `tools/call` input and output, e.g. with a resolver for external `$ref` schemas.
 * [BC Break] Remove the `providerClass` argument of `#[CompletionProvider]`. Use `provider:`, which takes the same class-string and is now the first positional argument.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
@@ -14,7 +15,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
-* [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error.
+* [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error. Return `new \stdClass()` for an empty object, since `[]` is sent as an array.
 * Stop the server `Protocol` from logging full JSON-RPC payloads (tool arguments, client replies) at info level: info records now carry only the method and id, the raw message is logged at debug level.
 * Add `PassthroughMiddleware` to opt `StreamableHttpTransport` out of its default middleware without the warning an empty `$middleware` list logs.
 * Add `ElicitationSchema::getDefaults()`, returning the declared `default` of each field to accept a form elicitation with.
