@@ -15,6 +15,7 @@ use Mcp\Client;
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
@@ -87,8 +88,10 @@ final class HttpTransportTest extends TestCase
             }
         };
 
+        // The handshake era is what these servers speak, so no probe precedes it.
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
             ->setInitTimeout(1)
             ->build();
 
@@ -131,8 +134,10 @@ final class HttpTransportTest extends TestCase
 
         $this->assertNull($transport->getSessionId());
 
+        // The handshake era is what these servers speak, so no probe precedes it.
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
             ->setInitTimeout(1)
             ->build();
 
@@ -143,6 +148,110 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
 
         $this->assertNull($transport->getSessionId());
+    }
+
+    /**
+     * @return iterable<string, array{int, array<string, string>, string}>
+     */
+    public static function probeRefusalProvider(): iterable
+    {
+        yield 'a JSON-RPC error without an id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"Bad Request: Server not initialized"}}'];
+        yield 'an empty body' => [400, [], ''];
+        yield 'a plain-text body' => [404, ['Content-Type' => 'text/plain'], 'Not Found'];
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('probeRefusalProvider')]
+    #[TestDox('a handshake-era server refusing the probe with $_dataName is reached through the handshake at once')]
+    public function testRefusedProbeFallsBackWithoutWaiting(int $status, array $headers, string $body): void
+    {
+        $httpClient = new class($status, $headers, $body) implements ClientInterface {
+            /** @var list<string> */
+            public array $methods = [];
+
+            /**
+             * @param array<string, string> $headers
+             */
+            public function __construct(private readonly int $status, private readonly array $headers, private readonly string $body)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $decoded = json_decode((string) $request->getBody(), true);
+                $this->methods[] = $decoded['method'] ?? '';
+
+                if ('initialize' !== ($decoded['method'] ?? null)) {
+                    return 'server/discover' === ($decoded['method'] ?? null)
+                        ? new Response($this->status, $this->headers, $this->body)
+                        : new Response(202);
+                }
+
+                return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $decoded['id'],
+                    'result' => [
+                        'protocolVersion' => '2025-11-25',
+                        'capabilities' => new \stdClass(),
+                        'serverInfo' => ['name' => 'legacy-server', 'version' => '1.0.0'],
+                    ],
+                ]));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+            ->setInitTimeout(5)
+            ->build();
+
+        $started = microtime(true);
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertLessThan(1, microtime(true) - $started, 'the refusal must not be waited out like silence');
+        $this->assertSame(['server/discover', 'initialize', 'notifications/initialized'], $httpClient->methods);
+        $this->assertSame(ProtocolVersion::V2025_11_25, $client->getProtocolVersion());
+        $this->assertSame('legacy-server', $client->getServerInfo()?->name);
+    }
+
+    #[TestDox('a modern refusal under 400 is read as the modern error it is, not as a handshake-era server')]
+    public function testModernRefusalIsRead(): void
+    {
+        $httpClient = new class implements ClientInterface {
+            /** @var list<string> */
+            public array $methods = [];
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $decoded = json_decode((string) $request->getBody(), true);
+                $this->methods[] = $decoded['method'] ?? '';
+
+                return new Response(400, ['Content-Type' => 'application/json'], (string) json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $decoded['id'],
+                    'error' => ['code' => -32022, 'message' => 'Unsupported protocol version', 'data' => ['requested' => '2026-07-28', 'supported' => ['2099-01-01']]],
+                ]));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+            ->setInitTimeout(5)
+            ->setMaxRetries(0)
+            ->build();
+
+        try {
+            $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+            $this->fail('A modern server sharing no revision with the client must fail the connection.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('2099-01-01', $e->getMessage());
+        }
+
+        // A modern server: no fallback to a handshake it does not have.
+        $this->assertSame(['server/discover'], $httpClient->methods);
     }
 
     #[TestDox('SSE stream is aborted before the buffer can exceed the configured cap')]

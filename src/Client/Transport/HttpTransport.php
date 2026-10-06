@@ -205,6 +205,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
+        if ($response->getStatusCode() >= 400) {
+            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $response->getBody()->getContents());
+
+            return;
+        }
+
         if (str_contains($contentType, 'text/event-stream')) {
             // While listening, a request on the GET stream can be what this
             // response waits for, so neither stream may block the other.
@@ -229,6 +235,41 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $payload = json_decode($data, true);
 
         return \is_array($payload) && \array_key_exists('method', $payload) && !\array_key_exists('id', $payload);
+    }
+
+    /**
+     * Answers a request the server refused at the HTTP level.
+     *
+     * A JSON-RPC error correlated with the request is handled like any other
+     * answer. Anything else — an empty or non-JSON body, or an error without
+     * the request's id, which is how a server from before the modern era
+     * typically refuses a request it did not expect — is turned into an error
+     * for that request, so the caller learns of it now rather than at its
+     * timeout. That is what a probe for the modern era relies on to fall back.
+     */
+    private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
+    {
+        $request = json_decode($sent, true);
+        $requestId = \is_array($request) ? ($request['id'] ?? null) : null;
+        $answer = '' === trim($body) ? null : json_decode($body, true);
+
+        if (\is_array($answer) && \array_key_exists('id', $answer) && null !== $answer['id']) {
+            $this->handleMessage($body);
+
+            return;
+        }
+
+        if ((!\is_string($requestId) && !\is_int($requestId)) || null === $this->state) {
+            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => $body]);
+
+            return;
+        }
+
+        $error = \is_array($answer['error'] ?? null) && \is_int($answer['error']['code'] ?? null)
+            ? new Error($requestId, $answer['error']['code'], \is_string($answer['error']['message'] ?? null) ? $answer['error']['message'] : $reason, $answer['error']['data'] ?? null)
+            : Error::forInvalidRequest(\sprintf('Server answered with HTTP %d%s.', $status, '' !== $reason ? ' '.$reason : ''), $requestId);
+
+        $this->state->storeResponse($requestId, $error->jsonSerialize());
     }
 
     /**
