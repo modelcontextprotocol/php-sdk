@@ -133,6 +133,7 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token type is not accepted.');
         }
 
+        // php-jwt only reads leeway from a global static; the swap assumes the key fetch below does not suspend a fiber.
         $previousLeeway = JWT::$leeway;
         JWT::$leeway = $this->leeway;
 
