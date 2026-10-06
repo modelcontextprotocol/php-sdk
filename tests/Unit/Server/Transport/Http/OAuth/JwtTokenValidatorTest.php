@@ -17,6 +17,7 @@ use Firebase\JWT\Key;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -106,6 +107,28 @@ final class JwtTokenValidatorTest extends TestCase
         $result = $this->validator()->validate(JWT::encode($claims, self::$privateKey, 'RS256', 'kid-1'));
 
         $this->assertSame('Token has no expiration.', $result->getErrorDescription());
+    }
+
+    /**
+     * @param list<string> $errors php-jwt 7.x rejects "never" on decode, 6.x leaves it to the validator
+     */
+    #[DataProvider('provideNonNumericExpiration')]
+    public function testRejectsNonNumericExpiration(string $exp, array $errors): void
+    {
+        $result = $this->validator()->validate($this->signedWithoutEncodeChecks($this->claims(['exp' => $exp])));
+
+        $this->assertFalse($result->isAllowed());
+        $this->assertContains($result->getErrorDescription(), $errors);
+    }
+
+    /**
+     * @return iterable<string, array{string, list<string>}>
+     */
+    public static function provideNonNumericExpiration(): iterable
+    {
+        yield 'non-numeric string' => ['never', ['Token validation failed.', 'Token expiration is not a number.']];
+        // Passes php-jwt's is_numeric() check in every version, so only the validator rejects it.
+        yield 'numeric string' => [(string) (time() + 600), ['Token expiration is not a number.']];
     }
 
     public function testLeewayToleratesClockSkew(): void
@@ -336,6 +359,19 @@ final class JwtTokenValidatorTest extends TestCase
     private function token(array $claims, array $header = []): string
     {
         return JWT::encode($this->claims($claims), self::$privateKey, 'RS256', 'kid-1', $header);
+    }
+
+    /**
+     * Signs like JWT::encode(), which rejects non-numeric registered claims since php-jwt 7.1.
+     *
+     * @param array<string, mixed> $claims
+     */
+    private function signedWithoutEncodeChecks(array $claims): string
+    {
+        $message = JWT::urlsafeB64Encode(JWT::jsonEncode(['typ' => 'JWT', 'alg' => 'RS256', 'kid' => 'kid-1']))
+            .'.'.JWT::urlsafeB64Encode(JWT::jsonEncode($claims));
+
+        return $message.'.'.JWT::urlsafeB64Encode(JWT::sign($message, self::$privateKey, 'RS256'));
     }
 
     /**

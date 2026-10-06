@@ -158,6 +158,11 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token has no expiration.');
         }
 
+        // RFC 7519 NumericDate is a JSON number; php-jwt 6.x compares any other type loosely, so "exp": "never" never expires.
+        if (!\is_int($claims['exp']) && !\is_float($claims['exp'])) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token expiration is not a number.');
+        }
+
         if (($claims['iss'] ?? null) !== $this->issuer) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token issuer mismatch.');
         }
