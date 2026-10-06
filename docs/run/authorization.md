@@ -312,6 +312,19 @@ challenge a client steps up from. Use `$token->hasScope()` for decisions that de
 arguments beyond the tool name. With a `ScopePolicy`, the token's scopes include those implied by
 its hierarchy.
 
+## Authenticating Outside the SDK
+
+If your application or framework already authenticates the request, skip `AuthorizationMiddleware`
+and hand the result to the transport as the PSR-7 request attribute `AccessToken::class`. Both HTTP
+transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual:
+
+```php
+use Mcp\Server\Authorization\AccessToken;
+
+$request = $request->withAttribute(AccessToken::class, new AccessToken($scopes, $claims));
+$transport = new StreamableHttpTransport($request);
+```
+
 ## Custom Token Validators
 
 Implement `AuthorizationTokenValidatorInterface` for other token formats, e.g. opaque tokens

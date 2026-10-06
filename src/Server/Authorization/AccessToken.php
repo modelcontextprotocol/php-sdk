@@ -14,8 +14,10 @@ namespace Mcp\Server\Authorization;
 /**
  * The validated access token a request was authorized with.
  *
- * Set by the transport's authorization layer and exposed to handlers through
- * {@see \Mcp\Server\RequestContext::getAccessToken()}. It only lives for the
+ * The HTTP transports read it from the PSR-7 request attribute `AccessToken::class`
+ * and expose it to handlers through {@see \Mcp\Server\RequestContext::getAccessToken()}.
+ * {@see \Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware} sets that attribute;
+ * an application authenticating requests itself sets it instead. It only lives for the
  * request it arrived with: it is never written to a session store, so a
  * request without a token never inherits an earlier one.
  *
