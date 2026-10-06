@@ -221,12 +221,30 @@ class SchemaValidatorTest extends TestCase
     public function testHandlesEmptyDataObjectAgainstSchemaRequiringProperties(): void
     {
         $schema = $this->getSimpleSchema(); // Requires name, age etc.
-        $data = []; // Empty data
+        $data = new \stdClass(); // Empty data
 
         $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
 
         $this->assertNotEmpty($errors);
         $this->assertEquals('required', $errors[0]['keyword']);
+    }
+
+    public function testEmptyArrayValidatesAgainstArraySchema(): void
+    {
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema([], ['type' => 'array']));
+    }
+
+    public function testEmptyArrayIsNotAnObject(): void
+    {
+        $errors = $this->validator->validateAgainstJsonSchema([], ['type' => 'object']);
+
+        $this->assertNotEmpty($errors);
+        $this->assertSame('type', $errors[0]['keyword']);
+    }
+
+    public function testEmptyStdClassValidatesAgainstObjectSchema(): void
+    {
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema(new \stdClass(), ['type' => 'object']));
     }
 
     public function testHandlesEmptySchemaAllowsAnything(): void

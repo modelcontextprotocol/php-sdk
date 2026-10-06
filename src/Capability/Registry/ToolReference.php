@@ -116,6 +116,10 @@ class ToolReference extends ElementReference
                 return $this->acceptsScalarStructuredContent($objectOnly) ? $decoded : null;
             }
 
+            if ([] === $decoded && '{}' === $jsonResult) {
+                return new \stdClass();
+            }
+
             if ($objectOnly && array_is_list($decoded)) {
                 return null;
             }

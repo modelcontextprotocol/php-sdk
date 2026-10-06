@@ -29,6 +29,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
@@ -497,6 +498,17 @@ class RegistryTest extends TestCase
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
+    }
+
+    public function testExtractStructuredContentKeepsAnEmptyObjectAsAnObject(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'object']);
+        $this->registry->registerTool($tool, static fn () => new \stdClass());
+
+        $structuredContent = $this->registry->getTool('test_tool')->extractStructuredContent(new \stdClass());
+
+        $this->assertInstanceOf(\stdClass::class, $structuredContent);
+        $this->assertStringContainsString('"structuredContent":{}', json_encode(new CallToolResult([], structuredContent: $structuredContent)));
     }
 
     /**
