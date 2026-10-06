@@ -11,8 +11,10 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
+use Mcp\Client;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\StdioTransport;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -65,9 +67,30 @@ final class StdioTransportTest extends TestCase
 
         $this->setStdout($transport, $this->stream('{"a":1}'."\n".'{"b":2}'."\n"));
 
-        $this->invokeProcessInput($transport);
+        try {
+            $this->invokeProcessInput($transport);
+        } catch (ConnectionException) {
+            // The stream ends after these frames, which is reported once they
+            // have all been dispatched.
+        }
 
         $this->assertSame(['{"a":1}', '{"b":2}'], $messages);
+    }
+
+    #[TestDox('a server that exits fails the connection at once instead of timing out')]
+    public function testExitedServerFailsTheConnection(): void
+    {
+        $client = Client::builder()->setInitTimeout(10)->setMaxRetries(0)->build();
+        $started = microtime(true);
+
+        try {
+            $client->connect(new StdioTransport(command: \PHP_BINARY, args: ['-r', 'exit(1);']));
+            $this->fail('Connecting to a server that exits must fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('no longer running', $e->getMessage());
+        }
+
+        $this->assertLessThan(5, microtime(true) - $started);
     }
 
     #[TestDox('the buffer cap must be a positive number of bytes')]

@@ -120,7 +120,12 @@ class StdioTransport extends BaseTransport
             throw new ConnectionException('Process stdin not available');
         }
 
-        fwrite($this->stdin, $data."\n");
+        // Silenced: a server that has exited is reported as the connection
+        // failure it is, not as a broken-pipe warning.
+        if (false === @fwrite($this->stdin, $data."\n")) {
+            throw new ConnectionException('Could not write to the server process; it is no longer running.');
+        }
+
         fflush($this->stdin);
 
         $this->logger->debug('Sent message to server', ['data' => $data]);
@@ -269,6 +274,13 @@ class StdioTransport extends BaseTransport
             if (!empty($trimmed)) {
                 $this->handleMessage($trimmed);
             }
+        }
+
+        // Everything it wrote has been read, and it will write nothing more:
+        // whatever is still pending can only time out, so fail it now. That a
+        // server went away is never an answer about which era it speaks.
+        if (\is_resource($this->stdout) && feof($this->stdout)) {
+            throw new ConnectionException('The server process closed its output; it is no longer running.');
         }
     }
 
