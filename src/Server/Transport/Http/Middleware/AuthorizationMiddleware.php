@@ -131,6 +131,9 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             ->withHeader('WWW-Authenticate', 'Bearer '.implode(', ', $parts));
     }
 
+    /**
+     * The b64token of an `Authorization: Bearer` header (RFC 6750 §2.1), null if it has none or a malformed one.
+     */
     private function parseBearerToken(string $authorization): ?string
     {
         if (!preg_match('/^Bearer +([A-Za-z0-9\-._~+\/]+=*) *$/i', $authorization, $matches)) {
@@ -141,7 +144,8 @@ final class AuthorizationMiddleware implements MiddlewareInterface
     }
 
     /**
-     * Quoted-string per RFC 9110: no control characters, quotes and backslashes escaped.
+     * Quoted-string per RFC 9110 §5.6.4. Error descriptions come from validators, so control
+     * characters - CR and LF above all - are stripped to keep them from injecting headers.
      */
     private function escapeHeaderValue(string $value): string
     {
