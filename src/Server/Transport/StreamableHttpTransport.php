@@ -54,7 +54,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface
+class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface, InlineResponseTransportInterface
 {
     use ReadsBoundedBody;
 
@@ -76,6 +76,9 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
+
+    /** @var list<string> responses to the requests of the current POST, see {@see InlineResponseTransportInterface} */
+    private array $inlineResponses = [];
 
     /** @var list<MiddlewareInterface>|null null until {@see self::listen()} resolves the defaults */
     private ?array $middleware;
@@ -170,6 +173,12 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     public function send(string $data, array $context): void
     {
+        if (isset($context['session_id'])) {
+            $this->inlineResponses[] = $data;
+
+            return;
+        }
+
         $this->immediateResponse = $data;
         $this->immediateStatusCode = $context['status_code'] ?? 200;
     }
@@ -205,6 +214,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         $this->immediateStatusCode = null;
 
         if (null !== $immediateResponse) {
+            $this->inlineResponses = [];
+
             return $this->responseFactory->createResponse($immediateStatusCode ?? 200)
                 ->withHeader('Content-Type', 'application/json')
                 ->withBody($this->streamFactory->createStream($immediateResponse));
@@ -232,14 +243,14 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createJsonResponse(): ResponseInterface
     {
-        $outgoingMessages = $this->getOutgoingMessages($this->sessionId);
+        $messages = [...array_column($this->getOutgoingMessages($this->sessionId), 'message'), ...$this->inlineResponses];
+        $this->inlineResponses = [];
 
-        if (empty($outgoingMessages)) {
+        if ([] === $messages) {
             return $this->responseFactory->createResponse(202)
                 ->withHeader('Content-Type', 'application/json');
         }
 
-        $messages = array_column($outgoingMessages, 'message');
         $responseBody = 1 === \count($messages) ? $messages[0] : '['.implode(',', $messages).']';
 
         $response = $this->responseFactory->createResponse(200)
@@ -257,13 +268,24 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     {
         $fiber = $this->sessionFiber;
 
-        $callback = function () use ($fiber): void {
+        // The other requests of a batch whose handler did not suspend.
+        $inlineResponses = $this->inlineResponses;
+        $this->inlineResponses = [];
+
+        $callback = function () use ($fiber, $inlineResponses): void {
             if (null === $fiber) {
                 return;
             }
 
             try {
                 $this->logger->info('SSE: Starting request processing loop');
+
+                foreach ($inlineResponses as $message) {
+                    echo "event: message\n";
+                    echo "data: {$message}\n\n";
+                    @ob_flush();
+                    flush();
+                }
 
                 while ($fiber->isSuspended()) {
                     $this->flushOutgoingMessages($this->sessionId);

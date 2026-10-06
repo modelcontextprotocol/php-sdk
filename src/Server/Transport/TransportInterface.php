@@ -48,7 +48,8 @@ interface TransportInterface
     /**
      * Send a message to the client immediately (bypassing session queue).
      *
-     * Used for session resolution errors when no session is available.
+     * Used for session resolution errors when no session is available, and for
+     * every response on a {@see InlineResponseTransportInterface}.
      * The transport decides HOW to send based on context.
      *
      * @param array<string, mixed> $context Context about this message:

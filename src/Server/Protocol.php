@@ -32,6 +32,7 @@ use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Server\Transport\InlineResponseTransportInterface;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -488,7 +489,10 @@ class Protocol
      */
     private function sendResponse(TransportInterface $transport, Response|Error $response, ?SessionInterface $session, array $context = []): void
     {
-        if (null === $session) {
+        // Queued in the session, a response can be overwritten or taken by a concurrent
+        // request of the same session: a transport that can answer on the request's
+        // own exchange gets it directly.
+        if (null === $session || $transport instanceof InlineResponseTransportInterface) {
             $this->logger->info('Sending immediate response', [
                 'response_id' => $response->getId(),
             ]);
@@ -511,6 +515,10 @@ class Protocol
             }
 
             $context['type'] = 'response';
+            if (null !== $session) {
+                $context['session_id'] = $session->getId();
+            }
+
             $transport->send($encoded, $context);
         } else {
             $this->logger->info('Queueing server response', [
@@ -556,8 +564,12 @@ class Protocol
     {
         $session = $this->sessionManager->createWithId($sessionId);
         $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
-        $session->set(self::SESSION_OUTGOING_QUEUE, []);
-        $session->save();
+
+        // Saving an unchanged session would only overwrite what a concurrent request saved in the meantime.
+        if ([] !== $queue) {
+            $session->set(self::SESSION_OUTGOING_QUEUE, []);
+            $session->save();
+        }
 
         return $queue;
     }

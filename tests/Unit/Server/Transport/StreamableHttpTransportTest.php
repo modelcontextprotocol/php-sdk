@@ -13,13 +13,17 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Server\Transport\Fixture\InterleavingSessionStore;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Clock\ClockInterface;
@@ -461,6 +465,97 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertTrue($fiber->isTerminated());
         $this->assertInstanceOf(Error::class, $received);
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function provideInterleavings(): iterable
+    {
+        yield 'B runs between A saving its session and A answering' => [false];
+        yield 'B loaded the session before A saved it (lost update)' => [true];
+    }
+
+    #[TestDox('concurrent POSTs of one session each get their own response: $_dataName')]
+    #[DataProvider('provideInterleavings')]
+    public function testConcurrentPostsOfOneSessionEachGetTheirOwnResponse(bool $readBeforeWrite): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $responseB = null;
+        $store->interleaveOnNextWrite(function () use ($store, $sessionId, &$responseB): void {
+            $responseB = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"text":"b"}}}', $sessionId);
+        }, $readBeforeWrite);
+
+        $responseA = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', $sessionId);
+
+        $this->assertInstanceOf(ResponseInterface::class, $responseB);
+        foreach ([2 => $responseA, 3 => $responseB] as $id => $response) {
+            $this->assertSame(200, $response->getStatusCode(), \sprintf('Request %d was answered %d.', $id, $response->getStatusCode()));
+            $this->assertSame($sessionId, $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER));
+            $this->assertSame($id, json_decode((string) $response->getBody(), true)['id'] ?? null, \sprintf('Request %d got: %s', $id, $response->getBody()));
+        }
+    }
+
+    #[TestDox('a batch streamed over SSE still carries the responses that did not suspend')]
+    public function testStreamedBatchCarriesInlineResponses(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $response = $this->post($store, '[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"progress","arguments":{},"_meta":{"progressToken":"p"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', $sessionId);
+
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+
+        // The stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertMatchesRegularExpression('/"id":3,"result".*"progressToken":"p".*"id":2,"result"/s', $output);
+    }
+
+    /**
+     * Sends one POST to a fresh server sharing $store, like a PHP worker would.
+     */
+    private function post(InterleavingSessionStore $store, string $body, string $sessionId = ''): ResponseInterface
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream($body));
+
+        if ('' !== $sessionId) {
+            $request = $request
+                ->withHeader(StreamableHttpTransport::SESSION_HEADER, $sessionId)
+                ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, '2025-06-18');
+        }
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0')
+            ->setSession($store)
+            ->addTool(static fn (string $text): string => $text, 'echo')
+            ->addTool(static function (RequestContext $context): string {
+                $context->getClientGateway()->progress(0.5);
+
+                return 'done';
+            }, 'progress')
+            ->build();
+
+        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
     }
 
     private function stubAuth401(): MiddlewareInterface
