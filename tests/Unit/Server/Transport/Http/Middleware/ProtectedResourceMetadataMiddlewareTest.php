@@ -35,6 +35,21 @@ final class ProtectedResourceMetadataMiddlewareTest extends MiddlewareTestCase
         $this->assertSame(['https://auth.example.com'], $payload['authorization_servers']);
     }
 
+    public function testResourceQueryDecidesWhichMetadataIsServed(): void
+    {
+        $middleware = new ProtectedResourceMetadataMiddleware(
+            new ProtectedResourceMetadata('https://mcp.example.com/mcp?tenant=a', ['https://auth.example.com']),
+            $this->factory,
+            $this->factory,
+        );
+
+        $served = $middleware->process($this->factory->createServerRequest('GET', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp?tenant=a'), $this->handlerReturning(404));
+        $other = $middleware->process($this->factory->createServerRequest('GET', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp?tenant=b'), $this->handlerReturning(404));
+
+        $this->assertSame(200, $served->getStatusCode());
+        $this->assertSame(404, $other->getStatusCode());
+    }
+
     /**
      * @return iterable<string, array{string, string}>
      */

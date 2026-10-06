@@ -53,6 +53,7 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'trailing slash' => ['https://mcp.example.com/', '/.well-known/oauth-protected-resource', 'https://mcp.example.com/.well-known/oauth-protected-resource'];
         yield 'path' => ['https://mcp.example.com/mcp', '/.well-known/oauth-protected-resource/mcp', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'];
         yield 'port' => ['http://localhost:8000/mcp', '/.well-known/oauth-protected-resource/mcp', 'http://localhost:8000/.well-known/oauth-protected-resource/mcp'];
+        yield 'query' => ['https://mcp.example.com/mcp?tenant=a', '/.well-known/oauth-protected-resource/mcp', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp?tenant=a'];
     }
 
     #[DataProvider('provideResources')]

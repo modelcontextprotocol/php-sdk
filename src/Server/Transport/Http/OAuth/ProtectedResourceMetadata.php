@@ -18,7 +18,7 @@ use Mcp\Exception\InvalidArgumentException;
  *
  * The resource identifier is the canonical URI of the MCP server. It decides
  * where the metadata is served — `/.well-known/oauth-protected-resource`
- * followed by the resource's path (RFC 9728, Section 3.1) — and which URL the
+ * followed by the resource's path and query (RFC 9728, Section 3.1) — and which URL the
  * `WWW-Authenticate` challenge points clients to.
  *
  * @see https://datatracker.ietf.org/doc/html/rfc9728
@@ -58,7 +58,7 @@ final class ProtectedResourceMetadata implements \JsonSerializable
         $authority = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
         $path = rtrim($parts['path'] ?? '', '/');
         $this->metadataPath = self::WELL_KNOWN_PATH.$path;
-        $this->metadataUrl = $authority.$this->metadataPath;
+        $this->metadataUrl = $authority.$this->metadataPath.(isset($parts['query']) ? '?'.$parts['query'] : '');
 
         foreach ($authorizationServers as $issuer) {
             SecureUrl::parse($issuer, 'authorization server');
@@ -83,7 +83,7 @@ final class ProtectedResourceMetadata implements \JsonSerializable
     }
 
     /**
-     * Path the metadata document is served at.
+     * Path the metadata document is served at; a query of the resource is kept in {@see self::getMetadataUrl()}.
      */
     public function getMetadataPath(): string
     {
