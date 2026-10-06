@@ -153,6 +153,28 @@ final class StatelessProtocol
      */
     public function handle(string $body, array $headers = []): StatelessResult
     {
+        return $this->answer($body, $headers, true);
+    }
+
+    /**
+     * Answers one JSON-RPC message read off a transport without a header layer.
+     *
+     * stdio carries the request metadata inline (see the stdio binding's
+     * "Request Metadata"), so there is no header to require or cross-check, and
+     * its one channel always carries a request's notifications. A long-lived
+     * stream is left for the caller to pace, since it interleaves it with
+     * everything else arriving on that channel.
+     */
+    public function handleInline(string $message): StatelessResult
+    {
+        return $this->answer($message, [], false);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function answer(string $body, array $headers, bool $headerLayer): StatelessResult
+    {
         try {
             /** @var array<string, mixed>|null $decoded */
             $decoded = json_decode($body, true, flags: \JSON_THROW_ON_ERROR);
@@ -207,13 +229,13 @@ final class StatelessProtocol
             return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
         }
 
-        if (null !== $versionError = $this->checkVersion($meta, $headers, $id)) {
+        if (null !== $versionError = $this->checkVersion($meta, $headers, $id, $headerLayer)) {
             return $versionError;
         }
 
         // After the version check: a peer on the wrong revision has a more
         // fundamental problem than headers that disagree with its body.
-        if (null !== $headerError = $this->headerValidator?->validate($method, $params, $headers)) {
+        if ($headerLayer && null !== $headerError = $this->headerValidator?->validate($method, $params, $headers)) {
             return StatelessResult::error(Error::forHeaderMismatch($headerError, $id), 400);
         }
 
@@ -222,7 +244,7 @@ final class StatelessProtocol
                 return $this->encode($method, $id, $this->discover());
             }
 
-            return $this->listen($params, $id);
+            return $this->listen($params, $id, $headerLayer);
         }
 
         if (\in_array($method, self::REMOVED_METHODS, true)) {
@@ -232,7 +254,7 @@ final class StatelessProtocol
             );
         }
 
-        return $this->dispatch($method, $decoded, $meta, $id, self::acceptsEventStream($headers));
+        return $this->dispatch($method, $decoded, $meta, $id, !$headerLayer || self::acceptsEventStream($headers));
     }
 
     /**
@@ -265,14 +287,14 @@ final class StatelessProtocol
      *
      * @param array<string, string> $headers
      */
-    private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id): ?StatelessResult
+    private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id, bool $headerLayer = true): ?StatelessResult
     {
         $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
 
         // REQUIRED on every POST. The 2025-03-26 fallback for a header-less
         // request exists only for servers choosing to serve pre-2025-06-18
         // clients, which a modern-only endpoint is not.
-        if (null === $headerVersion && $this->requiresTransportHeaders()) {
+        if (null === $headerVersion && $headerLayer && $this->requiresTransportHeaders()) {
             return StatelessResult::error(
                 Error::forHeaderMismatch(
                     \sprintf('Missing required MCP-Protocol-Version header (_meta declares "%s").', $meta->protocolVersion),
@@ -305,8 +327,10 @@ final class StatelessProtocol
      * JSON-RPC id of this request, so there is none to mint.
      *
      * @param array<string, mixed>|null $params
+     * @param bool                      $paced  whether the stream sleeps between polls itself, or its consumer
+     *                                          paces it by how often it asks for the next frame
      */
-    private function listen(?array $params, string|int $id): StatelessResult
+    private function listen(?array $params, string|int $id, bool $paced = true): StatelessResult
     {
         $notifications = \is_array($params['notifications'] ?? null) ? $params['notifications'] : null;
         $agreed = NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
@@ -315,7 +339,7 @@ final class StatelessProtocol
         $bus = $this->notificationBus;
         $codec = $this->codec;
 
-        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec): \Generator {
+        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec, $paced): \Generator {
             // MUST be the first message carrying this subscription's id, and
             // MUST precede any notification on it.
             yield [
@@ -349,6 +373,10 @@ final class StatelessProtocol
                 }
 
                 yield null;
+
+                if (!$paced) {
+                    continue;
+                }
 
                 if (connection_aborted()) {
                     return;
