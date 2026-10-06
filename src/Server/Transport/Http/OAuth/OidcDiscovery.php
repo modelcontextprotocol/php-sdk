@@ -25,7 +25,9 @@ use Psr\Http\Message\RequestFactoryInterface;
  *
  * Tries OAuth 2.0 Authorization Server Metadata (RFC 8414) before OpenID Connect
  * Discovery, accepts a document only when its `issuer` matches verbatim, and
- * requires https for both the issuer and the JWKS URI.
+ * requires https for both the issuer and the JWKS URI. A failed discovery is
+ * remembered briefly, so tokens arriving while the authorization server is down
+ * do not each trigger outbound requests.
  *
  * @internal used by {@see JwtTokenValidator::fromIssuer()}
  *
@@ -37,6 +39,7 @@ use Psr\Http\Message\RequestFactoryInterface;
 final class OidcDiscovery
 {
     private const CACHE_KEY_PREFIX = 'mcp_oidc_jwks_uri_';
+    private const FAILURE_TTL = 10;
 
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
@@ -58,11 +61,24 @@ final class OidcDiscovery
     public function getJwksUri(string $issuer): string
     {
         $item = $this->cache->getItem(self::CACHE_KEY_PREFIX.hash('sha256', $issuer));
-        if ($item->isHit() && \is_string($cached = $item->get())) {
-            return $cached;
+        if ($item->isHit()) {
+            $cached = $item->get();
+            if (\is_string($cached)) {
+                return $cached;
+            }
+
+            if (false === $cached) {
+                throw new RuntimeException(\sprintf('Discovery for issuer %s failed recently, retrying after a short backoff.', $issuer));
+            }
         }
 
-        $jwksUri = $this->discover($issuer);
+        try {
+            $jwksUri = $this->discover($issuer);
+        } catch (RuntimeException $e) {
+            $this->cache->save($item->set(false)->expiresAfter(self::FAILURE_TTL));
+
+            throw $e;
+        }
 
         $this->cache->save($item->set($jwksUri)->expiresAfter($this->cacheTtl));
 

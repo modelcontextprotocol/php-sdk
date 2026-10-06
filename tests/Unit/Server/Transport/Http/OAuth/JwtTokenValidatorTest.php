@@ -281,6 +281,36 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
+    public function testFromIssuerBacksOffAfterFailedDiscovery(): void
+    {
+        $factory = new Psr17Factory();
+        $requested = new \ArrayObject();
+        $client = new class($requested) implements ClientInterface {
+            /** @param \ArrayObject<int, string> $requested */
+            public function __construct(private \ArrayObject $requested)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->requested[] = (string) $request->getUri();
+
+                throw new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {};
+            }
+        };
+
+        $cache = new ArrayAdapter();
+        JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory)->validate($this->token([]));
+        $this->assertCount(2, $requested);
+
+        // A new validator, as in the next PHP-FPM request, shares only the cache.
+        $result = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory)->validate($this->token([]));
+
+        $this->assertCount(2, $requested);
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
     public function testFromIssuerRejectsInsecureIssuer(): void
     {
         $this->expectException(InvalidArgumentException::class);

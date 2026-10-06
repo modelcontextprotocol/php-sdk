@@ -90,6 +90,27 @@ final class OidcDiscoveryTest extends TestCase
         (new OidcDiscovery(new ArrayAdapter(), $this->client([]), new Psr17Factory()))->getJwksUri('https://auth.example.com');
     }
 
+    public function testCachesFailureBriefly(): void
+    {
+        $client = $this->client([]);
+        $cache = new ArrayAdapter();
+
+        try {
+            (new OidcDiscovery($cache, $client, new Psr17Factory()))->getJwksUri('https://auth.example.com');
+            $this->fail('Discovery should have failed.');
+        } catch (RuntimeException) {
+        }
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Discovery for issuer https://auth.example.com failed recently');
+
+        try {
+            (new OidcDiscovery($cache, $client, new Psr17Factory()))->getJwksUri('https://auth.example.com');
+        } finally {
+            $this->assertCount(2, $client->requested);
+        }
+    }
+
     /**
      * @param array<string, array<string, mixed>> $documents
      *

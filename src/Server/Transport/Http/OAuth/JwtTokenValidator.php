@@ -79,7 +79,8 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      * Builds a validator that discovers the issuer's JWKS URI and caches its keys.
      *
      * Discovery happens on the first token, so an unreachable authorization server
-     * does not break building the validator. Keys are refetched, rate limited, when a
+     * does not break building the validator; a failed discovery is cached for a few
+     * seconds, rejecting tokens without retrying. Keys are refetched, rate limited, when a
      * token names an unknown key id, so key rotation does not lock clients out until
      * the cache expires. Issuer and JWKS URI must use https, unless they point to a
      * loopback host.
