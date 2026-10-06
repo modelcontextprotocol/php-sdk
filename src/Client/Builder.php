@@ -35,6 +35,7 @@ final class Builder
     private ?string $description = null;
     private ?string $title = null;
     private ?ProtocolVersion $protocolVersion = null;
+    private ?ProtocolVersion $fallbackProtocolVersion = ProtocolVersion::V2025_11_25;
     private ?ClientCapabilities $capabilities = null;
 
     /** @var array<string, array<string, mixed>> */
@@ -66,11 +67,30 @@ final class Builder
     }
 
     /**
-     * Set the protocol version to use.
+     * Set the protocol version the client prefers.
+     *
+     * Defaults to 2026-07-28. A modern revision is probed for with
+     * `server/discover` and falls back to the `initialize` handshake when the
+     * server turns out not to speak it, see {@see self::setFallbackProtocolVersion()};
+     * a handshake revision skips the probe and opens with the handshake.
      */
     public function setProtocolVersion(ProtocolVersion $protocolVersion): self
     {
         $this->protocolVersion = $protocolVersion;
+
+        return $this;
+    }
+
+    /**
+     * Set the handshake revision a modern client falls back to when the server
+     * does not speak the modern era. Defaults to 2025-11-25.
+     *
+     * Null makes the client modern-only: a server without the modern era then
+     * fails the connection instead.
+     */
+    public function setFallbackProtocolVersion(?ProtocolVersion $protocolVersion): self
+    {
+        $this->fallbackProtocolVersion = $protocolVersion;
 
         return $this;
     }
@@ -202,6 +222,7 @@ final class Builder
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,
             maxRetries: $this->maxRetries,
+            fallbackProtocolVersion: $this->fallbackProtocolVersion,
         );
 
         $protocol = new Protocol(
