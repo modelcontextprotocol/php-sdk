@@ -309,7 +309,8 @@ public function whoami(RequestContext $context): array
 
 Prefer a `ScopePolicy` over scope checks in handlers: only the middleware can answer with the 403
 challenge a client steps up from. Use `$token->hasScope()` for decisions that depend on the
-arguments beyond the tool name.
+arguments beyond the tool name. With a `ScopePolicy`, the token's scopes include those implied by
+its hierarchy.
 
 ## Custom Token Validators
 

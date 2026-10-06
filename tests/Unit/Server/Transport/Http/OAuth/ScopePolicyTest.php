@@ -93,6 +93,7 @@ final class ScopePolicyTest extends TestCase
         $this->assertTrue($policy->isSatisfied(['files:read', 'files:write'], ['files:admin']));
         $this->assertFalse($policy->isSatisfied(['files:admin'], ['files:write']));
         $this->assertTrue($policy->isSatisfied(['loop'], ['loop']));
+        $this->assertSame(['files:admin', 'files:write', 'files:read'], $policy->expand(['files:admin']));
     }
 
     public function testRejectsInvalidScopes(): void

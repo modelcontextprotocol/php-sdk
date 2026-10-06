@@ -118,6 +118,21 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         $this->assertStringContainsString('scope="mcp:read files:write"', $response->getHeaderLine('WWW-Authenticate'));
     }
 
+    public function testHandedOnTokenIncludesImpliedScopes(): void
+    {
+        $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['files:admin'], ['sub' => 'user-1']))), new ScopePolicy(
+            implies: ['files:admin' => ['files:write']],
+        ));
+        $handler = $this->capturingHandler();
+
+        $middleware->process($this->request('Bearer abc'), $handler);
+
+        $token = $handler->request?->getAttribute(AccessToken::class);
+        $this->assertInstanceOf(AccessToken::class, $token);
+        $this->assertTrue($token->hasScope('files:write'));
+        $this->assertSame('user-1', $token->getSubject());
+    }
+
     public function testBodyIsHandedOnUnchanged(): void
     {
         $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['files:admin']))), new ScopePolicy(

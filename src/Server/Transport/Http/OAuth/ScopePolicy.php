@@ -105,6 +105,18 @@ final class ScopePolicy
      */
     public function isSatisfied(array $required, array $granted): bool
     {
+        return [] === array_diff($required, $this->expand($granted));
+    }
+
+    /**
+     * The granted scopes plus all scopes they imply through the hierarchy.
+     *
+     * @param list<string> $granted
+     *
+     * @return list<string>
+     */
+    public function expand(array $granted): array
+    {
         $effective = [];
         $pending = $granted;
 
@@ -113,17 +125,11 @@ final class ScopePolicy
                 continue;
             }
 
-            $effective[$scope] = true;
+            $effective[$scope] = $scope;
             array_push($pending, ...($this->implies[$scope] ?? []));
         }
 
-        foreach ($required as $scope) {
-            if (!isset($effective[$scope])) {
-                return false;
-            }
-        }
-
-        return true;
+        return array_values($effective);
     }
 
     /**
