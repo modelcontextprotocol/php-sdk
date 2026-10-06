@@ -13,6 +13,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
+* Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
 
 0.8.0
 -----
