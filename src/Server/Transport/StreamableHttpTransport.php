@@ -81,8 +81,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
      * A non-null `$middleware` list replaces {@see self::defaultMiddleware()}.
      * An empty list is treated as a likely mistake and logs a warning on every
      * request. When the host application already handles CORS and host
-     * validation, opt out explicitly with a middleware that only calls
-     * `$handler->handle($request)`.
+     * validation, opt out explicitly with `[new PassthroughMiddleware()]`.
      *
      * @param iterable<MiddlewareInterface>|null $middleware `null` installs {@see self::defaultMiddleware()}; `[]` disables them and logs a warning
      */
@@ -114,7 +113,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         } else {
             $this->middleware = self::normalizeMiddleware($middleware);
             if ([] === $this->middleware) {
-                $this->logger->warning('Streamable HTTP transport started with an empty middleware list. Default security protections (CORS, DNS rebinding, protocol version validation) are disabled. Pass null (or omit the argument) to use the secure defaults, or include them via [...StreamableHttpTransport::defaultMiddleware(), $yourMiddleware].');
+                $this->logger->warning('Streamable HTTP transport started with an empty middleware list, so the default CORS and DNS rebinding protections are disabled. Pass null (or omit the argument) to use them, or include them via [...StreamableHttpTransport::defaultMiddleware(), $yourMiddleware]. If the host application already provides them, pass [new PassthroughMiddleware()] to opt out without this warning.');
             }
 
             // Custom middleware runs before the request's era is classified, so a

@@ -261,26 +261,16 @@ $transport = new StreamableHttpTransport(
 
 ### Opting Out of All Middleware
 
-When the surrounding application already handles CORS and host validation, pass a middleware that only hands the
-request to the next handler:
+When the surrounding application already handles CORS and host validation, pass `PassthroughMiddleware`. It hands
+every request to the next handler unchanged:
 
 ```php
-use Psr\Http\Message\ResponseInterface;
-use Psr\Http\Message\ServerRequestInterface;
-use Psr\Http\Server\MiddlewareInterface;
-use Psr\Http\Server\RequestHandlerInterface;
-
-final class PassThroughMiddleware implements MiddlewareInterface
-{
-    public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
-    {
-        return $handler->handle($request);
-    }
-}
+use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
 
 $transport = new StreamableHttpTransport(
     $request,
-    middleware: [new PassThroughMiddleware()],
+    middleware: [new PassthroughMiddleware()],
 );
 ```
 
