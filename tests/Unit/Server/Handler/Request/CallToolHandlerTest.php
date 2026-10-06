@@ -844,6 +844,65 @@ class CallToolHandlerTest extends TestCase
         $this->assertStringContainsString('"structuredContent":{}', json_encode($response->result));
     }
 
+    public function testSelfBuiltJsonSerializableStructuredContentIsValidatedAsSent(): void
+    {
+        $structuredContent = new class(22.5) implements \JsonSerializable {
+            public function __construct(private float $temperature)
+            {
+            }
+
+            public function jsonSerialize(): array
+            {
+                return ['temperature' => $this->temperature, 'conditions' => 'sunny'];
+            }
+        };
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, $structuredContent);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError, $this->firstText($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"conditions":"sunny"}', json_encode($response->result));
+    }
+
+    public function testNestedEmptyObjectIsValidatedAndSentAsAnObject(): void
+    {
+        $result = new class {
+            public float $temperature = 22.5;
+            public \stdClass $meta;
+
+            public function __construct()
+            {
+                $this->meta = new \stdClass();
+            }
+        };
+        $outputSchema = [
+            'type' => 'object',
+            'properties' => [
+                'temperature' => ['type' => 'number'],
+                'meta' => ['type' => 'object'],
+            ],
+            'required' => ['temperature', 'meta'],
+        ];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $result, $outputSchema);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($result);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":22.5,"meta":{}}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError, $this->firstText($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"meta":{}}', json_encode($response->result));
+    }
+
     private function firstText(CallToolResult $result): string
     {
         $content = $result->content[0];
