@@ -15,6 +15,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
@@ -120,6 +121,31 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
+    }
+
+    #[TestDox('pass-through middleware disables defaults without a warning log')]
+    public function testPassthroughMiddlewareDisablesDefaultsWithoutWarning(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'evil.example.com')
+            ->withHeader('Origin', 'http://evil.example.com');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('warning');
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            $logger,
+            [new PassthroughMiddleware()],
+        );
+
+        $response = $transport->listen();
+
+        $this->assertNotSame(403, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
     }
 
     #[TestDox('explicit empty middleware list disables defaults and emits a warning log')]
