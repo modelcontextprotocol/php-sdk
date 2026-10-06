@@ -61,30 +61,39 @@ $client = Client::builder()
 
 ### Protocol Version
 
-Specify the MCP protocol version to speak (defaults to `V2026_07_28`, which skips the `initialize` handshake and opens
-with `server/discover`). Choose a handshake revision to reach servers that only speak `2025-11-25` or earlier:
+A client speaks both protocol eras by default. It prefers `2026-07-28`, probes for it with `server/discover` when
+connecting, and falls back to the `initialize` handshake on `2025-11-25` when the server turns out not to speak it.
+Use `$client->getProtocolVersion()` after connecting to read what the connection settled on.
 
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
 
 $client = Client::builder()
+    // Fall back to an older handshake revision instead of 2025-11-25…
+    ->setFallbackProtocolVersion(ProtocolVersion::V2025_06_18)
+    // …or not at all, refusing servers without the modern era.
+    ->setFallbackProtocolVersion(null)
+    ->build();
+```
+
+Passing a handshake revision to `setProtocolVersion()` skips the probe and opens with `initialize`, the way a client
+from before the modern era would:
+
+```php
+$client = Client::builder()
     ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->build();
 ```
 
-This is an offer, not a demand. A server that does not support the requested revision counter-offers one it does, as
-described in the specification's
+The handshake is an offer, not a demand. A server that does not support the requested revision counter-offers one it
+does, as described in the specification's
 [protocol version negotiation](https://modelcontextprotocol.io/specification/latest/basic/versioning#protocol-version-negotiation)
 section. The client accepts any counter-offer it knows about and continues on that revision; a counter-offer the SDK
 cannot speak fails the handshake with a `ConnectionException` rather than continuing on a revision neither side agreed
-on. Use `$client->getProtocolVersion()` after connecting to read what was actually negotiated.
+on.
 
-Setting a modern revision such as `2026-07-28` selects the other lifecycle rather than making an offer: there is no
-`initialize` to negotiate with, so `connect()` sends none and every request carries its own revision instead. Nothing
-else about the client API changes. See [Clients on this revision](../protocol-versions.md) for what happens underneath.
-
-See [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for the server side of the
-exchange.
+See [Protocol versions](../protocol-versions.md#how-the-client-settles-on-an-era) for how the probe is read, and
+[the handshake era](../protocol-versions.md#negotiating-in-the-handshake-era) for the server side of the exchange.
 
 ### Capabilities
 

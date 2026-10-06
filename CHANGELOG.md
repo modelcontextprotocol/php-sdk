@@ -14,7 +14,11 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
-* [BC Break] Bump the client's default protocol version to `2026-07-28`. Call `Builder::setProtocolVersion(ProtocolVersion::V2025_11_25)` to keep the `initialize` handshake.
+* [BC Break] Bump the client's default protocol version to `2026-07-28`: `connect()` probes with `server/discover` and falls back to the `initialize` handshake on `2025-11-25` when the server does not speak the modern era. `Builder::setFallbackProtocolVersion()` picks the fallback revision, or `null` for a modern-only client; `Builder::setProtocolVersion(ProtocolVersion::V2025_11_25)` skips the probe.
+* Serve both protocol eras over stdio: `StdioTransport` settles the era on the client's first request and serves `2026-07-28` requests, `subscriptions/listen` and `notifications/cancelled` on the one channel.
+* On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
+* Answer a bare `initialize` on a `2026-07-28`-only endpoint with `-32022` naming the served revisions, and a request without a session on the handshake leg with its id.
+* Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
 * [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error.
 
 0.8.0
