@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Integration;
 
+use Mcp\Exception\ConnectionException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -24,30 +25,30 @@ final class HandshakeTest extends IntegrationTestCase
 {
     #[TestDox('client and server agree on a revision')]
     #[DataProvider('provideNegotiations')]
-    public function testNegotiatedVersion(?ProtocolVersion $clientVersion, ?ProtocolVersion $serverVersion, ProtocolVersion $expected): void
+    public function testNegotiatedVersion(?ProtocolVersion $clientVersion, ?ProtocolVersion $serverVersion, ProtocolVersion $expected, bool $handshakeOnly = false, ?ProtocolVersion $fallback = null): void
     {
         $client = $this->clientBuilder();
+
         if (null !== $clientVersion) {
             $client->setProtocolVersion($clientVersion);
         }
 
-        $connected = $this->connect(
-            'handshake',
-            $client,
-            null !== $serverVersion ? ['MCP_INTEGRATION_PROTOCOL_VERSION' => $serverVersion->value] : [],
-        );
+        if (null !== $fallback) {
+            $client->setFallbackProtocolVersion($fallback);
+        }
+
+        $connected = $this->connect('handshake', $client, self::environment($serverVersion, $handshakeOnly));
 
         $this->assertSame($expected, $connected->getProtocolVersion());
     }
 
     /**
-     * @return iterable<string, array{?ProtocolVersion, ?ProtocolVersion, ProtocolVersion}>
+     * @return iterable<string, array{0: ?ProtocolVersion, 1: ?ProtocolVersion, 2: ProtocolVersion, 3?: bool, 4?: ProtocolVersion}>
      */
     public static function provideNegotiations(): iterable
     {
-        $latest = ProtocolVersion::latestHandshake();
-
-        yield 'both unconfigured' => [null, null, $latest];
+        // Both ends speak both eras, so they settle on the modern one.
+        yield 'both unconfigured' => [null, null, ProtocolVersion::V2026_07_28];
 
         // Whichever end of the supported range it sits at.
         foreach (ProtocolVersion::handshakeVersions() as $version) {
@@ -59,27 +60,86 @@ final class HandshakeTest extends IntegrationTestCase
         yield 'server pins a newer revision' => [ProtocolVersion::V2024_11_05, ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25];
         yield 'both pin the same revision' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18, ProtocolVersion::V2025_06_18];
 
-        // A modern client does not negotiate at all: it skips the handshake and
-        // states its revision on every request, so what it was configured with
-        // is what it reports. This server never answers `server/discover`, so
-        // there is nothing to reconcile against either.
         yield 'client configured modern' => [ProtocolVersion::V2026_07_28, null, ProtocolVersion::V2026_07_28];
         yield 'both configured modern' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2026_07_28, ProtocolVersion::V2026_07_28];
 
         // The server end still falls back: a handshake-era client offered a
         // revision, and `initialize` cannot answer with a modern one.
         yield 'server configured modern' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_06_18];
+
+        // A server from before the modern era refuses the probe, and the
+        // client takes the handshake instead.
+        yield 'server without the modern era' => [null, null, ProtocolVersion::V2025_11_25, true];
+        yield 'server without the modern era, client falling back further' => [null, null, ProtocolVersion::V2025_06_18, true, ProtocolVersion::V2025_06_18];
+        yield 'server without the modern era pinning a revision' => [null, ProtocolVersion::V2025_03_26, ProtocolVersion::V2025_03_26, true];
     }
 
-    #[TestDox('the handshake carries the server identity to the client')]
-    public function testServerInfoIsExchanged(): void
+    #[TestDox('falling back to the handshake costs a refusal, not a timeout')]
+    public function testFallbackDoesNotWaitOutTheProbe(): void
     {
-        $client = $this->connect('handshake');
+        $started = microtime(true);
+        $client = $this->connect('handshake', null, self::environment(null, true));
 
+        $this->assertSame(ProtocolVersion::V2025_11_25, $client->getProtocolVersion());
+        // Well under the five seconds the probe would otherwise be waited for.
+        $this->assertLessThan(3, microtime(true) - $started);
+    }
+
+    #[TestDox('a modern-only client refuses a server without the modern era')]
+    public function testModernOnlyClientRefusesAHandshakeOnlyServer(): void
+    {
+        $client = $this->clientBuilder()->setFallbackProtocolVersion(null)->setMaxRetries(0)->build();
+
+        try {
+            $client->connect($this->transport('handshake', self::environment(null, true)));
+            $this->fail('A modern-only client must not connect to a server without the modern era.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('without a handshake fallback', $e->getMessage());
+        } finally {
+            $client->disconnect();
+        }
+    }
+
+    #[TestDox('the server identity reaches the client on $_dataName')]
+    #[DataProvider('provideEras')]
+    public function testServerInfoIsExchanged(ProtocolVersion $era): void
+    {
+        $client = $this->connect('handshake', $this->clientBuilder()->setProtocolVersion($era));
+
+        $this->assertSame($era, $client->getProtocolVersion());
         $this->assertSame('integration-server', $client->getServerInfo()->name);
         $this->assertSame('1.0.0', $client->getServerInfo()->version);
         $this->assertSame('Be brief.', $client->getInstructions());
         $this->assertTrue($client->isConnected());
+    }
+
+    #[TestDox('a liveness check works on $_dataName')]
+    #[DataProvider('provideEras')]
+    public function testPing(ProtocolVersion $era): void
+    {
+        $client = $this->connect('handshake', $this->clientBuilder()->setProtocolVersion($era));
+
+        $client->ping();
+
+        $this->assertTrue($client->isConnected());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private static function environment(?ProtocolVersion $serverVersion, bool $handshakeOnly): array
+    {
+        $env = [];
+
+        if (null !== $serverVersion) {
+            $env['MCP_INTEGRATION_PROTOCOL_VERSION'] = $serverVersion->value;
+        }
+
+        if ($handshakeOnly) {
+            $env['MCP_INTEGRATION_HANDSHAKE_ONLY'] = '1';
+        }
+
+        return $env;
     }
 
     #[TestDox('the negotiated revision is unset before the handshake')]

@@ -14,7 +14,9 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\LoggingLevel;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Notification\LoggingMessageNotification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
@@ -28,9 +30,11 @@ use PHPUnit\Framework\Attributes\TestDox;
 final class NotificationTest extends IntegrationTestCase
 {
     #[TestDox('progress notifications reach the callback passed to callTool()')]
-    public function testProgressReachesTheCaller(): void
+    #[DataProvider('provideEras')]
+    public function testProgressReachesTheCaller(ProtocolVersion $era): void
     {
-        $client = $this->connect('notification');
+        $client = $this->connect('notification', $this->clientBuilder()->setProtocolVersion($era));
+        $this->assertSame($era, $client->getProtocolVersion());
 
         $updates = [];
         $result = $client->callTool('work', [], static function (float $progress, ?float $total, ?string $message) use (&$updates): void {
@@ -43,11 +47,12 @@ final class NotificationTest extends IntegrationTestCase
     }
 
     #[TestDox('progress is skipped when the caller asked for none')]
-    public function testProgressIsSkippedWithoutAToken(): void
+    #[DataProvider('provideEras')]
+    public function testProgressIsSkippedWithoutAToken(ProtocolVersion $era): void
     {
         // Without an onProgress callback the request carries no progress token,
         // so the gateway drops the notification instead of sending it.
-        $client = $this->connect('notification');
+        $client = $this->connect('notification', $this->clientBuilder()->setProtocolVersion($era));
 
         $result = $client->callTool('work');
 
@@ -56,17 +61,24 @@ final class NotificationTest extends IntegrationTestCase
     }
 
     #[TestDox('log notifications reach a registered logging handler')]
-    public function testLoggingReachesTheClient(): void
+    #[DataProvider('provideEras')]
+    public function testLoggingReachesTheClient(ProtocolVersion $era): void
     {
         $logged = [];
         $client = $this->connect(
             'notification',
-            $this->clientBuilder()->addNotificationHandler(new LoggingNotificationHandler(
+            $this->clientBuilder()->setProtocolVersion($era)->addNotificationHandler(new LoggingNotificationHandler(
                 static function (LoggingMessageNotification $notification) use (&$logged): void {
                     $logged[] = [$notification->level, $notification->data];
                 },
             )),
         );
+
+        $this->assertSame($era, $client->getProtocolVersion());
+
+        // A request on the handshake era, a level carried by every request
+        // that follows on the modern one — the caller cannot tell.
+        $client->setLoggingLevel(LoggingLevel::Info);
 
         $client->callTool('work');
 

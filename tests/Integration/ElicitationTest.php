@@ -14,9 +14,11 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -75,16 +77,36 @@ final class ElicitationTest extends IntegrationTestCase
     public function testAdvertisedCapabilityWithoutHandler(): void
     {
         // The client answers "method not found", which the gateway raises inside
-        // the tool as a ClientException rather than leaving it waiting.
+        // the tool as a ClientException rather than leaving it waiting. That is
+        // a handshake-era exchange: the modern era has no way to answer an ask
+        // with an error, see below.
         $client = $this->connect(
             'elicitation',
-            $this->clientBuilder()->setCapabilities(new ClientCapabilities(elicitation: true)),
+            $this->clientBuilder()
+                ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+                ->setCapabilities(new ClientCapabilities(elicitation: true)),
         );
 
         $result = $client->callTool('ask_name');
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('Client does not handle "elicitation/create" requests.', $result->content[0]->text);
+    }
+
+    #[TestDox('on the modern era, an ask the client advertised but cannot answer fails the call on the client')]
+    public function testAdvertisedCapabilityWithoutHandlerOnTheModernEra(): void
+    {
+        $client = $this->connect(
+            'elicitation',
+            $this->clientBuilder()->setCapabilities(new ClientCapabilities(elicitation: true)),
+        );
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Client does not handle "elicitation/create" requests.');
+
+        $client->callTool('ask_name');
     }
 
     private function clientAnswering(ElicitResult $answer): ClientBuilder

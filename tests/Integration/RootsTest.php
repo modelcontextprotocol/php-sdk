@@ -16,6 +16,7 @@ use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
@@ -28,6 +29,15 @@ use PHPUnit\Framework\Attributes\TestDox;
  */
 final class RootsTest extends IntegrationTestCase
 {
+    /**
+     * Roots exists only on the handshake era: 2026-07-28 removed it, so a
+     * client and server that could both settle on the modern era are kept off it.
+     */
+    protected function clientBuilder(): ClientBuilder
+    {
+        return parent::clientBuilder()->setProtocolVersion(ProtocolVersion::V2025_11_25);
+    }
+
     #[TestDox('the roots the client exposes reach the tool that asked')]
     public function testRootsReachTheTool(): void
     {
