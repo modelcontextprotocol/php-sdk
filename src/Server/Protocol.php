@@ -698,7 +698,16 @@ class Protocol
         }
 
         if (!$sessionId) {
-            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.');
+            // Echoes the request's id: a client probing for the modern era sends
+            // `server/discover` before any handshake, and an error it cannot
+            // correlate would leave it waiting out its timeout to fall back.
+            $id = match (true) {
+                1 !== \count($messages) => null,
+                $messages[0] instanceof Request => $messages[0]->getId(),
+                $messages[0] instanceof InvalidInputMessageException => $messages[0]->getRequestId(),
+                default => null,
+            };
+            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', $id);
             $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
             return null;
