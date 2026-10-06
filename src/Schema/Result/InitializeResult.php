@@ -14,7 +14,6 @@ namespace Mcp\Schema\Result;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
-use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\ServerCapabilities;
@@ -91,7 +90,7 @@ class InitializeResult implements ResultInterface
      */
     public function jsonSerialize(): array
     {
-        $protocolVersion = $this->protocolVersion ?? MessageInterface::PROTOCOL_VERSION;
+        $protocolVersion = $this->protocolVersion ?? ProtocolVersion::latestHandshake();
         $data = [
             'protocolVersion' => $protocolVersion->value,
             'capabilities' => $this->capabilities,
