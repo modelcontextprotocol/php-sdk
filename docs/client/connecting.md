@@ -61,31 +61,30 @@ $client = Client::builder()
 
 ### Protocol Version
 
-Specify the MCP protocol version to speak (defaults to `V2025_11_25`). A handshake revision opens with `initialize`:
-
-```php
-use Mcp\Schema\Enum\ProtocolVersion;
-
-$client = Client::builder()
-    ->setProtocolVersion(ProtocolVersion::V2025_11_25)
-    ->build();
-```
-
-A modern revision makes the client speak both protocol eras: it probes for `2026-07-28` with `server/discover` when
+A client speaks both protocol eras by default. It prefers `2026-07-28`, probes for it with `server/discover` when
 connecting, and falls back to the `initialize` handshake on `2025-11-25` when the server turns out not to speak it.
 Use `$client->getProtocolVersion()` after connecting to read what the connection settled on.
 
 ```php
+use Mcp\Schema\Enum\ProtocolVersion;
+
 // Fall back to an older handshake revision instead of 2025-11-25…
 $client = Client::builder()
-    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
     ->setFallbackProtocolVersion(ProtocolVersion::V2025_06_18)
     ->build();
 
 // …or not at all, refusing servers without the modern era.
 $client = Client::builder()
-    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
     ->setFallbackProtocolVersion(null)
+    ->build();
+```
+
+Passing a handshake revision to `setProtocolVersion()` skips the probe and opens with `initialize`, the way a client
+from before the modern era would:
+
+```php
+$client = Client::builder()
+    ->setProtocolVersion(ProtocolVersion::V2025_11_25)
     ->build();
 ```
 

@@ -13,12 +13,13 @@
  * STDIO Roots Example.
  *
  * This example demonstrates the "roots" client capability:
- * - The client advertises the `roots` capability during initialization.
+ * - The client declares the `roots` capability.
  * - It answers server `roots/list` requests via a RootsCallbackInterface,
  *   exposing a couple of `file://` workspace folders.
  * - Calling the server's `inspect_workspace_roots` tool makes the server issue
  *   a `roots/list` request, so the handler below actually runs.
- * - It notifies the server when its list of roots changes.
+ * - It notifies the server when its list of roots changes, which only a
+ *   connection on the handshake era (before 2026-07-28) sends.
  *
  * Usage: php examples/client/stdio_roots.php
  */
@@ -78,7 +79,8 @@ foreach ($result->content as $content) {
 }
 
 // Whenever the client's workspace folders change, notify the server so it can
-// request an updated list via roots/list.
+// request an updated list via roots/list. On 2026-07-28 this sends nothing: the
+// server asks for the roots again with each call that needs them.
 echo "\nNotifying the server that the roots list changed...\n";
 $client->sendRootsListChanged();
 

@@ -548,7 +548,8 @@ final class HttpTransportTest extends TestCase
             return new Response(200, ['Content-Type' => 'application/json'], $stream);
         });
 
-        $client = Client::builder()->setClientInfo('test', '1')->build();
+        // Reporting a cancellation is a handshake-era exchange over HTTP, see below.
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
         $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
 
         try {

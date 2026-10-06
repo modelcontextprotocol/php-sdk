@@ -16,6 +16,7 @@ use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Root;
@@ -28,6 +29,15 @@ use PHPUnit\Framework\Attributes\TestDox;
  */
 final class RootsTest extends IntegrationTestCase
 {
+    /**
+     * The gateway call-out exists only on the handshake era, so a client and
+     * server that could both settle on the modern era are kept off it.
+     */
+    protected function clientBuilder(): ClientBuilder
+    {
+        return parent::clientBuilder()->setProtocolVersion(ProtocolVersion::V2025_11_25);
+    }
+
     #[TestDox('the roots the client exposes reach the tool that asked')]
     public function testRootsReachTheTool(): void
     {
@@ -77,7 +87,25 @@ final class RootsTest extends IntegrationTestCase
         $this->assertInstanceOf(TextContent::class, $client->callTool('inspect_roots')->content[0]);
     }
 
+    #[TestDox('a roots ask the tool returns is answered on the modern era a default client settles on')]
+    public function testReturnedAskIsAnsweredOnTheModernEra(): void
+    {
+        $client = $this->connect('roots', $this->exposing(parent::clientBuilder(), new Root('file:///workspace/app', 'App')));
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        $result = $client->callTool('inspect_roots_by_asking');
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('file:///workspace/app (App)', $result->content[0]->text);
+    }
+
     private function clientExposing(Root ...$roots): ClientBuilder
+    {
+        return $this->exposing($this->clientBuilder(), ...$roots);
+    }
+
+    private function exposing(ClientBuilder $builder, Root ...$roots): ClientBuilder
     {
         $callback = new class(array_values($roots)) implements RootsCallbackInterface {
             /** @param list<Root> $roots */
@@ -91,7 +119,7 @@ final class RootsTest extends IntegrationTestCase
             }
         };
 
-        return $this->clientBuilder()
+        return $builder
             ->setCapabilities(new ClientCapabilities(roots: true, rootsListChanged: true))
             ->addRequestHandler(new ListRootsRequestHandler($callback));
     }

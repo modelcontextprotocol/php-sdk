@@ -47,7 +47,9 @@ final class HandshakeTest extends IntegrationTestCase
      */
     public static function provideNegotiations(): iterable
     {
-        yield 'both unconfigured' => [null, null, ProtocolVersion::latestHandshake()];
+        // Both ends speak both eras, so they settle on the modern one.
+        yield 'both unconfigured' => [null, null, ProtocolVersion::V2026_07_28];
+        yield 'server without the modern era, client unconfigured' => [null, null, ProtocolVersion::V2025_11_25, true];
 
         // Whichever end of the supported range it sits at.
         foreach (ProtocolVersion::handshakeVersions() as $version) {
@@ -140,7 +142,7 @@ final class HandshakeTest extends IntegrationTestCase
         return $env;
     }
 
-    #[TestDox('the handshake carries the server capabilities to the client')]
+    #[TestDox('the server capabilities reach the client on connect')]
     public function testServerCapabilitiesAreExchanged(): void
     {
         $capabilities = $this->connect('handshake')->getServerCapabilities();

@@ -67,7 +67,7 @@ final class Builder
     }
 
     /**
-     * Set the protocol version the client prefers, defaults to 2025-11-25; a modern one is probed for first.
+     * Set the protocol version the client prefers, defaults to 2026-07-28; a modern one is probed for first.
      */
     public function setProtocolVersion(ProtocolVersion $protocolVersion): self
     {
@@ -209,7 +209,7 @@ final class Builder
         $config = new Configuration(
             clientInfo: $clientInfo,
             capabilities: $capabilities,
-            protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2025_11_25,
+            protocolVersion: $this->protocolVersion ?? ProtocolVersion::V2026_07_28,
             initTimeout: $this->initTimeout,
             requestTimeout: $this->requestTimeout,
             maxRetries: $this->maxRetries,

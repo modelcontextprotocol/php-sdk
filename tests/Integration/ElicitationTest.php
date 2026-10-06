@@ -64,7 +64,7 @@ final class ElicitationTest extends IntegrationTestCase
     public function testCapabilityIsVisibleToTheServer(): void
     {
         // The tool consults supportsElicitation(), which answers from the
-        // capabilities this client sent during the handshake.
+        // capabilities this client declared.
         $client = $this->connect('elicitation');
 
         $result = $client->callTool('ask_name');
@@ -80,7 +80,9 @@ final class ElicitationTest extends IntegrationTestCase
         // the tool as a ClientException rather than leaving it waiting.
         $client = $this->connect(
             'elicitation',
-            $this->clientBuilder()->setCapabilities(new ClientCapabilities(elicitation: true)),
+            $this->clientBuilder()
+                ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+                ->setCapabilities(new ClientCapabilities(elicitation: true)),
         );
 
         $result = $client->callTool('ask_name');
