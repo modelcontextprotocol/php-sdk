@@ -22,8 +22,9 @@ use Mcp\Exception\RuntimeException;
  * Validates JWT access tokens using JWKS from an OAuth 2.0 / OpenID Connect provider.
  *
  * This validator:
- * - Fetches JWKS from the authorization server (auto-discovered or explicit)
- * - Validates signature, audience, issuer, and expiration
+ * - Checks the token's issuer against the configured issuer(s)
+ * - Fetches JWKS for that issuer (auto-discovered or explicit)
+ * - Validates signature, audience, and expiration
  * - Extracts scopes and claims as authorization attributes
  *
  * Requires: firebase/php-jwt
@@ -33,10 +34,10 @@ use Mcp\Exception\RuntimeException;
 class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 {
     /**
-     * @param string|list<string>   $issuer       Expected token issuer(s) (e.g., "https://auth.example.com/realms/mcp")
+     * @param string|list<string>   $issuer       Expected token issuer (e.g., "https://auth.example.com/realms/mcp"), a list is meant for aliases of one authorization server
      * @param string|list<string>   $audience     Expected audience(s) for the token
      * @param JwksProviderInterface $jwksProvider JWKS provider
-     * @param string|null           $jwksUri      Explicit JWKS URI (auto-discovered from first issuer if null)
+     * @param string|null           $jwksUri      Explicit JWKS URI used for all issuers (auto-discovered from the token's issuer if null)
      * @param list<string>          $algorithms   Allowed JWT algorithms (default: RS256, RS384, RS512)
      * @param string                $scopeClaim   Claim name for scopes (default: "scope")
      */
@@ -56,13 +57,19 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     public function validate(string $accessToken): AuthorizationResult
     {
         try {
-            /** @var array<string, mixed> $claims */
-            $claims = (array) JWT::decode($accessToken, $this->getJwks());
+            $payload = $this->decodePayload($accessToken);
+            if (null === $payload) {
+                return AuthorizationResult::unauthorized('invalid_token', 'Malformed token.');
+            }
 
-            // Validate issuer
-            if (!$this->validateIssuer($claims)) {
+            // Only fetch keys for a configured issuer, never for an arbitrary one from the token
+            $issuer = $payload['iss'] ?? null;
+            if (!\is_string($issuer) || !\in_array($issuer, $this->getIssuers(), true)) {
                 return AuthorizationResult::unauthorized('invalid_token', 'Token issuer mismatch.');
             }
+
+            /** @var array<string, mixed> $claims */
+            $claims = (array) JWT::decode($accessToken, $this->getJwks($issuer));
 
             // Validate audience
             if (!$this->validateAudience($claims)) {
@@ -135,9 +142,8 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     /**
      * @return array<string, \Firebase\JWT\Key>
      */
-    private function getJwks(): array
+    private function getJwks(string $issuer): array
     {
-        $issuer = \is_array($this->issuer) ? $this->issuer[0] : $this->issuer;
         $jwksData = $this->jwksProvider->getJwks($issuer, $this->jwksUri);
 
         /* @var array<string, \Firebase\JWT\Key> */
@@ -166,17 +172,28 @@ class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     }
 
     /**
-     * @param array<string, mixed> $claims
+     * Reads the unverified payload, used to pick the issuer before the signature is checked.
+     *
+     * @return array<string, mixed>|null
      */
-    private function validateIssuer(array $claims): bool
+    private function decodePayload(string $accessToken): ?array
     {
-        if (!isset($claims['iss'])) {
-            return false;
+        $segments = explode('.', $accessToken);
+        if (3 !== \count($segments)) {
+            return null;
         }
 
-        $expectedIssuers = \is_array($this->issuer) ? $this->issuer : [$this->issuer];
+        $payload = json_decode(JWT::urlsafeB64Decode($segments[1]), true);
 
-        return \in_array($claims['iss'], $expectedIssuers, true);
+        return \is_array($payload) ? $payload : null;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function getIssuers(): array
+    {
+        return \is_array($this->issuer) ? $this->issuer : [$this->issuer];
     }
 
     /**

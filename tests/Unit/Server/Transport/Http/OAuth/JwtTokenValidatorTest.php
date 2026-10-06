@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 use Firebase\JWT\JWT;
 use Mcp\Exception\RuntimeException;
 use Mcp\Server\Transport\Http\OAuth\JwksProvider;
+use Mcp\Server\Transport\Http\OAuth\JwksProviderInterface;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscoveryInterface;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -79,24 +80,18 @@ class JwtTokenValidatorTest extends TestCase
         $this->assertSame('client-abc', $attributes['oauth.authorized_party']);
     }
 
-    #[TestDox('issuer mismatch yields unauthorized result')]
+    #[TestDox('issuer mismatch yields unauthorized result without fetching JWKS')]
     public function testIssuerMismatchIsUnauthorized(): void
     {
-        $factory = new Psr17Factory();
-        [$privateKeyPem, $publicJwk] = $this->generateRsaKeypairAsJwk('test-kid');
+        [$privateKeyPem] = $this->generateRsaKeypairAsJwk('test-kid');
 
-        $jwksUri = 'https://auth.example.com/.well-known/jwks.json';
-        $httpClient = $this->createHttpClientMock([
-            $factory->createResponse(200)
-                ->withHeader('Content-Type', 'application/json')
-                ->withBody($factory->createStream(json_encode(['keys' => [$publicJwk]], \JSON_THROW_ON_ERROR))),
-        ]);
+        $jwksProvider = $this->createMock(JwksProviderInterface::class);
+        $jwksProvider->expects($this->never())->method('getJwks');
 
         $validator = new JwtTokenValidator(
-            issuer: 'https://auth.example.com',
+            issuer: ['https://auth.example.com', 'https://alias.example.com'],
             audience: 'mcp-api',
-            jwksUri: $jwksUri,
-            jwksProvider: new JwksProvider(discovery: $this->createDiscoveryStub(), httpClient: $httpClient, requestFactory: $factory),
+            jwksProvider: $jwksProvider,
         );
 
         $token = JWT::encode(
@@ -119,6 +114,75 @@ class JwtTokenValidatorTest extends TestCase
         $this->assertSame(401, $result->getStatusCode());
         $this->assertSame('invalid_token', $result->getError());
         $this->assertSame('Token issuer mismatch.', $result->getErrorDescription());
+    }
+
+    #[TestDox('token from a later configured issuer is verified with that issuer\'s keys')]
+    public function testTokenFromSecondIssuerIsVerifiedWithItsKeys(): void
+    {
+        [, $firstJwk] = $this->generateRsaKeypairAsJwk('first-kid');
+        [$secondPrivateKeyPem, $secondJwk] = $this->generateRsaKeypairAsJwk('second-kid');
+
+        $validator = new JwtTokenValidator(
+            issuer: ['https://first.example.com', 'https://second.example.com'],
+            audience: 'mcp-api',
+            jwksProvider: $this->createJwksProviderStub([
+                'https://first.example.com' => $firstJwk,
+                'https://second.example.com' => $secondJwk,
+            ]),
+        );
+
+        $token = JWT::encode(
+            [
+                'iss' => 'https://second.example.com',
+                'aud' => 'mcp-api',
+                'sub' => 'user-123',
+                'iat' => time() - 10,
+                'exp' => time() + 600,
+            ],
+            $secondPrivateKeyPem,
+            'RS256',
+            keyId: 'second-kid',
+        );
+
+        $result = $validator->validate($token);
+
+        $this->assertTrue($result->isAllowed());
+        $this->assertSame('user-123', $result->getAttributes()['oauth.subject']);
+    }
+
+    #[TestDox('token signed by the first issuer but claiming the second issuer is rejected')]
+    public function testTokenClaimingOtherIssuerIsRejected(): void
+    {
+        [$firstPrivateKeyPem, $firstJwk] = $this->generateRsaKeypairAsJwk('first-kid');
+        [, $secondJwk] = $this->generateRsaKeypairAsJwk('second-kid');
+
+        $validator = new JwtTokenValidator(
+            issuer: ['https://first.example.com', 'https://second.example.com'],
+            audience: 'mcp-api',
+            jwksProvider: $this->createJwksProviderStub([
+                'https://first.example.com' => $firstJwk,
+                'https://second.example.com' => $secondJwk,
+            ]),
+        );
+
+        $token = JWT::encode(
+            [
+                'iss' => 'https://second.example.com',
+                'aud' => 'mcp-api',
+                'sub' => 'user-123',
+                'iat' => time() - 10,
+                'exp' => time() + 600,
+            ],
+            $firstPrivateKeyPem,
+            'RS256',
+            keyId: 'first-kid',
+        );
+
+        $result = $validator->validate($token);
+
+        $this->assertFalse($result->isAllowed());
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('invalid_token', $result->getError());
     }
 
     #[TestDox('audience mismatch yields unauthorized result')]
@@ -553,6 +617,19 @@ class JwtTokenValidatorTest extends TestCase
     private function b64urlEncode(string $data): string
     {
         return rtrim(strtr(base64_encode($data), '+/', '-_'), '=');
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $jwkByIssuer
+     */
+    private function createJwksProviderStub(array $jwkByIssuer): JwksProviderInterface
+    {
+        $jwksProvider = $this->createStub(JwksProviderInterface::class);
+        $jwksProvider->method('getJwks')->willReturnCallback(
+            static fn (string $issuer): array => ['keys' => [$jwkByIssuer[$issuer]]],
+        );
+
+        return $jwksProvider;
     }
 
     private function createDiscoveryStub(): OidcDiscoveryInterface

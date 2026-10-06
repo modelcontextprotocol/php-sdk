@@ -12,6 +12,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
+* Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 
 0.8.0
 -----

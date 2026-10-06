@@ -147,14 +147,16 @@ Validates JWT access tokens:
 
 ```php
 $validator = new JwtTokenValidator(
-    issuer: 'https://auth.example.com',  // Expected issuer claim
+    issuer: 'https://auth.example.com',  // Expected issuer claim (string or array of aliases)
     audience: 'mcp-server',              // Expected audience (string or array)
     jwksProvider: $jwksProvider,          // JwksProviderInterface
-    jwksUri: null,                       // Explicit JWKS URI (auto-discovered)
+    jwksUri: null,                       // Explicit JWKS URI for all issuers (auto-discovered)
     algorithms: ['RS256', 'RS384', 'RS512'], // Allowed algorithms (this is the default)
     scopeClaim: 'scope',                 // Claim name for scopes
 );
 ```
+
+An array of issuers is meant for aliases of one authorization server, e.g. an internal and an external URL of the same Keycloak realm, or the v1 and v2 issuer of a Microsoft Entra ID tenant. The token's `iss` claim must exactly match one of them, and the keys are fetched for that issuer, or from `jwksUri` if given.
 
 **Request Attributes:**
 
