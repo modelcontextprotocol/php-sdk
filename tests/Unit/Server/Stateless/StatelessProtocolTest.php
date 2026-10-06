@@ -278,7 +278,6 @@ class StatelessProtocolTest extends TestCase
      */
     public static function removedMethods(): iterable
     {
-        yield 'initialize' => ['initialize', []];
         yield 'ping' => ['ping', []];
         yield 'logging/setLevel' => ['logging/setLevel', ['level' => 'info']];
         yield 'resources/subscribe' => ['resources/subscribe', ['uri' => 'test://static']];
@@ -296,6 +295,25 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('a handshake-era client opening with "initialize" is told which revisions are served')]
+    public function testInitializeNamesTheServedRevisions(): void
+    {
+        $result = self::protocol()->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => ['protocolVersion' => '2025-11-25', 'capabilities' => new \stdClass(), 'clientInfo' => ['name' => 'legacy', 'version' => '1.0.0']],
+        ], \JSON_THROW_ON_ERROR));
+
+        $answer = json_decode($result->toJson(), true);
+
+        $this->assertSame(400, $result->httpStatus);
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answer['error']['code']);
+        $this->assertSame(1, $answer['id']);
+        $this->assertSame('2025-11-25', $answer['error']['data']['requested']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answer['error']['data']['supported']);
     }
 
     /**

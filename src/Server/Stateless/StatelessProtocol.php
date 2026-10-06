@@ -223,6 +223,17 @@ final class StatelessProtocol
             return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC request id must be a string or a number.'), 400);
         }
 
+        // How a client from before the modern era opens. It has no way to move
+        // forward to this one, so the refusal is the only thing it can show its
+        // user: it names the revisions served rather than the envelope missing.
+        // One stamped with the envelope is a modern client, told further down
+        // that its revision has no such method.
+        if ('initialize' === $method && !isset($params['_meta'][RequestMeta::PROTOCOL_VERSION])) {
+            $offered = $params['protocolVersion'] ?? null;
+
+            return StatelessResult::error(Error::forUnsupportedProtocolVersion(\is_string($offered) ? $offered : '', $this->supportedVersions, $id), 400);
+        }
+
         try {
             $meta = RequestMeta::fromParams($params, $headers);
         } catch (MissingRequestMetaException $e) {

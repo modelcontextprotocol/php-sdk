@@ -221,14 +221,6 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         \assert(null !== $this->stateless);
 
-        if (null !== $request && 'initialize' === ($request['method'] ?? null)) {
-            $offered = $request['params']['protocolVersion'] ?? null;
-
-            $this->writeError(Error::forUnsupportedProtocolVersion(\is_string($offered) ? $offered : '', $this->stateless->supportedVersions(), $request['id']));
-
-            return;
-        }
-
         // stdio has no per-request stream to close, so this notification is
         // how a client stops one; nothing more may be sent for it.
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
