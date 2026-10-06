@@ -1016,6 +1016,86 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame('complete', $frames[3]['result']['resultType']);
     }
 
+    /**
+     * A request the way stdio carries it: the metadata inline, no headers.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function inlineRequest(string $method, array $params = []): string
+    {
+        $params['_meta'] = [
+            RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+            RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+            ...($params['_meta'] ?? []),
+        ];
+
+        return json_encode(['jsonrpc' => '2.0', 'id' => 9, 'method' => $method, 'params' => $params], \JSON_THROW_ON_ERROR);
+    }
+
+    #[TestDox('a message off a transport without headers is answered without them')]
+    public function testInlineMessageNeedsNoHeaders(): void
+    {
+        $protocol = self::protocol();
+        $message = self::inlineRequest('tools/call', ['name' => 'plain_tool', 'arguments' => []]);
+
+        // The same message over HTTP is missing headers it has to carry.
+        $this->assertSame(Error::HEADER_MISMATCH, json_decode($protocol->handle($message)->toJson(), true)['error']['code']);
+
+        $result = $protocol->handleInline($message);
+
+        $this->assertSame(200, $result->httpStatus);
+        $this->assertSame('ok', json_decode($result->toJson(), true)['result']['content'][0]['text']);
+    }
+
+    #[TestDox('an inline request streams its progress without being asked to')]
+    public function testInlineProgressIsStreamed(): void
+    {
+        $result = self::protocol()->handleInline(self::inlineRequest('tools/call', [
+            'name' => 'progress_tool',
+            'arguments' => [],
+            '_meta' => ['progressToken' => 'tok-1'],
+        ]));
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+
+        $this->assertSame(['notifications/progress', 'notifications/progress'], [$frames[0]['method'], $frames[1]['method']]);
+        $this->assertSame(9, $frames[2]['id']);
+    }
+
+    #[TestDox('an inline listen stream leaves the pacing to its consumer')]
+    public function testInlineListenIsNotPaced(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(60)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $this->assertTrue($result->isStream());
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $started = microtime(true);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames->current()['method']);
+
+        // A paced stream sleeps a quarter second between polls, which would
+        // stall every other message sharing the stdio channel.
+        for ($i = 0; $i < 5; ++$i) {
+            $frames->next();
+            $this->assertNull($frames->current());
+        }
+
+        $this->assertLessThan(0.2, microtime(true) - $started);
+    }
+
     #[TestDox('the acknowledgment drops types the server cannot honour')]
     public function testAcknowledgmentReflectsWhatTheServerCanDo(): void
     {
