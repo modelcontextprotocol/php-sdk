@@ -49,12 +49,23 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         $this->assertStringContainsString('resource_metadata="'.self::METADATA_URL.'"', $response->getHeaderLine('WWW-Authenticate'));
     }
 
+    public function testOtherSchemeIsChallengedWithoutError(): void
+    {
+        $response = $this->middleware()->process($this->request('Basic dXNlcjpwYXNz'), $this->passthroughHandler);
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame(
+            'Bearer resource_metadata="'.self::METADATA_URL.'", scope="mcp:read"',
+            $response->getHeaderLine('WWW-Authenticate'),
+        );
+    }
+
     /**
      * @return iterable<string, array{string}>
      */
     public static function provideMalformedHeaders(): iterable
     {
-        yield 'other scheme' => ['Basic dXNlcjpwYXNz'];
+        yield 'no token' => ['Bearer'];
         yield 'empty token' => ['Bearer '];
         yield 'token with space' => ['Bearer abc def'];
         yield 'token with quote' => ['Bearer abc"def'];

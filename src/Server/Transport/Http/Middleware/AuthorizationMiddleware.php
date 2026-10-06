@@ -67,8 +67,9 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        // No credentials, or another scheme: a plain challenge without error code (RFC 6750 §3.1).
         $authorization = $request->getHeaderLine('Authorization');
-        if ('' === $authorization) {
+        if (!preg_match('/^Bearer(?: |$)/i', $authorization)) {
             return $this->buildErrorResponse(AuthorizationResult::unauthorized());
         }
 

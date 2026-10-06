@@ -115,8 +115,8 @@ $middleware = new AuthorizationMiddleware(
 
 | Request | Response |
 |---------|----------|
-| Missing Authorization header | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
-| Malformed Authorization header | 400 with `error="invalid_request"` |
+| Missing Authorization header or another scheme | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
+| Malformed Bearer token | 400 with `error="invalid_request"` |
 | Invalid/expired token | 401 with `error="invalid_token"` |
 | Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
 | Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
