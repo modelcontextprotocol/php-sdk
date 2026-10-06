@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\RequestContext;
@@ -109,6 +110,25 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(['notifications/progress', 'notifications/progress'], [$lines[0]['method'], $lines[1]['method']]);
         $this->assertSame(1, $lines[2]['id']);
         $this->assertSame('counted', $lines[2]['result']['content'][0]['text']);
+    }
+
+    #[TestDox('a listen stream shares the channel, acknowledged and tagged with its subscription')]
+    public function testListenStreamIsAcknowledged(): void
+    {
+        $lines = $this->exchange(self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true)), [
+            self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]),
+            self::modern(6, 'tools/call', ['name' => 'echo', 'arguments' => ['text' => 'still served']]),
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 5]],
+        ]);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $lines[0]['method']);
+        $this->assertSame(5, $lines[0]['params']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
+
+        // The open subscription does not hold up the next request, and the
+        // notification ending it is taken without an answer of its own.
+        $this->assertSame(6, $lines[1]['id']);
+        $this->assertSame('still served', $lines[1]['result']['content'][0]['text']);
+        $this->assertCount(2, $lines);
     }
 
     private static function builder(): Builder
