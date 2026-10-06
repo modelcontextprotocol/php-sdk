@@ -178,7 +178,10 @@ final class CallToolHandler implements RequestHandlerInterface
             return null;
         }
 
-        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($result->structuredContent, $tool->outputSchema);
+        // Validate the value as it is sent, incl. `JsonSerializable` and `{}` vs. `[]`.
+        $sent = json_decode(json_encode($result->structuredContent, \JSON_THROW_ON_ERROR), false, 512, \JSON_THROW_ON_ERROR);
+
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($sent, $tool->outputSchema);
         if ([] === $validationErrors) {
             return null;
         }
