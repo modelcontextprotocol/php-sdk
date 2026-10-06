@@ -58,7 +58,8 @@ $transport = new StreamableHttpTransport(
     middleware: [
         ...StreamableHttpTransport::defaultMiddleware(),
         new ProtectedResourceMetadataMiddleware($protectedResourceMetadata),
-        // Entra puts delegated scopes into "scp" without the api:// prefix.
+        // Entra puts delegated scopes into "scp" without the api:// prefix, so the 403
+        // challenge names the bare scope as well; see "403 insufficient_scope" in the README.
         new AuthorizationMiddleware($validator, $protectedResourceMetadata, new ScopePolicy(default: ['mcp.access'])),
     ],
 );

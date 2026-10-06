@@ -114,6 +114,11 @@ Graph tokens). Request the `api://<client-id>/mcp.access` scope instead.
 
 The token lacks `mcp.access` in its `scp` claim; grant the client the API permission.
 
+The challenge names the scope as the token carries it, `scope="mcp.access"`, without the
+`api://<client-id>/` prefix. Entra resolves an unprefixed scope against Microsoft Graph, so a client
+cannot step up with it as is; request `api://<client-id>/mcp.access`, as advertised in the 401
+challenge and the Protected Resource Metadata.
+
 ### Calling Microsoft Graph
 
 The token this server receives is for this server only and must not be passed on. To call Graph
