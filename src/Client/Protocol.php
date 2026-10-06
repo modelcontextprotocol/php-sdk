@@ -26,6 +26,7 @@ use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
@@ -78,6 +79,9 @@ class Protocol
     private ?HeaderFactory $headers = null;
 
     private ToolCatalog $tools;
+
+    /** What a modern-era connection stamps on every request, see {@see self::setLogLevel()}. */
+    private ?LoggingLevel $logLevel = null;
 
     private readonly InputRequestResolver $inputRequests;
 
@@ -261,8 +265,27 @@ class Protocol
 
     private function enterModernEra(ProtocolVersion $version, Configuration $config): void
     {
-        $this->envelope = new RequestEnvelope($version, $config->capabilities, $config->clientInfo);
+        $this->envelope = new RequestEnvelope($version, $config->capabilities, $config->clientInfo, $this->logLevel);
         $this->headers = new HeaderFactory($this->tools);
+    }
+
+    /**
+     * Whether the connection settled on the modern era, where every request
+     * carries its own metadata.
+     */
+    public function isModern(): bool
+    {
+        return null !== $this->envelope;
+    }
+
+    /**
+     * Ask for the server's log messages from $level up on every request that
+     * follows — the modern era's stand-in for `logging/setLevel`.
+     */
+    public function setLogLevel(LoggingLevel $level): void
+    {
+        $this->logLevel = $level;
+        $this->envelope = $this->envelope?->withLogLevel($level);
     }
 
     /**
@@ -380,6 +403,16 @@ class Protocol
         );
 
         $response = $this->request($request, $config->initTimeout);
+
+        if ($response instanceof Error && Error::UNSUPPORTED_PROTOCOL_VERSION === $response->code) {
+            $named = \is_array($response->data['supported'] ?? null) ? array_filter($response->data['supported'], is_string(...)) : [];
+
+            return new Error($response->id, $response->code, \sprintf(
+                'Server does not speak protocol version %s; it supports %s.',
+                $offered->value,
+                [] === $named ? 'none it named' : implode(', ', $named),
+            ), $response->data);
+        }
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
