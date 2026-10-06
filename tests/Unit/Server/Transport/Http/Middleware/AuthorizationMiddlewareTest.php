@@ -129,6 +129,18 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         $this->assertStringContainsString('scope="mcp:read files:write"', $response->getHeaderLine('WWW-Authenticate'));
     }
 
+    public function testBatchIsForbiddenWhenOneMessageLacksScopes(): void
+    {
+        $policy = new ScopePolicy(tools: ['read_file' => ['files:read'], 'delete_file' => ['files:write']]);
+        $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['files:read']))), $policy);
+        $batch = '['.$this->toolCall('read_file').','.$this->toolCall('delete_file').']';
+
+        $response = $middleware->process($this->request('Bearer abc', $batch), $this->passthroughHandler);
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertStringContainsString('scope="files:read files:write"', $response->getHeaderLine('WWW-Authenticate'));
+    }
+
     public function testHandedOnTokenIncludesImpliedScopes(): void
     {
         $middleware = $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken(['files:admin'], ['sub' => 'user-1']))), new ScopePolicy(
