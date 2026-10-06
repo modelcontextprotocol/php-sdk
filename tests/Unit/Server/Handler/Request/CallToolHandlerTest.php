@@ -586,7 +586,7 @@ class CallToolHandlerTest extends TestCase
      */
     public function testSelfBuiltResultIsSentUnchangedAndOnlyWarnedAbout(
         ?string $negotiated,
-        ?array $structuredContent,
+        array|\stdClass|null $structuredContent,
         int $expectedWarnings,
     ): void {
         $request = $this->createCallToolRequest('build_result', []);
@@ -623,7 +623,7 @@ class CallToolHandlerTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{?string, ?array<mixed>, int}>
+     * @return iterable<string, array{?string, array<mixed>|\stdClass|null, int}>
      */
     public static function provideSelfBuiltResults(): iterable
     {
@@ -632,8 +632,8 @@ class CallToolHandlerTest extends TestCase
         yield 'list from SEP-2106 on' => ['2026-07-28', [['id' => 1]], 0];
         yield 'object before SEP-2106' => ['2025-11-25', ['items' => [['id' => 1]]], 0];
         yield 'none at all' => ['2025-11-25', null, 0];
-        // Dropped by `CallToolResult::jsonSerialize()` anyway, so nothing to warn about.
-        yield 'empty' => ['2025-11-25', [], 0];
+        yield 'empty list before SEP-2106' => ['2025-11-25', [], 1];
+        yield 'empty object before SEP-2106' => ['2025-11-25', new \stdClass(), 0];
     }
 
     public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void
@@ -808,6 +808,40 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(Response::class, $response);
         $this->assertSame($callToolResult, $response->result);
         $this->assertSame('The weather service is down.', $this->firstText($response->result));
+    }
+
+    public function testEmptyArrayStructuredContentConformsToAnArrayOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('list_items', []);
+        $toolReference = $this->createToolReference('list_items', static fn () => null, ['type' => 'array']);
+        $callToolResult = new CallToolResult([new TextContent('[]')], false, []);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame([], $response->result->structuredContent);
+    }
+
+    public function testEmptyObjectResultConformsToAnObjectOutputSchema(): void
+    {
+        $result = new \stdClass();
+        $request = $this->createCallToolRequest('get_nothing', []);
+        $toolReference = $this->createToolReference('get_nothing', static fn () => $result, ['type' => 'object']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($result);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertFalse($response->result->isError);
+        $this->assertEquals(new \stdClass(), $response->result->structuredContent);
+        $this->assertStringContainsString('"structuredContent":{}', json_encode($response->result));
     }
 
     private function firstText(CallToolResult $result): string

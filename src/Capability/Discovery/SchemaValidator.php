@@ -46,10 +46,6 @@ class SchemaValidator
      */
     public function validateAgainstJsonSchema(mixed $data, array|object $schema): array
     {
-        if (\is_array($data) && empty($data)) {
-            $data = new \stdClass();
-        }
-
         try {
             // --- Schema Preparation ---
             if (\is_array($schema)) {

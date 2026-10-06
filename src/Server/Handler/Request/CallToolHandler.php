@@ -80,7 +80,8 @@ final class CallToolHandler implements RequestHandlerInterface
         }
 
         $inputSchema = $reference->tool->inputSchema;
-        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($arguments, $inputSchema);
+        // Arguments are always a JSON object, but an empty one decodes to `[]`.
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema([] === $arguments ? new \stdClass() : $arguments, $inputSchema);
         if (!empty($validationErrors)) {
             $summaryMessage = "Invalid parameters for tool '{$toolName}': ".self::summarizeValidationErrors($validationErrors);
 
@@ -116,7 +117,6 @@ final class CallToolHandler implements RequestHandlerInterface
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
                 && null !== $result->structuredContent
-                && [] !== $result->structuredContent
                 && !self::isJsonObject($result->structuredContent)
             ) {
                 // A tool building its own `CallToolResult` bypasses the extraction
@@ -220,6 +220,6 @@ final class CallToolHandler implements RequestHandlerInterface
      */
     private static function isJsonObject(mixed $value): bool
     {
-        return \is_array($value) && !array_is_list($value);
+        return $value instanceof \stdClass || (\is_array($value) && !array_is_list($value));
     }
 }
