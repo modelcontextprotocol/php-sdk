@@ -23,6 +23,14 @@ use Mcp\Schema\Implementation;
  */
 class Configuration
 {
+    /**
+     * @param ProtocolVersion      $protocolVersion         the revision the client prefers. A modern one is
+     *                                                      probed for with `server/discover` before anything else
+     * @param ProtocolVersion|null $fallbackProtocolVersion the handshake revision offered through `initialize` when
+     *                                                      a probe shows the server does not speak the modern era;
+     *                                                      null makes a modern client modern-only. Unused when
+     *                                                      $protocolVersion is a handshake revision already
+     */
     public function __construct(
         public readonly Implementation $clientInfo,
         public readonly ClientCapabilities $capabilities,
@@ -30,7 +38,12 @@ class Configuration
         public readonly int $initTimeout = 30,
         public readonly int $requestTimeout = 120,
         public readonly int $maxRetries = 3,
+        public readonly ?ProtocolVersion $fallbackProtocolVersion = ProtocolVersion::V2025_11_25,
     ) {
+        if (null !== $fallbackProtocolVersion && $fallbackProtocolVersion->isModern()) {
+            throw new InvalidArgumentException(\sprintf('The fallback protocol version must be one reached through the "initialize" handshake, got "%s".', $fallbackProtocolVersion->value));
+        }
+
         if ($initTimeout < 1) {
             throw new InvalidArgumentException(\sprintf('The initialization timeout must be a positive number of seconds, got %d.', $initTimeout));
         }

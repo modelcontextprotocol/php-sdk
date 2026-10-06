@@ -15,6 +15,7 @@ use Mcp\Client;
 use Mcp\Client\Configuration;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -49,6 +50,23 @@ final class ConfigurationTest extends TestCase
     {
         yield 'zero' => [0];
         yield 'negative' => [-1];
+    }
+
+    #[TestDox('falls back to the newest handshake revision by default')]
+    public function testDefaultsToTheNewestHandshakeFallback(): void
+    {
+        $config = new Configuration(new Implementation('client', '1.0.0'), new ClientCapabilities());
+
+        $this->assertSame(ProtocolVersion::latestHandshake(), $config->fallbackProtocolVersion);
+    }
+
+    #[TestDox('a modern revision cannot be the handshake fallback')]
+    public function testModernFallbackIsRejected(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('The fallback protocol version must be one reached through the "initialize" handshake, got "2026-07-28".');
+
+        new Configuration(new Implementation('client', '1.0.0'), new ClientCapabilities(), fallbackProtocolVersion: ProtocolVersion::V2026_07_28);
     }
 
     #[TestDox('the builder rejects a non-positive initialization timeout')]
