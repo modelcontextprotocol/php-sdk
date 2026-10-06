@@ -28,6 +28,7 @@ use Mcp\Schema\Notification\RootsListChangedNotification;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
+use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Request\ListResourcesRequest;
@@ -157,11 +158,14 @@ class Client
     }
 
     /**
-     * Send a ping request to the server.
+     * Check that the server is reachable and answering.
+     *
+     * A `ping` on the handshake era. The modern era removed it, so there the
+     * check is a `server/discover`, which every modern server answers.
      */
     public function ping(): void
     {
-        $request = new PingRequest();
+        $request = $this->protocol->isModern() ? new DiscoverRequest() : new PingRequest();
 
         $this->sendRequest($request);
     }
@@ -299,9 +303,19 @@ class Client
 
     /**
      * Set the minimum logging level for server log messages.
+     *
+     * On the handshake era this is a `logging/setLevel` request. The modern
+     * era removed it: there the level rides on every request that follows,
+     * and until one is set the server sends no log messages at all.
      */
     public function setLoggingLevel(LoggingLevel $level): void
     {
+        if ($this->protocol->isModern()) {
+            $this->protocol->setLogLevel($level);
+
+            return;
+        }
+
         $request = new SetLogLevelRequest($level);
 
         $this->sendRequest($request);
@@ -323,6 +337,14 @@ class Client
 
         if (!$this->isConnected()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        // The modern era removed roots, so a server on it has nothing to
+        // refresh — and nothing to tell.
+        if ($this->protocol->isModern()) {
+            $this->logger->debug('Not sending "notifications/roots/list_changed": the connection is on the modern era, which removed roots.');
+
+            return;
         }
 
         $this->protocol->sendNotification(new RootsListChangedNotification());
