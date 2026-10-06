@@ -44,6 +44,9 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     /** @var list<string> */
     private readonly array $audiences;
 
+    /** @var (\Closure(string): \ArrayAccess<string, Key>)|null key set per `alg`, set by {@see self::fromIssuer()} */
+    private ?\Closure $keysForAlgorithm = null;
+
     /**
      * @param string                                       $issuer     expected `iss` claim
      * @param string|list<string>                          $audience   accepted `aud` values, typically the resource identifier of this MCP server
@@ -75,9 +78,11 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
     /**
      * Builds a validator that discovers the issuer's JWKS URI and caches its keys.
      *
-     * Keys are refetched, rate limited, when a token names an unknown key id, so
-     * key rotation does not lock clients out until the cache expires. Issuer and
-     * JWKS URI must use https, unless they point to a loopback host.
+     * Discovery happens on the first token, so an unreachable authorization server
+     * does not break building the validator. Keys are refetched, rate limited, when a
+     * token names an unknown key id, so key rotation does not lock clients out until
+     * the cache expires. Issuer and JWKS URI must use https, unless they point to a
+     * loopback host.
      *
      * @param string|list<string> $audience
      * @param list<string>        $algorithms
@@ -93,13 +98,23 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         ?string $tokenType = null,
         int $leeway = 0,
     ): self {
+        SecureUrl::parse($issuer, 'issuer');
         $httpClient ??= Psr18ClientDiscovery::find();
         $requestFactory ??= Psr17FactoryDiscovery::findRequestFactory();
 
-        $jwksUri = (new OidcDiscovery($cache, $httpClient, $requestFactory))->getJwksUri($issuer);
-        $keys = new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cache, 3600, true, $algorithms[0] ?? null);
+        $validator = new self($issuer, $audience, [], $algorithms, $scopeClaim, $tokenType, $leeway);
 
-        return new self($issuer, $audience, $keys, $algorithms, $scopeClaim, $tokenType, $leeway);
+        $jwksUri = null;
+        $keySets = [];
+        $validator->keysForAlgorithm = static function (string $algorithm) use ($issuer, $cache, $httpClient, $requestFactory, &$jwksUri, &$keySets): CachedKeySet {
+            $jwksUri ??= (new OidcDiscovery($cache, $httpClient, $requestFactory))->getJwksUri($issuer);
+
+            // One set per algorithm, so a key without `alg` (as Entra publishes them) is
+            // tagged with the token's - which already passed the allowlist.
+            return $keySets[$algorithm] ??= new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cache, 3600, true, $algorithm);
+        };
+
+        return $validator;
     }
 
     public function validate(string $accessToken): AuthorizationResult
@@ -121,16 +136,18 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         JWT::$leeway = $this->leeway;
 
         try {
+            $keys = null === $this->keysForAlgorithm ? $this->keys : ($this->keysForAlgorithm)($header['alg']);
+
             /** @var array<string, mixed> $claims */
-            $claims = (array) JWT::decode($accessToken, $this->keys);
+            $claims = (array) JWT::decode($accessToken, $keys);
         } catch (ExpiredException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token has expired.');
         } catch (BeforeValidException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token is not yet valid.');
         } catch (SignatureInvalidException|\InvalidArgumentException|\UnexpectedValueException|\DomainException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed.');
-        } catch (\OutOfBoundsException|ClientExceptionInterface) {
-            // CachedKeySet: unknown key id after refetching, or the JWKS endpoint is unreachable.
+        } catch (\OutOfBoundsException|ClientExceptionInterface|RuntimeException) {
+            // Unknown key id after refetching, JWKS endpoint unreachable, or discovery failed.
             return AuthorizationResult::unauthorized('invalid_token', 'Token signing key could not be resolved.');
         } finally {
             JWT::$leeway = $previousLeeway;

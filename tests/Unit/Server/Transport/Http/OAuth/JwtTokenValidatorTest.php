@@ -174,7 +174,8 @@ final class JwtTokenValidatorTest extends TestCase
     public function testFromIssuerDiscoversAndCachesKeys(): void
     {
         $factory = new Psr17Factory();
-        $client = $this->jwksClient($factory);
+        $requested = new \ArrayObject();
+        $client = $this->jwksClient($factory, requested: $requested);
 
         $cache = new ArrayAdapter();
         $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
@@ -186,7 +187,7 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame([
             'https://auth.example.com/.well-known/oauth-authorization-server',
             'https://auth.example.com/jwks',
-        ], $client->requested);
+        ], $requested->getArrayCopy());
     }
 
     public function testUnknownKeyIdInJwksIsUnauthorized(): void
@@ -219,26 +220,74 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
-    /**
-     * Serves the issuer's metadata and a JWKS holding the test key, without `alg` like Entra.
-     */
-    private function jwksClient(Psr17Factory $factory): ClientInterface
+    public function testFromIssuerTagsKeysWithoutAlgorithmPerToken(): void
     {
-        $modulus = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey))['rsa'] ?? [];
-        $jwk = [
+        $ec = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        $this->assertNotFalse($ec);
+        openssl_pkey_export($ec, $ecPrivateKey);
+        $ecDetails = openssl_pkey_get_details($ec);
+        $rsaDetails = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey));
+        $this->assertIsArray($ecDetails);
+        $this->assertIsArray($rsaDetails);
+
+        $factory = new Psr17Factory();
+        $client = $this->jwksClient($factory, [
+            ['kty' => 'RSA', 'kid' => 'kid-1', 'n' => self::base64Url($rsaDetails['rsa']['n']), 'e' => self::base64Url($rsaDetails['rsa']['e'])],
+            ['kty' => 'EC', 'kid' => 'ec-1', 'crv' => 'P-256', 'x' => self::base64Url($ecDetails['ec']['x']), 'y' => self::base64Url($ecDetails['ec']['y'])],
+        ]);
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $client, $factory, ['RS256', 'ES256']);
+
+        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
+        $this->assertTrue($validator->validate(JWT::encode($this->claims([]), $ecPrivateKey, 'ES256', 'ec-1'))->isAllowed());
+    }
+
+    public function testFromIssuerDiscoversOnFirstToken(): void
+    {
+        $factory = new Psr17Factory();
+        $client = new class implements ClientInterface {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                throw new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {};
+            }
+        };
+
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $client, $factory);
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
+    public function testFromIssuerRejectsInsecureIssuer(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        JwtTokenValidator::fromIssuer('http://auth.example.com', self::AUDIENCE, new ArrayAdapter(), $this->jwksClient(new Psr17Factory()), new Psr17Factory());
+    }
+
+    /**
+     * Serves the issuer's metadata and a JWKS holding the given keys, by default the test key without `alg` like Entra.
+     *
+     * @param list<array<string, string>>|null $jwks
+     * @param \ArrayObject<int, string>|null   $requested collects the requested URLs
+     */
+    private function jwksClient(Psr17Factory $factory, ?array $jwks = null, ?\ArrayObject $requested = null): ClientInterface
+    {
+        $details = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey));
+        $jwks ??= [[
             'kty' => 'RSA',
             'kid' => 'kid-1',
             'use' => 'sig',
-            'n' => rtrim(strtr(base64_encode($modulus['n']), '+/', '-_'), '='),
-            'e' => rtrim(strtr(base64_encode($modulus['e']), '+/', '-_'), '='),
-        ];
+            'n' => self::base64Url($details['rsa']['n'] ?? ''),
+            'e' => self::base64Url($details['rsa']['e'] ?? ''),
+        ]];
 
-        return new class($factory, $jwk) implements ClientInterface {
-            /** @var list<string> */
-            public array $requested = [];
-
-            /** @param array<string, string> $jwk */
-            public function __construct(private Psr17Factory $factory, private array $jwk)
+        return new class($factory, $jwks, $requested ?? new \ArrayObject()) implements ClientInterface {
+            /**
+             * @param list<array<string, string>> $jwks
+             * @param \ArrayObject<int, string>   $requested
+             */
+            public function __construct(private Psr17Factory $factory, private array $jwks, private \ArrayObject $requested)
             {
             }
 
@@ -249,7 +298,7 @@ final class JwtTokenValidatorTest extends TestCase
 
                 $body = match ($url) {
                     'https://auth.example.com/.well-known/oauth-authorization-server' => ['issuer' => 'https://auth.example.com', 'jwks_uri' => 'https://auth.example.com/jwks'],
-                    'https://auth.example.com/jwks' => ['keys' => [$this->jwk]],
+                    'https://auth.example.com/jwks' => ['keys' => $this->jwks],
                     default => null,
                 };
 
@@ -258,6 +307,11 @@ final class JwtTokenValidatorTest extends TestCase
                     : $this->factory->createResponse(200)->withBody($this->factory->createStream(json_encode($body, \JSON_THROW_ON_ERROR)));
             }
         };
+    }
+
+    private static function base64Url(string $value): string
+    {
+        return rtrim(strtr(base64_encode($value), '+/', '-_'), '=');
     }
 
     /**

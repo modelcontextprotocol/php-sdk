@@ -194,9 +194,10 @@ Validates JWT access tokens issued by one authorization server. It checks the `a
 an allowlist, optionally the `typ` header, the signature and time claims, the issuer, and the
 audience.
 
-`fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) and caches it and
-the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key rotation does
-not lock clients out. Issuer and JWKS URI must use https (loopback hosts excepted):
+`fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) on the first token
+and caches it and the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key
+rotation does not lock clients out. Keys published without `alg`, as Entra ID does, are matched
+against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted):
 
 ```php
 $validator = JwtTokenValidator::fromIssuer(
@@ -213,7 +214,8 @@ $validator = JwtTokenValidator::fromIssuer(
 ```
 
 To manage the keys yourself, pass them to the constructor — any `ArrayAccess` of
-`Firebase\JWT\Key` by key id, typically a `Firebase\JWT\CachedKeySet`, or a plain array:
+`Firebase\JWT\Key` by key id, typically a `Firebase\JWT\CachedKeySet`, or a plain array. If the JWKS
+omits `alg`, `CachedKeySet` needs it as last argument:
 
 ```php
 use Firebase\JWT\CachedKeySet;
@@ -221,7 +223,7 @@ use Firebase\JWT\CachedKeySet;
 $validator = new JwtTokenValidator(
     issuer: 'https://auth.example.com',
     audience: 'https://mcp.example.com/mcp',
-    keys: new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cachePool, 3600, true),
+    keys: new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cachePool, 3600, true, 'RS256'),
 );
 ```
 
