@@ -11,12 +11,14 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
+use Firebase\JWT\CachedKeySet;
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -162,6 +164,56 @@ final class JwtTokenValidatorTest extends TestCase
     public function testFromIssuerDiscoversAndCachesKeys(): void
     {
         $factory = new Psr17Factory();
+        $client = $this->jwksClient($factory);
+
+        $cache = new ArrayAdapter();
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
+
+        $again = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+        $this->assertTrue($again->validate($this->token([]))->isAllowed());
+
+        $this->assertSame([
+            'https://auth.example.com/.well-known/oauth-authorization-server',
+            'https://auth.example.com/jwks',
+        ], $client->requested);
+    }
+
+    public function testUnknownKeyIdInJwksIsUnauthorized(): void
+    {
+        $factory = new Psr17Factory();
+        $keys = new CachedKeySet('https://auth.example.com/jwks', $this->jwksClient($factory), $factory, new ArrayAdapter(), 3600, true);
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $keys);
+
+        $result = $validator->validate(JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'rotated'));
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
+    public function testUnreachableJwksIsUnauthorized(): void
+    {
+        $factory = new Psr17Factory();
+        $client = new class implements ClientInterface {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                throw new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {};
+            }
+        };
+        $keys = new CachedKeySet('https://auth.example.com/jwks', $client, $factory, new ArrayAdapter(), 3600, true);
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $keys);
+
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
+    }
+
+    /**
+     * Serves the issuer's metadata and a JWKS holding the test key, without `alg` like Entra.
+     */
+    private function jwksClient(Psr17Factory $factory): ClientInterface
+    {
         $modulus = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey))['rsa'] ?? [];
         $jwk = [
             'kty' => 'RSA',
@@ -171,7 +223,7 @@ final class JwtTokenValidatorTest extends TestCase
             'e' => rtrim(strtr(base64_encode($modulus['e']), '+/', '-_'), '='),
         ];
 
-        $client = new class($factory, $jwk) implements ClientInterface {
+        return new class($factory, $jwk) implements ClientInterface {
             /** @var list<string> */
             public array $requested = [];
 
@@ -196,18 +248,6 @@ final class JwtTokenValidatorTest extends TestCase
                     : $this->factory->createResponse(200)->withBody($this->factory->createStream(json_encode($body, \JSON_THROW_ON_ERROR)));
             }
         };
-
-        $cache = new ArrayAdapter();
-        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
-        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
-
-        $again = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
-        $this->assertTrue($again->validate($this->token([]))->isAllowed());
-
-        $this->assertSame([
-            'https://auth.example.com/.well-known/oauth-authorization-server',
-            'https://auth.example.com/jwks',
-        ], $client->requested);
     }
 
     /**

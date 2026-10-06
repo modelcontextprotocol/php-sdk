@@ -23,6 +23,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Server\Authorization\AccessToken;
 use Psr\Cache\CacheItemPoolInterface;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 
@@ -128,6 +129,9 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token is not yet valid.');
         } catch (SignatureInvalidException|\InvalidArgumentException|\UnexpectedValueException|\DomainException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed.');
+        } catch (\OutOfBoundsException|ClientExceptionInterface) {
+            // CachedKeySet: unknown key id after refetching, or the JWKS endpoint is unreachable.
+            return AuthorizationResult::unauthorized('invalid_token', 'Token signing key could not be resolved.');
         } finally {
             JWT::$leeway = $previousLeeway;
         }
