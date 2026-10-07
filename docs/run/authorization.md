@@ -1,104 +1,94 @@
 # Authorization
 
 The PHP MCP SDK provides OAuth 2.1 authorization support for HTTP transports, implementing the
-[MCP Authorization specification](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization).
+[MCP Authorization specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization).
 
 ## Scope: what this SDK does and does not do
 
-The MCP server is an OAuth 2.1 **Resource Server**. It validates the tokens it receives and may
-delegate the OAuth flow to your upstream Identity Provider. **It is not an authorization server
-and it does not issue tokens.**
+The MCP server is an OAuth 2.1 **Resource Server**. It validates the tokens it receives, tells
+clients which authorization server issues them, and enforces scopes. **It is not an authorization
+server: it does not issue tokens, register clients, or proxy the OAuth flow.**
 
-| Role | What it does | Status | Scope |
-|------|--------------|--------|-------|
-| Resource Server | Validates incoming bearer tokens, serves Protected Resource Metadata (RFC 9728), emits `WWW-Authenticate` | Supported (`AuthorizationMiddleware`, `JwtTokenValidator`, `ProtectedResourceMetadata`) | **In scope** |
-| Delegation / proxy to an upstream AS | Forwards `/authorize` and `/token` to your existing IdP | Supported (`OAuthProxyMiddleware`) | **In scope — delegation only** |
-| Authorization Server / Identity Provider | Mints its own tokens, registers clients, runs login and consent | Not implemented | **Out of scope: being an authorization server / issuing tokens is out of scope** |
+| Role | What it does | Status |
+|------|--------------|--------|
+| Resource Server | Validates bearer tokens, serves Protected Resource Metadata (RFC 9728), emits `WWW-Authenticate` challenges, enforces scopes | **Supported** (`AuthorizationMiddleware`, `JwtTokenValidator`, `ProtectedResourceMetadata`, `ScopePolicy`) |
+| Delegation / proxy of `/authorize` and `/token`, Dynamic Client Registration | Fronts the authorization server's endpoints | **Not provided** — see [ADR 0002](https://github.com/modelcontextprotocol/php-sdk/blob/main/adr/0002-resource-server-only.md) |
+| Authorization Server / Identity Provider | Mints tokens, registers clients, runs login and consent | **Out of scope** — see [ADR 0001](https://github.com/modelcontextprotocol/php-sdk/blob/main/adr/0001-oauth-authorization-server-out-of-scope.md) |
 
-To issue tokens, front the MCP server with an external IdP (Keycloak, Auth0, Microsoft Entra
-ID, Okta) or run `league/oauth2-server` in your own application, and let the MCP server
-validate those tokens as a Resource Server. See
-[adr/0001-oauth-authorization-server-out-of-scope.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/adr/0001-oauth-authorization-server-out-of-scope.md).
+Clients find the authorization server through the Protected Resource Metadata and talk to it
+directly. Use an existing IdP (Keycloak, Auth0, Microsoft Entra ID, Okta) or run
+`league/oauth2-server` in your own application.
 
 ## Overview
 
-Authorization in MCP is implemented at the transport level using PSR-15 middleware. The SDK provides:
+Authorization is implemented at the transport level using PSR-15 middleware:
 
-- **AuthorizationMiddleware** - PSR-15 middleware that enforces bearer token authentication
-- **ProtectedResourceMetadataMiddleware** - Serves RFC 9728 metadata at well-known endpoints
-- **OAuthProxyMiddleware** - Delegates OAuth flows (`/authorize`, `/token`) to your upstream IdP; the SDK never issues tokens itself
-- **OAuthRequestMetaMiddleware** - Bridges HTTP OAuth attributes to JSON-RPC request meta
-- **JwtTokenValidator** - Validates JWT tokens using JWKS from OAuth 2.0 / OIDC providers
-- **OidcDiscovery** - Discovers authorization server metadata from well-known endpoints
+- **AuthorizationMiddleware** - Enforces bearer tokens and scopes, answers 401/403 with a `WWW-Authenticate` challenge
+- **ProtectedResourceMetadataMiddleware** - Serves the RFC 9728 metadata document
+- **JwtTokenValidator** - Validates JWT access tokens against the authorization server's keys
+- **ScopePolicy** - Declares the scopes a request needs, per method and per tool
+- **AccessToken** - The validated token, available to handlers via `RequestContext::getAccessToken()`
 
 ```
-┌─────────────┐     ┌────────────────────┐     ┌─────────────────┐
+┌─────────────┐     ┌─────────────────────────┐     ┌─────────────────┐
 │ MCP Client  │────▶│ AuthorizationMiddleware │────▶│  MCP Handlers   │
-└─────────────┘     └────────────────────┘     └─────────────────┘
-      │                      │
-      │                      │ Validate JWT
-      ▼                      ▼
-┌─────────────┐     ┌─────────────────┐
-│ Auth Server │◀────│ JwtTokenValidator│
-│  (Keycloak, │     │    + JWKS       │
-│   Entra ID) │     └─────────────────┘
+└─────────────┘     └─────────────────────────┘     └─────────────────┘
+      │                         │
+      │ Get token               │ Validate JWT
+      ▼                         ▼
+┌─────────────┐     ┌───────────────────┐
+│ Auth Server │◀────│ JwtTokenValidator │
+│  (Keycloak, │     │   + cached JWKS   │
+│   Entra ID) │     └───────────────────┘
 └─────────────┘
 ```
 
 ## Quick Start
 
+`JwtTokenValidator::fromIssuer()` needs `firebase/php-jwt` and a PSR-6 cache, e.g. `symfony/cache`:
+
+```bash
+composer require firebase/php-jwt symfony/cache
+```
+
 ```php
 use Mcp\Server;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
-use Mcp\Server\Transport\Http\Middleware\OAuthRequestMetaMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtectedResourceMetadataMiddleware;
-use Mcp\Server\Transport\Http\OAuth\JwksProvider;
 use Mcp\Server\Transport\Http\OAuth\JwtTokenValidator;
-use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 
-// 1. Set up OIDC discovery and JWKS provider
-$discovery = new OidcDiscovery();
-$jwksProvider = new JwksProvider($discovery);
+$issuer = 'https://auth.example.com/realms/mcp';
+$resource = 'https://mcp.example.com/mcp';
 
-// 2. Create JWT validator for your OAuth provider
-$validator = new JwtTokenValidator(
-    issuer: 'https://auth.example.com/realms/mcp',
-    audience: 'mcp-server',
-    jwksProvider: $jwksProvider,
+// 1. Validate JWTs issued for this server; metadata and keys are discovered and cached
+$validator = JwtTokenValidator::fromIssuer(
+    issuer: $issuer,
+    audience: $resource,
+    cache: new FilesystemAdapter('mcp-oauth'),
 );
 
-// 3. Create Protected Resource Metadata (RFC 9728)
+// 2. Describe this resource (RFC 9728)
 $metadata = new ProtectedResourceMetadata(
-    authorizationServers: ['https://auth.example.com/realms/mcp'],
-    scopesSupported: ['mcp:read', 'mcp:write'],
+    resource: $resource,
+    authorizationServers: [$issuer],
+    scopesSupported: ['mcp:read'],
 );
 
-// 4. Create middleware stack
-$authMiddleware = new AuthorizationMiddleware(
-    validator: $validator,
-    resourceMetadata: $metadata,
-);
-
-$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
-    metadata: $metadata,
-);
-
-// 5. Create transport with middleware
+// 3. Create transport with middleware; the metadata must be reachable without a token
 $transport = new StreamableHttpTransport(
     $request,
     middleware: [
         ...StreamableHttpTransport::defaultMiddleware(),
-        $metadataMiddleware,
-        $authMiddleware,
-        // Bridges the OAuth attributes onto the JSON-RPC request meta, which is
-        // what makes them reachable from a handler (see Scope-Based Access Control).
-        new OAuthRequestMetaMiddleware(),
+        new ProtectedResourceMetadataMiddleware($metadata),
+        new AuthorizationMiddleware($validator, $metadata, new ScopePolicy(default: ['mcp:read'])),
     ],
 );
 
-// 6. Run server
+// 4. Run server
 $server = Server::builder()
     ->setServerInfo('Protected MCP Server', '1.0.0')
     ->setDiscovery(__DIR__, excludeDirs: ['vendor'])
@@ -107,17 +97,17 @@ $server = Server::builder()
 $response = $server->run($transport);
 ```
 
+The same middleware works with `StatelessHttpTransport`.
+
 ## Components
 
 ### AuthorizationMiddleware
 
-The main middleware that enforces authentication:
-
 ```php
 $middleware = new AuthorizationMiddleware(
     validator: $validator,         // AuthorizationTokenValidatorInterface
-    resourceMetadata: $metadata,   // ProtectedResourceMetadata instance
-    responseFactory: null,         // PSR-17 (auto-discovered)
+    resourceMetadata: $metadata,   // ProtectedResourceMetadata
+    scopePolicy: $scopePolicy,     // ScopePolicy|null, no scope checks if null
 );
 ```
 
@@ -125,50 +115,34 @@ $middleware = new AuthorizationMiddleware(
 
 | Request | Response |
 |---------|----------|
-| Missing Authorization header | 401 with `WWW-Authenticate: Bearer resource_metadata="..."` |
-| Invalid/expired token | 401 with error details |
-| Valid token | Passes to next handler with OAuth attributes on request |
+| Missing Authorization header or another scheme | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
+| Malformed Bearer token | 400 with `error="invalid_request"` |
+| Invalid/expired token | 401 with `error="invalid_token"` |
+| Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
+| Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
 
-### ProtectedResourceMetadataMiddleware
+The `resource_metadata` URL is derived from the configured resource, never from the request's
+`Host` header, so it stays correct behind TLS-terminating proxies.
 
-Serves Protected Resource Metadata at configured well-known paths:
+### ScopePolicy
+
+Declares which scopes a request needs. A request needs the default scopes, plus those of its
+JSON-RPC method, plus — for `tools/call` — those of the called tool:
 
 ```php
-$metadataMiddleware = new ProtectedResourceMetadataMiddleware(
-    metadata: $metadata,           // ProtectedResourceMetadata instance
-    responseFactory: null,         // PSR-17 (auto-discovered)
-    streamFactory: null,           // PSR-17 (auto-discovered)
+use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
+
+$scopePolicy = new ScopePolicy(
+    default: ['mcp:read'],
+    methods: ['resources/subscribe' => ['mcp:subscribe']],
+    tools: ['delete_file' => ['files:write']],
+    implies: ['files:admin' => ['files:write']], // a token with files:admin may call delete_file
 );
 ```
 
-### JwtTokenValidator
-
-Validates JWT access tokens:
-
-```php
-$validator = new JwtTokenValidator(
-    issuer: 'https://auth.example.com',  // Expected issuer claim (string or array of aliases)
-    audience: 'mcp-server',              // Expected audience (string or array)
-    jwksProvider: $jwksProvider,          // JwksProviderInterface
-    jwksUri: null,                       // Explicit JWKS URI for all issuers (auto-discovered)
-    algorithms: ['RS256', 'RS384', 'RS512'], // Allowed algorithms (this is the default)
-    scopeClaim: 'scope',                 // Claim name for scopes
-);
-```
-
-An array of issuers is meant for aliases of one authorization server, e.g. an internal and an external URL of the same Keycloak realm, or the v1 and v2 issuer of a Microsoft Entra ID tenant. The token's `iss` claim must exactly match one of them, and the keys are fetched for that issuer, or from `jwksUri` if given.
-
-**Request Attributes:**
-
-After successful validation, these attributes are added to the request:
-
-| Attribute | Description |
-|-----------|-------------|
-| `oauth.claims` | All JWT claims as array |
-| `oauth.scopes` | Extracted scopes as array |
-| `oauth.subject` | The `sub` claim |
-| `oauth.client_id` | The `client_id` claim (if present) |
-| `oauth.authorized_party` | The `azp` claim (if present) |
+On a missing scope the client gets a 403 naming all scopes the request needs, so it can step up
+in a single authorization round trip. Method and tool rules make the middleware read the request
+body; it is handed on to the transport unchanged.
 
 ### ProtectedResourceMetadata
 
@@ -176,172 +150,211 @@ Represents RFC 9728 Protected Resource Metadata:
 
 ```php
 $metadata = new ProtectedResourceMetadata(
-    authorizationServers: [              // Required: authorization server URLs
-        'https://auth.example.com',
-    ],
-    scopesSupported: [                   // Optional: supported scopes
-        'mcp:read',
-        'mcp:write',
-    ],
-    resource: 'https://mcp.example.com', // Optional: resource identifier
-    resourceName: 'My MCP Server',       // Optional: human-readable name
-    metadataPaths: [                     // Paths to serve metadata (default: /.well-known/oauth-protected-resource)
-        '/.well-known/oauth-protected-resource',
-    ],
-    extra: [                             // Optional: additional fields
-        'custom_field' => 'value',
-    ],
+    resource: 'https://mcp.example.com/mcp',          // Required: canonical URI of the MCP server
+    authorizationServers: ['https://auth.example.com'], // Required: issuers of accepted tokens
+    scopesSupported: ['mcp:read'],                    // Optional: minimal scopes for basic use
+    resourceName: 'My MCP Server',                    // Optional
+    resourceDocumentation: 'https://example.com/docs', // Optional
 );
 ```
 
-### OidcDiscovery
+The document is served at `/.well-known/oauth-protected-resource` followed by the resource's
+path (RFC 9728, Section 3.1) — `/.well-known/oauth-protected-resource/mcp` in the example above:
 
-Discovers OAuth/OIDC server metadata:
+```json
+{
+  "resource": "https://mcp.example.com/mcp",
+  "authorization_servers": ["https://auth.example.com"],
+  "scopes_supported": ["mcp:read"],
+  "bearer_methods_supported": ["header"],
+  "resource_name": "My MCP Server"
+}
+```
+
+Resource and authorization server URLs must use https; plain http is only accepted for loopback
+hosts (`localhost`, `127.0.0.1`, `::1`) during development.
+
+### Serving the metadata from a framework
+
+`ProtectedResourceMetadataMiddleware` is a thin path guard around `ProtectedResourceMetadataHandler`,
+a plain PSR-15 request handler. When the MCP endpoint lives in a framework, route
+`GET /.well-known/oauth-protected-resource/...` (see `$metadata->getMetadataPath()`) to the
+handler, converting the framework request to PSR-7 and the response back:
 
 ```php
-$discovery = new OidcDiscovery(
-    httpClient: null,      // PSR-18 (auto-discovered)
-    requestFactory: null,  // PSR-17 (auto-discovered)
-    cache: $cache,         // PSR-16 cache (optional)
-    cacheTtl: 3600,        // Cache TTL
-);
+use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadataHandler;
 
-// Discover metadata
-$metadata = $discovery->discover('https://auth.example.com/realms/mcp');
-
-// Get specific endpoints
-$jwksUri = $discovery->getJwksUri($issuer);
-$tokenEndpoint = $discovery->getTokenEndpoint($issuer);
-$authEndpoint = $discovery->getAuthorizationEndpoint($issuer);
+$handler = new ProtectedResourceMetadataHandler($metadata);
+$psrResponse = $handler->handle($psrRequest);
 ```
 
-### JwksProvider
+### JwtTokenValidator
 
-Fetches and caches JWKS key sets:
+Validates JWT access tokens issued by one authorization server. It checks the `alg` header against
+an allowlist, optionally the `typ` header, the signature and time claims, the issuer, and the
+audience.
+
+`fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) on the first token
+and caches it and the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key
+rotation does not lock clients out. Keys published without `alg`, as Entra ID does, are matched
+against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted):
 
 ```php
-$jwksProvider = new JwksProvider(
-    discovery: $discovery,     // OidcDiscoveryInterface
-    httpClient: null,          // PSR-18 (auto-discovered)
-    requestFactory: null,      // PSR-17 (auto-discovered)
-    cache: $cache,             // PSR-16 cache (optional)
-    cacheTtl: 3600,            // JWKS cache TTL
+$validator = JwtTokenValidator::fromIssuer(
+    issuer: 'https://auth.example.com',  // Expected `iss` claim, matched verbatim
+    audience: 'https://mcp.example.com/mcp', // Accepted `aud` value(s)
+    cache: $cachePool,                   // PSR-6 CacheItemPoolInterface
+    httpClient: null,                    // PSR-18 (auto-discovered)
+    requestFactory: null,                // PSR-17 (auto-discovered)
+    algorithms: ['RS256'],               // Accepted `alg` header values
+    scopeClaim: 'scope',                 // Claim holding the scopes, e.g. `scp` for Entra ID
+    tokenType: 'at+jwt',                 // Required `typ` header (RFC 9068), null to skip
+    leeway: 30,                          // Tolerated clock skew in seconds
 );
 ```
 
-## JWT Token Validation
+To manage the keys yourself, pass them to the constructor — any `ArrayAccess` of
+`Firebase\JWT\Key` by key id, typically a `Firebase\JWT\CachedKeySet`, or a plain array. If the JWKS
+omits `alg`, `CachedKeySet` needs it as last argument:
+
+```php
+use Firebase\JWT\CachedKeySet;
+
+$validator = new JwtTokenValidator(
+    issuer: 'https://auth.example.com',
+    audience: 'https://mcp.example.com/mcp',
+    keys: new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cachePool, 3600, true, 'RS256'),
+);
+```
+
+**The audience must name this MCP server.** Accepting tokens issued for another resource is the
+token passthrough the MCP specification forbids. Configure your authorization server to put the
+resource URI (or a dedicated API identifier) into `aud`, and set `tokenType: 'at+jwt'` when it
+issues RFC 9068 tokens, which keeps ID tokens from being accepted as access tokens.
+
+## Provider Configuration
 
 ### Keycloak
 
+Add an audience mapper (`Included Custom Audience`) with the resource URI to a client scope:
+
 ```php
-$validator = new JwtTokenValidator(
+$validator = JwtTokenValidator::fromIssuer(
     issuer: 'https://keycloak.example.com/realms/mcp',
-    audience: 'mcp-server',
-    jwksProvider: $jwksProvider,
+    audience: 'https://mcp.example.com/mcp',
+    cache: $cachePool,
 );
 ```
 
 ### Microsoft Entra ID (Azure AD)
 
-```php
-$tenantId = 'your-tenant-id';
-$clientId = 'your-client-id';
+Expose an API scope on the MCP server's app registration and set `"accessTokenAcceptedVersion": 2`:
 
-$validator = new JwtTokenValidator(
+```php
+$validator = JwtTokenValidator::fromIssuer(
     issuer: "https://login.microsoftonline.com/{$tenantId}/v2.0",
-    audience: $clientId,
-    jwksProvider: $jwksProvider,
+    audience: [$clientId, "api://{$clientId}"],
+    cache: $cachePool,
+    scopeClaim: 'scp',
 );
 ```
+
+Entra ID supports neither Dynamic Client Registration nor Client ID Metadata Documents and omits
+`code_challenge_methods_supported` from its metadata, so MCP clients need a pre-registered client
+and may refuse it nonetheless; see the Entra example.
 
 ### Auth0
 
 ```php
-$validator = new JwtTokenValidator(
+$validator = JwtTokenValidator::fromIssuer(
     issuer: 'https://your-tenant.auth0.com/',
-    audience: 'https://api.example.com',
-    jwksProvider: $jwksProvider,
+    audience: 'https://mcp.example.com/mcp', // the API identifier
+    cache: $cachePool,
+    tokenType: 'at+jwt',                     // with the RFC 9068 token profile
 );
 ```
 
 ### Okta
 
 ```php
-$validator = new JwtTokenValidator(
+$validator = JwtTokenValidator::fromIssuer(
     issuer: 'https://your-org.okta.com/oauth2/default',
     audience: 'api://default',
-    jwksProvider: $jwksProvider,
+    cache: $cachePool,
 );
 ```
 
-## Protected Resource Metadata
+## Reading the Token in Handlers
 
-The `ProtectedResourceMetadataMiddleware` serves Protected Resource Metadata at configured paths, enabling clients to discover the authorization server:
+The validated token reaches handlers through the `RequestContext`. It lives for the request it
+arrived with only: it is never written to a session store.
 
-```json
+```php
+use Mcp\Capability\Attribute\McpTool;
+use Mcp\Server\RequestContext;
+
+#[McpTool(name: 'whoami')]
+public function whoami(RequestContext $context): array
 {
-  "authorization_servers": ["https://auth.example.com/realms/mcp"],
-  "scopes_supported": ["mcp:read", "mcp:write"],
-  "resource": "https://mcp.example.com/mcp"
+    $token = $context->getAccessToken(); // null if the transport does not authorize
+
+    return [
+        'subject' => $token?->getSubject(),
+        'client' => $token?->getClientId(),
+        'scopes' => $token?->getScopes() ?? [],
+        'email' => $token?->getClaim('email'),
+    ];
 }
 ```
 
-Clients request this from `/.well-known/oauth-protected-resource` before authenticating.
+Prefer a `ScopePolicy` over scope checks in handlers: only the middleware can answer with the 403
+challenge a client steps up from. Use `$token->hasScope()` for decisions that depend on the
+arguments beyond the tool name. With a `ScopePolicy`, the token's scopes include those implied by
+its hierarchy.
 
-### WWW-Authenticate Header
+## Authenticating Outside the SDK
 
-On 401 responses, the middleware includes:
+If your application or framework already authenticates the request, skip `AuthorizationMiddleware`
+and hand the result to the transport as the PSR-7 request attribute `AccessToken::class`. Both HTTP
+transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual:
 
-```
-WWW-Authenticate: Bearer resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource",
-                         scope="mcp:read mcp:write"
+```php
+use Mcp\Server\Authorization\AccessToken;
+
+$request = $request->withAttribute(AccessToken::class, new AccessToken($scopes, $claims));
+$transport = new StreamableHttpTransport($request);
 ```
 
 ## Custom Token Validators
 
-Implement `AuthorizationTokenValidatorInterface` for custom validation:
+Implement `AuthorizationTokenValidatorInterface` for other token formats, e.g. opaque tokens
+checked via token introspection (RFC 7662):
 
 ```php
-use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
+use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 
-final class ApiKeyValidator implements AuthorizationTokenValidatorInterface
+final class IntrospectionValidator implements AuthorizationTokenValidatorInterface
 {
-    public function __construct(
-        private array $validKeys,
-    ) {}
-
     public function validate(string $accessToken): AuthorizationResult
     {
-        if (!isset($this->validKeys[$accessToken])) {
-            return AuthorizationResult::unauthorized(
-                'invalid_token',
-                'Unknown API key'
-            );
+        $claims = $this->introspect($accessToken); // your call to the authorization server
+
+        if (true !== ($claims['active'] ?? false) || !in_array('https://mcp.example.com/mcp', (array) ($claims['aud'] ?? []), true)) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token is not active for this resource.');
         }
 
-        $keyInfo = $this->validKeys[$accessToken];
-
-        return AuthorizationResult::allow([
-            'api_key.name' => $keyInfo['name'],
-            'api_key.scopes' => $keyInfo['scopes'],
-        ]);
+        return AuthorizationResult::allow(new AccessToken(explode(' ', $claims['scope'] ?? ''), $claims));
     }
 }
-
-// Usage
-$validator = new ApiKeyValidator([
-    'sk_live_abc123' => ['name' => 'Production', 'scopes' => ['read', 'write']],
-]);
 ```
 
 ### AuthorizationResult
 
-Factory methods for different outcomes:
-
 ```php
-// Allow access with attributes
-AuthorizationResult::allow(['user_id' => '123']);
+// Allow access with the validated token
+AuthorizationResult::allow(new AccessToken(['mcp:read'], ['sub' => '123']));
 
 // Deny - missing/invalid token (401)
 AuthorizationResult::unauthorized('invalid_token', 'Token expired');
@@ -353,43 +366,10 @@ AuthorizationResult::forbidden('insufficient_scope', 'Requires admin scope', ['a
 AuthorizationResult::badRequest('invalid_request', 'Malformed header');
 ```
 
-## Scope-Based Access Control
+## Browser Clients
 
-### Checking Scopes in Handlers
-
-```php
-#[McpTool(name: 'admin_action')]
-public function adminAction(RequestContext $context): array
-{
-    // The OAuth attributes arrive on the request meta, under the `oauth` key.
-    // This requires OAuthRequestMetaMiddleware in the transport's middleware stack.
-    $meta = $context->getRequest()->getMeta() ?? [];
-    $scopes = $meta['oauth']['oauth.scopes'] ?? [];
-
-    if (!in_array('mcp:admin', $scopes, true)) {
-        throw new \RuntimeException('Admin scope required');
-    }
-
-    // Perform admin action
-    return ['status' => 'success'];
-}
-```
-
-### Using JwtTokenValidator::requireScopes
-
-```php
-// In a custom middleware or handler
-$result = $validator->validate($token);
-
-if ($result->isAllowed()) {
-    // Check for specific scopes
-    $result = $validator->requireScopes($result, ['mcp:write']);
-}
-
-if (!$result->isAllowed()) {
-    // Handle insufficient scope (returns 403)
-}
-```
+The default `CorsMiddleware` exposes `WWW-Authenticate`, so browser-based clients can read the
+challenge and discover the authorization server. Allow their origins via `allowedOrigins`.
 
 ## Examples
 
@@ -399,7 +379,7 @@ Complete working examples are available in the `examples/server/` directory:
 
 ```bash
 cd examples/server/oauth-keycloak
-docker-compose up -d
+docker compose up -d
 
 # Test credentials: demo / demo123
 ```
@@ -411,39 +391,43 @@ See [oauth-keycloak/README.md](https://github.com/modelcontextprotocol/php-sdk/b
 ```bash
 cd examples/server/oauth-microsoft
 cp env.example .env
-# Edit .env with your Azure credentials
-docker-compose up -d
+# Edit .env with your Azure values
+docker compose up -d
 ```
 
 See [oauth-microsoft/README.md](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/server/oauth-microsoft/README.md)
 
 ## Security Considerations
 
-1. **Always use HTTPS** in production for token transmission
-2. **Validate audience claims** to prevent token confusion attacks
-3. **Use short-lived tokens** and implement token refresh
-4. **Cache JWKS** to reduce latency but allow for key rotation
+1. **Always use HTTPS** in production; the SDK refuses plain http URLs outside loopback hosts
+2. **Bind the audience to this server** — never accept tokens issued for other resources
+3. **Never pass the received token on** to upstream APIs; obtain a separate token for them
+4. **Use a persistent PSR-6 cache** so keys are not fetched on every request
 5. **Never log tokens** - log only non-sensitive claims like subject
-6. **Validate scopes** before performing sensitive operations
+6. **Declare scopes in a `ScopePolicy`** for sensitive methods and tools
 
 ## Troubleshooting
 
-### "Invalid issuer" error
+### "Token issuer mismatch"
 
 The `iss` claim in the token must exactly match the configured issuer URL, including trailing slashes.
 
-### "Invalid audience" error
+### "Token audience mismatch"
 
-Check the `aud` claim matches your configured audience. Some providers use the client ID, others use a custom URI.
+The `aud` claim does not contain the configured audience. Some providers use the client ID,
+others a custom URI; configure the provider to issue tokens for this server.
 
-### JWKS fetch timeout
+### "Token algorithm is not accepted"
 
-- Ensure network connectivity to the authorization server
-- Consider using a cache to reduce dependency on the auth server
-- Check firewall rules allow outbound HTTPS
+The token's `alg` header is not in `algorithms`. Add the algorithm your provider signs with, e.g. `ES256`.
+
+### Metadata or JWKS discovery fails
+
+- Ensure network connectivity to the authorization server over https
+- The `issuer` in the discovered metadata must match the configured issuer verbatim
 
 ### Token expired
 
 - Check clock synchronization between servers
-- Tokens typically have a 5-minute clock skew tolerance
+- Use `leeway` to tolerate small clock skew
 - Ensure clients refresh tokens before expiration

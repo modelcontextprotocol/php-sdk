@@ -30,6 +30,7 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
@@ -149,9 +150,10 @@ final class StatelessProtocol
     /**
      * Answers one JSON-RPC request read from an HTTP request body.
      *
-     * @param array<string, string> $headers request headers, case-insensitively matched
+     * @param array<string, string> $headers     request headers, case-insensitively matched
+     * @param AccessToken|null      $accessToken the token the request was authorized with, if the transport authorizes
      */
-    public function handle(string $body, array $headers = []): StatelessResult
+    public function handle(string $body, array $headers = [], ?AccessToken $accessToken = null): StatelessResult
     {
         try {
             /** @var array<string, mixed>|null $decoded */
@@ -232,7 +234,7 @@ final class StatelessProtocol
             );
         }
 
-        return $this->dispatch($method, $decoded, $meta, $id, self::acceptsEventStream($headers));
+        return $this->dispatch($method, $decoded, $meta, $id, self::acceptsEventStream($headers), $accessToken);
     }
 
     /**
@@ -404,7 +406,7 @@ final class StatelessProtocol
     /**
      * @param array<string, mixed> $decoded
      */
-    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false): StatelessResult
+    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false, ?AccessToken $accessToken = null): StatelessResult
     {
         try {
             $messages = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
@@ -446,6 +448,7 @@ final class StatelessProtocol
 
         $session = new Session(new InMemorySessionStore());
         $session->set(RequestMeta::class, $meta);
+        $session->set(AccessToken::class, $accessToken);
 
         // Under the same keys the handshake era writes, so everything reading
         // connection state — ClientGateway's capability probes above all — sees

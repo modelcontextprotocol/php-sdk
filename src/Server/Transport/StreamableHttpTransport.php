@@ -15,6 +15,7 @@ use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\NativeClock;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
@@ -187,11 +188,12 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     }
 
     /**
-     * @param string $body the request body, already read and bounded by {@see self::handleRequest()}
+     * @param string           $body        the request body, already read and bounded by {@see self::handleRequest()}
+     * @param AccessToken|null $accessToken the token the request was authorized with, see {@see self::accessToken()}
      */
-    protected function handlePostRequest(string $body): ResponseInterface
+    protected function handlePostRequest(string $body, ?AccessToken $accessToken = null): ResponseInterface
     {
-        $this->handleMessage($body, $this->sessionId);
+        $this->handleMessage($body, $this->sessionId, $accessToken);
 
         // Consume the immediate response exactly once, so a transport instance
         // reused for a later POST does not replay it.
@@ -445,7 +447,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         }
 
         return match ($request->getMethod()) {
-            'POST' => $this->handlePostRequest($body ?? ''),
+            'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request)),
             'DELETE' => $this->handleDeleteRequest(),
             default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
@@ -463,7 +465,17 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             );
         }
 
-        return $this->responder->respond($this->stateless->handle($body, self::headers($request)));
+        return $this->responder->respond($this->stateless->handle($body, self::headers($request), self::accessToken($request)));
+    }
+
+    /**
+     * The token an authorization middleware validated, see {@see Http\Middleware\AuthorizationMiddleware}.
+     */
+    private static function accessToken(ServerRequestInterface $request): ?AccessToken
+    {
+        $accessToken = $request->getAttribute(AccessToken::class);
+
+        return $accessToken instanceof AccessToken ? $accessToken : null;
     }
 
     /**

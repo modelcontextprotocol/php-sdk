@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Authorization\AccessToken;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
@@ -127,10 +128,10 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
-    protected function handleMessage(string $payload, ?Uuid $sessionId): void
+    protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
     {
         if (\is_callable($this->messageListener)) {
-            ($this->messageListener)($this, $payload, $sessionId);
+            ($this->messageListener)($this, $payload, $sessionId, $accessToken);
         }
     }
 

@@ -35,29 +35,26 @@ final class McpElements
     )]
     public function getAuthStatus(RequestContext $context): array
     {
-        $meta = $context->getRequest()->getMeta() ?? [];
-        $oauth = isset($meta['oauth']) && \is_array($meta['oauth']) ? $meta['oauth'] : [];
-        $claims = isset($oauth['oauth.claims']) && \is_array($oauth['oauth.claims']) ? $oauth['oauth.claims'] : [];
-        $scopes = isset($oauth['oauth.scopes']) && \is_array($oauth['oauth.scopes']) ? $oauth['oauth.scopes'] : [];
+        $token = $context->getAccessToken();
+        $expiresAt = $token?->getClaim('exp');
 
         return [
-            'authenticated' => true,
+            'authenticated' => null !== $token,
             'provider' => 'Microsoft Entra ID',
             'message' => 'You have successfully authenticated with Microsoft!',
             'timestamp' => date('c'),
             'user' => [
-                'subject' => $oauth['oauth.subject'] ?? ($claims['sub'] ?? null),
-                'object_id' => $oauth['oauth.object_id'] ?? ($claims['oid'] ?? null),
-                'username' => $claims['preferred_username'] ?? ($claims['upn'] ?? null),
-                'name' => $oauth['oauth.name'] ?? ($claims['name'] ?? null),
-                'email' => $claims['email'] ?? null,
-                'issuer' => $claims['iss'] ?? null,
-                'audience' => $claims['aud'] ?? null,
-                'tenant_id' => $claims['tid'] ?? null,
-                'scopes' => $scopes,
-                'expires_at' => isset($claims['exp']) && is_numeric($claims['exp'])
-                    ? date('c', (int) $claims['exp'])
-                    : null,
+                'subject' => $token?->getSubject(),
+                'object_id' => $token?->getClaim('oid'),
+                'client_id' => $token?->getClientId(),
+                'username' => $token?->getClaim('preferred_username') ?? $token?->getClaim('upn'),
+                'name' => $token?->getClaim('name'),
+                'email' => $token?->getClaim('email'),
+                'issuer' => $token?->getClaim('iss'),
+                'audience' => $token?->getClaim('aud'),
+                'tenant_id' => $token?->getClaim('tid'),
+                'scopes' => $token?->getScopes() ?? [],
+                'expires_at' => is_numeric($expiresAt) ? date('c', (int) $expiresAt) : null,
             ],
         ];
     }
@@ -74,14 +71,14 @@ final class McpElements
     public function callGraphApi(
         string $endpoint = '/me',
     ): array {
-        // In a real implementation, you would:
-        // 1. Use the On-Behalf-Of flow to exchange tokens
-        // 2. Call Microsoft Graph with the new token
+        // The token this server received is for this server only and MUST NOT be
+        // passed on. A real implementation exchanges it for a Graph token via the
+        // On-Behalf-Of flow, which needs a client credential of its own.
 
         return [
             'status' => 'simulated',
             'endpoint' => "https://graph.microsoft.com/v1.0{$endpoint}",
-            'message' => 'Configure AZURE_CLIENT_SECRET for actual Graph API calls',
+            'message' => 'Implement the On-Behalf-Of flow for actual Graph API calls',
             'simulated_response' => [
                 'displayName' => 'Demo User',
                 'mail' => 'demo@example.com',

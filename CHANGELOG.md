@@ -13,7 +13,6 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
-* Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
 * [BC Break] Validate a tool result's `structuredContent` against the tool's `outputSchema`, which the specification requires the server to honour. A mismatch is answered with a `CallToolResult` carrying `isError: true` instead of the non-conforming value, matching the TypeScript, Python and Java SDKs. Skipped when the tool declares no `outputSchema`, when the result carries no `structuredContent`, and when the result is already an error. Return `new \stdClass()` for an empty object, since `[]` is sent as an array.
 * Stop the server `Protocol` from logging full JSON-RPC payloads (tool arguments, client replies) at info level: info records now carry only the method and id, the raw message is logged at debug level.
@@ -25,6 +24,14 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `Client::getServerCapabilities()`, returning what the server declared in `initialize` or, from `2026-07-28` on, in `server/discover`.
 * [BC Break] `ClientStateInterface` declares `setServerCapabilities()` and `getServerCapabilities()`, which a custom implementation has to add.
 * Add a `listen` option to the client's `HttpTransport`, opening the standalone GET stream on which a 2025-era server sends requests and notifications outside of a client request, like `roots/list`. Needs a PSR-18 client that streams response bodies, such as `symfony/http-client`.
+* [BC Break] Narrow authorization to the resource server role (ADR 0002): remove `OAuthProxyMiddleware`, `ClientRegistrationMiddleware`, `ClientRegistrarInterface` and `ClientRegistrationException`.
+* [BC Break] Replace `OAuthRequestMetaMiddleware` with `RequestContext::getAccessToken()`, returning the validated `Server\Authorization\AccessToken`; `AuthorizationResult::allow()` takes an `AccessToken` instead of request attributes.
+* [BC Break] Add an `?AccessToken $accessToken` parameter to `Protocol::processInput()`, `BaseTransport::handleMessage()` and `StreamableHttpTransport::handlePostRequest()`, and as fourth argument of the `TransportInterface::onMessage()` listener; overrides need the new signature.
+* [BC Break] Make `JwtTokenValidator` final with a single issuer instead of a list of issuer aliases, and a `$keys` set (e.g. `CachedKeySet`); `JwtTokenValidator::fromIssuer()` discovers and caches keys in a PSR-6 pool, refetching on unknown key ids. The `alg` allowlist is enforced, `$tokenType` and `$leeway` are added, `requireScopes()` is removed in favour of `ScopePolicy`.
+* [BC Break] Remove `JwksProvider`, `JwksProviderInterface`, `OidcDiscoveryInterface` and the OIDC metadata policies; `OidcDiscovery` is internal.
+* [BC Break] `ProtectedResourceMetadata` requires `$resource`, serves at the path derived from it (RFC 9728 §3.1) and requires https except for loopback hosts; drops localized, policy, ToS, extra fields and `$metadataPaths`.
+* [BC Break] Add `ScopePolicy` as third argument of `AuthorizationMiddleware`, answering `403 insufficient_scope` per method and tool, with scope hierarchies; the `resource_metadata` challenge URL comes from the configured resource instead of the `Host` header.
+* Expose `WWW-Authenticate` in the default `CorsMiddleware`.
 
 0.8.0
 -----

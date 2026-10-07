@@ -11,374 +11,134 @@
 
 namespace Mcp\Tests\Unit\Server\Transport\Http\OAuth;
 
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
-use Mcp\Server\Transport\Http\OAuth\LenientOidcDiscoveryMetadataPolicy;
 use Mcp\Server\Transport\Http\OAuth\OidcDiscovery;
 use Nyholm\Psr7\Factory\Psr17Factory;
-use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
-use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
-/**
- * Tests OidcDiscovery metadata resolution, validation, and caching behavior.
- *
- * @author Volodymyr Panivko <sveneld300@gmail.com>
- */
-class OidcDiscoveryTest extends TestCase
+final class OidcDiscoveryTest extends TestCase
 {
-    #[TestDox('invalid issuer URL throws RuntimeException')]
-    public function testInvalidIssuerUrlThrows(): void
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function provideIssuers(): iterable
     {
-        $this->skipIfPsrHttpClientIsMissing();
+        yield 'no path, RFC 8414' => ['https://auth.example.com', 'https://auth.example.com/.well-known/oauth-authorization-server'];
+        yield 'no path, trailing slash' => ['https://auth.example.com/', 'https://auth.example.com/.well-known/oauth-authorization-server'];
+        yield 'path, RFC 8414 insertion' => ['https://auth.example.com/realms/mcp', 'https://auth.example.com/.well-known/oauth-authorization-server/realms/mcp'];
+        yield 'path, OIDC insertion' => ['https://auth.example.com/realms/mcp', 'https://auth.example.com/.well-known/openid-configuration/realms/mcp'];
+        yield 'path, OIDC appending' => ['https://auth.example.com/tenant/v2.0/', 'https://auth.example.com/tenant/v2.0/.well-known/openid-configuration'];
+        yield 'loopback http' => ['http://localhost:8180/realms/mcp', 'http://localhost:8180/realms/mcp/.well-known/openid-configuration'];
+    }
 
-        $factory = new Psr17Factory();
-        $discovery = new OidcDiscovery(
-            httpClient: $this->createMock(ClientInterface::class),
-            requestFactory: $factory,
-        );
+    #[DataProvider('provideIssuers')]
+    public function testResolvesJwksUriFromMetadata(string $issuer, string $metadataUrl): void
+    {
+        $client = $this->client([$metadataUrl => ['issuer' => $issuer, 'jwks_uri' => 'https://auth.example.com/jwks']]);
+
+        $this->assertSame('https://auth.example.com/jwks', (new OidcDiscovery(new ArrayAdapter(), $client, new Psr17Factory()))->getJwksUri($issuer));
+    }
+
+    public function testCachesResolvedUri(): void
+    {
+        $client = $this->client(['https://auth.example.com/.well-known/oauth-authorization-server' => ['issuer' => 'https://auth.example.com', 'jwks_uri' => 'https://auth.example.com/jwks']]);
+        $discovery = new OidcDiscovery(new ArrayAdapter(), $client, new Psr17Factory());
+
+        $discovery->getJwksUri('https://auth.example.com');
+        $discovery->getJwksUri('https://auth.example.com');
+
+        $this->assertCount(1, $client->requested);
+    }
+
+    public function testSkipsMetadataOfAnotherIssuer(): void
+    {
+        $client = $this->client([
+            'https://auth.example.com/.well-known/oauth-authorization-server' => ['issuer' => 'https://evil.example.com', 'jwks_uri' => 'https://evil.example.com/jwks'],
+            'https://auth.example.com/.well-known/openid-configuration' => ['issuer' => 'https://auth.example.com', 'jwks_uri' => 'https://auth.example.com/jwks'],
+        ]);
+
+        $this->assertSame('https://auth.example.com/jwks', (new OidcDiscovery(new ArrayAdapter(), $client, new Psr17Factory()))->getJwksUri('https://auth.example.com'));
+    }
+
+    public function testRejectsInsecureJwksUri(): void
+    {
+        $client = $this->client(['https://auth.example.com/.well-known/oauth-authorization-server' => ['issuer' => 'https://auth.example.com', 'jwks_uri' => 'http://auth.example.com/jwks']]);
 
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Invalid issuer URL');
-        $discovery->discover('invalid-issuer');
+
+        (new OidcDiscovery(new ArrayAdapter(), $client, new Psr17Factory()))->getJwksUri('https://auth.example.com');
     }
 
-    #[TestDox('strict discovery rejects metadata without code challenge methods')]
-    public function testDiscoverRejectsMetadataWithoutCodeChallengeMethodsSupported(): void
+    public function testRejectsInsecureIssuer(): void
     {
-        $this->skipIfPsrHttpClientIsMissing();
+        $this->expectException(InvalidArgumentException::class);
 
-        $factory = new Psr17Factory();
-        $issuer = 'https://auth.example.com';
-        $metadata = [
-            'issuer' => $issuer,
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-        ];
+        (new OidcDiscovery(new ArrayAdapter(), $this->client([]), new Psr17Factory()))->getJwksUri('http://auth.example.com');
+    }
 
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(2))
-            ->method('sendRequest')
-            ->willReturn($factory->createResponse(200)->withBody(
-                $factory->createStream(json_encode($metadata, \JSON_THROW_ON_ERROR)),
-            ));
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
+    public function testFailsWithoutMetadata(): void
+    {
         $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessage('Failed to discover authorization server metadata');
-        $discovery->discover($issuer);
+        $this->expectExceptionMessage('Failed to discover authorization server metadata for issuer: https://auth.example.com');
+
+        (new OidcDiscovery(new ArrayAdapter(), $this->client([]), new Psr17Factory()))->getJwksUri('https://auth.example.com');
     }
 
-    #[TestDox('lenient discovery accepts metadata without code challenge methods')]
-    public function testDiscoverAcceptsMetadataWithoutCodeChallengeMethodsUsingLenientPolicy(): void
+    public function testCachesFailureBriefly(): void
     {
-        $this->skipIfPsrHttpClientIsMissing();
+        $client = $this->client([]);
+        $cache = new ArrayAdapter();
 
-        $factory = new Psr17Factory();
-        $issuer = 'https://auth.example.com';
-        $metadata = [
-            'issuer' => $issuer,
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('sendRequest')
-            ->willReturn($factory->createResponse(200)->withBody(
-                $factory->createStream(json_encode($metadata, \JSON_THROW_ON_ERROR)),
-            ));
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-            metadataPolicy: new LenientOidcDiscoveryMetadataPolicy(),
-        );
-
-        $result = $discovery->discover($issuer);
-
-        $this->assertSame($metadata['authorization_endpoint'], $result['authorization_endpoint']);
-        $this->assertArrayNotHasKey('code_challenge_methods_supported', $result);
-    }
-
-    #[TestDox('discover falls back to the next metadata URL when first response is invalid')]
-    public function testDiscoverFallsBackOnInvalidMetadataResponse(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $requestedUrls = [];
-
-        $invalidMetadata = [
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            // token_endpoint is intentionally missing
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-        ];
-        $validMetadata = [
-            'issuer' => 'https://auth.example.com/tenant',
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(2))
-            ->method('sendRequest')
-            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $invalidMetadata, $validMetadata): ResponseInterface {
-                $requestedUrls[] = (string) $request->getUri();
-
-                $payload = 1 === \count($requestedUrls) ? $invalidMetadata : $validMetadata;
-
-                return $factory->createResponse(200)->withBody(
-                    $factory->createStream(json_encode($payload, \JSON_THROW_ON_ERROR)),
-                );
-            });
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
-        $metadata = $discovery->discover('https://auth.example.com/tenant');
-
-        $this->assertSame($validMetadata['authorization_endpoint'], $metadata['authorization_endpoint']);
-        $this->assertSame($validMetadata['token_endpoint'], $metadata['token_endpoint']);
-        $this->assertSame($validMetadata['jwks_uri'], $metadata['jwks_uri']);
-        $this->assertSame(
-            'https://auth.example.com/.well-known/oauth-authorization-server/tenant',
-            $requestedUrls[0],
-        );
-        $this->assertSame(
-            'https://auth.example.com/.well-known/openid-configuration/tenant',
-            $requestedUrls[1],
-        );
-    }
-
-    #[TestDox('valid metadata from cache is returned without HTTP call')]
-    public function testDiscoverUsesValidCacheWithoutHttpCall(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $cachedMetadata = [
-            'issuer' => 'https://auth.example.com/tenant',
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->never())->method('sendRequest');
-
-        $cache = $this->createMock(CacheInterface::class);
-        $cache->expects($this->once())
-            ->method('get')
-            ->willReturn($cachedMetadata);
-        $cache->expects($this->never())->method('set');
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-            cache: $cache,
-        );
-
-        $metadata = $discovery->discover('https://auth.example.com/tenant');
-
-        $this->assertSame($cachedMetadata, $metadata);
-    }
-
-    #[TestDox('discover skips metadata when issuer claim does not match requested issuer')]
-    public function testDiscoverSkipsIssuerMismatch(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $requestedUrls = [];
-
-        $issuerMismatch = [
-            'issuer' => 'https://auth.example.com/other-tenant',
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-        $validMetadata = [
-            'issuer' => 'https://auth.example.com/tenant',
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(2))
-            ->method('sendRequest')
-            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $issuerMismatch, $validMetadata): ResponseInterface {
-                $requestedUrls[] = (string) $request->getUri();
-
-                $payload = 1 === \count($requestedUrls) ? $issuerMismatch : $validMetadata;
-
-                return $factory->createResponse(200)->withBody(
-                    $factory->createStream(json_encode($payload, \JSON_THROW_ON_ERROR)),
-                );
-            });
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
-        $metadata = $discovery->discover('https://auth.example.com/tenant');
-
-        $this->assertSame($validMetadata['issuer'], $metadata['issuer']);
-        $this->assertSame(
-            'https://auth.example.com/.well-known/oauth-authorization-server/tenant',
-            $requestedUrls[0],
-        );
-        $this->assertSame(
-            'https://auth.example.com/.well-known/openid-configuration/tenant',
-            $requestedUrls[1],
-        );
-    }
-
-    #[TestDox('issuer without path uses standard well-known endpoints')]
-    public function testIssuerWithoutPathUsesStandardWellKnownEndpoints(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $requestedUrls = [];
-        $validMetadata = [
-            'issuer' => 'https://auth.example.com',
-            'authorization_endpoint' => 'https://auth.example.com/oauth2/v2.0/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth2/v2.0/token',
-            'jwks_uri' => 'https://auth.example.com/discovery/v2.0/keys',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(2))
-            ->method('sendRequest')
-            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $validMetadata): ResponseInterface {
-                $requestedUrls[] = (string) $request->getUri();
-
-                if (1 === \count($requestedUrls)) {
-                    return $factory->createResponse(404);
-                }
-
-                return $factory->createResponse(200)->withBody(
-                    $factory->createStream(json_encode($validMetadata, \JSON_THROW_ON_ERROR)),
-                );
-            });
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
-        $metadata = $discovery->discover('https://auth.example.com');
-
-        $this->assertSame($validMetadata['jwks_uri'], $metadata['jwks_uri']);
-        $this->assertSame('https://auth.example.com/.well-known/oauth-authorization-server', $requestedUrls[0]);
-        $this->assertSame('https://auth.example.com/.well-known/openid-configuration', $requestedUrls[1]);
-    }
-
-    #[TestDox('issuer with path and trailing slash is discovered and matched verbatim')]
-    public function testIssuerWithPathAndTrailingSlash(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $requestedUrls = [];
-        $issuer = 'https://auth.example.com/application/o/mcp/';
-        $validMetadata = [
-            'issuer' => $issuer,
-            'authorization_endpoint' => 'https://auth.example.com/application/o/authorize/',
-            'token_endpoint' => 'https://auth.example.com/application/o/token/',
-            'jwks_uri' => 'https://auth.example.com/application/o/mcp/jwks/',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->exactly(3))
-            ->method('sendRequest')
-            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $validMetadata): ResponseInterface {
-                $requestedUrls[] = (string) $request->getUri();
-
-                if (3 !== \count($requestedUrls)) {
-                    return $factory->createResponse(404);
-                }
-
-                return $factory->createResponse(200)->withBody(
-                    $factory->createStream(json_encode($validMetadata, \JSON_THROW_ON_ERROR)),
-                );
-            });
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
-        $metadata = $discovery->discover($issuer);
-
-        $this->assertSame($issuer, $metadata['issuer']);
-        $this->assertSame('https://auth.example.com/.well-known/oauth-authorization-server/application/o/mcp', $requestedUrls[0]);
-        $this->assertSame('https://auth.example.com/.well-known/openid-configuration/application/o/mcp', $requestedUrls[1]);
-        $this->assertSame('https://auth.example.com/application/o/mcp/.well-known/openid-configuration', $requestedUrls[2]);
-    }
-
-    #[TestDox('issuer without path but with trailing slash is discovered and matched verbatim')]
-    public function testIssuerWithoutPathWithTrailingSlash(): void
-    {
-        $this->skipIfPsrHttpClientIsMissing();
-
-        $factory = new Psr17Factory();
-        $requestedUrls = [];
-        $issuer = 'https://auth.example.com/';
-        $validMetadata = [
-            'issuer' => $issuer,
-            'authorization_endpoint' => 'https://auth.example.com/authorize',
-            'token_endpoint' => 'https://auth.example.com/oauth/token',
-            'jwks_uri' => 'https://auth.example.com/.well-known/jwks.json',
-            'code_challenge_methods_supported' => ['S256'],
-        ];
-
-        $httpClient = $this->createMock(ClientInterface::class);
-        $httpClient->expects($this->once())
-            ->method('sendRequest')
-            ->willReturnCallback(static function (RequestInterface $request) use ($factory, &$requestedUrls, $validMetadata): ResponseInterface {
-                $requestedUrls[] = (string) $request->getUri();
-
-                return $factory->createResponse(200)->withBody(
-                    $factory->createStream(json_encode($validMetadata, \JSON_THROW_ON_ERROR)),
-                );
-            });
-
-        $discovery = new OidcDiscovery(
-            httpClient: $httpClient,
-            requestFactory: $factory,
-        );
-
-        $metadata = $discovery->discover($issuer);
-
-        $this->assertSame($issuer, $metadata['issuer']);
-        $this->assertSame(['https://auth.example.com/.well-known/oauth-authorization-server'], $requestedUrls);
-    }
-
-    private function skipIfPsrHttpClientIsMissing(): void
-    {
-        if (!interface_exists(ClientInterface::class)) {
-            $this->markTestSkipped('psr/http-client is not available in this runtime.');
+        try {
+            (new OidcDiscovery($cache, $client, new Psr17Factory()))->getJwksUri('https://auth.example.com');
+            $this->fail('Discovery should have failed.');
+        } catch (RuntimeException) {
         }
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Discovery for issuer https://auth.example.com failed recently');
+
+        try {
+            (new OidcDiscovery($cache, $client, new Psr17Factory()))->getJwksUri('https://auth.example.com');
+        } finally {
+            $this->assertCount(2, $client->requested);
+        }
+    }
+
+    /**
+     * @param array<string, array<string, mixed>> $documents
+     *
+     * @return ClientInterface&object{requested: list<string>}
+     */
+    private function client(array $documents): ClientInterface
+    {
+        return new class($documents) implements ClientInterface {
+            /** @var list<string> */
+            public array $requested = [];
+
+            /** @param array<string, array<string, mixed>> $documents */
+            public function __construct(private array $documents)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $factory = new Psr17Factory();
+                $url = (string) $request->getUri();
+                $this->requested[] = $url;
+
+                if (!isset($this->documents[$url])) {
+                    return $factory->createResponse(404);
+                }
+
+                return $factory->createResponse(200)->withBody($factory->createStream(json_encode($this->documents[$url], \JSON_THROW_ON_ERROR)));
+            }
+        };
     }
 }

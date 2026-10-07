@@ -23,6 +23,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
@@ -115,13 +116,14 @@ class Protocol
      * This is called by the transport whenever ANY message arrives.
      *
      * @param TransportInterface<mixed> $transport
+     * @param AccessToken|null          $accessToken the token the input was authorized with, if the transport authorizes
      */
-    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId): void
+    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
     {
         // Last line of defense: a malformed message must never escape as a PHP error and take the
         // server process down.
         try {
-            $this->doProcessInput($transport, $input, $sessionId);
+            $this->doProcessInput($transport, $input, $sessionId, $accessToken);
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Uncaught exception while processing input: %s', $e->getMessage()), ['exception' => $e]);
 
@@ -176,7 +178,7 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId): void
+    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken): void
     {
         $this->logger->info('Received message to process.');
         $this->logger->debug('Received message payload.', ['message' => $input]);
@@ -204,7 +206,7 @@ class Protocol
                 if ($message instanceof InvalidInputMessageException) {
                     $this->handleInvalidMessage($transport, $message, $session);
                 } elseif ($message instanceof Request) {
-                    $this->handleRequest($transport, $message, $session);
+                    $this->handleRequest($transport, $message, $session, $accessToken);
                 } elseif ($message instanceof Response || $message instanceof Error) {
                     $this->handleResponse($message, $session);
                 } elseif ($message instanceof Notification) {
@@ -256,11 +258,15 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      */
-    private function handleRequest(TransportInterface $transport, Request $request, SessionInterface $session): void
+    private function handleRequest(TransportInterface $transport, Request $request, SessionInterface $session, ?AccessToken $accessToken): void
     {
         $this->logger->info('Handling request.', ['method' => $request::getMethod(), 'request_id' => $request->getId()]);
 
         $session->set(self::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
+
+        // Overwritten on every request, so a token never carries over to a later
+        // request of the same session; AccessToken serializes to null.
+        $session->set(AccessToken::class, $accessToken);
 
         // A request starts with nothing behind it: the shim fills this in as it
         // collects answers, and clearing it here is what keeps one request's

@@ -13,192 +13,110 @@ namespace Mcp\Server\Transport\Http\OAuth;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
-use Psr\SimpleCache\CacheInterface;
 
 /**
- * Discovers OAuth 2.0 / OpenID Connect authorization server metadata.
+ * Resolves an authorization server's JWKS URI from its metadata.
  *
- * Supports:
- * - OAuth 2.0 Authorization Server Metadata (RFC 8414)
- * - OpenID Connect Discovery 1.0
+ * Tries OAuth 2.0 Authorization Server Metadata (RFC 8414) before OpenID Connect
+ * Discovery, accepts a document only when its `issuer` matches verbatim, and
+ * requires https for both the issuer and the JWKS URI. A failed discovery is
+ * remembered briefly, so tokens arriving while the authorization server is down
+ * do not each trigger outbound requests.
+ *
+ * @internal used by {@see JwtTokenValidator::fromIssuer()}
  *
  * @see https://datatracker.ietf.org/doc/html/rfc8414
  * @see https://openid.net/specs/openid-connect-discovery-1_0.html
  *
  * @author Volodymyr Panivko <sveneld300@gmail.com>
  */
-class OidcDiscovery implements OidcDiscoveryInterface
+final class OidcDiscovery
 {
-    private const CACHE_KEY_PREFIX = 'mcp_oidc_discovery_';
+    private const CACHE_KEY_PREFIX = 'mcp_oidc_jwks_uri_';
+    private const FAILURE_TTL = 10;
 
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
-    private OidcDiscoveryMetadataPolicyInterface $metadataPolicy;
 
-    /**
-     * @param ClientInterface|null                      $httpClient     PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null              $requestFactory PSR-17 request factory (auto-discovered if null)
-     * @param CacheInterface|null                       $cache          PSR-16 cache for metadata (optional)
-     * @param int                                       $cacheTtl       Cache TTL in seconds (default: 1 hour)
-     * @param OidcDiscoveryMetadataPolicyInterface|null $metadataPolicy Metadata validation policy
-     */
     public function __construct(
+        private readonly CacheItemPoolInterface $cache,
         ?ClientInterface $httpClient = null,
         ?RequestFactoryInterface $requestFactory = null,
-        private readonly ?CacheInterface $cache = null,
         private readonly int $cacheTtl = 3600,
-        ?OidcDiscoveryMetadataPolicyInterface $metadataPolicy = null,
     ) {
         $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
-        $this->metadataPolicy = $metadataPolicy ?? new StrictOidcDiscoveryMetadataPolicy();
     }
 
     /**
-     * Gets the JWKS URI from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The JWKS URI
-     *
-     * @throws RuntimeException If discover fails
+     * @throws InvalidArgumentException if the issuer is not a secure absolute URL
+     * @throws RuntimeException         if no valid metadata document is found
      */
     public function getJwksUri(string $issuer): string
     {
-        $metadata = $this->discover($issuer);
-
-        return $metadata['jwks_uri'];
-    }
-
-    /**
-     * Gets the token endpoint from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The token endpoint URL
-     *
-     * @throws RuntimeException If discover fails
-     */
-    public function getTokenEndpoint(string $issuer): string
-    {
-        $metadata = $this->discover($issuer);
-
-        return $metadata['token_endpoint'];
-    }
-
-    /**
-     * Gets the authorization endpoint from the authorization server metadata.
-     *
-     * @param string $issuer The issuer URL
-     *
-     * @return string The authorization endpoint URL
-     *
-     * @throws RuntimeException If discover fails
-     */
-    public function getAuthorizationEndpoint(string $issuer): string
-    {
-        $metadata = $this->discover($issuer);
-
-        return $metadata['authorization_endpoint'];
-    }
-
-    /**
-     * Discovers authorization server metadata from the issuer URL.
-     *
-     * Tries endpoints in priority order per RFC 8414 and OpenID Connect Discovery:
-     * 1. OAuth 2.0 path insertion: /.well-known/oauth-authorization-server/{path}
-     * 2. OIDC path insertion: /.well-known/openid-configuration/{path}
-     * 3. OIDC path appending: {path}/.well-known/openid-configuration
-     *
-     * @param string $issuer The issuer URL (e.g., "https://auth.example.com/realms/mcp")
-     *
-     * @return array<string, mixed> The authorization server metadata
-     *
-     * @throws RuntimeException If discovery fails
-     */
-    public function discover(string $issuer): array
-    {
-        $cacheKey = self::CACHE_KEY_PREFIX.hash('sha256', $issuer);
-
-        if (null !== $this->cache) {
-            $cached = $this->cache->get($cacheKey);
-            if (\is_array($cached)) {
-                /* @var array<string, mixed> $cached */
+        $item = $this->cache->getItem(self::CACHE_KEY_PREFIX.hash('sha256', $issuer));
+        if ($item->isHit()) {
+            $cached = $item->get();
+            if (\is_string($cached)) {
                 return $cached;
+            }
+
+            if (false === $cached) {
+                throw new RuntimeException(\sprintf('Discovery for issuer %s failed recently, retrying after a short backoff.', $issuer));
             }
         }
 
-        $metadata = $this->fetchMetadata($issuer);
+        try {
+            $jwksUri = $this->discover($issuer);
+        } catch (RuntimeException $e) {
+            $this->cache->save($item->set(false)->expiresAfter(self::FAILURE_TTL));
 
-        if (null !== $this->cache) {
-            $this->cache->set($cacheKey, $metadata, $this->cacheTtl);
+            throw $e;
         }
 
-        return $metadata;
+        $this->cache->save($item->set($jwksUri)->expiresAfter($this->cacheTtl));
+
+        return $jwksUri;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    private function fetchMetadata(string $issuer): array
+    private function discover(string $issuer): string
     {
         // The trailing slash is dropped to build discovery URLs (RFC 8414 §3.1),
         // but the issuer is matched verbatim (RFC 8414 §3.3, OIDC Discovery §4.3).
-        $discoveryIssuer = rtrim($issuer, '/');
-        $parsed = parse_url($discoveryIssuer);
+        $parts = SecureUrl::parse(rtrim($issuer, '/'), 'issuer');
+        $base = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
+        $path = $parts['path'] ?? '';
 
-        if (false === $parsed || !isset($parsed['scheme'], $parsed['host'])) {
-            throw new RuntimeException(\sprintf('Invalid issuer URL: %s', $issuer));
-        }
-
-        $scheme = $parsed['scheme'];
-        $host = $parsed['host'];
-        $port = isset($parsed['port']) ? ':'.$parsed['port'] : '';
-        $path = $parsed['path'] ?? '';
-
-        $baseUrl = $scheme.'://'.$host.$port;
-
-        // Build discovery URLs in priority order per RFC 8414 Section 3.1
-        $discoveryUrls = [];
-
-        if ('' !== $path && '/' !== $path) {
-            // For issuer URLs with path components
-            // 1. OAuth 2.0 path insertion
-            $discoveryUrls[] = $baseUrl.'/.well-known/oauth-authorization-server'.$path;
-            // 2. OIDC path insertion
-            $discoveryUrls[] = $baseUrl.'/.well-known/openid-configuration'.$path;
-            // 3. OIDC path appending
-            $discoveryUrls[] = $discoveryIssuer.'/.well-known/openid-configuration';
-        } else {
-            // For issuer URLs without path components
-            $discoveryUrls[] = $baseUrl.'/.well-known/oauth-authorization-server';
-            $discoveryUrls[] = $baseUrl.'/.well-known/openid-configuration';
-        }
+        $urls = '' === $path
+            ? [$base.'/.well-known/oauth-authorization-server', $base.'/.well-known/openid-configuration']
+            : [
+                $base.'/.well-known/oauth-authorization-server'.$path,
+                $base.'/.well-known/openid-configuration'.$path,
+                $base.$path.'/.well-known/openid-configuration',
+            ];
 
         $lastException = null;
-
-        foreach ($discoveryUrls as $url) {
+        foreach ($urls as $url) {
             try {
                 $metadata = $this->fetchJson($url);
-                if (!$this->metadataPolicy->isValid($metadata)) {
-                    throw new RuntimeException(\sprintf('OIDC discovery response from %s has invalid format.', $url));
+
+                if (($metadata['issuer'] ?? null) !== $issuer) {
+                    throw new RuntimeException(\sprintf('Metadata at %s does not belong to issuer %s.', $url, $issuer));
                 }
 
-                if (!isset($metadata['issuer']) || !\is_string($metadata['issuer'])) {
-                    throw new RuntimeException(\sprintf('OIDC discovery response from %s is missing required "issuer" field.', $url));
-                }
-                if ($metadata['issuer'] !== $issuer) {
-                    throw new RuntimeException(\sprintf('OIDC discovery issuer mismatch for %s: expected %s, got %s.', $url, $issuer, $metadata['issuer']));
-                }
+                $jwksUri = $metadata['jwks_uri'] ?? null;
+                SecureUrl::parse($jwksUri, 'jwks_uri');
+                \assert(\is_string($jwksUri));
 
-                return $metadata;
-            } catch (RuntimeException $e) {
+                return $jwksUri;
+            } catch (RuntimeException|InvalidArgumentException $e) {
                 $lastException = $e;
-                continue;
             }
         }
 

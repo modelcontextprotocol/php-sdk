@@ -1,6 +1,6 @@
 # 0001 — The MCP server is an OAuth Resource Server, not an Authorization Server
 
-- Status: Accepted
+- Status: Accepted, amended by [0002](0002-resource-server-only.md)
 - Date: 2026-06-15
 
 ## Context
@@ -10,7 +10,7 @@ OAuth 2.1 defines three distinct roles:
 | Role | What it does | Status in this SDK | Scope |
 |------|--------------|--------------------|-------|
 | Resource Server | Validates incoming bearer tokens, serves Protected Resource Metadata (RFC 9728), emits `WWW-Authenticate` | Shipped (`AuthorizationMiddleware`, `JwtTokenValidator`, `ProtectedResourceMetadata`) | **IN scope** |
-| Delegation / proxy to an upstream AS | Forwards `/authorize` and `/token` to your existing IdP | Shipped (`OAuthProxyMiddleware`) | **IN scope — delegation ONLY** |
+| Delegation / proxy to an upstream AS | Forwards `/authorize` and `/token` to your existing IdP | Removed (`OAuthProxyMiddleware`) | **OUT of scope since [0002](0002-resource-server-only.md)** |
 | Authorization Server / Identity Provider (IdP) | Mints its own tokens, registers clients, runs login and consent | Absent | **OUT of scope** |
 
 The SDK repeatedly receives pull requests that move it toward becoming a full OAuth 2.1
@@ -31,6 +31,9 @@ It is not scaffolding to be completed — it is a delegating proxy, and that is 
 intent.
 
 ## Decision
+
+> Amended by [0002](0002-resource-server-only.md): delegation via `OAuthProxyMiddleware` and
+> Dynamic Client Registration are no longer provided. The statements on them below are superseded.
 
 **The MCP server is an OAuth 2.1 Resource Server that MAY delegate to an upstream
 authorization server. It will NOT issue tokens or act as an Identity Provider.**
