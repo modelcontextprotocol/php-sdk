@@ -55,11 +55,8 @@ final class HttpEverythingServerTest extends EverythingServerTestCase
 
     protected static function transport(): TransportInterface
     {
-        return new HttpTransport(self::$endpoint);
-    }
-
-    protected static function receivesUnrelatedServerRequests(): bool
-    {
-        return false;
+        // The server asks for roots outside of any request, which over HTTP
+        // arrives on the standalone GET stream.
+        return new HttpTransport(self::$endpoint, listen: true);
     }
 }

@@ -24,6 +24,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `Tool::$execution` (`ToolExecution` with a `TaskSupport` enum) and `ServerCapabilities::$tasks`, which were dropped when parsing a 2025-11-25 server's `tools/list` and `initialize` results.
 * Add `Client::getServerCapabilities()`, returning what the server declared in `initialize` or, from `2026-07-28` on, in `server/discover`.
 * [BC Break] `ClientStateInterface` declares `setServerCapabilities()` and `getServerCapabilities()`, which a custom implementation has to add.
+* Add a `listen` option to the client's `HttpTransport`, opening the standalone GET stream on which a 2025-era server sends requests and notifications outside of a client request, like `roots/list`. Needs a PSR-18 client that streams response bodies, such as `symfony/http-client`.
 
 0.8.0
 -----

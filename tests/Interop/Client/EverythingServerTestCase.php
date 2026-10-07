@@ -147,14 +147,12 @@ abstract class EverythingServerTestCase extends TestCase
         // The server asks for the client's roots shortly after the handshake,
         // outside any request. Wait for it here, so it is not recorded as part
         // of whichever scenario happens to run when it arrives.
-        if (static::receivesUnrelatedServerRequests()) {
-            $deadline = microtime(true) + 5;
-            while ([] === self::$serverRequests && microtime(true) < $deadline) {
-                usleep(100_000);
-                self::$client->ping();
-            }
-            self::$serverRequests = [];
+        $deadline = microtime(true) + 5;
+        while ([] === self::$serverRequests && microtime(true) < $deadline) {
+            usleep(100_000);
+            self::$client->ping();
         }
+        self::$serverRequests = [];
     }
 
     public static function tearDownAfterClass(): void
@@ -368,7 +366,7 @@ abstract class EverythingServerTestCase extends TestCase
             'tools_call-long_running_operation' => $client->callTool('trigger-long-running-operation', ['duration' => 1, 'steps' => 2], $onProgress),
             'tools_call-sampling' => $client->callTool('trigger-sampling-request', ['prompt' => 'Say hello', 'maxTokens' => 20]),
             'tools_call-elicitation' => $client->callTool('trigger-elicitation-request'),
-            'tools_call-roots' => $this->callRootsTool($client),
+            'tools_call-roots' => $client->callTool('get-roots-list'),
             'tools_call-unknown_tool' => $client->callTool('does-not-exist'),
             'resources_list' => $client->listResources(),
             'resources_templates_list' => $client->listResourceTemplates(),
@@ -381,27 +379,6 @@ abstract class EverythingServerTestCase extends TestCase
             'completion_complete-resource' => $client->complete(new ResourceReference('demo://resource/dynamic/text/{resourceId}'), ['name' => 'resourceId', 'value' => '1']),
             default => throw new \LogicException(\sprintf('Unknown scenario "%s".', $scenario)),
         };
-    }
-
-    /**
-     * Whether the server can reach the client with a request that is not part
-     * of a request the client sent.
-     */
-    protected static function receivesUnrelatedServerRequests(): bool
-    {
-        return true;
-    }
-
-    private function callRootsTool(Client $client): mixed
-    {
-        // The server asks for roots outside the tool call it is answering. Over
-        // Streamable HTTP that request travels on the standalone GET stream,
-        // which the HTTP transport does not open yet.
-        if (!static::receivesUnrelatedServerRequests()) {
-            $this->markTestSkipped('The client transport does not receive server requests sent outside of a client request.');
-        }
-
-        return $client->callTool('get-roots-list');
     }
 
     private function assertMatchesSnapshot(string $scenario, mixed $data): void

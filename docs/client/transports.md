@@ -48,6 +48,7 @@ $transport = new HttpTransport(
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
+- `listen` (bool): Open the server's listening stream after the handshake (see below)
 
 **PSR-18 Auto-Discovery:**
 
@@ -62,6 +63,25 @@ The transport automatically discovers PSR-18 HTTP clients from:
 # Install any PSR-18 client - discovery works automatically
 composer require php-http/guzzle7-adapter
 ```
+
+**Listening for server messages:**
+
+Most of what a server sends belongs to one of the client's requests and arrives on that request's
+response. Up to the 2025 revisions, a server may also send requests and notifications that belong to
+none of them, like asking for the client's roots, on a standalone GET stream. Pass `listen: true` to
+open it:
+
+```php
+$transport = new HttpTransport('http://localhost:8000', listen: true);
+```
+
+- The stream is read while one of the client's requests is in flight. A message that arrives while
+  the client is idle waits for its next request.
+- It needs a PSR-18 client that returns before the response body has ended and whose body can be read
+  without blocking, such as `symfony/http-client`. A client that buffers the whole body never
+  returns from a stream the server keeps open.
+- A server without a listening stream answers `405`, and the connection carries on without one.
+- On `2026-07-28`, which has no standalone stream, the option does nothing.
 
 ## Cancellation and deadlines
 
