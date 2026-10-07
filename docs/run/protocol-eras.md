@@ -104,6 +104,31 @@ Both legs come from **one** builder configuration — one registry, one set of h
 instances, one session manager. A tool registered once is reachable from both, and a change
 made through one is visible to the other.
 
+## Over stdio
+
+`StdioTransport` serves both eras too, but stdio carries one client per process, so the era is
+settled once rather than per request: the client's **first request** decides it, by the same
+body-primary rule as above.
+
+| Opening request | The connection |
+| --- | --- |
+| carries a modern revision in `params._meta` | is served by the modern dispatcher from then on |
+| anything else — `initialize` above all | runs the handshake, as before `2026-07-28` |
+
+A request from the other era after that is refused rather than served: `initialize` on a modern
+connection gets `-32022` naming the modern revisions, an enveloped request on a handshake one
+gets `-32600`. That is what a client that probed, gave up waiting and fell back to the handshake
+needs to learn that the server settled on the modern era after all.
+
+On a modern connection everything shares the one channel. A request's progress and log
+messages are written as its handler emits them, ahead of its result; a `subscriptions/listen`
+stays open alongside other requests, each of its messages tagged with the subscription id; and
+`notifications/cancelled` is how a client stops one, since there is no per-request stream to
+close. stdio has no headers, so none of the `Mcp-*` header rules apply.
+
+A server built `withoutModernEra()` refuses a modern opening with `-32022` naming the handshake
+revisions, and still accepts the handshake that follows.
+
 ## Middleware
 
 The [default middleware stack](http.md#default-middleware) runs at the edge, before the

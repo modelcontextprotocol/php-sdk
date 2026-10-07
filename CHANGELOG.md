@@ -36,6 +36,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Expose `WWW-Authenticate` in the default `CorsMiddleware`.
 * [BC Break] Fix concurrent Streamable HTTP streams on one session resuming each other's fibers: each stream now polls only the client request its own fiber sent, so an elicitation answer reaches the tool call that asked for it. `Protocol::handleFiberYield()` returns the ID of the request it sent.
 * Fix lost responses on concurrent requests of one session over Streamable HTTP: a POST is answered with its own responses instead of taking them from the session's outgoing queue. Adds `InlineResponseTransportInterface` for transports that answer each request on the exchange that carried it.
+* Serve both protocol eras over stdio: `StdioTransport` settles the era on the client's first request and serves `2026-07-28` requests, `subscriptions/listen` and `notifications/cancelled` on the one channel.
+* Answer a bare `initialize` on a `2026-07-28`-only endpoint with `-32022` naming the served revisions, and a request without a session on the handshake leg with its id.
 
 0.8.0
 -----
