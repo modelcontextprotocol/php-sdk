@@ -61,6 +61,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var string Buffer for incomplete SSE data */
     private string $sseBuffer = '';
 
+    /** @var StreamInterface|null The standalone GET stream the server may send on unprompted */
+    private ?StreamInterface $listenStream = null;
+
+    /** @var string Buffer for incomplete SSE data on the listening stream */
+    private string $listenBuffer = '';
+
     /**
      * Default cap on the bytes buffered while waiting for a complete SSE event.
      */
@@ -80,6 +86,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *                                                        and exhaust client memory; reaching the cap aborts the
      *                                                        stream instead. Raise it for servers that legitimately
      *                                                        emit single events larger than the default.
+     * @param bool                         $listen            Open the standalone GET stream after the handshake (2025
+     *                                                        revisions only). Needs a PSR-18 client that streams
+     *                                                        response bodies; see docs/client/transports.md.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -89,6 +98,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         ?StreamFactoryInterface $streamFactory = null,
         ?LoggerInterface $logger = null,
         int $maxSseBufferBytes = self::DEFAULT_MAX_SSE_BUFFER_BYTES,
+        private readonly bool $listen = false,
     ) {
         parent::__construct($logger);
 
@@ -120,6 +130,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $this->logger->info('HTTP client connected and initialized', ['endpoint' => $this->endpoint]);
+
+        if ($this->listen) {
+            $this->closeListenStream();
+            $this->openListenStream();
+        }
     }
 
     public function onHeaders(callable $callback): void
@@ -190,7 +205,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if (str_contains($contentType, 'text/event-stream')) {
-            $this->activeStream = $response->getBody();
+            // While listening, a request on the GET stream can be what this
+            // response waits for, so neither stream may block the other.
+            $this->activeStream = null !== $this->listenStream
+                ? $this->nonBlocking($response->getBody())
+                : $response->getBody();
             $this->sseBuffer = '';
         } elseif (str_contains($contentType, 'application/json')) {
             $body = $response->getBody()->getContents();
@@ -256,6 +275,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $this->sessionId = null;
         $this->activeStream = null;
+        $this->closeListenStream();
         $this->handleClose('Transport closed');
     }
 
@@ -280,10 +300,113 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
     }
 
+    /**
+     * Open the standalone GET stream, if the server offers one.
+     *
+     * Failing to is not an error: the stream is optional on both sides, and
+     * everything that belongs to a request still arrives on its response.
+     */
+    private function openListenStream(): void
+    {
+        $version = $this->state?->getProtocolVersion();
+        if (null !== $version && $version->isModern()) {
+            // 2026-07-28 has no standalone stream: a server asks for input
+            // within the result of the request that needs it.
+            return;
+        }
+
+        $request = $this->requestFactory->createRequest('GET', $this->endpoint)
+            ->withHeader('Accept', 'text/event-stream');
+
+        if (null !== $this->sessionId) {
+            $request = $request->withHeader('Mcp-Session-Id', $this->sessionId);
+        }
+        if (null !== $version) {
+            $request = $request->withHeader('MCP-Protocol-Version', $version->value);
+        }
+
+        foreach ($this->headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        try {
+            $response = $this->httpClient->sendRequest($request);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Could not open the listening stream', ['exception' => $e]);
+
+            return;
+        }
+
+        if (405 === $response->getStatusCode()) {
+            $response->getBody()->close();
+            $this->logger->info('Server offers no listening stream');
+
+            return;
+        }
+
+        if (200 !== $response->getStatusCode() || !str_contains(strtolower($response->getHeaderLine('Content-Type')), 'text/event-stream')) {
+            $response->getBody()->close();
+            $this->logger->warning('Server answered the listening stream with something else', [
+                'status' => $response->getStatusCode(),
+                'content_type' => $response->getHeaderLine('Content-Type'),
+            ]);
+
+            return;
+        }
+
+        $stream = $this->nonBlocking($response->getBody(), $switched);
+        if (!$switched) {
+            $stream->close();
+            $this->logger->warning('Not listening: the HTTP client returns a response body that cannot be read without blocking');
+
+            return;
+        }
+
+        $this->listenStream = $stream;
+        $this->listenBuffer = '';
+        $this->logger->info('Listening for server messages', ['session_id' => $this->sessionId]);
+    }
+
+    private function closeListenStream(): void
+    {
+        $this->listenStream?->close();
+        $this->listenStream = null;
+        $this->listenBuffer = '';
+    }
+
+    /**
+     * The same body, made to return what it has instead of waiting for more.
+     *
+     * Always returns a stream to read the body with: the given one when it has
+     * no PHP stream behind it to switch, as detaching it would leave nothing to
+     * read with.
+     *
+     * @param-out bool $switched set to whether reads no longer block
+     */
+    private function nonBlocking(StreamInterface $body, ?bool &$switched = null): StreamInterface
+    {
+        $switched = false;
+
+        // A body backed by a PHP stream lists the stream's metadata.
+        if ([] === ($body->getMetadata() ?? [])) {
+            return $body;
+        }
+
+        $resource = $body->detach();
+        if (!\is_resource($resource)) {
+            return $body;
+        }
+
+        $switched = stream_set_blocking($resource, false);
+
+        return $this->streamFactory->createStreamFromResource($resource);
+    }
+
     private function tick(): void
     {
         $this->checkInterruption();
         $this->processSSEStream();
+        $this->processListenStream();
         $this->processProgress();
         $this->checkInterruption();
         $this->processFiber();
@@ -320,34 +443,74 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        if (!$this->activeStream->eof()) {
-            $chunk = $this->activeStream->read(4096);
-            if ('' !== $chunk) {
-                if (\strlen($this->sseBuffer) + \strlen($chunk) > $this->maxSseBufferBytes) {
-                    $this->abortSseStream(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', \strlen($this->sseBuffer) + \strlen($chunk), $this->maxSseBufferBytes));
+        $done = $this->pumpSse($this->activeStream, $this->sseBuffer, $this->abortSseStream(...));
 
-                    return;
+        if ($done) {
+            $this->sseBuffer = '';
+            $this->activeStream = null;
+        }
+    }
+
+    /**
+     * Read what arrived on the listening stream, if one is open.
+     *
+     * Its end is no error: the server may close it at any time, and every
+     * response still arrives on its own request.
+     */
+    private function processListenStream(): void
+    {
+        if (null === $this->listenStream) {
+            return;
+        }
+
+        $done = $this->pumpSse($this->listenStream, $this->listenBuffer, function (string $reason): void {
+            $this->logger->warning('Closing the listening stream: '.$reason, ['session_id' => $this->sessionId]);
+        });
+
+        if ($done) {
+            $this->closeListenStream();
+            $this->logger->info('Listening stream ended', ['session_id' => $this->sessionId]);
+        }
+    }
+
+    /**
+     * Read a chunk of an SSE stream and dispatch every event it completes.
+     *
+     * @param callable(string $reason): void $onOverflow called when the buffer would exceed its cap
+     *
+     * @return bool whether the stream is done: ended, or given up for its size
+     */
+    private function pumpSse(StreamInterface $stream, string &$buffer, callable $onOverflow): bool
+    {
+        if (!$stream->eof()) {
+            $chunk = $stream->read(4096);
+            if ('' !== $chunk) {
+                if (\strlen($buffer) + \strlen($chunk) > $this->maxSseBufferBytes) {
+                    $onOverflow(\sprintf('buffered %d bytes without a complete event, exceeding the %d byte limit', \strlen($buffer) + \strlen($chunk), $this->maxSseBufferBytes));
+
+                    return true;
                 }
 
-                $this->sseBuffer .= $chunk;
+                $buffer .= $chunk;
             }
         }
 
-        while (null !== ($event = $this->extractSSEEvent())) {
+        while (null !== ($event = $this->extractSSEEvent($buffer))) {
             if (!empty(trim($event))) {
                 $this->processSSEEvent($event);
             }
         }
 
-        if ($this->activeStream->eof()) {
+        if ($stream->eof()) {
             // The stream ended without a trailing blank line: dispatch what is left.
-            if (!empty(trim($this->sseBuffer))) {
-                $this->processSSEEvent($this->sseBuffer);
+            if (!empty(trim($buffer))) {
+                $this->processSSEEvent($buffer);
             }
 
-            $this->sseBuffer = '';
-            $this->activeStream = null;
+            return true;
         }
+
+        return false;
     }
 
     /**
@@ -386,13 +549,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * event is delimited by any pair of those. Servers built on sse-starlette
      * (the MCP Python SDK) use CRLF.
      */
-    private function extractSSEEvent(): ?string
+    private function extractSSEEvent(string &$buffer): ?string
     {
         $position = null;
         $length = 0;
 
         foreach (["\r\n\r\n", "\n\n", "\r\r"] as $delimiter) {
-            $found = strpos($this->sseBuffer, $delimiter);
+            $found = strpos($buffer, $delimiter);
 
             if (false !== $found && (null === $position || $found < $position)) {
                 $position = $found;
@@ -404,8 +567,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return null;
         }
 
-        $event = substr($this->sseBuffer, 0, $position);
-        $this->sseBuffer = substr($this->sseBuffer, $position + $length);
+        $event = substr($buffer, 0, $position);
+        $buffer = substr($buffer, $position + $length);
 
         return $event;
     }

@@ -153,6 +153,7 @@ abstract class EverythingServerTestCase extends TestCase
                 usleep(100_000);
                 self::$client->ping();
             }
+            self::assertNotSame([], self::$serverRequests, 'The server did not ask for the client\'s roots after the handshake.');
             self::$serverRequests = [];
         }
     }
@@ -396,7 +397,7 @@ abstract class EverythingServerTestCase extends TestCase
     {
         // The server asks for roots outside the tool call it is answering. Over
         // Streamable HTTP that request travels on the standalone GET stream,
-        // which the HTTP transport does not open yet.
+        // which the HTTP transport only opens when listening.
         if (!static::receivesUnrelatedServerRequests()) {
             $this->markTestSkipped('The client transport does not receive server requests sent outside of a client request.');
         }
