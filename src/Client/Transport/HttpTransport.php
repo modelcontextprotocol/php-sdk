@@ -195,9 +195,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Answers a request the server refused at the HTTP level.
      *
-     * A JSON-RPC error correlated with the request is handled like any other
+     * A JSON-RPC error carrying the request's id is handled like any other
      * answer. Anything else — an empty or non-JSON body, or an error without
-     * the request's id, which is how a server from before the modern era
+     * that id, which is how a server from before the modern era
      * typically refuses a request it did not expect — is turned into an error
      * for that request, so the caller learns of it now rather than at its
      * timeout. That is what a probe for the modern era relies on to fall back.
@@ -208,7 +208,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $requestId = \is_array($request) ? ($request['id'] ?? null) : null;
         $answer = '' === trim($body) ? null : json_decode($body, true);
 
-        if (\is_array($answer) && \array_key_exists('id', $answer) && null !== $answer['id']) {
+        if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId) {
             $this->handleMessage($body);
 
             return;
