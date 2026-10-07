@@ -271,13 +271,18 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             try {
                 while ($frames->valid()) {
                     $frame = $frames->current();
+
+                    // Written before the stream is resumed: resuming runs the
+                    // handler on to its next frame, which may take a while.
+                    if (null !== $frame) {
+                        $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
+                    }
+
                     $frames->next();
 
                     if (null === $frame) {
                         break;
                     }
-
-                    $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
                 }
             } catch (\Throwable $e) {
                 $this->logger->error('StdioTransport ended a stream that failed.', ['stream' => $id, 'exception' => $e]);

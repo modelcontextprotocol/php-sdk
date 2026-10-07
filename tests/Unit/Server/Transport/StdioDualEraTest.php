@@ -157,6 +157,31 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(['s:5'], array_keys($streams));
     }
 
+    #[TestDox('a frame is written before its stream is resumed, so a slow handler does not hold back its progress')]
+    public function testFrameIsWrittenBeforeTheStreamResumes(): void
+    {
+        $output = fopen('php://memory', 'r+');
+        $input = fopen('php://memory', 'r');
+        $this->assertNotFalse($output);
+        $this->assertNotFalse($input);
+        $writtenBeforeResuming = null;
+
+        $frames = (static function () use ($output, &$writtenBeforeResuming): \Generator {
+            yield ['jsonrpc' => '2.0', 'method' => 'notifications/progress', 'params' => ['progressToken' => 'p', 'progress' => 1]];
+
+            // Where a handler would carry on with its slow work.
+            $writtenBeforeResuming = ftell($output) > 0;
+
+            yield ['jsonrpc' => '2.0', 'id' => 1, 'result' => []];
+        })();
+
+        $transport = new StdioTransport($input, $output);
+        (new \ReflectionProperty($transport, 'streams'))->setValue($transport, ['i:1' => $frames]);
+        (new \ReflectionMethod($transport, 'processStreams'))->invoke($transport);
+
+        $this->assertTrue($writtenBeforeResuming);
+    }
+
     private static function builder(): Builder
     {
         return Server::builder()
