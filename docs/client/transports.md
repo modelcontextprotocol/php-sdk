@@ -62,3 +62,49 @@ The transport automatically discovers PSR-18 HTTP clients from:
 # Install any PSR-18 client - discovery works automatically
 composer require php-http/guzzle7-adapter
 ```
+
+## Cancellation and deadlines
+
+`callTool()` accepts optional `cancellation: ?CancellationTokenInterface` and
+`timeoutSeconds: ?float` arguments. The token's `isCancellationRequested()`
+method must return without blocking. The timeout must be finite and positive
+and replaces the default request timeout for this call.
+An observed cancellation throws `RequestCancelledException`. An observed
+per-call deadline expiry throws `TimeoutException`.
+
+Interruption is checked before a request goes out and again once the send
+returns. The second check is what covers a synchronous `application/json`
+answer: the reply is buffered while `send()` is still on the stack, and a call
+the caller has given up on must not come back as successful. Its buffered reply
+is dropped with the pending request, and the connection stays available for
+later calls.
+
+STDIO checks for interruption while polling the server and sends
+`notifications/cancelled` for an interrupted pending request. Late responses
+are ignored.
+
+HTTP cancellation is cooperative, and what it signals depends on the revision:
+
+- up to `2025-11-25` a disconnect is not a cancellation, so the client sends
+  `notifications/cancelled` for the abandoned request. That notification is
+  another request on the same connection and can therefore block; it is best
+  effort, and a failure to send it is logged rather than reported in place of
+  the interruption.
+- from `2026-07-28` closing the request's response stream is the signal, so no
+  separate notification goes out.
+
+Either way the transport closes the active response body on interruption and
+clears the pending request without closing the MCP session. Closing a response
+does not guarantee that server-side work stops, and physical socket cleanup
+depends on the HTTP client.
+
+PSR-18 requests and PSR-7 body reads can block. Cancellation and deadlines
+cannot interrupt those operations, including waiting for headers, reading a
+JSON body, or waiting for the next SSE chunk. They take effect only after
+control returns to the transport. A per-call deadline is therefore not a hard
+HTTP wall-clock limit. Configure network timeouts on the underlying HTTP client
+to bound blocking I/O.
+
+This keeps HTTP transport compatible with PSR-18 clients and uses the existing
+SSE parser. It requires no framework-specific asynchronous client, at the cost
+of delayed cancellation during blocking I/O.

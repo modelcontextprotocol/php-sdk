@@ -12,10 +12,13 @@
 namespace Mcp;
 
 use Mcp\Client\Builder;
+use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\RequestException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Enum\LoggingLevel;
@@ -190,13 +193,31 @@ class Client
     /**
      * Call a tool on the server.
      *
-     * @param string                                                                  $name       Tool name
-     * @param array<string, mixed>                                                    $arguments  Tool arguments
+     * Cancellation and deadlines are cooperative: on HTTP, blocking I/O has to
+     * return before the transport can observe the interruption. An answer that
+     * arrived for an interrupted call is discarded rather than returned.
+     *
+     * @param string                                                                  $name           Tool name
+     * @param array<string, mixed>                                                    $arguments      Tool arguments
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *                                                                                            Optional callback for progress updates
+     *                                                                                                Optional callback for progress updates
+     * @param CancellationTokenInterface|null                                         $cancellation   Non-blocking cancellation signal
+     * @param float|null                                                              $timeoutSeconds Finite positive timeout replacing the default for this call
+     *
+     * @throws RequestCancelledException                                                      When cancellation is observed
+     * @throws Exception\TimeoutException                                                     When the per-call deadline is observed to have expired
+     * @throws RequestException|ConnectionException|InvalidArgumentException|RuntimeException
      */
-    public function callTool(string $name, array $arguments = [], ?callable $onProgress = null): CallToolResult
+    public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
     {
+        if ($cancellation?->isCancellationRequested()) {
+            throw new RequestCancelledException('The client cancelled the request.');
+        }
+
+        if (null !== $timeoutSeconds && (!is_finite($timeoutSeconds) || $timeoutSeconds <= 0)) {
+            throw new InvalidArgumentException('The per-call timeout must be a finite positive number of seconds.');
+        }
+
         $catalog = $this->protocol->getToolCatalog();
 
         // A tool the listing showed to be malformed is refused here rather than
@@ -208,7 +229,7 @@ class Client
 
         $request = new CallToolRequest($name, $arguments);
 
-        $response = $this->sendRequest($request, $onProgress);
+        $response = $this->sendRequest($request, $onProgress, $cancellation, $timeoutSeconds);
 
         return CallToolResult::fromArray($response->result);
     }
@@ -337,14 +358,14 @@ class Client
      *
      * @throws RequestException|ConnectionException
      */
-    private function sendRequest(Request $request, ?callable $onProgress = null): Response
+    private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
         if (!$this->isConnected()) {
             throw new ConnectionException('Client is not connected. Call connect() first.');
         }
 
         $withProgress = null !== $onProgress;
-        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress));
+        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds));
         $response = $this->transport->runRequest($fiber, $onProgress);
 
         if ($response instanceof Error) {
