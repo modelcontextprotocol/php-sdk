@@ -189,7 +189,8 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         }
 
         $decoded = json_decode($message, true);
-        $request = \is_array($decoded) && !array_is_list($decoded) && isset($decoded['id']) ? $decoded : null;
+        // A response carries an id too, but only a request may settle the era.
+        $request = \is_array($decoded) && !array_is_list($decoded) && isset($decoded['id']) && \is_string($decoded['method'] ?? null) ? $decoded : null;
 
         if (null === $this->modern && null !== $request) {
             if ($classification->modern && null === $this->stateless) {
@@ -213,7 +214,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
             $this->logger->info('StdioTransport settled the connection era.', [
                 'era' => $this->modern ? 'modern' : 'handshake',
-                'opened_with' => $request['method'] ?? null,
+                'opened_with' => $request['method'],
             ]);
         }
 

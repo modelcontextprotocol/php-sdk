@@ -125,6 +125,17 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(Error::INVALID_REQUEST, $answers[1]['error']['code']);
     }
 
+    #[TestDox('a response is not a request, so one arriving first leaves the era open')]
+    public function testLeadingResponseDoesNotSettleTheEra(): void
+    {
+        $answers = $this->serve(self::builder(), [
+            ['jsonrpc' => '2.0', 'id' => 'stray', 'result' => []],
+            self::modern(1, 'server/discover'),
+        ]);
+
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answers[1]['result']['supportedVersions']);
+    }
+
     #[TestDox('a modern request streams its progress on the shared channel before its result')]
     public function testModernProgressIsStreamed(): void
     {
