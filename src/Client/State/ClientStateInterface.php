@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\ServerCapabilities;
 
 /**
  * Interface for client state management.
@@ -108,6 +109,16 @@ interface ClientStateInterface
      * Get the server instructions from initialization.
      */
     public function getInstructions(): ?string;
+
+    /**
+     * Set the capabilities the server declared.
+     */
+    public function setServerCapabilities(ServerCapabilities $capabilities): void;
+
+    /**
+     * Get the capabilities the server declared, null until it declared them.
+     */
+    public function getServerCapabilities(): ?ServerCapabilities;
 
     /**
      * Store progress data received from a notification.

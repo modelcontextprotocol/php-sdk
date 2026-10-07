@@ -82,6 +82,26 @@ final class HandshakeTest extends IntegrationTestCase
         $this->assertTrue($client->isConnected());
     }
 
+    #[TestDox('the handshake carries the server capabilities to the client')]
+    public function testServerCapabilitiesAreExchanged(): void
+    {
+        $capabilities = $this->connect('handshake')->getServerCapabilities();
+
+        // The fixture registers no tools, resources or prompts.
+        $this->assertNotNull($capabilities);
+        $this->assertTrue($capabilities->logging);
+        $this->assertTrue($capabilities->completions);
+        $this->assertFalse($capabilities->tools);
+        $this->assertFalse($capabilities->prompts);
+        $this->assertFalse($capabilities->resources);
+    }
+
+    #[TestDox('the server capabilities are unset before the handshake')]
+    public function testServerCapabilitiesAreNullBeforeConnecting(): void
+    {
+        $this->assertNull($this->clientBuilder()->build()->getServerCapabilities());
+    }
+
     #[TestDox('the negotiated revision is unset before the handshake')]
     public function testProtocolVersionIsNullBeforeConnecting(): void
     {

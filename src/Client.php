@@ -48,6 +48,7 @@ use Mcp\Schema\Result\ListResourcesResult;
 use Mcp\Schema\Result\ListResourceTemplatesResult;
 use Mcp\Schema\Result\ListToolsResult;
 use Mcp\Schema\Result\ReadResourceResult;
+use Mcp\Schema\ServerCapabilities;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -145,6 +146,18 @@ class Client
     public function getInstructions(): ?string
     {
         return $this->protocol->getState()->getInstructions();
+    }
+
+    /**
+     * Capabilities the server declared: during the handshake, or in its
+     * `server/discover` result from 2026-07-28 on.
+     *
+     * Null until a server declared them, e.g. before connecting or when a
+     * 2026-07-28 server does not answer `server/discover`.
+     */
+    public function getServerCapabilities(): ?ServerCapabilities
+    {
+        return $this->protocol->getState()->getServerCapabilities();
     }
 
     /**
