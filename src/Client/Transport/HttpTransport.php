@@ -86,16 +86,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *                                                        and exhaust client memory; reaching the cap aborts the
      *                                                        stream instead. Raise it for servers that legitimately
      *                                                        emit single events larger than the default.
-     * @param bool                         $listen            Open the standalone GET stream after the handshake, on
-     *                                                        which a server sends requests and notifications that
-     *                                                        belong to none of the client's requests (2025 revisions
-     *                                                        only). It is read while a request of the client is in
-     *                                                        flight, so a message arriving while the client is idle
-     *                                                        waits for its next request. Needs a PSR-18 client that
-     *                                                        returns before the response body has ended and whose body
-     *                                                        can be read without blocking, such as the Psr18Client of
-     *                                                        symfony/http-client: one that buffers the whole body never
-     *                                                        returns from a stream the server keeps open.
+     * @param bool                         $listen            Open the standalone GET stream after the handshake (2025
+     *                                                        revisions only). Needs a PSR-18 client that streams
+     *                                                        response bodies; see docs/client/transports.md.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -139,6 +132,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->logger->info('HTTP client connected and initialized', ['endpoint' => $this->endpoint]);
 
         if ($this->listen) {
+            $this->closeListenStream();
             $this->openListenStream();
         }
     }
@@ -213,7 +207,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         if (str_contains($contentType, 'text/event-stream')) {
             // While listening, a request on the GET stream can be what this
             // response waits for, so neither stream may block the other.
-            $this->activeStream = $this->listen
+            $this->activeStream = null !== $this->listenStream
                 ? $this->nonBlocking($response->getBody())
                 : $response->getBody();
             $this->sseBuffer = '';
@@ -281,9 +275,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $this->sessionId = null;
         $this->activeStream = null;
-        $this->listenStream?->close();
-        $this->listenStream = null;
-        $this->listenBuffer = '';
+        $this->closeListenStream();
         $this->handleClose('Transport closed');
     }
 
@@ -346,12 +338,14 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if (405 === $response->getStatusCode()) {
+            $response->getBody()->close();
             $this->logger->info('Server offers no listening stream');
 
             return;
         }
 
         if (200 !== $response->getStatusCode() || !str_contains(strtolower($response->getHeaderLine('Content-Type')), 'text/event-stream')) {
+            $response->getBody()->close();
             $this->logger->warning('Server answered the listening stream with something else', [
                 'status' => $response->getStatusCode(),
                 'content_type' => $response->getHeaderLine('Content-Type'),
@@ -362,6 +356,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $stream = $this->nonBlocking($response->getBody(), $switched);
         if (!$switched) {
+            $stream->close();
             $this->logger->warning('Not listening: the HTTP client returns a response body that cannot be read without blocking');
 
             return;
@@ -370,6 +365,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenStream = $stream;
         $this->listenBuffer = '';
         $this->logger->info('Listening for server messages', ['session_id' => $this->sessionId]);
+    }
+
+    private function closeListenStream(): void
+    {
+        $this->listenStream?->close();
+        $this->listenStream = null;
+        $this->listenBuffer = '';
     }
 
     /**
@@ -466,8 +468,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         });
 
         if ($done) {
-            $this->listenBuffer = '';
-            $this->listenStream = null;
+            $this->closeListenStream();
             $this->logger->info('Listening stream ended', ['session_id' => $this->sessionId]);
         }
     }

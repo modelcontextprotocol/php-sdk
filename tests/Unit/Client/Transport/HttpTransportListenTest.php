@@ -24,6 +24,7 @@ use Mcp\Schema\Root;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use Nyholm\Psr7\Stream;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
@@ -81,13 +82,102 @@ final class HttpTransportListenTest extends TestCase
         $client->disconnect();
     }
 
-    private function client(FakeListeningServer $server, bool $listen): Client
+    #[TestDox('nothing is opened on 2026-07-28, which has no standalone stream')]
+    public function testNoListenStreamOnModernRevision(): void
     {
+        $server = new FakeListeningServer();
+        $client = $this->client($server, listen: true, version: ProtocolVersion::V2026_07_28);
+
+        $this->assertTrue($client->isConnected());
+        $this->assertSame([], $server->requests('GET'));
+
+        $client->disconnect();
+    }
+
+    /** @return iterable<string, array{int, string}> */
+    public static function unexpectedAnswerProvider(): iterable
+    {
+        yield 'unknown session (404)' => [404, 'application/json'];
+        yield 'JSON instead of a stream' => [200, 'application/json'];
+    }
+
+    #[DataProvider('unexpectedAnswerProvider')]
+    #[TestDox('a listening stream answered otherwise leaves the connection usable: $_dataName')]
+    public function testUnexpectedAnswerToListenStream(int $status, string $contentType): void
+    {
+        $server = new FakeListeningServer(getStatus: $status, getContentType: $contentType);
+        $client = $this->client($server, listen: true);
+
+        $this->assertSame('hello', $this->echo($client, 'hello'));
+
+        $client->disconnect();
+    }
+
+    #[TestDox('the GET carries the configured headers')]
+    public function testListenStreamCarriesConfiguredHeaders(): void
+    {
+        $server = new FakeListeningServer();
+        $client = $this->client($server, listen: true, headers: ['Authorization' => 'Bearer secret']);
+
+        $this->assertSame('Bearer secret', $server->requests('GET')[0]->getHeaderLine('Authorization'));
+
+        $client->disconnect();
+    }
+
+    #[TestDox('a listening stream the server ends leaves the connection usable')]
+    public function testListenStreamEndedByServer(): void
+    {
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true);
+
+        fclose($server->getStream());
+
+        $this->assertSame('first', $this->echo($client, 'first'));
+        $this->assertSame('second', $this->echo($client, 'second'));
+
+        $client->disconnect();
+    }
+
+    #[TestDox('an oversized event on the listening stream closes it, leaving the connection usable')]
+    public function testOversizedEventOnListenStreamClosesIt(): void
+    {
+        $server = new FakeListeningServer(rootsOnGet: false);
+        $client = $this->client($server, listen: true, maxSseBufferBytes: 256);
+
+        $serverEnd = $server->getStream();
+        fwrite($serverEnd, 'data: '.str_repeat('x', 1024));
+
+        $this->assertSame('hello', $this->echo($client, 'hello'));
+
+        stream_set_blocking($serverEnd, false);
+        fread($serverEnd, 1);
+        $this->assertTrue(feof($serverEnd), 'the client closed its end of the listening stream');
+
+        $client->disconnect();
+    }
+
+    private function echo(Client $client, string $text): ?string
+    {
+        $content = $client->callTool('echo', ['text' => $text])->content[0] ?? null;
+
+        return $content instanceof TextContent ? $content->text : null;
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function client(
+        FakeListeningServer $server,
+        bool $listen,
+        ProtocolVersion $version = ProtocolVersion::V2025_11_25,
+        array $headers = [],
+        int $maxSseBufferBytes = 1_048_576,
+    ): Client {
         $factory = new Psr17Factory();
 
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
-            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setProtocolVersion($version)
             ->setInitTimeout(2)
             ->setRequestTimeout(2)
             ->setCapabilities(new ClientCapabilities(roots: true))
@@ -99,7 +189,7 @@ final class HttpTransportListenTest extends TestCase
             }))
             ->build();
 
-        $client->connect(new HttpTransport('http://localhost/mcp', [], $server, $factory, $factory, listen: $listen));
+        $client->connect(new HttpTransport('http://localhost/mcp', $headers, $server, $factory, $factory, maxSseBufferBytes: $maxSseBufferBytes, listen: $listen));
 
         return $client;
     }
@@ -120,9 +210,22 @@ final class FakeListeningServer implements ClientInterface
 
     private int|string|null $callId = null;
 
+    /** @var resource|null the server end of the listening stream */
+    private $getStream;
+
     public function __construct(
         private readonly int $getStatus = 200,
+        private readonly string $getContentType = 'text/event-stream',
+        private readonly bool $rootsOnGet = true,
     ) {
+    }
+
+    /**
+     * @return resource the server end of the listening stream
+     */
+    public function getStream()
+    {
+        return $this->getStream ?? throw new \RuntimeException('No listening stream was opened.');
     }
 
     /**
@@ -138,12 +241,14 @@ final class FakeListeningServer implements ClientInterface
         $this->requests[] = $request;
 
         if ('GET' === $request->getMethod()) {
-            if (200 !== $this->getStatus) {
-                return new Response($this->getStatus);
+            if (200 !== $this->getStatus || 'text/event-stream' !== $this->getContentType) {
+                return new Response($this->getStatus, ['Content-Type' => $this->getContentType], '{}');
             }
 
-            [$server, $client] = $this->socketPair();
-            fwrite($server, self::event(['jsonrpc' => '2.0', 'id' => 'srv-1', 'method' => 'roots/list']));
+            [$this->getStream, $client] = $this->socketPair();
+            if ($this->rootsOnGet) {
+                fwrite($this->getStream, self::event(['jsonrpc' => '2.0', 'id' => 'srv-1', 'method' => 'roots/list']));
+            }
 
             return new Response(200, ['Content-Type' => 'text/event-stream'], Stream::create($client));
         }
@@ -163,6 +268,29 @@ final class FakeListeningServer implements ClientInterface
                     'capabilities' => ['tools' => new \stdClass()],
                     'serverInfo' => ['name' => 'fake', 'version' => '1.0.0'],
                 ],
+            ]));
+        }
+
+        if ('server/discover' === ($message['method'] ?? null)) {
+            return new Response(200, ['Content-Type' => 'application/json'], json_encode([
+                'jsonrpc' => '2.0',
+                'id' => $message['id'],
+                'result' => [
+                    'resultType' => 'complete',
+                    'supportedVersions' => ['2026-07-28'],
+                    'capabilities' => ['tools' => new \stdClass()],
+                    'serverInfo' => ['name' => 'fake', 'version' => '1.0.0'],
+                ],
+            ]));
+        }
+
+        // Streamed, so the client reads its streams in the meantime: a JSON
+        // answer completes the call before the listening stream is looked at.
+        if ('tools/call' === ($message['method'] ?? null) && 'echo' === ($message['params']['name'] ?? null)) {
+            return new Response(200, ['Content-Type' => 'text/event-stream'], self::event([
+                'jsonrpc' => '2.0',
+                'id' => $message['id'],
+                'result' => ['content' => [['type' => 'text', 'text' => $message['params']['arguments']['text'] ?? '']]],
             ]));
         }
 
