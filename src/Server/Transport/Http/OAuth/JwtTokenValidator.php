@@ -133,24 +133,37 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return AuthorizationResult::unauthorized('invalid_token', 'Token type is not accepted.');
         }
 
-        // php-jwt only reads leeway from a global static; the swap assumes the key fetch below does not suspend a fiber.
+        $keyId = $header['kid'] ?? null;
+        if (!\is_string($keyId) || '' === $keyId) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed.');
+        }
+
+        // Resolved up front, as discovery and JWKS refetches do I/O that must not run inside the leeway swap below.
+        try {
+            $keys = null === $this->keysForAlgorithm ? $this->keys : ($this->keysForAlgorithm)($header['alg']);
+            $key = $keys[$keyId] ?? null;
+        } catch (\OutOfBoundsException|\UnexpectedValueException|\InvalidArgumentException|\DomainException|ClientExceptionInterface|RuntimeException) {
+            // JWKS endpoint unreachable or malformed, or discovery failed.
+            $key = null;
+        }
+
+        if (!$key instanceof Key) {
+            return AuthorizationResult::unauthorized('invalid_token', 'Token signing key could not be resolved.');
+        }
+
+        // php-jwt only reads leeway from a global static; decoding with a resolved key does no I/O.
         $previousLeeway = JWT::$leeway;
         JWT::$leeway = $this->leeway;
 
         try {
-            $keys = null === $this->keysForAlgorithm ? $this->keys : ($this->keysForAlgorithm)($header['alg']);
-
             /** @var array<string, mixed> $claims */
-            $claims = (array) JWT::decode($accessToken, $keys);
+            $claims = (array) JWT::decode($accessToken, $key);
         } catch (ExpiredException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token has expired.');
         } catch (BeforeValidException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token is not yet valid.');
         } catch (SignatureInvalidException|\InvalidArgumentException|\UnexpectedValueException|\DomainException) {
             return AuthorizationResult::unauthorized('invalid_token', 'Token validation failed.');
-        } catch (\OutOfBoundsException|ClientExceptionInterface|RuntimeException) {
-            // Unknown key id after refetching, JWKS endpoint unreachable, or discovery failed.
-            return AuthorizationResult::unauthorized('invalid_token', 'Token signing key could not be resolved.');
         } finally {
             JWT::$leeway = $previousLeeway;
         }

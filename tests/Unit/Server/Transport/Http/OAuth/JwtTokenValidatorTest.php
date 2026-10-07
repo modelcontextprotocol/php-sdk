@@ -137,6 +137,45 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame(0, JWT::$leeway, 'the global leeway is restored');
     }
 
+    public function testResolvesKeyOutsideTheLeewaySwap(): void
+    {
+        $keys = new class(new Key(self::$publicKey, 'RS256')) implements \ArrayAccess {
+            /** @var list<int> */
+            public array $leewayDuringLookup = [];
+
+            public function __construct(private readonly Key $key)
+            {
+            }
+
+            public function offsetExists(mixed $offset): bool
+            {
+                $this->leewayDuringLookup[] = JWT::$leeway;
+
+                return 'kid-1' === $offset;
+            }
+
+            public function offsetGet(mixed $offset): Key
+            {
+                $this->leewayDuringLookup[] = JWT::$leeway;
+
+                return $this->key;
+            }
+
+            public function offsetSet(mixed $offset, mixed $value): void
+            {
+            }
+
+            public function offsetUnset(mixed $offset): void
+            {
+            }
+        };
+
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $keys, leeway: 60);
+
+        $this->assertTrue($validator->validate($this->token(['exp' => time() - 30]))->isAllowed());
+        $this->assertSame([0, 0], $keys->leewayDuringLookup);
+    }
+
     public function testRejectsTokenNotYetValid(): void
     {
         $result = $this->validator()->validate($this->token(['nbf' => time() + 300]));
@@ -168,7 +207,7 @@ final class JwtTokenValidatorTest extends TestCase
     {
         $result = $this->validator()->validate(JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'unknown'));
 
-        $this->assertSame('Token validation failed.', $result->getErrorDescription());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
     public function testRejectsMalformedToken(): void
