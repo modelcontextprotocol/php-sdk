@@ -265,10 +265,23 @@ class StdioTransport extends BaseTransport
         }
 
         // Everything it wrote has been read, and it will write nothing more:
-        // whatever is still pending can only time out, so fail it now. That a
-        // server went away is never an answer about which era it speaks.
+        // whatever is still pending can only time out, so fail it now. Failed
+        // as answers rather than thrown, so each waiting fiber unwinds and
+        // clears its request instead of leaving it to time out a later one.
         if (feof($this->stdout)) {
-            throw new ConnectionException('The server process closed its output; it is no longer running.');
+            $this->failPending('The server process closed its output; it is no longer running.');
+        }
+    }
+
+    private function failPending(string $reason): void
+    {
+        if (null === $this->state) {
+            return;
+        }
+
+        foreach ($this->state->getPendingRequests() as $pending) {
+            $requestId = $pending['request_id'];
+            $this->state->storeResponse($requestId, Error::forInternalError($reason, $requestId)->jsonSerialize());
         }
     }
 
@@ -288,15 +301,7 @@ class StdioTransport extends BaseTransport
             'max_buffer_size' => $this->maxBufferSize,
         ]);
 
-        if (null === $this->state) {
-            return;
-        }
-
-        foreach ($this->state->getPendingRequests() as $pending) {
-            $requestId = $pending['request_id'];
-            $error = Error::forInternalError('stdio input aborted: '.$reason, $requestId);
-            $this->state->storeResponse($requestId, $error->jsonSerialize());
-        }
+        $this->failPending('stdio input aborted: '.$reason);
     }
 
     private function processFiber(): void

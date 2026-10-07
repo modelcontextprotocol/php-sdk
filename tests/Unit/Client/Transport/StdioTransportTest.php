@@ -67,14 +67,26 @@ final class StdioTransportTest extends TestCase
 
         $this->setStdout($transport, $this->stream('{"a":1}'."\n".'{"b":2}'."\n"));
 
-        try {
-            $this->invokeProcessInput($transport);
-        } catch (ConnectionException) {
-            // The stream ends after these frames, which is reported once they
-            // have all been dispatched.
-        }
+        $this->invokeProcessInput($transport);
 
         $this->assertSame(['{"a":1}', '{"b":2}'], $messages);
+    }
+
+    #[TestDox('a server closing its output fails what is pending as answers, so nothing is left to time out later')]
+    public function testClosedOutputFailsPendingRequests(): void
+    {
+        $transport = new StdioTransport(command: 'true');
+        $state = new ClientState();
+        $transport->setState($state);
+        $state->addPendingRequest(1, 120);
+
+        $this->setStdout($transport, $this->stream(''));
+        $this->invokeProcessInput($transport);
+
+        $response = $state->consumeResponse(1);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertStringContainsString('no longer running', $response->message);
     }
 
     #[TestDox('a server that exits fails the connection at once instead of timing out')]
