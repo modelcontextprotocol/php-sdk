@@ -33,8 +33,8 @@ final class Scopes
     {
         $normalized = [];
         foreach ($scopes as $scope) {
-            if (!\is_string($scope) || !preg_match('/^[^\s"\\\\]+$/D', $scope)) {
-                throw new InvalidArgumentException('Scopes must be non-empty strings without whitespace, quotes or backslashes.');
+            if (!\is_string($scope) || !preg_match('/^[\x21\x23-\x5B\x5D-\x7E]+$/D', $scope)) {
+                throw new InvalidArgumentException('Scopes must be non-empty strings of printable ASCII without spaces, quotes or backslashes (RFC 6749 §3.3).');
             }
 
             // Keyed by scope to dedupe, read back by value: keys would turn "42" into an int.
