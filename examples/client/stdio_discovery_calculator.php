@@ -36,6 +36,8 @@ $transport = new StdioTransport(
     args: [__DIR__.'/../server/discovery-calculator/server.php'],
 );
 
+$status = 0;
+
 try {
     echo "Connecting to MCP server...\n";
     $client->connect($transport);
@@ -80,8 +82,11 @@ try {
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
     echo $e->getTraceAsString()."\n";
+    $status = 1;
 } finally {
     echo "Disconnecting...\n";
     $client->disconnect();
     echo "Done.\n";
 }
+
+exit($status);

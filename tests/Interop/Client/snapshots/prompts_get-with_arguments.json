@@ -1,0 +1,13 @@
+{
+    "result": {
+        "messages": [
+            {
+                "role": "user",
+                "content": {
+                    "type": "text",
+                    "text": "What's weather in Berlin, Berlin?"
+                }
+            }
+        ]
+    }
+}

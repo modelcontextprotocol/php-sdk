@@ -54,6 +54,9 @@ php examples/client/stdio_roots.php
 > mid-call; PHP's built-in web server only does that with worker processes, e.g.
 > `PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8000 …`.
 
+The HTTP examples connect to port 8000 on the local machine by default; set `MCP_SERVER_URL` to point
+them at a server running elsewhere.
+
 ## Requirements
 
 All examples require the server examples to be available. The STDIO examples spawn the server process, while the HTTP examples connect to a running HTTP server.

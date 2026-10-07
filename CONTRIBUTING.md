@@ -31,8 +31,8 @@ make ci
 ```
 
 This runs, in order: `make cs` (PHP CS Fixer, auto-fixes style), `make phpstan` (static analysis),
-and `make tests` (unit + inspector tests). All three must pass. If your change touches
-protocol-observable behavior, also run:
+and `make tests` (all PHPUnit suites; the interop suite needs Node). All three must pass. If your
+change touches protocol-observable behavior, also run:
 
 ```bash
 make conformance-tests   # requires Docker
@@ -48,8 +48,23 @@ See [CLAUDE.md](CLAUDE.md) for a fuller tour of the codebase's architecture and 
 ## Tests
 
 New capabilities need unit tests (`tests/Unit/`) covering the core logic, and — for anything
-reachable over the wire — inspector tests (`tests/Inspector/`) for end-to-end coverage. If you're
-adding a documented pattern, consider adding or updating an example under `examples/`.
+reachable over the wire — end-to-end coverage. The suites are split by what they prove:
+
+- **Integration** (`tests/Integration/`, `make integration-tests`): our client and our server agree
+  with each other. Fixture servers cover single features; `ClientExamples/` runs every script in
+  `examples/client/`, one test class per example, piping "user input" to STDIN where an example
+  asks for it, and snapshots what it prints.
+- **Interop** (`tests/Interop/`, `make interop-tests`, needs Node): each half works with an
+  implementation we did not write. `Server/` drives the example servers with the MCP Inspector,
+  one test class per example; `Client/` runs our client against the TypeScript SDK's reference
+  server, `@modelcontextprotocol/server-everything`, over stdio and HTTP. Both are installed from
+  `tests/Interop/package-lock.json` (`npm ci --prefix tests/Interop`), so a release of one of
+  their dependencies cannot change what the snapshots see.
+- **Conformance** (`tests/Conformance/`, `make conformance-tests`): each half passes the
+  specification's scripted scenarios.
+
+Snapshots are written on the first run; delete one to re-record it. If you're adding a documented
+pattern, consider adding or updating an example under `examples/` along with its test class.
 
 ## Documentation
 

@@ -69,6 +69,8 @@ $transport = new StdioTransport(
     args: [__DIR__.'/../server/client-communication/server.php'],
 );
 
+$status = 0;
+
 try {
     echo "Connecting to MCP server...\n";
     $client->connect($transport);
@@ -119,6 +121,9 @@ try {
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
     echo $e->getTraceAsString()."\n";
+    $status = 1;
 } finally {
     $client->disconnect();
 }
+
+exit($status);

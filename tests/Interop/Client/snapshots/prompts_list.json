@@ -1,0 +1,61 @@
+{
+    "result": {
+        "prompts": [
+            {
+                "name": "simple-prompt",
+                "title": "Simple Prompt",
+                "description": "A prompt with no arguments"
+            },
+            {
+                "name": "args-prompt",
+                "title": "Arguments Prompt",
+                "description": "A prompt with two arguments, one required and one optional",
+                "arguments": [
+                    {
+                        "name": "city",
+                        "description": "Name of the city",
+                        "required": true
+                    },
+                    {
+                        "name": "state",
+                        "required": false
+                    }
+                ]
+            },
+            {
+                "name": "completable-prompt",
+                "title": "Team Management",
+                "description": "First argument choice narrows values for second argument.",
+                "arguments": [
+                    {
+                        "name": "department",
+                        "description": "Choose the department.",
+                        "required": true
+                    },
+                    {
+                        "name": "name",
+                        "description": "Choose a team member to lead the selected department.",
+                        "required": true
+                    }
+                ]
+            },
+            {
+                "name": "resource-prompt",
+                "title": "Resource Prompt",
+                "description": "A prompt that includes an embedded resource reference",
+                "arguments": [
+                    {
+                        "name": "resourceType",
+                        "description": "Type of resource to fetch",
+                        "required": true
+                    },
+                    {
+                        "name": "resourceId",
+                        "description": "ID of the text resource to fetch",
+                        "required": true
+                    }
+                ]
+            }
+        ]
+    }
+}

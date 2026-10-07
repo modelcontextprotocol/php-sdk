@@ -1,0 +1,23 @@
+Connecting to MCP server...
+Connected to: Client Communication Demo
+
+Calling 'inspect_workspace_roots'...
+[ROOTS] Server requested the client's list of roots
+
+Result:
+{
+    "status": "ok",
+    "message": "Client exposed 2 root(s).",
+    "roots": [
+        {
+            "uri": "file:///home/user/projects/app",
+            "name": "Application"
+        },
+        {
+            "uri": "file:///home/user/projects/library",
+            "name": "Library"
+        }
+    ]
+}
+
+Notifying the server that the roots list changed...
