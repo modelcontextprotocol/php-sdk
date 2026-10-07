@@ -56,7 +56,11 @@ final class ProtectedResourceMetadata implements \JsonSerializable
         }
 
         $authority = $parts['scheme'].'://'.$parts['host'].(isset($parts['port']) ? ':'.$parts['port'] : '');
-        $path = rtrim($parts['path'] ?? '', '/');
+        // Only a slash directly after the host is dropped, any other path is kept verbatim (RFC 9728, Section 3.1).
+        $path = $parts['path'] ?? '';
+        if ('/' === $path) {
+            $path = '';
+        }
         $this->metadataPath = self::WELL_KNOWN_PATH.$path;
         $this->metadataUrl = $authority.$this->metadataPath.(isset($parts['query']) ? '?'.$parts['query'] : '');
 
