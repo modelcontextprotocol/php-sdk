@@ -73,6 +73,14 @@ class Protocol
     private const INTERNAL_ERROR_MESSAGE = 'Internal server error.';
 
     /**
+     * The client request each transport's fiber is suspended on. Pending requests are stored in the
+     * session, which concurrent streams share, so a stream must only poll the one its fiber sent.
+     *
+     * @var \WeakMap<TransportInterface<mixed>, int>
+     */
+    private \WeakMap $awaitedRequestIds;
+
+    /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
      */
@@ -86,6 +94,7 @@ class Protocol
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
     ) {
+        $this->awaitedRequestIds = new \WeakMap();
     }
 
     /**
@@ -103,11 +112,13 @@ class Protocol
 
         $transport->setOutgoingMessagesProvider($this->consumeOutgoingMessages(...));
 
-        $transport->setPendingRequestsProvider($this->getPendingRequests(...));
+        $transport->setPendingRequestsProvider(fn (Uuid $sessionId): array => $this->getAwaitedPendingRequests($transport, $sessionId));
 
         $transport->setResponseFinder($this->checkResponse(...));
 
-        $transport->setFiberYieldHandler($this->handleFiberYield(...));
+        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId) use ($transport): void {
+            $this->awaitResponse($transport, $this->handleFiberYield($yieldedValue, $sessionId));
+        });
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
     }
@@ -324,12 +335,14 @@ class Protocol
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
+                    $awaitedRequestId = null;
                     if ($result instanceof NotificationSuspension) {
                         $this->sendNotification($result->notification, $session);
                     } elseif ($result instanceof RequestSuspension) {
-                        $this->sendRequest($result->request, $result->timeout, $session);
+                        $awaitedRequestId = $this->sendRequest($result->request, $result->timeout, $session);
                     }
 
+                    $this->awaitResponse($transport, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
                     return;
@@ -604,13 +617,15 @@ class Protocol
      * Handle values yielded by Fibers during transport-managed resumes.
      *
      * @param FiberSuspend|null $yieldedValue
+     *
+     * @return int|null the ID of the request sent to the client, which the fiber now waits on
      */
-    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId): void
+    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId): ?int
     {
         if (!$sessionId) {
             $this->logger->warning('Fiber yielded value without associated session context.');
 
-            return;
+            return null;
         }
 
         if (!$yieldedValue instanceof NotificationSuspension && !$yieldedValue instanceof RequestSuspension) {
@@ -619,7 +634,7 @@ class Protocol
                 'session_id' => $sessionId->toRfc4122(),
             ]);
 
-            return;
+            return null;
         }
 
         $session = $this->sessionManager->createWithId($sessionId);
@@ -632,13 +647,45 @@ class Protocol
         }
 
         try {
-            match (true) {
-                $yieldedValue instanceof NotificationSuspension => $this->sendNotification($yieldedValue->notification, $session),
-                $yieldedValue instanceof RequestSuspension => $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session),
-            };
+            if ($yieldedValue instanceof RequestSuspension) {
+                return $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session);
+            }
+
+            $this->sendNotification($yieldedValue->notification, $session);
         } finally {
             $session->save();
         }
+
+        return null;
+    }
+
+    /**
+     * @param TransportInterface<mixed> $transport
+     */
+    private function awaitResponse(TransportInterface $transport, ?int $requestId): void
+    {
+        if (null === $requestId) {
+            unset($this->awaitedRequestIds[$transport]);
+
+            return;
+        }
+
+        $this->awaitedRequestIds[$transport] = $requestId;
+    }
+
+    /**
+     * @param TransportInterface<mixed> $transport
+     *
+     * @return array<int, mixed>
+     */
+    private function getAwaitedPendingRequests(TransportInterface $transport, Uuid $sessionId): array
+    {
+        $requestId = $this->awaitedRequestIds[$transport] ?? null;
+        if (null === $requestId) {
+            return [];
+        }
+
+        return array_intersect_key($this->getPendingRequests($sessionId), [$requestId => true]);
     }
 
     /**
