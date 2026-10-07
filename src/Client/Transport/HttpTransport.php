@@ -240,9 +240,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Answers a request the server refused at the HTTP level.
      *
-     * A JSON-RPC error carrying the request's id is handled like any other
-     * answer. Anything else — an empty or non-JSON body, or an error without
-     * that id, which is how a server from before the modern era
+     * A well-formed JSON-RPC answer carrying the request's id is handled like
+     * any other. Anything else — an empty, non-JSON or malformed body, or an
+     * error without that id, which is how a server from before the modern era
      * typically refuses a request it did not expect — is turned into an error
      * for that request, so the caller learns of it now rather than at its
      * timeout. That is what a probe for the modern era relies on to fall back.
@@ -253,7 +253,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $requestId = \is_array($request) ? ($request['id'] ?? null) : null;
         $answer = '' === trim($body) ? null : json_decode($body, true);
 
-        if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId) {
+        if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId && self::isWellFormedAnswer($answer)) {
             $this->handleMessage($body);
 
             return;
@@ -270,6 +270,23 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             : Error::forInvalidRequest(\sprintf('Server answered with HTTP %d%s.', $status, '' !== $reason ? ' '.$reason : ''), $requestId);
 
         $this->state->storeResponse($requestId, $error->jsonSerialize());
+    }
+
+    /**
+     * Whether the parser would read $answer as a result or an error at all,
+     * rather than drop it and leave the request to time out.
+     *
+     * @param array<mixed> $answer
+     */
+    private static function isWellFormedAnswer(array $answer): bool
+    {
+        if (\array_key_exists('result', $answer)) {
+            return true;
+        }
+
+        $error = $answer['error'] ?? null;
+
+        return \is_array($error) && \is_int($error['code'] ?? null) && \is_string($error['message'] ?? null);
     }
 
     /**
