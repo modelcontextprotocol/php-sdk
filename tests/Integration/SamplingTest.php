@@ -14,8 +14,10 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Exception\RequestException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
@@ -96,6 +98,21 @@ final class SamplingTest extends IntegrationTestCase
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('Client does not handle "sampling/createMessage" requests.', $result->content[0]->text);
+    }
+
+    #[TestDox('a tool that samples tells a client on the modern era it cannot, rather than hanging')]
+    public function testSamplingIsUnavailableOnTheModernEra(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling()->setProtocolVersion(ProtocolVersion::V2026_07_28));
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        try {
+            $client->callTool('summarize', ['text' => 'hello']);
+            $this->fail('Sampling must not be reachable on 2026-07-28, which removed it.');
+        } catch (RequestException $e) {
+            $this->assertStringContainsString('sampling and roots were removed', $e->getMessage());
+        }
     }
 
     /**

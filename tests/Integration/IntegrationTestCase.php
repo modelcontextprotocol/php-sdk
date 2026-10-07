@@ -15,6 +15,7 @@ use Mcp\Client;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Exception\ConnectionException;
+use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -43,6 +44,18 @@ abstract class IntegrationTestCase extends TestCase
             ->setClientInfo('integration-client', '1.0.0')
             ->setInitTimeout(self::TIMEOUT)
             ->setRequestTimeout(self::TIMEOUT);
+    }
+
+    /**
+     * Both eras one fixture server serves, for behaviour a caller should see
+     * the same on either.
+     *
+     * @return iterable<string, array{ProtocolVersion}>
+     */
+    public static function provideEras(): iterable
+    {
+        yield 'the handshake era' => [ProtocolVersion::V2025_11_25];
+        yield 'the modern era' => [ProtocolVersion::V2026_07_28];
     }
 
     /**
