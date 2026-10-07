@@ -348,6 +348,10 @@ class Client
      */
     public function setLoggingLevel(LoggingLevel $level): void
     {
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
         if ($this->protocol->isModern()) {
             $this->protocol->setLogLevel($level);
 
