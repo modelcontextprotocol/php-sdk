@@ -518,6 +518,11 @@ class Protocol
     {
         $session = $this->sessionManager->createWithId($sessionId);
         $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
+
+        if ([] === $queue) {
+            return [];
+        }
+
         $session->set(self::SESSION_OUTGOING_QUEUE, []);
         $session->save();
 
