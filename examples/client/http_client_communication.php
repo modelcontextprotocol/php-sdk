@@ -38,6 +38,7 @@ use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
@@ -82,6 +83,9 @@ $status = 0;
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";
     $client->connect($transport);
+
+    // Ask for log messages: from 2026-07-28 on a server sends none unless asked.
+    $client->setLoggingLevel(LoggingLevel::Info);
 
     $serverInfo = $client->getServerInfo();
     echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
