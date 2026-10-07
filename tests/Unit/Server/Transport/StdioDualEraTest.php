@@ -90,6 +90,31 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_11_25->value, $answers[2]['result']['protocolVersion']);
     }
 
+    #[TestDox('a probe claiming an unserved revision is refused, naming the served ones, and the handshake still follows')]
+    public function testUnservedModernProbeLeavesTheEraOpenForTheHandshake(): void
+    {
+        $answers = $this->serve(self::builder(), [
+            self::modern(1, 'server/discover', version: '2027-01-01'),
+            self::initialize(2),
+        ]);
+
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answers[1]['error']['code']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answers[1]['error']['data']['supported']);
+        $this->assertSame(ProtocolVersion::V2025_11_25->value, $answers[2]['result']['protocolVersion']);
+    }
+
+    #[TestDox('a probe claiming an unserved revision leaves the modern era open to a served one')]
+    public function testUnservedModernProbeLeavesTheEraOpenForAServedRevision(): void
+    {
+        $answers = $this->serve(self::builder(), [
+            self::modern(1, 'server/discover', version: '2027-01-01'),
+            self::modern(2, 'tools/call', ['name' => 'echo', 'arguments' => ['text' => 'hi']]),
+        ]);
+
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answers[1]['error']['code']);
+        $this->assertSame('hi', $answers[2]['result']['content'][0]['text']);
+    }
+
     #[TestDox('a probe without an envelope gets an error it can correlate, not silence')]
     public function testUnenvelopedRequestBeforeTheHandshakeIsAnswered(): void
     {
@@ -200,10 +225,10 @@ final class StdioDualEraTest extends TestCase
      *
      * @return array<string, mixed>
      */
-    private static function modern(int $id, string $method, array $params = []): array
+    private static function modern(int $id, string $method, array $params = [], ?string $version = null): array
     {
         $params['_meta'] = [
-            RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+            RequestMeta::PROTOCOL_VERSION => $version ?? ProtocolVersion::V2026_07_28->value,
             RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
             ...($params['_meta'] ?? []),
         ];

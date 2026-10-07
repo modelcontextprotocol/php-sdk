@@ -200,6 +200,15 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 return;
             }
 
+            if ($classification->modern && !\in_array(ProtocolVersion::tryFrom((string) $classification->claimedVersion), $this->stateless->supportedVersions(), true)) {
+                // The modern leg refuses it, naming what it serves; a client
+                // with no revision in common falls back to the handshake, so
+                // the era stays open for that.
+                $this->routeModern($message, $decoded, $request);
+
+                return;
+            }
+
             $this->modern = $classification->modern;
 
             $this->logger->info('StdioTransport settled the connection era.', [
