@@ -11,13 +11,14 @@ where the PHP SDK stands and what's still missing to move up a tier.
 (2026-08-19, superseding the earlier Tier 3 assessment in #2305). Two things
 block Tier 2:
 
-- **Client conformance is 20% (10/50)**, against the ≥80% bar. Almost
-  entirely OAuth: 38 of 39 scored auth scenarios fail. Every one of those
+- **Client conformance was 20% (10/50) in that audit**, against the ≥80% bar.
+  Almost entirely OAuth: 38 of 39 scored auth scenarios failed. Every one of those
   failures is pre-declared in the SDK's own
   [`tests/Conformance/conformance-baseline-*.yml`](https://github.com/modelcontextprotocol/php-sdk/tree/main/tests/Conformance)
   files and tracked in `ROADMAP.md` — a known, scoped gap, not silent
-  breakage. Server conformance is 100% (67/67).
-- **No stable release ≥ 1.0.0 has ever shipped** (latest: v0.7.1). Tier 2
+  breakage. Server conformance was 100% (67/67).
+- **No stable release ≥ 1.0.0 has shipped yet**, see the
+  [releases](https://github.com/modelcontextprotocol/php-sdk/releases). Tier 2
   requires at least one.
 
 Tier 1 needs both of those plus full (not ≥80%) client conformance and

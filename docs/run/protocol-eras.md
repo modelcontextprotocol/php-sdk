@@ -5,8 +5,12 @@
 which of them answers. There is nothing to configure:
 
 ```php
+use Http\Discovery\Psr17Factory;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
+
+$request = (new Psr17Factory())->createServerRequestFromGlobals();
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
@@ -128,6 +132,11 @@ For the opposite — an endpoint that serves the modern era and nothing else —
 dispatcher on its own and mount it on `StatelessHttpTransport`:
 
 ```php
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server;
+use Mcp\Server\Transport\StatelessHttpTransport;
+
 $protocol = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
     ->buildStateless([ProtocolVersion::V2026_07_28]);
