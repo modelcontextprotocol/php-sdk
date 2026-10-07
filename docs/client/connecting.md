@@ -128,17 +128,23 @@ returns its ask instead of sending a request:
 ```php
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
 
 $elicitationCallback = new class implements ElicitationCallbackInterface {
     public function __invoke(ElicitRequest $request): ElicitResult
     {
-        // Ask the user for the requested input and return their answer
+        // Ask the user for the requested input and return their answer.
+        // Without a user interface, decline the request:
+        return new ElicitResult(ElicitAction::Decline);
     }
 };
 
 $client = Client::builder()
+    // the server only sends elicitation requests if the client declares the capability
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
     ->addRequestHandler(new ElicitationRequestHandler($elicitationCallback))
     ->build();
 ```

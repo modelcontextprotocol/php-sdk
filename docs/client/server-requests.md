@@ -190,6 +190,7 @@ Receive structured log messages from the server:
 
 ```php
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 
 // $logger is your application's PSR-3 logger
