@@ -38,6 +38,7 @@ use Mcp\Schema\Notification\InitializedNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Stateless\RequestMeta;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -228,6 +229,7 @@ class Protocol
             $this->state->setProtocolVersion($negotiated);
             $this->state->setServerInfo($initResult->serverInfo);
             $this->state->setInstructions($initResult->instructions);
+            $this->state->setServerCapabilities($initResult->capabilities);
             $this->state->setInitialized(true);
 
             $this->sendNotification(new InitializedNotification());
@@ -246,9 +248,10 @@ class Protocol
      *
      * There is nothing to negotiate: the revision travels on every request, so
      * the connection is usable the moment the transport is. `server/discover`
-     * is only asked because the facade exposes `getServerInfo()`, and a server
-     * that will not answer it still serves every other method — so a failure
-     * here is logged and the connection proceeds.
+     * is only asked because the facade exposes `getServerInfo()` and
+     * `getServerCapabilities()`, and a server that will not answer it still
+     * serves every other method — so a failure here is logged and the
+     * connection proceeds.
      *
      * @return Response<array<string, mixed>>
      */
@@ -298,6 +301,10 @@ class Protocol
 
         if (\is_string($result['instructions'] ?? null)) {
             $this->state->setInstructions($result['instructions']);
+        }
+
+        if (\is_array($result['capabilities'] ?? null)) {
+            $this->state->setServerCapabilities(ServerCapabilities::fromArray($result['capabilities']));
         }
 
         $this->reconcileVersion($result['supportedVersions'] ?? null);

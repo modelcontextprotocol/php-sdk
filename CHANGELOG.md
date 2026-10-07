@@ -22,6 +22,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `AbstractSchemaDefinition` declares an abstract `getDefault()`, which a custom schema definition has to implement.
 * Fix `Client::getPrompt()` without arguments sending `"arguments": []`, which servers validating the spec's object type (e.g. the TypeScript SDK) reject: empty arguments are now omitted.
 * Add `Tool::$execution` (`ToolExecution` with a `TaskSupport` enum) and `ServerCapabilities::$tasks`, which were dropped when parsing a 2025-11-25 server's `tools/list` and `initialize` results.
+* Add `Client::getServerCapabilities()`, returning what the server declared in `initialize` or, from `2026-07-28` on, in `server/discover`.
+* [BC Break] `ClientStateInterface` declares `setServerCapabilities()` and `getServerCapabilities()`, which a custom implementation has to add.
 
 0.8.0
 -----

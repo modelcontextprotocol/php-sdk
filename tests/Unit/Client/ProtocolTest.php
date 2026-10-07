@@ -93,6 +93,7 @@ final class ProtocolTest extends TestCase
         $protocol->initialize($config);
 
         $this->assertTrue($protocol->getState()->isInitialized());
+        $this->assertNull($protocol->getState()->getServerCapabilities());
     }
 
     #[TestDox('refuses to continue when discovery shows the server has no modern revision')]

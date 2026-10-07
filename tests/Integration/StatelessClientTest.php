@@ -75,6 +75,7 @@ class StatelessClientTest extends TestCase
         $this->assertTrue($client->isConnected());
         $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
         $this->assertSame('Stateless Lifecycle Demo', $client->getServerInfo()?->name);
+        $this->assertTrue($client->getServerCapabilities()?->tools);
 
         $client->disconnect();
     }

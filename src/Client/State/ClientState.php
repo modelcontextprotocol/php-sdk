@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\ServerCapabilities;
 
 /**
  * In-memory client state implementation.
@@ -32,6 +33,7 @@ class ClientState implements ClientStateInterface
     private ?ProtocolVersion $protocolVersion = null;
     private ?Implementation $serverInfo = null;
     private ?string $instructions = null;
+    private ?ServerCapabilities $serverCapabilities = null;
 
     /** @var array<int|string, array{request_id: int|string, timestamp: int, timeout: int}> */
     private array $pendingRequests = [];
@@ -126,6 +128,16 @@ class ClientState implements ClientStateInterface
     public function getInstructions(): ?string
     {
         return $this->instructions;
+    }
+
+    public function setServerCapabilities(ServerCapabilities $capabilities): void
+    {
+        $this->serverCapabilities = $capabilities;
+    }
+
+    public function getServerCapabilities(): ?ServerCapabilities
+    {
+        return $this->serverCapabilities;
     }
 
     public function storeProgress(string $token, float $progress, ?float $total, ?string $message): void
