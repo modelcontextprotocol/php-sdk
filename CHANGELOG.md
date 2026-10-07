@@ -21,6 +21,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `ElicitationSchema::getDefaults()`, returning the declared `default` of each field to accept a form elicitation with.
 * [BC Break] `AbstractSchemaDefinition` declares an abstract `getDefault()`, which a custom schema definition has to implement.
 * Fix `Client::getPrompt()` without arguments sending `"arguments": []`, which servers validating the spec's object type (e.g. the TypeScript SDK) reject: empty arguments are now omitted.
+* Add `Tool::$execution` (`ToolExecution` with a `TaskSupport` enum) and `ServerCapabilities::$tasks`, which were dropped when parsing a 2025-11-25 server's `tools/list` and `initialize` results.
 
 0.8.0
 -----

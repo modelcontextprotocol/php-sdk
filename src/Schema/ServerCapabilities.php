@@ -31,6 +31,8 @@ class ServerCapabilities implements \JsonSerializable
      * @param ?bool                 $completions          Server supports argument autocompletion
      * @param ?array<string, mixed> $experimental         experimental, non-standard features that the server supports
      * @param ?array<string, mixed> $extensions           protocol extensions the server supports (e.g. io.modelcontextprotocol/ui)
+     * @param ?array<string, mixed> $tasks                task-augmented requests the server supports, as the
+     *                                                    spec's nested object, e.g. `['list' => [], 'requests' => ['tools' => ['call' => []]]]`
      */
     public function __construct(
         public readonly ?bool $tools = true,
@@ -44,6 +46,7 @@ class ServerCapabilities implements \JsonSerializable
         public readonly ?bool $completions = false,
         public readonly ?array $experimental = null,
         public readonly ?array $extensions = null,
+        public readonly ?array $tasks = null,
     ) {
     }
 
@@ -56,6 +59,7 @@ class ServerCapabilities implements \JsonSerializable
      *     tools?: object|array{listChanged?: bool},
      *     experimental?: array<string, mixed>,
      *     extensions?: array<string, mixed>,
+     *     tasks?: array<string, mixed>,
      * } $data
      */
     public static function fromArray(array $data): self
@@ -111,6 +115,7 @@ class ServerCapabilities implements \JsonSerializable
             completions: $completionsEnabled,
             experimental: \is_array($data['experimental'] ?? null) ? $data['experimental'] : null,
             extensions: \is_array($data['extensions'] ?? null) ? $data['extensions'] : null,
+            tasks: \is_array($data['tasks'] ?? null) ? $data['tasks'] : null,
         );
     }
 
@@ -135,6 +140,7 @@ class ServerCapabilities implements \JsonSerializable
             $this->completions,
             $this->experimental,
             [...$this->extensions ?? [], ...$extensions],
+            $this->tasks,
         );
     }
 
@@ -147,6 +153,7 @@ class ServerCapabilities implements \JsonSerializable
      *     tools?: object,
      *     experimental?: object,
      *     extensions?: object,
+     *     tasks?: object,
      * }
      */
     public function jsonSerialize(): array
@@ -197,6 +204,24 @@ class ServerCapabilities implements \JsonSerializable
             );
         }
 
+        if (null !== $this->tasks) {
+            $data['tasks'] = self::toObject($this->tasks);
+        }
+
         return $data;
+    }
+
+    /**
+     * Every node of the `tasks` capability is an object, most of them empty,
+     * which a PHP array would encode as `[]`.
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function toObject(array $data): object
+    {
+        return (object) array_map(
+            static fn (mixed $value): mixed => \is_array($value) ? self::toObject($value) : $value,
+            $data,
+        );
     }
 }

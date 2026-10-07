@@ -403,4 +403,24 @@ class ServerCapabilitiesTest extends TestCase
         $this->assertTrue($capabilities->tools);
         $this->assertNull($capabilities->toolsListChanged);
     }
+
+    public function testTasksRoundTripAsNestedObjects(): void
+    {
+        $json = '{"tasks":{"list":{},"cancel":{},"requests":{"tools":{"call":{}}}}}';
+
+        $capabilities = ServerCapabilities::fromArray(json_decode($json, true));
+
+        $this->assertSame(['list' => [], 'cancel' => [], 'requests' => ['tools' => ['call' => []]]], $capabilities->tasks);
+        $this->assertSame(
+            '{"tasks":{"list":{},"cancel":{},"requests":{"tools":{"call":{}}}}}',
+            json_encode(new ServerCapabilities(tools: false, resources: false, prompts: false, tasks: $capabilities->tasks)),
+        );
+    }
+
+    public function testWithExtensionsKeepsTasks(): void
+    {
+        $capabilities = (new ServerCapabilities(tasks: ['list' => []]))->withExtensions(['io.example/ext' => []]);
+
+        $this->assertSame(['list' => []], $capabilities->tasks);
+    }
 }
