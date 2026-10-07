@@ -187,6 +187,30 @@ final class ProtocolTest extends TestCase
         $this->assertFalse($protocol->getState()->isInitialized());
     }
 
+    /**
+     * @return iterable<string, array{?ProtocolVersion, bool}>
+     */
+    public static function provideFallbacks(): iterable
+    {
+        yield 'with a fallback' => [ProtocolVersion::V2025_11_25, true];
+        yield 'modern-only' => [null, false];
+    }
+
+    #[TestDox('an answer to the probe that names no revision is no evidence of the modern era ($_dataName)')]
+    #[DataProvider('provideFallbacks')]
+    public function testDiscoveryWithoutRevisionsIsNotModernEvidence(?ProtocolVersion $fallback, bool $connects): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, discoveryWithoutVersions: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28, $fallback));
+
+        $result = $protocol->initialize($config);
+
+        $this->assertNotSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
+        $this->assertSame($connects, $result instanceof Response);
+        $this->assertSame($connects, $protocol->getState()->isInitialized());
+    }
+
     #[TestDox('a handshake refused because the server already settled on the modern era probes again')]
     public function testLateModernSettlementIsProbedAgain(): void
     {
@@ -607,6 +631,7 @@ final class RecordingTransport implements TransportInterface
         private readonly ?Error $discoveryError = null,
         private readonly ?Error $initializeError = null,
         private readonly bool $discoverAfterInitialize = false,
+        private readonly bool $discoveryWithoutVersions = false,
     ) {
     }
 
@@ -664,6 +689,12 @@ final class RecordingTransport implements TransportInterface
 
         if ($this->refuseDiscovery && !$discoverable) {
             $this->fail($message['id'], Error::forMethodNotFound('Method not found'));
+
+            return;
+        }
+
+        if ($this->discoveryWithoutVersions) {
+            $this->answer($message['id'], []);
 
             return;
         }

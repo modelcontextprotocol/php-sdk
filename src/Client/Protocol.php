@@ -226,7 +226,7 @@ class Protocol
             $this->enterModernEra($version, $config);
 
             $probe = $this->request(new DiscoverRequest(), $config->initTimeout);
-            $adopted = $this->adopt($probe, $config);
+            $adopted = $this->adopt($probe);
 
             if ($adopted instanceof Response || $adopted instanceof Error) {
                 return $adopted;
@@ -296,7 +296,7 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error|null
      */
-    private function adopt(Response|Error $probe, Configuration $config): Response|Error|null
+    private function adopt(Response|Error $probe): Response|Error|null
     {
         \assert(null !== $this->envelope);
 
@@ -324,16 +324,10 @@ class Protocol
 
         $advertised = $probe->result['supportedVersions'] ?? null;
 
+        // Not a DiscoverResult, which has to name its revisions, so not evidence
+        // of the modern era either.
         if (!\is_array($advertised)) {
-            // Not a DiscoverResult, so not evidence of the modern era. A client
-            // with nowhere else to go keeps the revision it was configured with.
-            if (null !== $config->fallbackProtocolVersion) {
-                return null;
-            }
-
-            $this->readDiscovery($probe->result);
-
-            return $this->settleModern($probe);
+            return null;
         }
 
         $current = $this->envelope->protocolVersion();
