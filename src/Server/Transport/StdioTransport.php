@@ -62,7 +62,10 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
      * answer: a `subscriptions/listen` for as long as it lasts, and a request
      * whose handler streams notifications until its result is in.
      *
-     * @var array<string|int, \Generator<mixed>>
+     * Keyed by {@see self::streamKey()}, since PHP would fold the ids `"5"`
+     * and `5` into one key, and JSON-RPC tells them apart.
+     *
+     * @var array<string, \Generator<mixed>>
      */
     private array $streams = [];
 
@@ -226,8 +229,8 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
             $requestId = $decoded['params']['requestId'] ?? null;
 
-            if ((\is_string($requestId) || \is_int($requestId)) && isset($this->streams[$requestId])) {
-                unset($this->streams[$requestId]);
+            if ((\is_string($requestId) || \is_int($requestId)) && isset($this->streams[$key = self::streamKey($requestId)])) {
+                unset($this->streams[$key]);
                 $this->logger->debug('StdioTransport dropped a cancelled request.', ['request_id' => $requestId]);
             }
 
@@ -242,7 +245,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         if ($result->isStream()) {
             \assert(null !== $result->frames && null !== $request);
-            $this->streams[$request['id']] = ($result->frames)();
+            $this->streams[self::streamKey($request['id'])] = ($result->frames)();
 
             return;
         }
@@ -270,7 +273,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                     $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
                 }
             } catch (\Throwable $e) {
-                $this->logger->error('StdioTransport ended a stream that failed.', ['request_id' => $id, 'exception' => $e]);
+                $this->logger->error('StdioTransport ended a stream that failed.', ['stream' => $id, 'exception' => $e]);
                 unset($this->streams[$id]);
 
                 continue;
@@ -280,6 +283,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 unset($this->streams[$id]);
             }
         }
+    }
+
+    private static function streamKey(string|int $id): string
+    {
+        return (\is_int($id) ? 'i:' : 's:').$id;
     }
 
     private function writeError(Error $error): void

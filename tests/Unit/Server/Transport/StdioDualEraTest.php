@@ -131,6 +131,30 @@ final class StdioDualEraTest extends TestCase
         $this->assertCount(2, $lines);
     }
 
+    #[TestDox('a string and an integer request id are different requests, so cancelling one leaves the other')]
+    public function testStreamsAreKeyedByIdType(): void
+    {
+        $input = fopen('php://temp', 'r+');
+        $output = fopen('php://temp', 'r+');
+
+        foreach ([
+            self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]),
+            ['jsonrpc' => '2.0', 'id' => '5', 'method' => 'subscriptions/listen', 'params' => self::modern(0, 'x', ['notifications' => ['toolsListChanged' => true]])['params']],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 5]],
+        ] as $message) {
+            fwrite($input, json_encode($message, \JSON_THROW_ON_ERROR)."\n");
+        }
+
+        rewind($input);
+
+        $transport = new StdioTransport($input, $output);
+        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->build()->run($transport);
+
+        $streams = (new \ReflectionProperty($transport, 'streams'))->getValue($transport);
+
+        $this->assertSame(['s:5'], array_keys($streams));
+    }
+
     private static function builder(): Builder
     {
         return Server::builder()
