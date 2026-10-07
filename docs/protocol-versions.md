@@ -104,7 +104,9 @@ either lifecycle. What changes:
 
 ## Speaking it from a client
 
-One line selects the lifecycle; nothing else about the [client API](client/index.md) changes.
+Ask for `2026-07-28` and the client speaks both eras: it finds out on `connect()` whether
+the server does too, and nothing about the [client API](client/index.md) depends on the
+answer.
 
 ```php
 $client = Client::builder()
@@ -116,16 +118,49 @@ $client = Client::builder()
 
 $client->connect(new HttpTransport('https://example.com/mcp'));
 
+$client->getProtocolVersion(); // 2026-07-28, or 2025-11-25 against an older server
 $client->callTool('greet', []);
 ```
 
-What that changes underneath:
+### How the client settles on an era
 
-- **No handshake.** `connect()` sends no `initialize`. It asks `server/discover` only for the
-  server's identity, and a server that does not answer it still yields a usable connection —
-  the method is optional. If discovery *does* report `supportedVersions` and the configured
-  revision is not among them, the client moves to a modern revision the server lists, or
-  refuses the connection outright rather than talking past it.
+`connect()` probes with `server/discover`, stamped with the preferred revision, before
+anything else — as the specification's backward-compatibility rules for
+[stdio](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
+and
+[Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#backward-compatibility)
+describe.
+
+| The probe gets | The client |
+| --- | --- |
+| a `DiscoverResult` listing a modern revision it speaks | stays modern, on that revision |
+| `-32022` naming a modern revision it speaks | retries the probe with that revision |
+| `-32022` naming only handshake revisions | falls back to `initialize` |
+| `-32022` naming nothing it speaks | fails the connection |
+| any other error, an HTTP refusal without one, or no answer in time | falls back to `initialize` |
+| a `DiscoverResult` listing only handshake revisions | falls back to `initialize` |
+
+The fallback is not keyed to one error code: servers from before the modern era refuse an
+unexpected request however they like, or not at all. A refusal costs nothing — the client
+falls back as soon as it arrives — but a server that stays silent costs the
+[initialization timeout](client/connecting.md#basic-configuration). A server process that exits fails the
+attempt outright: an outage is not an answer about the era.
+
+The fallback offers `2025-11-25`; `setFallbackProtocolVersion()` picks another handshake
+revision, and `setFallbackProtocolVersion(null)` makes the client modern-only, failing the
+connection instead. A handshake revision passed to `setProtocolVersion()` skips the probe
+and opens with `initialize`, as a client from before the modern era would.
+
+Once modern, a handful of calls change shape under the same API: `setLoggingLevel()` rides on
+every following request instead of sending the removed `logging/setLevel`, `ping()` becomes a
+`server/discover`, and `sendRootsListChanged()` sends nothing, since roots are gone. Sampling
+and roots are handshake-era features: a server asking for them on a modern connection fails the
+call instead.
+
+What being modern changes underneath:
+
+- **No handshake.** `connect()` sends no `initialize`; the probe's `DiscoverResult` is what
+  fills in the server's identity and instructions.
 - **An envelope on every request**, carrying the revision, the declared capabilities and the
   client identity. The capabilities are what let a server decide, per request, whether it may
   ask for input.
@@ -142,8 +177,8 @@ What that changes underneath:
 
 Headers are an HTTP concern, so a transport opts into them by implementing
 `HeaderAwareTransportInterface`; `HttpTransport` does, `StdioTransport` has nothing to carry
-them on. Everything else — the envelope, the skipped handshake, the round-trip loop — applies
-to both.
+them on. Everything else — the probe, the envelope, the skipped handshake, the round-trip
+loop — applies to both.
 
 See
 [`examples/client/stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php)
