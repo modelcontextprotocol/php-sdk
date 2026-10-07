@@ -58,6 +58,7 @@ final class ProtectedResourceMetadataMiddlewareTest extends MiddlewareTestCase
         yield 'MCP endpoint' => ['GET', 'https://mcp.example.com/mcp'];
         yield 'root metadata path' => ['GET', 'https://mcp.example.com/.well-known/oauth-protected-resource'];
         yield 'POST to metadata path' => ['POST', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp'];
+        yield 'metadata path of a query-specific resource' => ['GET', 'https://mcp.example.com/.well-known/oauth-protected-resource/mcp?tenant=b'];
     }
 
     #[DataProvider('provideOtherRequests')]

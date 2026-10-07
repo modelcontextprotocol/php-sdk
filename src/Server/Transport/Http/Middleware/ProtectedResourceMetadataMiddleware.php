@@ -55,11 +55,11 @@ final class ProtectedResourceMetadataMiddleware implements MiddlewareInterface
 
     private function isMetadataRequest(ServerRequestInterface $request): bool
     {
-        // Resources distinguished by query share a path, so the query decides between them.
-        $query = parse_url($this->metadata->getMetadataUrl(), \PHP_URL_QUERY);
+        // Resources distinguished by query share a path, so the query decides between them, an absent one included.
+        $query = (string) parse_url($this->metadata->getMetadataUrl(), \PHP_URL_QUERY);
 
         return 'GET' === $request->getMethod()
             && $request->getUri()->getPath() === $this->metadata->getMetadataPath()
-            && (null === $query || $request->getUri()->getQuery() === $query);
+            && $request->getUri()->getQuery() === $query;
     }
 }
