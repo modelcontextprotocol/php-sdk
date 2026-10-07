@@ -103,7 +103,7 @@ class Tool implements \JsonSerializable
      * @param array<string, mixed>|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
      *                                                structuredContent. Unlike $inputSchema its root is unconstrained —
      *                                                it may describe an array, a primitive, or a composition.
-     * @param ?ToolExecution             $execution    optional execution-related properties, such as whether the
+     * @param ?ToolExecution            $execution    optional execution-related properties, such as whether the
      *                                                tool can be called as a task
      */
     public function __construct(

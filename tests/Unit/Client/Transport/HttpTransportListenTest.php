@@ -268,7 +268,7 @@ final class FakeListeningServer implements ClientInterface
                     'capabilities' => ['tools' => new \stdClass()],
                     'serverInfo' => ['name' => 'fake', 'version' => '1.0.0'],
                 ],
-            ]));
+            ], \JSON_THROW_ON_ERROR));
         }
 
         if ('server/discover' === ($message['method'] ?? null)) {
@@ -281,7 +281,7 @@ final class FakeListeningServer implements ClientInterface
                     'capabilities' => ['tools' => new \stdClass()],
                     'serverInfo' => ['name' => 'fake', 'version' => '1.0.0'],
                 ],
-            ]));
+            ], \JSON_THROW_ON_ERROR));
         }
 
         // Streamed, so the client reads its streams in the meantime: a JSON
@@ -326,7 +326,7 @@ final class FakeListeningServer implements ClientInterface
             throw new \RuntimeException('Could not create a socket pair.');
         }
 
-        return $pair;
+        return [$pair[0], $pair[1]];
     }
 
     /**

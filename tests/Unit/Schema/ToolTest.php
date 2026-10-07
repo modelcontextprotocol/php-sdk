@@ -361,9 +361,9 @@ class ToolTest extends TestCase
             'execution' => ['taskSupport' => 'optional'],
         ];
 
-        $tool = Tool::fromArray(json_decode(json_encode($data), true));
+        $tool = Tool::fromArray(json_decode(json_encode($data, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR));
 
-        $this->assertJsonStringEqualsJsonString(json_encode($data), json_encode($tool));
+        $this->assertJsonStringEqualsJsonString(json_encode($data, \JSON_THROW_ON_ERROR), json_encode($tool, \JSON_THROW_ON_ERROR));
     }
 
     public function testExecutionIsOmittedWhenAbsent(): void
@@ -378,7 +378,7 @@ class ToolTest extends TestCase
     {
         $tool = new Tool('plain', null, ['type' => 'object', 'properties' => [], 'required' => null], null, null, execution: new ToolExecution());
 
-        $this->assertStringContainsString('"execution":{}', json_encode($tool));
+        $this->assertStringContainsString('"execution":{}', json_encode($tool, \JSON_THROW_ON_ERROR));
     }
 
     public function testFromArrayRejectsUnknownTaskSupport(): void

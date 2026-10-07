@@ -722,6 +722,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertTrue($response->result->isError);
         $this->assertNull($response->result->structuredContent);
         $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
@@ -741,6 +742,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertTrue($response->result->isError);
         $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
     }
@@ -758,6 +760,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError);
         $this->assertSame($structuredContent, $response->result->structuredContent);
     }
@@ -775,6 +778,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError);
         $this->assertSame($structuredContent, $response->result->structuredContent);
     }
@@ -791,6 +795,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertNotSame($callToolResult, $response->result);
         $this->assertTrue($response->result->isError);
         $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
@@ -808,6 +813,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertSame($callToolResult, $response->result);
         $this->assertSame('The weather service is down.', $this->firstText($response->result));
     }
@@ -824,6 +830,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError);
         $this->assertSame([], $response->result->structuredContent);
     }
@@ -841,9 +848,10 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError);
         $this->assertEquals(new \stdClass(), $response->result->structuredContent);
-        $this->assertStringContainsString('"structuredContent":{}', json_encode($response->result));
+        $this->assertStringContainsString('"structuredContent":{}', json_encode($response->result, \JSON_THROW_ON_ERROR));
     }
 
     public function testSelfBuiltJsonSerializableStructuredContentIsValidatedAsSent(): void
@@ -868,8 +876,9 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError, $this->firstText($response->result));
-        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"conditions":"sunny"}', json_encode($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"conditions":"sunny"}', json_encode($response->result, \JSON_THROW_ON_ERROR));
     }
 
     public function testNestedEmptyObjectIsValidatedAndSentAsAnObject(): void
@@ -901,8 +910,9 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertFalse($response->result->isError, $this->firstText($response->result));
-        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"meta":{}}', json_encode($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"meta":{}}', json_encode($response->result, \JSON_THROW_ON_ERROR));
     }
 
     private function firstText(CallToolResult $result): string

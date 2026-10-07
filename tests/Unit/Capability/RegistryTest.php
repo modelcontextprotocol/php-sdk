@@ -518,7 +518,7 @@ class RegistryTest extends TestCase
         $structuredContent = $this->registry->getTool('test_tool')->extractStructuredContent(new \stdClass());
 
         $this->assertInstanceOf(\stdClass::class, $structuredContent);
-        $this->assertStringContainsString('"structuredContent":{}', json_encode(new CallToolResult([], structuredContent: $structuredContent)));
+        $this->assertStringContainsString('"structuredContent":{}', json_encode(new CallToolResult([], structuredContent: $structuredContent), \JSON_THROW_ON_ERROR));
     }
 
     /**
