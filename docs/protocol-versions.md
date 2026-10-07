@@ -78,10 +78,8 @@ It pins the handshake era only. `setModernVersions()` narrows what the modern le
 
 !!! note
     On the Streamable HTTP transport, every handshake-era request after the handshake also carries an
-    `MCP-Protocol-Version` header, which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach
-    that check: the transport builds the middleware without access to the server configuration, so the header keeps
-    being accepted for every revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the
-    middleware yourself with the same revision — see
+    `MCP-Protocol-Version` header. The transport checks this header against every revision in
+    `ProtocolVersion::handshakeVersions()`, and the pin doesn't change that set. See
     [Protocol Version Validation](run/http.md#protocol-version-validation).
 
 ## What changes, and where it is written down

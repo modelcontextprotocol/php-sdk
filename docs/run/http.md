@@ -136,17 +136,8 @@ or supply a permissive allowlist.
 set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
 legacy clients do not send it.
 
-It is applied by the transport itself, to handshake-era traffic only — do not add it to a custom `middleware`
-list, where it would run before the era is classified and reject every modern-era request. Construct it
-yourself only to narrow the supported set on a server that also pins its handshake:
-
-```php
-use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
-
-// Only accept the latest spec version
-new ProtocolVersionMiddleware(supportedVersions: [ProtocolVersion::V2025_11_25]);
-```
+The transport applies it to handshake-era traffic only, always with the default set. Don't add it to a custom
+`middleware` list: there it runs before the era is classified and rejects every modern-era request.
 
 The default set is `ProtocolVersion::handshakeVersions()` — every revision the server can actually negotiate over
 `initialize`, rather than every revision the enum declares. A request without the header is treated as
@@ -155,9 +146,8 @@ header itself, so a header-less request cannot be newer than that.
 
 This header check is separate from, and happens after, the handshake itself. See
 [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for how the revision is agreed in the
-first place. Being separate also means it is unaffected by `setProtocolVersion()`: the middleware validates against
-the set it was constructed with, not against the revision a given session negotiated, so a server that pins the
-handshake has to pass that revision here as well.
+first place. The check is also unaffected by `setProtocolVersion()`, so a server that pins the handshake still
+accepts every handshake revision in this header.
 
 Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` rather than in a
 header, and is routed away from this check entirely — see
