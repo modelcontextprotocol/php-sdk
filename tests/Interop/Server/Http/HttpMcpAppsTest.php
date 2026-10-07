@@ -43,6 +43,13 @@ final class HttpMcpAppsTest extends HttpInspectorSnapshotTestCase
         ];
     }
 
+    protected function getClientArgs(): array
+    {
+        // The Inspector CLI cannot render an App, so it only claims the
+        // extension when asked; without it the tool falls back to plain text.
+        return ['--advertise-apps'];
+    }
+
     protected function getServerScript(): string
     {
         return \dirname(__DIR__, 4).'/examples/server/mcp-apps/server.php';

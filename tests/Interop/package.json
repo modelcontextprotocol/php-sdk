@@ -2,7 +2,7 @@
     "private": true,
     "description": "Third-party MCP implementations the interop suite runs against, locked so their dependencies cannot change under the snapshots.",
     "devDependencies": {
-        "@modelcontextprotocol/inspector": "2.2.0",
+        "@modelcontextprotocol/inspector": "2.9.0",
         "@modelcontextprotocol/server-everything": "2026.8.31"
     }
 }
