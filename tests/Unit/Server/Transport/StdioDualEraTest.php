@@ -148,6 +148,18 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame('counted', $lines[2]['result']['content'][0]['text']);
     }
 
+    #[TestDox('a modern request is served to its result before the next message is read, so a cancel for it comes too late')]
+    public function testRequestCompletesBeforeItsCancelIsRead(): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            self::modern(1, 'tools/call', ['name' => 'count', 'arguments' => [], '_meta' => ['progressToken' => 'p']]),
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 1]],
+        ]);
+
+        $this->assertCount(3, $lines);
+        $this->assertSame('counted', $lines[2]['result']['content'][0]['text']);
+    }
+
     #[TestDox('a listen stream shares the channel, acknowledged and tagged with its subscription')]
     public function testListenStreamIsAcknowledged(): void
     {

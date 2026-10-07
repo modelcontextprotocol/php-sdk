@@ -241,8 +241,10 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         \assert(null !== $this->stateless);
 
-        // stdio has no per-request stream to close, so this notification is
-        // how a client stops one; nothing more may be sent for it.
+        // stdio has no stream to close, so this notification is how a client
+        // ends a subscriptions/listen; nothing more may be sent for it. Any
+        // other request has already run to its result by the time a
+        // cancellation for it is read.
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
             $requestId = $decoded['params']['requestId'] ?? null;
 

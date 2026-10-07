@@ -120,11 +120,12 @@ connection gets `-32022` naming the modern revisions, an enveloped request on a 
 gets `-32600`. That is what a client that probed, gave up waiting and fell back to the handshake
 needs to learn that the server settled on the modern era after all.
 
-On a modern connection everything shares the one channel. A request's progress and log
-messages are written as its handler emits them, ahead of its result; a `subscriptions/listen`
-stays open alongside other requests, each of its messages tagged with the subscription id; and
-`notifications/cancelled` is how a client stops one, since there is no per-request stream to
-close. stdio has no headers, so none of the `Mcp-*` header rules apply.
+On a modern connection everything shares the one channel, and requests are served one at a
+time: a request's progress and log messages are written as its handler emits them, ahead of its
+result, and the next message is read once that result is out. A `subscriptions/listen` is the
+long-lived exception: it stays open alongside other requests, each of its messages tagged with
+the subscription id, until the client sends `notifications/cancelled` for it, since there is no
+stream to close. stdio has no headers, so none of the `Mcp-*` header rules apply.
 
 A server built `withoutModernEra()` refuses a modern opening with `-32022` naming the handshake
 revisions, and still accepts the handshake that follows.
