@@ -120,7 +120,7 @@ $server = Server::builder()
 
     // Bounds the input-required shim, which fulfils an `InputRequiredResult`
     // over a handshake-era connection. `withoutInputRequiredShim()` turns it off.
-    // Defaults to 8 rounds and a 600 second timeout per round.
+    // Defaults to 8 rounds and a 600 second timeout for each input request.
     ->setInputRequiredLimits(maxRounds: 4, roundTimeout: 120)
 
     // Caching hints stamped on cacheable results. Defaults to `ttlMs: 0, private`.
