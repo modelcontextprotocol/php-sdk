@@ -68,10 +68,13 @@ Use `$client->getProtocolVersion()` after connecting to read what the connection
 ```php
 use Mcp\Schema\Enum\ProtocolVersion;
 
+// Fall back to an older handshake revision instead of 2025-11-25…
 $client = Client::builder()
-    // Fall back to an older handshake revision instead of 2025-11-25…
     ->setFallbackProtocolVersion(ProtocolVersion::V2025_06_18)
-    // …or not at all, refusing servers without the modern era.
+    ->build();
+
+// …or not at all, refusing servers without the modern era.
+$client = Client::builder()
     ->setFallbackProtocolVersion(null)
     ->build();
 ```
