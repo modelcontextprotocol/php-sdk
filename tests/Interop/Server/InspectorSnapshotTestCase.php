@@ -34,6 +34,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
             $this->getTransport(),
             '--method',
             $method,
+            ...$this->getClientArgs(),
         ];
 
         // Options for tools/call
@@ -122,6 +123,16 @@ abstract class InspectorSnapshotTestCase extends TestCase
             'Resource Template Listing' => ['method' => 'resources/templates/list'],
             'Tool Listing' => ['method' => 'tools/list'],
         ];
+    }
+
+    /**
+     * Extra Inspector flags shaping what the client declares at initialize.
+     *
+     * @return array<string>
+     */
+    protected function getClientArgs(): array
+    {
+        return [];
     }
 
     abstract protected function getSnapshotFilePath(string $method, ?string $testName = null): string;
