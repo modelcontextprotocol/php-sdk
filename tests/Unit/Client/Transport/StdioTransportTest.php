@@ -12,11 +12,17 @@
 namespace Mcp\Tests\Unit\Client\Transport;
 
 use Mcp\Client;
+use Mcp\Client\Configuration;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -87,6 +93,30 @@ final class StdioTransportTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertStringContainsString('no longer running', $response->message);
+    }
+
+    #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent')]
+    public function testProgressKeepsItsPlaceAmongNotifications(): void
+    {
+        $order = [];
+        $protocol = new Protocol(notificationHandlers: [new LoggingNotificationHandler(static function (LoggingMessageNotification $n) use (&$order): void {
+            $order[] = 'log '.$n->data;
+        })]);
+        $transport = new StdioTransport(command: 'true');
+        $protocol->connect($transport, new Configuration(new Implementation('test', '1.0.0'), new ClientCapabilities()));
+        (new \ReflectionProperty($transport, 'activeProgressCallback'))->setValue($transport, static function (float $progress) use (&$order): void {
+            $order[] = 'progress '.$progress;
+        });
+
+        $this->setStdout($transport, $this->stream(
+            '{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}'."\n"
+            .'{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}'."\n"
+            // Keeps the stream open, so the read is about ordering and not the server leaving.
+            .'{"partial":',
+        ));
+        $this->invokeProcessInput($transport);
+
+        $this->assertSame(['progress 1', 'log done'], $order);
     }
 
     #[TestDox('a server that exits fails the connection at once instead of timing out')]

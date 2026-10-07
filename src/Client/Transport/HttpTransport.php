@@ -647,6 +647,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if (!empty($data)) {
             $this->handleMessage($data);
+            // Delivered now rather than after the whole read, so progress
+            // keeps its place among the notifications sent around it.
+            $this->processProgress();
         }
     }
 

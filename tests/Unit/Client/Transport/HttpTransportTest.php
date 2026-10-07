@@ -13,14 +13,20 @@ namespace Mcp\Tests\Unit\Client\Transport;
 
 use Mcp\Client;
 use Mcp\Client\CancellationTokenInterface;
+use Mcp\Client\Configuration;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
+use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -255,6 +261,28 @@ final class HttpTransportTest extends TestCase
 
         // A modern server: no fallback to a handshake it does not have.
         $this->assertSame(['server/discover'], $httpClient->methods);
+    }
+
+    #[TestDox('progress and other notifications on one stream reach the caller in the order they were sent')]
+    public function testProgressKeepsItsPlaceAmongNotifications(): void
+    {
+        $order = [];
+        $protocol = new Protocol(notificationHandlers: [new LoggingNotificationHandler(static function (LoggingMessageNotification $n) use (&$order): void {
+            $order[] = 'log '.$n->data;
+        })]);
+        $transport = $this->createTransport();
+        $protocol->connect($transport, new Configuration(new Implementation('test', '1.0.0'), new ClientCapabilities()));
+        (new \ReflectionProperty($transport, 'activeProgressCallback'))->setValue($transport, static function (float $progress) use (&$order): void {
+            $order[] = 'progress '.$progress;
+        });
+
+        $this->setActiveStream($transport, $this->factory->createStream(
+            'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}'."\n\n"
+            .'data: {"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}'."\n\n",
+        ));
+        $this->invokeProcessSseStream($transport);
+
+        $this->assertSame(['progress 1', 'log done'], $order);
     }
 
     #[TestDox('SSE stream is aborted before the buffer can exceed the configured cap')]

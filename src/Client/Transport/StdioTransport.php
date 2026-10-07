@@ -273,6 +273,9 @@ class StdioTransport extends BaseTransport
             $trimmed = trim($line);
             if (!empty($trimmed)) {
                 $this->handleMessage($trimmed);
+                // Delivered now rather than after the whole read, so progress
+                // keeps its place among the notifications sent around it.
+                $this->processProgress();
             }
         }
 
