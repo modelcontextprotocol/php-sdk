@@ -4,6 +4,7 @@ Tools are callable functions that perform actions and return results.
 
 ```php
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Exception\ToolCallException;
 
 class Calculator
 {
@@ -17,8 +18,8 @@ class Calculator
             'add' => $a + $b,
             'subtract' => $a - $b,
             'multiply' => $a * $b,
-            'divide' => $b != 0 ? $a / $b : throw new \InvalidArgumentException('Division by zero'),
-            default => throw new \InvalidArgumentException('Invalid operation')
+            'divide' => $b != 0 ? $a / $b : throw new ToolCallException('Division by zero'),
+            default => throw new ToolCallException('Invalid operation')
         };
     }
 }
