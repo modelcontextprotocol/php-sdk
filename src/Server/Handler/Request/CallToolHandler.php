@@ -165,7 +165,7 @@ final class CallToolHandler implements RequestHandlerInterface
      * A tool declaring an `outputSchema` promises every `structuredContent` it sends
      * conforms to it, in every revision. A mismatch is the server's own bug, but it
      * is reported as a tool execution error rather than a protocol error so that the
-     * model sees it and can fall back to `content`.
+     * model sees what went wrong.
      *
      * @return CallToolResult|null the error result to send instead, or null when there is nothing to report
      */
@@ -178,7 +178,10 @@ final class CallToolHandler implements RequestHandlerInterface
             return null;
         }
 
-        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($result->structuredContent, $tool->outputSchema);
+        // Validate the value as it is sent, incl. `JsonSerializable` and `{}` vs. `[]`.
+        $sent = json_decode(json_encode($result->structuredContent, \JSON_THROW_ON_ERROR), false, 512, \JSON_THROW_ON_ERROR);
+
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($sent, $tool->outputSchema);
         if ([] === $validationErrors) {
             return null;
         }

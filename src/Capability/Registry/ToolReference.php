@@ -106,18 +106,18 @@ class ToolReference extends ElementReference
                 \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE
             );
 
-            $decoded = json_decode(
-                $jsonResult, true, 512, \JSON_THROW_ON_ERROR
-            );
+            $decoded = $this->objectsToArrays(json_decode(
+                $jsonResult, false, 512, \JSON_THROW_ON_ERROR
+            ));
+
+            if ($decoded instanceof \stdClass) {
+                return $decoded;
+            }
 
             // A plain object always encodes to a JSON object, but `JsonSerializable`
             // can hand back anything, scalars included.
             if (!\is_array($decoded)) {
                 return $this->acceptsScalarStructuredContent($objectOnly) ? $decoded : null;
-            }
-
-            if ([] === $decoded && '{}' === $jsonResult) {
-                return new \stdClass();
             }
 
             if ($objectOnly && array_is_list($decoded)) {
@@ -142,5 +142,21 @@ class ToolReference extends ElementReference
     private function acceptsScalarStructuredContent(bool $objectOnly): bool
     {
         return !$objectOnly && null !== $this->tool->outputSchema;
+    }
+
+    /**
+     * Turns decoded JSON objects into arrays, except empty ones, which would be sent as `[]`.
+     */
+    private function objectsToArrays(mixed $value): mixed
+    {
+        if ($value instanceof \stdClass) {
+            $value = get_object_vars($value);
+
+            if ([] === $value) {
+                return new \stdClass();
+            }
+        }
+
+        return \is_array($value) ? array_map($this->objectsToArrays(...), $value) : $value;
     }
 }
