@@ -11,7 +11,10 @@
 
 namespace Mcp\Tests\Unit\Schema;
 
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\TaskSupport;
 use Mcp\Schema\Tool;
+use Mcp\Schema\ToolExecution;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
@@ -288,5 +291,52 @@ class ToolTest extends TestCase
         $decoded = json_decode($wire, true, 512, \JSON_THROW_ON_ERROR);
 
         $this->assertSame($wire, json_encode(Tool::fromArray($decoded)));
+    }
+
+    public function testFromArrayReadsExecution(): void
+    {
+        $tool = Tool::fromArray([
+            'name' => 'research',
+            'inputSchema' => ['type' => 'object', 'properties' => [], 'required' => null],
+            'execution' => ['taskSupport' => 'required'],
+        ]);
+
+        $this->assertSame(TaskSupport::Required, $tool->execution?->taskSupport);
+    }
+
+    public function testRoundTripPreservesExecution(): void
+    {
+        $data = [
+            'name' => 'research',
+            'inputSchema' => ['type' => 'object', 'properties' => new \stdClass()],
+            'execution' => ['taskSupport' => 'optional'],
+        ];
+
+        $tool = Tool::fromArray(json_decode(json_encode($data), true));
+
+        $this->assertJsonStringEqualsJsonString(json_encode($data), json_encode($tool));
+    }
+
+    public function testExecutionIsOmittedWhenAbsent(): void
+    {
+        $tool = new Tool('plain', null, ['type' => 'object', 'properties' => [], 'required' => null], null, null);
+
+        $this->assertArrayNotHasKey('execution', $tool->jsonSerialize());
+        $this->assertNull($tool->execution);
+    }
+
+    public function testEmptyExecutionSerializesAsObject(): void
+    {
+        $tool = new Tool('plain', null, ['type' => 'object', 'properties' => [], 'required' => null], null, null, execution: new ToolExecution());
+
+        $this->assertStringContainsString('"execution":{}', json_encode($tool));
+    }
+
+    public function testFromArrayRejectsUnknownTaskSupport(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        /* @phpstan-ignore argument.type */
+        ToolExecution::fromArray(['taskSupport' => 'sometimes']);
     }
 }

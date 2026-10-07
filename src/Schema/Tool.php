@@ -19,6 +19,7 @@ use Mcp\Schema\Wire\McpHeader;
  *
  * @phpstan-import-type ToolAnnotationsData from ToolAnnotations
  * @phpstan-import-type IconData from Icon
+ * @phpstan-import-type ToolExecutionData from ToolExecution
  *
  * @phpstan-type ToolInputSchema array{
  *     type: 'object',
@@ -40,7 +41,8 @@ use Mcp\Schema\Wire\McpHeader;
  *     annotations?: ToolAnnotationsData,
  *     icons?: IconData[],
  *     _meta?: array<string, mixed>,
- *     outputSchema?: ToolOutputSchema
+ *     outputSchema?: ToolOutputSchema,
+ *     execution?: ToolExecutionData
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -107,6 +109,8 @@ class Tool implements \JsonSerializable
      * @param ToolOutputSchema|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
      *                                            structuredContent. Unlike $inputSchema its root is unconstrained —
      *                                            it may describe an array, a primitive, or a composition.
+     * @param ?ToolExecution        $execution    optional execution-related properties, such as whether the
+     *                                            tool can be called as a task
      */
     public function __construct(
         public readonly string $name,
@@ -117,6 +121,7 @@ class Tool implements \JsonSerializable
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
         ?array $outputSchema = null,
+        public readonly ?ToolExecution $execution = null,
     ) {
         if (!isset($inputSchema['type']) || 'object' !== $inputSchema['type']) {
             throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
@@ -165,6 +170,7 @@ class Tool implements \JsonSerializable
             icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'Tool') : null,
             meta: isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
             outputSchema: $outputSchema,
+            execution: isset($data['execution']) && \is_array($data['execution']) ? ToolExecution::fromArray($data['execution']) : null,
         );
     }
 
@@ -177,7 +183,8 @@ class Tool implements \JsonSerializable
      *     annotations?: ToolAnnotations,
      *     icons?: Icon[],
      *     _meta?: array<string, mixed>,
-     *     outputSchema?: ToolOutputSchema|\stdClass
+     *     outputSchema?: ToolOutputSchema|\stdClass,
+     *     execution?: ToolExecution
      * }
      */
     public function jsonSerialize(): array
@@ -201,6 +208,9 @@ class Tool implements \JsonSerializable
         }
         if (null !== $this->outputSchema) {
             $data['outputSchema'] = [] === $this->outputSchema ? new \stdClass() : $this->outputSchema;
+        }
+        if (null !== $this->execution) {
+            $data['execution'] = $this->execution;
         }
 
         return $data;

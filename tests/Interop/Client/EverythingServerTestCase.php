@@ -55,7 +55,7 @@ use PHPUnit\Framework\TestCase;
  *  - the round trip: what the client parsed, encoded again, must equal what
  *    arrived. A field our schema classes drop fails here instead of silently
  *    disappearing from the snapshot. Losses not fixed yet are listed in
- *    {@see self::KNOWN_LOSSES}, and must still occur for the test to pass.
+ *    {@see self::$knownLosses}, and must still occur for the test to pass.
  *
  * A missing snapshot is written on first run and the test marked incomplete;
  * delete a snapshot to re-record it.
@@ -69,13 +69,10 @@ abstract class EverythingServerTestCase extends TestCase
     /**
      * Fields the client loses when parsing, per scenario, until they are fixed.
      * Paths use `*` for list indices.
+     *
+     * @var array<string, list<string>>
      */
-    private const KNOWN_LOSSES = [
-        // Tool has no `execution` (2025-11-25 tasks).
-        'tools_list' => ['missing result.tools.*.execution'],
-        // ServerCapabilities has no `tasks` (2025-11-25 tasks).
-        'initialize' => ['missing result.capabilities.tasks'],
-    ];
+    private static array $knownLosses = [];
 
     /**
      * Fields the client always writes, where the server may leave them out and
@@ -212,9 +209,9 @@ abstract class EverythingServerTestCase extends TestCase
 
         $this->assertMatchesSnapshot($scenario, $wire);
         $this->assertSame(
-            self::KNOWN_LOSSES[$scenario] ?? [],
+            self::$knownLosses[$scenario] ?? [],
             $this->losses($wire, $parsed, $received),
-            'What the client parsed differs from what the server sent. Fix the schema class, or, if the loss is known and tracked, list it in KNOWN_LOSSES.',
+            'What the client parsed differs from what the server sent. Fix the schema class, or, if the loss is known and tracked, list it in $knownLosses.',
         );
     }
 
