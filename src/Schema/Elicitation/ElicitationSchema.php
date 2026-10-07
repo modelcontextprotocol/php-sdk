@@ -134,6 +134,24 @@ final class ElicitationSchema implements \JsonSerializable
     }
 
     /**
+     * The declared default of each field that has one, keyed by field name.
+     *
+     * @return array<string, mixed>
+     */
+    public function getDefaults(): array
+    {
+        $defaults = [];
+
+        foreach ($this->properties as $name => $property) {
+            if (null !== $default = $property->getDefault()) {
+                $defaults[$name] = $default;
+            }
+        }
+
+        return $defaults;
+    }
+
+    /**
      * @return array{
      *     type: string,
      *     properties: array<string, mixed>,

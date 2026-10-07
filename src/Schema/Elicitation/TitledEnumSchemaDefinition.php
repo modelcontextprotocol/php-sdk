@@ -81,6 +81,11 @@ final class TitledEnumSchemaDefinition extends AbstractSchemaDefinition
         );
     }
 
+    public function getDefault(): ?string
+    {
+        return $this->default;
+    }
+
     /**
      * @return array<string, mixed>
      */

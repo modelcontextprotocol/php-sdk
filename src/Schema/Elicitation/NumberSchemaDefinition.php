@@ -84,6 +84,11 @@ final class NumberSchemaDefinition extends AbstractSchemaDefinition
         );
     }
 
+    public function getDefault(): int|float|null
+    {
+        return $this->default;
+    }
+
     /**
      * @return array{
      *     type: string,

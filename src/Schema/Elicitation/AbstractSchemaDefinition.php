@@ -61,6 +61,11 @@ abstract class AbstractSchemaDefinition implements \JsonSerializable
     }
 
     /**
+     * The value the field is pre-filled with, or null when it declares none.
+     */
+    abstract public function getDefault(): mixed;
+
+    /**
      * @return array<string, mixed>
      */
     abstract public function jsonSerialize(): array;
