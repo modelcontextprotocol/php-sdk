@@ -35,8 +35,9 @@ final class SecureUrl
             throw new InvalidArgumentException(\sprintf('The %s must be an absolute URL.', $label));
         }
 
+        $scheme = strtolower($parts['scheme']);
         $host = strtolower(trim($parts['host'], '[]'));
-        if ('https' !== strtolower($parts['scheme']) && !\in_array($host, ['localhost', '127.0.0.1', '::1'], true)) {
+        if ('https' !== $scheme && ('http' !== $scheme || !\in_array($host, ['localhost', '127.0.0.1', '::1'], true))) {
             throw new InvalidArgumentException(\sprintf('The %s "%s" must use https; plain http is only accepted for loopback hosts.', $label, $url));
         }
 

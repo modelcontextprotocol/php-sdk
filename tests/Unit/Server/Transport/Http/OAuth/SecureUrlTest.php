@@ -29,6 +29,7 @@ final class SecureUrlTest extends TestCase
         yield 'http on IPv4 loopback' => ['http://127.0.0.1/mcp'];
         yield 'http on IPv6 loopback' => ['http://[::1]:8000/mcp'];
         yield 'http on uppercase localhost' => ['http://LOCALHOST'];
+        yield 'uppercase http on localhost' => ['HTTP://localhost'];
     }
 
     #[DataProvider('provideAcceptedUrls')]
@@ -46,6 +47,10 @@ final class SecureUrlTest extends TestCase
         yield 'http on loopback lookalike' => ['http://localhost.example.com'];
         yield 'http on other loopback address' => ['http://127.0.0.2'];
         yield 'other scheme' => ['ftp://auth.example.com'];
+        yield 'other scheme on localhost' => ['ftp://localhost/jwks.json'];
+        yield 'file scheme on localhost' => ['file://localhost/etc/passwd'];
+        yield 'other scheme on IPv4 loopback' => ['gopher://127.0.0.1/'];
+        yield 'other scheme on IPv6 loopback' => ['javascript://[::1]/'];
         yield 'relative' => ['/realms/mcp'];
         yield 'no host' => ['https:///realms/mcp'];
         yield 'not a string' => [null];
