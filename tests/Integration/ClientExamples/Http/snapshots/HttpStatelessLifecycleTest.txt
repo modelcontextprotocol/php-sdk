@@ -1,0 +1,13 @@
+Connected to Stateless Lifecycle Demo (revision 2026-07-28)
+
+Tools:
+  get_weather  Reports the weather for a city
+  reindex      Reindexes shards, reporting progress as it goes
+  greet        Greets you by name, asking for it first if it has to
+
+A plain call:
+  It is 17°C and cloudy in Munich.
+
+A call the server cannot finish in one round:
+  server asked: What name should the greeting use?
+  Hello, Ada!

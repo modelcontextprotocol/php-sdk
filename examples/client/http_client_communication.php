@@ -43,7 +43,7 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 
-$endpoint = 'http://127.0.0.1:8000';
+$endpoint = getenv('MCP_SERVER_URL') ?: 'http://127.0.0.1:8000';
 
 $loggingNotificationHandler = new LoggingNotificationHandler(static function (LoggingMessageNotification $n) {
     echo "[LOG {$n->level->value}] {$n->data}\n";
@@ -76,6 +76,8 @@ $client = Client::builder()
     ->build();
 
 $transport = new HttpTransport(endpoint: $endpoint);
+
+$status = 0;
 
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";
@@ -127,6 +129,9 @@ try {
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
     echo $e->getTraceAsString()."\n";
+    $status = 1;
 } finally {
     $client->disconnect();
 }
+
+exit($status);

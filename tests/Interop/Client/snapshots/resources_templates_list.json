@@ -1,0 +1,18 @@
+{
+    "result": {
+        "resourceTemplates": [
+            {
+                "name": "Dynamic Text Resource",
+                "uriTemplate": "demo://resource/dynamic/text/{resourceId}",
+                "mimeType": "text/plain",
+                "description": "Plaintext dynamic resource fabricated from the {resourceId} variable, which must be an integer."
+            },
+            {
+                "name": "Dynamic Blob Resource",
+                "uriTemplate": "demo://resource/dynamic/blob/{resourceId}",
+                "mimeType": "application/octet-stream",
+                "description": "Binary (base64) dynamic resource fabricated from the {resourceId} variable, which must be an integer."
+            }
+        ]
+    }
+}

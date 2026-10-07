@@ -1,0 +1,10 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "Echo: Hello from PHP"
+            }
+        ]
+    }
+}

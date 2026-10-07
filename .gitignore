@@ -19,3 +19,4 @@ tests/Conformance/logs/*.log
 # Documentation site (make docs)
 /site/
 /.cache/
+tests/Interop/node_modules

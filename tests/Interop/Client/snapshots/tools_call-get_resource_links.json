@@ -1,0 +1,24 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "Here are 2 resource links to resources available in this server:"
+            },
+            {
+                "name": "Blob Resource 1",
+                "uri": "demo://resource/dynamic/blob/1",
+                "description": "Resource 1: plaintext resource",
+                "mimeType": "text/plain",
+                "type": "resource_link"
+            },
+            {
+                "name": "Text Resource 2",
+                "uri": "demo://resource/dynamic/text/2",
+                "description": "Resource 2: plaintext resource",
+                "mimeType": "text/plain",
+                "type": "resource_link"
+            }
+        ]
+    }
+}

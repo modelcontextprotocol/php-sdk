@@ -1,0 +1,11 @@
+{
+    "result": {
+        "contents": [
+            {
+                "uri": "demo://resource/static/document/architecture.md",
+                "mimeType": "text/markdown",
+                "text": "# Everything Server – Architecture\n\n**Architecture\n| [Project Structure](structure.md)\n| [Startup Process](startup.md)\n| [Server Features](features.md)\n| [Extension Points](extension.md)\n| [How It Works](how-it-works.md)**\n\nThis documentation summarizes the current layout and runtime architecture of the `src/everything` package.\nIt explains how the server starts, how transports are wired, where tools, prompts, and resources are registered, and how to extend the system.\n\n## High‑level Overview\n\n### Purpose\n\nA minimal, modular MCP server showcasing core Model Context Protocol features. It exposes simple tools, prompts, and resources, and can be run over multiple transports (STDIO, SSE, and Streamable HTTP).\n\n### Design\n\nA small “server factory” constructs the MCP server and registers features.\nTransports are separate entry points that create/connect the server and handle network concerns.\nTools, prompts, and resources are organized in their own submodules.\n\n### Multi‑client\n\nThe server supports multiple concurrent clients. Tracking per session data is demonstrated with\nresource subscriptions and simulated logging.\n\n## Build and Distribution\n\n- TypeScript sources are compiled into `dist/` via `npm run build`.\n- The `build` script copies `docs/` into `dist/` so instruction files ship alongside the compiled server.\n- The CLI bin is configured in `package.json` as `mcp-server-everything` → `dist/index.js`.\n\n## [Project Structure](structure.md)\n\n## [Startup Process](startup.md)\n\n## [Server Features](features.md)\n\n## [Extension Points](extension.md)\n\n## [How It Works](how-it-works.md)\n"
+            }
+        ]
+    }
+}

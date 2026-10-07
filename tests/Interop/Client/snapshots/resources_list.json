@@ -1,0 +1,48 @@
+{
+    "result": {
+        "resources": [
+            {
+                "uri": "demo://resource/static/document/architecture.md",
+                "name": "architecture.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: architecture.md"
+            },
+            {
+                "uri": "demo://resource/static/document/extension.md",
+                "name": "extension.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: extension.md"
+            },
+            {
+                "uri": "demo://resource/static/document/features.md",
+                "name": "features.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: features.md"
+            },
+            {
+                "uri": "demo://resource/static/document/how-it-works.md",
+                "name": "how-it-works.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: how-it-works.md"
+            },
+            {
+                "uri": "demo://resource/static/document/instructions.md",
+                "name": "instructions.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: instructions.md"
+            },
+            {
+                "uri": "demo://resource/static/document/startup.md",
+                "name": "startup.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: startup.md"
+            },
+            {
+                "uri": "demo://resource/static/document/structure.md",
+                "name": "structure.md",
+                "mimeType": "text/markdown",
+                "description": "Static document file exposed from /docs: structure.md"
+            }
+        ]
+    }
+}

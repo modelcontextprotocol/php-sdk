@@ -62,7 +62,8 @@ final class GetPromptRequest extends Request
     {
         $params = ['name' => $this->name];
 
-        if (null !== $this->arguments) {
+        // An empty PHP array encodes as `[]`, which the spec's object type rejects.
+        if (null !== $this->arguments && [] !== $this->arguments) {
             $params['arguments'] = $this->arguments;
         }
 

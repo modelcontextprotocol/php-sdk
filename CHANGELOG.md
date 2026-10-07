@@ -19,6 +19,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `PassthroughMiddleware` to opt `StreamableHttpTransport` out of its default middleware without the warning an empty `$middleware` list logs.
 * Add `ElicitationSchema::getDefaults()`, returning the declared `default` of each field to accept a form elicitation with.
 * [BC Break] `AbstractSchemaDefinition` declares an abstract `getDefault()`, which a custom schema definition has to implement.
+* Fix `Client::getPrompt()` without arguments sending `"arguments": []`, which servers validating the spec's object type (e.g. the TypeScript SDK) reject: empty arguments are now omitted.
 
 0.8.0
 -----

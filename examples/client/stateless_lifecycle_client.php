@@ -80,7 +80,7 @@ $client = Client::builder()
     ->addRequestHandler($answerWithAName)
     ->build();
 
-$client->connect(new HttpTransport('http://127.0.0.1:8000/'));
+$client->connect(new HttpTransport(getenv('MCP_SERVER_URL') ?: 'http://127.0.0.1:8000/'));
 
 printf("Connected to %s (revision %s)\n\n", $client->getServerInfo()?->name, $client->getProtocolVersion()?->value);
 
