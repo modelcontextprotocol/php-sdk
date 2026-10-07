@@ -15,17 +15,14 @@ use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
 
 /**
- * The default transport, which does not open the standalone GET stream.
+ * The transport listening on the standalone GET stream, on which the server
+ * asks for roots outside of any request. Responses are then read without
+ * blocking, so every scenario runs on this path too.
  */
-final class HttpEverythingServerTest extends HttpEverythingServerTestCase
+final class HttpListeningEverythingServerTest extends HttpEverythingServerTestCase
 {
     protected static function transport(): TransportInterface
     {
-        return new HttpTransport(self::$endpoint);
-    }
-
-    protected static function receivesUnrelatedServerRequests(): bool
-    {
-        return false;
+        return new HttpTransport(self::$endpoint, listen: true);
     }
 }
