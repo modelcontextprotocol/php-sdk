@@ -43,7 +43,7 @@ abstract class AbstractSchemaDefinition implements \JsonSerializable
     /**
      * Build the base JSON structure with type, optional title and description.
      *
-     * @return array<string, mixed>
+     * @return array{type: string, title?: string, description?: string}
      */
     protected function buildBaseJson(string $type): array
     {

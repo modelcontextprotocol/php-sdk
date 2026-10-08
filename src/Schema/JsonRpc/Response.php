@@ -47,7 +47,7 @@ class Response implements MessageInterface
     }
 
     /**
-     * @param ResponseData $data
+     * @param ResponseData|array<mixed> $data
      *
      * @return self<array<string, mixed>>
      */
@@ -69,7 +69,10 @@ class Response implements MessageInterface
             throw new InvalidArgumentException('Response "result" must be an array.');
         }
 
-        return new self($data['id'], $data['result']);
+        /** @var array<string, mixed> $result A result decoded from a JSON object is string-keyed. */
+        $result = $data['result'];
+
+        return new self($data['id'], $result);
     }
 
     /**

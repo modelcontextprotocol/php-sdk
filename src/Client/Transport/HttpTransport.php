@@ -114,15 +114,16 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     public function connect(): void
     {
-        $this->activeFiber = new \Fiber(fn () => $this->handleInitialize());
+        $fiber = new \Fiber(fn () => $this->handleInitialize());
+        $this->activeFiber = $fiber;
 
-        $this->activeFiber->start();
+        $fiber->start();
 
-        while (!$this->activeFiber->isTerminated()) {
+        while (!$fiber->isTerminated()) {
             $this->tick();
         }
 
-        $result = $this->activeFiber->getReturn();
+        $result = $fiber->getReturn();
         $this->activeFiber = null;
 
         if ($result instanceof Error) {

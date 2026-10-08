@@ -139,7 +139,7 @@ abstract class EverythingServerTestCase extends TestCase
         self::$client->connect(self::$transport);
 
         foreach (self::$transport->received() as $message) {
-            if (isset($message->result->serverInfo)) {
+            if (isset($message->result->serverInfo) && $message->result instanceof \stdClass) {
                 self::$initializeResult = $message->result;
             }
         }
@@ -282,7 +282,7 @@ abstract class EverythingServerTestCase extends TestCase
         }
 
         $losses = array_values(array_unique(array_map(
-            static fn (string $loss): string => preg_replace('/\.\d+(?=\.|$)/', '.*', $loss),
+            static fn (string $loss): string => preg_replace('/\.\d+(?=\.|$)/', '.*', $loss) ?? $loss,
             $losses,
         )));
         sort($losses);
@@ -411,6 +411,7 @@ abstract class EverythingServerTestCase extends TestCase
 
         // The dynamic resources stamp the time they were generated into their text.
         $json = preg_replace('/\d{1,2}:\d{2}:\d{2}(?:\s?[AP]M)?/u', '<time>', $json);
+        $this->assertNotNull($json);
 
         $file = __DIR__.'/snapshots/'.$scenario.'.json';
 

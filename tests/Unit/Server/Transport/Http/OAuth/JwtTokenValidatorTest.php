@@ -288,7 +288,9 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertNotFalse($ec);
         openssl_pkey_export($ec, $ecPrivateKey);
         $ecDetails = openssl_pkey_get_details($ec);
-        $rsaDetails = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey));
+        $rsaKey = openssl_pkey_get_public(self::$publicKey);
+        $this->assertNotFalse($rsaKey);
+        $rsaDetails = openssl_pkey_get_details($rsaKey);
         $this->assertIsArray($ecDetails);
         $this->assertIsArray($rsaDetails);
 
@@ -365,7 +367,9 @@ final class JwtTokenValidatorTest extends TestCase
      */
     private function jwksClient(Psr17Factory $factory, ?array $jwks = null, ?\ArrayObject $requested = null): ClientInterface
     {
-        $details = openssl_pkey_get_details(openssl_pkey_get_public(self::$publicKey));
+        $publicKey = openssl_pkey_get_public(self::$publicKey);
+        $this->assertNotFalse($publicKey);
+        $details = openssl_pkey_get_details($publicKey);
         $jwks ??= [[
             'kty' => 'RSA',
             'kid' => 'kid-1',

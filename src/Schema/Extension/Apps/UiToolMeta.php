@@ -50,7 +50,7 @@ final class UiToolMeta implements \JsonSerializable
 
         return new self(
             resourceUri: $data['resourceUri'] ?? null,
-            visibility: isset($data['visibility']) ? array_map(
+            visibility: isset($data['visibility']) ? array_values(array_map(
                 static function (mixed $entry): ToolVisibility {
                     if (!\is_string($entry) || null === $case = ToolVisibility::tryFrom($entry)) {
                         throw new InvalidArgumentException('Each entry in "visibility" of UiToolMeta data must be a valid tool visibility.');
@@ -59,7 +59,7 @@ final class UiToolMeta implements \JsonSerializable
                     return $case;
                 },
                 $data['visibility'],
-            ) : null,
+            )) : null,
         );
     }
 

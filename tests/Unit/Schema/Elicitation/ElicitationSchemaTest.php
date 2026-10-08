@@ -180,7 +180,6 @@ final class ElicitationSchemaTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "properties"');
 
-        /* @phpstan-ignore argument.type */
         ElicitationSchema::fromArray([]);
     }
 
@@ -219,7 +218,6 @@ final class ElicitationSchemaTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "type"');
 
-        /* @phpstan-ignore argument.type */
         ElicitationSchema::fromArray([
             'properties' => [
                 'name' => ['title' => 'Name'],
@@ -335,7 +333,7 @@ final class ElicitationSchemaTest extends TestCase
 
         $result = $schema->jsonSerialize();
 
-        $this->assertSame(['name'], $result['required']);
+        $this->assertSame(['name'], $result['required'] ?? null);
     }
 
     public function testJsonSerializeWithFullSchema(): void
@@ -353,7 +351,7 @@ final class ElicitationSchemaTest extends TestCase
 
         $this->assertSame('object', $result['type']);
         $this->assertCount(3, $result['properties']);
-        $this->assertSame(['name', 'age'], $result['required']);
+        $this->assertSame(['name', 'age'], $result['required'] ?? null);
 
         $this->assertSame('string', $result['properties']['name']['type']);
         $this->assertSame('Full Name', $result['properties']['name']['title']);

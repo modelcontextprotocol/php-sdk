@@ -106,6 +106,16 @@ final class CancellationTest extends IntegrationTestCase
      */
     private function events(string $log): array
     {
-        return array_map(static fn (string $line): array => json_decode($line, true, flags: \JSON_THROW_ON_ERROR), file($log, \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES));
+        $lines = file($log, \FILE_IGNORE_NEW_LINES | \FILE_SKIP_EMPTY_LINES);
+        $this->assertNotFalse($lines);
+
+        $events = [];
+        foreach ($lines as $line) {
+            $event = json_decode($line, true, flags: \JSON_THROW_ON_ERROR);
+            $this->assertIsArray($event);
+            $events[] = $event;
+        }
+
+        return $events;
     }
 }

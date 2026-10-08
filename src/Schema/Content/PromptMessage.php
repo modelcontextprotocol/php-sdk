@@ -46,7 +46,7 @@ class PromptMessage extends Content
     }
 
     /**
-     * @param PromptMessageData $data
+     * @param PromptMessageData|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

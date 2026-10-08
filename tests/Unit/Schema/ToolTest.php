@@ -62,7 +62,7 @@ class ToolTest extends TestCase
 
         $this->assertSame($expectedKeys, array_keys($serialized));
         if (null !== $title) {
-            $this->assertSame($title, $serialized['title']);
+            $this->assertSame($title, $serialized['title'] ?? null);
         } else {
             $this->assertArrayNotHasKey('title', $serialized);
         }
@@ -101,6 +101,45 @@ class ToolTest extends TestCase
         $this->assertSame($original->description, $restored->description);
     }
 
+    /**
+     * @param array<string, mixed> $inputSchema
+     */
+    #[DataProvider('provideMalformedInputSchemas')]
+    public function testConstructorRejectsMalformedInputSchemaMembers(array $inputSchema, string $expectedMessage): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($expectedMessage);
+
+        new Tool(
+            name: 'broken',
+            title: null,
+            inputSchema: $inputSchema,
+            description: null,
+            annotations: null,
+        );
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, string}>
+     */
+    public static function provideMalformedInputSchemas(): iterable
+    {
+        yield 'properties is a string' => [
+            ['type' => 'object', 'properties' => 'bad'],
+            'Tool inputSchema "properties" must be an object.',
+        ];
+
+        yield 'properties is a scalar' => [
+            ['type' => 'object', 'properties' => 42],
+            'Tool inputSchema "properties" must be an object.',
+        ];
+
+        yield 'required is a string' => [
+            ['type' => 'object', 'properties' => [], 'required' => 'bad'],
+            'Tool inputSchema "required" must be a list of property names.',
+        ];
+    }
+
     public function testConstructorNormalizesEmptyInputSchemaPropertiesToObject(): void
     {
         $tool = new Tool(
@@ -111,7 +150,7 @@ class ToolTest extends TestCase
             annotations: null,
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties'] ?? null);
         $this->assertSame('{"name":"no_params","inputSchema":{"type":"object","properties":{},"required":null}}', json_encode($tool));
     }
 
@@ -123,7 +162,7 @@ class ToolTest extends TestCase
 
         $tool = new Tool('t', null, $schema, null, null);
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties'] ?? null);
         $this->assertStringContainsString('"properties":{}', (string) json_encode($tool));
     }
 
@@ -140,8 +179,12 @@ class ToolTest extends TestCase
             ],
         ]);
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['filter']['properties']);
-        $this->assertStringContainsString('"properties":{}', (string) json_encode($tool->inputSchema['properties']['filter']));
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $filter = $properties['filter'] ?? null;
+        $this->assertIsArray($filter);
+        $this->assertInstanceOf(\stdClass::class, $filter['properties'] ?? null);
+        $this->assertStringContainsString('"properties":{}', (string) json_encode($filter));
     }
 
     public function testConstructorNormalizesEmptyOutputSchemaProperties(): void
@@ -155,7 +198,7 @@ class ToolTest extends TestCase
             outputSchema: ['type' => 'object', 'properties' => []],
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->outputSchema['properties']);
+        $this->assertInstanceOf(\stdClass::class, $tool->outputSchema['properties'] ?? null);
         $this->assertStringContainsString('"outputSchema":{"type":"object","properties":{}}', (string) json_encode($tool));
     }
 
@@ -178,7 +221,13 @@ class ToolTest extends TestCase
             annotations: null,
         );
 
-        $this->assertInstanceOf(\stdClass::class, $tool->inputSchema['properties']['rows']['items']['properties']);
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $rows = $properties['rows'] ?? null;
+        $this->assertIsArray($rows);
+        $items = $rows['items'] ?? null;
+        $this->assertIsArray($items);
+        $this->assertInstanceOf(\stdClass::class, $items['properties'] ?? null);
     }
 
     /**
@@ -312,9 +361,9 @@ class ToolTest extends TestCase
             'execution' => ['taskSupport' => 'optional'],
         ];
 
-        $tool = Tool::fromArray(json_decode(json_encode($data), true));
+        $tool = Tool::fromArray(json_decode(json_encode($data, \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR));
 
-        $this->assertJsonStringEqualsJsonString(json_encode($data), json_encode($tool));
+        $this->assertJsonStringEqualsJsonString(json_encode($data, \JSON_THROW_ON_ERROR), json_encode($tool, \JSON_THROW_ON_ERROR));
     }
 
     public function testExecutionIsOmittedWhenAbsent(): void
@@ -329,7 +378,7 @@ class ToolTest extends TestCase
     {
         $tool = new Tool('plain', null, ['type' => 'object', 'properties' => [], 'required' => null], null, null, execution: new ToolExecution());
 
-        $this->assertStringContainsString('"execution":{}', json_encode($tool));
+        $this->assertStringContainsString('"execution":{}', json_encode($tool, \JSON_THROW_ON_ERROR));
     }
 
     public function testFromArrayRejectsUnknownTaskSupport(): void

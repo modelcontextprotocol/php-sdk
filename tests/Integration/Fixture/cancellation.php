@@ -12,6 +12,10 @@
 // This fixture keeps a tool request pending while it reads the next JSON-RPC line.
 // The SDK server's single fiber cannot read cancellations during a blocking tool.
 $log = getenv('MCP_FIXTURE_LOG');
+if (false === $log) {
+    fwrite(\STDERR, "MCP_FIXTURE_LOG is not set.\n");
+    exit(1);
+}
 
 while (false !== ($line = fgets(\STDIN))) {
     $message = json_decode($line, true, flags: \JSON_THROW_ON_ERROR);

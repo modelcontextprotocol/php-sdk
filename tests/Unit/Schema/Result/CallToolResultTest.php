@@ -95,7 +95,7 @@ final class CallToolResultTest extends TestCase
             EmbeddedResource::fromText('file:///readme.txt', 'hello'),
         ]);
 
-        $decoded = json_decode(json_encode($original), true);
+        $decoded = json_decode(json_encode($original, \JSON_THROW_ON_ERROR), true);
         $rehydrated = CallToolResult::fromArray($decoded);
 
         $this->assertCount(5, $rehydrated->content);

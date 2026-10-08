@@ -129,7 +129,6 @@ final class EnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for enum schema definition.');
 
-        /* @phpstan-ignore argument.type */
         EnumSchemaDefinition::fromArray(['title' => 42]);
     }
 
@@ -138,7 +137,6 @@ final class EnumSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "enum"');
 
-        /* @phpstan-ignore argument.type */
         EnumSchemaDefinition::fromArray(['title' => 'Test']);
     }
 

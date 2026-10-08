@@ -542,7 +542,24 @@ final class StatelessProtocol
      */
     private function dispatchEvent(object $event): object
     {
-        return $this->eventDispatcher?->dispatch($event) ?? $event;
+        if (null === $this->eventDispatcher) {
+            return $event;
+        }
+
+        $dispatched = $this->eventDispatcher->dispatch($event);
+
+        // PSR-14 dispatchers return the event they were given; a dispatcher that
+        // swaps it for something else is not what the caller asked to dispatch.
+        if (!$dispatched instanceof $event) {
+            $this->logger->debug('Event dispatcher returned a different object than it was given; keeping the original.', [
+                'event' => $event::class,
+                'returned' => $dispatched::class,
+            ]);
+
+            return $event;
+        }
+
+        return $dispatched;
     }
 
     /**
@@ -570,7 +587,7 @@ final class StatelessProtocol
      * server genuinely does not implement it — but naming the extension turns
      * an opaque refusal into something the caller can act on.
      */
-    private function unknownMethod(string $method, string|int $id): Error
+    private function unknownMethod(string $method, string|int|null $id): Error
     {
         $extension = $this->extensionMethods[$method] ?? null;
 

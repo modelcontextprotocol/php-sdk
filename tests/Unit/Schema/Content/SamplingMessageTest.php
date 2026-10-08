@@ -41,14 +41,15 @@ final class SamplingMessageTest extends TestCase
             ]],
         ]);
 
-        $this->assertInstanceOf(ToolUseContent::class, $assistant->content[1]);
+        $this->assertInstanceOf(ToolUseContent::class, $assistant->getContentBlocks()[1]);
         $this->assertSame(['provider' => 'test'], $assistant->meta);
-        $this->assertSame(['provider' => 'test'], $assistant->jsonSerialize()['_meta']);
-        $this->assertInstanceOf(ToolResultContent::class, $user->content[0]);
-        $this->assertSame(['temperature' => 21], $user->content[0]->structuredContent);
+        $this->assertSame(['provider' => 'test'], $assistant->jsonSerialize()['_meta'] ?? null);
+        $toolResult = $user->getContentBlocks()[0];
+        $this->assertInstanceOf(ToolResultContent::class, $toolResult);
+        $this->assertSame(['temperature' => 21], $toolResult->structuredContent);
 
-        $this->assertEquals($assistant, SamplingMessage::fromArray(json_decode(json_encode($assistant), true)));
-        $this->assertEquals($user, SamplingMessage::fromArray(json_decode(json_encode($user), true)));
+        $this->assertEquals($assistant, SamplingMessage::fromArray(json_decode(json_encode($assistant, \JSON_THROW_ON_ERROR), true)));
+        $this->assertEquals($user, SamplingMessage::fromArray(json_decode(json_encode($user, \JSON_THROW_ON_ERROR), true)));
     }
 
     public function testSingleContentBlockKeepsItsShape(): void
@@ -119,7 +120,6 @@ final class SamplingMessageTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        /* @phpstan-ignore argument.type */
         SamplingMessage::fromArray(['role' => 'system', 'content' => ['type' => 'text', 'text' => 'hi']]);
     }
 }

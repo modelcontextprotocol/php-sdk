@@ -146,14 +146,14 @@ class ServerCapabilities implements \JsonSerializable
 
     /**
      * @return array{
-     *     logging?: object,
-     *     completions?: object,
-     *     prompts?: object,
-     *     resources?: object,
-     *     tools?: object,
-     *     experimental?: object,
-     *     extensions?: object,
-     *     tasks?: object,
+     *     logging?: \stdClass,
+     *     completions?: \stdClass,
+     *     prompts?: \stdClass,
+     *     resources?: \stdClass,
+     *     tools?: \stdClass,
+     *     experimental?: \stdClass,
+     *     extensions?: \stdClass,
+     *     tasks?: \stdClass,
      * }
      */
     public function jsonSerialize(): array
@@ -217,7 +217,7 @@ class ServerCapabilities implements \JsonSerializable
      *
      * @param array<string, mixed> $data
      */
-    private static function toObject(array $data): object
+    private static function toObject(array $data): \stdClass
     {
         return (object) array_map(
             static fn (mixed $value): mixed => \is_array($value) ? self::toObject($value) : $value,
