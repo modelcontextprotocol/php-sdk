@@ -15,6 +15,7 @@ use Mcp\Client;
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
@@ -143,6 +144,47 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
 
         $this->assertNull($transport->getSessionId());
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function expiredSessionResponseProvider(): iterable
+    {
+        yield 'empty response' => ['', ''];
+        yield 'plain-text response' => ['text/plain', 'Session expired'];
+    }
+
+    #[DataProvider('expiredSessionResponseProvider')]
+    public function testExpiredSessionIsAConnectionFailure(string $contentType, string $body): void
+    {
+        $stream = $this->factory->createStream($body);
+        $expired = new Response(404, ['Content-Type' => $contentType], $stream);
+
+        $requests = [];
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->expects($this->exactly(2))->method('sendRequest')->willReturnCallback(
+            static function (RequestInterface $request) use (&$requests, $expired): ResponseInterface {
+                $requests[] = $request;
+
+                return 1 === \count($requests)
+                    ? new Response(200, ['Mcp-Session-Id' => 'expired-session'])
+                    : $expired;
+            },
+        );
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+        $transport->send('{"jsonrpc":"2.0","id":1,"method":"initialize"}');
+        $this->assertSame('expired-session', $transport->getSessionId());
+
+        try {
+            $transport->send('{"jsonrpc":"2.0","id":2,"method":"tools/call"}');
+            $this->fail('A terminated session must fail immediately, not wait for a request timeout.');
+        } catch (ConnectionException $e) {
+            $this->assertSame(404, $e->getCode());
+            $this->assertSame('The HTTP session has expired.', $e->getMessage());
+        }
+
+        $this->assertSame('expired-session', $requests[1]->getHeaderLine('Mcp-Session-Id'));
+        $this->assertNull($transport->getSessionId());
+        $this->assertFalse($stream->isReadable());
     }
 
     #[TestDox('SSE stream is aborted before the buffer can exceed the configured cap')]
@@ -388,6 +430,58 @@ final class HttpTransportTest extends TestCase
         $cancellations = $httpClient->messagesOfMethod('notifications/cancelled');
         $this->assertCount(1, $cancellations);
         $this->assertSame($abandoned, $cancellations[0]['params']['requestId'] ?? null);
+        $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
+        $client->disconnect();
+    }
+
+    public function testCancellationPostExpiryInvalidatesConnectionWithoutReplacingCancellation(): void
+    {
+        $token = new class implements CancellationTokenInterface {
+            public bool $cancelled = false;
+
+            public function isCancellationRequested(): bool
+            {
+                return $this->cancelled;
+            }
+        };
+        $httpClient = new RecordingHttpClient(static function (array $message) use ($token): ?ResponseInterface {
+            if ('initialize' === ($message['method'] ?? null)) {
+                return new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => 'session'], json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $message['id'],
+                    'result' => [
+                        'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                        'capabilities' => ['tools' => []],
+                        'serverInfo' => ['name' => 'test-server', 'version' => '1'],
+                    ],
+                ], \JSON_THROW_ON_ERROR));
+            }
+            if ('notifications/cancelled' === ($message['method'] ?? null)) {
+                return new Response(404);
+            }
+            if ('slow' === ($message['params']['name'] ?? null)) {
+                $token->cancelled = true;
+            }
+
+            return null;
+        });
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+        $client = Client::builder()->setClientInfo('test', '1')->build();
+        $client->connect($transport);
+        $this->assertTrue($client->isConnected());
+
+        try {
+            $client->callTool('slow', cancellation: $token);
+            $this->fail('Expected cancellation.');
+        } catch (RequestCancelledException $e) {
+            $this->assertSame('The client cancelled the request.', $e->getMessage());
+        }
+
+        $this->assertCount(1, $httpClient->messagesOfMethod('notifications/cancelled'));
+        $this->assertNull($transport->getSessionId());
+        $this->assertFalse($client->isConnected());
+        $client->connect($transport);
+        $this->assertCount(2, $httpClient->messagesOfMethod('initialize'));
         $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
         $client->disconnect();
     }
