@@ -9,22 +9,31 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Server\Transport\Fixture;
+namespace Mcp\Tests\Unit\Server\Session\Fixture;
 
 use Mcp\Server\Session\InMemorySessionStore;
 use Symfony\Component\Uid\Uuid;
 
 /**
- * A session store that runs a second request while the first one saves its session.
+ * A session store that runs another request in the middle of one reading or saving its session.
  *
  * Replays, in one process and in a fixed order, what two PHP workers serving the
  * same session do when their requests overlap.
  */
 final class InterleavingSessionStore extends InMemorySessionStore
 {
-    private ?\Closure $interleaved = null;
+    private ?\Closure $afterNextRead = null;
+    private ?\Closure $afterNextWrite = null;
     private bool $readBeforeWrite = false;
     private string|false|null $staleRead = null;
+
+    /**
+     * Runs $interleaved right after the next read, before the reader can write the session back.
+     */
+    public function interleaveAfterNextRead(\Closure $interleaved): void
+    {
+        $this->afterNextRead = $interleaved;
+    }
 
     /**
      * Runs $interleaved right after the next write.
@@ -34,7 +43,7 @@ final class InterleavingSessionStore extends InMemorySessionStore
      */
     public function interleaveOnNextWrite(\Closure $interleaved, bool $readBeforeWrite = false): void
     {
-        $this->interleaved = $interleaved;
+        $this->afterNextWrite = $interleaved;
         $this->readBeforeWrite = $readBeforeWrite;
     }
 
@@ -46,7 +55,14 @@ final class InterleavingSessionStore extends InMemorySessionStore
             return $data;
         }
 
-        return parent::read($id);
+        $data = parent::read($id);
+
+        if (null !== $interleaved = $this->afterNextRead) {
+            $this->afterNextRead = null;
+            $interleaved();
+        }
+
+        return $data;
     }
 
     public function write(Uuid $id, string $data): bool
@@ -54,8 +70,8 @@ final class InterleavingSessionStore extends InMemorySessionStore
         $before = parent::read($id);
         $written = parent::write($id, $data);
 
-        if (null !== $interleaved = $this->interleaved) {
-            $this->interleaved = null;
+        if (null !== $interleaved = $this->afterNextWrite) {
+            $this->afterNextWrite = null;
             if ($this->readBeforeWrite) {
                 $this->staleRead = $before;
             }

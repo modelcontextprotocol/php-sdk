@@ -21,7 +21,7 @@ use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
-use Mcp\Tests\Unit\Server\Transport\Fixture\InterleavingSessionStore;
+use Mcp\Tests\Unit\Server\Session\Fixture\InterleavingSessionStore;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
