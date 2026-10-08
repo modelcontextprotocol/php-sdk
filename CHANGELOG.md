@@ -34,7 +34,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `ProtectedResourceMetadata` requires `$resource`, serves at the path derived from it (RFC 9728 §3.1) and requires https except for loopback hosts; drops localized, policy, ToS, extra fields and `$metadataPaths`.
 * [BC Break] Add `ScopePolicy` as third argument of `AuthorizationMiddleware`, answering `403 insufficient_scope` per method and tool, with scope hierarchies; the `resource_metadata` challenge URL comes from the configured resource instead of the `Host` header.
 * Expose `WWW-Authenticate` in the default `CorsMiddleware`.
-* Fix concurrent Streamable HTTP streams on one session resuming each other's fibers: each stream now polls only the client request its own fiber sent, so an elicitation answer reaches the tool call that asked for it. `Protocol::handleFiberYield()` returns the ID of the request it sent.
+* [BC Break] Fix concurrent Streamable HTTP streams on one session resuming each other's fibers: each stream now polls only the client request its own fiber sent, so an elicitation answer reaches the tool call that asked for it. `Protocol::handleFiberYield()` returns the ID of the request it sent.
 
 0.8.0
 -----
