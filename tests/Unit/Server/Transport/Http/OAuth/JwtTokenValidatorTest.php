@@ -293,11 +293,14 @@ final class JwtTokenValidatorTest extends TestCase
         $rsaDetails = openssl_pkey_get_details($rsaKey);
         $this->assertIsArray($ecDetails);
         $this->assertIsArray($rsaDetails);
+        // OpenSSL drops leading zero bytes, but a P-256 JWK coordinate must be 32 bytes (RFC 7518 §6.2.1.2).
+        $ecX = str_pad($ecDetails['ec']['x'], 32, "\0", \STR_PAD_LEFT);
+        $ecY = str_pad($ecDetails['ec']['y'], 32, "\0", \STR_PAD_LEFT);
 
         $factory = new Psr17Factory();
         $client = $this->jwksClient($factory, [
             ['kty' => 'RSA', 'kid' => 'kid-1', 'n' => self::base64Url($rsaDetails['rsa']['n']), 'e' => self::base64Url($rsaDetails['rsa']['e'])],
-            ['kty' => 'EC', 'kid' => 'ec-1', 'crv' => 'P-256', 'x' => self::base64Url($ecDetails['ec']['x']), 'y' => self::base64Url($ecDetails['ec']['y'])],
+            ['kty' => 'EC', 'kid' => 'ec-1', 'crv' => 'P-256', 'x' => self::base64Url($ecX), 'y' => self::base64Url($ecY)],
         ]);
         $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $client, $factory, ['RS256', 'ES256']);
 
