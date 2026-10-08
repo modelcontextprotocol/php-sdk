@@ -114,16 +114,20 @@ use Mcp\Server\Wire\CachePolicy;
 $server = Server::builder()
     // Signs the state a multi round-trip request carries through the client.
     // The same key must reach every process that might serve the retry.
+    // The key needs at least 32 bytes, otherwise build() throws. TTL in seconds, default 600.
+    // Without a key, the server refuses every state the client sends back.
     ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
 
     // Bounds the input-required shim, which fulfils an `InputRequiredResult`
     // over a handshake-era connection. `withoutInputRequiredShim()` turns it off.
+    // Defaults to 8 rounds and a 600 second timeout for each input request.
     ->setInputRequiredLimits(maxRounds: 4, roundTimeout: 120)
 
     // Caching hints stamped on cacheable results. Defaults to `ttlMs: 0, private`.
     ->setCachePolicy(CachePolicy::default(30_000)->withMethod('tools/list', 3_600_000, CacheScope::Public))
 
     // Delivery for `subscriptions/listen`, and how long such a stream is held.
+    // The lifetime defaults to 30 seconds; 0 keeps the stream open until the client or the runtime ends it.
     ->setNotificationBus(new Psr16NotificationBus($cache))
     ->setSubscriptionLifetime(0)
 
