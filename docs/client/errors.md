@@ -39,50 +39,23 @@ Here's a comprehensive example demonstrating client usage:
 <?php
 
 use Mcp\Client;
-use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
-use Mcp\Client\Handler\Request\SamplingCallbackInterface;
-use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Transport\StdioTransport;
-use Mcp\Exception\SamplingException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
-use Mcp\Schema\Enum\LoggingLevel;
-use Mcp\Schema\Enum\Role;
-use Mcp\Schema\Notification\LoggingMessageNotification;
-use Mcp\Schema\Request\CreateSamplingMessageRequest;
-use Mcp\Schema\Result\CreateSamplingMessageResult;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
 
-// Configure logging notification handler
-$loggingHandler = new LoggingNotificationHandler(
-    static function (LoggingMessageNotification $notification) {
-        echo "[LOG {$notification->level->value}] {$notification->data}\n";
-    }
-);
-
-// Configure sampling callback
-$samplingCallback = new class implements SamplingCallbackInterface {
-    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+// Configure elicitation callback
+$elicitationCallback = new class implements ElicitationCallbackInterface {
+    public function __invoke(ElicitRequest $request): ElicitResult
     {
-        echo "[SAMPLING] Processing request (max {$request->maxTokens} tokens)\n";
-        
-        try {
-            // Integration with your LLM provider
-            $response = "This is a mock LLM response for: " . 
-                json_encode($request->messages);
-            
-            return new CreateSamplingMessageResult(
-                role: Role::Assistant,
-                content: new TextContent($response),
-                model: 'mock-llm',
-                stopReason: 'endTurn',
-            );
-        } catch (\Throwable $e) {
-            throw new SamplingException(
-                "Sampling failed: {$e->getMessage()}",
-                0,
-                $e
-            );
-        }
+        echo "[ELICITATION] {$request->message}\n";
+
+        // This client has no user interface, so it declines every request
+        return new ElicitResult(ElicitAction::Decline);
     }
 };
 
@@ -91,9 +64,8 @@ $client = Client::builder()
     ->setClientInfo('Example Client', '1.0.0')
     ->setInitTimeout(30)
     ->setRequestTimeout(120)
-    ->setCapabilities(new ClientCapabilities(sampling: true))
-    ->addNotificationHandler($loggingHandler)
-    ->addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler(new ElicitationRequestHandler($elicitationCallback))
     ->build();
 
 // Create transport
@@ -123,9 +95,6 @@ try {
     foreach ($resources->resources as $resource) {
         echo "  - {$resource->uri}\n";
     }
-    
-    // Set logging level
-    $client->setLoggingLevel(LoggingLevel::Debug);
     
     // Call tool with progress
     echo "\nCalling tool with progress...\n";

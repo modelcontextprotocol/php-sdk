@@ -95,8 +95,7 @@ use Mcp\Schema\ClientCapabilities;
 
 $client = Client::builder()
     ->setCapabilities(new ClientCapabilities(
-        sampling: true,  // Enable LLM sampling requests from server
-        roots: true,     // Enable filesystem root listing
+        elicitation: true, // Let the server ask the user for input
     ))
     ->build();
 ```
@@ -122,25 +121,31 @@ $client = Client::builder()
 
 ### Request Handlers
 
-Register handlers for server-initiated requests (e.g., sampling). The same handlers answer a
+Register handlers for server-initiated requests (e.g., elicitation). The same handlers answer a
 [multi round-trip](../handlers/input-required.md) `input_required` result on a modern revision, where the server
 returns its ask instead of sending a request:
 
 ```php
-use Mcp\Client\Handler\Request\SamplingRequestHandler;
-use Mcp\Client\Handler\Request\SamplingCallbackInterface;
-use Mcp\Schema\Request\CreateSamplingMessageRequest;
-use Mcp\Schema\Result\CreateSamplingMessageResult;
+use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
+use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Request\ElicitRequest;
+use Mcp\Schema\Result\ElicitResult;
 
-$samplingCallback = new class implements SamplingCallbackInterface {
-    public function __invoke(CreateSamplingMessageRequest $request): CreateSamplingMessageResult
+$elicitationCallback = new class implements ElicitationCallbackInterface {
+    public function __invoke(ElicitRequest $request): ElicitResult
     {
-        // Perform LLM sampling and return result
+        // Ask the user for the requested input and return their answer.
+        // Without a user interface, decline the request:
+        return new ElicitResult(ElicitAction::Decline);
     }
 };
 
 $client = Client::builder()
-    ->addRequestHandler(new SamplingRequestHandler($samplingCallback))
+    // the server only sends elicitation requests if the client declares the capability
+    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->addRequestHandler(new ElicitationRequestHandler($elicitationCallback))
     ->build();
 ```
 
