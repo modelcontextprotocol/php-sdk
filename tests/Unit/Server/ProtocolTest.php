@@ -35,6 +35,7 @@ use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -857,6 +858,94 @@ final class ProtocolTest extends TestCase
         $this->assertCount(1, $errors);
         $this->assertSame(1, $errors[0]['id']);
         $this->assertSame(Error::INTERNAL_ERROR, $errors[0]['error']['code']);
+    }
+
+    #[TestDox('Concurrent streams on one session each poll only the client request their own fiber sent')]
+    public function testConcurrentStreamsPollOnlyTheirOwnPendingRequest(): void
+    {
+        [$protocol, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $protocol->processInput($secondStream, '{"jsonrpc": "2.0", "id": 1001, "result": {}}', $sessionId);
+
+        $this->assertSame([1000], $firstStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('A client request a fiber sends after resuming is polled only by its own stream')]
+    public function testRequestYieldedOnResumeIsPolledOnlyByItsOwnStream(): void
+    {
+        [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $firstStream->yieldFromFiber(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5));
+
+        $this->assertSame([1002], $firstStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('A stream whose fiber resumes and sends a notification no longer polls the request it was waiting on')]
+    public function testNotificationYieldedOnResumeClearsTheAwaitedRequest(): void
+    {
+        [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $firstStream->yieldFromFiber(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()));
+
+        $this->assertSame([], $firstStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('A stream whose fiber first suspends on a notification polls none of the session\'s pending requests')]
+    public function testStreamSuspendedOnNotificationPollsNoPendingRequest(): void
+    {
+        [$protocol, $sessionId, , $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $thirdStream = new PollingLoopTransport();
+        $protocol->connect($thirdStream);
+        $protocol->processInput($thirdStream, '{"jsonrpc": "2.0", "id": 3, "method": "ping"}', $sessionId);
+
+        $this->assertSame([], $thirdStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
+    /**
+     * Two tool calls on one session, each suspended on a request to the client, as with elicitation.
+     * A further call with ID 3 suspends on a notification instead.
+     *
+     * @return array{Protocol, Uuid, PollingLoopTransport, PollingLoopTransport}
+     */
+    private function startTwoStreamsWaitingOnClient(): array
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            $sessionId = $session->getId()->toRfc4122();
+            \Fiber::suspend(3 === $request->getId()
+                ? new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId)
+                : new RequestSuspension(new PingRequest(), $sessionId, 5));
+
+            return new Response(1, []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $firstStream = new PollingLoopTransport();
+        $protocol->connect($firstStream);
+        $protocol->processInput($firstStream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $secondStream = new PollingLoopTransport();
+        $protocol->connect($secondStream);
+        $protocol->processInput($secondStream, '{"jsonrpc": "2.0", "id": 2, "method": "ping"}', $sessionId);
+
+        return [$protocol, $sessionId, $firstStream, $secondStream];
     }
 
     #[TestDox('Notification handler exceptions are caught and logged')]
