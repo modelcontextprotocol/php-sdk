@@ -152,7 +152,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * interactions can persist it and pass it back through the constructor's
      * $headers on a later transport, where it wins over the tracked value.
      *
-     * @return string|null null until the server mints a session, and again after close()
+     * @return string|null null until the server mints a session, and again after close() or a 404 session expiry
      */
     public function getSessionId(): ?string
     {
@@ -188,6 +188,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         } catch (\Throwable $e) {
             $this->handleError($e);
             throw new ConnectionException('HTTP request failed: '.$e->getMessage(), 0, $e);
+        }
+
+        // A 404 for a session-bound request requires a fresh initialization,
+        // not a timeout that leaves the expired session reusable.
+        if (404 === $response->getStatusCode() && $request->hasHeader('Mcp-Session-Id')) {
+            $response->getBody()->close();
+            $this->sessionId = null;
+            // Cancellation notifications are best-effort: their exception can
+            // be logged and swallowed, but the connection must stay invalid.
+            $this->state?->setInitialized(false);
+
+            throw new ConnectionException('The HTTP session has expired.', 404);
         }
 
         if ($response->hasHeader('Mcp-Session-Id')) {
