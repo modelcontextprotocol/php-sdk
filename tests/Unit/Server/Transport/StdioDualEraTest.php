@@ -173,6 +173,18 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame([ProtocolVersion::V2026_07_28->value], $lines[0]['result']['supportedVersions']);
     }
 
+    #[TestDox('a modern connection sends no requests, so a response on it is ignored rather than refused')]
+    public function testResponseOnModernConnectionIsIgnored(): void
+    {
+        $lines = $this->exchange(self::builder(), [
+            self::modern(1, 'server/discover'),
+            ['jsonrpc' => '2.0', 'id' => 'stray', 'result' => []],
+            self::modern(2, 'server/discover'),
+        ]);
+
+        $this->assertSame([1, 2], array_column($lines, 'id'));
+    }
+
     #[TestDox('a modern request streams its progress on the shared channel before its result')]
     public function testModernProgressIsStreamed(): void
     {

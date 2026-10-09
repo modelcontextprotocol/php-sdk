@@ -205,11 +205,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $request = \is_array($decoded) && !array_is_list($decoded) && \is_string($decoded['method'] ?? null)
             && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
 
-        // Before an era is settled the server has sent no request, so a
-        // response answers nothing; refusing it would answer a response.
-        if (null === $this->modern && \is_array($decoded) && !array_is_list($decoded) && !isset($decoded['method'])
+        // Only the handshake era sends requests to the client: before an era
+        // is settled, or on a modern connection, a response answers nothing,
+        // and refusing it would answer a response.
+        if (false !== $this->modern && \is_array($decoded) && !array_is_list($decoded) && !isset($decoded['method'])
             && (\array_key_exists('result', $decoded) || \array_key_exists('error', $decoded))) {
-            $this->logger->warning('StdioTransport ignored a response received before the connection era was settled.', [
+            $this->logger->warning('StdioTransport ignored a response outside the handshake era.', [
                 'id' => $decoded['id'] ?? null,
             ]);
 
