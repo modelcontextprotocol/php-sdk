@@ -283,7 +283,9 @@ class StdioTransport extends BaseTransport
         // whatever is still pending can only time out, so fail it now. Failed
         // as answers rather than thrown, so each waiting fiber unwinds and
         // clears its request instead of leaving it to time out a later one.
-        if (\is_resource($this->stdout) && feof($this->stdout)) {
+        // Only once a read brings nothing: an answer that arrived with the end
+        // of the output is the waiting fiber's to take first.
+        if (('' === $data || false === $data) && \is_resource($this->stdout) && feof($this->stdout)) {
             $this->failPending('The server process closed its output; it is no longer running.');
         }
     }

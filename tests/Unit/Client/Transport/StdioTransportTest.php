@@ -22,6 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -117,6 +118,23 @@ final class StdioTransportTest extends TestCase
         $this->invokeProcessInput($transport);
 
         $this->assertSame(['progress 1', 'log done'], $order);
+    }
+
+    #[TestDox('a final answer read together with the end of the output is kept, not overwritten by the failure')]
+    public function testFinalAnswerBeforeClosedOutputIsKept(): void
+    {
+        $transport = new StdioTransport(command: 'true');
+        $state = new ClientState();
+        $transport->setState($state);
+        $transport->onMessage(static function (string $message) use ($state): void {
+            $state->storeResponse(1, json_decode($message, true, flags: \JSON_THROW_ON_ERROR));
+        });
+        $state->addPendingRequest(1, 120);
+
+        $this->setStdout($transport, $this->stream('{"jsonrpc":"2.0","id":1,"result":{}}'."\n"));
+        $this->invokeProcessInput($transport);
+
+        $this->assertInstanceOf(Response::class, $state->consumeResponse(1));
     }
 
     #[TestDox('a server that exits fails the connection at once instead of timing out')]
