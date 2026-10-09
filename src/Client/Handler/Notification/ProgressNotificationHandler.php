@@ -11,14 +11,13 @@
 
 namespace Mcp\Client\Handler\Notification;
 
-use Mcp\Client\State\ClientStateInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\Notification\ProgressNotification;
 
 /**
  * Internal handler for progress notifications.
  *
- * Writes progress data to state for transport to consume and execute callbacks.
+ * Hands progress on as soon as it is parsed, so it keeps its order among other notifications.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  *
@@ -26,8 +25,11 @@ use Mcp\Schema\Notification\ProgressNotification;
  */
 class ProgressNotificationHandler implements NotificationHandlerInterface
 {
+    /**
+     * @param \Closure(float, ?float, ?string): void $deliver
+     */
     public function __construct(
-        private readonly ClientStateInterface $state,
+        private readonly \Closure $deliver,
     ) {
     }
 
@@ -42,11 +44,6 @@ class ProgressNotificationHandler implements NotificationHandlerInterface
             return;
         }
 
-        $this->state->storeProgress(
-            (string) $notification->progressToken,
-            $notification->progress,
-            $notification->total,
-            $notification->message,
-        );
+        ($this->deliver)($notification->progress, $notification->total, $notification->message);
     }
 }

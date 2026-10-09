@@ -25,6 +25,7 @@ use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -98,8 +99,21 @@ final class StdioTransportTest extends TestCase
         $this->assertSame([TransportInterface::CONNECTION_LOST => true], $response->data);
     }
 
-    #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent')]
-    public function testProgressKeepsItsPlaceAmongNotifications(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function progressAmongNotificationsProvider(): iterable
+    {
+        $progress = '{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}';
+        $log = '{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}';
+
+        yield 'one per line' => [$progress."\n".$log."\n"];
+        yield 'in one batch' => ['['.$progress.','.$log.']'."\n"];
+    }
+
+    #[DataProvider('progressAmongNotificationsProvider')]
+    #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent: $_dataName')]
+    public function testProgressKeepsItsPlaceAmongNotifications(string $lines): void
     {
         $order = [];
         $protocol = new Protocol(notificationHandlers: [new LoggingNotificationHandler(static function (LoggingMessageNotification $n) use (&$order): void {
@@ -107,16 +121,12 @@ final class StdioTransportTest extends TestCase
         })]);
         $transport = new StdioTransport(command: 'true');
         $protocol->connect($transport, new Configuration(new Implementation('test', '1.0.0'), new ClientCapabilities()));
-        (new \ReflectionProperty($transport, 'activeProgressCallback'))->setValue($transport, static function (float $progress) use (&$order): void {
+        $protocol->setProgressCallback(static function (float $progress) use (&$order): void {
             $order[] = 'progress '.$progress;
         });
 
-        $this->setStdout($transport, $this->stream(
-            '{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}'."\n"
-            .'{"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}'."\n"
-            // Keeps the stream open, so the read is about ordering and not the server leaving.
-            .'{"partial":',
-        ));
+        // The partial line keeps the stream open, so the read is about ordering and not the server leaving.
+        $this->setStdout($transport, $this->stream($lines.'{"partial":'));
         $this->invokeProcessInput($transport);
 
         $this->assertSame(['progress 1', 'log done'], $order);

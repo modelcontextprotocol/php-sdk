@@ -60,9 +60,6 @@ class StdioTransport extends BaseTransport
     /** @var FiberSuspend|null */
     private ?array $activeSuspend = null;
 
-    /** @var (callable(float, ?float, ?string): void)|null */
-    private $activeProgressCallback;
-
     /**
      * @param string                     $command       The command to run
      * @param array<int, string>         $args          Command arguments
@@ -136,7 +133,6 @@ class StdioTransport extends BaseTransport
     public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
     {
         $this->activeFiber = $fiber;
-        $this->activeProgressCallback = $onProgress;
         try {
             $this->activeSuspend = $fiber->start();
 
@@ -147,7 +143,6 @@ class StdioTransport extends BaseTransport
             return $fiber->getReturn();
         } finally {
             $this->activeFiber = null;
-            $this->activeProgressCallback = null;
             $this->activeSuspend = null;
         }
     }
@@ -216,35 +211,10 @@ class StdioTransport extends BaseTransport
     private function tick(): void
     {
         $this->processInput();
-        $this->processProgress();
         $this->processFiber();
         $this->processStderr();
 
         usleep(1000); // 1ms
-    }
-
-    /**
-     * Process pending progress updates from session and execute callback.
-     */
-    private function processProgress(): void
-    {
-        if (null === $this->activeProgressCallback || null === $this->state) {
-            return;
-        }
-
-        $updates = $this->state->consumeProgressUpdates();
-
-        foreach ($updates as $update) {
-            try {
-                ($this->activeProgressCallback)(
-                    $update['progress'],
-                    $update['total'],
-                    $update['message'],
-                );
-            } catch (\Throwable $e) {
-                $this->logger->warning('Progress callback failed', ['exception' => $e]);
-            }
-        }
     }
 
     private function processInput(): void
@@ -271,8 +241,6 @@ class StdioTransport extends BaseTransport
             $trimmed = trim($line);
             if (!empty($trimmed)) {
                 $this->handleMessage($trimmed);
-                // Now, so progress keeps its order among notifications.
-                $this->processProgress();
             }
         }
 

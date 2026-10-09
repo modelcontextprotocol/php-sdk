@@ -82,6 +82,9 @@ class Protocol
 
     private ?LoggingLevel $logLevel = null;
 
+    /** @var (callable(float, ?float, ?string): void)|null */
+    private $onProgress;
+
     private readonly InputRequestResolver $inputRequests;
 
     /**
@@ -105,7 +108,7 @@ class Protocol
         $this->logger = $logger ?? new NullLogger();
 
         $this->notificationHandlers = [
-            new ProgressNotificationHandler($this->state),
+            new ProgressNotificationHandler($this->deliverProgress(...)),
             ...$notificationHandlers,
         ];
 
@@ -243,6 +246,29 @@ class Protocol
     {
         $this->envelope = new RequestEnvelope($version, $config->capabilities, $config->clientInfo, $this->logLevel);
         $this->headers = new HeaderFactory($this->tools);
+    }
+
+    /**
+     * Set the callback for progress on the request in flight, null to clear it.
+     *
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     */
+    public function setProgressCallback(?callable $onProgress): void
+    {
+        $this->onProgress = $onProgress;
+    }
+
+    private function deliverProgress(float $progress, ?float $total, ?string $message): void
+    {
+        if (null === $this->onProgress) {
+            return;
+        }
+
+        try {
+            ($this->onProgress)($progress, $total, $message);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Progress callback failed', ['exception' => $e]);
+        }
     }
 
     public function isModern(): bool

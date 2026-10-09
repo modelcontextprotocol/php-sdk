@@ -306,7 +306,7 @@ final class HttpTransportTest extends TestCase
         })]);
         $transport = $this->createTransport();
         $protocol->connect($transport, new Configuration(new Implementation('test', '1.0.0'), new ClientCapabilities()));
-        (new \ReflectionProperty($transport, 'activeProgressCallback'))->setValue($transport, static function (float $progress) use (&$order): void {
+        $protocol->setProgressCallback(static function (float $progress) use (&$order): void {
             $order[] = 'progress '.$progress;
         });
 

@@ -52,9 +52,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var FiberSuspend|null */
     private ?array $activeSuspend = null;
 
-    /** @var (callable(float, ?float, ?string): void)|null */
-    private $activeProgressCallback;
-
     /** @var StreamInterface|null Active SSE stream being read */
     private ?StreamInterface $activeStream = null;
 
@@ -286,7 +283,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
     {
         $this->activeFiber = $fiber;
-        $this->activeProgressCallback = $onProgress;
         try {
             $this->activeSuspend = $fiber->start();
             while (!$fiber->isTerminated()) {
@@ -297,7 +293,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         } finally {
             $this->activeFiber = null;
             $this->activeSuspend = null;
-            $this->activeProgressCallback = null;
             $this->activeStream?->close();
             $this->activeStream = null;
             $this->sseBuffer = '';
@@ -456,7 +451,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->checkInterruption();
         $this->processSSEStream();
         $this->processListenStream();
-        $this->processProgress();
         $this->checkInterruption();
         $this->processFiber();
 
@@ -637,32 +631,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if (!empty($data)) {
             $this->handleMessage($data);
-            // Now, so progress keeps its order among notifications.
-            $this->processProgress();
-        }
-    }
-
-    /**
-     * Process pending progress updates from session and execute callback.
-     */
-    private function processProgress(): void
-    {
-        if (null === $this->activeProgressCallback || null === $this->state) {
-            return;
-        }
-
-        $updates = $this->state->consumeProgressUpdates();
-
-        foreach ($updates as $update) {
-            try {
-                ($this->activeProgressCallback)(
-                    $update['progress'],
-                    $update['total'],
-                    $update['message'],
-                );
-            } catch (\Throwable $e) {
-                $this->logger->warning('Progress callback failed', ['exception' => $e]);
-            }
         }
     }
 

@@ -401,7 +401,13 @@ class Client
 
         $withProgress = null !== $onProgress;
         $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds));
-        $response = $transport->runRequest($fiber, $onProgress);
+        $this->protocol->setProgressCallback($onProgress);
+
+        try {
+            $response = $transport->runRequest($fiber);
+        } finally {
+            $this->protocol->setProgressCallback(null);
+        }
 
         if ($response instanceof Error) {
             throw RequestException::fromError($response);
