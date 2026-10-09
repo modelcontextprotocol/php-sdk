@@ -280,13 +280,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private static function isWellFormedAnswer(array $answer): bool
     {
-        if (\array_key_exists('result', $answer)) {
-            return true;
+        try {
+            \array_key_exists('error', $answer) ? Error::fromArray($answer) : Response::fromArray($answer);
+        } catch (InvalidArgumentException) {
+            return false;
         }
 
-        $error = $answer['error'] ?? null;
-
-        return \is_array($error) && \is_int($error['code'] ?? null) && \is_string($error['message'] ?? null);
+        return true;
     }
 
     /**

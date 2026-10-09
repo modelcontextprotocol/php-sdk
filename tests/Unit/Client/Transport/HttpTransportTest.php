@@ -165,6 +165,9 @@ final class HttpTransportTest extends TestCase
         yield 'a JSON-RPC error under another id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":999,"error":{"code":-32600,"message":"Bad Request"}}'];
         yield 'a body under the request id that is no JSON-RPC message' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"message":"Bad Request"}'];
         yield 'an error under the request id without a message' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"error":{"code":-32600}}'];
+        yield 'a null result under the request id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"result":null}'];
+        yield 'a scalar result under the request id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"result":"nope"}'];
+        yield 'an error under the request id without the JSON-RPC version' => [400, ['Content-Type' => 'application/json'], '{"id":1,"error":{"code":-32600,"message":"Bad Request"}}'];
         yield 'an empty body' => [400, [], ''];
         yield 'a plain-text body' => [404, ['Content-Type' => 'text/plain'], 'Not Found'];
     }
