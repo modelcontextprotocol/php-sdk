@@ -21,6 +21,7 @@ use Mcp\Exception\LogicException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
@@ -348,6 +349,25 @@ final class ProtocolTest extends TestCase
         $protocol->connect(new RecordingTransport(ProtocolVersion::V2025_11_25->value), $config);
 
         $this->assertFalse($protocol->getToolCatalog()->isRejected('broken'), 'the previous server\'s verdict must not survive a reconnect');
+    }
+
+    #[TestDox('reconnecting forgets the log level asked for on the previous connection')]
+    public function testReconnectResetsLogLevel(): void
+    {
+        $protocol = new Protocol();
+        $config = $this->createConfiguration(ProtocolVersion::V2026_07_28);
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+        $protocol->setLogLevel(LoggingLevel::Debug);
+
+        $protocol->connect($transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+
+        $this->assertNotSame([], $transport->metas);
+        foreach ($transport->metas as $meta) {
+            $this->assertArrayNotHasKey(RequestMeta::LOG_LEVEL, $meta);
+        }
     }
 
     #[TestDox('an empty inputResponses map is retried as a JSON object, never an array')]

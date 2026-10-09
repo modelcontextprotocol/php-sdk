@@ -142,6 +142,10 @@ class Protocol
         // or another — has said nothing yet.
         $this->tools = new ToolCatalog($this->logger);
 
+        // Like `logging/setLevel` on the handshake era, a level asked for on
+        // one connection is not carried over to the next.
+        $this->logLevel = null;
+
         $transport->setState($this->state);
         $transport->onInitialize(fn () => $this->initialize($config));
         $transport->onMessage($this->processMessage(...));
