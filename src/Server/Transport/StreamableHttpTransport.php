@@ -54,7 +54,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface, InlineResponseTransportInterface
+class StreamableHttpTransport extends BaseTransport implements StatelessAwareTransportInterface
 {
     use ReadsBoundedBody;
 
@@ -80,8 +80,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
-    /** @var list<string> responses to the requests of the current POST, see {@see InlineResponseTransportInterface} */
-    private array $inlineResponses = [];
+    /** @var list<string> responses to the requests of the current POST */
+    private array $responses = [];
 
     /** @var list<MiddlewareInterface>|null null until {@see self::listen()} resolves the defaults */
     private ?array $middleware;
@@ -181,14 +181,15 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     public function send(string $data, array $context): void
     {
-        if (isset($context['session_id'])) {
-            $this->inlineResponses[] = $data;
+        // An error with its own HTTP status rejects the whole POST and is its only answer.
+        if (isset($context['status_code'])) {
+            $this->immediateResponse = $data;
+            $this->immediateStatusCode = $context['status_code'];
 
             return;
         }
 
-        $this->immediateResponse = $data;
-        $this->immediateStatusCode = $context['status_code'] ?? 200;
+        $this->responses[] = $data;
     }
 
     public function listen(): ResponseInterface
@@ -222,7 +223,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         $this->immediateStatusCode = null;
 
         if (null !== $immediateResponse) {
-            $this->inlineResponses = [];
+            $this->responses = [];
 
             return $this->responseFactory->createResponse($immediateStatusCode ?? 200)
                 ->withHeader('Content-Type', 'application/json')
@@ -251,8 +252,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createJsonResponse(): ResponseInterface
     {
-        $messages = [...array_column($this->getOutgoingMessages($this->sessionId), 'message'), ...$this->inlineResponses];
-        $this->inlineResponses = [];
+        $messages = [...array_column($this->getOutgoingMessages($this->sessionId), 'message'), ...$this->responses];
+        $this->responses = [];
 
         if ([] === $messages) {
             return $this->responseFactory->createResponse(202)
@@ -277,10 +278,10 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         $fiber = $this->sessionFiber;
 
         // The other requests of a batch whose handler did not suspend.
-        $inlineResponses = $this->inlineResponses;
-        $this->inlineResponses = [];
+        $responses = $this->responses;
+        $this->responses = [];
 
-        $callback = function () use ($fiber, $inlineResponses): void {
+        $callback = function () use ($fiber, $responses): void {
             if (null === $fiber) {
                 return;
             }
@@ -288,7 +289,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             try {
                 $this->logger->info('SSE: Starting request processing loop');
 
-                foreach ($inlineResponses as $message) {
+                foreach ($responses as $message) {
                     echo "event: message\n";
                     echo "data: {$message}\n\n";
                     @ob_flush();

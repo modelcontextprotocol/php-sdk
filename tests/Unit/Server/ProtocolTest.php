@@ -34,10 +34,9 @@ use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
-use Mcp\Server\Transport\InlineResponseTransportInterface;
-use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
+use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -140,26 +139,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('exists')->willReturn(true);
         $session->method('getId')->willReturn(Uuid::v4());
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handlerA, $handlerB, $handlerC],
@@ -170,13 +153,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
 
-        // Check that the response was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the response was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -380,26 +363,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [],
@@ -410,13 +377,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "params": {}}',
             $sessionId
         );
 
-        // Check that the error was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the error was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -598,21 +565,7 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations (mirrors testInvalidMessageStructureReturnsError).
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [],
@@ -625,12 +578,12 @@ final class ProtocolTest extends TestCase
         // Valid JSON carrying a real id but missing method/result/error: the message is
         // structurally invalid, yet its id IS recoverable from the decoded payload.
         $protocol->processInput(
-            $this->transport,
+            $transport,
             $input,
             $sessionId
         );
 
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -647,26 +600,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [],
@@ -677,13 +614,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
             $sessionId
         );
 
-        // Check that the error was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the error was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -704,26 +641,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handler],
@@ -734,13 +655,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test"}}',
             $sessionId
         );
 
-        // Check that the error was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the error was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -761,26 +682,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handler],
@@ -791,13 +696,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "test"}}',
             $sessionId
         );
 
-        // Check that the error was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the error was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -821,6 +726,11 @@ final class ProtocolTest extends TestCase
 
         $exception = new \RuntimeException('Transport unavailable');
         $this->transport->method('attachFiberToSession')->willThrowException($exception);
+
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function (string $data) use (&$sent): void {
+            $sent[] = json_decode($data, true);
+        });
 
         $sessionManager = new SessionManager(new InMemorySessionStore());
 
@@ -854,14 +764,14 @@ final class ProtocolTest extends TestCase
         $this->assertSame($exception, $errorEvents[0]->getThrowable());
         $this->assertSame(1, $errorEvents[0]->getError()->getId());
 
+        // The outbound request was queued for the client before the failure; the error is the response.
         $outgoing = array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $protocol->consumeOutgoingMessages($sessionId));
-        $outbound = array_values(array_filter($outgoing, static fn (array $message): bool => 'ping' === ($message['method'] ?? null)));
-        $this->assertCount(1, $outbound);
+        $this->assertCount(1, $outgoing);
+        $this->assertSame('ping', $outgoing[0]['method']);
 
-        $errors = array_values(array_filter($outgoing, static fn (array $message): bool => isset($message['error'])));
-        $this->assertCount(1, $errors);
-        $this->assertSame(1, $errors[0]['id']);
-        $this->assertSame(Error::INTERNAL_ERROR, $errors[0]['error']['code']);
+        $this->assertCount(1, $sent);
+        $this->assertSame(1, $sent[0]['id']);
+        $this->assertSame(Error::INTERNAL_ERROR, $sent[0]['error']['code']);
     }
 
     #[TestDox('Concurrent streams on one session each poll only the client request their own fiber sent')]
@@ -995,26 +905,10 @@ final class ProtocolTest extends TestCase
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
-        // The protocol now queues responses instead of sending them directly
-        // save() is called once during processInput and once during consumeOutgoingMessages
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handler],
@@ -1024,13 +918,13 @@ final class ProtocolTest extends TestCase
         );
 
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
 
-        // Check that the response was queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that the response was sent
+        $outgoing = $transport->sent;
         $this->assertCount(1, $outgoing);
 
         $message = json_decode($outgoing[0]['message'], true);
@@ -1038,8 +932,8 @@ final class ProtocolTest extends TestCase
         $this->assertEquals(['status' => 'ok'], $message['result']);
     }
 
-    #[TestDox('An inline response transport gets the response directly, not through the session queue')]
-    public function testInlineResponseTransportGetsResponseDirectly(): void
+    #[TestDox('A response goes to the transport with its session, never through the session queue')]
+    public function testResponseIsSentNotQueued(): void
     {
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('supports')->willReturn(true);
@@ -1049,15 +943,7 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $sessions->createWithId($sessionId)->save();
 
-        $transport = new class extends InMemoryTransport implements InlineResponseTransportInterface {
-            /** @var list<array{string, array<string, mixed>}> */
-            public array $sent = [];
-
-            public function send(string $data, array $context): void
-            {
-                $this->sent[] = [$data, $context];
-            }
-        };
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handler],
@@ -1073,10 +959,9 @@ final class ProtocolTest extends TestCase
         );
 
         $this->assertCount(1, $transport->sent);
-        [$data, $context] = $transport->sent[0];
-        $this->assertSame(['status' => 'ok'], json_decode($data, true)['result']);
-        $this->assertSame('response', $context['type']);
-        $this->assertEquals($sessionId, $context['session_id']);
+        $this->assertSame(['status' => 'ok'], json_decode($transport->sent[0]['message'], true)['result']);
+        $this->assertSame('response', $transport->sent[0]['context']['type']);
+        $this->assertEquals($sessionId, $transport->sent[0]['context']['session_id']);
         $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
     }
 
@@ -1096,28 +981,13 @@ final class ProtocolTest extends TestCase
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
 
-        // Configure session mock for queue operations
-        $queue = [];
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                return $queue;
-            }
-
-            return $default;
-        });
-
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
-            if ('_mcp.outgoing_queue' === $key) {
-                $queue = $value;
-            }
-        });
-
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
 
-        // The protocol now queues responses instead of sending them directly
-        $session->expects($this->exactly(2))
+        $session->expects($this->once())
             ->method('save');
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handlerA],
@@ -1128,13 +998,13 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '[{"jsonrpc": "2.0", "method": "tools/list", "id": 1}, {"jsonrpc": "2.0", "method": "prompts/list", "id": 2}]',
             $sessionId
         );
 
-        // Check that both responses were queued in the session
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        // Check that both responses were sent
+        $outgoing = $transport->sent;
         $this->assertCount(2, $outgoing);
 
         foreach ($outgoing as $outgoingMessage) {
@@ -1391,8 +1261,6 @@ final class ProtocolTest extends TestCase
     #[TestDox('ResponseEvent modification is used when sending')]
     public function testResponseEventModificationIsUsed(): void
     {
-        $outgoingQueue = [];
-
         $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
         $eventDispatcher
             ->method('dispatch')
@@ -1416,16 +1284,11 @@ final class ProtocolTest extends TestCase
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
         $session->method('get')->willReturn([]);
-        $session
-            ->method('set')
-            ->willReturnCallback(static function ($key, $value) use (&$outgoingQueue) {
-                if ('_mcp.outgoing_queue' === $key) {
-                    $outgoingQueue = $value;
-                }
-            });
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
 
         $protocol = new Protocol(
             requestHandlers: [$handler],
@@ -1437,18 +1300,15 @@ final class ProtocolTest extends TestCase
 
         $sessionId = Uuid::v4();
         $protocol->processInput(
-            $this->transport,
+            $transport,
             '{"jsonrpc": "2.0", "method": "ping", "id": 1}',
             $sessionId
         );
 
-        // Verify the MODIFIED response was queued
-        $this->assertNotEmpty($outgoingQueue);
-        $lastQueued = end($outgoingQueue);
-        $this->assertIsArray($lastQueued);
-        $this->assertArrayHasKey('message', $lastQueued);
+        // Verify the MODIFIED response was sent
+        $this->assertCount(1, $transport->sent);
 
-        $decoded = json_decode($lastQueued['message'], true);
+        $decoded = json_decode($transport->sent[0]['message'], true);
         $this->assertSame('modified', $decoded['result']['result']);
         $this->assertFalse($decoded['result']['original']);
     }

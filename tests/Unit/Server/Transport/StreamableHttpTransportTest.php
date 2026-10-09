@@ -501,7 +501,7 @@ final class StreamableHttpTransportTest extends TestCase
     }
 
     #[TestDox('a batch streamed over SSE still carries the responses that did not suspend')]
-    public function testStreamedBatchCarriesInlineResponses(): void
+    public function testStreamedBatchCarriesItsOtherResponses(): void
     {
         $store = new InterleavingSessionStore();
         $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
@@ -528,7 +528,7 @@ final class StreamableHttpTransportTest extends TestCase
     }
 
     #[TestDox('a batch answered as JSON carries the queued notifications first, then its responses, in one array')]
-    public function testJsonBatchCarriesQueuedNotificationsAndInlineResponses(): void
+    public function testJsonBatchCarriesQueuedNotificationsAndItsResponses(): void
     {
         $store = new InterleavingSessionStore();
         $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')

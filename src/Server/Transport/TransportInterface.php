@@ -48,9 +48,10 @@ interface TransportInterface
     /**
      * Send a message to the client immediately (bypassing session queue).
      *
-     * Used for session resolution errors when no session is available, and for
-     * every response on a {@see InlineResponseTransportInterface}.
-     * The transport decides HOW to send based on context.
+     * Used for every response, on the exchange that carried its request: a
+     * transport must deliver each one, a batch gets several. An error with a
+     * `status_code` was raised before a session was resolved and rejects the
+     * whole exchange. The transport decides HOW to send based on context.
      *
      * @param array<string, mixed> $context Context about this message:
      *                                      - 'session_id': Uuid|null
