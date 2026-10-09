@@ -13,11 +13,13 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\StdioTransport;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -200,6 +202,49 @@ final class StdioDualEraTest extends TestCase
         // notification ending it is taken without an answer of its own.
         $this->assertSame(6, $lines[1]['id']);
         $this->assertSame('still served', $lines[1]['result']['content'][0]['text']);
+        $this->assertCount(2, $lines);
+    }
+
+    #[TestDox('a notification published while a listen stream is open reaches the client on a later tick, tagged with its subscription')]
+    public function testListenStreamDeliversLaterNotifications(): void
+    {
+        $input = fopen('php://memory', 'r');
+        $output = fopen('php://memory', 'r+');
+        $this->assertNotFalse($input);
+        $this->assertNotFalse($output);
+        $bus = new InMemoryNotificationBus();
+
+        $transport = new StdioTransport($input, $output);
+        $transport->connectStateless(self::builder()
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus($bus)
+            ->setSubscriptionLifetime(0.01)
+            ->buildStateless([ProtocolVersion::V2026_07_28]));
+
+        $tick = new \ReflectionMethod($transport, 'processStreams');
+        (new \ReflectionMethod($transport, 'route'))->invoke($transport, json_encode(
+            self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]),
+            \JSON_THROW_ON_ERROR,
+        ));
+        $tick->invoke($transport);
+
+        // Past the lifetime, which an HTTP stream would have closed on.
+        usleep(20_000);
+        $bus->publish(new ToolListChangedNotification());
+
+        // A tick ends by resuming the stream past its idle poll, so what that
+        // poll picks up is written on the tick after.
+        $tick->invoke($transport);
+        $tick->invoke($transport);
+
+        rewind($output);
+        $lines = array_map(
+            static fn (string $line): array => json_decode($line, true, flags: \JSON_THROW_ON_ERROR),
+            array_values(array_filter(explode("\n", (string) stream_get_contents($output)))),
+        );
+
+        $this->assertSame(['notifications/subscriptions/acknowledged', 'notifications/tools/list_changed'], array_column($lines, 'method'));
+        $this->assertSame(5, $lines[1]['params']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
         $this->assertCount(2, $lines);
     }
 

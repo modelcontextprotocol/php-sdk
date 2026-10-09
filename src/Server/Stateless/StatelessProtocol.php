@@ -259,7 +259,7 @@ final class StatelessProtocol
                 return $this->encode($method, $id, $this->discover());
             }
 
-            return $this->listen($params, $id, $headerLayer);
+            return $this->listen($params, $id, paced: $headerLayer);
         }
 
         if (\in_array($method, self::REMOVED_METHODS, true)) {
