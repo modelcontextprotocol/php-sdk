@@ -122,8 +122,7 @@ final class ProtocolTest extends TestCase
         $protocol = new Protocol();
         $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
 
-        // The transport times a request out by resuming its fiber with an error;
-        // driven by hand here, the way StdioTransport::tick() would.
+        // Times the probe out by hand, like StdioTransport::tick() would.
         $fiber = new \Fiber(static fn () => $protocol->initialize($config));
         $suspended = $fiber->start();
 
@@ -233,8 +232,6 @@ final class ProtocolTest extends TestCase
     #[TestDox('a handshake refused because the server already settled on the modern era probes again')]
     public function testLateModernSettlementIsProbedAgain(): void
     {
-        // The first probe went unanswered in time; by the handshake, the server
-        // had answered it and settled on the modern era.
         $transport = new RecordingTransport(
             ProtocolVersion::V2025_11_25->value,
             refuseDiscovery: true,

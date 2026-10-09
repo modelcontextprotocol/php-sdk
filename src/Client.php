@@ -174,10 +174,7 @@ class Client
     }
 
     /**
-     * Check that the server is reachable and answering.
-     *
-     * A `ping` on the handshake era. The modern era removed it, so there the
-     * check is a `server/discover`, which every modern server answers.
+     * Check that the server is reachable: `ping`, or `server/discover` on the modern era, which removed it.
      */
     public function ping(): void
     {
@@ -340,11 +337,7 @@ class Client
     }
 
     /**
-     * Set the minimum logging level for server log messages.
-     *
-     * On the handshake era this is a `logging/setLevel` request. The modern
-     * era removed it: there the level rides on every request that follows,
-     * and until one is set the server sends no log messages at all.
+     * Set the minimum logging level for server log messages; on the modern era it rides on every following request.
      */
     public function setLoggingLevel(LoggingLevel $level): void
     {
@@ -381,8 +374,6 @@ class Client
             throw new ConnectionException('Client is not connected. Call connect() first.');
         }
 
-        // The modern era removed roots, so a server on it has nothing to
-        // refresh — and nothing to tell.
         if ($this->protocol->isModern()) {
             $this->logger->debug('Not sending "notifications/roots/list_changed": the connection is on the modern era, which removed roots.');
 

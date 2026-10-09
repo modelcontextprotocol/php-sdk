@@ -32,10 +32,6 @@ use Mcp\Server\Stateless\RequestMeta;
  */
 final class RequestEnvelope
 {
-    /**
-     * @param LoggingLevel|null $logLevel the least severe log message the client wants to hear about while a
-     *                                    request runs; null asks for none, which is what this revision assumes
-     */
     public function __construct(
         private readonly ProtocolVersion $protocolVersion,
         private readonly ClientCapabilities $capabilities,
@@ -54,10 +50,6 @@ final class RequestEnvelope
         return new self($protocolVersion, $this->capabilities, $this->clientInfo, $this->logLevel);
     }
 
-    /**
-     * The per-request replacement for `logging/setLevel`, which this revision
-     * removed: the level now rides on every request instead of being set once.
-     */
     public function withLogLevel(?LoggingLevel $logLevel): self
     {
         return new self($this->protocolVersion, $this->capabilities, $this->clientInfo, $logLevel);

@@ -66,8 +66,6 @@ final class HandshakeTest extends IntegrationTestCase
         // revision, and `initialize` cannot answer with a modern one.
         yield 'server configured modern' => [ProtocolVersion::V2025_06_18, ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_06_18];
 
-        // A server from before the modern era refuses the probe, and the
-        // client takes the handshake instead.
         yield 'server without the modern era' => [ProtocolVersion::V2026_07_28, null, ProtocolVersion::V2025_11_25, true];
         yield 'server without the modern era, client falling back further' => [ProtocolVersion::V2026_07_28, null, ProtocolVersion::V2025_06_18, true, ProtocolVersion::V2025_06_18];
         yield 'server without the modern era pinning a revision' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_03_26, ProtocolVersion::V2025_03_26, true];
@@ -80,7 +78,6 @@ final class HandshakeTest extends IntegrationTestCase
         $client = $this->connect('handshake', $this->clientBuilder()->setProtocolVersion(ProtocolVersion::V2026_07_28), self::environment(null, true));
 
         $this->assertSame(ProtocolVersion::V2025_11_25, $client->getProtocolVersion());
-        // Well under the five seconds the probe would otherwise be waited for.
         $this->assertLessThan(3, microtime(true) - $started);
     }
 

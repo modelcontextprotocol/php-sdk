@@ -47,9 +47,6 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
-     * Both eras one fixture server serves, for behaviour a caller should see
-     * the same on either.
-     *
      * @return iterable<string, array{ProtocolVersion}>
      */
     public static function provideEras(): iterable

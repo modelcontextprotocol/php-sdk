@@ -9,12 +9,7 @@
  * file that was distributed with this source code.
  */
 
-/*
- * Server for {@see \Mcp\Tests\Integration\HttpNegotiationTest}, run under `php -S`.
- *
- * MCP_INTEGRATION_HANDSHAKE_ONLY makes it a server from before the modern era,
- * MCP_INTEGRATION_MODERN_ONLY one that serves nothing else.
- */
+// Server for HttpNegotiationTest under `php -S`, era picked by MCP_INTEGRATION_HANDSHAKE_ONLY / MCP_INTEGRATION_MODERN_ONLY.
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -28,8 +23,7 @@ require_once dirname(__DIR__, 3).'/vendor/autoload.php';
 $builder = Server::builder()
     ->setServerInfo('integration-server', '1.0.0')
     ->setInstructions('Be brief.')
-    // Nothing survives between requests under `php -S`, so the handshake era
-    // keeps its sessions on disk.
+    // `php -S` keeps nothing between requests.
     ->setSession(new FileSessionStore((string) getenv('MCP_INTEGRATION_SESSIONS')))
     ->addTool(static fn (string $text): string => $text, name: 'echo', description: 'Echoes the text back.');
 

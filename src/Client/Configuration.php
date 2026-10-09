@@ -24,12 +24,7 @@ use Mcp\Schema\Implementation;
 class Configuration
 {
     /**
-     * @param ProtocolVersion      $protocolVersion         the revision the client prefers. A modern one is
-     *                                                      probed for with `server/discover` before anything else
-     * @param ProtocolVersion|null $fallbackProtocolVersion the handshake revision offered through `initialize` when
-     *                                                      a probe shows the server does not speak the modern era;
-     *                                                      null makes a modern client modern-only. Unused when
-     *                                                      $protocolVersion is a handshake revision already
+     * @param ProtocolVersion|null $fallbackProtocolVersion handshake revision a modern client falls back to; null makes it modern-only
      */
     public function __construct(
         public readonly Implementation $clientInfo,

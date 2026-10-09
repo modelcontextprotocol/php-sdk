@@ -23,14 +23,7 @@ use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
 /**
- * What a client and a server settle on over Streamable HTTP, for every pairing
- * of what each end speaks.
- *
- * {@see HandshakeTest} covers the same ground over stdio, where the era is
- * settled once per process; here it is a property of the endpoint, and a
- * server from before the modern era answers the probe with an HTTP refusal.
- *
- * @see Fixture/http.php for the server under test
+ * Era negotiation over Streamable HTTP, {@see HandshakeTest} for stdio.
  */
 final class HttpNegotiationTest extends TestCase
 {
@@ -89,7 +82,6 @@ final class HttpNegotiationTest extends TestCase
         $started = microtime(true);
         $client->connect($this->transport());
 
-        // A refused probe is answered at once; only silence would cost the timeout.
         $this->assertLessThan(self::TIMEOUT - 1, microtime(true) - $started);
         $this->assertSame($expected, $client->getProtocolVersion());
         $this->assertSame('integration-server', $client->getServerInfo()?->name);

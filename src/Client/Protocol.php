@@ -80,7 +80,6 @@ class Protocol
 
     private ToolCatalog $tools;
 
-    /** What a modern-era connection stamps on every request, see {@see self::setLogLevel()}. */
     private ?LoggingLevel $logLevel = null;
 
     private readonly InputRequestResolver $inputRequests;
@@ -142,8 +141,6 @@ class Protocol
         // or another — has said nothing yet.
         $this->tools = new ToolCatalog($this->logger);
 
-        // Like `logging/setLevel` on the handshake era, a level asked for on
-        // one connection is not carried over to the next.
         $this->logLevel = null;
 
         $transport->setState($this->state);
@@ -179,19 +176,12 @@ class Protocol
     /**
      * Ready the connection for use, settling which protocol era it speaks.
      *
-     * A handshake revision opens with `initialize`, as every revision up to
-     * 2025-11-25 does. A modern one has no handshake: the client probes with
-     * `server/discover` instead, and falls back to the handshake when the
-     * answer shows the server does not speak the modern era — see
-     * {@see self::negotiate()}.
-     *
      * @param Configuration $config The client configuration
      *
      * @return Response<array<string, mixed>>|Error
      */
     public function initialize(Configuration $config): Response|Error
     {
-        // Settled anew on every attempt: a reconnect may reach another server.
         $this->envelope = null;
         $this->headers = null;
 
@@ -203,16 +193,7 @@ class Protocol
     }
 
     /**
-     * Probe for the modern era, falling back to the handshake when the server
-     * does not speak it.
-     *
-     * Only positive evidence keeps the connection modern: a `DiscoverResult`
-     * naming a modern revision this client speaks, or a refusal naming one
-     * (which {@see self::request()} has already retried with). Any other error,
-     * silence until the timeout, or a server advertising nothing but handshake
-     * revisions identifies a server from before the modern era. The fallback is
-     * deliberately not keyed to any one error code: such servers answer an
-     * unknown request before `initialize` however they like, or not at all.
+     * Probe for the modern era, falling back to the handshake unless the server proves to speak it.
      *
      * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility
      * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#backward-compatibility
@@ -223,9 +204,7 @@ class Protocol
     {
         $version = $config->protocolVersion;
 
-        // Twice at most: a probe that timed out here may still have reached a
-        // slow-starting server and settled it on the modern era, which the
-        // fallback handshake then hears about as a refusal naming that era.
+        // Twice: a timed-out probe may still have settled a slow server on the modern era.
         for ($attempt = 0; $attempt < 2; ++$attempt) {
             $this->enterModernEra($version, $config);
 
@@ -264,8 +243,6 @@ class Protocol
             return $handshake;
         }
 
-        // Unreachable: the second attempt always returns. Kept so the method
-        // cannot fall off its end should the loop change.
         return Error::forInternalError('Protocol negotiation did not settle on a revision.');
     }
 
@@ -275,18 +252,13 @@ class Protocol
         $this->headers = new HeaderFactory($this->tools);
     }
 
-    /**
-     * Whether the connection settled on the modern era, where every request
-     * carries its own metadata.
-     */
     public function isModern(): bool
     {
         return null !== $this->envelope;
     }
 
     /**
-     * Ask for the server's log messages from $level up on every request that
-     * follows — the modern era's stand-in for `logging/setLevel`.
+     * The modern era's stand-in for `logging/setLevel`.
      */
     public function setLogLevel(LoggingLevel $level): void
     {
@@ -295,8 +267,7 @@ class Protocol
     }
 
     /**
-     * Reads a probe's answer: the connection, now modern; an error ending the
-     * attempt; or null when the server is not a modern one.
+     * The modern connection, an error ending the attempt, or null to fall back.
      *
      * @param Response<array<string, mixed>>|Error $probe
      *
@@ -307,7 +278,6 @@ class Protocol
         \assert(null !== $this->envelope);
 
         if ($probe instanceof Error) {
-            // An outage is not an answer about the era: nothing to fall back to.
             if (\is_array($probe->data) && true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null)) {
                 return $probe;
             }
@@ -316,10 +286,7 @@ class Protocol
                 return null;
             }
 
-            // A refusal naming a modern revision was already retried with it,
-            // so reaching here means it named none this client speaks. A server
-            // naming handshake revisions is still reachable through them; one
-            // naming neither is a modern server this client cannot talk to.
+            // Modern revisions it names were already retried by request().
             $supported = self::supportedVersions($probe);
 
             foreach ($supported as $version) {
@@ -335,8 +302,6 @@ class Protocol
 
         $advertised = $probe->result['supportedVersions'] ?? null;
 
-        // Not a DiscoverResult, which has to name its revisions, so not evidence
-        // of the modern era either.
         if (!\is_array($advertised)) {
             return null;
         }
@@ -355,8 +320,6 @@ class Protocol
         }
 
         if (null === $chosen) {
-            // It speaks discover but advertises only handshake revisions: a
-            // statement of where it can be reached, not an incompatibility.
             return null;
         }
 
@@ -394,9 +357,6 @@ class Protocol
     }
 
     /**
-     * The `initialize` handshake: offer a revision, take the server's answer,
-     * confirm with `notifications/initialized`.
-     *
      * @return Response<array<string, mixed>>|Error
      */
     private function handshake(ProtocolVersion $offered, Configuration $config): Response|Error
@@ -458,8 +418,7 @@ class Protocol
     }
 
     /**
-     * Read defensively: none of a `DiscoverResult` beyond its revisions is
-     * load-bearing for the requests that follow.
+     * Read defensively: nothing beyond the revisions is load-bearing.
      *
      * @param array<string, mixed> $result
      */
@@ -509,8 +468,6 @@ class Protocol
     }
 
     /**
-     * The revisions a `-32022` refusal names, as far as this SDK knows them.
-     *
      * @return list<ProtocolVersion>
      */
     private static function supportedVersions(Error $error): array
@@ -519,8 +476,6 @@ class Protocol
     }
 
     /**
-     * The revisions a `-32022` refusal names, known to this SDK or not.
-     *
      * @return list<string>
      */
     private static function namedVersions(Error $error): array

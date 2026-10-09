@@ -238,18 +238,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
-     * Answers a request the server refused at the HTTP level.
-     *
-     * A well-formed JSON-RPC answer carrying the request's id is handled like
-     * any other. Anything else — an empty, non-JSON or malformed body, or an
-     * error without that id, which is how a server from before the modern era
-     * typically refuses a request it did not expect — is turned into an error
-     * for that request, so the caller learns of it now rather than at its
-     * timeout. That is what a probe for the modern era relies on to fall back.
-     *
-     * A refused response to a server's request is only logged: its id is the
-     * server's, and filing an error under it would answer whichever request of
-     * this client happens to share it.
+     * Fails a request refused at the HTTP level at once, rather than at its timeout.
      */
     private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
     {
@@ -277,9 +266,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
-     * Whether the parser would read $answer as a result or an error at all,
-     * rather than drop it and leave the request to time out.
-     *
      * @param array<mixed> $answer
      */
     private static function isWellFormedAnswer(array $answer): bool
@@ -651,8 +637,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if (!empty($data)) {
             $this->handleMessage($data);
-            // Delivered now rather than after the whole read, so progress
-            // keeps its place among the notifications sent around it.
+            // Now, so progress keeps its order among notifications.
             $this->processProgress();
         }
     }

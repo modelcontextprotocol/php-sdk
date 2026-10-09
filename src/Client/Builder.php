@@ -67,12 +67,7 @@ final class Builder
     }
 
     /**
-     * Set the protocol version the client prefers.
-     *
-     * Defaults to 2025-11-25. A modern revision is probed for with
-     * `server/discover` and falls back to the `initialize` handshake when the
-     * server turns out not to speak it, see {@see self::setFallbackProtocolVersion()};
-     * a handshake revision skips the probe and opens with the handshake.
+     * Set the protocol version the client prefers, defaults to 2025-11-25; a modern one is probed for first.
      */
     public function setProtocolVersion(ProtocolVersion $protocolVersion): self
     {
@@ -82,11 +77,7 @@ final class Builder
     }
 
     /**
-     * Set the handshake revision a modern client falls back to when the server
-     * does not speak the modern era. Defaults to 2025-11-25.
-     *
-     * Null makes the client modern-only: a server without the modern era then
-     * fails the connection instead.
+     * Set the handshake revision a modern client falls back to, defaults to 2025-11-25; null makes it modern-only.
      */
     public function setFallbackProtocolVersion(?ProtocolVersion $protocolVersion): self
     {

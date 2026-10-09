@@ -77,9 +77,7 @@ final class ElicitationTest extends IntegrationTestCase
     public function testAdvertisedCapabilityWithoutHandler(): void
     {
         // The client answers "method not found", which the gateway raises inside
-        // the tool as a ClientException rather than leaving it waiting. That is
-        // a handshake-era exchange: the modern era has no way to answer an ask
-        // with an error, see below.
+        // the tool as a ClientException rather than leaving it waiting.
         $client = $this->connect(
             'elicitation',
             $this->clientBuilder()->setCapabilities(new ClientCapabilities(elicitation: true)),

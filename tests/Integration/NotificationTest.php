@@ -76,8 +76,6 @@ final class NotificationTest extends IntegrationTestCase
 
         $this->assertSame($era, $client->getProtocolVersion());
 
-        // A request on the handshake era, a level carried by every request
-        // that follows on the modern one — the caller cannot tell.
         $client->setLoggingLevel(LoggingLevel::Info);
 
         $client->callTool('work');

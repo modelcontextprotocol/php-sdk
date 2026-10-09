@@ -120,8 +120,6 @@ class StdioTransport extends BaseTransport
             throw new ConnectionException('Process stdin not available');
         }
 
-        // Silenced: a server that has exited is reported as the connection
-        // failure it is, not as a broken-pipe warning.
         if (false === @fwrite($this->stdin, $data."\n")) {
             throw new ConnectionException('Could not write to the server process; it is no longer running.');
         }
@@ -273,18 +271,12 @@ class StdioTransport extends BaseTransport
             $trimmed = trim($line);
             if (!empty($trimmed)) {
                 $this->handleMessage($trimmed);
-                // Delivered now rather than after the whole read, so progress
-                // keeps its place among the notifications sent around it.
+                // Now, so progress keeps its order among notifications.
                 $this->processProgress();
             }
         }
 
-        // Everything it wrote has been read, and it will write nothing more:
-        // whatever is still pending can only time out, so fail it now. Failed
-        // as answers rather than thrown, so each waiting fiber unwinds and
-        // clears its request instead of leaving it to time out a later one.
-        // Only once a read brings nothing: an answer that arrived with the end
-        // of the output is the waiting fiber's to take first.
+        // Only on an empty read, so an answer arriving with the end of output is taken first.
         if (('' === $data || false === $data) && \is_resource($this->stdout) && feof($this->stdout)) {
             $this->failPending('The server process closed its output; it is no longer running.', [self::CONNECTION_LOST => true]);
         }
