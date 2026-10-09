@@ -19,6 +19,7 @@ use Mcp\Server\Builder;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StdioTransport;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -113,6 +114,29 @@ final class StdioDualEraTest extends TestCase
 
         $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answers[1]['error']['code']);
         $this->assertSame('hi', $answers[2]['result']['content'][0]['text']);
+    }
+
+    /**
+     * @return iterable<string, array{Builder}>
+     */
+    public static function provideServers(): iterable
+    {
+        yield 'a server speaking both eras' => [self::builder()];
+        yield 'a server without the modern era' => [self::builder()->withoutModernEra()];
+    }
+
+    #[TestDox('a request with an id that is neither a string nor a number is refused without taking the server down, on $_dataName')]
+    #[DataProvider('provideServers')]
+    public function testMalformedIdDoesNotStopTheServer(Builder $builder): void
+    {
+        $malformed = self::modern(1, 'server/discover');
+        $malformed['id'] = [];
+
+        $lines = $this->exchange($builder, [$malformed, self::initialize(2)]);
+
+        $this->assertSame(Error::INVALID_REQUEST, $lines[0]['error']['code'] ?? null);
+        $this->assertSame(2, $lines[1]['id'] ?? null);
+        $this->assertSame(ProtocolVersion::V2025_11_25->value, $lines[1]['result']['protocolVersion'] ?? null);
     }
 
     #[TestDox('a probe without an envelope gets an error it can correlate, not silence')]

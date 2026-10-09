@@ -189,8 +189,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         }
 
         $decoded = json_decode($message, true);
-        // A response carries an id too, but only a request may settle the era.
-        $request = \is_array($decoded) && !array_is_list($decoded) && isset($decoded['id']) && \is_string($decoded['method'] ?? null) ? $decoded : null;
+        // A response carries an id too, but only a request may settle the era,
+        // and only one whose id an answer can carry: anything else is left to
+        // the dispatcher to refuse.
+        $request = \is_array($decoded) && !array_is_list($decoded) && \is_string($decoded['method'] ?? null)
+            && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
 
         if (null === $this->modern && null !== $request) {
             if ($classification->modern && null === $this->stateless) {
@@ -218,7 +221,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             ]);
         }
 
-        if (true === $this->modern) {
+        if (true === $this->modern || (null === $this->modern && $classification->modern && null !== $this->stateless)) {
             $this->routeModern($message, $decoded, $request);
 
             return;
