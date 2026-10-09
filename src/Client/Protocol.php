@@ -264,6 +264,8 @@ class Protocol
             return $handshake;
         }
 
+        // Unreachable: the second attempt always returns. Kept so the method
+        // cannot fall off its end should the loop change.
         return Error::forInternalError('Protocol negotiation did not settle on a revision.');
     }
 
@@ -343,7 +345,7 @@ class Protocol
         $chosen = null;
 
         foreach (ProtocolVersion::modernVersions() as $version) {
-            if (\in_array($version->value, $advertised, true)) {
+            if (\in_array($version->value, $advertised, true) && (null === $chosen || $version->isAtLeast($chosen))) {
                 $chosen = $version;
             }
         }
