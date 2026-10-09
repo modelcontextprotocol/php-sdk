@@ -112,12 +112,19 @@ class Protocol
 
         $transport->setOutgoingMessagesProvider($this->consumeOutgoingMessages(...));
 
-        $transport->setPendingRequestsProvider(fn (Uuid $sessionId): array => $this->getAwaitedPendingRequests($transport, $sessionId));
+        // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
+        $transportRef = \WeakReference::create($transport);
+
+        $transport->setPendingRequestsProvider(fn (Uuid $sessionId): array => $this->getAwaitedPendingRequests($transportRef->get(), $sessionId));
 
         $transport->setResponseFinder($this->checkResponse(...));
 
-        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId) use ($transport): void {
-            $this->awaitResponse($transport, $this->handleFiberYield($yieldedValue, $sessionId));
+        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId) use ($transportRef): void {
+            $requestId = $this->handleFiberYield($yieldedValue, $sessionId);
+
+            if (null !== $transport = $transportRef->get()) {
+                $this->trackAwaitedRequest($transport, $requestId);
+            }
         });
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
@@ -342,7 +349,7 @@ class Protocol
                         $awaitedRequestId = $this->sendRequest($result->request, $result->timeout, $session);
                     }
 
-                    $this->awaitResponse($transport, $awaitedRequestId);
+                    $this->trackAwaitedRequest($transport, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
                     return;
@@ -662,7 +669,7 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function awaitResponse(TransportInterface $transport, ?int $requestId): void
+    private function trackAwaitedRequest(TransportInterface $transport, ?int $requestId): void
     {
         if (null === $requestId) {
             unset($this->awaitedRequestIds[$transport]);
@@ -674,13 +681,13 @@ class Protocol
     }
 
     /**
-     * @param TransportInterface<mixed> $transport
+     * @param TransportInterface<mixed>|null $transport
      *
      * @return array<int, mixed>
      */
-    private function getAwaitedPendingRequests(TransportInterface $transport, Uuid $sessionId): array
+    private function getAwaitedPendingRequests(?TransportInterface $transport, Uuid $sessionId): array
     {
-        $requestId = $this->awaitedRequestIds[$transport] ?? null;
+        $requestId = null !== $transport ? $this->awaitedRequestIds[$transport] ?? null : null;
         if (null === $requestId) {
             return [];
         }

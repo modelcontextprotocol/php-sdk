@@ -882,8 +882,33 @@ final class ProtocolTest extends TestCase
         $this->assertSame([1001], $secondStream->getPendingRequestIds());
     }
 
+    #[TestDox('A stream whose fiber resumes and sends a notification no longer polls the request it was waiting on')]
+    public function testNotificationYieldedOnResumeClearsTheAwaitedRequest(): void
+    {
+        [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $firstStream->yieldFromFiber(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()));
+
+        $this->assertSame([], $firstStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('A stream whose fiber first suspends on a notification polls none of the session\'s pending requests')]
+    public function testStreamSuspendedOnNotificationPollsNoPendingRequest(): void
+    {
+        [$protocol, $sessionId, , $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $thirdStream = new PollingLoopTransport();
+        $protocol->connect($thirdStream);
+        $protocol->processInput($thirdStream, '{"jsonrpc": "2.0", "id": 3, "method": "ping"}', $sessionId);
+
+        $this->assertSame([], $thirdStream->getPendingRequestIds());
+        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+    }
+
     /**
      * Two tool calls on one session, each suspended on a request to the client, as with elicitation.
+     * A further call with ID 3 suspends on a notification instead.
      *
      * @return array{Protocol, Uuid, PollingLoopTransport, PollingLoopTransport}
      */
@@ -892,7 +917,10 @@ final class ProtocolTest extends TestCase
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('supports')->willReturn(true);
         $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
-            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+            $sessionId = $session->getId()->toRfc4122();
+            \Fiber::suspend(3 === $request->getId()
+                ? new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId)
+                : new RequestSuspension(new PingRequest(), $sessionId, 5));
 
             return new Response(1, []);
         });
