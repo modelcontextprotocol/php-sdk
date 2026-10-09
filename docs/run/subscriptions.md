@@ -38,3 +38,6 @@ $bus->publish(new ResourceUpdatedNotification('file:///project/config.json'));
 `Builder::setSubscriptionLifetime()` bounds how long a stream is held before the server
 closes it gracefully. The real ceiling is the runtime's: under PHP-FPM a stream cannot
 outlive `max_execution_time`. Pass `0` for "until the client or the runtime ends it".
+
+Over stdio the lifetime does not apply: a stream stays open until the client sends
+`notifications/cancelled` for it, see [Over stdio](protocol-eras.md#over-stdio).
