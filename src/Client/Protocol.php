@@ -301,6 +301,11 @@ class Protocol
         \assert(null !== $this->envelope);
 
         if ($probe instanceof Error) {
+            // An outage is not an answer about the era: nothing to fall back to.
+            if (\is_array($probe->data) && true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null)) {
+                return $probe;
+            }
+
             if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $probe->code) {
                 return null;
             }

@@ -17,6 +17,7 @@ use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\StdioTransport;
+use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\ClientCapabilities;
@@ -94,6 +95,7 @@ final class StdioTransportTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertStringContainsString('no longer running', $response->message);
+        $this->assertSame([TransportInterface::CONNECTION_LOST => true], $response->data);
     }
 
     #[TestDox('progress and other notifications read in one go reach the caller in the order they were sent')]

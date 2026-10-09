@@ -286,11 +286,14 @@ class StdioTransport extends BaseTransport
         // Only once a read brings nothing: an answer that arrived with the end
         // of the output is the waiting fiber's to take first.
         if (('' === $data || false === $data) && \is_resource($this->stdout) && feof($this->stdout)) {
-            $this->failPending('The server process closed its output; it is no longer running.');
+            $this->failPending('The server process closed its output; it is no longer running.', [self::CONNECTION_LOST => true]);
         }
     }
 
-    private function failPending(string $reason): void
+    /**
+     * @param array<string, mixed>|null $data
+     */
+    private function failPending(string $reason, ?array $data = null): void
     {
         if (null === $this->state) {
             return;
@@ -298,7 +301,7 @@ class StdioTransport extends BaseTransport
 
         foreach ($this->state->getPendingRequests() as $pending) {
             $requestId = $pending['request_id'];
-            $this->state->storeResponse($requestId, Error::forInternalError($reason, $requestId)->jsonSerialize());
+            $this->state->storeResponse($requestId, (new Error($requestId, Error::INTERNAL_ERROR, $reason, $data))->jsonSerialize());
         }
     }
 

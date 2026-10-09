@@ -31,6 +31,13 @@ use Mcp\Schema\JsonRpc\Response;
 interface TransportInterface
 {
     /**
+     * Key a transport sets to true in the data of the errors it files for
+     * pending requests once the connection itself is gone, so they are not
+     * mistaken for the server's answer.
+     */
+    public const CONNECTION_LOST = 'connectionLost';
+
+    /**
      * Connect to the MCP server and perform initialization handshake.
      *
      * This method blocks until:

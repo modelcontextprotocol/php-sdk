@@ -134,6 +134,24 @@ final class ProtocolTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
     }
 
+    #[TestDox('a connection lost during the probe fails the attempt instead of falling back')]
+    public function testLostConnectionDuringProbeDoesNotFallBack(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, ignoreDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $fiber = new \Fiber(static fn () => $protocol->initialize($config));
+        $suspended = $fiber->start();
+        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output; it is no longer running.', [TransportInterface::CONNECTION_LOST => true]));
+
+        $this->assertTrue($fiber->isTerminated());
+        $error = $fiber->getReturn();
+        $this->assertInstanceOf(Error::class, $error);
+        $this->assertStringContainsString('no longer running', $error->message);
+        $this->assertSame(['server/discover'], $transport->methods);
+    }
+
     #[TestDox('a refusal naming only handshake revisions falls back rather than failing')]
     public function testRefusalNamingHandshakeRevisionsFallsBack(): void
     {
