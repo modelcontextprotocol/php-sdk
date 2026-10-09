@@ -493,7 +493,7 @@ class Protocol
         // request of the same session: a transport that can answer on the request's
         // own exchange gets it directly.
         if (null === $session || $transport instanceof InlineResponseTransportInterface) {
-            $this->logger->info('Sending immediate response', [
+            $this->logger->debug('Sending immediate response', [
                 'response_id' => $response->getId(),
             ]);
 
