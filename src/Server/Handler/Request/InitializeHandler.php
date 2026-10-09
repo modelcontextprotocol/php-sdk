@@ -84,23 +84,10 @@ final class InitializeHandler implements RequestHandlerInterface
     }
 
     /**
-     * Versions this server is willing to negotiate over `initialize`.
-     *
-     * A version configured on the server pins the handshake to exactly that
-     * revision. Modern revisions are never offered here: they have no
-     * `initialize` at all, so a client that reached this handler cannot speak
-     * one, and answering with it would leave the connection unusable.
-     *
      * @return non-empty-list<ProtocolVersion>
      */
     private function supportedVersions(): array
     {
-        $configured = $this->configuration?->protocolVersion;
-
-        if (null !== $configured && !$configured->isModern()) {
-            return [$configured];
-        }
-
-        return ProtocolVersion::handshakeVersions();
+        return $this->configuration?->handshakeVersions() ?? ProtocolVersion::handshakeVersions();
     }
 }

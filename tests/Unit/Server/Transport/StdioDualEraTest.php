@@ -93,6 +93,16 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_11_25->value, $answers[2]['result']['protocolVersion']);
     }
 
+    #[TestDox('a handshake-only server pinned to one revision names only that one when refusing a modern probe')]
+    public function testPinnedHandshakeOnlyServerNamesItsRevision(): void
+    {
+        $answers = $this->serve(self::builder()->withoutModernEra()->setProtocolVersion(ProtocolVersion::V2025_06_18), [
+            self::modern(1, 'server/discover'),
+        ]);
+
+        $this->assertSame([ProtocolVersion::V2025_06_18->value], $answers[1]['error']['data']['supported']);
+    }
+
     #[TestDox('a probe claiming an unserved revision is refused, naming the served ones, and the handshake still follows')]
     public function testUnservedModernProbeLeavesTheEraOpenForTheHandshake(): void
     {

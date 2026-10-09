@@ -74,6 +74,9 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     private ?StatelessProtocol $stateless = null;
 
+    /** @var non-empty-list<ProtocolVersion>|null null names every handshake revision */
+    private ?array $handshakeVersions = null;
+
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
@@ -169,6 +172,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     public function connectStateless(StatelessProtocol $protocol): void
     {
         $this->stateless = $protocol;
+    }
+
+    public function setHandshakeVersions(array $versions): void
+    {
+        $this->handshakeVersions = $versions;
     }
 
     public function send(string $data, array $context): void
@@ -493,7 +501,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     {
         if (null === $this->stateless) {
             return $this->responder->error(
-                Error::forUnsupportedProtocolVersion($claimedVersion, ProtocolVersion::handshakeVersions()),
+                Error::forUnsupportedProtocolVersion($claimedVersion, $this->handshakeVersions ?? ProtocolVersion::handshakeVersions()),
                 400,
             );
         }

@@ -59,6 +59,9 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
     private ?StatelessProtocol $stateless = null;
 
+    /** @var non-empty-list<ProtocolVersion>|null null names every handshake revision */
+    private ?array $handshakeVersions = null;
+
     private readonly InboundClassifier $classifier;
 
     /** Null until the client's first request settles the era. */
@@ -105,6 +108,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     public function connectStateless(StatelessProtocol $protocol): void
     {
         $this->stateless = $protocol;
+    }
+
+    public function setHandshakeVersions(array $versions): void
+    {
+        $this->handshakeVersions = $versions;
     }
 
     public function send(string $data, array $context): void
@@ -212,7 +220,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             if ($classification->modern && null === $this->stateless) {
                 // Served nothing but the handshake: say which revisions that
                 // is, the way the HTTP entry does, and leave the era open.
-                $this->writeError(Error::forUnsupportedProtocolVersion((string) $classification->claimedVersion, ProtocolVersion::handshakeVersions(), $request['id']));
+                $this->writeError(Error::forUnsupportedProtocolVersion((string) $classification->claimedVersion, $this->handshakeVersions ?? ProtocolVersion::handshakeVersions(), $request['id']));
 
                 return;
             }
