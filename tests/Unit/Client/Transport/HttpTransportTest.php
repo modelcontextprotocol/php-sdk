@@ -266,6 +266,37 @@ final class HttpTransportTest extends TestCase
         $this->assertSame(['server/discover'], $httpClient->methods);
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function refusedResponseProvider(): iterable
+    {
+        yield 'an empty body' => [''];
+        yield 'an error under the same id' => ['{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Bad Request"}}'];
+    }
+
+    #[DataProvider('refusedResponseProvider')]
+    #[TestDox('a refused answer to a server request never answers a client request sharing its id: $_dataName')]
+    public function testRefusedResponseLeavesClientRequestsAlone(string $body): void
+    {
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->method('sendRequest')->willReturn(new Response(404, ['Content-Type' => 'application/json'], $body));
+
+        $transport = new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory);
+        $state = new ClientState();
+        $transport->setState($state);
+        $dispatched = [];
+        $transport->onMessage(static function (string $message) use (&$dispatched): void {
+            $dispatched[] = $message;
+        });
+        $state->addPendingRequest(1, 120);
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+
+        $this->assertNull($state->consumeResponse(1));
+        $this->assertSame([], $dispatched);
+    }
+
     #[TestDox('progress and other notifications on one stream reach the caller in the order they were sent')]
     public function testProgressKeepsItsPlaceAmongNotifications(): void
     {

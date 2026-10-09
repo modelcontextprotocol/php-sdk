@@ -246,11 +246,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * typically refuses a request it did not expect — is turned into an error
      * for that request, so the caller learns of it now rather than at its
      * timeout. That is what a probe for the modern era relies on to fall back.
+     *
+     * A refused response to a server's request is only logged: its id is the
+     * server's, and filing an error under it would answer whichever request of
+     * this client happens to share it.
      */
     private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
     {
         $request = json_decode($sent, true);
-        $requestId = \is_array($request) ? ($request['id'] ?? null) : null;
+        $requestId = \is_array($request) && \array_key_exists('method', $request) ? ($request['id'] ?? null) : null;
         $answer = '' === trim($body) ? null : json_decode($body, true);
 
         if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId && self::isWellFormedAnswer($answer)) {
