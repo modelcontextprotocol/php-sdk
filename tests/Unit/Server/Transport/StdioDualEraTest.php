@@ -221,8 +221,7 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame('notifications/subscriptions/acknowledged', $lines[0]['method']);
         $this->assertSame(5, $lines[0]['params']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
 
-        // The open subscription does not hold up the next request, and the
-        // notification ending it is taken without an answer of its own.
+        // The open subscription doesn't hold up the next request; its cancel gets no answer.
         $this->assertSame(6, $lines[1]['id']);
         $this->assertSame('still served', $lines[1]['result']['content'][0]['text']);
         $this->assertCount(2, $lines);
@@ -255,8 +254,7 @@ final class StdioDualEraTest extends TestCase
         usleep(20_000);
         $bus->publish(new ToolListChangedNotification());
 
-        // A tick ends by resuming the stream past its idle poll, so what that
-        // poll picks up is written on the tick after.
+        // A tick ends past its idle poll, so what that poll finds is written on the next tick.
         $tick->invoke($transport);
         $tick->invoke($transport);
 

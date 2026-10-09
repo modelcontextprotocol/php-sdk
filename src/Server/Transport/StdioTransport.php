@@ -199,15 +199,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         }
 
         $decoded = json_decode($message, true);
-        // A response carries an id too, but only a request may settle the era,
-        // and only one whose id an answer can carry: anything else is left to
-        // the dispatcher to refuse.
+        // Only a request with a usable id may settle the era; anything else is left to the dispatcher.
         $request = \is_array($decoded) && !array_is_list($decoded) && \is_string($decoded['method'] ?? null)
             && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
 
-        // Only the handshake era sends requests to the client: before an era
-        // is settled, or on a modern connection, a response answers nothing,
-        // and refusing it would answer a response.
+        // Only the handshake era sends requests to the client, so elsewhere a response answers nothing.
         if (false !== $this->modern && \is_array($decoded) && !array_is_list($decoded) && !isset($decoded['method'])
             && (\array_key_exists('result', $decoded) || \array_key_exists('error', $decoded))) {
             $this->logger->warning('StdioTransport ignored a response outside the handshake era.', [
@@ -219,17 +215,14 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         if (null === $this->modern && null !== $request) {
             if ($classification->modern && null === $this->stateless) {
-                // Served nothing but the handshake: say which revisions that
-                // is, the way the HTTP entry does, and leave the era open.
+                // Handshake only: name its revisions, like the HTTP entry, and leave the era open.
                 $this->writeError(Error::forUnsupportedProtocolVersion((string) $classification->claimedVersion, $this->handshakeVersions ?? ProtocolVersion::handshakeVersions(), $request['id']));
 
                 return;
             }
 
             if ($classification->modern && !\in_array(ProtocolVersion::tryFrom((string) $classification->claimedVersion), $this->stateless->supportedVersions(), true)) {
-                // The modern leg refuses it, naming what it serves; a client
-                // with no revision in common falls back to the handshake, so
-                // the era stays open for that.
+                // Refused by the modern leg; the era stays open for a fallback to the handshake.
                 $this->routeModern($message, $decoded, $request);
 
                 return;
@@ -266,10 +259,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         \assert(null !== $this->stateless);
 
-        // stdio has no stream to close, so this notification is how a client
-        // ends a subscriptions/listen; nothing more may be sent for it. Any
-        // other request has already run to its result by the time a
-        // cancellation for it is read.
+        // stdio has no stream to close, so this is how a client ends a subscriptions/listen.
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
             [$cancellation] = MessageFactory::make()->create($message);
 
@@ -317,8 +307,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 while ($frames->valid()) {
                     $frame = $frames->current();
 
-                    // Written before the stream is resumed: resuming runs the
-                    // handler on to its next frame, which may take a while.
+                    // Written before resuming: resuming runs the handler on to its next frame.
                     if (null !== $frame) {
                         $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
                     }

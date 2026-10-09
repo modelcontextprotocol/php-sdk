@@ -227,11 +227,7 @@ final class StatelessProtocol
             return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC request id must be a string or a number.'), 400);
         }
 
-        // How a client from before the modern era opens. It has no way to move
-        // forward to this one, so the refusal is the only thing it can show its
-        // user: it names the revisions served rather than the envelope missing.
-        // One stamped with the envelope is a modern client, told further down
-        // that its revision has no such method.
+        // A pre-modern client opens with a bare initialize: name the served revisions, not the missing envelope.
         if ('initialize' === $method && !isset($params['_meta'][RequestMeta::PROTOCOL_VERSION])) {
             $offered = $params['protocolVersion'] ?? null;
 
@@ -373,8 +369,7 @@ final class StatelessProtocol
 
             // The tick is not optional: PHP spots a dropped peer by writing,
             // and a sleeping loop would pin an FPM worker for the full lifetime.
-            // An unpaced stream pins nothing, and its consumer ends it on
-            // notifications/cancelled, so it is not bounded.
+            // An unpaced stream is ended by its consumer, so it is not bounded.
             $deadline = !$paced || 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
 
             while (microtime(true) < $deadline) {

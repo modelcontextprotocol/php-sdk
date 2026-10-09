@@ -758,9 +758,7 @@ class Protocol
         }
 
         if (!$sessionId) {
-            // Echoes the request's id: a client probing for the modern era sends
-            // `server/discover` before any handshake, and an error it cannot
-            // correlate would leave it waiting out its timeout to fall back.
+            // Echo the id so a client probing with `server/discover` can correlate the refusal.
             $id = match (true) {
                 1 !== \count($messages) => null,
                 $messages[0] instanceof Request => $messages[0]->getId(),

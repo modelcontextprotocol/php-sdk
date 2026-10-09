@@ -1104,8 +1104,7 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame('notifications/subscriptions/acknowledged', $frames->current()['method']);
 
-        // A paced stream sleeps a quarter second between polls, which would
-        // stall every other message sharing the stdio channel.
+        // A paced stream sleeps between polls, stalling the shared stdio channel.
         for ($i = 0; $i < 5; ++$i) {
             $frames->next();
             $this->assertNull($frames->current());
