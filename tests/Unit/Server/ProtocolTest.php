@@ -533,6 +533,60 @@ final class ProtocolTest extends TestCase
         $this->assertSame(['status' => 'ok'], json_decode($transport->sent[0]['message'], true)['result']);
     }
 
+    #[TestDox('A suspended handler is not handed to the transport when the session fails to save what it awaits')]
+    public function testSaveFailureAbortsSuspendedRequest(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response(1, []);
+        });
+
+        $store = new class extends InMemorySessionStore {
+            public bool $failWrites = false;
+
+            public function write(Uuid $id, string $data): bool
+            {
+                if ($this->failWrites) {
+                    throw new \RuntimeException('storage is gone');
+                }
+
+                return parent::write($id, $data);
+            }
+        };
+        $sessionManager = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessionManager->createWithId($sessionId)->save();
+        $store->failWrites = true;
+
+        // Resumed, the fiber would wait for a client response to a request the session never stored.
+        $this->transport->expects($this->never())->method('attachFiberToSession');
+
+        $sent = [];
+        $this->transport->method('send')->willReturnCallback(static function (string $data) use (&$sent): void {
+            $sent[] = json_decode($data, true);
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "confirm", "arguments": {}}}',
+            $sessionId
+        );
+
+        $this->assertCount(1, $sent);
+        $this->assertSame(1, $sent[0]['id']);
+        $this->assertSame(Error::INTERNAL_ERROR, $sent[0]['error']['code']);
+    }
+
     #[TestDox('A failing notification event listener does not produce a response')]
     public function testFailingNotificationListenerDoesNotProduceResponse(): void
     {

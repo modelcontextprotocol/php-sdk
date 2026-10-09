@@ -354,6 +354,10 @@ class Protocol
                         $awaitedRequestId = $this->sendRequest($result->request, $result->timeout, $session);
                     }
 
+                    // The transport resumes the fiber from what the session holds: it must
+                    // not get the fiber if the request the fiber awaits was not stored.
+                    $session->save();
+
                     $this->trackAwaitedRequest($transport, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
