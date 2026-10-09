@@ -275,6 +275,31 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame(['s:5'], array_keys($streams));
     }
 
+    #[TestDox('a malformed cancellation leaves the stream it names open')]
+    public function testMalformedCancellationIsIgnored(): void
+    {
+        $input = fopen('php://temp', 'r+');
+        $output = fopen('php://temp', 'r+');
+        $this->assertNotFalse($input);
+        $this->assertNotFalse($output);
+
+        foreach ([
+            self::modern(5, 'subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]),
+            ['jsonrpc' => '2.0', 'method' => 'notifications/cancelled', 'params' => ['requestId' => 5, 'reason' => []]],
+        ] as $message) {
+            fwrite($input, json_encode($message, \JSON_THROW_ON_ERROR)."\n");
+        }
+
+        rewind($input);
+
+        $transport = new StdioTransport($input, $output);
+        self::builder()->setCapabilities(new ServerCapabilities(toolsListChanged: true))->build()->run($transport);
+
+        $streams = (new \ReflectionProperty($transport, 'streams'))->getValue($transport);
+
+        $this->assertSame(['i:5'], array_keys($streams));
+    }
+
     #[TestDox('a frame is written before its stream is resumed, so a slow handler does not hold back its progress')]
     public function testFrameIsWrittenBeforeTheStreamResumes(): void
     {

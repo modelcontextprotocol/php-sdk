@@ -12,8 +12,10 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
@@ -260,9 +262,17 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         // other request has already run to its result by the time a
         // cancellation for it is read.
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
-            $requestId = $decoded['params']['requestId'] ?? null;
+            [$cancellation] = MessageFactory::make()->create($message);
 
-            if ((\is_string($requestId) || \is_int($requestId)) && isset($this->streams[$key = self::streamKey($requestId)])) {
+            if (!$cancellation instanceof CancelledNotification) {
+                $this->logger->debug('StdioTransport ignored a malformed cancellation.');
+
+                return;
+            }
+
+            $requestId = $cancellation->requestId;
+
+            if (isset($this->streams[$key = self::streamKey($requestId)])) {
                 unset($this->streams[$key]);
                 $this->logger->debug('StdioTransport dropped a cancelled request.', ['request_id' => $requestId]);
             }
