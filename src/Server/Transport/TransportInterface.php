@@ -48,10 +48,12 @@ interface TransportInterface
     /**
      * Send a message to the client immediately (bypassing session queue).
      *
-     * Used for every response, on the exchange that carried its request: a
-     * transport must deliver each one, a batch gets several. An error with a
-     * `status_code` was raised before a session was resolved and rejects the
-     * whole exchange. The transport decides HOW to send based on context.
+     * Used for every response of a handler that returns without suspending, on
+     * the exchange that carried its request: a transport must deliver each one,
+     * a batch gets several. A handler that suspends returns its result from the
+     * fiber the transport resumes instead. An error with a `status_code` was
+     * raised before a session was resolved and rejects the whole exchange. The
+     * transport decides HOW to send based on context.
      *
      * @param array<string, mixed> $context Context about this message:
      *                                      - 'session_id': Uuid|null
