@@ -35,6 +35,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Add `ScopePolicy` as third argument of `AuthorizationMiddleware`, answering `403 insufficient_scope` per method and tool, with scope hierarchies; the `resource_metadata` challenge URL comes from the configured resource instead of the `Host` header.
 * Expose `WWW-Authenticate` in the default `CorsMiddleware`.
 * [BC Break] Fix concurrent Streamable HTTP streams on one session resuming each other's fibers: each stream now polls only the client request its own fiber sent, so an elicitation answer reaches the tool call that asked for it. `Protocol::handleFiberYield()` returns the ID of the request it sent.
+* Fix lost responses on concurrent requests of one session over Streamable HTTP: a POST is answered with its own responses instead of taking them from the session's outgoing queue. Adds `InlineResponseTransportInterface` for transports that answer each request on the exchange that carried it.
 
 0.8.0
 -----
