@@ -1,6 +1,6 @@
 services:
   nginx:
-    image: nginx:1.26-alpine
+    image: mirror.gcr.io/library/nginx:1.26-alpine
     ports:
       # Overridable so the fixture can coexist with anything already on 8000.
       - "${CONFORMANCE_PORT:-8000}:80"
@@ -13,7 +13,7 @@ services:
       - mcp-net
 
   php-fpm:
-    image: php:8.4-fpm-alpine
+    image: mirror.gcr.io/library/php:8.4-fpm-alpine
     volumes:
       - ../../..:/app:ro
       - ../sessions:/app/tests/Conformance/sessions
