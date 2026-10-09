@@ -15,6 +15,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\Session;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
@@ -524,6 +525,36 @@ final class StreamableHttpTransportTest extends TestCase
         }
 
         $this->assertMatchesRegularExpression('/"id":3,"result".*"progressToken":"p".*"id":2,"result"/s', $output);
+    }
+
+    #[TestDox('a batch answered as JSON carries the queued notifications first, then its responses, in one array')]
+    public function testJsonBatchCarriesQueuedNotificationsAndInlineResponses(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        // A notification another request of the session queued, e.g. a resource update.
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $session->set('_mcp.outgoing_queue', [[
+            'message' => '{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"uri":"file:///a"}}',
+            'context' => ['type' => 'notification'],
+        ]]);
+        $session->save();
+
+        $response = $this->post($store, '[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', $sessionId);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame($sessionId, $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER));
+
+        $messages = json_decode((string) $response->getBody(), true);
+        $this->assertIsArray($messages);
+        $this->assertTrue(array_is_list($messages));
+        $this->assertSame(
+            ['notifications/resources/updated', 2, 3],
+            array_map(static fn (array $message): string|int => $message['method'] ?? $message['id'], $messages),
+        );
     }
 
     /**
