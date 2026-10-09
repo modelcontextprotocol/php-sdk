@@ -21,6 +21,7 @@ map; the mechanics live with the task they belong to.
 | Change notifications | HTTP `GET` stream, `resources/subscribe` | `subscriptions/listen` |
 | Dispatcher | `Protocol` | `StatelessProtocol` |
 | HTTP entry | `StreamableHttpTransport` — the same one, for both |
+| stdio entry | `StdioTransport` — the same one, settled by the client's first request |
 
 `ProtocolVersion::isModern()` tells the two apart, and
 `Mcp\Schema\Enum\ProtocolVersion::FIRST_MODERN_VERSION` is where the boundary sits.
@@ -150,7 +151,9 @@ for a runnable version, described in [Examples](examples.md#modern-era-client).
 
 ## What was removed
 
-Answered with `404` and `-32601` by a modern server:
+Answered with `404` and `-32601` by a modern server — except a bare `initialize`, which is how
+a client from before the modern era opens, and is refused with `-32022` naming the revisions
+the server does speak:
 
 - `initialize`, `notifications/initialized`
 - `ping`

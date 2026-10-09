@@ -251,7 +251,9 @@ final class ProtocolTest extends TestCase
                 $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
+                    // Echoing the id lets a probing client correlate the refusal.
                     return isset($decoded['error'])
+                        && 1 === ($decoded['id'] ?? null)
                         && str_contains($decoded['error']['message'], 'session id is REQUIRED');
                 }),
                 $this->callback(static function ($context) {

@@ -324,7 +324,7 @@ $server = Server::builder()
 | `withoutInputRequiredShim()` | - | Do not fulfil an `InputRequiredResult` over a handshake-era connection |
 | `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
 | `setNotificationBus()` | bus | Delivery for `subscriptions/listen` streams |
-| `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open (`0` = unbounded) |
+| `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open over HTTP (`0` = unbounded) |
 | `setHeaderValidator()` | enabled | Toggle the SEP-2243 standard-header check on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |

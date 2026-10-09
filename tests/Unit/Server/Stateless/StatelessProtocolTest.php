@@ -278,7 +278,6 @@ class StatelessProtocolTest extends TestCase
      */
     public static function removedMethods(): iterable
     {
-        yield 'initialize' => ['initialize', []];
         yield 'ping' => ['ping', []];
         yield 'logging/setLevel' => ['logging/setLevel', ['level' => 'info']];
         yield 'resources/subscribe' => ['resources/subscribe', ['uri' => 'test://static']];
@@ -296,6 +295,25 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('a handshake-era client opening with "initialize" is told which revisions are served')]
+    public function testInitializeNamesTheServedRevisions(): void
+    {
+        $result = self::protocol()->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => ['protocolVersion' => '2025-11-25', 'capabilities' => new \stdClass(), 'clientInfo' => ['name' => 'legacy', 'version' => '1.0.0']],
+        ], \JSON_THROW_ON_ERROR));
+
+        $answer = json_decode($result->toJson(), true);
+
+        $this->assertSame(400, $result->httpStatus);
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answer['error']['code']);
+        $this->assertSame(1, $answer['id']);
+        $this->assertSame('2025-11-25', $answer['error']['data']['requested']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answer['error']['data']['supported']);
     }
 
     /**
@@ -1014,6 +1032,111 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(42, $frames[3]['id']);
         $this->assertSame(42, $frames[3]['result']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
         $this->assertSame('complete', $frames[3]['result']['resultType']);
+    }
+
+    /**
+     * A request the way stdio carries it: the metadata inline, no headers.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function inlineRequest(string $method, array $params = []): string
+    {
+        $params['_meta'] = [
+            RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+            RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+            ...($params['_meta'] ?? []),
+        ];
+
+        return json_encode(['jsonrpc' => '2.0', 'id' => 9, 'method' => $method, 'params' => $params], \JSON_THROW_ON_ERROR);
+    }
+
+    #[TestDox('a message off a transport without headers is answered without them')]
+    public function testInlineMessageNeedsNoHeaders(): void
+    {
+        $protocol = self::protocol();
+        $message = self::inlineRequest('tools/call', ['name' => 'plain_tool', 'arguments' => []]);
+
+        // The same message over HTTP is missing headers it has to carry.
+        $this->assertSame(Error::HEADER_MISMATCH, json_decode($protocol->handle($message)->toJson(), true)['error']['code']);
+
+        $result = $protocol->handleInline($message);
+
+        $this->assertSame(200, $result->httpStatus);
+        $this->assertSame('ok', json_decode($result->toJson(), true)['result']['content'][0]['text']);
+    }
+
+    #[TestDox('an inline request streams its progress without being asked to')]
+    public function testInlineProgressIsStreamed(): void
+    {
+        $result = self::protocol()->handleInline(self::inlineRequest('tools/call', [
+            'name' => 'progress_tool',
+            'arguments' => [],
+            '_meta' => ['progressToken' => 'tok-1'],
+        ]));
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+
+        $this->assertSame(['notifications/progress', 'notifications/progress'], [$frames[0]['method'], $frames[1]['method']]);
+        $this->assertSame(9, $frames[2]['id']);
+    }
+
+    #[TestDox('an inline listen stream leaves the pacing to its consumer')]
+    public function testInlineListenIsNotPaced(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(60)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $this->assertTrue($result->isStream());
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $started = microtime(true);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames->current()['method']);
+
+        // A paced stream sleeps between polls, stalling the shared stdio channel.
+        for ($i = 0; $i < 5; ++$i) {
+            $frames->next();
+            $this->assertNull($frames->current());
+        }
+
+        $this->assertLessThan(0.2, microtime(true) - $started);
+    }
+
+    #[TestDox('an inline listen stream outlives the subscription lifetime, since its consumer ends it')]
+    public function testInlineListenIsNotBoundedByTheLifetime(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(0.01)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $frames->current();
+        usleep(20_000);
+
+        for ($i = 0; $i < 3; ++$i) {
+            $frames->next();
+            $this->assertTrue($frames->valid());
+            $this->assertNull($frames->current());
+        }
     }
 
     #[TestDox('the acknowledgment drops types the server cannot honour')]

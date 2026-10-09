@@ -183,6 +183,21 @@ final class DualEraRoutingTest extends TestCase
         $this->assertNotContains(ProtocolVersion::V2026_07_28->value, $answer['body']['error']['data']['supported']);
     }
 
+    #[TestDox('a server without the modern era pinned to one revision names only that one when refusing a modern claim')]
+    public function testPinnedHandshakeOnlyServerNamesItsRevision(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('dual-era-server', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_06_18)
+            ->withoutModernEra()
+            ->build();
+
+        $answer = $this->post($server, $this->enveloped('server/discover'));
+
+        $this->assertSame(-32022, $answer['body']['error']['code']);
+        $this->assertSame([ProtocolVersion::V2025_06_18->value], $answer['body']['error']['data']['supported']);
+    }
+
     #[TestDox('a DELETE still ends a handshake-era session')]
     public function testDeleteReachesTheHandshakeLeg(): void
     {

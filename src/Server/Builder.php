@@ -963,6 +963,7 @@ final class Builder
             $protocol,
             $parts['logger'],
             [] === $modernVersions ? null : $this->buildStateless($modernVersions),
+            $parts['configuration']->handshakeVersions(),
         );
     }
 
