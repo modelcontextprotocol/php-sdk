@@ -322,7 +322,7 @@ class Protocol
                 }
             }
 
-            $named = \is_array($probe->data['supported'] ?? null) ? array_filter($probe->data['supported'], is_string(...)) : [];
+            $named = self::namedVersions($probe);
 
             return Error::forInvalidRequest(\sprintf('Server supports none of the protocol versions this client speaks (it advertises %s).', [] === $named ? 'none' : implode(', ', $named)), $probe->id);
         }
@@ -404,7 +404,7 @@ class Protocol
         $response = $this->request($request, $config->initTimeout);
 
         if ($response instanceof Error && Error::UNSUPPORTED_PROTOCOL_VERSION === $response->code) {
-            $named = \is_array($response->data['supported'] ?? null) ? array_filter($response->data['supported'], is_string(...)) : [];
+            $named = self::namedVersions($response);
 
             return new Error($response->id, $response->code, \sprintf(
                 'Server does not speak protocol version %s; it supports %s.',
@@ -509,13 +509,19 @@ class Protocol
      */
     private static function supportedVersions(Error $error): array
     {
-        $data = \is_array($error->data) ? $error->data : [];
-        $supported = \is_array($data['supported'] ?? null) ? $data['supported'] : [];
+        return array_values(array_filter(array_map(ProtocolVersion::tryFrom(...), self::namedVersions($error))));
+    }
 
-        return array_values(array_filter(array_map(
-            static fn (mixed $v): ?ProtocolVersion => \is_string($v) ? ProtocolVersion::tryFrom($v) : null,
-            $supported,
-        )));
+    /**
+     * The revisions a `-32022` refusal names, known to this SDK or not.
+     *
+     * @return list<string>
+     */
+    private static function namedVersions(Error $error): array
+    {
+        $supported = \is_array($error->data) && \is_array($error->data['supported'] ?? null) ? $error->data['supported'] : [];
+
+        return array_values(array_filter($supported, is_string(...)));
     }
 
     /**
