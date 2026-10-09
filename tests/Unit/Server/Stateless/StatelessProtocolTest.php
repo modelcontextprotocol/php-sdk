@@ -1114,6 +1114,32 @@ class StatelessProtocolTest extends TestCase
         $this->assertLessThan(0.2, microtime(true) - $started);
     }
 
+    #[TestDox('an inline listen stream outlives the subscription lifetime, since its consumer ends it')]
+    public function testInlineListenIsNotBoundedByTheLifetime(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(0.01)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $frames->current();
+        usleep(20_000);
+
+        for ($i = 0; $i < 3; ++$i) {
+            $frames->next();
+            $this->assertTrue($frames->valid());
+            $this->assertNull($frames->current());
+        }
+    }
+
     #[TestDox('the acknowledgment drops types the server cannot honour')]
     public function testAcknowledgmentReflectsWhatTheServerCanDo(): void
     {

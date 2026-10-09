@@ -342,8 +342,9 @@ final class StatelessProtocol
      * JSON-RPC id of this request, so there is none to mint.
      *
      * @param array<string, mixed>|null $params
-     * @param bool                      $paced  whether the stream sleeps between polls itself, or its consumer
-     *                                          paces it by how often it asks for the next frame
+     * @param bool                      $paced  whether the stream sleeps between polls itself and ends after
+     *                                          the subscription lifetime, or its consumer paces it by how often
+     *                                          it asks for the next frame and ends it by dropping it
      */
     private function listen(?array $params, string|int $id, bool $paced = true): StatelessResult
     {
@@ -372,7 +373,9 @@ final class StatelessProtocol
 
             // The tick is not optional: PHP spots a dropped peer by writing,
             // and a sleeping loop would pin an FPM worker for the full lifetime.
-            $deadline = 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
+            // An unpaced stream pins nothing, and its consumer ends it on
+            // notifications/cancelled, so it is not bounded.
+            $deadline = !$paced || 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
 
             while (microtime(true) < $deadline) {
                 if (null !== $bus) {

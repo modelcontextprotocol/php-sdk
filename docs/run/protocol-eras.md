@@ -125,7 +125,7 @@ time: a request's progress and log messages are written as its handler emits the
 result, and the next message is read once that result is out. A `subscriptions/listen` is the
 long-lived exception: it stays open alongside other requests, each of its messages tagged with
 the subscription id, until the client sends `notifications/cancelled` for it, since there is no
-stream to close. stdio has no headers, so none of the `Mcp-*` header rules apply.
+stream to close. `setSubscriptionLifetime()` does not apply here. stdio has no headers, so none of the `Mcp-*` header rules apply.
 
 A server built `withoutModernEra()` refuses a modern opening with `-32022` naming the handshake
 revisions, and still accepts the handshake that follows.
