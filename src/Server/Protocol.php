@@ -243,7 +243,12 @@ class Protocol
             }
         }
 
-        $session->save();
+        try {
+            $session->save();
+        } catch (\Throwable $e) {
+            // The responses already reached the transport: an error for the same requests would contradict them.
+            $this->logger->error(\sprintf('Failed to save session: %s', $e->getMessage()), ['exception' => $e]);
+        }
     }
 
     /**

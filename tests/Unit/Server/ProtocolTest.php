@@ -499,6 +499,40 @@ final class ProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('A session that fails to save does not add an error to the responses already sent')]
+    public function testSaveFailureKeepsSentResponses(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturn(new Response(1, ['status' => 'ok']));
+
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('save')->willThrowException(new \RuntimeException('storage is gone'));
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput(
+            $transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "write_file", "arguments": {}}}',
+            Uuid::v4()
+        );
+
+        // The tool ran: answering it with an internal error too would tell the client it did not.
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(['status' => 'ok'], json_decode($transport->sent[0]['message'], true)['result']);
+    }
+
     #[TestDox('A failing notification event listener does not produce a response')]
     public function testFailingNotificationListenerDoesNotProduceResponse(): void
     {
