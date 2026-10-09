@@ -200,50 +200,43 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    private function negotiate(Configuration $config): Response|Error
+    private function negotiate(Configuration $config, ?ProtocolVersion $version = null, bool $reprobed = false): Response|Error
     {
-        $version = $config->protocolVersion;
+        $this->enterModernEra($version ?? $config->protocolVersion, $config);
 
-        // Twice: a timed-out probe may still have settled a slow server on the modern era.
-        for ($attempt = 0; $attempt < 2; ++$attempt) {
-            $this->enterModernEra($version, $config);
+        $probe = $this->request(new DiscoverRequest(), $config->initTimeout);
+        $adopted = $this->adopt($probe);
 
-            $probe = $this->request(new DiscoverRequest(), $config->initTimeout);
-            $adopted = $this->adopt($probe);
-
-            if ($adopted instanceof Response || $adopted instanceof Error) {
-                return $adopted;
-            }
-
-            if (null === $config->fallbackProtocolVersion) {
-                return Error::forInvalidRequest(\sprintf(
-                    'Server does not speak protocol version %s and this client is configured without a handshake fallback: %s',
-                    $config->protocolVersion->value,
-                    self::describe($probe),
-                ));
-            }
-
-            $this->logger->info('Server does not speak the modern era; falling back to the "initialize" handshake.', [
-                'probe' => self::describe($probe),
-                'offering' => $config->fallbackProtocolVersion->value,
-            ]);
-
-            $this->envelope = null;
-            $this->headers = null;
-
-            $handshake = $this->handshake($config->fallbackProtocolVersion, $config);
-
-            if ($handshake instanceof Error && 0 === $attempt && null !== $modern = self::mutualModern($handshake)) {
-                $this->logger->info('Server settled on the modern era after all; probing again.', ['version' => $modern->value]);
-                $version = $modern;
-
-                continue;
-            }
-
-            return $handshake;
+        if ($adopted instanceof Response || $adopted instanceof Error) {
+            return $adopted;
         }
 
-        return Error::forInternalError('Protocol negotiation did not settle on a revision.');
+        if (null === $config->fallbackProtocolVersion) {
+            return Error::forInvalidRequest(\sprintf(
+                'Server does not speak protocol version %s and this client is configured without a handshake fallback: %s',
+                $config->protocolVersion->value,
+                self::describe($probe),
+            ));
+        }
+
+        $this->logger->info('Server does not speak the modern era; falling back to the "initialize" handshake.', [
+            'probe' => self::describe($probe),
+            'offering' => $config->fallbackProtocolVersion->value,
+        ]);
+
+        $this->envelope = null;
+        $this->headers = null;
+
+        $handshake = $this->handshake($config->fallbackProtocolVersion, $config);
+
+        // Once more: a timed-out probe may still have settled a slow server on the modern era.
+        if ($handshake instanceof Error && !$reprobed && null !== $modern = self::mutualModern($handshake)) {
+            $this->logger->info('Server settled on the modern era after all; probing again.', ['version' => $modern->value]);
+
+            return $this->negotiate($config, $modern, true);
+        }
+
+        return $handshake;
     }
 
     private function enterModernEra(ProtocolVersion $version, Configuration $config): void
