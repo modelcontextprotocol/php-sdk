@@ -21,10 +21,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (FiberReturn|null)
- * @phpstan-type FiberSuspend (
- *    array{type: 'notification', notification: \Mcp\Schema\JsonRpc\Notification}|
- *    array{type: 'request', request: \Mcp\Schema\JsonRpc\Request, timeout?: int}
- * )
+ * @phpstan-type FiberSuspend (\Mcp\Server\Suspension\NotificationSuspension|\Mcp\Server\Suspension\RequestSuspension)
  * @phpstan-type McpFiber \Fiber<null, FiberReturn, FiberReturn, FiberSuspend>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>

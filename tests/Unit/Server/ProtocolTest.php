@@ -18,17 +18,22 @@ use Mcp\Event\ResponseEvent;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
+use Mcp\Server\Suspension\NotificationSuspension;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -802,9 +807,9 @@ final class ProtocolTest extends TestCase
     {
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('supports')->willReturn(true);
-        $handler->method('handle')->willReturnCallback(static function (): Response {
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
             // Suspend with an outbound, id-less request, as sampling/elicitation handlers do.
-            \Fiber::suspend(['type' => 'request', 'request' => new PingRequest(), 'timeout' => 5]);
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
 
             return new Response(1, []);
         });
@@ -844,11 +849,11 @@ final class ProtocolTest extends TestCase
         $this->assertSame($exception, $errorEvents[0]->getThrowable());
         $this->assertSame(1, $errorEvents[0]->getError()->getId());
 
-        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
-        $errors = array_values(array_filter(
-            array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $outgoing),
-            static fn (array $message): bool => isset($message['error']),
-        ));
+        $outgoing = array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $protocol->consumeOutgoingMessages($sessionId));
+        $outbound = array_values(array_filter($outgoing, static fn (array $message): bool => 'ping' === ($message['method'] ?? null)));
+        $this->assertCount(1, $outbound);
+
+        $errors = array_values(array_filter($outgoing, static fn (array $message): bool => isset($message['error'])));
         $this->assertCount(1, $errors);
         $this->assertSame(1, $errors[0]['id']);
         $this->assertSame(Error::INTERNAL_ERROR, $errors[0]['error']['code']);
@@ -1699,6 +1704,95 @@ final class ProtocolTest extends TestCase
         $this->assertStringNotContainsString('s3cr3t-payload', $infoAndAbove);
         $this->assertStringContainsString($identifier, $infoAndAbove);
         $this->assertStringContainsString('s3cr3t-payload', $debug);
+    }
+
+    #[TestDox('A notification suspension from the gateway round-trips into the outgoing queue')]
+    public function testFiberYieldedNotificationSuspensionIsQueued(): void
+    {
+        $sessionId = Uuid::v4();
+        $session = new Session(new InMemorySessionStore(), $sessionId);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $gateway = new ClientGateway($session);
+        $notification = new LoggingMessageNotification(LoggingLevel::Info, 'hello');
+
+        $fiber = new \Fiber(static fn () => $gateway->notify($notification));
+        $suspension = $fiber->start();
+
+        $this->assertInstanceOf(NotificationSuspension::class, $suspension);
+        $this->assertSame($sessionId->toRfc4122(), $suspension->sessionId);
+
+        $protocol->handleFiberYield($suspension, $sessionId);
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+        $this->assertSame(['type' => 'notification'], $outgoing[0]['context']);
+        $this->assertSame(json_encode($notification), $outgoing[0]['message']);
+    }
+
+    #[TestDox('A request suspension from the gateway round-trips into the outgoing queue and pending requests')]
+    public function testFiberYieldedRequestSuspensionIsQueued(): void
+    {
+        $sessionId = Uuid::v4();
+        $session = new Session(new InMemorySessionStore(), $sessionId);
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $gateway = new ClientGateway($session);
+
+        $fiber = new \Fiber(static fn () => $gateway->listRoots(timeout: 45));
+        $suspension = $fiber->start();
+
+        $this->assertInstanceOf(RequestSuspension::class, $suspension);
+        $this->assertSame($sessionId->toRfc4122(), $suspension->sessionId);
+        $this->assertSame(45, $suspension->timeout);
+        $this->assertNull($suspension->inputKey);
+
+        $protocol->handleFiberYield($suspension, $sessionId);
+
+        $pending = $protocol->getPendingRequests($sessionId);
+        $this->assertCount(1, $pending);
+        $this->assertSame(45, $pending[1000]['timeout']);
+
+        $outgoing = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $outgoing);
+        $this->assertSame(['type' => 'request'], $outgoing[0]['context']);
+
+        $message = json_decode($outgoing[0]['message'], true);
+        $this->assertSame('roots/list', $message['method']);
+        $this->assertSame(1000, $message['id']);
+    }
+
+    #[TestDox('A fiber yield that is not a suspension object is dropped without touching the session')]
+    public function testFiberYieldedUnexpectedPayloadIsIgnored(): void
+    {
+        $this->sessionManager->expects($this->never())->method('createWithId');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        // The pre-VO array shape is deliberately no longer accepted.
+        // @phpstan-ignore argument.type
+        $protocol->handleFiberYield(['type' => 'notification'], Uuid::v4());
     }
 }
 

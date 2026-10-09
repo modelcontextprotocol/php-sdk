@@ -28,6 +28,7 @@ use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Suspension\RequestSuspension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -217,11 +218,10 @@ final class ClientGatewayTest extends TestCase
         $fiber = new \Fiber($call);
         $suspend = $fiber->start();
 
-        $this->assertIsArray($suspend);
-        $this->assertSame('request', $suspend['type']);
-        $this->assertInstanceOf($expectedRequest, $suspend['request']);
+        $this->assertInstanceOf(RequestSuspension::class, $suspend);
+        $this->assertInstanceOf($expectedRequest, $suspend->request);
 
-        $request = $suspend['request'];
+        $request = $suspend->request;
 
         $fiber->resume($response);
 

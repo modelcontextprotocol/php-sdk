@@ -30,6 +30,8 @@ use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
+use Mcp\Server\Suspension\NotificationSuspension;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -322,17 +324,10 @@ class Protocol
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
-                    if (\is_array($result) && isset($result['type'])) {
-                        if ('notification' === $result['type']) {
-                            $notification = $result['notification'];
-                            $this->sendNotification($notification, $session);
-                        } elseif ('request' === $result['type']) {
-                            // Keep $request untouched: it is the inbound request the catch
-                            // blocks below answer under, not this outbound one.
-                            $outboundRequest = $result['request'];
-                            $timeout = $result['timeout'] ?? 120;
-                            $this->sendRequest($outboundRequest, $timeout, $session);
-                        }
+                    if ($result instanceof NotificationSuspension) {
+                        $this->sendNotification($result->notification, $session);
+                    } elseif ($result instanceof RequestSuspension) {
+                        $this->sendRequest($result->request, $result->timeout, $session);
                     }
 
                     $transport->attachFiberToSession($fiber, $session->getId());
@@ -618,7 +613,7 @@ class Protocol
             return;
         }
 
-        if (!\is_array($yieldedValue) || !isset($yieldedValue['type'])) {
+        if (!$yieldedValue instanceof NotificationSuspension && !$yieldedValue instanceof RequestSuspension) {
             $this->logger->warning('Fiber yielded unexpected payload.', [
                 'payload' => $yieldedValue,
                 'session_id' => $sessionId->toRfc4122(),
@@ -629,43 +624,18 @@ class Protocol
 
         $session = $this->sessionManager->createWithId($sessionId);
 
-        $payloadSessionId = $yieldedValue['session_id'] ?? null;
-        if (\is_string($payloadSessionId) && $payloadSessionId !== $sessionId->toRfc4122()) {
+        if ($yieldedValue->sessionId !== $sessionId->toRfc4122()) {
             $this->logger->warning('Fiber yielded payload with mismatched session ID.', [
-                'payload_session_id' => $payloadSessionId,
+                'payload_session_id' => $yieldedValue->sessionId,
                 'expected_session_id' => $sessionId->toRfc4122(),
             ]);
         }
 
         try {
-            if ('notification' === $yieldedValue['type']) {
-                $notification = $yieldedValue['notification'] ?? null;
-                if (!$notification instanceof Notification) {
-                    $this->logger->warning('Fiber yielded notification without Notification instance.', [
-                        'payload' => $yieldedValue,
-                    ]);
-
-                    return;
-                }
-
-                $this->sendNotification($notification, $session);
-            } elseif ('request' === $yieldedValue['type']) {
-                $request = $yieldedValue['request'] ?? null;
-                if (!$request instanceof Request) {
-                    $this->logger->warning('Fiber yielded request without Request instance.', [
-                        'payload' => $yieldedValue,
-                    ]);
-
-                    return;
-                }
-
-                $timeout = isset($yieldedValue['timeout']) ? (int) $yieldedValue['timeout'] : 120;
-                $this->sendRequest($request, $timeout, $session);
-            } else {
-                $this->logger->warning('Fiber yielded unknown operation type.', [
-                    'type' => $yieldedValue['type'],
-                ]);
-            }
+            match (true) {
+                $yieldedValue instanceof NotificationSuspension => $this->sendNotification($yieldedValue->notification, $session),
+                $yieldedValue instanceof RequestSuspension => $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session),
+            };
         } finally {
             $session->save();
         }
