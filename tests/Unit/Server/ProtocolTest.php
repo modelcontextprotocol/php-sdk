@@ -34,6 +34,8 @@ use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Server\Transport\InlineResponseTransportInterface;
+use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
@@ -1032,6 +1034,48 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertArrayHasKey('result', $message);
         $this->assertEquals(['status' => 'ok'], $message['result']);
+    }
+
+    #[TestDox('An inline response transport gets the response directly, not through the session queue')]
+    public function testInlineResponseTransportGetsResponseDirectly(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturn(new Response(1, ['status' => 'ok']));
+
+        $sessions = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessions->createWithId($sessionId)->save();
+
+        $transport = new class extends InMemoryTransport implements InlineResponseTransportInterface {
+            /** @var list<array{string, array<string, mixed>}> */
+            public array $sent = [];
+
+            public function send(string $data, array $context): void
+            {
+                $this->sent[] = [$data, $context];
+            }
+        };
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessions,
+        );
+
+        $protocol->processInput(
+            $transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
+            $sessionId
+        );
+
+        $this->assertCount(1, $transport->sent);
+        [$data, $context] = $transport->sent[0];
+        $this->assertSame(['status' => 'ok'], json_decode($data, true)['result']);
+        $this->assertSame('response', $context['type']);
+        $this->assertEquals($sessionId, $context['session_id']);
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
     }
 
     #[TestDox('Batch requests are processed and send multiple responses')]
