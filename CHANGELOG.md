@@ -49,6 +49,9 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
 * Fix a handler throwing after its fiber resumed (e.g. after elicitation or sampling) escaping to the transport: it is now answered with an error response like one throwing before suspending.
 * Drop a client response to a request ID the server is not waiting on, or that timed out, instead of storing it in the session, where nothing would ever consume it.
+* Add an opt-in per-session lock, `Builder::setSessionLock()`, serializing the concurrent requests of one session so none of them overwrites what another saved: pending server requests, client answers, client info. `FileSessionLock` locks with `flock()` next to `FileSessionStore`, `SymfonyLockSessionLock` uses a symfony/lock store for sessions shared across machines; `SessionLockInterface` takes custom ones. Off by default. A request that cannot get the lock in time is answered with `503` and a JSON-RPC error.
+* `Protocol::__construct()` takes an optional `SessionLockInterface $sessionLock` as its last argument.
+* `FileSessionStore::gc()` also removes the lock files of expired sessions a `FileSessionLock` in the same directory left behind.
 
 0.8.0
 -----

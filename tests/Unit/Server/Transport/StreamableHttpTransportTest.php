@@ -13,9 +13,13 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionLockInterface;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
@@ -40,9 +44,24 @@ final class StreamableHttpTransportTest extends TestCase
 {
     private Psr17Factory $factory;
 
+    private ?string $lockDirectory = null;
+
     protected function setUp(): void
     {
         $this->factory = new Psr17Factory();
+    }
+
+    protected function tearDown(): void
+    {
+        if (null === $this->lockDirectory || !is_dir($this->lockDirectory)) {
+            return;
+        }
+
+        foreach (glob($this->lockDirectory.'/*') ?: [] as $file) {
+            @unlink($file);
+        }
+
+        @rmdir($this->lockDirectory);
     }
 
     #[TestDox('default middleware is applied when none is passed')]
@@ -557,10 +576,54 @@ final class StreamableHttpTransportTest extends TestCase
         );
     }
 
+    #[TestDox('with a session lock, a POST arriving while another of the session runs is held off instead of overwriting it')]
+    public function testSessionLockHoldsOffAConcurrentPostOfTheSameSession(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $this->fileLock())
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        // B loads the session before A saved it, the lost update: on its own worker, with its own lock instance.
+        $responseB = null;
+        $store->interleaveOnNextWrite(function () use ($store, $sessionId, &$responseB): void {
+            $responseB = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"text":"b"}}}', $sessionId, $this->fileLock());
+        }, readBeforeWrite: true);
+
+        $responseA = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', $sessionId, $this->fileLock());
+
+        $this->assertSame(200, $responseA->getStatusCode());
+        $this->assertSame(2, json_decode((string) $responseA->getBody(), true)['id'] ?? null);
+
+        $this->assertInstanceOf(ResponseInterface::class, $responseB);
+        $this->assertSame(503, $responseB->getStatusCode());
+        $error = json_decode((string) $responseB->getBody(), true);
+        $this->assertSame(3, $error['id'] ?? null);
+        $this->assertSame(Error::SERVER_ERROR, $error['error']['code'] ?? null);
+    }
+
+    #[TestDox('the session lock is released while a handler waits for the client, so the next request of the session proceeds')]
+    public function testSessionLockIsReleasedWhileAHandlerWaitsForTheClient(): void
+    {
+        $store = new InterleavingSessionStore();
+        $lock = $this->fileLock();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $lock)
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $first = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask","arguments":{}}}', $sessionId, $lock);
+        $second = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ask","arguments":{}}}', $sessionId, $lock);
+
+        $this->assertSame('text/event-stream', $first->getHeaderLine('Content-Type'));
+        $this->assertSame('text/event-stream', $second->getHeaderLine('Content-Type'));
+
+        // Both requests to the client were stored, each under its own id.
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $this->assertSame([1000, 1001], array_keys($session->get('_mcp.pending_requests')));
+    }
+
     /**
      * Sends one POST to a fresh server sharing $store, like a PHP worker would.
      */
-    private function post(InterleavingSessionStore $store, string $body, string $sessionId = ''): ResponseInterface
+    private function post(InterleavingSessionStore $store, string $body, string $sessionId = '', ?SessionLockInterface $lock = null): ResponseInterface
     {
         $request = $this->factory
             ->createServerRequest('POST', 'http://localhost/')
@@ -575,7 +638,7 @@ final class StreamableHttpTransportTest extends TestCase
                 ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, '2025-06-18');
         }
 
-        $server = Server::builder()
+        $builder = Server::builder()
             ->setServerInfo('test', '1.0')
             ->setSession($store)
             ->addTool(static fn (string $text): string => $text, 'echo')
@@ -584,9 +647,28 @@ final class StreamableHttpTransportTest extends TestCase
 
                 return 'done';
             }, 'progress')
-            ->build();
+            ->addTool(static function (RequestContext $context): string {
+                // Suspends on a request to the client, as elicitation and sampling do.
+                \Fiber::suspend(new RequestSuspension(new PingRequest(), $context->getSession()->getId()->toRfc4122(), 5));
 
-        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+                return 'done';
+            }, 'ask');
+
+        if (null !== $lock) {
+            $builder->setSessionLock($lock);
+        }
+
+        return $builder->build()->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+    }
+
+    /**
+     * A lock instance of its own, as each worker has, over one shared directory.
+     */
+    private function fileLock(): FileSessionLock
+    {
+        $this->lockDirectory ??= sys_get_temp_dir().'/mcp-session-lock-'.bin2hex(random_bytes(6));
+
+        return new FileSessionLock($this->lockDirectory, timeout: 0.05);
     }
 
     private function stubAuth401(): MiddlewareInterface

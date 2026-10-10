@@ -144,7 +144,8 @@ class FileSessionStore implements SessionStoreInterface
 
     /**
      * Remove sessions older than the configured TTL, along with the temporary files
-     * of writes that never made it into place.
+     * of writes that never made it into place and the lock files a {@see FileSessionLock}
+     * in the same directory left behind.
      * Returns an array of deleted session IDs (UUID instances).
      */
     public function gc(): array
@@ -169,7 +170,7 @@ class FileSessionStore implements SessionStoreInterface
             }
 
             $isSession = Uuid::isValid($entry);
-            if (!$isSession && !$this->isTemporaryFile($entry)) {
+            if (!$isSession && !$this->isTemporaryFile($entry) && !$this->isLockFile($entry)) {
                 continue;
             }
 
@@ -207,6 +208,15 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         return Uuid::isValid($matches['id']);
+    }
+
+    private function isLockFile(string $entry): bool
+    {
+        if (!str_ends_with($entry, FileSessionLock::FILE_SUFFIX)) {
+            return false;
+        }
+
+        return Uuid::isValid(substr($entry, 0, -\strlen(FileSessionLock::FILE_SUFFIX)));
     }
 
     private function pathFor(Uuid $id): string

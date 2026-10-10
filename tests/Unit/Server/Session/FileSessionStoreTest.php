@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Session;
 
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\RuntimeException;
+use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Session\FileSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -107,6 +108,37 @@ class FileSessionStoreTest extends TestCase
         $this->assertSame([], $deleted);
         $this->assertFileDoesNotExist($orphan);
         $this->assertFileExists($fresh);
+        $this->assertFileExists($this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122());
+    }
+
+    #[TestDox('gc() collects the lock files of expired sessions, and leaves those of live sessions and foreign .lock files alone')]
+    public function testGcCollectsExpiredLockFiles(): void
+    {
+        $store = new FileSessionStore($this->directory, ttl: 60);
+        $id = new UuidV4();
+        $store->write($id, 'payload');
+
+        $lock = new FileSessionLock($this->directory);
+        $lock->acquire($id);
+        $lock->release($id);
+        $live = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122().FileSessionLock::FILE_SUFFIX;
+        $this->assertFileExists($live);
+
+        $expired = $this->directory.\DIRECTORY_SEPARATOR.(new UuidV4())->toRfc4122().FileSessionLock::FILE_SUFFIX;
+        file_put_contents($expired, '');
+        touch($expired, time() - 120);
+
+        $foreign = $this->directory.\DIRECTORY_SEPARATOR.'important.lock';
+        file_put_contents($foreign, 'not a session lock');
+        touch($foreign, time() - 120);
+
+        $deleted = $store->gc();
+
+        // A lock file is not a session, so collecting it is not a session deletion.
+        $this->assertSame([], $deleted);
+        $this->assertFileDoesNotExist($expired);
+        $this->assertFileExists($live);
+        $this->assertFileExists($foreign);
         $this->assertFileExists($this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122());
     }
 
