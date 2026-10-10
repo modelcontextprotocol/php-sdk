@@ -82,7 +82,7 @@ $server = Server::builder()
 
 #### Parameters
 
-- `handler` (callable|string): The tool handler
+- `handler` (callable|array|string): The tool handler
 - `name` (string|null): Optional tool name
 - `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional tool description
@@ -109,7 +109,7 @@ $server = Server::builder()
 
 #### Parameters
 
-- `handler` (callable|string): The resource handler
+- `handler` (\Closure|array|string): The resource handler
 - `uri` (string): The resource URI
 - `name` (string|null): Optional resource name
 - `title` (string|null): Optional human-readable title for display in UI
@@ -137,7 +137,7 @@ $server = Server::builder()
 
 #### Parameters
 
-- `handler` (callable|string): The resource template handler
+- `handler` (\Closure|array|string): The resource template handler
 - `uriTemplate` (string): The resource URI template
 - `name` (string|null): Optional resource template name
 - `title` (string|null): Optional human-readable title for display in UI
@@ -161,16 +161,18 @@ $server = Server::builder()
 
 #### Parameters
 
-- `handler` (callable|string): The prompt handler
+- `handler` (\Closure|array|string): The prompt handler
 - `name` (string|null): Optional prompt name
 - `title` (string|null): Optional human-readable title for display in UI
 - `description` (string|null): Optional prompt description
 - `icons` (Icon[]|null): Optional array of icons for the prompt
 - `meta` (array|null): Optional metadata for the prompt
 
-**Note:** `name` and `description` are optional when the handler is a method or an invokable class — they are then
-derived from the method name and its docblock. A **closure** handler has neither, so it gets a generated name
-(`closure_tool_<id>`) and no description; name your closures explicitly.
+**Note:** `name` and `description` are optional when the handler is a method or an invokable class. The name defaults to
+the method name, or to the class short name for an invokable class. The description comes from the docblock.
+
+A **closure** handler gets a generated name (`closure_tool_<id>`, `closure_resource_<id>`, `closure_template_<id>` or
+`closure_prompt_<id>`) and no description. Name your closures explicitly.
 
 For more details on the elements themselves, see [Tools](tools.md), [Resources](resources.md), [Resource templates](resource-templates.md), and [Prompts](prompts.md).
 
@@ -222,10 +224,15 @@ $server = Server::builder()
 ```
 
 `Builder::add()` validates the pairing at registration time. Pairing a `Tool` definition with, for example, a
-`PromptHandlerInterface` raises `Mcp\Exception\InvalidArgumentException`. The schema value objects validate some of
-their own input as well — `Tool` requires an object-typed input schema, `ResourceDefinition` and `ResourceTemplate`
-check the name pattern and URI — but an invalid tool or prompt *name* is not rejected, it is only logged as a warning
-when the element is registered.
+`PromptHandlerInterface` raises `Mcp\Exception\InvalidArgumentException`.
+
+The schema value objects validate some of their own input as well. `Tool` requires an object-typed input schema.
+`ResourceDefinition` and `ResourceTemplate` check the URI.
+
+An invalid tool name is not rejected. The registry only logs a warning when you register the tool.
+
+For `Prompt` and `ResourceTemplate` definitions, `add()` takes completion providers as a third argument. See
+[Registering providers without discovery](completions.md#registering-providers-without-discovery).
 
 Use `add()` when the metadata cannot be inferred from a handler class via reflection. For statically-known elements,
 prefer `addTool/addResource/addResourceTemplate/addPrompt`, which can derive metadata from the handler's signature and

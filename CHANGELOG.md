@@ -45,6 +45,13 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
 * Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
 * [BC Break] Bump `MessageInterface::PROTOCOL_VERSION` to `2026-07-28`. Use `ProtocolVersion::latestHandshake()` where a handshake revision is needed, e.g. in an `initialize` answer.
+* Fix `ClientLogger` dropping messages below `warning` on `2026-07-28` requests that ask for a lower level with `io.modelcontextprotocol/logLevel`.
+
+0.8.1
+-----
+
+* Fix variadic tool parameters (e.g. `int ...$scores`) failing with a cast error: each element of the array a client sends is now cast on its own.
+* Fix `Builder::build()` with a registry passed to `setRegistry()` publishing one `list_changed` notification per loaded element. Adds `Registry::loadFrom()`.
 
 0.8.0
 -----
@@ -77,6 +84,13 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `annotations` to `ImageContent`.
 * Fix empty tool/resource schemas serializing as `[]` instead of `{}`.
 * Fix `PromptResultFormatter` dropping `annotations`, `_meta` and `mimeType` for plain-array content.
+
+0.7.1
+-----
+
+* Cap the line length the server `StdioTransport` reads (`$maxLineBytes`, default 4 MiB) and discard longer lines, so a peer that never sends a newline cannot exhaust memory (GHSA-vm75-qjc7-xh6w).
+* Cap the output buffer of the client `StdioTransport` (`$maxBufferSize`, default 4 MiB) and fail the pending request when it is reached (GHSA-6vrr-g4hw-f3hj).
+* Cap the SSE buffer of the client `HttpTransport` (`$maxSseBufferBytes`, default 8 MiB) and fail the pending request when it is reached (GHSA-7m52-jw36-44r3).
 
 0.7.0
 -----
@@ -117,7 +131,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `Builder::addResource()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * [BC Break] `Builder::addResourceTemplate()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * Add `CorsMiddleware`, `DnsRebindingProtectionMiddleware`, and `ProtocolVersionMiddleware` for `StreamableHttpTransport`, composed automatically as the default stack via `StreamableHttpTransport::defaultMiddleware()`
-* [BC BREAK] `StreamableHttpTransport` constructor: `$corsHeaders` parameter removed; CORS is now configured via `CorsMiddleware`. The `$middleware` parameter is nullable — `null` (or omitted) installs the default stack; `[]` disables all defaults. Default `Access-Control-Allow-Origin` is no longer set (was `*`).
+* [BC Break] `StreamableHttpTransport` constructor: `$corsHeaders` parameter removed; CORS is now configured via `CorsMiddleware`. The `$middleware` parameter is nullable — `null` (or omitted) installs the default stack; `[]` disables all defaults. Default `Access-Control-Allow-Origin` is no longer set (was `*`).
 * [BC Break] `ResourceDefinition::__construct()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * [BC Break] `ResourceTemplate::__construct()` signature changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
 * [BC Break] `McpResource` and `McpResourceTemplate` attribute signatures changed — `$title` parameter added between `$name` and `$description`. Callers using positional arguments must switch to named arguments.
@@ -129,7 +143,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add client component for building MCP clients
 * Add `Builder::setReferenceHandler()` to allow custom `ReferenceHandlerInterface` implementations (e.g. authorization decorators)
 * Add elicitation enum schema types per SEP-1330: `TitledEnumSchemaDefinition`, `MultiSelectEnumSchemaDefinition`, `TitledMultiSelectEnumSchemaDefinition`
-* [BC break] Make Symfony Finder component optional. Users would need to install `symfony/finder` now themselves
+* [BC Break] Make Symfony Finder component optional. Users would need to install `symfony/finder` now themselves
 * Add `LenientOidcDiscoveryMetadataPolicy` for identity providers that omit `code_challenge_methods_supported` (e.g. FusionAuth, Microsoft Entra ID)
 * Add OAuth 2.0 Dynamic Client Registration middleware (RFC 7591)
 * Add optional `title` field to `Prompt` and `McpPrompt` for MCP spec compliance

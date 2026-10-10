@@ -10,6 +10,7 @@ cannot contain `/`.
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Exception\ResourceNotFoundException;
 
 class UserProvider
 {
@@ -24,7 +25,7 @@ class UserProvider
     )]
     public function getUserProfile(string $userId, string $section): array
     {
-        return $this->users[$userId][$section] ?? throw new \InvalidArgumentException("Profile section not found");
+        return $this->users[$userId][$section] ?? throw new ResourceNotFoundException("user://{$userId}/profile/{$section}");
     }
 }
 ```

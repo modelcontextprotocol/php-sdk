@@ -125,6 +125,8 @@ public function getMultipleResources(): array
 Resource handlers can throw any exception, but the type determines how it's handled:
 
 - **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
+- **`ResourceNotFoundException`**: Converted to a "resource not found" JSON-RPC error. The code is `-32602` from
+  protocol version `2026-07-28` on, and `-32002` before
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
@@ -150,3 +152,7 @@ public function getFile(string $path): string
 ```
 
 **Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+
+Throw `ResourceNotFoundException` when nothing exists at the requested URI, for example an unknown ID in a
+[resource template](resource-templates.md). Its constructor takes that URI. Throw `ResourceReadException` when the
+resource exists but reading it fails.
