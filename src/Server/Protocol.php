@@ -56,8 +56,11 @@ use Symfony\Component\Uid\Uuid;
  */
 class Protocol
 {
-    /** Session key for request ID counter */
-    private const SESSION_REQUEST_ID_COUNTER = '_mcp.request_id_counter';
+    /**
+     * Largest id a request to the client gets: JavaScript clients read JSON numbers as doubles,
+     * which hold integers exactly only up to 2^53 - 1.
+     */
+    private const MAX_REQUEST_ID = 9007199254740991;
 
     /** Session key for pending outgoing requests */
     private const SESSION_PENDING_REQUESTS = '_mcp.pending_requests';
@@ -92,6 +95,14 @@ class Protocol
     private \WeakMap $awaitedRequestIds;
 
     /**
+     * What each transport's fiber sends the client, kept out of the session for the same reason:
+     * a request or notification must go out on the stream of the call that produced it.
+     *
+     * @var \WeakMap<TransportInterface<mixed>, list<array{message: string, context: array<string, mixed>}>>
+     */
+    private \WeakMap $fiberOutgoingMessages;
+
+    /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
      */
@@ -107,6 +118,7 @@ class Protocol
         private readonly ?SessionLockInterface $sessionLock = null,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
+        $this->fiberOutgoingMessages = new \WeakMap();
     }
 
     /**
@@ -122,14 +134,20 @@ class Protocol
 
         $transport->onSessionEnd($this->destroySession(...));
 
-        $transport->setOutgoingMessagesProvider($this->consumeOutgoingMessages(...));
+        // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
+        $transportRef = \WeakReference::create($transport);
+
+        $transport->setOutgoingMessagesProvider(fn (Uuid $sessionId): array => [
+            ...$this->takeFiberOutgoingMessages($transportRef->get()),
+            ...$this->consumeOutgoingMessages($sessionId),
+        ]);
 
         $transport->setPendingRequestsProvider(fn (Uuid $sessionId, \Fiber $fiber): array => $this->getAwaitedPendingRequests($fiber, $sessionId));
 
         $transport->setResponseFinder($this->checkResponse(...));
 
-        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId, \Fiber $fiber): void {
-            $this->trackAwaitedRequest($fiber, $this->handleFiberYield($yieldedValue, $sessionId));
+        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId, \Fiber $fiber) use ($transportRef): void {
+            $this->trackAwaitedRequest($fiber, $this->handleFiberYield($yieldedValue, $sessionId, $transportRef->get()));
         });
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
@@ -401,10 +419,12 @@ class Protocol
                     $beforeSuspension = $session->all();
 
                     $awaitedRequestId = null;
+                    $outgoing = null;
                     if ($result instanceof NotificationSuspension) {
-                        $this->sendNotification($result->notification, $session);
+                        $outgoing = $result->notification;
                     } elseif ($result instanceof RequestSuspension) {
-                        $awaitedRequestId = $this->sendRequest($result->request, $result->timeout, $session);
+                        $awaitedRequestId = $this->registerRequest($result->request, $result->timeout, $session);
+                        $outgoing = $result->request->withId($awaitedRequestId);
                     }
 
                     // The transport resumes the fiber from what the session holds: it must
@@ -426,6 +446,10 @@ class Protocol
 
                     $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
+
+                    if (null !== $outgoing) {
+                        $this->queueFiberOutgoing($transport, $outgoing);
+                    }
 
                     return;
                 }
@@ -505,13 +529,24 @@ class Protocol
      */
     public function sendRequest(Request $request, int $timeout, SessionInterface $session): int
     {
-        $counter = $session->get(self::SESSION_REQUEST_ID_COUNTER, 1000);
-        $requestId = $counter++;
-        $session->set(self::SESSION_REQUEST_ID_COUNTER, $counter);
+        $requestId = $this->registerRequest($request, $timeout, $session);
 
-        $requestWithId = $request->withId($requestId);
+        $this->queueOutgoing($request->withId($requestId), ['type' => 'request'], $session);
 
-        $this->dispatchEvent(new ServerRequestEvent($requestWithId, $timeout, $session));
+        return $requestId;
+    }
+
+    /**
+     * Picks the id of a request to the client and stores the request as pending in the session.
+     *
+     * The id is random, not counted in the session: concurrent requests of a client load
+     * the session at the same time and would count up to the same id.
+     */
+    private function registerRequest(Request $request, int $timeout, SessionInterface $session): int
+    {
+        $requestId = random_int(1, self::MAX_REQUEST_ID);
+
+        $this->dispatchEvent(new ServerRequestEvent($request->withId($requestId), $timeout, $session));
 
         $this->logger->info('Queueing server request to client', [
             'request_id' => $requestId,
@@ -524,8 +559,6 @@ class Protocol
             'timeout' => $timeout,
             'timestamp' => time(),
         ]);
-
-        $this->queueOutgoing($requestWithId, ['type' => 'request'], $session);
 
         return $requestId;
     }
@@ -591,6 +624,55 @@ class Protocol
      */
     private function queueOutgoing(Request|Notification $message, array $context, SessionInterface $session): void
     {
+        if (null === $outgoing = $this->encodeOutgoing($message, $context)) {
+            return;
+        }
+
+        $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
+        $queue[] = $outgoing;
+        $session->set(self::SESSION_OUTGOING_QUEUE, $queue);
+    }
+
+    /**
+     * Queues what a transport's fiber sends the client, for that transport alone.
+     *
+     * @param TransportInterface<mixed> $transport
+     */
+    private function queueFiberOutgoing(TransportInterface $transport, Request|Notification $message): void
+    {
+        if (null === $outgoing = $this->encodeOutgoing($message, ['type' => $message instanceof Request ? 'request' : 'notification'])) {
+            return;
+        }
+
+        $queue = $this->fiberOutgoingMessages[$transport] ?? [];
+        $queue[] = $outgoing;
+        $this->fiberOutgoingMessages[$transport] = $queue;
+    }
+
+    /**
+     * @param TransportInterface<mixed>|null $transport
+     *
+     * @return list<array{message: string, context: array<string, mixed>}>
+     */
+    private function takeFiberOutgoingMessages(?TransportInterface $transport): array
+    {
+        if (null === $transport || !isset($this->fiberOutgoingMessages[$transport])) {
+            return [];
+        }
+
+        $queue = $this->fiberOutgoingMessages[$transport];
+        unset($this->fiberOutgoingMessages[$transport]);
+
+        return $queue;
+    }
+
+    /**
+     * @param array<string, mixed> $context
+     *
+     * @return array{message: string, context: array<string, mixed>}|null
+     */
+    private function encodeOutgoing(Request|Notification $message, array $context): ?array
+    {
         try {
             $encoded = json_encode($message, \JSON_THROW_ON_ERROR);
         } catch (\JsonException $e) {
@@ -598,15 +680,13 @@ class Protocol
                 'exception' => $e,
             ]);
 
-            return;
+            return null;
         }
 
-        $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
-        $queue[] = [
+        return [
             'message' => $encoded,
             'context' => $context,
         ];
-        $session->set(self::SESSION_OUTGOING_QUEUE, $queue);
     }
 
     /**
@@ -741,11 +821,15 @@ class Protocol
     /**
      * Handle values yielded by Fibers during transport-managed resumes.
      *
-     * @param FiberSuspend|null $yieldedValue
+     * With the transport the fiber runs on, what it sends goes out on that transport alone;
+     * without one, it is queued for whichever stream of the session asks first.
+     *
+     * @param FiberSuspend|null              $yieldedValue
+     * @param TransportInterface<mixed>|null $transport
      *
      * @return int|null the ID of the request sent to the client, which the fiber now waits on
      */
-    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId): ?int
+    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId, ?TransportInterface $transport = null): ?int
     {
         if (!$sessionId) {
             $this->logger->warning('Fiber yielded value without associated session context.');
@@ -773,6 +857,8 @@ class Protocol
         // cannot be had, the exception makes the transport resume the fiber with an error.
         $this->sessionLock?->acquire($sessionId);
 
+        $requestId = null;
+
         try {
             // A session destroyed while the request ran, e.g. by a DELETE, must not be saved back.
             if (!$this->sessionManager->exists($sessionId)) {
@@ -787,10 +873,15 @@ class Protocol
 
             try {
                 if ($yieldedValue instanceof RequestSuspension) {
-                    return $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session);
+                    $requestId = $this->registerRequest($yieldedValue->request, $yieldedValue->timeout, $session);
+                    $outgoing = $yieldedValue->request->withId($requestId);
+                } else {
+                    $outgoing = $yieldedValue->notification;
                 }
 
-                $this->sendNotification($yieldedValue->notification, $session);
+                if (null === $transport) {
+                    $this->queueOutgoing($outgoing, ['type' => null === $requestId ? 'notification' : 'request'], $session);
+                }
             } finally {
                 $session->save();
             }
@@ -798,7 +889,11 @@ class Protocol
             $this->releaseSessionLock($sessionId);
         }
 
-        return null;
+        if (null !== $transport) {
+            $this->queueFiberOutgoing($transport, $outgoing);
+        }
+
+        return $requestId;
     }
 
     /**
