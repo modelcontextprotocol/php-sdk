@@ -978,6 +978,41 @@ final class ProtocolTest extends TestCase
         $this->assertSame([1001], $secondStream->getPendingRequestIds());
     }
 
+    #[TestDox('A stream stops polling a client request once it timed out')]
+    public function testStreamStopsPollingTimedOutRequest(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            // A timeout of 0 seconds has expired by the first poll.
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 0));
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $stream = new PollingLoopTransport();
+        $protocol->connect($stream);
+        $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $this->assertSame([1000], $stream->getPendingRequestIds());
+
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(1000, $sessionId));
+
+        $this->assertSame([], $stream->getPendingRequestIds());
+    }
+
     /**
      * Two tool calls on one session, each suspended on a request to the client, as with elicitation.
      * A further call with ID 3 suspends on a notification instead.
@@ -2017,6 +2052,67 @@ final class ProtocolTest extends TestCase
         $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.1000'));
     }
 
+    #[TestDox('A timed out client request is reported as an error and its pending entry is dropped')]
+    public function testCheckResponseReportsTimedOutRequestAndDropsItsPendingEntry(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
+            1001 => ['request_id' => 1001, 'timeout' => 120, 'timestamp' => time()],
+        ]);
+
+        $result = $protocol->checkResponse(1000, $session->getId());
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame(1000, $result->getId());
+        $this->assertSame(Error::INTERNAL_ERROR, $result->code);
+        $this->assertSame('Request timed out', $result->message);
+        $this->assertSame([1001], array_keys($protocol->getPendingRequests($session->getId())));
+        $this->assertSame([1001], array_keys($sessionManager->createWithId($session->getId())->get('_mcp.pending_requests')));
+
+        $this->assertNull($protocol->checkResponse(1000, $session->getId()), 'The timeout is reported once.');
+    }
+
+    #[TestDox('A client request within its timeout stays pending')]
+    public function testCheckResponseKeepsRequestWithinItsTimeout(): void
+    {
+        $pending = [1000 => ['request_id' => 1000, 'timeout' => 120, 'timestamp' => time() - 10]];
+        [$protocol, , $session] = $this->createProtocolWithPendingRequests($pending);
+
+        $this->assertNull($protocol->checkResponse(1000, $session->getId()));
+        $this->assertSame($pending, $protocol->getPendingRequests($session->getId()));
+    }
+
+    #[TestDox('An answer that arrived before the timeout was noticed wins over the timeout')]
+    public function testCheckResponseReturnsAnswerOfExpiredRequest(): void
+    {
+        [$protocol, , $session] = $this->createProtocolWithPendingRequests([
+            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
+        ]);
+        $session->set('_mcp.responses.1000', ['jsonrpc' => '2.0', 'id' => 1000, 'result' => ['action' => 'accept']]);
+        $session->save();
+
+        $result = $protocol->checkResponse(1000, $session->getId());
+
+        $this->assertInstanceOf(Response::class, $result);
+        $this->assertSame(1000, $result->getId());
+        $this->assertSame([], $protocol->getPendingRequests($session->getId()));
+    }
+
+    #[TestDox('An answer arriving after the timeout was reported is dropped')]
+    public function testAnswerAfterReportedTimeoutIsDropped(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
+        ]);
+
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(1000, $session->getId()));
+
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1000, "result": {}}', $session->getId());
+
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.1000'));
+        $this->assertNull($protocol->checkResponse(1000, $session->getId()));
+    }
+
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
     public function testClientResponseEventGetIdCanBeNull(): void
     {
@@ -2397,6 +2493,28 @@ final class ProtocolTest extends TestCase
         // The pre-VO array shape is deliberately no longer accepted.
         // @phpstan-ignore argument.type
         $protocol->handleFiberYield(['type' => 'notification'], Uuid::v4());
+    }
+
+    /**
+     * @param array<int, array{request_id: int, timeout: int, timestamp: int}> $pending
+     *
+     * @return array{Protocol, SessionManager, SessionInterface}
+     */
+    private function createProtocolWithPendingRequests(array $pending): array
+    {
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.pending_requests', $pending);
+        $session->save();
+
+        return [$protocol, $sessionManager, $session];
     }
 
     /**

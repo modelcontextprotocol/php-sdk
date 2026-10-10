@@ -368,21 +368,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         foreach ($pendingRequests as $pending) {
             $requestId = $pending['request_id'];
-            $timestamp = $pending['timestamp'];
-            $timeout = $pending['timeout'] ?? 120;
 
             $response = $this->checkForResponse($requestId, $this->sessionId);
 
             if (null !== $response) {
                 $yielded = $this->sessionFiber->resume($response);
-                $this->handleFiberYield($yielded, $this->sessionId);
-
-                return;
-            }
-
-            if (time() - $timestamp >= $timeout) {
-                $error = Error::forInternalError('Request timed out', $requestId);
-                $yielded = $this->sessionFiber->resume($error);
                 $this->handleFiberYield($yielded, $this->sessionId);
 
                 return;

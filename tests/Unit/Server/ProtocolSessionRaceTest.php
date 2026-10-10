@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server;
 
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionManager;
@@ -76,7 +77,9 @@ final class ProtocolSessionRaceTest extends TestCase
             $answering->processInput($transport, '{"jsonrpc": "2.0", "id": 8, "result": {"ok": true}}', $sessionId);
         });
 
-        $this->assertNull($waiting->checkResponse(7, $sessionId));
+        $timeout = $waiting->checkResponse(7, $sessionId);
+        $this->assertInstanceOf(Error::class, $timeout);
+        $this->assertSame(7, $timeout->getId());
 
         $this->assertInstanceOf(Response::class, $waiting->checkResponse(8, $sessionId));
     }
