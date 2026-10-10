@@ -72,6 +72,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix the server's `StdioTransport` answering a request on an idle connection only after ~50ms: it now waits on the input with `stream_select()` instead of sleeping.
 * Fix a client request that timed out (elicitation, sampling) staying in the session's pending requests: `Protocol::checkResponse()` now expires it, answering with the `Request timed out` error, so the transports no longer implement the timeout themselves.
 * Fix a handshake-era Streamable HTTP stream pinning its PHP worker until the elicitation (or other client request) times out after the client disconnected: the idle stream now sends a keep-alive comment and stops once the connection is aborted.
+* [BC Break] Fix concurrent stdio tool calls that report progress, log, elicit or sample never finishing: `StdioTransport` keeps every suspended fiber and resumes each with the answer to its own request. A transport passes the suspended `\Fiber` as last argument to the pending-requests provider and the fiber yield handler.
 
 0.8.1
 -----

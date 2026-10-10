@@ -97,11 +97,11 @@ interface TransportInterface
     public function setOutgoingMessagesProvider(callable $provider): void;
 
     /**
-     * Set a provider function to retrieve all pending server-initiated requests.
+     * Set a provider function to retrieve the pending server-initiated request a suspended Fiber waits on.
      *
      * The transport calls this to decide if it should wait for a client response before resuming a Fiber.
      *
-     * @param callable(Uuid $sessionId): array<int, array<string, mixed>> $provider
+     * @param callable(Uuid $sessionId, McpFiber $fiber): array<int, array<string, mixed>> $provider
      */
     public function setPendingRequestsProvider(callable $provider): void;
 
@@ -118,7 +118,7 @@ interface TransportInterface
      * The transport calls this to let the Protocol handle new requests/notifications
      * that are yielded from a Fiber's execution.
      *
-     * @param callable(FiberSuspend|null, ?Uuid $sessionId): void $handler
+     * @param callable(FiberSuspend|null, ?Uuid $sessionId, McpFiber $fiber): void $handler
      */
     public function setFiberYieldHandler(callable $handler): void;
 

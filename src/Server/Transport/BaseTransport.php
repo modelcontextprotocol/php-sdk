@@ -86,12 +86,14 @@ abstract class BaseTransport implements TransportInterface
     }
 
     /**
+     * @param McpFiber $fiber
+     *
      * @return array<int, array<string, mixed>>
      */
-    protected function getPendingRequests(?Uuid $sessionId): array
+    protected function getPendingRequests(?Uuid $sessionId, \Fiber $fiber): array
     {
         if ($sessionId && \is_callable($this->pendingRequestsProvider)) {
-            return ($this->pendingRequestsProvider)($sessionId);
+            return ($this->pendingRequestsProvider)($sessionId, $fiber);
         }
 
         return [];
@@ -111,15 +113,16 @@ abstract class BaseTransport implements TransportInterface
 
     /**
      * @param FiberSuspend|null $yielded
+     * @param McpFiber          $fiber   the fiber that yielded
      */
-    protected function handleFiberYield(mixed $yielded, ?Uuid $sessionId): void
+    protected function handleFiberYield(mixed $yielded, ?Uuid $sessionId, \Fiber $fiber): void
     {
         if (null === $yielded || !\is_callable($this->fiberYieldHandler)) {
             return;
         }
 
         try {
-            ($this->fiberYieldHandler)($yielded, $sessionId);
+            ($this->fiberYieldHandler)($yielded, $sessionId, $fiber);
         } catch (\Throwable $e) {
             $this->logger->error('Fiber yield handler failed.', [
                 'exception' => $e,
