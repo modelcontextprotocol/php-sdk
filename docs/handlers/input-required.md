@@ -44,7 +44,8 @@ anything other than elicitation.
 > `sampling/createMessage` / `roots/list` and re-enters your handler with the answers. That is
 > on by default and bounded by `setInputRequiredLimits()` — each round holds the originating
 > request open, so it holds a worker for as long as the user takes — and
-> `withoutInputRequiredShim()` turns it off, after which such a handler fails there. See
+> `withoutInputRequiredShim()` turns it off. The SDK then sends the `InputRequiredResult` as it
+> is, and a handshake-era client cannot act on it. See
 > [Server builder](../run/server-builder.md).
 
 ```php

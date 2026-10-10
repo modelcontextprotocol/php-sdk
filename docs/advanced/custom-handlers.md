@@ -99,6 +99,10 @@ Custom request handlers also serve requests on protocol version `2026-07-28`. Ea
 in-memory session, so nothing you store in `$session` reaches the next request. Notification handlers never run
 on this protocol version.
 
+There are two exceptions. The SDK rejects the methods this revision removed (`initialize`, `ping`,
+`logging/setLevel`, `resources/subscribe` and `resources/unsubscribe`) before any handler runs. And the SDK answers
+`server/discover` and `subscriptions/listen` itself, so your handlers never see them.
+
 ## Key Differences
 
 | Handler Type | Interface | Returns | Use Case |

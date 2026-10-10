@@ -79,7 +79,8 @@ An extension that adds JSON-RPC methods also implements `getMessages()` and
 `getRequestHandlers()`. `getMessages()` returns the request and notification classes of the
 new methods, so the SDK can parse them. `getRequestHandlers()` returns the
 [request handlers](custom-handlers.md) that answer them. If two enabled extensions define
-the same method, `enableExtension()` throws a `LogicException`.
+the same method, `enableExtension()` throws a `LogicException`. Extensions bring no
+notification handlers: add those with `Builder::addNotificationHandler()`.
 
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 

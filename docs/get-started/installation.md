@@ -9,8 +9,9 @@ composer require mcp/sdk
 It requires **PHP 8.1+** and the `fileinfo` extension. Most of what it pulls in is PSR
 interface packages (`psr/container`, `psr/log`, `psr/http-message`, …); the rest is
 `opis/json-schema` for schema validation, `symfony/uid` for session identifiers,
-`phpdocumentor/reflection-docblock` for reading descriptions out of your docblocks, and
-`php-http/discovery` for finding PSR-17/PSR-18 implementations.
+`phpdocumentor/reflection-docblock` for reading descriptions out of your docblocks,
+`php-http/discovery` for finding PSR-17/PSR-18 implementations, and
+`symfony/deprecation-contracts` for deprecation notices.
 
 That is enough for a complete [STDIO server](../run/stdio.md) and for the
 [STDIO client](../client/transports.md).

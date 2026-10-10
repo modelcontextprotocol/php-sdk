@@ -27,8 +27,9 @@ public function bookTable(string $restaurant, RequestContext $context): string
 ```
 
 Two caveats on this example. The `ClientLogger` drops messages below `warning` until the
-client raises the level (see [Logging](logging.md)), so the `info()` message is not sent by
-default. And `elicit()` works on both [protocol versions](../protocol-versions.md), but your
+client asks for a lower level (see [Logging](logging.md)), so the `info()` message is not sent by
+default. On protocol version `2026-07-28`, it sends no log messages at all unless the request
+asks for them. And `elicit()` works on both [protocol versions](../protocol-versions.md), but your
 handler may run more than once for one call. [Asking for input](input-required.md) explains
 how to write it for that.
 
