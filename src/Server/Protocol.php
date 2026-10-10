@@ -19,6 +19,7 @@ use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionLockException;
 use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -31,6 +32,7 @@ use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
@@ -76,6 +78,9 @@ class Protocol
      */
     private const INTERNAL_ERROR_MESSAGE = 'Internal server error.';
 
+    /** Answer to a request that could not get its session's lock in time, see {@see SessionLockInterface}. */
+    private const SESSION_BUSY_MESSAGE = 'Another request of this session is still being processed.';
+
     /**
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
      * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
@@ -97,6 +102,7 @@ class Protocol
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
+        private readonly ?SessionLockInterface $sessionLock = null,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
     }
@@ -212,6 +218,30 @@ class Protocol
             return;
         }
 
+        // Taken before the session is read and held until it is saved, so no other request of
+        // the session reads a state this one is about to replace. A session created here for
+        // an `initialize` is not known to anyone else yet and needs no lock.
+        if (null !== $sessionId && !$this->acquireSessionLock($sessionId)) {
+            $this->sendResponse($transport, Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input)), null, ['status_code' => 503]);
+
+            return;
+        }
+
+        try {
+            $this->handleMessages($transport, $sessionId, $messages, $accessToken);
+        } finally {
+            if (null !== $sessionId) {
+                $this->releaseSessionLock($sessionId);
+            }
+        }
+    }
+
+    /**
+     * @param TransportInterface<mixed> $transport
+     * @param array<int, mixed>         $messages
+     */
+    private function handleMessages(TransportInterface $transport, ?Uuid $sessionId, array $messages, ?AccessToken $accessToken): void
+    {
         $session = $this->resolveSession($transport, $sessionId, $messages);
         if (null === $session) {
             return;
@@ -570,16 +600,25 @@ class Protocol
      */
     public function consumeOutgoingMessages(Uuid $sessionId): array
     {
-        $session = $this->sessionManager->createWithId($sessionId);
-        $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
-
-        // Saving an unchanged session would only overwrite what a concurrent request saved in the meantime.
-        if ([] !== $queue) {
-            $session->set(self::SESSION_OUTGOING_QUEUE, []);
-            $session->save();
+        // Polled again on the stream's next turn, so a lock that is not free now costs nothing.
+        if (!$this->acquireSessionLock($sessionId)) {
+            return [];
         }
 
-        return $queue;
+        try {
+            $session = $this->sessionManager->createWithId($sessionId);
+            $queue = $session->get(self::SESSION_OUTGOING_QUEUE, []);
+
+            // Saving an unchanged session would only overwrite what a concurrent request saved in the meantime.
+            if ([] !== $queue) {
+                $session->set(self::SESSION_OUTGOING_QUEUE, []);
+                $session->save();
+            }
+
+            return $queue;
+        } finally {
+            $this->releaseSessionLock($sessionId);
+        }
     }
 
     /**
@@ -594,23 +633,32 @@ class Protocol
      */
     public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
     {
-        $session = $this->sessionManager->createWithId($sessionId);
-        $responseData = $session->get(self::SESSION_RESPONSES.".{$requestId}");
-
-        if (null === $responseData) {
-            $pending = $session->get(self::SESSION_PENDING_REQUESTS, [])[$requestId] ?? null;
-
-            return \is_array($pending) && $this->hasTimedOut($pending) ? $this->expireRequest($requestId, $sessionId) : null;
+        // Polled again on the stream's next turn, so a lock that is not free now costs nothing.
+        if (!$this->acquireSessionLock($sessionId)) {
+            return null;
         }
 
-        $this->logger->debug('Found and consuming client response.', [
-            'request_id' => $requestId,
-            'session_id' => $sessionId->toRfc4122(),
-        ]);
+        try {
+            $session = $this->sessionManager->createWithId($sessionId);
+            $responseData = $session->get(self::SESSION_RESPONSES.".{$requestId}");
 
-        $session->set(self::SESSION_RESPONSES.".{$requestId}", null);
-        $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
-        $session->save();
+            if (null === $responseData) {
+                $pending = $session->get(self::SESSION_PENDING_REQUESTS, [])[$requestId] ?? null;
+
+                return \is_array($pending) && $this->hasTimedOut($pending) ? $this->expireRequest($requestId, $sessionId) : null;
+            }
+
+            $this->logger->debug('Found and consuming client response.', [
+                'request_id' => $requestId,
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            $session->set(self::SESSION_RESPONSES.".{$requestId}", null);
+            $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
+            $session->save();
+        } finally {
+            $this->releaseSessionLock($sessionId);
+        }
 
         try {
             if (isset($responseData['error'])) {
@@ -700,17 +748,6 @@ class Protocol
             return null;
         }
 
-        // A session destroyed while the request ran, e.g. by a DELETE, must not be saved back.
-        if (!$this->sessionManager->exists($sessionId)) {
-            $this->logger->warning('Fiber yielded for a session that no longer exists.', [
-                'session_id' => $sessionId->toRfc4122(),
-            ]);
-
-            return null;
-        }
-
-        $session = $this->sessionManager->createWithId($sessionId);
-
         if ($yieldedValue->sessionId !== $sessionId->toRfc4122()) {
             $this->logger->warning('Fiber yielded payload with mismatched session ID.', [
                 'payload_session_id' => $yieldedValue->sessionId,
@@ -718,14 +755,32 @@ class Protocol
             ]);
         }
 
+        // The request the fiber waits on must be stored, so an unavailable lock is an error here.
+        $this->sessionLock?->acquire($sessionId);
+
         try {
-            if ($yieldedValue instanceof RequestSuspension) {
-                return $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session);
+            // A session destroyed while the request ran, e.g. by a DELETE, must not be saved back.
+            if (!$this->sessionManager->exists($sessionId)) {
+                $this->logger->warning('Fiber yielded for a session that no longer exists.', [
+                    'session_id' => $sessionId->toRfc4122(),
+                ]);
+
+                return null;
             }
 
-            $this->sendNotification($yieldedValue->notification, $session);
+            $session = $this->sessionManager->createWithId($sessionId);
+
+            try {
+                if ($yieldedValue instanceof RequestSuspension) {
+                    return $this->sendRequest($yieldedValue->request, $yieldedValue->timeout, $session);
+                }
+
+                $this->sendNotification($yieldedValue->notification, $session);
+            } finally {
+                $session->save();
+            }
         } finally {
-            $session->save();
+            $this->releaseSessionLock($sessionId);
         }
 
         return null;
@@ -901,7 +956,58 @@ class Protocol
      */
     public function destroySession(Uuid $sessionId): void
     {
-        $this->sessionManager->destroy($sessionId);
+        // Destroyed either way: a request still running would only write the session back,
+        // which is the lesser harm compared to keeping a session the client ended.
+        $locked = $this->acquireSessionLock($sessionId);
+
+        try {
+            $this->sessionManager->destroy($sessionId);
+        } finally {
+            if ($locked) {
+                $this->releaseSessionLock($sessionId);
+            }
+        }
+
         $this->logger->info('Session destroyed.', ['session_id' => $sessionId->toRfc4122()]);
+    }
+
+    /**
+     * Returns false when a configured lock could not be acquired in time; true when it was, or there is none.
+     */
+    private function acquireSessionLock(Uuid $sessionId): bool
+    {
+        if (null === $this->sessionLock) {
+            return true;
+        }
+
+        try {
+            $this->sessionLock->acquire($sessionId);
+        } catch (SessionLockException $e) {
+            $this->logger->warning(\sprintf('Failed to acquire session lock: %s', $e->getMessage()), [
+                'session_id' => $sessionId->toRfc4122(),
+                'exception' => $e,
+            ]);
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private function releaseSessionLock(Uuid $sessionId): void
+    {
+        if (null === $this->sessionLock) {
+            return;
+        }
+
+        try {
+            $this->sessionLock->release($sessionId);
+        } catch (SessionLockException $e) {
+            // The work is done; a stuck lock is logged for the operator and expires or times out for the next request.
+            $this->logger->error(\sprintf('Failed to release session lock: %s', $e->getMessage()), [
+                'session_id' => $sessionId->toRfc4122(),
+                'exception' => $e,
+            ]);
+        }
     }
 }

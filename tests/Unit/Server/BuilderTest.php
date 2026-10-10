@@ -35,9 +35,12 @@ use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
+use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -190,6 +193,50 @@ final class BuilderTest extends TestCase
         $capabilities = $this->extractServerCapabilities($server);
 
         $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('setSessionLock() returns the builder for fluent chaining')]
+    public function testSetSessionLockReturnsSelf(): void
+    {
+        $log = [];
+        $builder = Server::builder();
+
+        $this->assertSame($builder, $builder->setSessionLock(new RecordingSessionLock($log)));
+    }
+
+    #[TestDox('setSessionLock() wires the lock around every session access of the built server')]
+    public function testSetSessionLockIsWiredIntoTheProtocol(): void
+    {
+        $log = [];
+        $store = new RecordingSessionStore($log);
+        $lock = new RecordingSessionLock($log);
+
+        $server = Server::builder()
+            ->setSession($store, gcProbability: 0)
+            ->setSessionLock($lock)
+            ->build();
+
+        $server->run(new InMemoryTransport([
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}',
+            '{"jsonrpc":"2.0","id":2,"method":"ping"}',
+        ]));
+
+        $this->assertCount(9, $log, implode(', ', $log));
+        $sessionId = substr($log[0], \strlen('read '));
+        $this->assertSame([
+            // initialize: the session is new, nobody else can know it yet
+            "read $sessionId",
+            "write $sessionId",
+            // ping: locked around read and save
+            "acquire $sessionId",
+            "read $sessionId",
+            "write $sessionId",
+            "release $sessionId",
+            // the transport ends the session when it is done
+            "acquire $sessionId",
+            "destroy $sessionId",
+            "release $sessionId",
+        ], $log);
     }
 
     #[TestDox('setLazyLoading() returns the builder for fluent chaining')]
