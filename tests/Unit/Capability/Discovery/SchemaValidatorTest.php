@@ -13,6 +13,8 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Capability\Discovery\SchemaValidator;
+use Opis\JsonSchema\SchemaLoader;
+use Opis\JsonSchema\Validator;
 use PHPUnit\Framework\TestCase;
 
 class SchemaValidatorTest extends TestCase
@@ -22,6 +24,28 @@ class SchemaValidatorTest extends TestCase
     protected function setUp(): void
     {
         $this->validator = new SchemaValidator();
+    }
+
+    public function testRepeatedValidationDoesNotGrowSchemaLoaderCache(): void
+    {
+        $loader = new class extends SchemaLoader {
+            public function cacheSize(): int
+            {
+                return \count($this->dataCache) + \count($this->uriCache);
+            }
+        };
+        $validator = new SchemaValidator(new Validator($loader));
+
+        $validator->validateAgainstJsonSchema($this->getValidData(), $this->getSimpleSchema());
+        $validator->validateAgainstJsonSchema($this->getValidData(), (object) $this->getSimpleSchema());
+        $size = $loader->cacheSize();
+
+        for ($i = 0; $i < 10; ++$i) {
+            $validator->validateAgainstJsonSchema($this->getValidData(), $this->getSimpleSchema());
+            $validator->validateAgainstJsonSchema($this->getValidData(), (object) $this->getSimpleSchema());
+        }
+
+        $this->assertSame($size, $loader->cacheSize());
     }
 
     // --- Basic Validation Tests ---

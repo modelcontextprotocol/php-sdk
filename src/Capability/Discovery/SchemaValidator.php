@@ -11,7 +11,6 @@
 
 namespace Mcp\Capability\Discovery;
 
-use Mcp\Exception\InvalidArgumentException;
 use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Psr\Log\LoggerInterface;
@@ -30,6 +29,11 @@ use Psr\Log\NullLogger;
  */
 class SchemaValidator
 {
+    /**
+     * @var array<string, mixed>
+     */
+    private array $decodedSchemas = [];
+
     public function __construct(
         private ?Validator $jsonSchemaValidator = null,
         private LoggerInterface $logger = new NullLogger(),
@@ -48,16 +52,9 @@ class SchemaValidator
     {
         try {
             // --- Schema Preparation ---
-            if (\is_array($schema)) {
-                $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
-                $schemaObject = json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
-            } elseif (\is_object($schema)) {
-                // This might be overly cautious but safer against varied inputs.
-                $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
-                $schemaObject = json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
-            } else {
-                throw new InvalidArgumentException('Schema must be an array or object.');
-            }
+            // Opis caches every schema object it sees for good, so the same schema has to map to the same object.
+            $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+            $schemaObject = $this->decodedSchemas[$schemaJson] ??= json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
 
             // --- Data Preparation ---
             // Opis Validator generally prefers objects for object validation
@@ -66,10 +63,6 @@ class SchemaValidator
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation (JSON conversion failed).', ['exception' => $e]);
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Invalid schema definition provided (JSON error).']];
-        } catch (InvalidArgumentException $e) {
-            $this->logger->error('MCP SDK: Invalid schema structure provided for validation.', ['exception' => $e]);
-
-            return [['pointer' => '', 'keyword' => 'internal', 'message' => $e->getMessage()]];
         } catch (\Throwable $e) {
             $this->logger->error('MCP SDK: Error preparing data/schema for validation.', ['exception' => $e]);
 

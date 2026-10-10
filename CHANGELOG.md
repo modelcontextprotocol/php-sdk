@@ -14,6 +14,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Reject a `Tool` input schema whose `properties` is not an object or whose `required` is neither a list nor `null`, instead of silently replacing the member. Reject a `completion/complete` whose `argument` is missing `name` or `value`, instead of completing against an empty prefix.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 * Fix `HttpTransport` omitting the `MCP-Protocol-Version` header on requests after the `initialize` handshake, including the closing `DELETE`.
+* Fix memory growing with every `tools/call` in long-lived processes like FrankenPHP workers or stdio servers.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
 * Fix `Client::connect()` rejecting an empty `serverInfo.version`, as the Python SDK sends, and leaving the transport open when initialization fails on a malformed result: the transport is now closed and the failure wrapped in a `ConnectionException`.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
