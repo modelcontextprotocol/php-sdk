@@ -38,6 +38,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix lost responses on concurrent requests of one session over Streamable HTTP: a POST is answered with its own responses instead of taking them from the session's outgoing queue.
 * [BC Break] `TransportInterface::send()` receives every response of a handler that does not suspend, not only errors raised before a session exists; the session's outgoing queue only carries server-initiated requests and notifications. A custom transport must deliver each message it gets, as a batch gets several.
 * Serve both protocol eras over stdio: `StdioTransport` settles the era on the client's first request and serves `2026-07-28` requests, `subscriptions/listen` and `notifications/cancelled` on the one channel.
+* Fix `ClientGateway::log()` sending messages below the level the client set with `logging/setLevel`; `ClientLogger` already dropped them.
+* [BC Break] `ClientLogger` takes only the `ClientGateway`, which now applies the client-set level itself.
 * [BC Break] `StatelessAwareTransportInterface` declares `setHandshakeVersions()`, so a server without the modern era names only the revisions it negotiates when refusing a `2026-07-28` request, e.g. the one set with `Builder::setProtocolVersion()`.
 * Answer a bare `initialize` on a `2026-07-28`-only endpoint with `-32022` naming the served revisions, and a request without a session on the handshake leg with its id.
 * Speak both protocol eras from a client configured with `2026-07-28`: `connect()` probes with `server/discover` and falls back to the `initialize` handshake on `2025-11-25` when the server does not speak the modern era. `Builder::setFallbackProtocolVersion()` picks the fallback revision, or `null` for a modern-only client.
