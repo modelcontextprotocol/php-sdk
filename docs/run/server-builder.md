@@ -139,8 +139,9 @@ $server = Server::builder()
 
 `buildStateless()` returns the modern dispatcher alone, for an endpoint that serves no handshake-era traffic at all.
 Its requests are checked against the SEP-2243 standard headers — that `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` agree
-with the body they travel with. `setHeaderValidator(false)` turns that check off, which is needed only when the
-dispatcher is served by a transport that has no header layer to check.
+with the body they travel with. `build()` uses the same dispatcher for its modern leg, so the check applies there too.
+`setHeaderValidator(false)` turns that check off, which is needed only when the dispatcher is served by a transport
+that has no header layer to check.
 
 ## Discovery Configuration
 
@@ -321,7 +322,7 @@ $server = Server::builder()
 | Method | Parameters | Description |
 |--------|------------|-------------|
 | `setServerInfo()` | name, version, description?, icons?, websiteUrl?, title? | Set server identity |
-| `setPaginationLimit()` | limit | Set max items per page |
+| `setPaginationLimit()` | paginationLimit | Set max items per page |
 | `setInstructions()` | instructions | Set usage instructions |
 | `setCapabilities()` | serverCapabilities | Set the server capabilities and turn off automatic detection |
 | `enableExtension()` | ...extensions | Enable protocol extensions, see [Protocol extensions](../advanced/extensions.md) |
@@ -334,14 +335,14 @@ $server = Server::builder()
 | `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
 | `setNotificationBus()` | bus | Delivery for `subscriptions/listen` streams |
 | `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open over HTTP (`0` = unbounded) |
-| `setResourceSubscriptionManager()` | subscriptionManager | Store `resources/subscribe` subscriptions somewhere else than the session |
-| `setHeaderValidator()` | enabled | Toggle the SEP-2243 standard-header check on `buildStateless()` |
+| `setResourceSubscriptionManager()` | subscriptionManager | Store `resources/subscribe` subscriptions somewhere other than the session |
+| `setHeaderValidator()` | headerValidation? | Toggle the SEP-2243 standard-header check on the modern leg of `build()` and on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache?, namePatterns? | Configure attribute discovery |
 | `setDiscoverer()` | discoverer | Replace the class that scans for attributes (the discovery `cache` is then not used) |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management, see [Sessions](sessions.md) |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
-| `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
+| `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
 | `setSchemaGenerator()` | schemaGenerator | Replace the generator that builds input schemas from PHP types, see [Schema generation](../servers/schemas.md) |
 | `setSchemaValidator()` | schemaValidator | Replace the validator for tool arguments and structured output, see [Schema generation](../servers/schemas.md) |
 | `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |

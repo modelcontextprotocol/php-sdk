@@ -130,6 +130,7 @@ Create a route handler using Slim's built-in factories and container:
 ```php
 use Slim\Factory\AppFactory;
 use Mcp\Server;
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Transport\StreamableHttpTransport;
 
 $app = AppFactory::create();
@@ -138,6 +139,7 @@ $app->any('/mcp', function ($request, $response) {
     $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
+        ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
         ->build();
 
     $transport = new StreamableHttpTransport($request);

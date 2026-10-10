@@ -14,7 +14,9 @@ block Tier 2:
 - **Client conformance was 20% (10/50) in that audit**, against the ≥80% bar.
   Almost entirely OAuth: 38 of 39 scored auth scenarios failed. The failing
   scenarios are listed as expected failures in
-  [`tests/Conformance/conformance-baseline-2025-11-25.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2025-11-25.yml).
+  [`conformance-baseline-2025-11-25.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2025-11-25.yml)
+  and
+  [`conformance-baseline-2026-07-28.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2026-07-28.yml).
   Server conformance was 100% (67/67).
 - **No stable release ≥ 1.0.0 has shipped yet**, see the
   [releases](https://github.com/modelcontextprotocol/php-sdk/releases). Tier 2

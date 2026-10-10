@@ -118,6 +118,9 @@ new CorsMiddleware(
 );
 ```
 
+Browser clients on `2026-07-28` also send the `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` headers, which the
+default list doesn't include. Add them to `allowedHeaders`, each `Mcp-Param-*` header by its full name.
+
 Combining `allowCredentials: true` with `allowedOrigins: ['*']` throws `InvalidArgumentException`.
 
 When the allowlist is a concrete set of origins (not `['*']`), `CorsMiddleware` automatically adds `Vary: Origin`
