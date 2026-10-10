@@ -533,8 +533,18 @@ final class ProtocolTest extends TestCase
         $this->assertSame(['status' => 'ok'], json_decode($transport->sent[0]['message'], true)['result']);
     }
 
-    #[TestDox('A suspended handler is not handed to the transport when the session fails to save what it awaits')]
-    public function testSaveFailureAbortsSuspendedRequest(): void
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function provideSaveFailures(): iterable
+    {
+        yield 'store throws' => [true];
+        yield 'store reports false' => [false];
+    }
+
+    #[TestDox('A suspended handler is not handed to the transport when the session fails to save what it awaits: $_dataName')]
+    #[DataProvider('provideSaveFailures')]
+    public function testSaveFailureAbortsSuspendedRequest(bool $throws): void
     {
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('supports')->willReturn(true);
@@ -546,16 +556,18 @@ final class ProtocolTest extends TestCase
 
         $store = new class extends InMemorySessionStore {
             public bool $failWrites = false;
+            public bool $throws = true;
 
             public function write(Uuid $id, string $data): bool
             {
-                if ($this->failWrites) {
+                if ($this->failWrites && $this->throws) {
                     throw new \RuntimeException('storage is gone');
                 }
 
-                return parent::write($id, $data);
+                return !$this->failWrites && parent::write($id, $data);
             }
         };
+        $store->throws = $throws;
         $sessionManager = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
         $sessionManager->createWithId($sessionId)->save();

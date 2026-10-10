@@ -16,6 +16,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\RuntimeException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -356,7 +357,9 @@ class Protocol
 
                     // The transport resumes the fiber from what the session holds: it must
                     // not get the fiber if the request the fiber awaits was not stored.
-                    $session->save();
+                    if (!$session->save()) {
+                        throw new RuntimeException('Failed to save the session of a suspended request.');
+                    }
 
                     $this->trackAwaitedRequest($transport, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
