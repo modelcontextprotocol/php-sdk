@@ -118,6 +118,8 @@ class StdioTransport extends BaseTransport
         }
 
         if (false === @fwrite($this->stdin, $data."\n")) {
+            $this->state?->setInitialized(false);
+
             throw new ConnectionException('Could not write to the server process; it is no longer running.');
         }
 
@@ -246,6 +248,8 @@ class StdioTransport extends BaseTransport
 
         // Only on an empty read, so an answer arriving with the end of output is taken first.
         if (('' === $data || false === $data) && \is_resource($this->stdout) && feof($this->stdout)) {
+            // The server is gone: the client has to connect again before its next call.
+            $this->state?->setInitialized(false);
             $this->failPending('The server process closed its output; it is no longer running.', [self::CONNECTION_LOST => true]);
         }
     }
