@@ -45,6 +45,9 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
 * Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
 * [BC Break] Bump `MessageInterface::PROTOCOL_VERSION` to `2026-07-28`. Use `ProtocolVersion::latestHandshake()` where a handshake revision is needed, e.g. in an `initialize` answer.
+* Add `ServerRequestEvent` and `ClientResponseEvent` for handshake-era server-initiated requests (`elicitation/create`, `sampling/createMessage`) and the client's replies.
+* Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
+* [BC Break] Add `TransportInterface::setFiberTerminationHandler()`. Custom transports must implement it, SDK transports already do via `ManagesTransportCallbacks`.
 
 0.8.0
 -----
