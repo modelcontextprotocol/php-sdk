@@ -28,6 +28,7 @@ use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManager;
@@ -45,6 +46,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\AbstractLogger;
 use Psr\Log\LogLevel;
+use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class ProtocolTest extends TestCase
@@ -290,6 +292,44 @@ final class ProtocolTest extends TestCase
             '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
             $sessionId
         );
+    }
+
+    #[TestDox('An unavailable session store answers 503 instead of 404 and is logged')]
+    public function testUnavailableSessionStoreReturnsServiceUnavailable(): void
+    {
+        $cache = $this->createMock(CacheInterface::class);
+        $cache->method('has')->willThrowException(new \RuntimeException('Connection refused'));
+
+        $this->transport->expects($this->once())
+            ->method('send')
+            ->with(
+                $this->callback(static function ($data) {
+                    $decoded = json_decode($data, true);
+
+                    return Error::INTERNAL_ERROR === ($decoded['error']['code'] ?? null);
+                }),
+                $this->callback(static function ($context) {
+                    return 503 === ($context['status_code'] ?? null);
+                })
+            );
+
+        $logger = new LevelRecordingLogger();
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new Psr16SessionStore($cache), gcProbability: 0),
+            logger: $logger,
+        );
+
+        $sessionId = Uuid::v4();
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/list"}',
+            $sessionId
+        );
+
+        $this->assertStringContainsString($sessionId->toRfc4122(), $logger->contextsAt([LogLevel::ERROR]));
     }
 
     #[TestDox('Invalid JSON returns parse error')]
