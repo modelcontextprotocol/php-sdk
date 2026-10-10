@@ -70,6 +70,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix a client `onProgress` callback receiving progress for an earlier request that timed out: progress now only reaches the callback of the request whose `progressToken` it carries.
 * Fix `Client::isConnected()` staying true after the stdio server process exited, which left later calls failing against the dead process.
 * Fix the server's `StdioTransport` answering a request on an idle connection only after ~50ms: it now waits on the input with `stream_select()` instead of sleeping.
+* Fix a client request that timed out (elicitation, sampling) staying in the session's pending requests: `Protocol::checkResponse()` now expires it, answering with the `Request timed out` error, so the transports no longer implement the timeout themselves.
 
 0.8.1
 -----
