@@ -51,7 +51,8 @@ class Implementation implements \JsonSerializable
         if (!isset($data['name']) || !\is_string($data['name']) || '' === $data['name']) {
             throw new InvalidArgumentException('Invalid or missing "name" in Implementation data.');
         }
-        if (!isset($data['version']) || !\is_string($data['version']) || '' === $data['version']) {
+        // Only typed as a string, and the Python SDK sends "" when none is configured.
+        if (!isset($data['version']) || !\is_string($data['version'])) {
             throw new InvalidArgumentException('Invalid or missing "version" in Implementation data.');
         }
 

@@ -157,6 +157,25 @@ final class ClientTest extends TestCase
         $this->assertFalse($client->isConnected());
     }
 
+    #[TestDox('a malformed handshake result fails with a ConnectionException and closes the transport')]
+    public function testMalformedHandshakeResultClosesTheTransport(): void
+    {
+        $transport = new FakeTransport([FakeTransport::MALFORMED]);
+
+        $client = Client::builder()->setMaxRetries(2)->build();
+
+        try {
+            $client->connect($transport);
+            $this->fail(\sprintf('Expected a "%s" to be thrown.', ConnectionException::class));
+        } catch (ConnectionException $e) {
+            $this->assertInstanceOf(InvalidArgumentException::class, $e->getPrevious());
+        }
+
+        $this->assertSame(1, $transport->connectCalls, 'a malformed result is not retried');
+        $this->assertSame(1, $transport->closeCalls);
+        $this->assertFalse($client->isConnected());
+    }
+
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]
     public function testTimedOutAttemptDoesNotPoisonTheRetry(): void
     {
@@ -197,6 +216,9 @@ final class FakeTransport extends BaseTransport
     /** The initialize request is answered, but the connection breaks right after. */
     public const BREAK_AFTER_ACCEPT = 'break_after_accept';
 
+    /** The initialize request is answered with a result lacking `serverInfo.version`. */
+    public const MALFORMED = 'malformed';
+
     public int $connectCalls = 0;
     public int $closeCalls = 0;
 
@@ -206,7 +228,7 @@ final class FakeTransport extends BaseTransport
     private array $outbox = [];
 
     /**
-     * @param list<self::ACCEPT|self::ACCEPT_MODERN|self::REJECT|self::IGNORE|self::BREAK_AFTER_ACCEPT> $attempts How each successive connect() call behaves
+     * @param list<self::ACCEPT|self::ACCEPT_MODERN|self::REJECT|self::IGNORE|self::BREAK_AFTER_ACCEPT|self::MALFORMED> $attempts How each successive connect() call behaves
      */
     public function __construct(private array $attempts = [self::ACCEPT])
     {
@@ -256,7 +278,9 @@ final class FakeTransport extends BaseTransport
             : ['result' => [
                 'protocolVersion' => ProtocolVersion::V2025_11_25->value,
                 'capabilities' => [],
-                'serverInfo' => ['name' => 'Test Server', 'version' => '1.0.0'],
+                'serverInfo' => self::MALFORMED === $this->outcome
+                    ? ['name' => 'Test Server']
+                    : ['name' => 'Test Server', 'version' => '1.0.0'],
             ]];
 
         $this->outbox[] = json_encode(['jsonrpc' => '2.0', 'id' => $message['id']] + $answer, \JSON_THROW_ON_ERROR);

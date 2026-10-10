@@ -17,6 +17,7 @@ use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\RequestException;
@@ -103,12 +104,18 @@ class Client
                 $this->logger->info('Client connected and initialized', ['attempt' => $attempt]);
 
                 return;
-            } catch (ConnectionException $e) {
+            } catch (ExceptionInterface $e) {
                 // initialize() flags the session before sending the initialized
                 // notification, so a failure in between leaves the flag set.
                 $this->protocol->getState()->setInitialized(false);
 
                 $transport->close();
+
+                // Anything else, like a malformed initialize result, is not
+                // transient and would fail every retry the same way.
+                if (!$e instanceof ConnectionException) {
+                    throw new ConnectionException('Initialization failed: '.$e->getMessage(), 0, $e);
+                }
 
                 if ($attempt === $maxAttempts) {
                     throw $e;
