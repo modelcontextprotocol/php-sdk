@@ -16,6 +16,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\RuntimeException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -32,7 +33,6 @@ use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
-use Mcp\Server\Transport\InlineResponseTransportInterface;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -244,7 +244,12 @@ class Protocol
             }
         }
 
-        $session->save();
+        try {
+            $session->save();
+        } catch (\Throwable $e) {
+            // The responses already reached the transport: an error for the same requests would contradict them.
+            $this->logger->error(\sprintf('Failed to save session: %s', $e->getMessage()), ['exception' => $e]);
+        }
     }
 
     /**
@@ -343,11 +348,30 @@ class Protocol
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
+                    $beforeSuspension = $session->all();
+
                     $awaitedRequestId = null;
                     if ($result instanceof NotificationSuspension) {
                         $this->sendNotification($result->notification, $session);
                     } elseif ($result instanceof RequestSuspension) {
                         $awaitedRequestId = $this->sendRequest($result->request, $result->timeout, $session);
+                    }
+
+                    // The transport resumes the fiber from what the session holds: it must
+                    // not get the fiber if the request the fiber awaits was not stored. A
+                    // later save must not store that request either, nobody would resume it.
+                    try {
+                        $saved = $session->save();
+                    } catch (\Throwable $e) {
+                        $session->hydrate($beforeSuspension);
+
+                        throw $e;
+                    }
+
+                    if (!$saved) {
+                        $session->hydrate($beforeSuspension);
+
+                        throw new RuntimeException('Failed to save the session of a suspended request.');
                     }
 
                     $this->trackAwaitedRequest($transport, $awaitedRequestId);
@@ -481,7 +505,11 @@ class Protocol
     }
 
     /**
-     * Sends a response either immediately or queued for later delivery.
+     * Sends a response through the transport, on the exchange that carried its request.
+     *
+     * Responses never go through the session's outgoing queue: the session is shared by
+     * the concurrent requests of a client and written back whole, so a queued response
+     * could be overwritten by another request, or taken by it.
      *
      * @param TransportInterface<mixed>                            $transport
      * @param Response<ResultInterface|array<string, mixed>>|Error $response
@@ -489,53 +517,41 @@ class Protocol
      */
     private function sendResponse(TransportInterface $transport, Response|Error $response, ?SessionInterface $session, array $context = []): void
     {
-        // Queued in the session, a response can be overwritten or taken by a concurrent
-        // request of the same session: a transport that can answer on the request's
-        // own exchange gets it directly.
-        if (null === $session || $transport instanceof InlineResponseTransportInterface) {
-            $this->logger->debug('Sending immediate response', [
-                'response_id' => $response->getId(),
+        $this->logger->debug('Sending response', [
+            'response_id' => $response->getId(),
+        ]);
+
+        try {
+            $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            $this->logger->error('Failed to encode response to JSON.', [
+                'message_id' => $response->getId(),
+                'exception' => $e,
             ]);
 
-            try {
-                $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
-            } catch (\JsonException $e) {
-                $this->logger->error('Failed to encode response to JSON.', [
-                    'message_id' => $response->getId(),
-                    'exception' => $e,
-                ]);
+            $fallbackError = new Error(
+                id: $response->getId(),
+                code: Error::INTERNAL_ERROR,
+                message: 'Response could not be encoded to JSON'
+            );
 
-                $fallbackError = new Error(
-                    id: $response->getId(),
-                    code: Error::INTERNAL_ERROR,
-                    message: 'Response could not be encoded to JSON'
-                );
-
-                $encoded = json_encode($fallbackError, \JSON_THROW_ON_ERROR);
-            }
-
-            $context['type'] = 'response';
-            if (null !== $session) {
-                $context['session_id'] = $session->getId();
-            }
-
-            $transport->send($encoded, $context);
-        } else {
-            $this->logger->info('Queueing server response', [
-                'response_id' => $response->getId(),
-            ]);
-
-            $this->queueOutgoing($response, ['type' => 'response'], $session);
+            $encoded = json_encode($fallbackError, \JSON_THROW_ON_ERROR);
         }
+
+        $context['type'] = 'response';
+        if (null !== $session) {
+            $context['session_id'] = $session->getId();
+        }
+
+        $transport->send($encoded, $context);
     }
 
     /**
      * Helper to queue outgoing messages in session.
      *
-     * @param Request|Notification|Response<ResultInterface|array<string, mixed>>|Error $message
-     * @param array<string, mixed>                                                      $context
+     * @param array<string, mixed> $context
      */
-    private function queueOutgoing(Request|Notification|Response|Error $message, array $context, SessionInterface $session): void
+    private function queueOutgoing(Request|Notification $message, array $context, SessionInterface $session): void
     {
         try {
             $encoded = json_encode($message, \JSON_THROW_ON_ERROR);
