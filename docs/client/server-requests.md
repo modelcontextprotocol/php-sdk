@@ -88,6 +88,10 @@ Only the `Accept` action carries content.
     throw new \RuntimeException('No interactive console available');
     ```
 
+    This holds on `2025-11-25`. On `2026-07-28`, the error is not sent to the server. Instead,
+    the call that asked for the input (e.g. `callTool()`) throws a `RuntimeException` with the
+    message.
+
 See [`examples/client/stdio_elicitation.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_elicitation.php) for a runnable example against the
 elicitation demo server.
 
@@ -199,6 +203,10 @@ blocks in a user message. The client should pass those blocks back to the LLM pr
     throw new \RuntimeException('Rate limit exceeded');
     ```
 
+    This holds on `2025-11-25`. On `2026-07-28`, the error is not sent to the server. Instead,
+    the call that asked for the input (e.g. `callTool()`) throws a `RuntimeException` with the
+    message.
+
 ## Logging Notifications
 
 > **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. Logging keeps working until then; new integrations should log to stderr (stdio) or use OpenTelemetry instead.
@@ -270,7 +278,9 @@ $client = Client::builder()
 ```
 
 Throw a `RootsException` in the callback to forward a specific error message to the server. Any
-other exception returns a generic error, like in the elicitation and sampling callbacks.
+other exception returns a generic error, like in the elicitation and sampling callbacks. This
+holds on `2025-11-25`. On `2026-07-28`, the error is not sent to the server. Instead, the call that
+asked for the roots (e.g. `callTool()`) throws a `RuntimeException` with the message.
 
 When the client's roots change, notify the server so it can request the updated
 list via `roots/list`. This requires advertising the `roots.listChanged`

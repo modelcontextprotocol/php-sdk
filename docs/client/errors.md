@@ -9,8 +9,8 @@ all client errors in one place. All classes below live in the `Mcp\Exception` na
 | `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status, or the STDIO server process exits while you wait for an answer |
 | `TimeoutException` | the `timeoutSeconds` deadline of a `callTool()` call expires |
 | `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
-| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, or the builder gets an invalid timeout, retry count or fallback revision |
-| `RuntimeException` | `callTool()` calls a tool with malformed `x-mcp-header` annotations, or you call `sendRootsListChanged()` without the `rootsListChanged` capability |
+| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, the builder gets an invalid timeout, retry count or fallback revision, or the server returns a malformed result (also from `connect()`) |
+| `RuntimeException` | `callTool()` calls a tool with malformed `x-mcp-header` annotations, you call `sendRootsListChanged()` without the `rootsListChanged` capability, or, on `2026-07-28`, the server asks for input (elicitation, sampling, roots) that no request handler answers, or whose callback throws |
 
 An HTTP error status or an exited server process fails the request at once. The client doesn't
 wait for the request timeout.

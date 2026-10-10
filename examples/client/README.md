@@ -51,6 +51,9 @@ php examples/client/stdio_elicitation.php
 php examples/client/stdio_roots.php
 ```
 
+> **Note**: On a `2025-11-25` connection, sampling over HTTP needs a server that can answer a second
+> request mid-call, e.g. `PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8000 …`.
+
 The HTTP examples connect to port 8000 on the local machine by default; set `MCP_SERVER_URL` to point
 them at a server running elsewhere.
 

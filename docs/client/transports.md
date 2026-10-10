@@ -74,14 +74,15 @@ If the server answers with an HTTP error status, the request fails at once with 
 **Session ID:**
 
 On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header.
-`getSessionId()` returns it. To continue the session with a new transport, pass it back as a header:
+`getSessionId()` returns it, for example to log it. It returns `null` on `2026-07-28` and after
+`close()`:
 
 ```php
-$sessionId = $transport->getSessionId(); // always null on 2026-07-28
-
-$headers = null !== $sessionId ? ['Mcp-Session-Id' => $sessionId] : [];
-$transport = new HttpTransport('http://localhost:8000', headers: $headers);
+$sessionId = $transport->getSessionId();
 ```
+
+You can't continue a session with a new transport. Every `connect()` starts a new session, and
+`disconnect()` ends it.
 
 **Listening for server messages:**
 

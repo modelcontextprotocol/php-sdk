@@ -46,7 +46,7 @@ necessarily idempotent.
 
 ### Client Information
 
-Set the client's identity reported to servers during initialization:
+Set the client's identity that is reported to the server:
 
 ```php
 $client = Client::builder()
@@ -210,8 +210,9 @@ $client->connect($transport);
 ```
 
 The `connect()` method opens the transport and sends a `server/discover` request. If the server
-answers on revision `2026-07-28`, the connection is ready. Otherwise, the client falls back to
-the `initialize` handshake on revision `2025-11-25`.
+speaks revision `2026-07-28`, the connection is ready. If it doesn't, the client falls back to the
+`initialize` handshake and offers `2025-11-25`, or the revision set with
+`setFallbackProtocolVersion()`. A server process that exits fails the connection instead.
 
 With `setFallbackProtocolVersion(null)`, `connect()` fails instead. See
 [How the client settles on an era](../protocol-versions.md#how-the-client-settles-on-an-era).

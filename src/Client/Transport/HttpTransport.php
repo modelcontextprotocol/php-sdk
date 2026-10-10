@@ -145,9 +145,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *
      * Captured from the Mcp-Session-Id response header of a handshake-era
      * server; always null on 2026-07-28, which removed protocol-level sessions
-     * (SEP-2567). A caller that cannot keep the transport alive between
-     * interactions can persist it and pass it back through the constructor's
-     * $headers on a later transport, where it wins over the tracked value.
+     * (SEP-2567). Useful for logging: every connect() starts a new session
+     * and close() ends it, so it cannot be reused on a later transport.
      *
      * @return string|null null until the server mints a session, and again after close()
      */

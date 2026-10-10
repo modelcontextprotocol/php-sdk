@@ -28,7 +28,7 @@ $client->disconnect();
 ```
 
 * **[Connecting to a server](connecting.md)** — the builder, the connection lifecycle,
-  and what the server told you about itself during initialization.
+  and what the server told you about itself when connecting.
 * **[Transports](transports.md)** — launching a local server process (STDIO) or talking
   to a remote one (HTTP).
 * **[Tools, resources & prompts](capabilities.md)** — listing and calling everything a
