@@ -21,6 +21,7 @@ use Mcp\Exception\LogicException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
@@ -83,32 +84,166 @@ final class ProtocolTest extends TestCase
         }
     }
 
-    #[TestDox('a server that refuses "server/discover" still leaves a usable connection')]
-    public function testDiscoveryFailureIsNotFatal(): void
+    #[TestDox('a server that refuses "server/discover" is reached through the handshake instead')]
+    public function testRefusedProbeFallsBackToTheHandshake(): void
     {
-        $transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value, refuseDiscovery: true);
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, refuseDiscovery: true);
         $protocol = new Protocol();
         $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
 
-        $protocol->initialize($config);
+        $this->assertInstanceOf(Response::class, $protocol->initialize($config));
 
+        $this->assertSame(['server/discover', 'initialize', 'notifications/initialized'], $transport->methods);
+        $this->assertSame(ProtocolVersion::V2025_11_25->value, $transport->offeredVersion);
+        $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
         $this->assertTrue($protocol->getState()->isInitialized());
-        $this->assertNull($protocol->getState()->getServerCapabilities());
+
+        // Nothing after the fallback carries the modern envelope.
+        $this->assertArrayNotHasKey(RequestMeta::PROTOCOL_VERSION, $transport->metas[1]);
     }
 
-    #[TestDox('refuses to continue when discovery shows the server has no modern revision')]
-    public function testDiscoveryWithoutAModernRevisionFails(): void
+    #[TestDox('the fallback offers the configured handshake revision')]
+    public function testFallbackOffersTheConfiguredRevision(): void
     {
-        // Advertising only handshake revisions leaves nothing this connection
-        // can use: it has already skipped the handshake.
+        $transport = new RecordingTransport(ProtocolVersion::V2025_06_18->value, refuseDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_06_18));
+
+        $protocol->initialize($config);
+
+        $this->assertSame(ProtocolVersion::V2025_06_18->value, $transport->offeredVersion);
+        $this->assertSame(ProtocolVersion::V2025_06_18, $protocol->getState()->getProtocolVersion());
+    }
+
+    #[TestDox('a server that never answers the probe is reached through the handshake once it times out')]
+    public function testSilentProbeFallsBackToTheHandshake(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, ignoreDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        // Times the probe out by hand, like StdioTransport::tick() would.
+        $fiber = new \Fiber(static fn () => $protocol->initialize($config));
+        $suspended = $fiber->start();
+
+        $this->assertSame('await_response', $suspended['type']);
+        $fiber->resume(Error::forInternalError('Request timed out', $suspended['request_id']));
+
+        $this->assertTrue($fiber->isTerminated());
+        $this->assertInstanceOf(Response::class, $fiber->getReturn());
+        $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
+    }
+
+    #[TestDox('a connection lost during the probe fails the attempt instead of falling back')]
+    public function testLostConnectionDuringProbeDoesNotFallBack(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, ignoreDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $fiber = new \Fiber(static fn () => $protocol->initialize($config));
+        $suspended = $fiber->start();
+        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output; it is no longer running.', [TransportInterface::CONNECTION_LOST => true]));
+
+        $this->assertTrue($fiber->isTerminated());
+        $error = $fiber->getReturn();
+        $this->assertInstanceOf(Error::class, $error);
+        $this->assertStringContainsString('no longer running', $error->message);
+        $this->assertSame(['server/discover'], $transport->methods);
+    }
+
+    #[TestDox('a refusal naming only handshake revisions falls back rather than failing')]
+    public function testRefusalNamingHandshakeRevisionsFallsBack(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, discoveryError: Error::forUnsupportedProtocolVersion('2026-07-28', ProtocolVersion::handshakeVersions()));
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $this->assertInstanceOf(Response::class, $protocol->initialize($config));
+        $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
+    }
+
+    #[TestDox('a refusal naming no revision this client speaks fails without a handshake')]
+    public function testRefusalNamingNothingUsableFails(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, discoveryError: new Error(1, Error::UNSUPPORTED_PROTOCOL_VERSION, 'Unsupported protocol version', ['requested' => '2026-07-28', 'supported' => ['2099-01-01']]));
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $result = $protocol->initialize($config);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('2099-01-01', $result->message);
+        $this->assertNotContains('initialize', $transport->methods);
+        $this->assertFalse($protocol->getState()->isInitialized());
+    }
+
+    #[TestDox('a server advertising only handshake revisions is reached through the handshake')]
+    public function testDiscoveryWithoutAModernRevisionFallsBack(): void
+    {
         $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value);
         $protocol = new Protocol();
         $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
 
-        $this->expectException(ConnectionException::class);
-        $this->expectExceptionMessage('does not support any modern protocol revision');
+        $this->assertInstanceOf(Response::class, $protocol->initialize($config));
+        $this->assertSame(['server/discover', 'initialize', 'notifications/initialized'], $transport->methods);
+        $this->assertSame(ProtocolVersion::V2025_11_25, $protocol->getState()->getProtocolVersion());
+    }
 
-        $protocol->initialize($config);
+    #[TestDox('a modern-only client fails against a server without the modern era')]
+    public function testModernOnlyClientDoesNotFallBack(): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, refuseDiscovery: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28, null));
+
+        $result = $protocol->initialize($config);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('without a handshake fallback', $result->message);
+        $this->assertSame(['server/discover'], $transport->methods);
+        $this->assertFalse($protocol->getState()->isInitialized());
+    }
+
+    /**
+     * @return iterable<string, array{?ProtocolVersion, bool}>
+     */
+    public static function provideFallbacks(): iterable
+    {
+        yield 'with a fallback' => [ProtocolVersion::V2025_11_25, true];
+        yield 'modern-only' => [null, false];
+    }
+
+    #[TestDox('an answer to the probe that names no revision is no evidence of the modern era ($_dataName)')]
+    #[DataProvider('provideFallbacks')]
+    public function testDiscoveryWithoutRevisionsIsNotModernEvidence(?ProtocolVersion $fallback, bool $connects): void
+    {
+        $transport = new RecordingTransport(ProtocolVersion::V2025_11_25->value, discoveryWithoutVersions: true);
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28, $fallback));
+
+        $result = $protocol->initialize($config);
+
+        $this->assertNotSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
+        $this->assertSame($connects, $result instanceof Response);
+        $this->assertSame($connects, $protocol->getState()->isInitialized());
+    }
+
+    #[TestDox('a handshake refused because the server already settled on the modern era probes again')]
+    public function testLateModernSettlementIsProbedAgain(): void
+    {
+        $transport = new RecordingTransport(
+            ProtocolVersion::V2025_11_25->value,
+            refuseDiscovery: true,
+            initializeError: Error::forUnsupportedProtocolVersion('2025-11-25', [ProtocolVersion::V2026_07_28]),
+            discoverAfterInitialize: true,
+        );
+        $protocol = new Protocol();
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+
+        $this->assertInstanceOf(Response::class, $protocol->initialize($config));
+        $this->assertSame(['server/discover', 'initialize', 'server/discover'], $transport->methods);
+        $this->assertSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
     }
 
     #[TestDox('accepts a counter-offer the SDK can speak and records it as negotiated')]
@@ -213,12 +348,32 @@ final class ProtocolTest extends TestCase
         $this->assertFalse($protocol->getToolCatalog()->isRejected('broken'), 'the previous server\'s verdict must not survive a reconnect');
     }
 
+    #[TestDox('reconnecting forgets the log level asked for on the previous connection')]
+    public function testReconnectResetsLogLevel(): void
+    {
+        $protocol = new Protocol();
+        $config = $this->createConfiguration(ProtocolVersion::V2026_07_28);
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+        $protocol->setLogLevel(LoggingLevel::Debug);
+
+        $protocol->connect($transport = new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+
+        $this->assertNotSame([], $transport->metas);
+        foreach ($transport->metas as $meta) {
+            $this->assertArrayNotHasKey(RequestMeta::LOG_LEVEL, $meta);
+        }
+    }
+
     #[TestDox('an empty inputResponses map is retried as a JSON object, never an array')]
     public function testEmptyInputResponsesEncodesAsJsonObject(): void
     {
         $transport = new InputRequiredRoundTripTransport();
         $protocol = new Protocol();
-        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2026_07_28));
+        $protocol->connect($transport, $config = $this->createConfiguration(ProtocolVersion::V2026_07_28));
+        $protocol->initialize($config);
 
         $result = $protocol->request(new PingRequest(), 5);
 
@@ -392,12 +547,13 @@ final class ProtocolTest extends TestCase
         $this->assertGreaterThanOrEqual($boundary, microtime(true), 'The clock must pass the per-call deadline for this assertion to be about the deadline.');
     }
 
-    private function createConfiguration(ProtocolVersion $protocolVersion): Configuration
+    private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
     {
         return new Configuration(
             clientInfo: new Implementation('client-app', '1.0.0'),
             capabilities: new ClientCapabilities(),
             protocolVersion: $protocolVersion,
+            fallbackProtocolVersion: $fallback,
         );
     }
 }
@@ -421,9 +577,15 @@ final class InputRequiredRoundTripTransport implements TransportInterface
 
     public function send(string $data): void
     {
-        /** @var array{id: int} $message */
+        /** @var array{id: int, method: string} $message */
         $message = json_decode($data, true);
         $id = $message['id'];
+
+        if ('server/discover' === $message['method']) {
+            $this->answer($id, ['resultType' => 'complete', 'supportedVersions' => [ProtocolVersion::V2026_07_28->value], 'capabilities' => []]);
+
+            return;
+        }
 
         if (0 === $this->calls++) {
             $this->answer($id, ['resultType' => 'input_required', 'inputRequests' => []]);
@@ -495,9 +657,16 @@ final class RecordingTransport implements TransportInterface
 
     private ClientStateInterface $state;
 
+    private bool $initialized = false;
+
     public function __construct(
         private readonly string $counterOffer,
         private readonly bool $refuseDiscovery = false,
+        private readonly bool $ignoreDiscovery = false,
+        private readonly ?Error $discoveryError = null,
+        private readonly ?Error $initializeError = null,
+        private readonly bool $discoverAfterInitialize = false,
+        private readonly bool $discoveryWithoutVersions = false,
     ) {
     }
 
@@ -520,6 +689,13 @@ final class RecordingTransport implements TransportInterface
 
         if ('initialize' === $method) {
             $this->offeredVersion = $message['params']['protocolVersion'] ?? null;
+            $this->initialized = true;
+
+            if (null !== $this->initializeError) {
+                $this->fail($message['id'], $this->initializeError);
+
+                return;
+            }
 
             $this->answer($message['id'], [
                 'protocolVersion' => $this->counterOffer,
@@ -534,19 +710,33 @@ final class RecordingTransport implements TransportInterface
             return;
         }
 
-        if ($this->refuseDiscovery) {
-            $this->state->storeResponse($message['id'], [
-                'jsonrpc' => MessageInterface::JSONRPC_VERSION,
-                'id' => $message['id'],
-                'error' => ['code' => -32601, 'message' => 'Method not found'],
-            ]);
+        if ($this->ignoreDiscovery) {
+            return;
+        }
+
+        $discoverable = $this->discoverAfterInitialize && $this->initialized;
+
+        if (null !== $this->discoveryError && !$discoverable) {
+            $this->fail($message['id'], $this->discoveryError);
+
+            return;
+        }
+
+        if ($this->refuseDiscovery && !$discoverable) {
+            $this->fail($message['id'], Error::forMethodNotFound('Method not found'));
+
+            return;
+        }
+
+        if ($this->discoveryWithoutVersions) {
+            $this->answer($message['id'], []);
 
             return;
         }
 
         $this->answer($message['id'], [
             'resultType' => 'complete',
-            'supportedVersions' => [$this->counterOffer],
+            'supportedVersions' => [$discoverable ? ProtocolVersion::V2026_07_28->value : $this->counterOffer],
             'capabilities' => [],
             'serverInfo' => ['name' => 'server', 'version' => '1.2.3'],
         ]);
@@ -562,6 +752,11 @@ final class RecordingTransport implements TransportInterface
             'id' => $id,
             'result' => $result,
         ]);
+    }
+
+    private function fail(int|string $id, Error $error): void
+    {
+        $this->state->storeResponse($id, (new Error($id, $error->code, $error->message, $error->data))->jsonSerialize());
     }
 
     public function setState(ClientStateInterface $state): void

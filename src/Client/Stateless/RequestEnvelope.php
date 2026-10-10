@@ -12,6 +12,7 @@
 namespace Mcp\Client\Stateless;
 
 use Mcp\Schema\ClientCapabilities;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Server\Stateless\RequestMeta;
@@ -35,6 +36,7 @@ final class RequestEnvelope
         private readonly ProtocolVersion $protocolVersion,
         private readonly ClientCapabilities $capabilities,
         private readonly Implementation $clientInfo,
+        private readonly ?LoggingLevel $logLevel = null,
     ) {
     }
 
@@ -45,7 +47,12 @@ final class RequestEnvelope
 
     public function withProtocolVersion(ProtocolVersion $protocolVersion): self
     {
-        return new self($protocolVersion, $this->capabilities, $this->clientInfo);
+        return new self($protocolVersion, $this->capabilities, $this->clientInfo, $this->logLevel);
+    }
+
+    public function withLogLevel(?LoggingLevel $logLevel): self
+    {
+        return new self($this->protocolVersion, $this->capabilities, $this->clientInfo, $logLevel);
     }
 
     /**
@@ -70,6 +77,10 @@ final class RequestEnvelope
             RequestMeta::CLIENT_CAPABILITIES => $this->capabilities,
             RequestMeta::CLIENT_INFO => $this->clientInfo,
         ];
+
+        if (null !== $this->logLevel) {
+            $params['_meta'][RequestMeta::LOG_LEVEL] = $this->logLevel->value;
+        }
 
         $payload['params'] = $params;
 

@@ -14,9 +14,11 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ElicitAction;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\ElicitResult;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -85,6 +87,24 @@ final class ElicitationTest extends IntegrationTestCase
 
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertSame('Client does not handle "elicitation/create" requests.', $result->content[0]->text);
+    }
+
+    #[TestDox('on the modern era, an ask the client advertised but cannot answer fails the call on the client')]
+    public function testAdvertisedCapabilityWithoutHandlerOnTheModernEra(): void
+    {
+        $client = $this->connect(
+            'elicitation',
+            $this->clientBuilder()
+                ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+                ->setCapabilities(new ClientCapabilities(elicitation: true)),
+        );
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('Client does not handle "elicitation/create" requests.');
+
+        $client->callTool('ask_name');
     }
 
     private function clientAnswering(ElicitResult $answer): ClientBuilder

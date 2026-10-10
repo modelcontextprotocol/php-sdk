@@ -52,9 +52,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var FiberSuspend|null */
     private ?array $activeSuspend = null;
 
-    /** @var (callable(float, ?float, ?string): void)|null */
-    private $activeProgressCallback;
-
     /** @var StreamInterface|null Active SSE stream being read */
     private ?StreamInterface $activeStream = null;
 
@@ -205,6 +202,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
+        if ($response->getStatusCode() >= 400) {
+            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $response->getBody()->getContents());
+
+            return;
+        }
+
         if (str_contains($contentType, 'text/event-stream')) {
             // While listening, a request on the GET stream can be what this
             // response waits for, so neither stream may block the other.
@@ -232,13 +235,54 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     }
 
     /**
+     * Fails a request refused at the HTTP level at once, rather than at its timeout.
+     */
+    private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
+    {
+        $request = json_decode($sent, true);
+        $requestId = \is_array($request) && \array_key_exists('method', $request) ? ($request['id'] ?? null) : null;
+        $answer = '' === trim($body) ? null : json_decode($body, true);
+
+        if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId && self::isWellFormedAnswer($answer)) {
+            $this->handleMessage($body);
+
+            return;
+        }
+
+        if ((!\is_string($requestId) && !\is_int($requestId)) || null === $this->state) {
+            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => $body]);
+
+            return;
+        }
+
+        $error = \is_array($answer['error'] ?? null) && \is_int($answer['error']['code'] ?? null)
+            ? new Error($requestId, $answer['error']['code'], \is_string($answer['error']['message'] ?? null) ? $answer['error']['message'] : $reason, $answer['error']['data'] ?? null)
+            : Error::forInvalidRequest(\sprintf('Server answered with HTTP %d%s.', $status, '' !== $reason ? ' '.$reason : ''), $requestId);
+
+        $this->state->storeResponse($requestId, $error->jsonSerialize());
+    }
+
+    /**
+     * @param array<mixed> $answer
+     */
+    private static function isWellFormedAnswer(array $answer): bool
+    {
+        try {
+            \array_key_exists('error', $answer) ? Error::fromArray($answer) : Response::fromArray($answer);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * @param McpFiber                                                                $fiber
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      */
     public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
     {
         $this->activeFiber = $fiber;
-        $this->activeProgressCallback = $onProgress;
         try {
             $this->activeSuspend = $fiber->start();
             while (!$fiber->isTerminated()) {
@@ -249,7 +293,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         } finally {
             $this->activeFiber = null;
             $this->activeSuspend = null;
-            $this->activeProgressCallback = null;
             $this->activeStream?->close();
             $this->activeStream = null;
             $this->sseBuffer = '';
@@ -408,7 +451,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->checkInterruption();
         $this->processSSEStream();
         $this->processListenStream();
-        $this->processProgress();
         $this->checkInterruption();
         $this->processFiber();
 
@@ -589,30 +631,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if (!empty($data)) {
             $this->handleMessage($data);
-        }
-    }
-
-    /**
-     * Process pending progress updates from session and execute callback.
-     */
-    private function processProgress(): void
-    {
-        if (null === $this->activeProgressCallback || null === $this->state) {
-            return;
-        }
-
-        $updates = $this->state->consumeProgressUpdates();
-
-        foreach ($updates as $update) {
-            try {
-                ($this->activeProgressCallback)(
-                    $update['progress'],
-                    $update['total'],
-                    $update['message'],
-                );
-            } catch (\Throwable $e) {
-                $this->logger->warning('Progress callback failed', ['exception' => $e]);
-            }
         }
     }
 

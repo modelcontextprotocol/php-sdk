@@ -23,10 +23,10 @@ use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\ConnectionException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
@@ -80,6 +80,11 @@ class Protocol
 
     private ToolCatalog $tools;
 
+    private ?LoggingLevel $logLevel = null;
+
+    /** @var (callable(float, ?float, ?string): void)|null */
+    private $onProgress;
+
     private readonly InputRequestResolver $inputRequests;
 
     /**
@@ -103,7 +108,7 @@ class Protocol
         $this->logger = $logger ?? new NullLogger();
 
         $this->notificationHandlers = [
-            new ProgressNotificationHandler($this->state),
+            new ProgressNotificationHandler($this->deliverProgress(...)),
             ...$notificationHandlers,
         ];
 
@@ -139,14 +144,7 @@ class Protocol
         // or another — has said nothing yet.
         $this->tools = new ToolCatalog($this->logger);
 
-        if ($config->protocolVersion->isModern()) {
-            $this->envelope = new RequestEnvelope(
-                $config->protocolVersion,
-                $config->capabilities,
-                $config->clientInfo,
-            );
-            $this->headers = new HeaderFactory($this->tools);
-        }
+        $this->logLevel = null;
 
         $transport->setState($this->state);
         $transport->onInitialize(fn () => $this->initialize($config));
@@ -179,11 +177,7 @@ class Protocol
     }
 
     /**
-     * Ready the connection for use.
-     *
-     * Up to 2025-11-25 that means the `initialize` handshake: offer a revision,
-     * take the server's answer, confirm with `notifications/initialized`. From
-     * 2026-07-28 there is no handshake at all — see {@see self::discover()}.
+     * Ready the connection for use, settling which protocol era it speaks.
      *
      * @param Configuration $config The client configuration
      *
@@ -191,12 +185,201 @@ class Protocol
      */
     public function initialize(Configuration $config): Response|Error
     {
-        if (null !== $this->envelope) {
-            return $this->discover($config);
+        $this->envelope = null;
+        $this->headers = null;
+
+        if (!$config->protocolVersion->isModern()) {
+            return $this->handshake($config->protocolVersion, $config);
         }
 
-        $offered = $config->protocolVersion;
+        return $this->negotiate($config);
+    }
 
+    /**
+     * Probe for the modern era, falling back to the handshake unless the server proves to speak it.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#backward-compatibility
+     *
+     * @return Response<array<string, mixed>>|Error
+     */
+    private function negotiate(Configuration $config, ?ProtocolVersion $version = null, bool $reprobed = false): Response|Error
+    {
+        $this->enterModernEra($version ?? $config->protocolVersion, $config);
+
+        $probe = $this->request(new DiscoverRequest(), $config->initTimeout);
+        $adopted = $this->adopt($probe);
+
+        if ($adopted instanceof Response || $adopted instanceof Error) {
+            return $adopted;
+        }
+
+        if (null === $config->fallbackProtocolVersion) {
+            return Error::forInvalidRequest(\sprintf(
+                'Server does not speak protocol version %s and this client is configured without a handshake fallback: %s',
+                $config->protocolVersion->value,
+                self::describe($probe),
+            ));
+        }
+
+        $this->logger->info('Server does not speak the modern era; falling back to the "initialize" handshake.', [
+            'probe' => self::describe($probe),
+            'offering' => $config->fallbackProtocolVersion->value,
+        ]);
+
+        $this->envelope = null;
+        $this->headers = null;
+
+        $handshake = $this->handshake($config->fallbackProtocolVersion, $config);
+
+        // Once more: a timed-out probe may still have settled a slow server on the modern era.
+        if ($handshake instanceof Error && !$reprobed && null !== $modern = self::mutualModern($handshake)) {
+            $this->logger->info('Server settled on the modern era after all; probing again.', ['version' => $modern->value]);
+
+            return $this->negotiate($config, $modern, true);
+        }
+
+        return $handshake;
+    }
+
+    private function enterModernEra(ProtocolVersion $version, Configuration $config): void
+    {
+        $this->envelope = new RequestEnvelope($version, $config->capabilities, $config->clientInfo, $this->logLevel);
+        $this->headers = new HeaderFactory($this->tools);
+    }
+
+    /**
+     * Set the callback for progress on the request in flight, null to clear it.
+     *
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     */
+    public function setProgressCallback(?callable $onProgress): void
+    {
+        $this->onProgress = $onProgress;
+    }
+
+    private function deliverProgress(float $progress, ?float $total, ?string $message): void
+    {
+        if (null === $this->onProgress) {
+            return;
+        }
+
+        try {
+            ($this->onProgress)($progress, $total, $message);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Progress callback failed', ['exception' => $e]);
+        }
+    }
+
+    public function isModern(): bool
+    {
+        return null !== $this->envelope;
+    }
+
+    /**
+     * The modern era's stand-in for `logging/setLevel`.
+     */
+    public function setLogLevel(LoggingLevel $level): void
+    {
+        $this->logLevel = $level;
+        $this->envelope = $this->envelope?->withLogLevel($level);
+    }
+
+    /**
+     * The modern connection, an error ending the attempt, or null to fall back.
+     *
+     * @param Response<array<string, mixed>>|Error $probe
+     *
+     * @return Response<array<string, mixed>>|Error|null
+     */
+    private function adopt(Response|Error $probe): Response|Error|null
+    {
+        \assert(null !== $this->envelope);
+
+        if ($probe instanceof Error) {
+            if (\is_array($probe->data) && true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null)) {
+                return $probe;
+            }
+
+            if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $probe->code) {
+                return null;
+            }
+
+            // Modern revisions it names were already retried by request().
+            $supported = self::supportedVersions($probe);
+
+            foreach ($supported as $version) {
+                if (!$version->isModern()) {
+                    return null;
+                }
+            }
+
+            $named = self::namedVersions($probe);
+
+            return Error::forInvalidRequest(\sprintf('Server supports none of the protocol versions this client speaks (it advertises %s).', [] === $named ? 'none' : implode(', ', $named)), $probe->id);
+        }
+
+        $advertised = $probe->result['supportedVersions'] ?? null;
+
+        if (!\is_array($advertised)) {
+            return null;
+        }
+
+        $current = $this->envelope->protocolVersion();
+        $chosen = null;
+
+        foreach (ProtocolVersion::modernVersions() as $version) {
+            if (\in_array($version->value, $advertised, true) && (null === $chosen || $version->isAtLeast($chosen))) {
+                $chosen = $version;
+            }
+        }
+
+        if (\in_array($current->value, $advertised, true)) {
+            $chosen = $current;
+        }
+
+        if (null === $chosen) {
+            return null;
+        }
+
+        if ($chosen !== $current) {
+            $this->logger->warning('Server does not speak the configured revision; continuing on one it advertises.', [
+                'configured' => $current->value,
+                'using' => $chosen->value,
+            ]);
+
+            $this->envelope = $this->envelope->withProtocolVersion($chosen);
+        }
+
+        $this->readDiscovery($probe->result);
+
+        return $this->settleModern($probe);
+    }
+
+    /**
+     * @param Response<array<string, mixed>> $probe
+     *
+     * @return Response<array<string, mixed>>
+     */
+    private function settleModern(Response $probe): Response
+    {
+        \assert(null !== $this->envelope);
+
+        $this->state->setProtocolVersion($this->envelope->protocolVersion());
+        $this->state->setInitialized(true);
+
+        $this->logger->info('Connection settled on the modern era', [
+            'protocolVersion' => $this->envelope->protocolVersion()->value,
+        ]);
+
+        return $probe;
+    }
+
+    /**
+     * @return Response<array<string, mixed>>|Error
+     */
+    private function handshake(ProtocolVersion $offered, Configuration $config): Response|Error
+    {
         $request = new InitializeRequest(
             $offered->value,
             $config->capabilities,
@@ -204,6 +387,16 @@ class Protocol
         );
 
         $response = $this->request($request, $config->initTimeout);
+
+        if ($response instanceof Error && Error::UNSUPPORTED_PROTOCOL_VERSION === $response->code) {
+            $named = self::namedVersions($response);
+
+            return new Error($response->id, $response->code, \sprintf(
+                'Server does not speak protocol version %s; it supports %s.',
+                $offered->value,
+                [] === $named ? 'none it named' : implode(', ', $named),
+            ), $response->data);
+        }
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
@@ -244,42 +437,7 @@ class Protocol
     }
 
     /**
-     * Stand in for the handshake in the modern era.
-     *
-     * There is nothing to negotiate: the revision travels on every request, so
-     * the connection is usable the moment the transport is. `server/discover`
-     * is only asked because the facade exposes `getServerInfo()` and
-     * `getServerCapabilities()`, and a server that will not answer it still
-     * serves every other method — so a failure here is logged and the
-     * connection proceeds.
-     *
-     * @return Response<array<string, mixed>>
-     */
-    private function discover(Configuration $config): Response
-    {
-        $this->state->setProtocolVersion($config->protocolVersion);
-        $this->state->setInitialized(true);
-
-        $response = $this->request(new DiscoverRequest(), $config->initTimeout);
-
-        if ($response instanceof Error) {
-            $this->logger->info('Server did not answer "server/discover"; continuing without its metadata.', [
-                'code' => $response->code,
-                'message' => $response->message,
-            ]);
-
-            return new Response(0, []);
-        }
-
-        $this->readDiscovery($response->result);
-
-        return $response;
-    }
-
-    /**
-     * Read defensively: `server/discover` is optional, so a server may answer
-     * with something that is not a DiscoverResult at all, and none of it is
-     * load-bearing for the requests that follow.
+     * Read defensively: nothing beyond the revisions is load-bearing.
      *
      * @param array<string, mixed> $result
      */
@@ -306,56 +464,54 @@ class Protocol
         if (\is_array($result['capabilities'] ?? null)) {
             $this->state->setServerCapabilities(ServerCapabilities::fromArray($result['capabilities']));
         }
-
-        $this->reconcileVersion($result['supportedVersions'] ?? null);
-
-        $this->logger->info('Discovery complete', [
-            'supportedVersions' => $result['supportedVersions'] ?? null,
-        ]);
     }
 
     /**
-     * Move to a revision the server actually speaks, if it said which.
-     *
-     * `server/discover` reports rather than negotiates, so a client that asked
-     * for something the server does not list learns it here — and learning it
-     * now is far better than a stream of refusals later. A server that stays
-     * silent about its versions is left alone; the method is optional and
-     * saying nothing is not the same as saying no.
+     * The newest modern revision a refusal names that this client speaks.
      */
-    private function reconcileVersion(mixed $supportedVersions): void
+    private static function mutualModern(Error $error): ?ProtocolVersion
     {
-        if (!\is_array($supportedVersions) || [] === $supportedVersions || null === $this->envelope) {
-            return;
+        if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $error->code) {
+            return null;
         }
 
-        $current = $this->envelope->protocolVersion();
+        $mutual = null;
 
-        if (\in_array($current->value, $supportedVersions, true)) {
-            return;
-        }
-
-        foreach ($supportedVersions as $candidate) {
-            $version = \is_string($candidate) ? ProtocolVersion::tryFrom($candidate) : null;
-
-            if (null === $version || !$version->isModern()) {
-                continue;
+        foreach (self::supportedVersions($error) as $version) {
+            if ($version->isModern() && (null === $mutual || $version->isAtLeast($mutual))) {
+                $mutual = $version;
             }
-
-            $this->logger->warning('Server does not speak the configured revision; continuing on one it advertises.', [
-                'configured' => $current->value,
-                'using' => $version->value,
-            ]);
-
-            $this->envelope = $this->envelope->withProtocolVersion($version);
-            $this->state->setProtocolVersion($version);
-
-            return;
         }
 
-        // Everything it offers is handshake era, which this connection cannot
-        // reach — it has already skipped the handshake.
-        throw new ConnectionException(\sprintf('Server does not support any modern protocol revision (it advertises %s); the configured "%s" cannot be used against it.', implode(', ', array_map(strval(...), $supportedVersions)), $current->value));
+        return $mutual;
+    }
+
+    /**
+     * @return list<ProtocolVersion>
+     */
+    private static function supportedVersions(Error $error): array
+    {
+        return array_values(array_filter(array_map(ProtocolVersion::tryFrom(...), self::namedVersions($error))));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function namedVersions(Error $error): array
+    {
+        $supported = \is_array($error->data) && \is_array($error->data['supported'] ?? null) ? $error->data['supported'] : [];
+
+        return array_values(array_filter($supported, is_string(...)));
+    }
+
+    /**
+     * @param Response<array<string, mixed>>|Error $probe
+     */
+    private static function describe(Response|Error $probe): string
+    {
+        return $probe instanceof Error
+            ? \sprintf('"server/discover" was answered with error %d (%s)', $probe->code, $probe->message)
+            : '"server/discover" was answered without a modern revision';
     }
 
     /**

@@ -39,6 +39,9 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Serve both protocol eras over stdio: `StdioTransport` settles the era on the client's first request and serves `2026-07-28` requests, `subscriptions/listen` and `notifications/cancelled` on the one channel.
 * [BC Break] `StatelessAwareTransportInterface` declares `setHandshakeVersions()`, so a server without the modern era names only the revisions it negotiates when refusing a `2026-07-28` request, e.g. the one set with `Builder::setProtocolVersion()`.
 * Answer a bare `initialize` on a `2026-07-28`-only endpoint with `-32022` naming the served revisions, and a request without a session on the handshake leg with its id.
+* Speak both protocol eras from a client configured with `2026-07-28`: `connect()` probes with `server/discover` and falls back to the `initialize` handshake on `2025-11-25` when the server does not speak the modern era. `Builder::setFallbackProtocolVersion()` picks the fallback revision, or `null` for a modern-only client.
+* On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
+* Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
 
 0.8.0
 -----

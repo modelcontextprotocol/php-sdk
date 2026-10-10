@@ -13,13 +13,20 @@ namespace Mcp\Tests\Unit\Client\Transport;
 
 use Mcp\Client;
 use Mcp\Client\CancellationTokenInterface;
+use Mcp\Client\Configuration;
+use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
+use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
+use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
+use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -87,8 +94,10 @@ final class HttpTransportTest extends TestCase
             }
         };
 
+        // The handshake era is what these servers speak, so no probe precedes it.
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
             ->setInitTimeout(1)
             ->build();
 
@@ -131,8 +140,10 @@ final class HttpTransportTest extends TestCase
 
         $this->assertNull($transport->getSessionId());
 
+        // The handshake era is what these servers speak, so no probe precedes it.
         $client = Client::builder()
             ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
             ->setInitTimeout(1)
             ->build();
 
@@ -143,6 +154,169 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
 
         $this->assertNull($transport->getSessionId());
+    }
+
+    /**
+     * @return iterable<string, array{int, array<string, string>, string}>
+     */
+    public static function probeRefusalProvider(): iterable
+    {
+        yield 'a JSON-RPC error without an id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":null,"error":{"code":-32000,"message":"Bad Request: Server not initialized"}}'];
+        yield 'a JSON-RPC error under another id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":999,"error":{"code":-32600,"message":"Bad Request"}}'];
+        yield 'a body under the request id that is no JSON-RPC message' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"message":"Bad Request"}'];
+        yield 'an error under the request id without a message' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"error":{"code":-32600}}'];
+        yield 'a null result under the request id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"result":null}'];
+        yield 'a scalar result under the request id' => [400, ['Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":1,"result":"nope"}'];
+        yield 'an error under the request id without the JSON-RPC version' => [400, ['Content-Type' => 'application/json'], '{"id":1,"error":{"code":-32600,"message":"Bad Request"}}'];
+        yield 'an empty body' => [400, [], ''];
+        yield 'a plain-text body' => [404, ['Content-Type' => 'text/plain'], 'Not Found'];
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('probeRefusalProvider')]
+    #[TestDox('a handshake-era server refusing the probe with $_dataName is reached through the handshake at once')]
+    public function testRefusedProbeFallsBackWithoutWaiting(int $status, array $headers, string $body): void
+    {
+        $httpClient = new class($status, $headers, $body) implements ClientInterface {
+            /** @var list<string> */
+            public array $methods = [];
+
+            /**
+             * @param array<string, string> $headers
+             */
+            public function __construct(private readonly int $status, private readonly array $headers, private readonly string $body)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $decoded = json_decode((string) $request->getBody(), true);
+                $this->methods[] = $decoded['method'] ?? '';
+
+                if ('initialize' !== ($decoded['method'] ?? null)) {
+                    return 'server/discover' === ($decoded['method'] ?? null)
+                        ? new Response($this->status, $this->headers, $this->body)
+                        : new Response(202);
+                }
+
+                return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $decoded['id'],
+                    'result' => [
+                        'protocolVersion' => '2025-11-25',
+                        'capabilities' => new \stdClass(),
+                        'serverInfo' => ['name' => 'legacy-server', 'version' => '1.0.0'],
+                    ],
+                ]));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+            ->setInitTimeout(5)
+            ->build();
+
+        $started = microtime(true);
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertLessThan(1, microtime(true) - $started, 'the refusal must not be waited out like silence');
+        $this->assertSame(['server/discover', 'initialize', 'notifications/initialized'], $httpClient->methods);
+        $this->assertSame(ProtocolVersion::V2025_11_25, $client->getProtocolVersion());
+        $this->assertSame('legacy-server', $client->getServerInfo()?->name);
+    }
+
+    #[TestDox('a modern refusal under 400 is read as the modern error it is, not as a handshake-era server')]
+    public function testModernRefusalIsRead(): void
+    {
+        $httpClient = new class implements ClientInterface {
+            /** @var list<string> */
+            public array $methods = [];
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $decoded = json_decode((string) $request->getBody(), true);
+                $this->methods[] = $decoded['method'] ?? '';
+
+                return new Response(400, ['Content-Type' => 'application/json'], (string) json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $decoded['id'],
+                    'error' => ['code' => -32022, 'message' => 'Unsupported protocol version', 'data' => ['requested' => '2026-07-28', 'supported' => ['2099-01-01']]],
+                ]));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+            ->setInitTimeout(5)
+            ->setMaxRetries(0)
+            ->build();
+
+        try {
+            $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+            $this->fail('A modern server sharing no revision with the client must fail the connection.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('2099-01-01', $e->getMessage());
+        }
+
+        // A modern server: no fallback to a handshake it does not have.
+        $this->assertSame(['server/discover'], $httpClient->methods);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function refusedResponseProvider(): iterable
+    {
+        yield 'an empty body' => [''];
+        yield 'an error under the same id' => ['{"jsonrpc":"2.0","id":1,"error":{"code":-32600,"message":"Bad Request"}}'];
+    }
+
+    #[DataProvider('refusedResponseProvider')]
+    #[TestDox('a refused answer to a server request never answers a client request sharing its id: $_dataName')]
+    public function testRefusedResponseLeavesClientRequestsAlone(string $body): void
+    {
+        $httpClient = $this->createMock(ClientInterface::class);
+        $httpClient->method('sendRequest')->willReturn(new Response(404, ['Content-Type' => 'application/json'], $body));
+
+        $transport = new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory);
+        $state = new ClientState();
+        $transport->setState($state);
+        $dispatched = [];
+        $transport->onMessage(static function (string $message) use (&$dispatched): void {
+            $dispatched[] = $message;
+        });
+        $state->addPendingRequest(1, 120);
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+
+        $this->assertNull($state->consumeResponse(1));
+        $this->assertSame([], $dispatched);
+    }
+
+    #[TestDox('progress and other notifications on one stream reach the caller in the order they were sent')]
+    public function testProgressKeepsItsPlaceAmongNotifications(): void
+    {
+        $order = [];
+        $protocol = new Protocol(notificationHandlers: [new LoggingNotificationHandler(static function (LoggingMessageNotification $n) use (&$order): void {
+            $order[] = 'log '.$n->data;
+        })]);
+        $transport = $this->createTransport();
+        $protocol->connect($transport, new Configuration(new Implementation('test', '1.0.0'), new ClientCapabilities()));
+        $protocol->setProgressCallback(static function (float $progress) use (&$order): void {
+            $order[] = 'progress '.$progress;
+        });
+
+        $this->setActiveStream($transport, $this->factory->createStream(
+            'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}'."\n\n"
+            .'data: {"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"done"}}'."\n\n",
+        ));
+        $this->invokeProcessSseStream($transport);
+
+        $this->assertSame(['progress 1', 'log done'], $order);
     }
 
     #[TestDox('SSE stream is aborted before the buffer can exceed the configured cap')]

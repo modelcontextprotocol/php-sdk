@@ -31,6 +31,7 @@ use Mcp\Schema\Notification\RootsListChangedNotification;
 use Mcp\Schema\PromptReference;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\CompletionCompleteRequest;
+use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\GetPromptRequest;
 use Mcp\Schema\Request\ListPromptsRequest;
 use Mcp\Schema\Request\ListResourcesRequest;
@@ -173,11 +174,11 @@ class Client
     }
 
     /**
-     * Send a ping request to the server.
+     * Check that the server is reachable: `ping`, or `server/discover` on the modern era, which removed it.
      */
     public function ping(): void
     {
-        $request = new PingRequest();
+        $request = $this->protocol->isModern() ? new DiscoverRequest() : new PingRequest();
 
         $this->sendRequest($request);
     }
@@ -336,10 +337,20 @@ class Client
     }
 
     /**
-     * Set the minimum logging level for server log messages.
+     * Set the minimum logging level for server log messages; on the modern era it rides on every following request.
      */
     public function setLoggingLevel(LoggingLevel $level): void
     {
+        if (!$this->isConnected()) {
+            throw new ConnectionException('Client is not connected. Call connect() first.');
+        }
+
+        if ($this->protocol->isModern()) {
+            $this->protocol->setLogLevel($level);
+
+            return;
+        }
+
         $request = new SetLogLevelRequest($level);
 
         $this->sendRequest($request);
@@ -363,6 +374,12 @@ class Client
             throw new ConnectionException('Client is not connected. Call connect() first.');
         }
 
+        if ($this->protocol->isModern()) {
+            $this->logger->debug('Not sending "notifications/roots/list_changed": the connection is on the modern era, which removed roots.');
+
+            return;
+        }
+
         $this->protocol->sendNotification(new RootsListChangedNotification());
     }
 
@@ -384,7 +401,13 @@ class Client
 
         $withProgress = null !== $onProgress;
         $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds));
-        $response = $transport->runRequest($fiber, $onProgress);
+        $this->protocol->setProgressCallback($onProgress);
+
+        try {
+            $response = $transport->runRequest($fiber);
+        } finally {
+            $this->protocol->setProgressCallback(null);
+        }
 
         if ($response instanceof Error) {
             throw RequestException::fromError($response);
