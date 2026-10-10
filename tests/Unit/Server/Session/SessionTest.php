@@ -11,9 +11,15 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionStoreInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Uid\UuidV4;
 
 class SessionTest extends TestCase
@@ -206,6 +212,37 @@ class SessionTest extends TestCase
         $newSession = new Session($this->store, $sessionId);
 
         $this->assertSame('value', $newSession->get('persisted'));
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(): SessionStoreInterface}>
+     */
+    public static function provideStores(): iterable
+    {
+        yield 'in-memory' => [static fn () => new InMemorySessionStore()];
+        yield 'file' => [static fn () => new FileSessionStore(sys_get_temp_dir().'/mcp-sessions-'.bin2hex(random_bytes(6)))];
+        yield 'psr-16' => [static fn () => new Psr16SessionStore(new Psr16Cache(new ArrayAdapter()))];
+    }
+
+    /**
+     * @param \Closure(): SessionStoreInterface $createStore
+     */
+    #[DataProvider('provideStores')]
+    public function testSaveDoesNotResurrectADestroyedSession(\Closure $createStore): void
+    {
+        $store = $createStore();
+        $session = new Session($store);
+        $session->set('initialized', true);
+        $this->assertTrue($session->save());
+
+        // A request in flight loaded the session before it was destroyed.
+        $inFlight = new Session($store, $session->getId());
+        $inFlight->set('foo', 'bar');
+
+        $store->destroy($session->getId());
+
+        $this->assertFalse($inFlight->save());
+        $this->assertFalse($store->exists($session->getId()));
     }
 
     public function testSetCreatesNestedStructure(): void
