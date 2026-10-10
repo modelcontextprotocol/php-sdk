@@ -79,7 +79,8 @@ On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` 
 ```php
 $sessionId = $transport->getSessionId(); // always null on 2026-07-28
 
-$transport = new HttpTransport('http://localhost:8000', headers: ['Mcp-Session-Id' => $sessionId]);
+$headers = null !== $sessionId ? ['Mcp-Session-Id' => $sessionId] : [];
+$transport = new HttpTransport('http://localhost:8000', headers: $headers);
 ```
 
 **Listening for server messages:**
