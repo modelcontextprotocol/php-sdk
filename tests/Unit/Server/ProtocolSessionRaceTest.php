@@ -34,7 +34,9 @@ final class ProtocolSessionRaceTest extends TestCase
         $store = new InterleavingSessionStore();
         $sessions = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
-        $sessions->createWithId($sessionId)->save();
+        $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.pending_requests', [7 => ['request_id' => 7, 'timeout' => 120, 'timestamp' => time()]]);
+        $session->save();
 
         $waiting = new Protocol([], [], MessageFactory::make(), $sessions);
         $answering = new Protocol([], [], MessageFactory::make(), $sessions);
@@ -50,5 +52,32 @@ final class ProtocolSessionRaceTest extends TestCase
         $this->assertSame([], $waiting->consumeOutgoingMessages($sessionId));
 
         $this->assertInstanceOf(Response::class, $waiting->checkResponse(7, $sessionId));
+    }
+
+    #[TestDox('polling a timed out request does not overwrite a client response stored meanwhile')]
+    public function testPollingATimedOutRequestDoesNotOverwriteAConcurrentResponse(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessions = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.pending_requests', [
+            7 => ['request_id' => 7, 'timeout' => 5, 'timestamp' => time() - 10],
+            8 => ['request_id' => 8, 'timeout' => 120, 'timestamp' => time()],
+        ]);
+        $session->save();
+
+        $waiting = new Protocol([], [], MessageFactory::make(), $sessions);
+        $answering = new Protocol([], [], MessageFactory::make(), $sessions);
+        $transport = $this->createMock(TransportInterface::class);
+
+        // Another stream's answer lands while this stream polls its timed out request.
+        $store->interleaveAfterNextRead(static function () use ($answering, $transport, $sessionId): void {
+            $answering->processInput($transport, '{"jsonrpc": "2.0", "id": 8, "result": {"ok": true}}', $sessionId);
+        });
+
+        $this->assertNull($waiting->checkResponse(7, $sessionId));
+
+        $this->assertInstanceOf(Response::class, $waiting->checkResponse(8, $sessionId));
     }
 }

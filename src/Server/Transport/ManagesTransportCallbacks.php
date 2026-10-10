@@ -45,9 +45,6 @@ trait ManagesTransportCallbacks
     /** @var callable(FiberSuspend|null, ?Uuid): void */
     protected $fiberYieldHandler;
 
-    /** @var callable(FiberReturn, Uuid): FiberReturn */
-    protected $fiberTerminationHandler;
-
     public function onMessage(callable $listener): void
     {
         $this->messageListener = $listener;
@@ -82,13 +79,5 @@ trait ManagesTransportCallbacks
     public function setFiberYieldHandler(callable $handler): void
     {
         $this->fiberYieldHandler = $handler;
-    }
-
-    /**
-     * @param callable(FiberReturn, Uuid): FiberReturn $handler
-     */
-    public function setFiberTerminationHandler(callable $handler): void
-    {
-        $this->fiberTerminationHandler = $handler;
     }
 }

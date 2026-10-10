@@ -28,7 +28,7 @@ $server = Server::builder()
 
 ## Protocol Events
 
-The SDK dispatches 6 broad event types at the protocol level, allowing you to observe and modify all server operations:
+The SDK dispatches 6 broad event types at the protocol level. `RequestEvent`, `ResponseEvent`, `ErrorEvent` and `NotificationEvent` allow you to modify the message, while `ServerRequestEvent` and `ClientResponseEvent` are read-only and only let you observe it:
 
 ### RequestEvent
 

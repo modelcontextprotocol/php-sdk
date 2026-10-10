@@ -64,9 +64,6 @@ class Protocol
     /** Session key for outgoing message queue */
     private const SESSION_OUTGOING_QUEUE = '_mcp.outgoing_queue';
 
-    /** Session key for the client request that started a suspended Fiber */
-    private const SESSION_FIBER_PARENT_REQUEST = '_mcp.fiber_parent_request';
-
     /** Session key for active request meta */
     public const SESSION_ACTIVE_REQUEST_META = '_mcp.active_request_meta';
 
@@ -132,8 +129,6 @@ class Protocol
                 $this->trackAwaitedRequest($transport, $requestId);
             }
         });
-
-        $transport->setFiberTerminationHandler($this->handleFiberTermination(...));
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
     }
@@ -342,21 +337,28 @@ class Protocol
             try {
                 $shim = $this->inputRequiredShim;
                 $codec = $this->requestStateCodec;
+                $dispatchResult = $this->dispatchResult(...);
+                $errorForThrowable = $this->errorForThrowable(...);
 
                 // One fiber for the whole exchange: with the shim, the handler
                 // re-enters inside it each round rather than needing a new one.
+                // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec): Response|Error {
-                    $result = $handler->handle($request, $session);
+                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable): Response|Error {
+                    try {
+                        $result = $handler->handle($request, $session);
+                        $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                    } catch (\Throwable $e) {
+                        return $errorForThrowable($e, $request, $session);
+                    }
 
-                    return $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                    return $dispatchResult($result, $request, $session);
                 });
 
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
                     $beforeSuspension = $session->all();
-                    $session->set(self::SESSION_FIBER_PARENT_REQUEST, $request->jsonSerialize());
 
                     $awaitedRequestId = null;
                     if ($result instanceof NotificationSuspension) {
@@ -387,33 +389,10 @@ class Protocol
 
                     return;
                 }
-                $finalResult = $fiber->getReturn();
 
-                if ($finalResult instanceof Response) {
-                    $responseEvent = $this->dispatchEvent(new ResponseEvent($finalResult, $request, $session));
-                    $finalResult = $responseEvent->getResponse();
-                } elseif ($finalResult instanceof Error) {
-                    $errorEvent = $this->dispatchEvent(new ErrorEvent($finalResult, $request, $session, null));
-                    $finalResult = $errorEvent->getError();
-                }
-
-                $this->sendResponse($transport, $finalResult, $session);
-            } catch (\InvalidArgumentException $e) {
-                $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
-
-                $error = Error::forInvalidParams($e->getMessage(), $request->getId());
-                $errorEvent = $this->dispatchEvent(new ErrorEvent($error, $request, $session, $e));
-                $error = $errorEvent->getError();
-
-                $this->sendResponse($transport, $error, $session);
+                $this->sendResponse($transport, $fiber->getReturn(), $session);
             } catch (\Throwable $e) {
-                $this->logger->error(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
-
-                $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $request->getId());
-                $errorEvent = $this->dispatchEvent(new ErrorEvent($error, $request, $session, $e));
-                $error = $errorEvent->getError();
-
-                $this->sendResponse($transport, $error, $session);
+                $this->sendResponse($transport, $this->errorForThrowable($e, $request, $session), $session);
             }
 
             break;
@@ -435,8 +414,6 @@ class Protocol
     {
         $this->logger->info('Handling response from client.', ['message_id' => $response->getId()]);
 
-        $this->dispatchEvent(new ClientResponseEvent($response, $session));
-
         $messageId = $response->getId();
 
         if (null === $messageId) {
@@ -444,6 +421,16 @@ class Protocol
 
             return;
         }
+
+        // Request IDs are ints: a string ID like "1000" would otherwise match through PHP's key coercion.
+        $pending = \is_int($messageId) ? $session->get(self::SESSION_PENDING_REQUESTS, [])[$messageId] ?? null : null;
+        if (!\is_array($pending) || $this->hasTimedOut($pending)) {
+            $this->logger->warning('Received a client response for an unknown or timed out request ID.', ['message_id' => $messageId]);
+
+            return;
+        }
+
+        $this->dispatchEvent(new ClientResponseEvent($response, $session));
 
         $session->set(self::SESSION_RESPONSES.".{$messageId}", $response->jsonSerialize());
         $session->forget(self::SESSION_ACTIVE_REQUEST_META);
@@ -649,6 +636,14 @@ class Protocol
     }
 
     /**
+     * @param array<mixed> $pending
+     */
+    private function hasTimedOut(array $pending): bool
+    {
+        return time() - (int) ($pending['timestamp'] ?? 0) >= (int) ($pending['timeout'] ?? 120);
+    }
+
+    /**
      * Get pending requests for a session.
      *
      * @return array<int, mixed> The pending requests
@@ -736,46 +731,42 @@ class Protocol
     }
 
     /**
-     * Handle the final result of a suspended Fiber when it completes.
+     * @param Response<mixed>|Error $result
      *
-     * Dispatches ResponseEvent or ErrorEvent for the original client request that
-     * started the Fiber, allowing listeners to observe deferred responses.
-     *
-     * @phpstan-param Response<mixed>|Error $finalResult
-     *
-     * @phpstan-return Response<mixed>|Error
+     * @return Response<mixed>|Error
      */
-    public function handleFiberTermination(Response|Error $finalResult, Uuid $sessionId): Response|Error
+    private function dispatchResult(Response|Error $result, Request $request, SessionInterface $session): Response|Error
     {
-        $session = $this->sessionManager->createWithId($sessionId);
-        $parentRequest = $this->resolveFiberParentRequest(
-            $session->pull(self::SESSION_FIBER_PARENT_REQUEST)
-        );
-
-        if (null !== $parentRequest) {
-            if ($finalResult instanceof Response) {
-                $responseEvent = $this->dispatchEvent(new ResponseEvent($finalResult, $parentRequest, $session));
-                $finalResult = $responseEvent->getResponse();
-            } else {
-                $errorEvent = $this->dispatchEvent(new ErrorEvent($finalResult, $parentRequest, $session, null));
-                $finalResult = $errorEvent->getError();
+        // A resumed fiber runs this outside handleRequest()'s catch.
+        try {
+            if ($result instanceof Response) {
+                return $this->dispatchEvent(new ResponseEvent($result, $request, $session))->getResponse();
             }
+
+            return $this->dispatchEvent(new ErrorEvent($result, $request, $session, null))->getError();
+        } catch (\Throwable $e) {
+            return $this->errorForThrowable($e, $request, $session);
         }
-
-        $session->save();
-
-        return $finalResult;
     }
 
-    private function resolveFiberParentRequest(mixed $data): ?Request
+    private function errorForThrowable(\Throwable $e, Request $request, SessionInterface $session): Error
     {
-        if (!\is_array($data)) {
-            return null;
+        if ($e instanceof \InvalidArgumentException) {
+            $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
+            $error = Error::forInvalidParams($e->getMessage(), $request->getId());
+        } else {
+            $this->logger->error(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
+            $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $request->getId());
         }
 
-        $message = $this->messageFactory->createFromArray($data);
+        try {
+            return $this->dispatchEvent(new ErrorEvent($error, $request, $session, $e))->getError();
+        } catch (\Throwable $listenerError) {
+            // Last resort: the error still has to reach the client.
+            $this->logger->error('Error event listener failed.', ['exception' => $listenerError]);
 
-        return $message instanceof Request ? $message : null;
+            return $error;
+        }
     }
 
     /**
