@@ -127,3 +127,38 @@ class RedisSessionStore implements SessionStoreInterface
     }
 }
 ```
+
+## Concurrent Requests
+
+A client can send several requests of one session at the same time, for example parallel tool calls. Each
+request loads the session, changes it, and saves the keys it changed. When two requests change different keys,
+both changes are kept. When they change the same key, for example a counter in a tool handler, the request that
+saves last wins and the other change is lost.
+
+To prevent this, configure a session lock. A request then holds the lock from loading its session to saving it,
+and the other requests of that session wait for it:
+
+```php
+use Mcp\Server\Session\SymfonySessionLock;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\Store\FlockStore;
+
+// composer require symfony/lock
+$server = Server::builder()
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
+    ->setSessionLock(new SymfonySessionLock(new LockFactory(new FlockStore())))
+    ->build();
+```
+
+All workers must share the lock store: `FlockStore` works for workers on one host, use e.g. a `RedisStore`
+when the workers run on several hosts.
+
+- `$timeout` (float): Seconds a request waits for the lock (default: `30.0`). After that, it fails with a
+  `TimeoutException` and the client gets an internal error. Use a value above the duration of your longest
+  handler.
+- `$ttl` (float): Seconds after which the store expires a lock that was never released, e.g. by a crashed
+  worker (default: `300.0`).
+
+A request that waits on the client, for example for an elicitation or a sampling result, releases the lock
+while it waits. The lock is off by default, and the stdio transport does not need it, because it serves one
+client in one process. Implement `SessionLockInterface` to use another locking mechanism.

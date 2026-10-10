@@ -38,7 +38,8 @@
   "suggest": {
     "firebase/php-jwt": "Required for the JwtTokenValidator.",
     "psr/cache-implementation": "Required for JwtTokenValidator::fromIssuer() to cache metadata and keys.",
-    "symfony/finder": "Required for file-based discovery."
+    "symfony/finder": "Required for file-based discovery.",
+    "symfony/lock": "Required for the SymfonySessionLock."
   },
   "require-dev": {
     "ext-openssl": "*",
@@ -58,6 +59,7 @@
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/finder": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/http-client": "^5.4 || ^6.4 || ^7.3 || ^8.0",
+    "symfony/lock": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/process": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "conflict": {

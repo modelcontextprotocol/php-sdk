@@ -54,6 +54,7 @@ use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -115,6 +116,8 @@ final class Builder
     private ?SessionManagerInterface $sessionManager = null;
 
     private ?SessionStoreInterface $sessionStore = null;
+
+    private ?SessionLockInterface $sessionLock = null;
 
     private int $gcProbability = 1;
 
@@ -638,6 +641,17 @@ final class Builder
     }
 
     /**
+     * Locks a handshake-era session from loading to saving it, so concurrent requests of one session take turns
+     * instead of losing each other's changes to the same key. Off by default.
+     */
+    public function setSessionLock(?SessionLockInterface $sessionLock): self
+    {
+        $this->sessionLock = $sessionLock;
+
+        return $this;
+    }
+
+    /**
      * @param string[] $scanDirs
      * @param string[] $excludeDirs
      * @param string[] $namePatterns
@@ -955,6 +969,7 @@ final class Builder
                 ? new InputRequiredShim($this->inputRequiredRounds, $this->inputRequiredTimeout, $parts['logger'])
                 : null,
             requestStateCodec: $this->requestStateCodec(),
+            sessionLock: $this->sessionLock,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();

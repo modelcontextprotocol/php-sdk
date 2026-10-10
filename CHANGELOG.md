@@ -6,6 +6,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 -----
 
 * Fix concurrent requests of one session overwriting each other's session changes: `Session::save()` now writes only the keys it changed, onto what the store holds at that point.
+* Add `Builder::setSessionLock()` and `SymfonySessionLock`, an opt-in lock that serializes concurrent requests of one session, so they no longer lose each other's changes to the same key.
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
 * [BC Break] `SchemaValidator::validateAgainstJsonSchema()` no longer validates an empty array as an object. Pass `new \stdClass()` for an empty object.
 * Add `Builder::setSchemaValidator()` to configure the validator used for `tools/call` input and output, e.g. with a resolver for external `$ref` schemas.
