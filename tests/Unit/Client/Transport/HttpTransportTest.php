@@ -309,6 +309,8 @@ final class HttpTransportTest extends TestCase
         $protocol->setProgressCallback(static function (float $progress) use (&$order): void {
             $order[] = 'progress '.$progress;
         });
+        // As if the request that carried the token were in flight.
+        (new \ReflectionProperty($protocol, 'progressToken'))->setValue($protocol, 't');
 
         $this->setActiveStream($transport, $this->factory->createStream(
             'data: {"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"t","progress":1}}'."\n\n"

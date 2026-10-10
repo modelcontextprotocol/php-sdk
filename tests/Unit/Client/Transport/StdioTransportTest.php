@@ -124,6 +124,8 @@ final class StdioTransportTest extends TestCase
         $protocol->setProgressCallback(static function (float $progress) use (&$order): void {
             $order[] = 'progress '.$progress;
         });
+        // As if the request that carried the token were in flight.
+        (new \ReflectionProperty($protocol, 'progressToken'))->setValue($protocol, 't');
 
         // The partial line keeps the stream open, so the read is about ordering and not the server leaving.
         $this->setStdout($transport, $this->stream($lines.'{"partial":'));

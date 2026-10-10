@@ -26,7 +26,7 @@ use Mcp\Schema\Notification\ProgressNotification;
 class ProgressNotificationHandler implements NotificationHandlerInterface
 {
     /**
-     * @param \Closure(float, ?float, ?string): void $deliver
+     * @param \Closure(ProgressNotification): void $deliver
      */
     public function __construct(
         private readonly \Closure $deliver,
@@ -44,6 +44,6 @@ class ProgressNotificationHandler implements NotificationHandlerInterface
             return;
         }
 
-        ($this->deliver)($notification->progress, $notification->total, $notification->message);
+        ($this->deliver)($notification);
     }
 }
