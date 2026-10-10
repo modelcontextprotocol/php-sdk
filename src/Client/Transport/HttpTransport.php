@@ -58,6 +58,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var string Buffer for incomplete SSE data */
     private string $sseBuffer = '';
 
+    /** The request whose POST response opened the active SSE stream. */
+    private int|string|null $sseRequestId = null;
+
+    /** Whether the active SSE stream delivered the answer to that request. */
+    private bool $sseRequestCompleted = false;
+
     /** @var StreamInterface|null The standalone GET stream the server may send on unprompted */
     private ?StreamInterface $listenStream = null;
 
@@ -215,10 +221,23 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
                 ? $this->nonBlocking($response->getBody())
                 : $response->getBody();
             $this->sseBuffer = '';
+            $this->sseRequestId = self::requestId($data);
+            $this->sseRequestCompleted = false;
         } elseif (str_contains($contentType, 'application/json')) {
-            $body = $response->getBody()->getContents();
+            try {
+                $body = $response->getBody()->getContents();
+            } catch (\Throwable $e) {
+                throw self::unanswered($e);
+            }
+
             if (!empty($body)) {
                 $this->handleMessage($body);
+            }
+
+            // A cut or truncated body would otherwise leave the request waiting
+            // for an answer that can no longer arrive.
+            if (null !== ($requestId = self::requestId($data)) && !self::answers($body, $requestId)) {
+                throw self::unanswered();
             }
         }
     }
@@ -232,6 +251,42 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $payload = json_decode($data, true);
 
         return \is_array($payload) && \array_key_exists('method', $payload) && !\array_key_exists('id', $payload);
+    }
+
+    /**
+     * The id of the outgoing message if it is a request, so an answer is owed.
+     */
+    private static function requestId(string $data): int|string|null
+    {
+        $payload = json_decode($data, true);
+        $id = \is_array($payload) && \array_key_exists('method', $payload) ? ($payload['id'] ?? null) : null;
+
+        return \is_int($id) || \is_string($id) ? $id : null;
+    }
+
+    /**
+     * Whether the received message, or a message of the received batch, answers the request.
+     */
+    private static function answers(string $data, int|string $requestId): bool
+    {
+        $decoded = json_decode($data, true);
+        if (!\is_array($decoded)) {
+            return false;
+        }
+
+        foreach (array_is_list($decoded) ? $decoded : [$decoded] as $message) {
+            if (\is_array($message) && !\array_key_exists('method', $message) && ($message['id'] ?? null) === $requestId
+                && (\array_key_exists('result', $message) || \array_key_exists('error', $message))) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private static function unanswered(?\Throwable $previous = null): ConnectionException
+    {
+        return new ConnectionException(\sprintf('The response ended without answering the request%s.', null !== $previous ? ': '.$previous->getMessage() : ''), 0, $previous);
     }
 
     /**
@@ -296,6 +351,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             $this->activeStream?->close();
             $this->activeStream = null;
             $this->sseBuffer = '';
+            $this->sseRequestId = null;
         }
     }
 
@@ -486,12 +542,41 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
-        $done = $this->pumpSse($this->activeStream, $this->sseBuffer, $this->abortSseStream(...));
+        try {
+            $done = $this->pumpSse($this->activeStream, $this->sseBuffer, $this->abortSseStream(...));
+        } catch (\Throwable $e) {
+            $this->sseBuffer = '';
+            $this->activeStream = null;
+            $this->failUnansweredRequest($e);
+
+            return;
+        }
 
         if ($done) {
             $this->sseBuffer = '';
             $this->activeStream = null;
+            $this->failUnansweredRequest();
         }
+    }
+
+    /**
+     * Fail the request the ended SSE stream was opened for, unless it was answered.
+     *
+     * Nothing else can deliver the answer once its stream is gone, so the
+     * waiting fiber fails now instead of spinning until the request timeout.
+     */
+    private function failUnansweredRequest(?\Throwable $previous = null): void
+    {
+        $requestId = $this->sseRequestId;
+        $this->sseRequestId = null;
+
+        if (null === $requestId || $this->sseRequestCompleted || !isset($this->state?->getPendingRequests()[$requestId])
+            || !$this->activeFiber?->isSuspended()) {
+            return;
+        }
+
+        $this->logger->warning('Response stream ended without answering the request', ['request_id' => $requestId, 'exception' => $previous]);
+        $this->activeSuspend = $this->activeFiber->throw(self::unanswered($previous));
     }
 
     /**
@@ -567,6 +652,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $bufferedBytes = \strlen($this->sseBuffer);
         $this->sseBuffer = '';
         $this->activeStream = null;
+        $this->sseRequestId = null;
 
         $this->logger->warning('Aborting SSE stream: '.$reason, [
             'session_id' => $this->sessionId,
@@ -630,6 +716,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if (!empty($data)) {
+            if (null !== $this->sseRequestId && self::answers($data, $this->sseRequestId)) {
+                $this->sseRequestCompleted = true;
+            }
+
             $this->handleMessage($data);
         }
     }
