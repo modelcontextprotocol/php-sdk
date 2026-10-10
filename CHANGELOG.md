@@ -13,6 +13,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Reject a `Tool` input schema whose `properties` is not an object or whose `required` is neither a list nor `null`, instead of silently replacing the member. Reject a `completion/complete` whose `argument` is missing `name` or `value`, instead of completing against an empty prefix.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
+* Fix parallel elicitations on one session getting each other's answers: requests to the client get random ids instead of a session counter, and a request or notification a handler sends goes out on the stream of its own call.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
