@@ -365,4 +365,120 @@ class SessionTest extends TestCase
 
         $this->assertSame([], $session->all());
     }
+
+    public function testSaveKeepsWhatAConcurrentSessionSaved(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['initialized' => true], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->get('initialized');
+        $second->get('initialized');
+
+        $first->set('_mcp.logging_level', 'debug');
+        $first->save();
+        $second->set('counter', 1);
+        $second->save();
+
+        $this->assertSame(
+            ['initialized' => true, '_mcp' => ['logging_level' => 'debug'], 'counter' => 1],
+            (new Session($this->store, $id))->all(),
+        );
+    }
+
+    public function testSaveMergesNestedKeysOfConcurrentSessions(): void
+    {
+        $id = new UuidV4();
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->set('_mcp.responses.1', ['result' => 'a']);
+        $first->save();
+        $second->set('_mcp.responses.2', ['result' => 'b']);
+        $second->save();
+
+        $this->assertSame(
+            ['1' => ['result' => 'a'], '2' => ['result' => 'b']],
+            (new Session($this->store, $id))->get('_mcp.responses'),
+        );
+    }
+
+    public function testSaveAppliesForgetOntoConcurrentChanges(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->forget('stale');
+        $first->save();
+        $second->set('fresh', true);
+        $second->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    public function testSaveDoesNotWriteBackUnchangedKeys(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['level' => 'info'], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->set('level', 'debug');
+        $first->save();
+        $second->set('level', 'error', overwrite: false);
+        $second->save();
+
+        $this->assertSame('debug', (new Session($this->store, $id))->get('level'));
+    }
+
+    public function testSaveSeesConcurrentChangesAfterwards(): void
+    {
+        $id = new UuidV4();
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+
+        $second->set('other', true);
+        $second->save();
+        $first->set('mine', true);
+        $first->save();
+
+        $this->assertSame(['other' => true, 'mine' => true], $first->all());
+    }
+
+    public function testSaveAfterClearReplacesStoredData(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $session = new Session($this->store, $id);
+        $session->clear();
+        $session->set('fresh', true);
+        $session->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    public function testSaveAfterHydrateReplacesStoredData(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $session = new Session($this->store, $id);
+        $session->hydrate(['fresh' => true]);
+        $session->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
 }
