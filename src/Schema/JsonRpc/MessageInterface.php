@@ -21,5 +21,5 @@ use Mcp\Schema\Enum\ProtocolVersion;
 interface MessageInterface extends \JsonSerializable
 {
     public const JSONRPC_VERSION = '2.0';
-    public const PROTOCOL_VERSION = ProtocolVersion::V2025_11_25;
+    public const PROTOCOL_VERSION = ProtocolVersion::V2026_07_28;
 }

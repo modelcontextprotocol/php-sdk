@@ -29,7 +29,7 @@ class Configuration
     public function __construct(
         public readonly Implementation $clientInfo,
         public readonly ClientCapabilities $capabilities,
-        public readonly ProtocolVersion $protocolVersion = ProtocolVersion::V2025_11_25,
+        public readonly ProtocolVersion $protocolVersion = ProtocolVersion::V2026_07_28,
         public readonly int $initTimeout = 30,
         public readonly int $requestTimeout = 120,
         public readonly int $maxRetries = 3,

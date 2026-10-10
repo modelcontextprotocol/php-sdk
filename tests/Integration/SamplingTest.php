@@ -30,6 +30,15 @@ use PHPUnit\Framework\Attributes\TestDox;
  */
 final class SamplingTest extends IntegrationTestCase
 {
+    /**
+     * The gateway call-out exists only on the handshake era, so a client and
+     * server that could both settle on the modern era are kept off it.
+     */
+    protected function clientBuilder(): ClientBuilder
+    {
+        return parent::clientBuilder()->setProtocolVersion(ProtocolVersion::V2025_11_25);
+    }
+
     #[TestDox('the sampled completion reaches the tool that asked for it')]
     public function testSampledCompletionReachesTheTool(): void
     {
@@ -115,10 +124,24 @@ final class SamplingTest extends IntegrationTestCase
         }
     }
 
+    #[TestDox('a sampling ask the tool returns is answered on the modern era a default client settles on')]
+    public function testReturnedAskIsAnsweredOnTheModernEra(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling(on: parent::clientBuilder()));
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        $result = $client->callTool('summarize_by_asking', ['text' => 'a long report']);
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('test-model said: a long report', $result->content[0]->text);
+    }
+
     /**
      * @param \ArrayObject<int, CreateSamplingMessageRequest>|null $seen collects what the server asked for
+     * @param ClientBuilder|null                                   $on   a builder other than this test's era-pinned one
      */
-    private function clientSampling(?\ArrayObject $seen = null): ClientBuilder
+    private function clientSampling(?\ArrayObject $seen = null, ?ClientBuilder $on = null): ClientBuilder
     {
         $callback = new class($seen ?? new \ArrayObject()) implements SamplingCallbackInterface {
             /** @param \ArrayObject<int, CreateSamplingMessageRequest> $seen */
@@ -137,7 +160,7 @@ final class SamplingTest extends IntegrationTestCase
             }
         };
 
-        return $this->clientBuilder()
+        return ($on ?? $this->clientBuilder())
             ->setCapabilities(new ClientCapabilities(sampling: true))
             ->addRequestHandler(new SamplingRequestHandler($callback));
     }

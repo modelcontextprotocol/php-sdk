@@ -52,11 +52,12 @@ final class ConfigurationTest extends TestCase
         yield 'negative' => [-1];
     }
 
-    #[TestDox('falls back to the newest handshake revision by default')]
-    public function testDefaultsToTheNewestHandshakeFallback(): void
+    #[TestDox('prefers the modern era and falls back to the newest handshake revision by default')]
+    public function testDefaultsToModernWithHandshakeFallback(): void
     {
         $config = new Configuration(new Implementation('client', '1.0.0'), new ClientCapabilities());
 
+        $this->assertSame(ProtocolVersion::V2026_07_28, $config->protocolVersion);
         $this->assertSame(ProtocolVersion::latestHandshake(), $config->fallbackProtocolVersion);
     }
 

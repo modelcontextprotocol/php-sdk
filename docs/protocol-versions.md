@@ -104,14 +104,13 @@ either lifecycle. What changes:
 
 ## Speaking it from a client
 
-Ask for `2026-07-28` and the client speaks both eras: it finds out on `connect()` whether
-the server does too, and nothing about the [client API](client/index.md) depends on the
-answer.
+A client speaks both eras out of the box. It prefers `2026-07-28`, and finds out on
+`connect()` whether the server does too; nothing about the [client API](client/index.md)
+depends on the answer.
 
 ```php
 $client = Client::builder()
     ->setClientInfo('my-client', '1.0.0')
-    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
     ->setCapabilities(new ClientCapabilities(elicitation: true))
     ->addRequestHandler($myElicitationHandler)
     ->build();
@@ -153,9 +152,10 @@ and opens with `initialize`, as a client from before the modern era would.
 
 Once modern, a handful of calls change shape under the same API: `setLoggingLevel()` rides on
 every following request instead of sending the removed `logging/setLevel`, `ping()` becomes a
-`server/discover`, and `sendRootsListChanged()` sends nothing, since roots are gone. Sampling
-and roots are handshake-era features: a server asking for them on a modern connection fails the
-call instead.
+`server/discover`, and `sendRootsListChanged()` sends nothing, since the server asks for roots
+with each call that needs them. A server can still ask for sampling and roots by
+[returning the ask](handlers/input-required.md); calling out for them through `ClientGateway`
+is handshake-era only and fails the call on a modern connection.
 
 What being modern changes underneath:
 
