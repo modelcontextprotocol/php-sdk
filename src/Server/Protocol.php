@@ -74,10 +74,10 @@ class Protocol
     private const INTERNAL_ERROR_MESSAGE = 'Internal server error.';
 
     /**
-     * The client request each transport's fiber is suspended on. Pending requests are stored in the
-     * session, which concurrent streams share, so a stream must only poll the one its fiber sent.
+     * The client request each suspended fiber waits on. Pending requests are stored in the session,
+     * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
      *
-     * @var \WeakMap<TransportInterface<mixed>, int>
+     * @var \WeakMap<McpFiber, int>
      */
     private \WeakMap $awaitedRequestIds;
 
@@ -113,19 +113,12 @@ class Protocol
 
         $transport->setOutgoingMessagesProvider($this->consumeOutgoingMessages(...));
 
-        // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
-        $transportRef = \WeakReference::create($transport);
-
-        $transport->setPendingRequestsProvider(fn (Uuid $sessionId): array => $this->getAwaitedPendingRequests($transportRef->get(), $sessionId));
+        $transport->setPendingRequestsProvider(fn (Uuid $sessionId, \Fiber $fiber): array => $this->getAwaitedPendingRequests($fiber, $sessionId));
 
         $transport->setResponseFinder($this->checkResponse(...));
 
-        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId) use ($transportRef): void {
-            $requestId = $this->handleFiberYield($yieldedValue, $sessionId);
-
-            if (null !== $transport = $transportRef->get()) {
-                $this->trackAwaitedRequest($transport, $requestId);
-            }
+        $transport->setFiberYieldHandler(function (mixed $yieldedValue, ?Uuid $sessionId, \Fiber $fiber): void {
+            $this->trackAwaitedRequest($fiber, $this->handleFiberYield($yieldedValue, $sessionId));
         });
 
         $this->logger->info('Protocol connected to transport', ['transport' => $transport::class]);
@@ -374,7 +367,7 @@ class Protocol
                         throw new RuntimeException('Failed to save the session of a suspended request.');
                     }
 
-                    $this->trackAwaitedRequest($transport, $awaitedRequestId);
+                    $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
 
                     return;
@@ -695,27 +688,27 @@ class Protocol
     }
 
     /**
-     * @param TransportInterface<mixed> $transport
+     * @param McpFiber $fiber
      */
-    private function trackAwaitedRequest(TransportInterface $transport, ?int $requestId): void
+    private function trackAwaitedRequest(\Fiber $fiber, ?int $requestId): void
     {
         if (null === $requestId) {
-            unset($this->awaitedRequestIds[$transport]);
+            unset($this->awaitedRequestIds[$fiber]);
 
             return;
         }
 
-        $this->awaitedRequestIds[$transport] = $requestId;
+        $this->awaitedRequestIds[$fiber] = $requestId;
     }
 
     /**
-     * @param TransportInterface<mixed>|null $transport
+     * @param McpFiber $fiber
      *
      * @return array<int, mixed>
      */
-    private function getAwaitedPendingRequests(?TransportInterface $transport, Uuid $sessionId): array
+    private function getAwaitedPendingRequests(\Fiber $fiber, Uuid $sessionId): array
     {
-        $requestId = null !== $transport ? $this->awaitedRequestIds[$transport] ?? null : null;
+        $requestId = $this->awaitedRequestIds[$fiber] ?? null;
         if (null === $requestId) {
             return [];
         }

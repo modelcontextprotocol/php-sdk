@@ -29,7 +29,9 @@ final class PollingLoopTransport extends InMemoryTransport
      */
     public function getPendingRequestIds(): array
     {
-        return array_keys($this->getPendingRequests($this->sessionId));
+        \assert(null !== $this->sessionFiber);
+
+        return array_keys($this->getPendingRequests($this->sessionId, $this->sessionFiber));
     }
 
     /**
@@ -37,6 +39,8 @@ final class PollingLoopTransport extends InMemoryTransport
      */
     public function yieldFromFiber(NotificationSuspension|RequestSuspension $yielded): void
     {
-        $this->handleFiberYield($yielded, $this->sessionId);
+        \assert(null !== $this->sessionFiber);
+
+        $this->handleFiberYield($yielded, $this->sessionId, $this->sessionFiber);
     }
 }

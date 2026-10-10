@@ -299,11 +299,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                 while ($fiber->isSuspended()) {
                     $this->flushOutgoingMessages($this->sessionId);
 
-                    $pendingRequests = $this->getPendingRequests($this->sessionId);
+                    $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
                     if (empty($pendingRequests)) {
                         $yielded = $fiber->resume();
-                        $this->handleFiberYield($yielded, $this->sessionId);
+                        $this->handleFiberYield($yielded, $this->sessionId, $fiber);
                         continue;
                     }
 
@@ -317,7 +317,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
                         if (null !== $response) {
                             $yielded = $fiber->resume($response);
-                            $this->handleFiberYield($yielded, $this->sessionId);
+                            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
                             $resumed = true;
                             break;
                         }
@@ -325,7 +325,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                         if ($this->clock->now()->getTimestamp() - $timestamp >= $timeout) {
                             $error = Error::forInternalError('Request timed out', $requestId);
                             $yielded = $fiber->resume($error);
-                            $this->handleFiberYield($yielded, $this->sessionId);
+                            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
                             $resumed = true;
                             break;
                         }
