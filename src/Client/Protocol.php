@@ -35,6 +35,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
@@ -92,6 +93,12 @@ class Protocol
      * a retry keeps the caller's one — the work being reported on is the same.
      */
     private int $progressTokens = 0;
+
+    /**
+     * The token of the request in flight, the only one whose progress reaches
+     * the callback: a request that timed out may still be reported on.
+     */
+    private ?string $progressToken = null;
 
     /**
      * @param RequestHandlerInterface<mixed>[] $requestHandlers
@@ -258,14 +265,16 @@ class Protocol
         $this->onProgress = $onProgress;
     }
 
-    private function deliverProgress(float $progress, ?float $total, ?string $message): void
+    private function deliverProgress(ProgressNotification $notification): void
     {
-        if (null === $this->onProgress) {
+        if (null === $this->onProgress || $notification->progressToken !== $this->progressToken) {
+            $this->logger->debug('Dropping progress for a request not in flight', ['progressToken' => $notification->progressToken]);
+
             return;
         }
 
         try {
-            ($this->onProgress)($progress, $total, $message);
+            ($this->onProgress)($notification->progress, $notification->total, $notification->message);
         } catch (\Throwable $e) {
             $this->logger->warning('Progress callback failed', ['exception' => $e]);
         }
@@ -537,8 +546,10 @@ class Protocol
         $payload = $request->withId(0)->jsonSerialize();
         unset($payload['id']);
 
-        if ($withProgress) {
-            $payload = self::withMeta($payload, ['progressToken' => 'prog-'.++$this->progressTokens]);
+        $this->progressToken = $withProgress ? 'prog-'.++$this->progressTokens : null;
+
+        if (null !== $this->progressToken) {
+            $payload = self::withMeta($payload, ['progressToken' => $this->progressToken]);
         }
 
         if (null === $this->envelope) {
