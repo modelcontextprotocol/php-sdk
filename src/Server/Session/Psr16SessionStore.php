@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Session;
 
+use Mcp\Exception\SessionStoreException;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -35,8 +36,8 @@ class Psr16SessionStore implements SessionStoreInterface
     {
         try {
             return $this->cache->has($this->getKey($id));
-        } catch (\Throwable) {
-            return false;
+        } catch (\Throwable $e) {
+            throw new SessionStoreException(\sprintf('Session store is unavailable: %s', $e->getMessage()), previous: $e);
         }
     }
 

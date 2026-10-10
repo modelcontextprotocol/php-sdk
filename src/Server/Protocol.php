@@ -17,6 +17,7 @@ use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -787,7 +788,21 @@ class Protocol
             return null;
         }
 
-        if (!$this->sessionManager->exists($sessionId)) {
+        try {
+            $exists = $this->sessionManager->exists($sessionId);
+        } catch (SessionStoreException $e) {
+            // Not a 404: the session may well exist, so the client should retry instead of re-initializing.
+            $this->logger->error('Session store is unavailable.', [
+                'session_id' => $sessionId->toRfc4122(),
+                'exception' => $e,
+            ]);
+            $error = Error::forInternalError('Session store is unavailable.');
+            $this->sendResponse($transport, $error, null, ['status_code' => 503]);
+
+            return null;
+        }
+
+        if (!$exists) {
             $error = Error::forInvalidRequest('Session not found or has expired.');
             $this->sendResponse($transport, $error, null, ['status_code' => 404]);
 

@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Session;
 
+use Mcp\Exception\SessionStoreException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -24,6 +25,8 @@ interface SessionStoreInterface
      * @param Uuid $id the session id
      *
      * @return bool true if the session exists, false otherwise
+     *
+     * @throws SessionStoreException if the store cannot be reached
      */
     public function exists(Uuid $id): bool;
 
