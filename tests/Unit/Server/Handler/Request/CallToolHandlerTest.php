@@ -288,6 +288,45 @@ class CallToolHandlerTest extends TestCase
         )));
     }
 
+    public function testToolNameIsLoggedAtInfoLevelAndArgumentsOnlyAtDebugLevel(): void
+    {
+        $request = $this->createCallToolRequest('login', ['password' => 's3cr3t-argument']);
+        $logger = new class extends AbstractLogger {
+            public array $records = [];
+
+            // @phpstan-ignore missingType.parameter (compatible with psr/log 1.x)
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, $logger);
+        $toolReference = $this->createToolReference('login', static fn () => 'ok');
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn('ok');
+        $toolReference->method('formatResult')->willReturn([new TextContent('ok')]);
+
+        $handler->handle($request, $this->session);
+
+        $infoRecords = array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => 'info' === $record['level'],
+        ));
+        $this->assertSame([
+            ['level' => 'info', 'message' => 'Calling tool', 'context' => ['name' => 'login']],
+        ], $infoRecords);
+
+        $recordsWithArguments = array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => \array_key_exists('arguments', $record['context']),
+        ));
+        $this->assertNotSame([], $recordsWithArguments);
+        foreach ($recordsWithArguments as $record) {
+            $this->assertSame('debug', $record['level']);
+        }
+    }
+
     public function testHandleWithNullResult(): void
     {
         $request = $this->createCallToolRequest('null_tool', []);
