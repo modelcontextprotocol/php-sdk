@@ -25,7 +25,7 @@ class ConfigProvider
 ## Parameters
 
 - **`uri`** (required): Unique resource identifier. Must comply with [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
-- **`name`** (optional): Short resource identifier. Defaults to method name if not provided.
+- **`name`** (optional): Short resource identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Resource description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.
@@ -131,6 +131,7 @@ Resource handlers can throw any exception, but the type determines how it's hand
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 
 // A URI with variables is a resource *template*; `#[McpResource]` registers a
@@ -140,7 +141,7 @@ use Mcp\Exception\ResourceReadException;
 public function getFile(string $path): string
 {
     if (!file_exists($path)) {
-        throw new ResourceReadException("File not found: {$path}");
+        throw new ResourceNotFoundException("file://{$path}");
     }
 
     if (!is_readable($path)) {

@@ -23,7 +23,7 @@ class PromptGenerator
 
 ## Parameters
 
-- **`name`** (optional): Prompt identifier. Defaults to method name if not provided.
+- **`name`** (optional): Prompt identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Prompt description. Falls back to the docblock (summary plus long description).
 - **`icons`** (optional): Array of `Icon` objects for visual representation.

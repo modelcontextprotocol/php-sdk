@@ -176,7 +176,10 @@ don't match, your method is not called and the client gets a JSON-RPC error with
 }
 ```
 
-The message lists the first three errors. `validation_errors` contains all of them.
+By default, the validator stops at the first error. So the message and `validation_errors` hold one error. If you
+configure the validator to report more errors, see
+[Customizing the Generator and Validator](#customizing-the-generator-and-validator), the message lists the first three
+and `validation_errors` contains all of them.
 
 The SDK also validates structured tool output against the tool's `outputSchema`, see
 [Output validation](tools.md#output-validation).
@@ -193,6 +196,8 @@ use Opis\JsonSchema\Validator;
 $validator = new Validator();
 // resolves "https://example.com/schemas/address.json" from schemas/address.json
 $validator->resolver()->registerPrefix('https://example.com/schemas/', __DIR__.'/schemas');
+// reports up to 10 errors instead of stopping at the first one
+$validator->setStopAtFirstError(false)->setMaxErrors(10);
 
 $server = Server::builder()
     ->setSchemaValidator(new SchemaValidator($validator))

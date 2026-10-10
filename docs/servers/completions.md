@@ -60,8 +60,8 @@ public function getTask(
 
 A string-backed enum suggests its backing values. Unit enums and int-backed enums suggest their case names.
 
-The SDK reads `#[CompletionProvider]` only on parameters with a built-in type, such as `string` or `int`. On a
-parameter typed with a class or an enum (e.g. `Priority $priority`), the attribute is ignored.
+The SDK ignores `#[CompletionProvider]` on a parameter typed with a single class or enum (e.g. `Priority $priority`).
+Type the parameter as `string` or `int` instead.
 
 ### 3. Custom Provider Classes
 
@@ -113,6 +113,7 @@ keys are the argument or variable names:
 ```php
 use Mcp\Capability\Completion\ListCompletionProvider;
 
+// $prompt is an Mcp\Schema\Prompt, ContentPromptHandler implements PromptHandlerInterface
 $builder->add($prompt, new ContentPromptHandler(), [
     'contentType' => new ListCompletionProvider(['blog', 'article', 'tutorial']),
 ]);
