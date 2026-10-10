@@ -35,7 +35,7 @@ class ClientState implements ClientStateInterface
     private ?string $instructions = null;
     private ?ServerCapabilities $serverCapabilities = null;
 
-    /** @var array<int|string, array{request_id: int|string, timestamp: int, timeout: int}> */
+    /** @var array<int|string, array{request_id: int|string, timestamp: float, timeout: int}> */
     private array $pendingRequests = [];
 
     /** @var array<int|string, array<string, mixed>> */
@@ -53,7 +53,7 @@ class ClientState implements ClientStateInterface
     {
         $this->pendingRequests[$requestId] = [
             'request_id' => $requestId,
-            'timestamp' => time(),
+            'timestamp' => microtime(true),
             'timeout' => $timeout,
         ];
     }

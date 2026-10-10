@@ -31,6 +31,24 @@ try {
 }
 ```
 
+## TimeoutException
+
+Thrown when the server does not answer within the request timeout. It extends
+`RequestException`, so catch it first to tell a timeout from an error response:
+
+```php
+use Mcp\Exception\RequestException;
+use Mcp\Exception\TimeoutException;
+
+try {
+    $result = $client->callTool('slow_tool', []);
+} catch (TimeoutException $e) {
+    echo "The server did not answer in time\n";
+} catch (RequestException $e) {
+    echo "Request failed: {$e->getMessage()}\n";
+}
+```
+
 ## Complete Example
 
 Here's a comprehensive example demonstrating client usage:
