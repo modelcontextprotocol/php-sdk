@@ -95,6 +95,18 @@ class StatelessProtocolTest extends TestCase
                 description: 'Emits one message at each of four levels',
             )
             ->addTool(
+                static function (RequestContext $context): string {
+                    $logger = $context->getClientLogger();
+                    $logger->debug('debug message');
+                    $logger->info('info message');
+                    $logger->warning('warning message');
+
+                    return 'logged';
+                },
+                name: 'client_logger_tool',
+                description: 'Logs through the PSR-3 client logger',
+            )
+            ->addTool(
                 static function (): never {
                     throw new MissingRequiredClientCapabilityException(new ClientCapabilities(roots: false, sampling: true), 'needs sampling');
                 },
@@ -452,6 +464,21 @@ class StatelessProtocolTest extends TestCase
         }
 
         $this->assertSame(['debug', 'info', 'warning', 'error'], $levels);
+    }
+
+    #[TestDox('the client logger honours the requested level instead of its warning default')]
+    public function testClientLoggerHonoursTheRequestedLevel(): void
+    {
+        $frames = self::frames(self::callStreaming(self::protocol(), 'client_logger_tool', [RequestMeta::LOG_LEVEL => 'info']));
+
+        $levels = [];
+        foreach ($frames as $frame) {
+            if ('notifications/message' === ($frame['method'] ?? null)) {
+                $levels[] = $frame['params']['level'];
+            }
+        }
+
+        $this->assertSame(['info', 'warning'], $levels);
     }
 
     #[TestDox('an error raised before any notification keeps its own status')]
