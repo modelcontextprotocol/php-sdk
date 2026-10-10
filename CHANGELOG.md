@@ -49,6 +49,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
 * Fix a handler throwing after its fiber resumed (e.g. after elicitation or sampling) escaping to the transport: it is now answered with an error response like one throwing before suspending.
 * Drop a client response to a request ID the server is not waiting on, or that timed out, instead of storing it in the session, where nothing would ever consume it.
+* Fix `ClientLogger` dropping messages below `warning` on `2026-07-28` requests that ask for a lower level with `io.modelcontextprotocol/logLevel`.
 
 0.8.1
 -----
