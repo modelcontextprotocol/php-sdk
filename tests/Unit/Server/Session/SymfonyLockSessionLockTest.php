@@ -111,9 +111,17 @@ final class SymfonyLockSessionLockTest extends TestCase
     public function testLockResourceAndTtl(): void
     {
         $saved = [];
+        $held = false;
         $store = $this->createMock(PersistingStoreInterface::class);
-        $store->method('save')->willReturnCallback(static function (Key $key) use (&$saved): void {
+        $store->method('save')->willReturnCallback(static function (Key $key) use (&$saved, &$held): void {
             $saved[] = (string) $key;
+            $held = true;
+        });
+        $store->method('delete')->willReturnCallback(static function () use (&$held): void {
+            $held = false;
+        });
+        $store->method('exists')->willReturnCallback(static function () use (&$held): bool {
+            return $held;
         });
         $store->expects($this->once())->method('putOffExpiration')->with($this->anything(), 42.0);
 
@@ -130,6 +138,7 @@ final class SymfonyLockSessionLockTest extends TestCase
     {
         $store = $this->createMock(PersistingStoreInterface::class);
         $store->method('save')->willThrowException(new LockAcquiringException('redis is down'));
+        $store->method('exists')->willReturn(false);
 
         $lock = new SymfonyLockSessionLock(new LockFactory($store), timeout: 0.05);
 
