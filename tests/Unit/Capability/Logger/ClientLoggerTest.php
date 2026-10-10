@@ -14,7 +14,6 @@ namespace Mcp\Tests\Unit\Capability\Logger;
 use Mcp\Capability\Logger\ClientLogger;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Session\Session;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -24,69 +23,25 @@ final class ClientLoggerTest extends TestCase
 {
     public function testLog(): void
     {
-        $session = $this->getMockBuilder(Session::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['get'])
-            ->getMock();
-        $session->expects($this->once())->method('get')->willReturn('info');
         $clientGateway = $this->getMockBuilder(ClientGateway::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['log'])
             ->getMock();
         $clientGateway->expects($this->once())->method('log')->with(LoggingLevel::Notice, 'test');
 
-        $logger = new ClientLogger($clientGateway, $session);
+        $logger = new ClientLogger($clientGateway);
         $logger->notice('test');
-    }
-
-    public function testLogFilter(): void
-    {
-        $session = $this->getMockBuilder(Session::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['get'])
-            ->getMock();
-        $session->expects($this->once())->method('get')->willReturn('info');
-        $clientGateway = $this->getMockBuilder(ClientGateway::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['log'])
-            ->getMock();
-        $clientGateway->expects($this->never())->method('log');
-
-        $logger = new ClientLogger($clientGateway, $session);
-        $logger->debug('test');
-    }
-
-    public function testLogFilterSameLevel(): void
-    {
-        $session = $this->getMockBuilder(Session::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['get'])
-            ->getMock();
-        $session->expects($this->once())->method('get')->willReturn('info');
-        $clientGateway = $this->getMockBuilder(ClientGateway::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['log'])
-            ->getMock();
-        $clientGateway->expects($this->once())->method('log');
-
-        $logger = new ClientLogger($clientGateway, $session);
-        $logger->info('test');
     }
 
     public function testLogWithInvalidLevel(): void
     {
-        $session = $this->getMockBuilder(Session::class)
-            ->disableOriginalConstructor()
-            ->onlyMethods(['get'])
-            ->getMock();
-        $session->expects($this->any())->method('get')->willReturn('info');
         $clientGateway = $this->getMockBuilder(ClientGateway::class)
             ->disableOriginalConstructor()
             ->onlyMethods(['log'])
             ->getMock();
         $clientGateway->expects($this->never())->method('log');
 
-        $logger = new ClientLogger($clientGateway, $session);
+        $logger = new ClientLogger($clientGateway);
         $logger->log('foo', 'test');
     }
 }

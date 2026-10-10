@@ -99,12 +99,20 @@ class ClientGateway
     /**
      * Convenience method to send a logging notification to the client.
      *
+     * Messages below the level the client set are dropped; without one, the
+     * level defaults to warning.
+     *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Log to stderr (stdio) or use OpenTelemetry instead.
      */
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
         trigger_deprecation('mcp/sdk', '0.8', 'MCP logging is deprecated since protocol revision 2026-07-28 (SEP-2577); log to stderr or use OpenTelemetry instead.');
+
+        $minimumLevel = LoggingLevel::tryFrom($this->session->get(Protocol::SESSION_LOGGING_LEVEL, '')) ?? LoggingLevel::Warning;
+        if (!$level->isAtLeast($minimumLevel)) {
+            return;
+        }
 
         $this->notify(new LoggingMessageNotification($level, $data, $logger));
     }

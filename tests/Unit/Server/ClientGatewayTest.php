@@ -18,16 +18,20 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\ClientGateway;
+use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
@@ -187,6 +191,51 @@ final class ClientGatewayTest extends TestCase
         $this->expectException(ClientException::class);
 
         $this->runInFiber(static fn (): ListRootsResult => $gateway->listRoots(), $error);
+    }
+
+    public function testLogDropsMessagesBelowTheClientSetLevel(): void
+    {
+        $this->assertNull($this->logInFiber('error', LoggingLevel::Warning));
+    }
+
+    public function testLogSendsMessagesAtOrAboveTheClientSetLevel(): void
+    {
+        $notification = $this->logInFiber('error', LoggingLevel::Error);
+
+        $this->assertInstanceOf(LoggingMessageNotification::class, $notification);
+        $this->assertSame(LoggingLevel::Error, $notification->level);
+        $this->assertSame('message', $notification->data);
+    }
+
+    public function testLogDefaultsToWarningWhenTheClientSetNoLevel(): void
+    {
+        $this->assertNull($this->logInFiber(null, LoggingLevel::Info));
+        $this->assertInstanceOf(LoggingMessageNotification::class, $this->logInFiber(null, LoggingLevel::Warning));
+    }
+
+    /**
+     * Logs inside a Fiber and returns the notification the gateway suspended with, if any.
+     */
+    private function logInFiber(?string $minimumLevel, LoggingLevel $level): ?LoggingMessageNotification
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_LOGGING_LEVEL === $key ? ($minimumLevel ?? $default) : $default,
+        );
+
+        $gateway = new ClientGateway($session);
+        $fiber = new \Fiber(static fn () => $gateway->log($level, 'message'));
+        $suspend = @$fiber->start();
+
+        if (null === $suspend) {
+            return null;
+        }
+
+        $this->assertInstanceOf(NotificationSuspension::class, $suspend);
+        $this->assertInstanceOf(LoggingMessageNotification::class, $suspend->notification);
+
+        return $suspend->notification;
     }
 
     /**
