@@ -31,11 +31,15 @@ class PromptGenerator
 
 ## Prompt Return Values
 
-Prompt handlers must return an array of message structures that are automatically formatted into MCP prompt messages.
+Prompt handlers return an array of messages or a single `PromptMessage`. The SDK formats the result into MCP prompt
+messages.
 
 ### Supported Return Formats
 
 ```php
+use Mcp\Schema\Content\{TextContent, ImageContent, PromptMessage};
+use Mcp\Schema\Enum\Role;
+
 // Array of message objects with role and content
 public function basicPrompt(): array
 {
@@ -45,12 +49,16 @@ public function basicPrompt(): array
     ];
 }
 
-// Single message (automatically wrapped in array)
+// Single message (automatically wrapped in a list)
 public function singleMessage(): array
 {
-    return [
-        ['role' => 'user', 'content' => 'Write a poem about PHP']
-    ];
+    return ['role' => 'user', 'content' => 'Write a poem about PHP'];
+}
+
+// Single PromptMessage (automatically wrapped in a list)
+public function singlePromptMessage(): PromptMessage
+{
+    return new PromptMessage(Role::User, new TextContent('Write a poem about PHP'));
 }
 
 // Associative array with user/assistant keys
@@ -64,8 +72,6 @@ public function userAssistantFormat(): array
 
 // Non-text content — each message carries exactly one content block,
 // so an image goes into its own message
-use Mcp\Schema\Content\{TextContent, ImageContent};
-
 public function mixedContent(): array
 {
     return [
@@ -75,9 +81,6 @@ public function mixedContent(): array
 }
 
 // Using explicit PromptMessage objects
-use Mcp\Schema\Content\PromptMessage;
-use Mcp\Schema\Enum\Role;
-
 public function explicitMessages(): array
 {
     return [

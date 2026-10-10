@@ -9,6 +9,11 @@ those dependencies in yourself.
 > loads and executes them manually. Reach for this API only when you need that level of control and are comfortable
 > taking on the additional plumbing.
 
+!!! note
+    A custom handler can only serve a method the SDK knows. The SDK rejects any other method as unknown before
+    a handler runs. To add a new method, [write an extension](extensions.md#writing-your-own-extension) that
+    registers its message classes.
+
 ## Request Handlers
 
 Handle JSON-RPC requests (messages with an `id` that expect a response). Request handlers **must** return either a
@@ -84,6 +89,15 @@ interface NotificationHandlerInterface
 
 - `supports()` decides if the handler should process the incoming notification
 - `handle()` performs side effects but **does not** return a value (notifications have no response)
+
+Request handlers stop at the first match. Notification handlers don't: every handler whose `supports()` returns
+`true` runs, the built-in ones included.
+
+## Protocol `2026-07-28`
+
+Custom request handlers also serve requests on protocol version `2026-07-28`. Each of these requests gets a new
+in-memory session, so nothing you store in `$session` reaches the next request. Notification handlers never run
+on this protocol version.
 
 ## Key Differences
 

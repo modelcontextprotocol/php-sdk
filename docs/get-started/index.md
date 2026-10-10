@@ -6,8 +6,8 @@ server a real MCP host can talk to: [install the SDK](installation.md), build yo
 
 ## Run the code
 
-Every code block on these pages is a complete, working file — copy it into
-`server.php` next to your `vendor/` directory and run it.
+Every PHP file that starts with `<?php` on these pages is complete and works as is. Copy
+it into `server.php` next to your `vendor/` directory and run it.
 
 It is worth actually typing (or pasting) and running them: what the SDK does for you
 only really shows up in your own editor, where the type hints you write turn into the

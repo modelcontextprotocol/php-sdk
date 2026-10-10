@@ -14,7 +14,7 @@
  * MCP Elicitation Example Server.
  *
  * Demonstrates server-to-client elicitation for interactive user input during tool execution.
- * See docs/examples.md for detailed documentation and usage examples.
+ * See docs/handlers/input-required.md for detailed documentation.
  */
 
 require_once dirname(__DIR__).'/bootstrap.php';

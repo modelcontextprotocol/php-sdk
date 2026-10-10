@@ -12,13 +12,16 @@
 /**
  * Modern-era client (2026-07-28).
  *
- * The counterpart to examples/server/stateless-lifecycle. What is worth noticing
- * is how little of it is about the lifecycle: one call to setProtocolVersion()
- * and everything else is the same API as any other client.
+ * The counterpart to examples/server/stateless-lifecycle. A client prefers
+ * 2026-07-28 by default: connect() probes the server with `server/discover`
+ * and falls back to the `initialize` handshake on 2025-11-25 if the server
+ * doesn't speak it. This client turns the fallback off, so it only connects
+ * to a server that speaks 2026-07-28. The rest is the same API as any other
+ * client.
  *
- * Underneath, that one call changes the wire completely:
- *   - no `initialize` handshake — the connection is usable immediately, and
- *     `server/discover` is asked only for the server's identity
+ * On 2026-07-28, the wire changes:
+ *   - no `initialize` handshake: the `server/discover` answer settles the
+ *     revision and gives the server's identity and capabilities
  *   - every request carries its own `_meta` envelope naming the revision and
  *     what this client can be asked to do (SEP-2575)
  *   - every POST carries `Mcp-Method`, and `Mcp-Name` where the method
@@ -40,7 +43,6 @@ use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ElicitAction;
-use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ElicitRequest;
@@ -72,8 +74,9 @@ $answerWithAName = new class implements RequestHandlerInterface {
 
 $client = Client::builder()
     ->setClientInfo('stateless-example-client', '1.0.0')
-    // The only line that selects the modern lifecycle.
-    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
+    // No fallback to the handshake: connect() throws a ConnectionException
+    // when the server doesn't speak 2026-07-28.
+    ->setFallbackProtocolVersion(null)
     // Declared in the envelope of every request, so the server knows what it
     // may ask for before it decides how to answer.
     ->setCapabilities(new ClientCapabilities(elicitation: true))

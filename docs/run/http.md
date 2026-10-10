@@ -4,7 +4,7 @@ The HTTP transport was designed to sit between any PHP project, regardless of th
 and process requests and send responses. It provides a flexible architecture that can integrate with any PSR-7 compatible application.
 
 ```php
-use Psr\Http\Message\ServerRequestInterface;
+use Mcp\Server\Transport\StreamableHttpTransport;
 
 // PSR-17 factories are automatically discovered
 $transport = new StreamableHttpTransport(
@@ -23,6 +23,7 @@ $transport = new StreamableHttpTransport(
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
 - **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). A list replaces the defaults. When the surrounding application already handles CORS, host validation, etc., see [Opting Out of All Middleware](#opting-out-of-all-middleware).
 - **`maxBodyBytes`** (optional): `int` - Upper bound on the POST request body read, in bytes. Defaults to 4 MiB (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). See [Request Body Size Limit](#request-body-size-limit).
+- **`clock`** (optional): `ClockInterface` - PSR-20 clock used to time out requests the server sent to the client. Defaults to `NativeClock`.
 
 ## PSR-17 Auto-Discovery
 
@@ -68,12 +69,8 @@ The default stack can be inspected and recomposed via the public factory:
 $middleware = StreamableHttpTransport::defaultMiddleware();
 ```
 
-These run at the edge, before the request's protocol era is known, because what they enforce is true of
-both eras. `ProtocolVersionMiddleware` is not in that stack: the `MCP-Protocol-Version` header rule belongs
-to the handshake era, so the transport applies it only to requests it classified as handshake-era traffic,
-and the modern leg answers for its own revisions. It is available as
-`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the edge stack.
-See [Serving both eras](protocol-eras.md).
+These run for both protocol eras. `ProtocolVersionMiddleware` is not part of this stack, see
+[Protocol Version Validation](#protocol-version-validation).
 
 ## CORS Configuration
 
@@ -103,6 +100,25 @@ $transport = new StreamableHttpTransport(
     ],
 );
 ```
+
+`CorsMiddleware` accepts more options:
+
+```php
+new CorsMiddleware(
+    allowedOrigins: ['https://myapp.com'],
+    // sent in Access-Control-Allow-Methods, on preflight responses only
+    allowedMethods: ['GET', 'POST', 'DELETE'],
+    // sent in Access-Control-Allow-Headers, on preflight responses only
+    // default: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id
+    allowedHeaders: ['Accept', 'Authorization', 'Content-Type'],
+    // sent in Access-Control-Expose-Headers; default: Mcp-Session-Id, WWW-Authenticate
+    exposedHeaders: ['Mcp-Session-Id', 'WWW-Authenticate'],
+    // sends Access-Control-Allow-Credentials: true (default: false)
+    allowCredentials: true,
+);
+```
+
+Combining `allowCredentials: true` with `allowedOrigins: ['*']` throws `InvalidArgumentException`.
 
 When the allowlist is a concrete set of origins (not `['*']`), `CorsMiddleware` automatically adds `Vary: Origin`
 so shared caches/CDNs do not serve a response generated for one origin to a request from another.
@@ -136,7 +152,8 @@ or supply a permissive allowlist.
 set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
 legacy clients do not send it.
 
-The transport applies it to handshake-era traffic only, always with the default set. Don't add it to a custom
+The transport applies it to handshake-era traffic only, always with the default set, and also when you replace the
+default stack. `StreamableHttpTransport::handshakeMiddleware()` returns it. Don't add it to a custom
 `middleware` list: there it runs before the era is classified and rejects every modern-era request.
 
 The default set is `ProtocolVersion::handshakeVersions()` — every revision the server can actually negotiate over

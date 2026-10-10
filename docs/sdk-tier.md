@@ -12,11 +12,10 @@ where the PHP SDK stands and what's still missing to move up a tier.
 block Tier 2:
 
 - **Client conformance was 20% (10/50) in that audit**, against the ≥80% bar.
-  Almost entirely OAuth: 38 of 39 scored auth scenarios failed. Every one of those
-  failures is pre-declared in the SDK's own
-  [`tests/Conformance/conformance-baseline-*.yml`](https://github.com/modelcontextprotocol/php-sdk/tree/main/tests/Conformance)
-  files and tracked in `ROADMAP.md` — a known, scoped gap, not silent
-  breakage. Server conformance was 100% (67/67).
+  Almost entirely OAuth: 38 of 39 scored auth scenarios failed. The failing
+  scenarios are listed as expected failures in
+  [`tests/Conformance/conformance-baseline-2025-11-25.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2025-11-25.yml).
+  Server conformance was 100% (67/67).
 - **No stable release ≥ 1.0.0 has shipped yet**, see the
   [releases](https://github.com/modelcontextprotocol/php-sdk/releases). Tier 2
   requires at least one.
@@ -39,11 +38,14 @@ Roughly in priority order, per the audit's own recommendation:
 
 1. **OAuth client conformance.** The single highest-leverage fix — it
    accounts for 38 of 40 client failures and blocks both tiers on its own.
-   Already scoped: token endpoint auth methods, scope handling (step-up,
-   retry-limit, from-`WWW-Authenticate`, from `scopes_supported`), dynamic
-   client registration, issuer validation, `offline_access`,
-   authorization-server migration — see `ROADMAP.md` and the
-   `2026-07-28`-labeled auth issues.
+   The `auth/*` entries in
+   [`conformance-baseline-2025-11-25.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2025-11-25.yml)
+   and
+   [`conformance-baseline-2026-07-28.yml`](https://github.com/modelcontextprotocol/php-sdk/blob/main/tests/Conformance/conformance-baseline-2026-07-28.yml)
+   list the failing scenarios: metadata discovery, token endpoint auth
+   methods, scope handling, `offline_access`, issuer validation and
+   authorization server migration. See also the `2026-07-28`-labeled auth
+   issues.
 2. **Fix the two non-auth client failures** (`sse-retry`,
    `elicitation-sep1034-client-defaults`, both scored at 2025-11-25).
 3. **Ship a stable 1.0.0+ release.**

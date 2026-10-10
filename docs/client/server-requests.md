@@ -2,6 +2,14 @@
 
 The client can receive requests and notifications from the server when configured with appropriate handlers.
 
+On revision `2026-07-28`, a server can't send requests to the client. It returns elicitation, sampling
+and roots requests in an [`input_required` result](../handlers/input-required.md) instead, and the client
+answers them with the same request handlers. A default client uses this revision when the server speaks
+it.
+
+A server that sends sampling or roots requests through its `ClientGateway` fails on this revision.
+To receive those requests, call `setProtocolVersion(ProtocolVersion::V2025_11_25)` on the client builder.
+
 ## Elicitation (User Input Requests)
 
 Handle server requests to elicit additional information from the user during tool
@@ -10,6 +18,7 @@ needs; your callback presents them to the user and returns an `ElicitResult` wit
 three actions — accept (with the collected content), decline, or cancel:
 
 ```php
+use Mcp\Client;
 use Mcp\Client\Handler\Request\ElicitationRequestHandler;
 use Mcp\Client\Handler\Request\ElicitationCallbackInterface;
 use Mcp\Exception\ElicitationException;
@@ -33,17 +42,19 @@ class ConsoleElicitationCallback implements ElicitationCallbackInterface
             return new ElicitResult(ElicitAction::Accept);
         }
 
-        // Form mode: present $request->requestedSchema->properties and collect input.
-        $content = [];
+        // Form mode: start from the defaults the server declared, then collect input.
+        $content = $request->requestedSchema->getDefaults();
         foreach ($request->requestedSchema->properties as $name => $definition) {
-            $answer = readline($definition->title.': ');
+            $answer = readline(($definition->title ?? $name).': ');
 
             if (false === $answer) {
                 // No input available — let the server know the user cancelled.
                 return new ElicitResult(ElicitAction::Cancel);
             }
 
-            $content[$name] = $answer;
+            if ('' !== $answer) {
+                $content[$name] = $answer;
+            }
         }
 
         return new ElicitResult(ElicitAction::Accept, $content);
@@ -51,10 +62,13 @@ class ConsoleElicitationCallback implements ElicitationCallbackInterface
 }
 
 $client = Client::builder()
-    ->setCapabilities(new ClientCapabilities(elicitation: true))
+    ->setCapabilities(new ClientCapabilities(elicitationForm: true, elicitationUrl: true))
     ->addRequestHandler(new ElicitationRequestHandler(new ConsoleElicitationCallback))
     ->build();
 ```
+
+The handler doesn't fill in default values. `getDefaults()` returns the default of each field that
+declares one, keyed by field name.
 
 Return `new ElicitResult(ElicitAction::Decline)` when the user refuses to provide the
 information, and `new ElicitResult(ElicitAction::Cancel)` when they dismiss the request.
@@ -84,6 +98,7 @@ elicitation demo server.
 Handle server requests for LLM completions:
 
 ```php
+use Mcp\Client;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Exception\SamplingException;
@@ -135,6 +150,8 @@ Clients that support tool-enabled sampling should advertise that capability and 
 `ToolUseContent` blocks:
 
 ```php
+use Mcp\Client;
+use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\ToolUseContent;
 use Mcp\Schema\Enum\Role;
@@ -189,6 +206,7 @@ blocks in a user message. The client should pass those blocks back to the LLM pr
 Receive structured log messages from the server:
 
 ```php
+use Mcp\Client;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Notification\LoggingMessageNotification;
@@ -207,9 +225,15 @@ $client = Client::builder()
     ->addNotificationHandler($loggingHandler)
     ->build();
 
-// Set minimum log level (optional)
+$client->connect($transport);
+
+// set the minimum log level (optional), only after connect()
 $client->setLoggingLevel(LoggingLevel::Info);
 ```
+
+Before `connect()`, `setLoggingLevel()` throws a `ConnectionException`. On revision `2026-07-28`,
+the client sends the level with every following request. See
+[Protocol versions](../protocol-versions.md#how-the-client-settles-on-an-era).
 
 ## Roots
 
@@ -220,6 +244,7 @@ is allowed to operate on. Advertise the `roots` capability and register a handle
 that answers server `roots/list` requests:
 
 ```php
+use Mcp\Client;
 use Mcp\Client\Handler\Request\ListRootsRequestHandler;
 use Mcp\Client\Handler\Request\RootsCallbackInterface;
 use Mcp\Schema\ClientCapabilities;
@@ -244,6 +269,9 @@ $client = Client::builder()
     ->build();
 ```
 
+Throw a `RootsException` in the callback to forward a specific error message to the server. Any
+other exception returns a generic error, like in the elicitation and sampling callbacks.
+
 When the client's roots change, notify the server so it can request the updated
 list via `roots/list`. This requires advertising the `roots.listChanged`
 capability (`rootsListChanged: true` above); otherwise `sendRootsListChanged()`
@@ -254,6 +282,13 @@ throws a `RuntimeException`. On a client that is not connected it throws a
 $client->sendRootsListChanged();
 ```
 
-See [`examples/client/stdio_roots.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_roots.php) for a runnable example: it calls the
-`inspect_workspace_roots` tool of the client-communication demo server, which
-answers by issuing the `roots/list` request back to the client.
+On revision `2026-07-28`, `sendRootsListChanged()` sends nothing. The server asks for the roots
+with each call that needs them.
+
+See [`examples/client/stdio_roots.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_roots.php) for a runnable example. It calls the
+`inspect_workspace_roots` tool of the client-communication demo server. On revision `2026-07-28`,
+the tool returns an `input_required` result asking for the roots. The client answers it with the
+roots handler and sends the call again.
+
+On `2025-11-25`, the server sends a `roots/list` request
+to the client instead. Both ways call the same handler.

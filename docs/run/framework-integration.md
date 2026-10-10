@@ -159,22 +159,8 @@ You should route **all methods** to your MCP endpoint, not just POST.
 
 ## Session Management
 
-HTTP transport requires persistent sessions since PHP doesn't maintain state between requests. Unlike STDIO transport
-where in-memory sessions work fine, HTTP transport needs a persistent session store:
-
-```php
-use Mcp\Server\Session\FileSessionStore;
-
-// ✅ Good for HTTP
-$server = Server::builder()
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
-    ->build();
-
-// ❌ Not recommended for HTTP (sessions lost between requests)
-$server = Server::builder()
-    ->setSession(new InMemorySessionStore())
-    ->build();
-```
+Over HTTP, the server needs a session store that keeps sessions between requests. See
+[Sessions over HTTP](sessions.md#sessions-over-http).
 
 ## Recommended Route
 

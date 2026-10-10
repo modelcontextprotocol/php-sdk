@@ -7,10 +7,11 @@ generation applies to both attribute-discovered and manually registered tools.
 
 The server follows this order of precedence:
 
-1. **`#[Schema]` attribute with `definition`** - Complete schema override (highest priority)
-2. **Parameter-level `#[Schema]` attribute** - Parameter-specific enhancements
-3. **Method-level `#[Schema]` attribute** - Method-wide configuration
-4. **PHP type hints + docblocks** - Automatic inference (lowest priority)
+1. **Method-level `#[Schema]` with `definition`**: replaces the whole input schema (highest priority)
+2. **Parameter-level `#[Schema]`**: adds constraints to one parameter. With `definition`, it replaces the schema of
+   that parameter only
+3. **Method-level `#[Schema]`**: method-wide configuration
+4. **PHP type hints + docblocks**: automatic inference (lowest priority)
 
 ## Automatic Schema from PHP Types
 
@@ -26,6 +27,37 @@ public function processUser(
     // Schema auto-generated from method signature
 }
 ```
+
+The generator also reads these parts of the signature:
+
+```php
+use Mcp\Server\RequestContext;
+
+enum Unit: string
+{
+    case Celsius = 'celsius';
+    case Fahrenheit = 'fahrenheit';
+}
+
+/**
+ * @param string   $city   The city to look up
+ * @param string[] $fields The fields to return
+ */
+#[McpTool]
+public function getWeather(string $city, Unit $unit, array $fields, RequestContext $context): array
+{
+    // ...
+}
+```
+
+In this example:
+
+- The `@param` descriptions become the `description` of each property.
+- The `string[]` docblock type becomes `{"type": "array", "items": {"type": "string"}}`.
+- The `Unit` enum becomes `{"type": "string", "enum": ["celsius", "fahrenheit"]}`. A backed enum lists its backing
+  values, a unit enum lists its case names. The SDK passes the matching enum case to your method.
+- `$context` is not part of the schema. The SDK injects `RequestContext` and `ClientGateway` parameters itself, see
+  [Talking back to the client](../handlers/client-communication.md).
 
 ## Parameter-Level Schema Enhancement
 
@@ -109,3 +141,64 @@ public function makeApiRequest(string $endpoint, string $method, array $headers)
 
 **Warning:** Only use complete schema override if you're well-versed with JSON Schema specification and have complex
 validation requirements that cannot be achieved through the priority system.
+
+To replace the schema of one parameter only, put `definition` on the parameter. The parameter's default value is
+still added:
+
+```php
+#[McpTool]
+public function getForecast(
+    #[Schema(definition: ['type' => 'string', 'format' => 'date'])]
+    string $date = '2026-01-01',
+): array {
+    // ...
+}
+```
+
+## Argument Validation
+
+Before a `tools/call` reaches your method, the SDK validates the arguments against the tool's input schema. If they
+don't match, your method is not called and the client gets a JSON-RPC error with code `-32602`:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+    "code": -32602,
+    "message": "Invalid parameters for tool 'validateUser': Property '/age': Number must be greater than or equal to 18.",
+    "data": {
+      "validation_errors": [
+        { "pointer": "/age", "keyword": "minimum", "message": "Number must be greater than or equal to 18." }
+      ]
+    }
+  }
+}
+```
+
+The message lists the first three errors. `validation_errors` contains all of them.
+
+The SDK also validates structured tool output against the tool's `outputSchema`, see
+[Output validation](tools.md#output-validation).
+
+## Customizing the Generator and Validator
+
+The SDK validates with [opis/json-schema](https://opis.io/json-schema/). To configure it, for example to resolve
+external `$ref` schemas, pass your own `SchemaValidator` to `Builder::setSchemaValidator()`:
+
+```php
+use Mcp\Capability\Discovery\SchemaValidator;
+use Opis\JsonSchema\Validator;
+
+$validator = new Validator();
+// resolves "https://example.com/schemas/address.json" from schemas/address.json
+$validator->resolver()->registerPrefix('https://example.com/schemas/', __DIR__.'/schemas');
+
+$server = Server::builder()
+    ->setSchemaValidator(new SchemaValidator($validator))
+    // ...
+    ->build();
+```
+
+To build input schemas in a different way, pass your own `SchemaGeneratorInterface` implementation to
+`Builder::setSchemaGenerator()`.

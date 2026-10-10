@@ -1,8 +1,9 @@
 # Subscriptions
 
 > `subscriptions/listen` belongs to protocol revision `2026-07-28`; see
-> [Protocol versions](../protocol-versions.md). Handshake-era clients keep using the HTTP `GET` stream and
-> `resources/subscribe`, which the same server still answers.
+> [Protocol versions](../protocol-versions.md). Handshake-era clients use `resources/subscribe`, which the
+> same server still answers. The notification bus below doesn't reach them. Over HTTP, the server sends
+> their notifications with the response to their next `POST` request, and answers an HTTP `GET` with `405`.
 
 `subscriptions/listen` replaces the HTTP `GET` stream and `resources/subscribe`. The client
 opens a long-lived POST whose response stream carries the notification types it asked for;
@@ -30,6 +31,8 @@ Anything else — `notifications/resources/updated` above all — is published b
 application:
 
 ```php
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+
 $bus->publish(new ResourceUpdatedNotification('file:///project/config.json'));
 ```
 

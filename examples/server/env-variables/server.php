@@ -30,7 +30,7 @@ use Mcp\Server;
     |     "mcpServers": {
     |         "my-php-env-server": {
     |             "command": "php",
-    |             "args": ["/full/path/to/examples/05-stdio-env-variables/server.php"],
+    |             "args": ["/full/path/to/examples/server/env-variables/server.php"],
     |             "env": {
     |                 "APP_MODE": "debug" // or "production", or leave it out
     |             }

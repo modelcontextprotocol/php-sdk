@@ -1,9 +1,9 @@
 # Protocol Extensions
 
-MCP protocol extensions advertise additional, optional capabilities alongside the regular ones —
-during the `initialize` handshake, or on revision `2026-07-28` (which has no handshake) inside the
-capabilities that travel with every request. A server opts in via `Builder::enableExtension()` and
-the SDK places the advertisement correctly for whichever era the client speaks:
+MCP protocol extensions advertise additional, optional capabilities alongside the regular ones.
+A server opts in with `Builder::enableExtension()`. The SDK announces the extension in the
+`initialize` result of the handshake era, and in the `server/discover` result on revision
+`2026-07-28`:
 
 ```php
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -48,6 +48,39 @@ public function getWeather(string $city, RequestContext $context): string
 }
 ```
 
+## Writing your own extension
+
+An extension implements `Mcp\Schema\Extension\ExtensionInterface`. If it only announces a
+capability, extend `AbstractExtension` and define the identifier and the capability payload:
+
+```php
+use Mcp\Schema\Extension\AbstractExtension;
+use Mcp\Schema\Extension\ExtensionIdentifier;
+
+final class AuditExtension extends AbstractExtension
+{
+    public function getId(): ExtensionIdentifier
+    {
+        // a prefix is required, e.g. "com.example/"
+        return new ExtensionIdentifier('com.example/audit');
+    }
+
+    public function getCapabilities(): array
+    {
+        // sent under capabilities.extensions["com.example/audit"]
+        return ['retentionDays' => 30];
+    }
+}
+```
+
+Enable it with `Builder::enableExtension(new AuditExtension())`.
+
+An extension that adds JSON-RPC methods also implements `getMessages()` and
+`getRequestHandlers()`. `getMessages()` returns the request and notification classes of the
+new methods, so the SDK can parse them. `getRequestHandlers()` returns the
+[request handlers](custom-handlers.md) that answer them. If two enabled extensions define
+the same method, `enableExtension()` throws a `LogicException`.
+
 ## MCP Apps (`io.modelcontextprotocol/ui`)
 
 The [MCP Apps extension][ext-apps] lets servers expose interactive HTML UIs as
@@ -69,6 +102,7 @@ use Mcp\Schema\Extension\Apps\UiResourceContentMeta;
 use Mcp\Schema\Extension\Apps\UiResourceCsp;
 use Mcp\Schema\Extension\Apps\UiResourcePermissions;
 use Mcp\Schema\Extension\Apps\UiToolMeta;
+use Mcp\Server;
 
 $server = Server::builder()
     ->enableExtension(new McpApps())
