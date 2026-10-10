@@ -34,6 +34,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `ProtectedResourceMetadata` requires `$resource`, serves at the path derived from it (RFC 9728 §3.1) and requires https except for loopback hosts; drops localized, policy, ToS, extra fields and `$metadataPaths`.
 * [BC Break] Add `ScopePolicy` as third argument of `AuthorizationMiddleware`, answering `403 insufficient_scope` per method and tool, with scope hierarchies; the `resource_metadata` challenge URL comes from the configured resource instead of the `Host` header.
 * Expose `WWW-Authenticate` in the default `CorsMiddleware`.
+* Fix CORS preflight requests failing with `401` behind `AuthorizationMiddleware`, which now lets `OPTIONS` requests pass without a token.
+* Allow `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` in the default `CorsMiddleware`. An `$allowedHeaders` entry ending in `*` allows each requested header with that prefix.
 * [BC Break] Fix concurrent Streamable HTTP streams on one session resuming each other's fibers: each stream now polls only the client request its own fiber sent, so an elicitation answer reaches the tool call that asked for it. `Protocol::handleFiberYield()` returns the ID of the request it sent.
 * Fix lost responses on concurrent requests of one session over Streamable HTTP: a POST is answered with its own responses instead of taking them from the session's outgoing queue.
 * [BC Break] `TransportInterface::send()` receives every response of a handler that does not suspend, not only errors raised before a session exists; the session's outgoing queue only carries server-initiated requests and notifications. A custom transport must deliver each message it gets, as a batch gets several.

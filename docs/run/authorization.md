@@ -371,6 +371,10 @@ AuthorizationResult::badRequest('invalid_request', 'Malformed header');
 The default `CorsMiddleware` exposes `WWW-Authenticate`, so browser-based clients can read the
 challenge and discover the authorization server. Allow their origins via `allowedOrigins`.
 
+`AuthorizationMiddleware` lets `OPTIONS` requests pass without a token, because a browser sends
+no credentials with a CORS preflight. Keep `CorsMiddleware` before it in the list, as
+`defaultMiddleware()` does, so the preflight response gets its CORS headers.
+
 ## Examples
 
 Complete working examples are available in the `examples/server/` directory:
