@@ -49,6 +49,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
 * Fix a handler throwing after its fiber resumed (e.g. after elicitation or sampling) escaping to the transport: it is now answered with an error response like one throwing before suspending.
 * Drop a client response to a request ID the server is not waiting on, or that timed out, instead of storing it in the session, where nothing would ever consume it.
+* Fix a client request that timed out (elicitation, sampling) staying in the session's pending requests: `Protocol::checkResponse()` now expires it, answering with the `Request timed out` error, so the transports no longer implement the timeout themselves.
 
 0.8.0
 -----

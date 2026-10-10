@@ -593,9 +593,10 @@ class Protocol
      * Check for a response to a specific request ID.
      *
      * When a response is found, it is removed from the session, and the
-     * corresponding pending request is also cleared.
-     */
-    /**
+     * corresponding pending request is also cleared. A request that got no
+     * answer within its timeout is cleared the same way and reported as an
+     * internal error, so its pending entry does not outlive the wait.
+     *
      * @return Response<array<string, mixed>>|Error|null
      */
     public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
@@ -604,7 +605,9 @@ class Protocol
         $responseData = $session->get(self::SESSION_RESPONSES.".{$requestId}");
 
         if (null === $responseData) {
-            return null;
+            $pending = $session->get(self::SESSION_PENDING_REQUESTS, [])[$requestId] ?? null;
+
+            return \is_array($pending) && $this->hasTimedOut($pending) ? $this->expireRequest($requestId, $sessionId) : null;
         }
 
         $this->logger->debug('Found and consuming client response.', [
@@ -633,6 +636,34 @@ class Protocol
 
             return null;
         }
+    }
+
+    /**
+     * Drops a timed out request from the pending ones and reports the timeout.
+     *
+     * The session is loaded again as the caller's copy may be as old as the last
+     * poll, and saving it back would undo what other streams stored since.
+     */
+    private function expireRequest(int $requestId, Uuid $sessionId): ?Error
+    {
+        $session = $this->sessionManager->createWithId($sessionId);
+        $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
+
+        // Answered or expired by another stream in the meantime: the next poll sorts it out.
+        if (!isset($pending[$requestId]) || null !== $session->get(self::SESSION_RESPONSES.".{$requestId}")) {
+            return null;
+        }
+
+        $this->logger->warning('Client request timed out.', [
+            'request_id' => $requestId,
+            'session_id' => $sessionId->toRfc4122(),
+        ]);
+
+        unset($pending[$requestId]);
+        $session->set(self::SESSION_PENDING_REQUESTS, $pending);
+        $session->save();
+
+        return Error::forInternalError('Request timed out', $requestId);
     }
 
     /**
