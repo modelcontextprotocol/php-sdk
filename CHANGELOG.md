@@ -45,6 +45,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
 * Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
 * [BC Break] Bump `MessageInterface::PROTOCOL_VERSION` to `2026-07-28`. Use `ProtocolVersion::latestHandshake()` where a handshake revision is needed, e.g. in an `initialize` answer.
+* Fix the server's `StdioTransport` answering a request on an idle connection only after ~50ms: it now waits on the input with `stream_select()` instead of sleeping.
 
 0.8.0
 -----
