@@ -28,7 +28,7 @@ $server = Server::builder()
 
 ## Protocol Events
 
-The SDK dispatches 4 broad event types at the protocol level, allowing you to observe and modify all server operations:
+The SDK dispatches 6 broad event types at the protocol level, allowing you to observe and modify all server operations:
 
 ### RequestEvent
 
@@ -43,7 +43,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 
 ### ResponseEvent
 
-**Dispatched**: When a successful response is ready to be sent to the client, after handler execution.
+**Dispatched**: When a successful response is ready to be sent to the client, after handler execution. Also dispatched when a suspended Fiber completes (e.g. after elicitation or sampling).
 
 **Properties**:
 
@@ -55,7 +55,7 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 
 ### ErrorEvent
 
-**Dispatched**: When an error occurs during request processing.
+**Dispatched**: When an error occurs during request processing. Also dispatched when a suspended Fiber completes with an error.
 
 **Properties**:
 
@@ -76,6 +76,28 @@ The SDK dispatches 4 broad event types at the protocol level, allowing you to ob
 - `getSession(): SessionInterface` - The current session
 - `getMethod(): string` - Convenience method to get the notification method
 
+### ServerRequestEvent
+
+**Dispatched**: When the server sends a request to the client (e.g. `elicitation/create`, `sampling/createMessage`).
+
+**Properties**:
+
+- `getRequest(): Request` - The outgoing request (with server-assigned ID)
+- `getSession(): SessionInterface` - The current session
+- `getTimeout(): int` - Maximum time to wait for the client response (seconds)
+- `getMethod(): string` - Convenience method to get the request method
+
+### ClientResponseEvent
+
+**Dispatched**: When the server receives a client response to a prior outgoing request.
+
+**Properties**:
+
+- `getResponse(): Response|Error` - The client's reply
+- `getSession(): SessionInterface` - The current session
+- `getId(): string|int|null` - The JSON-RPC message ID
+- `isError(): bool` - Whether the client returned a JSON-RPC error
+
 ### Protocol `2026-07-28`
 
 Requests on protocol version `2026-07-28` dispatch the same request, response and error events, with a few differences:
@@ -84,6 +106,7 @@ Requests on protocol version `2026-07-28` dispatch the same request, response an
 - `getSession()` returns a new in-memory session for each request. Anything a listener stores there is gone by the next request.
 - `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers.
 - `server/discover` and `subscriptions/listen` dispatch no events.
+- `ServerRequestEvent` and `ClientResponseEvent` are not dispatched: the server asks for input with an `InputRequiredResult`, which `ResponseEvent` carries, and the client answers with `inputResponses` on the retried request.
 
 ## List Change Events
 
