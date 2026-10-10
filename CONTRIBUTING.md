@@ -38,7 +38,7 @@ The interop suite runs against Node packages. Install them once before you run `
 `make tests`:
 
 ```bash
-npm ci --prefix tests/Interop
+npm ci --include=dev --prefix tests/Interop
 ```
 
 If your change touches protocol-observable behavior, also run:
@@ -54,8 +54,8 @@ and [backward compatibility promise](https://symfony.com/doc/current/contributin
 
 - Until 1.0, a release can break backward compatibility. Add a `[BC Break]` entry to
   `CHANGELOG.md` for every break.
-- Before you remove a public class, method or option, mark it with a `@deprecated` tag and call
-  `trigger_deprecation()` when it's used. The
+- When the spec deprecates a feature, mark the code that implements it with a `@deprecated` tag
+  and call `trigger_deprecation()` when it's used. After 1.0, this applies to every removal. The
   [deprecation policy](docs/deprecation-policy.md) describes the tag and the removal window.
 - Code marked `@internal` is not covered by the promise.
 
@@ -72,7 +72,7 @@ reachable over the wire — end-to-end coverage. The suites are split by what th
   implementation we did not write. `Server/` drives a selection of the example servers with the
   MCP Inspector, one test class per example; `Client/` runs our client against the TypeScript
   SDK's reference server, `@modelcontextprotocol/server-everything`, over stdio and HTTP. Both are installed from
-  `tests/Interop/package-lock.json` (`npm ci --prefix tests/Interop`), so a release of one of
+  `tests/Interop/package-lock.json` (`npm ci --include=dev --prefix tests/Interop`), so a release of one of
   their dependencies cannot change what the snapshots see.
 - **Conformance** (`tests/Conformance/`, `make conformance-tests`): each half passes the
   specification's scripted scenarios.
@@ -84,7 +84,7 @@ pattern, consider adding or updating an example under `examples/` along with its
 
 The guides under `docs/` are built with [Zensical](https://zensical.org/) in `--strict` mode,
 which fails the build on a broken internal link. The build runs Zensical through
-[uv](https://docs.astral.sh/uv/getting-started/installation/), so install uv first:
+[uv](https://docs.astral.sh/uv/getting-started/installation/), so install uv first, then run:
 
 ```bash
 make docs-guides
