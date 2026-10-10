@@ -328,6 +328,7 @@ $server = Server::builder()
 | `setHeaderValidator()` | enabled | Toggle the SEP-2243 standard-header check on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |
+| `setSessionLock()` | sessionLock | Serialize the concurrent requests of one session, see [Session Management](sessions.md#concurrent-requests) |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher |
