@@ -116,7 +116,7 @@ final class HttpNegotiationTest extends TestCase
         $client = $this->clientBuilder()->setProtocolVersion(ProtocolVersion::V2026_07_28)->setFallbackProtocolVersion(null)->setMaxRetries(0)->build();
 
         $this->expectException(ConnectionException::class);
-        $this->expectExceptionMessage('without a handshake fallback');
+        $this->expectExceptionMessage('without a handshake fallback: "server/discover" was answered with error -32022');
 
         $client->connect($this->transport());
     }
