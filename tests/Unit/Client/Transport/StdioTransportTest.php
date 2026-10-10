@@ -86,6 +86,7 @@ final class StdioTransportTest extends TestCase
     {
         $transport = new StdioTransport(command: 'true');
         $state = new ClientState();
+        $state->setInitialized(true);
         $transport->setState($state);
         $state->addPendingRequest(1, 120);
 
@@ -97,6 +98,28 @@ final class StdioTransportTest extends TestCase
         $this->assertInstanceOf(Error::class, $response);
         $this->assertStringContainsString('no longer running', $response->message);
         $this->assertSame([TransportInterface::CONNECTION_LOST => true], $response->data);
+        $this->assertFalse($state->isInitialized());
+    }
+
+    #[TestDox('a server that can no longer be written to leaves the client uninitialized')]
+    public function testFailedWriteUninitializesTheClient(): void
+    {
+        $transport = new StdioTransport(command: 'true');
+        $state = new ClientState();
+        $state->setInitialized(true);
+        $transport->setState($state);
+
+        $stdin = fopen('php://temp', 'r');
+        $this->assertNotFalse($stdin);
+        (new \ReflectionProperty($transport, 'stdin'))->setValue($transport, $stdin);
+
+        try {
+            $transport->send('{"jsonrpc":"2.0","id":1,"method":"ping"}');
+            $this->fail('Writing to a server that is gone must fail.');
+        } catch (ConnectionException) {
+        }
+
+        $this->assertFalse($state->isInitialized());
     }
 
     /**
