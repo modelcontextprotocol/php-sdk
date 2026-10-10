@@ -15,6 +15,9 @@ use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 /**
+ * Saving writes only the keys changed since the last save, onto what the store holds by then:
+ * concurrent requests of one session keep each other's changes as long as they change different keys.
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class Session implements SessionInterface
@@ -31,6 +34,13 @@ class Session implements SessionInterface
      */
     private array $data;
 
+    /**
+     * Keys changed since the last save, or null once clear() or hydrate() replaced all of them.
+     *
+     * @var array<string, true>|null
+     */
+    private ?array $changes = [];
+
     public function __construct(
         private SessionStoreInterface $store,
         private Uuid $id = new UuidV4(),
@@ -44,7 +54,23 @@ class Session implements SessionInterface
 
     public function save(): bool
     {
-        return $this->store->write($this->id, json_encode($this->readData(), \JSON_THROW_ON_ERROR));
+        $data = $this->readData();
+
+        if (null !== $this->changes) {
+            $data = $this->load();
+            foreach (array_keys($this->changes) as $key) {
+                $this->apply($data, (string) $key);
+            }
+        }
+
+        if (!$this->store->write($this->id, json_encode($data, \JSON_THROW_ON_ERROR))) {
+            return false;
+        }
+
+        $this->data = $data;
+        $this->changes = [];
+
+        return true;
     }
 
     public function get(string $key, mixed $default = null): mixed
@@ -79,6 +105,7 @@ class Session implements SessionInterface
 
         if ($overwrite || !isset($data[$lastKey])) {
             $data[$lastKey] = $value;
+            $this->trackChange($key);
         }
     }
 
@@ -114,12 +141,16 @@ class Session implements SessionInterface
             $data = &$data[$segment];
         }
 
-        unset($data[$lastKey]);
+        if (\array_key_exists($lastKey, $data)) {
+            unset($data[$lastKey]);
+            $this->trackChange($key);
+        }
     }
 
     public function clear(): void
     {
         $this->data = [];
+        $this->changes = null;
     }
 
     public function pull(string $key, mixed $default = null): mixed
@@ -138,6 +169,7 @@ class Session implements SessionInterface
     public function hydrate(array $attributes): void
     {
         $this->data = $attributes;
+        $this->changes = null;
     }
 
     /** @return array<string, mixed> */
@@ -151,23 +183,61 @@ class Session implements SessionInterface
      */
     private function readData(): array
     {
-        if (isset($this->data)) {
-            return $this->data;
-        }
+        return $this->data ??= $this->load();
+    }
 
+    /**
+     * @return array<string, mixed>
+     */
+    private function load(): array
+    {
         $rawData = $this->store->read($this->id);
 
         if (false === $rawData) {
-            return $this->data = [];
+            return [];
         }
 
         // Empty session should not throw
         $decoded = json_decode($rawData, true);
 
-        if (!\is_array($decoded)) {
-            return $this->data = [];
+        return \is_array($decoded) ? $decoded : [];
+    }
+
+    private function trackChange(string $key): void
+    {
+        if (null !== $this->changes) {
+            $this->changes[$key] = true;
+        }
+    }
+
+    /**
+     * Carries the current value of a changed key over to $data, or removes it there if it was forgotten.
+     *
+     * @param array<string, mixed> $data
+     */
+    private function apply(array &$data, string $key): void
+    {
+        $segments = explode('.', $key);
+        $lastKey = array_pop($segments);
+        $source = $this->data;
+        $target = &$data;
+
+        foreach ($segments as $segment) {
+            $source = \is_array($source) ? $source[$segment] ?? null : null;
+
+            if (!isset($target[$segment]) || !\is_array($target[$segment])) {
+                if (!\is_array($source)) {
+                    return;
+                }
+                $target[$segment] = [];
+            }
+            $target = &$target[$segment];
         }
 
-        return $this->data = $decoded;
+        if (\is_array($source) && \array_key_exists($lastKey, $source)) {
+            $target[$lastKey] = $source[$lastKey];
+        } else {
+            unset($target[$lastKey]);
+        }
     }
 }

@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
+* Fix concurrent requests of one session overwriting each other's session changes: `Session::save()` now writes only the keys it changed, onto what the store holds at that point.
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
 * [BC Break] `SchemaValidator::validateAgainstJsonSchema()` no longer validates an empty array as an object. Pass `new \stdClass()` for an empty object.
 * Add `Builder::setSchemaValidator()` to configure the validator used for `tools/call` input and output, e.g. with a resolver for external `$ref` schemas.
