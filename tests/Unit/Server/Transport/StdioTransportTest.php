@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Server\Transport\StdioTransport;
+use Mcp\Server\Transport\TransportInterface;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -49,6 +50,39 @@ final class StdioTransportTest extends TestCase
         $this->pumpToEof($transport);
 
         $this->assertSame(['{"jsonrpc":"2.0","id":1}'], $messages);
+    }
+
+    #[TestDox('a line arriving on an idle input is read as soon as it arrives')]
+    public function testIdleInputWakesOnArrival(): void
+    {
+        // The child sends a request, waits for the answer, idles for 10ms, then sends another and exits.
+        $process = proc_open(
+            [\PHP_BINARY, '-r', 'echo "{\"first\":1}\n"; fgets(STDIN); usleep(10000); echo "{\"second\":1}\n";'],
+            [0 => ['pipe', 'r'], 1 => ['pipe', 'w']],
+            $pipes,
+        );
+        $this->assertIsResource($process);
+
+        $answeredAt = null;
+        $arrivedAt = null;
+        $transport = new StdioTransport(input: $pipes[1], output: $pipes[0]);
+        $transport->onMessage(static function (TransportInterface $transport) use (&$answeredAt, &$arrivedAt): void {
+            if (null === $answeredAt) {
+                $transport->send('{"answer":1}', []);
+                $answeredAt = hrtime(true);
+
+                return;
+            }
+
+            $arrivedAt = hrtime(true);
+        });
+
+        $transport->listen();
+        proc_close($process);
+
+        $this->assertNotNull($answeredAt);
+        $this->assertNotNull($arrivedAt);
+        $this->assertLessThan(45, ($arrivedAt - $answeredAt) / 1e6, 'the idle wait must end when input arrives');
     }
 
     #[TestDox('the line byte cap must be a positive number of bytes')]
