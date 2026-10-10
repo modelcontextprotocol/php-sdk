@@ -11,9 +11,14 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionStoreInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Uid\UuidV4;
 
 class SessionTest extends TestCase
@@ -208,6 +213,37 @@ class SessionTest extends TestCase
         $this->assertSame('value', $newSession->get('persisted'));
     }
 
+    /**
+     * @return iterable<string, array{\Closure(): SessionStoreInterface}>
+     */
+    public static function provideStores(): iterable
+    {
+        yield 'in-memory' => [static fn () => new InMemorySessionStore()];
+        yield 'file' => [static fn () => new FileSessionStore(sys_get_temp_dir().'/mcp-sessions-'.bin2hex(random_bytes(6)))];
+        yield 'psr-16' => [static fn () => new Psr16SessionStore(self::arrayCache())];
+    }
+
+    /**
+     * @param \Closure(): SessionStoreInterface $createStore
+     */
+    #[DataProvider('provideStores')]
+    public function testSaveDoesNotResurrectADestroyedSession(\Closure $createStore): void
+    {
+        $store = $createStore();
+        $session = new Session($store);
+        $session->set('initialized', true);
+        $this->assertTrue($session->save());
+
+        // A request in flight loaded the session before it was destroyed.
+        $inFlight = new Session($store, $session->getId());
+        $inFlight->set('foo', 'bar');
+
+        $store->destroy($session->getId());
+
+        $this->assertFalse($inFlight->save());
+        $this->assertFalse($store->exists($session->getId()));
+    }
+
     public function testSetCreatesNestedStructure(): void
     {
         $this->session->set('a.b.c.d', 'value');
@@ -364,5 +400,69 @@ class SessionTest extends TestCase
         $session = new Session($store);
 
         $this->assertSame([], $session->all());
+    }
+
+    private static function arrayCache(): CacheInterface
+    {
+        return new class implements CacheInterface {
+            /** @var array<string, mixed> */
+            private array $values = [];
+
+            public function get(string $key, mixed $default = null): mixed
+            {
+                return $this->values[$key] ?? $default;
+            }
+
+            public function set(string $key, mixed $value, int|\DateInterval|null $ttl = null): bool
+            {
+                $this->values[$key] = $value;
+
+                return true;
+            }
+
+            public function delete(string $key): bool
+            {
+                unset($this->values[$key]);
+
+                return true;
+            }
+
+            public function clear(): bool
+            {
+                $this->values = [];
+
+                return true;
+            }
+
+            public function getMultiple(iterable $keys, mixed $default = null): iterable
+            {
+                foreach ($keys as $key) {
+                    yield $key => $this->get($key, $default);
+                }
+            }
+
+            public function setMultiple(iterable $values, int|\DateInterval|null $ttl = null): bool
+            {
+                foreach ($values as $key => $value) {
+                    $this->set((string) $key, $value, $ttl);
+                }
+
+                return true;
+            }
+
+            public function deleteMultiple(iterable $keys): bool
+            {
+                foreach ($keys as $key) {
+                    $this->delete($key);
+                }
+
+                return true;
+            }
+
+            public function has(string $key): bool
+            {
+                return \array_key_exists($key, $this->values);
+            }
+        };
     }
 }
