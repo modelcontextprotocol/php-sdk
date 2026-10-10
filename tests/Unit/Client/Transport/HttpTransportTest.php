@@ -567,6 +567,58 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
     }
 
+    /**
+     * A null body is one whose read fails, like a connection reset.
+     *
+     * @return iterable<string, array{string, ?string}>
+     */
+    public static function cutResponseProvider(): iterable
+    {
+        yield 'an SSE stream ending before the answer' => ['text/event-stream', 'data: {"jsonrpc":"2.0","method":"notifications/message","params":{"level":"info","data":"working"}}'."\n\n"];
+        yield 'an SSE stream cut mid-event' => ['text/event-stream', 'data: {"jsonrpc":"2.0","id":%d,"result":{"cont'];
+        yield 'an SSE stream failing to read' => ['text/event-stream', null];
+        yield 'a truncated JSON body' => ['application/json', '{"jsonrpc":"2.0","id":%d,"result":{"cont'];
+        yield 'an empty JSON body' => ['application/json', ''];
+        yield 'a JSON body failing to read' => ['application/json', null];
+    }
+
+    #[DataProvider('cutResponseProvider')]
+    #[TestDox('a response that ends without the answer fails the call at once: $_dataName')]
+    public function testCutResponseFailsTheCallAtOnce(string $contentType, ?string $body): void
+    {
+        $httpClient = new RecordingHttpClient(function (array $message) use ($contentType, $body): ?ResponseInterface {
+            if ('cut' !== ($message['params']['name'] ?? null)) {
+                return null;
+            }
+
+            if (null !== $body) {
+                return new Response(200, ['Content-Type' => $contentType], \sprintf($body, $message['id']));
+            }
+
+            $stream = $this->createMock(StreamInterface::class);
+            $stream->method('eof')->willReturn(false);
+            $stream->method('read')->willThrowException(new \RuntimeException('Connection reset by peer'));
+            $stream->method('getContents')->willThrowException(new \RuntimeException('Connection reset by peer'));
+
+            return new Response(200, ['Content-Type' => $contentType], $stream);
+        });
+
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->setRequestTimeout(30)->build();
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $started = microtime(true);
+        try {
+            $client->callTool('cut');
+            $this->fail('Expected the call to fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('without answering the request', $e->getMessage());
+        }
+
+        $this->assertLessThan(1, microtime(true) - $started, 'the cut must not be waited out like a slow answer');
+        $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
+        $client->disconnect();
+    }
+
     /** @return iterable<string, array{ProtocolVersion, bool}> */
     public static function revisionProvider(): iterable
     {
