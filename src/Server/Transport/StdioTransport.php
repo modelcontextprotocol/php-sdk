@@ -22,6 +22,7 @@ use Mcp\Server\Transport\Stdio\RunnerControlInterface;
 use Mcp\Server\Transport\Stdio\RunnerState;
 use Mcp\Server\Wire\InboundClassifier;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Serves one client over the standard streams, in whichever protocol era it
@@ -80,6 +81,14 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private array $streams = [];
 
     /**
+     * Handshake-era handlers suspended on the client, by object id: the
+     * client pipelines its requests, so several can be in flight at once.
+     *
+     * @var array<int, McpFiber>
+     */
+    private array $fibers = [];
+
+    /**
      * @param resource $input
      * @param resource $output
      * @param int      $maxLineBytes Maximum bytes read for a single input line. fgets() with no length reads until a
@@ -124,6 +133,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $this->writeLine($data);
     }
 
+    public function attachFiberToSession(\Fiber $fiber, Uuid $sessionId): void
+    {
+        $this->fibers[spl_object_id($fiber)] = $fiber;
+        $this->sessionId = $sessionId;
+    }
+
     public function listen(): int
     {
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
@@ -131,7 +146,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         while (!feof($this->input) && RunnerState::RUNNING === $this->runnerControl->getState()) {
             $this->processInput();
-            $this->processFiber();
+            $this->processFibers();
             $this->processStreams();
             $this->flushOutgoingMessages();
         }
@@ -341,27 +356,35 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $this->writeLine(json_encode($error, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
     }
 
-    private function processFiber(): void
+    /**
+     * Resumes every suspended handler that can go on: one that sent a
+     * notification right away, one that sent a request once its answer is in
+     * or it timed out.
+     */
+    private function processFibers(): void
     {
-        if (null === $this->sessionFiber) {
-            return;
+        foreach ($this->fibers as $key => $fiber) {
+            if ($fiber->isSuspended()) {
+                $this->resumeFiber($fiber);
+            }
+
+            if ($fiber->isTerminated()) {
+                unset($this->fibers[$key]);
+                $this->handleFiberTermination($fiber);
+            }
         }
+    }
 
-        if ($this->sessionFiber->isTerminated()) {
-            $this->handleFiberTermination($this->sessionFiber);
-
-            return;
-        }
-
-        if (!$this->sessionFiber->isSuspended()) {
-            return;
-        }
-
-        $pendingRequests = $this->getPendingRequests($this->sessionId);
+    /**
+     * @param McpFiber $fiber
+     */
+    private function resumeFiber(\Fiber $fiber): void
+    {
+        $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
         if (empty($pendingRequests)) {
-            $yielded = $this->sessionFiber->resume();
-            $this->handleFiberYield($yielded, $this->sessionId);
+            $yielded = $fiber->resume();
+            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
             return;
         }
@@ -374,16 +397,16 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             $response = $this->checkForResponse($requestId, $this->sessionId);
 
             if (null !== $response) {
-                $yielded = $this->sessionFiber->resume($response);
-                $this->handleFiberYield($yielded, $this->sessionId);
+                $yielded = $fiber->resume($response);
+                $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
                 return;
             }
 
             if (time() - $timestamp >= $timeout) {
                 $error = Error::forInternalError('Request timed out', $requestId);
-                $yielded = $this->sessionFiber->resume($error);
-                $this->handleFiberYield($yielded, $this->sessionId);
+                $yielded = $fiber->resume($error);
+                $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
                 return;
             }
@@ -405,8 +428,6 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
                 $this->logger->error('STDIO: Failed to encode final Fiber result.', ['exception' => $e]);
             }
         }
-
-        $this->sessionFiber = null;
     }
 
     private function flushOutgoingMessages(): void

@@ -22,6 +22,7 @@ use Symfony\Component\Uid\Uuid;
  * @phpstan-import-type FiberReturn from \Mcp\Server\Transport\TransportInterface
  * @phpstan-import-type FiberResume from \Mcp\Server\Transport\TransportInterface
  * @phpstan-import-type FiberSuspend from \Mcp\Server\Transport\TransportInterface
+ * @phpstan-import-type McpFiber from \Mcp\Server\Transport\TransportInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  * */
@@ -36,13 +37,13 @@ trait ManagesTransportCallbacks
     /** @var callable(Uuid): array<int, array{message: string, context: array<string, mixed>}> */
     protected $outgoingMessagesProvider;
 
-    /** @var callable(Uuid): array<int, array<string, mixed>> */
+    /** @var callable(Uuid, McpFiber): array<int, array<string, mixed>> */
     protected $pendingRequestsProvider;
 
     /** @var (callable(int, Uuid): (Response<array<string, mixed>>|Error|null))|null */
     protected $responseFinder;
 
-    /** @var callable(FiberSuspend|null, ?Uuid): void */
+    /** @var callable(FiberSuspend|null, ?Uuid, McpFiber): void */
     protected $fiberYieldHandler;
 
     public function onMessage(callable $listener): void
@@ -74,7 +75,7 @@ trait ManagesTransportCallbacks
     }
 
     /**
-     * @param callable(FiberSuspend|null, ?Uuid): void $handler
+     * @param callable(FiberSuspend|null, ?Uuid, McpFiber): void $handler
      */
     public function setFiberYieldHandler(callable $handler): void
     {
