@@ -599,6 +599,61 @@ final class ProtocolTest extends TestCase
         $this->assertSame(Error::INTERNAL_ERROR, $sent[0]['error']['code']);
     }
 
+    #[TestDox('An aborted suspended request leaves nothing behind when a later save succeeds: $_dataName')]
+    #[DataProvider('provideSaveFailures')]
+    public function testAbortedSuspendedRequestIsRolledBack(bool $throws): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response(1, []);
+        });
+
+        // Fails once, then recovers: the save at the end of processing goes through.
+        $store = new class extends InMemorySessionStore {
+            public int $failingWrites = 0;
+            public bool $throws = true;
+
+            public function write(Uuid $id, string $data): bool
+            {
+                if ($this->failingWrites > 0) {
+                    --$this->failingWrites;
+                    if ($this->throws) {
+                        throw new \RuntimeException('storage hiccup');
+                    }
+
+                    return false;
+                }
+
+                return parent::write($id, $data);
+            }
+        };
+        $store->throws = $throws;
+        $sessionManager = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessionManager->createWithId($sessionId)->save();
+        $store->failingWrites = 1;
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": {"name": "confirm", "arguments": {}}}',
+            $sessionId
+        );
+
+        // The client must not get a request for a tool call that was already answered with an error.
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
+        $this->assertSame([], $protocol->getPendingRequests($sessionId));
+    }
+
     #[TestDox('A failing notification event listener does not produce a response')]
     public function testFailingNotificationListenerDoesNotProduceResponse(): void
     {

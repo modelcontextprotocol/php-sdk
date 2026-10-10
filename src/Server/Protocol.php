@@ -348,6 +348,8 @@ class Protocol
                 $result = $fiber->start();
 
                 if ($fiber->isSuspended()) {
+                    $beforeSuspension = $session->all();
+
                     $awaitedRequestId = null;
                     if ($result instanceof NotificationSuspension) {
                         $this->sendNotification($result->notification, $session);
@@ -356,8 +358,19 @@ class Protocol
                     }
 
                     // The transport resumes the fiber from what the session holds: it must
-                    // not get the fiber if the request the fiber awaits was not stored.
-                    if (!$session->save()) {
+                    // not get the fiber if the request the fiber awaits was not stored. A
+                    // later save must not store that request either, nobody would resume it.
+                    try {
+                        $saved = $session->save();
+                    } catch (\Throwable $e) {
+                        $session->hydrate($beforeSuspension);
+
+                        throw $e;
+                    }
+
+                    if (!$saved) {
+                        $session->hydrate($beforeSuspension);
+
                         throw new RuntimeException('Failed to save the session of a suspended request.');
                     }
 
