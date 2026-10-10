@@ -33,6 +33,14 @@ final class PollingLoopTransport extends InMemoryTransport
     }
 
     /**
+     * @return array<int, array<mixed>> the messages this stream sends the client next, decoded
+     */
+    public function takeOutgoingMessages(): array
+    {
+        return array_map(static fn (array $message): array => json_decode($message['message'], true), $this->getOutgoingMessages($this->sessionId));
+    }
+
+    /**
      * @param FiberSuspend $yielded
      */
     public function yieldFromFiber(NotificationSuspension|RequestSuspension $yielded): void

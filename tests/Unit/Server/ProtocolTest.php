@@ -38,6 +38,7 @@ use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
+use Mcp\Tests\Unit\Server\Session\Fixture\InterleavingSessionStore;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -919,10 +920,8 @@ final class ProtocolTest extends TestCase
         $this->assertSame($exception, $errorEvents[0]->getThrowable());
         $this->assertSame(1, $errorEvents[0]->getError()->getId());
 
-        // The outbound request was queued for the client before the failure; the error is the response.
-        $outgoing = array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $protocol->consumeOutgoingMessages($sessionId));
-        $this->assertCount(1, $outgoing);
-        $this->assertSame('ping', $outgoing[0]['method']);
+        // Nobody would resume the fiber, so the outbound request is not sent; the error is the response.
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
 
         $this->assertCount(1, $sent);
         $this->assertSame(1, $sent[0]['id']);
@@ -933,46 +932,123 @@ final class ProtocolTest extends TestCase
     public function testConcurrentStreamsPollOnlyTheirOwnPendingRequest(): void
     {
         [$protocol, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstIds = $firstStream->getPendingRequestIds();
+        $secondIds = $secondStream->getPendingRequestIds();
 
-        $protocol->processInput($secondStream, '{"jsonrpc": "2.0", "id": 1001, "result": {}}', $sessionId);
+        $protocol->processInput($secondStream, \sprintf('{"jsonrpc": "2.0", "id": %d, "result": {}}', $secondIds[0]), $sessionId);
 
-        $this->assertSame([1000], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertCount(1, $firstIds);
+        $this->assertCount(1, $secondIds);
+        $this->assertNotSame($firstIds, $secondIds);
+        $this->assertSame($firstIds, $firstStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
     }
 
     #[TestDox('A client request a fiber sends after resuming is polled only by its own stream')]
     public function testRequestYieldedOnResumeIsPolledOnlyByItsOwnStream(): void
     {
         [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstIds = $firstStream->getPendingRequestIds();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $firstStream->yieldFromFiber(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5));
 
-        $this->assertSame([1002], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertCount(1, $firstStream->getPendingRequestIds());
+        $this->assertNotSame($firstIds, $firstStream->getPendingRequestIds());
+        $this->assertNotSame($secondIds, $firstStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
     }
 
     #[TestDox('A stream whose fiber resumes and sends a notification no longer polls the request it was waiting on')]
     public function testNotificationYieldedOnResumeClearsTheAwaitedRequest(): void
     {
         [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $firstStream->yieldFromFiber(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()));
 
         $this->assertSame([], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
     }
 
     #[TestDox('A stream whose fiber first suspends on a notification polls none of the session\'s pending requests')]
     public function testStreamSuspendedOnNotificationPollsNoPendingRequest(): void
     {
         [$protocol, $sessionId, , $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $thirdStream = new PollingLoopTransport();
         $protocol->connect($thirdStream);
         $protocol->processInput($thirdStream, '{"jsonrpc": "2.0", "id": 3, "method": "ping"}', $sessionId);
 
         $this->assertSame([], $thirdStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('Concurrent streams on one session each send the client request their own fiber sent')]
+    public function testConcurrentStreamsSendOnlyTheirOwnRequest(): void
+    {
+        [, , $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $firstOutgoing = $firstStream->takeOutgoingMessages();
+        $secondOutgoing = $secondStream->takeOutgoingMessages();
+
+        $this->assertCount(1, $firstOutgoing);
+        $this->assertSame($firstStream->getPendingRequestIds(), [$firstOutgoing[0]['id']]);
+        $this->assertCount(1, $secondOutgoing);
+        $this->assertSame($secondStream->getPendingRequestIds(), [$secondOutgoing[0]['id']]);
+    }
+
+    #[TestDox('A client request a fiber sends after resuming goes out on its own stream')]
+    public function testRequestYieldedOnResumeIsSentOnItsOwnStream(): void
+    {
+        [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstStream->takeOutgoingMessages();
+        $secondStream->takeOutgoingMessages();
+
+        $firstStream->yieldFromFiber(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5));
+
+        $this->assertSame([], $secondStream->takeOutgoingMessages());
+        $firstOutgoing = $firstStream->takeOutgoingMessages();
+        $this->assertCount(1, $firstOutgoing);
+        $this->assertSame($firstStream->getPendingRequestIds(), [$firstOutgoing[0]['id']]);
+    }
+
+    #[TestDox('Client requests of calls handled by different workers on one session get distinct ids')]
+    public function testConcurrentWorkersSendClientRequestsUnderDistinctIds(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response(1, []);
+        });
+
+        $store = new InterleavingSessionStore();
+        $sessionManager = new SessionManager($store, gcProbability: 0);
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $firstWorker = new Protocol([$handler], [], MessageFactory::make(), $sessionManager);
+        $secondWorker = new Protocol([$handler], [], MessageFactory::make(), $sessionManager);
+        $firstStream = new PollingLoopTransport();
+        $secondStream = new PollingLoopTransport();
+        $firstWorker->connect($firstStream);
+        $secondWorker->connect($secondStream);
+
+        // The second call is handled after the first worker loaded the session, before it saved it.
+        $secondIds = null;
+        $store->interleaveAfterNextRead(static function () use ($secondWorker, $secondStream, $sessionId, &$secondIds): void {
+            $secondWorker->processInput($secondStream, '{"jsonrpc": "2.0", "id": 2, "method": "ping"}', $sessionId);
+            $secondIds = $secondStream->getPendingRequestIds();
+        });
+        $firstWorker->processInput($firstStream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $this->assertCount(1, $firstStream->getPendingRequestIds());
+        $this->assertCount(1, $secondIds ?? []);
+        $this->assertNotSame($secondIds, $firstStream->getPendingRequestIds());
     }
 
     /**
@@ -1913,11 +1989,12 @@ final class ProtocolTest extends TestCase
         $this->assertSame(45, $suspension->timeout);
         $this->assertNull($suspension->inputKey);
 
-        $protocol->handleFiberYield($suspension, $sessionId);
+        $requestId = $protocol->handleFiberYield($suspension, $sessionId);
+        $this->assertNotNull($requestId);
 
         $pending = $protocol->getPendingRequests($sessionId);
         $this->assertCount(1, $pending);
-        $this->assertSame(45, $pending[1000]['timeout']);
+        $this->assertSame(45, $pending[$requestId]['timeout']);
 
         $outgoing = $protocol->consumeOutgoingMessages($sessionId);
         $this->assertCount(1, $outgoing);
@@ -1925,7 +2002,7 @@ final class ProtocolTest extends TestCase
 
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertSame('roots/list', $message['method']);
-        $this->assertSame(1000, $message['id']);
+        $this->assertSame($requestId, $message['id']);
     }
 
     #[TestDox('A fiber yield that is not a suspension object is dropped without touching the session')]
