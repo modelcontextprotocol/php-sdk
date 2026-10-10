@@ -123,15 +123,6 @@ interface TransportInterface
     public function setFiberYieldHandler(callable $handler): void;
 
     /**
-     * Set a handler invoked when a suspended Fiber completes.
-     *
-     * The transport calls this before sending the Fiber's final result to the client.
-     *
-     * @param callable(FiberReturn, Uuid): FiberReturn $handler
-     */
-    public function setFiberTerminationHandler(callable $handler): void;
-
-    /**
      * @param McpFiber $fiber
      */
     public function attachFiberToSession(\Fiber $fiber, Uuid $sessionId): void;

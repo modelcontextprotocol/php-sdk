@@ -47,7 +47,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Bump `MessageInterface::PROTOCOL_VERSION` to `2026-07-28`. Use `ProtocolVersion::latestHandshake()` where a handshake revision is needed, e.g. in an `initialize` answer.
 * Add `ServerRequestEvent` and `ClientResponseEvent` for handshake-era server-initiated requests (`elicitation/create`, `sampling/createMessage`) and the client's replies.
 * Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
-* [BC Break] Add `TransportInterface::setFiberTerminationHandler()`. Custom transports must implement it, SDK transports already do via `ManagesTransportCallbacks`.
+* Fix a handler throwing after its fiber resumed (e.g. after elicitation or sampling) escaping to the transport: it is now answered with an error response like one throwing before suspending.
+* Drop a client response to a request ID the server is not waiting on, or that timed out, instead of storing it in the session, where nothing would ever consume it.
 
 0.8.0
 -----

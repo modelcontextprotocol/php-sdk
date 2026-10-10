@@ -17,6 +17,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
+use Mcp\Exception\RuntimeException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
@@ -1873,7 +1874,7 @@ final class ProtocolTest extends TestCase
             }))
             ->willReturnArgument(0);
 
-        $session = $this->createMock(SessionInterface::class);
+        $session = $this->createSessionWithPendingRequests([1000]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1915,7 +1916,7 @@ final class ProtocolTest extends TestCase
                 return $event;
             });
 
-        $session = $this->createMock(SessionInterface::class);
+        $session = $this->createSessionWithPendingRequests([1000]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1940,6 +1941,82 @@ final class ProtocolTest extends TestCase
         $this->assertSame(1000, $capturedEvent->getId());
     }
 
+    #[TestDox('A response to an unknown request ID is neither dispatched nor stored')]
+    public function testClientResponseEventIsNotDispatchedForUnknownId(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher
+            ->expects($this->never())
+            ->method('dispatch');
+
+        $session = $this->createSessionWithPendingRequests([1000]);
+        $session->expects($this->never())->method('set');
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc": "2.0", "id": 4711, "result": {"action": "accept"}}',
+            Uuid::v4()
+        );
+    }
+
+    #[TestDox('A response with a string ID does not match the integer ID of a pending request')]
+    public function testClientResponseEventIsNotDispatchedForNumericStringId(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $session = $this->createSessionWithPendingRequests([1000]);
+        $session->expects($this->never())->method('set');
+
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+            eventDispatcher: $eventDispatcher,
+        );
+
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "1000", "result": {}}', Uuid::v4());
+    }
+
+    #[TestDox('A late response to a timed out request is neither dispatched nor stored')]
+    public function testLateResponseToTimedOutRequestIsDropped(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects($this->never())->method('dispatch');
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $session = $sessionManager->create();
+        $session->set('_mcp.pending_requests', [1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10]]);
+        $session->save();
+
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1000, "result": {}}', $session->getId());
+
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.1000'));
+    }
+
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
     public function testClientResponseEventGetIdCanBeNull(): void
     {
@@ -1950,253 +2027,237 @@ final class ProtocolTest extends TestCase
         $this->assertTrue($event->isError());
     }
 
-    #[TestDox('ResponseEvent is dispatched when a suspended Fiber completes')]
-    public function testResponseEventIsDispatchedOnFiberTermination(): void
+    #[TestDox('A suspended fiber dispatches its result under its own request once it completes')]
+    public function testSuspendedFibersDispatchResultUnderTheirOwnRequest(): void
     {
-        $capturedEvents = [];
-
-        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
-        $eventDispatcher
-            ->method('dispatch')
-            ->willReturnCallback(static function ($event) use (&$capturedEvents) {
-                $capturedEvents[] = $event;
-
-                return $event;
-            });
-
-        $sessionId = Uuid::v4();
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn($sessionId);
-
-        $parentRequest = PingRequest::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'method' => 'ping',
-        ]);
-
-        $session->method('pull')
-            ->with('_mcp.fiber_parent_request')
-            ->willReturn($parentRequest->jsonSerialize());
-        $session->expects($this->once())->method('save');
-
-        $this->sessionManager->method('createWithId')->willReturn($session);
-
-        $protocol = new Protocol(
-            requestHandlers: [],
-            notificationHandlers: [],
-            messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
-            eventDispatcher: $eventDispatcher,
-        );
-
-        $finalResult = Response::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'result' => ['status' => 'ok'],
-        ]);
-        $result = $protocol->handleFiberTermination($finalResult, $sessionId);
-
-        $this->assertInstanceOf(Response::class, $result);
-        $this->assertSame(['status' => 'ok'], $result->result);
-        $this->assertCount(1, $capturedEvents);
-        $this->assertInstanceOf(ResponseEvent::class, $capturedEvents[0]);
-        $this->assertSame('ping', $capturedEvents[0]->getMethod());
-        $this->assertSame($session, $capturedEvents[0]->getSession());
-    }
-
-    #[TestDox('ErrorEvent is dispatched when a suspended Fiber completes with an error')]
-    public function testErrorEventIsDispatchedOnFiberTermination(): void
-    {
-        $capturedEvents = [];
-
-        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
-        $eventDispatcher
-            ->method('dispatch')
-            ->willReturnCallback(static function ($event) use (&$capturedEvents) {
-                $capturedEvents[] = $event;
-
-                return $event;
-            });
-
-        $sessionId = Uuid::v4();
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn($sessionId);
-
-        $parentRequest = PingRequest::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'method' => 'ping',
-        ]);
-
-        $session->method('pull')
-            ->with('_mcp.fiber_parent_request')
-            ->willReturn($parentRequest->jsonSerialize());
-        $session->expects($this->once())->method('save');
-
-        $this->sessionManager->method('createWithId')->willReturn($session);
-
-        $protocol = new Protocol(
-            requestHandlers: [],
-            notificationHandlers: [],
-            messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
-            eventDispatcher: $eventDispatcher,
-        );
-
-        $finalResult = Error::forInternalError('Fiber failed', 1);
-        $result = $protocol->handleFiberTermination($finalResult, $sessionId);
-
-        $this->assertInstanceOf(Error::class, $result);
-        $this->assertCount(1, $capturedEvents);
-        $this->assertInstanceOf(ErrorEvent::class, $capturedEvents[0]);
-        $this->assertSame('ping', $capturedEvents[0]->getRequest()::getMethod());
-    }
-
-    #[TestDox('Fiber termination still persists session when parent request is missing')]
-    public function testFiberTerminationSavesSessionWhenParentRequestIsMissing(): void
-    {
-        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
-        $eventDispatcher->expects($this->never())->method('dispatch');
-
-        $sessionId = Uuid::v4();
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn($sessionId);
-        $session->method('pull')
-            ->with('_mcp.fiber_parent_request')
-            ->willReturn(null);
-        $session->expects($this->once())->method('save');
-
-        $this->sessionManager->method('createWithId')->willReturn($session);
-
-        $protocol = new Protocol(
-            requestHandlers: [],
-            notificationHandlers: [],
-            messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
-            eventDispatcher: $eventDispatcher,
-        );
-
-        $finalResult = Response::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'result' => ['status' => 'ok'],
-        ]);
-        $result = $protocol->handleFiberTermination($finalResult, $sessionId);
-
-        $this->assertSame($finalResult, $result);
-    }
-
-    #[TestDox('Fiber parent request is stored when handler suspends')]
-    public function testFiberParentRequestIsStoredOnSuspend(): void
-    {
-        $storedParentRequest = null;
-
         $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->method('supports')->willReturn(true);
-        $handler->method('handle')->willReturnCallback(static function () {
-            \Fiber::suspend([
-                'type' => 'request',
-                'request' => PingRequest::fromArray([
-                    'jsonrpc' => '2.0',
-                    'id' => 0,
-                    'method' => 'ping',
-                ]),
-                'timeout' => 60,
-            ]);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response|Error {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
 
-            return new Response(1, []);
+            return 2 === $request->getId()
+                ? Error::forInternalError('failed', 2)
+                : new Response($request->getId(), []);
         });
 
-        $session = $this->createMock(SessionInterface::class);
-        $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) {
-            if ('_mcp.request_id_counter' === $key) {
-                return 1000;
-            }
-
-            return $default;
-        });
-        $session->method('set')->willReturnCallback(static function ($key, $value) use (&$storedParentRequest) {
-            if ('_mcp.fiber_parent_request' === $key) {
-                $storedParentRequest = $value;
-            }
+        $fibers = [];
+        $this->transport->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $fiber) use (&$fibers): void {
+            $fibers[] = $fiber;
         });
 
-        $this->sessionManager->method('createWithId')->willReturn($session);
-        $this->sessionManager->method('exists')->willReturn(true);
+        $events = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events): object {
+            $events[] = $event;
 
-        $this->transport->expects($this->once())->method('attachFiberToSession');
+            return $event;
+        });
 
+        $sessionManager = new SessionManager(new InMemorySessionStore());
         $protocol = new Protocol(
             requestHandlers: [$handler],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
-            sessionManager: $this->sessionManager,
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
         );
 
-        $sessionId = Uuid::v4();
-        $protocol->processInput(
-            $this->transport,
-            '{"jsonrpc": "2.0", "id": 1, "method": "ping"}',
-            $sessionId
-        );
+        $session = $sessionManager->create();
+        $session->save();
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 2, "method": "ping"}', $session->getId());
 
-        $this->assertIsArray($storedParentRequest);
-        $this->assertSame('ping', $storedParentRequest['method']);
-        $this->assertSame(1, $storedParentRequest['id']);
+        $this->assertCount(2, $fibers);
+        $this->assertCount(0, array_filter($events, static fn (object $event): bool => $event instanceof ResponseEvent || $event instanceof ErrorEvent));
+
+        $fibers[1]->resume();
+        $fibers[0]->resume();
+
+        $results = array_values(array_filter($events, static fn (object $event): bool => $event instanceof ResponseEvent || $event instanceof ErrorEvent));
+        $this->assertCount(2, $results);
+        $this->assertInstanceOf(ErrorEvent::class, $results[0]);
+        $this->assertSame(2, $results[0]->getRequest()->getId());
+        $this->assertInstanceOf(ResponseEvent::class, $results[1]);
+        $this->assertSame(1, $results[1]->getRequest()->getId());
     }
 
-    #[TestDox('ResponseEvent is dispatched after session reload when Fiber completes')]
-    public function testResponseEventIsDispatchedOnFiberTerminationAfterSessionSave(): void
+    #[TestDox('A throwing result listener of a resumed fiber is answered with an internal error')]
+    public function testResumedFiberTurnsThrowingResponseListenerIntoInternalError(): void
     {
-        $capturedEvents = [];
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
 
-        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
-        $eventDispatcher
-            ->method('dispatch')
-            ->willReturnCallback(static function ($event) use (&$capturedEvents) {
-                $capturedEvents[] = $event;
+            return new Response($request->getId(), []);
+        });
 
-                return $event;
-            });
+        $fiber = null;
+        $this->transport->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $attached) use (&$fiber): void {
+            $fiber = $attached;
+        });
 
-        $store = new InMemorySessionStore();
-        $sessionId = Uuid::v4();
-        $session = new Session($store, $sessionId);
+        $exception = new RuntimeException('listener blew up');
+        $errorEvents = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use ($exception, &$errorEvents): object {
+            if ($event instanceof ResponseEvent) {
+                throw $exception;
+            }
+            if ($event instanceof ErrorEvent) {
+                $errorEvents[] = $event;
+            }
 
-        $parentRequest = PingRequest::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'method' => 'ping',
-        ]);
-        $session->set('_mcp.fiber_parent_request', $parentRequest->jsonSerialize());
-        $session->save();
+            return $event;
+        });
 
-        $sessionManager = $this->createMock(SessionManagerInterface::class);
-        $sessionManager->method('createWithId')->willReturnCallback(
-            static fn (Uuid $id) => new Session($store, $id)
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
         );
 
+        $session = $sessionManager->create();
+        $session->save();
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
+
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+        $fiber->resume();
+
+        $this->assertTrue($fiber->isTerminated());
+        $result = $fiber->getReturn();
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame(Error::INTERNAL_ERROR, $result->code);
+        $this->assertSame(1, $result->getId());
+
+        $this->assertCount(1, $errorEvents);
+        $this->assertSame($exception, $errorEvents[0]->getThrowable());
+        $this->assertSame(1, $errorEvents[0]->getRequest()->getId());
+    }
+
+    #[TestDox('A throwing error listener of a resumed fiber still leaves an internal error')]
+    public function testResumedFiberSurvivesThrowingErrorListener(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Error {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return Error::forInvalidParams('bad input', $request->getId());
+        });
+
+        $fiber = null;
+        $this->transport->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $attached) use (&$fiber): void {
+            $fiber = $attached;
+        });
+
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event): object {
+            if ($event instanceof ErrorEvent) {
+                throw new RuntimeException('error listener blew up');
+            }
+
+            return $event;
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
+
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+        $fiber->resume();
+
+        $this->assertTrue($fiber->isTerminated());
+        $result = $fiber->getReturn();
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame(Error::INTERNAL_ERROR, $result->code);
+        $this->assertSame(1, $result->getId());
+    }
+
+    #[TestDox('A handler throwing after its fiber resumed is answered with an internal error')]
+    public function testResumedFiberTurnsThrowingHandlerIntoInternalError(): void
+    {
+        $exception = new RuntimeException('handler blew up');
+
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session) use ($exception): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            throw $exception;
+        });
+
+        $fiber = null;
+        $this->transport->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $attached) use (&$fiber): void {
+            $fiber = $attached;
+        });
+
+        $events = [];
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events): object {
+            $events[] = $event;
+
+            return $event;
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+            eventDispatcher: $dispatcher,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
+
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+        $fiber->resume();
+
+        $this->assertTrue($fiber->isTerminated());
+        $result = $fiber->getReturn();
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame(Error::INTERNAL_ERROR, $result->code);
+        $this->assertSame(1, $result->getId());
+
+        $errorEvents = array_values(array_filter($events, static fn (object $event): bool => $event instanceof ErrorEvent));
+        $this->assertCount(1, $errorEvents);
+        $this->assertSame($exception, $errorEvents[0]->getThrowable());
+        $this->assertCount(0, array_filter($events, static fn (object $event): bool => $event instanceof ResponseEvent));
+    }
+
+    #[TestDox('ClientResponseEvent is not dispatched for an id-less error from the client')]
+    public function testClientResponseEventIsNotDispatchedForIdLessError(): void
+    {
+        $dispatcher = $this->createMock(EventDispatcherInterface::class);
+        $dispatcher->expects($this->never())->method('dispatch');
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
         $protocol = new Protocol(
             requestHandlers: [],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
             sessionManager: $sessionManager,
-            eventDispatcher: $eventDispatcher,
+            eventDispatcher: $dispatcher,
         );
 
-        $finalResult = Response::fromArray([
-            'jsonrpc' => '2.0',
-            'id' => 1,
-            'result' => ['status' => 'ok'],
-        ]);
-        $result = $protocol->handleFiberTermination($finalResult, $sessionId);
-        $this->assertInstanceOf(Response::class, $result);
-
-        $this->assertSame(['status' => 'ok'], $result->result);
-        $this->assertCount(1, $capturedEvents);
-        $this->assertInstanceOf(ResponseEvent::class, $capturedEvents[0]);
-        $this->assertSame('ping', $capturedEvents[0]->getMethod());
+        $session = $sessionManager->create();
+        $session->save();
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "Parse error"}}', $session->getId());
     }
 
     /**
@@ -2336,6 +2397,24 @@ final class ProtocolTest extends TestCase
         // The pre-VO array shape is deliberately no longer accepted.
         // @phpstan-ignore argument.type
         $protocol->handleFiberYield(['type' => 'notification'], Uuid::v4());
+    }
+
+    /**
+     * @param list<int> $requestIds
+     */
+    private function createSessionWithPendingRequests(array $requestIds): SessionInterface&MockObject
+    {
+        $pending = [];
+        foreach ($requestIds as $requestId) {
+            $pending[$requestId] = ['request_id' => $requestId, 'timeout' => 120, 'timestamp' => time()];
+        }
+
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => '_mcp.pending_requests' === $key ? $pending : $default
+        );
+
+        return $session;
     }
 }
 
