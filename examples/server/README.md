@@ -14,7 +14,7 @@ php examples/server/discovery-calculator/server.php
 php -S localhost:8000 examples/server/discovery-userprofile/server.php
 ```
 
-You will see debug outputs to help you understand what is happening.
+The examples log what they do. Debug messages only show up when you enable them, see [Debugging](#debugging).
 
 Run with Inspector:
 

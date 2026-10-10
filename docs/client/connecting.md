@@ -1,10 +1,9 @@
 # Connecting to a server
 
 A client is configured once through its builder, then connected to a
-[transport](transports.md). Connecting performs the MCP initialization handshake, after
-which the server's capabilities are known and its elements can be used. On protocol
-revision `2026-07-28` there is no handshake to perform — see
-[Clients on this revision](../protocol-versions.md).
+[transport](transports.md). When you connect, the client and the server agree on a protocol
+version. After that, the server's capabilities are known and you can use its tools, resources
+and prompts.
 
 ## Client Builder
 
@@ -17,9 +16,9 @@ use Mcp\Client;
 
 $client = Client::builder()
     ->setClientInfo('My Application', '1.0.0', 'Description of my client')
-    ->setInitTimeout(30)      // Seconds to wait for initialization
-    ->setRequestTimeout(120)  // Seconds to wait for request responses
-    ->setMaxRetries(3)        // Retries for failed connections
+    ->setInitTimeout(30)      // seconds to wait while connecting (default: 30)
+    ->setRequestTimeout(120)  // seconds to wait for each response (default: 120)
+    ->setMaxRetries(3)        // retries for a failed connection (default: 3)
     ->build();
 ```
 
@@ -54,7 +53,9 @@ $client = Client::builder()
     ->setClientInfo(
         name: 'AI Assistant Client',
         version: '2.1.0',
-        description: 'Client for automated AI workflows'
+        description: 'Client for automated AI workflows',
+        // optional name to display in user interfaces
+        title: 'AI Assistant',
     )
     ->build();
 ```
@@ -73,7 +74,8 @@ $client = Client::builder()
     ->setFallbackProtocolVersion(ProtocolVersion::V2025_06_18)
     ->build();
 
-// …or not at all, refusing servers without the modern era.
+// …or not at all: connect() then throws a ConnectionException
+// when the server doesn't speak 2026-07-28
 $client = Client::builder()
     ->setFallbackProtocolVersion(null)
     ->build();
@@ -112,6 +114,23 @@ $client = Client::builder()
     ->build();
 ```
 
+`ClientCapabilities` also takes sub-capabilities. Pass them as named arguments:
+
+```php
+new ClientCapabilities(
+    sampling: true,
+    samplingContext: true,  // the server may ask to include context in sampling
+    samplingTools: true,    // the server may pass tools in sampling requests
+    elicitationForm: true,  // form mode, implied by elicitation: true alone
+    elicitationUrl: true,   // url mode, the user continues in a browser
+);
+```
+
+Form mode is implied only when you declare no mode. To support both modes, pass both flags.
+
+To declare a protocol extension (e.g. MCP Apps), call `enableExtension()` on the builder.
+See [Protocol extensions](../advanced/extensions.md).
+
 ### Notification Handlers
 
 Register handlers for server-initiated notifications:
@@ -122,7 +141,8 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 
 $loggingHandler = new LoggingNotificationHandler(
     static function (LoggingMessageNotification $notification) {
-        echo "[{$notification->level->value}] {$notification->data}\n";
+        $message = \is_string($notification->data) ? $notification->data : json_encode($notification->data);
+        echo "[{$notification->level->value}] {$message}\n";
     }
 );
 
@@ -130,6 +150,10 @@ $client = Client::builder()
     ->addNotificationHandler($loggingHandler)
     ->build();
 ```
+
+!!! note
+    `LoggingNotificationHandler` is deprecated, together with MCP logging. See
+    [Logging notifications](server-requests.md#logging-notifications).
 
 ### Request Handlers
 
@@ -185,15 +209,12 @@ $client = Client::builder()
 $client->connect($transport);
 ```
 
-The `connect()` method performs the MCP initialization handshake:
+The `connect()` method opens the transport and sends a `server/discover` request. If the server
+answers on revision `2026-07-28`, the connection is ready. Otherwise, the client falls back to
+the `initialize` handshake on revision `2025-11-25`.
 
-1. Opens the transport connection
-2. Sends InitializeRequest with client capabilities
-3. Waits for InitializeResult from server
-4. Sends InitializedNotification
-
-On a modern revision it opens the transport and asks `server/discover` for the server's identity instead; a server
-that does not answer that optional method still yields a usable connection.
+With `setFallbackProtocolVersion(null)`, `connect()` fails instead. See
+[How the client settles on an era](../protocol-versions.md#how-the-client-settles-on-an-era).
 
 !!! warning
     Always wrap connection in try/catch to handle `ConnectionException` for failed connections.
@@ -229,8 +250,14 @@ After successful connection, retrieve server metadata:
 
 ```php
 // Get server implementation info
+// (null on 2026-07-28 when the server/discover result has no serverInfo)
 $serverInfo = $client->getServerInfo();
-echo "Server: {$serverInfo->name} v{$serverInfo->version}\n";
+echo "Server: {$serverInfo?->name} v{$serverInfo?->version}\n";
+
+// Get the capabilities the server declared
+if ($client->getServerCapabilities()?->tools) {
+    $tools = $client->listTools();
+}
 
 // Get server instructions
 $instructions = $client->getInstructions();

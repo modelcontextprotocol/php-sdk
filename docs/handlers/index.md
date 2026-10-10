@@ -6,27 +6,31 @@ the SDK passes it in — that object is the way back to the client mid-request.
 
 ```php
 use Mcp\Capability\Attribute\McpTool;
-use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Elicitation\ElicitationSchema;
+use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Server\RequestContext;
 
 #[McpTool]
-public function summarize(string $text, RequestContext $context): string
+public function bookTable(string $restaurant, RequestContext $context): string
 {
-    $context->getClientLogger()->info(\sprintf('Summarizing %d characters', \strlen($text)));
+    $context->getClientLogger()->info(\sprintf('Booking a table at %s', $restaurant));
 
-    $result = $context->getClientGateway()->sample("Summarize:\n\n".$text, 500);
+    $schema = new ElicitationSchema(['name' => new StringSchemaDefinition('Name for the booking')], ['name']);
+    $answer = $context->getClientGateway()->elicit('Who is the booking for?', $schema);
 
-    // `content` is TextContent|ImageContent|AudioContent (or ToolUseContent
-    // blocks when the client samples with tools)
-    return $result->content instanceof TextContent ? $result->content->text : '';
+    if (!$answer->isAccepted()) {
+        return 'No table booked.';
+    }
+
+    return \sprintf('Table at %s booked for %s.', $restaurant, $answer->content['name']);
 }
 ```
 
-Two caveats on this example: clients drop log messages below `warning` unless they raise
-the level first (see [Logging](logging.md)), and `sample()` belongs to the features
-[deprecated by revision `2026-07-28`](../protocol-versions.md#deprecations) — on that
-revision it throws, and [Asking for input](input-required.md) is the way to write it
-instead.
+Two caveats on this example. The `ClientLogger` drops messages below `warning` until the
+client raises the level (see [Logging](logging.md)), so the `info()` message is not sent by
+default. And `elicit()` works on both [protocol versions](../protocol-versions.md), but your
+handler may run more than once for one call. [Asking for input](input-required.md) explains
+how to write it for that.
 
 * **[Talking back to the client](client-communication.md)** — the `ClientGateway`:
   asking the client's model for a completion (sampling), reporting progress on a long

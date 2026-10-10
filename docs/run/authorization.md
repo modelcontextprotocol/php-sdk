@@ -167,7 +167,8 @@ path (RFC 9728, Section 3.1) — `/.well-known/oauth-protected-resource/mcp` in 
   "authorization_servers": ["https://auth.example.com"],
   "scopes_supported": ["mcp:read"],
   "bearer_methods_supported": ["header"],
-  "resource_name": "My MCP Server"
+  "resource_name": "My MCP Server",
+  "resource_documentation": "https://example.com/docs"
 }
 ```
 

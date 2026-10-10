@@ -43,10 +43,10 @@ them into headers so an intermediary can route without parsing the body:
 | `progressToken` | no | — |
 | `traceparent`, `tracestate`, `baggage` | no | — |
 
-Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get` and
-`resources/read`. A header that disagrees with the body is refused with `-32020`; a missing
-required `_meta` member with `-32602`; an unsupported version with `-32022`, carrying the
-supported set for the client to retry from.
+Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get`,
+`resources/read`, `tasks/get`, `tasks/update` and `tasks/cancel`. A header that disagrees
+with the body is refused with `-32020`; a missing required `_meta` member with `-32602`; an
+unsupported version with `-32022`, carrying the supported set for the client to retry from.
 
 What a handler can read off all this is
 [Talking back to the client](../handlers/client-communication.md#request-metadata).
@@ -77,6 +77,10 @@ refuses a definition that breaks any of those rather than letting it fail later 
 mismatch. See [Schema generation](../servers/schemas.md) for where a hand-written
 `inputSchema` fits.
 
+The server refuses a `tools/call` with `-32020` when the header and the argument don't match.
+This includes an `Mcp-Param-*` header sent without the argument in the body, and an argument
+sent without its header.
+
 ## How a request is routed
 
 Every request is classified once, before anything else looks at it. The decision is
@@ -89,6 +93,7 @@ Every request is classified once, before anything else looks at it. The decision
 | no such member | handshake era — `initialize` included |
 | a notification with no member, under a modern header | modern era |
 | `GET` / `DELETE` | handshake era |
+| a batch with a message that names a modern revision | refused with `-32600` |
 
 The `MCP-Protocol-Version` header never decides. It is cross-checked against the body, and a
 request whose header contradicts its `_meta` is refused with `-32020` before either leg sees
@@ -133,13 +138,9 @@ revisions, and still accepts the handshake that follows.
 
 ## Middleware
 
-The [default middleware stack](http.md#default-middleware) runs at the edge, before the
-request's era is known, because what it enforces is true of both. `ProtocolVersionMiddleware`
-is not in that stack: the `MCP-Protocol-Version` header rule belongs to the handshake era, so
-the transport applies it only to requests it classified as handshake-era traffic, and the
-modern leg answers for its own revisions. It is available as
-`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the
-edge stack.
+The [default middleware stack](http.md#default-middleware) runs for both eras.
+`ProtocolVersionMiddleware` runs for handshake-era requests only, see
+[Protocol Version Validation](http.md#protocol-version-validation).
 
 ## Serving one era only
 
@@ -173,3 +174,21 @@ $protocol = Server::builder()
 
 (new SapiEmitter())->emit((new StatelessHttpTransport($protocol))->handle($request));
 ```
+
+This endpoint answers a bare `initialize` with `-32022`, naming the revisions it serves.
+
+`StatelessHttpTransport` accepts these constructor arguments:
+
+```php
+new StatelessHttpTransport(
+    $protocol,         // the result of buildStateless()
+    $responseFactory,  // PSR-17, auto-discovered if null
+    $streamFactory,    // PSR-17, auto-discovered if null
+    $logger,           // PSR-3, default: NullLogger
+    $maxBodyBytes,     // default: 4 MiB, a larger body gets 413
+    $middleware,       // null installs CorsMiddleware and DnsRebindingProtectionMiddleware
+);
+```
+
+An empty `middleware` list turns off all middleware, without a warning. The transport answers
+`OPTIONS` with `204` and any other method except `POST` with `405`.
