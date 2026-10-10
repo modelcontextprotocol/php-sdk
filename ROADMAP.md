@@ -6,7 +6,7 @@ This roadmap is a living document that outlines the planned features and improve
 
 - **Server**
 - [x] Implement full support for elicitations
-- [ ] Implement OAuth2 authentication for server
+- [x] Implement OAuth2 authorization for server as a resource server. The authorization server role is out of scope, see [ADR 0001](adr/0001-oauth-authorization-server-out-of-scope.md) and [ADR 0002](adr/0002-resource-server-only.md).
 - **Client**
 - [x] Implement client-side support
 - [x] Implement client examples and documentation

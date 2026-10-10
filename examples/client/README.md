@@ -24,8 +24,9 @@ php examples/client/http_discovery_calculator.php
 
 ## Modern-era client (2026-07-28)
 
-Speaks the stateless lifecycle: no `initialize`, a `_meta` envelope and SEP-2243 headers on every
-request, and multi round-trip calls answered by the client without the caller noticing.
+Connects only on revision `2026-07-28`, without falling back to the `initialize` handshake. Every
+request carries a `_meta` envelope and SEP-2243 headers, and the client answers multi round-trip
+calls without the caller noticing.
 
 ```bash
 # First, start the matching server
@@ -49,10 +50,6 @@ php examples/client/stdio_elicitation.php
 # Roots: exposing workspace folders and signalling roots/list_changed
 php examples/client/stdio_roots.php
 ```
-
-> **Note**: `http_client_communication.php` needs a server that can answer a second request
-> mid-call; PHP's built-in web server only does that with worker processes, e.g.
-> `PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8000 …`.
 
 The HTTP examples connect to port 8000 on the local machine by default; set `MCP_SERVER_URL` to point
 them at a server running elsewhere.

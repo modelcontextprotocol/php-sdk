@@ -30,12 +30,21 @@ Run the full CI suite locally:
 make ci
 ```
 
-This runs, in order: `make cs` (PHP CS Fixer, auto-fixes style), `make phpstan` (static analysis),
-and `make tests` (all PHPUnit suites; the interop suite needs Node). All three must pass. If your
-change touches protocol-observable behavior, also run:
+This runs, in order: `make deps-stable` (`composer update --prefer-stable`), `make cs`
+(PHP CS Fixer, auto-fixes style), `make phpstan` (static analysis) and `make tests` (all PHPUnit
+suites). All of them must pass.
+
+The interop suite runs against Node packages. Install them once before you run `make ci` or
+`make tests`:
 
 ```bash
-make conformance-tests   # requires Docker
+npm ci --prefix tests/Interop
+```
+
+If your change touches protocol-observable behavior, also run:
+
+```bash
+make conformance-tests   # requires Docker and Node (npx)
 ```
 
 ## Coding standards
@@ -43,7 +52,12 @@ make conformance-tests   # requires Docker
 This project follows [Symfony's coding standards](https://symfony.com/doc/current/contributing/code/standards.html)
 and [backward compatibility promise](https://symfony.com/doc/current/contributing/code/bc.html). In short:
 
-See [CLAUDE.md](CLAUDE.md) for a fuller tour of the codebase's architecture and layout.
+- Until 1.0, a release can break backward compatibility. Add a `[BC Break]` entry to
+  `CHANGELOG.md` for every break.
+- Before you remove a public class, method or option, mark it with a `@deprecated` tag and call
+  `trigger_deprecation()` when it's used. The
+  [deprecation policy](docs/deprecation-policy.md) describes the tag and the removal window.
+- Code marked `@internal` is not covered by the promise.
 
 ## Tests
 
@@ -55,9 +69,9 @@ reachable over the wire — end-to-end coverage. The suites are split by what th
   `examples/client/`, one test class per example, piping "user input" to STDIN where an example
   asks for it, and snapshots what it prints.
 - **Interop** (`tests/Interop/`, `make interop-tests`, needs Node): each half works with an
-  implementation we did not write. `Server/` drives the example servers with the MCP Inspector,
-  one test class per example; `Client/` runs our client against the TypeScript SDK's reference
-  server, `@modelcontextprotocol/server-everything`, over stdio and HTTP. Both are installed from
+  implementation we did not write. `Server/` drives a selection of the example servers with the
+  MCP Inspector, one test class per example; `Client/` runs our client against the TypeScript
+  SDK's reference server, `@modelcontextprotocol/server-everything`, over stdio and HTTP. Both are installed from
   `tests/Interop/package-lock.json` (`npm ci --prefix tests/Interop`), so a release of one of
   their dependencies cannot change what the snapshots see.
 - **Conformance** (`tests/Conformance/`, `make conformance-tests`): each half passes the
@@ -69,15 +83,16 @@ pattern, consider adding or updating an example under `examples/` along with its
 ## Documentation
 
 The guides under `docs/` are built with [Zensical](https://zensical.org/) in `--strict` mode,
-which fails the build on a broken internal link:
+which fails the build on a broken internal link. The build runs Zensical through
+[uv](https://docs.astral.sh/uv/getting-started/installation/), so install uv first:
 
 ```bash
 make docs-guides
 ```
 
 Links between guide pages must be relative paths that resolve within `docs/` (e.g.
-`protocol-versions.md`, `../CLAUDE.md` will *not* resolve — Zensical only follows the `docs/` tree).
-For anything at the repo root (`CLAUDE.md`, `ROADMAP.md`, `CHANGELOG.md`), link to it by its GitHub
+`protocol-versions.md`, `../README.md` will *not* resolve — Zensical only follows the `docs/` tree).
+For anything at the repo root (`README.md`, `ROADMAP.md`, `CHANGELOG.md`), link to it by its GitHub
 URL instead, matching the pattern already used across `docs/`. The class-level API reference is
 generated separately by phpDocumentor (`make docs-api`) and isn't hand-written.
 

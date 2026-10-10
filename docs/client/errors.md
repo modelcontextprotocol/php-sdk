@@ -1,10 +1,21 @@
 # Error Handling
 
-The client throws exceptions for various error conditions:
+Every exception the client throws implements `Mcp\Exception\ExceptionInterface`. Catch it to handle
+all client errors in one place. All classes below live in the `Mcp\Exception` namespace:
+
+| Exception | Thrown when |
+| --- | --- |
+| `ConnectionException` | `connect()` fails on every attempt, an HTTP request fails on the network level, or you call a method before `connect()` |
+| `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status, or the STDIO server process exits while you wait for an answer |
+| `TimeoutException` | the `timeoutSeconds` deadline of a `callTool()` call expires |
+| `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
+| `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, or the builder gets an invalid timeout, retry count or fallback revision |
+| `RuntimeException` | `callTool()` calls a tool with malformed `x-mcp-header` annotations, or you call `sendRootsListChanged()` without the `rootsListChanged` capability |
+
+An HTTP error status or an exited server process fails the request at once. The client doesn't
+wait for the request timeout.
 
 ## ConnectionException
-
-Thrown when connection or initialization fails:
 
 ```php
 use Mcp\Exception\ConnectionException;
@@ -17,8 +28,6 @@ try {
 ```
 
 ## RequestException
-
-Thrown when a request returns an error response:
 
 ```php
 use Mcp\Exception\RequestException;
@@ -81,7 +90,7 @@ try {
     
     // Get server info
     $serverInfo = $client->getServerInfo();
-    echo "Connected to: {$serverInfo->name} v{$serverInfo->version}\n\n";
+    echo "Connected to: {$serverInfo?->name} v{$serverInfo?->version}\n\n";
     
     // List capabilities
     echo "Available tools:\n";

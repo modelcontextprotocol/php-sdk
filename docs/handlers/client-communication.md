@@ -11,9 +11,8 @@ request-response flow.
 ## ClientGateway
 
 Every communication back to client is handled using the `Mcp\Server\ClientGateway` and its dedicated methods per
-operation. Reach it through method argument injection for `RequestContext`. (A `ClientGateway`-typed parameter is
-injected too, but unlike `RequestContext` it is not excluded from the generated input schema, so it would show up as
-an argument of your tool.)
+operation. Reach it through method argument injection for `RequestContext`. You can also type-hint a `ClientGateway`
+parameter directly. The SDK injects both types and leaves them out of the generated input schema.
 
 Every reference of a MCP element, that translates to an actual method call, can just add an type-hinted argument for the
 `RequestContext` and the SDK will take care to include the gateway in the arguments of the method call:
@@ -43,25 +42,28 @@ if ($context->getProtocolVersion()->isAtLeast(ProtocolVersion::V2026_07_28)) {
 }
 ```
 
-Two more accessors read what the client declared, and both work in either
-[protocol era](../protocol-versions.md) — negotiated once during the handshake, or declared per request from
-`2026-07-28` on:
+Two more accessors read what a `2026-07-28` request declared in its `_meta`. On a handshake-era request, they return
+`null` and an empty array:
 
 ```php
-$context->getClientCapabilities();  // what this client declared, or null in the handshake era
+$context->getClientCapabilities();  // the capabilities this request declared
 $context->getTraceContext();        // traceparent / tracestate / baggage, verbatim
 ```
 
-`ClientGateway`'s capability probes — `supportsElicitation()`, `supportsSampling()`, `supportsRoots()` and the
-sub-capability variants — read the same declaration.
+To check a capability in both [protocol eras](../protocol-versions.md), use the probes of `ClientGateway`:
+`supportsElicitation()`, `supportsSampling()`, `supportsRoots()`, the sub-capability variants and
+`supportsExtension()`. They read what the client declared during the handshake, or what the current
+`2026-07-28` request declared.
 
-W3C trace context is passed through exactly as it arrived, and echoed onto every notification the request causes,
-so a span stays joined across the response stream. Reading it adds no OpenTelemetry dependency — the values are
-strings.
+On `2026-07-28`, the SDK copies the W3C trace context onto every notification the request sends on its response
+stream. The values are plain strings, so reading them needs no OpenTelemetry package.
+
+`RequestContext` also gives you the current request and session with `getRequest()` and `getSession()`, and the
+validated OAuth token with `getAccessToken()` (see [Reading the token in handlers](../run/authorization.md#reading-the-token-in-handlers)).
 
 ## Sampling
 
-> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. It keeps working on a handshake-era connection until then, but that revision removed server-initiated requests outright, so `sample()` — like `listRoots()` — raises a `LogicException` when a modern-era client made the call. New integrations should call an LLM provider's API directly instead.
+> **Deprecated** since protocol revision `2026-07-28` ([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)), earliest removal `2027-07-28`. It keeps working on a handshake-era connection until then. Revision `2026-07-28` has no server-initiated requests, so on that revision `sample()` and `listRoots()` fail the call with an internal error (`-32603`) that your handler cannot catch. New integrations should call an LLM provider's API directly instead.
 
 With [sampling](https://modelcontextprotocol.io/specification/2025-11-25/client/sampling) servers can request clients to
 execute "completions" or "generations" with a language model for them:
@@ -97,6 +99,11 @@ When the model wants to call a tool, the result comes back with `stopReason: 'to
 carrying a matching `ToolResultContent` for every `ToolUseContent`:
 
 ```php
+use Mcp\Schema\Content\SamplingMessage;
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Content\ToolResultContent;
+use Mcp\Schema\Enum\Role;
+
 $messages[] = new SamplingMessage(Role::Assistant, $result->content);
 $messages[] = new SamplingMessage(Role::User, [new ToolResultContent($toolUse->id, [new TextContent($output)])]);
 ```
@@ -120,6 +127,9 @@ use Mcp\Schema\Enum\LoggingLevel;
 
 $clientGateway->log(LoggingLevel::Warning, 'The end is near.');
 ```
+
+Messages below the level the client asked for are dropped, the same way as with the
+[client logger](logging.md).
 
 ## Progress
 

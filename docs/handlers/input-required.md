@@ -48,8 +48,11 @@ anything other than elicitation.
 > [Server builder](../run/server-builder.md).
 
 ```php
+use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\RequestContext;
 
 static function (RequestContext $context): CallToolResult|InputRequiredResult {
     $answer = $context->getInputContext()?->elicitResult('who');
@@ -84,6 +87,12 @@ a state that fails verification never reaches a handler. Configure the key with
 ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
 ```
 
+When the call comes back, read the verified payload with `requestState()`:
+
+```php
+$state = $context->getInputContext()?->requestState(); // e.g. ['asked' => 'who']
+```
+
 The **same key must reach every process that might serve the retry**. A per-process random
 value works only for a single-process deployment. Nothing secret belongs in the payload —
 it is signed, not encrypted.
@@ -96,13 +105,21 @@ the request's declared capabilities and answers `-32021` — with the missing se
 Url-mode elicitation needs its own `elicitation.url` declaration; a bare `elicitation` means
 form mode only.
 
+`ClientGateway::elicitUrl()` checks this itself. Without `elicitation.url`, it throws an
+`InvalidArgumentException` inside your handler. If you don't catch it, the call fails like
+any other uncaught exception.
+
+On `2026-07-28`, `supportsSampling()` and `supportsRoots()` read what the request declared.
+They can return `true` there, but `sample()` and `listRoots()` still fail (see below).
+
 ## What not to call
 
-`ClientGateway::sample()` and `listRoots()` belong to the handshake era — revision
-`2026-07-28` removed both outright, so calling one there raises a `LogicException`. Take what
-they gave you from tool arguments, resource URIs or server configuration instead. `elicit()`
-and `elicitUrl()` are unaffected: elicitation survived that revision, as an ask carried in the
-result.
+`ClientGateway::sample()` and `listRoots()` belong to the handshake era. Revision
+`2026-07-28` removed both, so calling one there fails the call with an internal error
+(`-32603`). The error happens outside your handler, so a `try`/`catch` around the call
+never runs. Take what they gave you from tool arguments, resource URIs or server
+configuration instead. `elicit()` and `elicitUrl()` are unaffected: elicitation survived
+that revision, as an ask carried in the result.
 
 ## Which revision called
 

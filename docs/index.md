@@ -63,11 +63,11 @@ class Calculator
     }
 }
 
-Server::builder()
+exit(Server::builder()
     ->setServerInfo('Calculator', '1.0.0')
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
     ->build()
-    ->run(new StdioTransport());
+    ->run(new StdioTransport()));
 ```
 
 That's a complete MCP server. It exposes one **tool**, `add`, and one **resource**,

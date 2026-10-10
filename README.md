@@ -68,6 +68,12 @@ exit(Server::builder()
     ->run(new StdioTransport()));
 ```
 
+The `setDiscovery()` call needs `symfony/finder`:
+
+```bash
+composer require symfony/finder
+```
+
 The walkthrough in [First server](docs/get-started/first-server.md) explains each piece, and
 [Try it with the Inspector](docs/get-started/inspector.md) shows it running.
 
@@ -89,8 +95,9 @@ $result = $client->callTool('add', ['a' => 5, 'b' => 3]);
 $client->disconnect();
 ```
 
-See [Connecting to a server](docs/client/connecting.md) for transports, timeouts, and the
-handlers that answer server-initiated requests.
+See [Transports](docs/client/transports.md) for STDIO and HTTP, [Connecting to a server](docs/client/connecting.md)
+for timeouts, and [Server-initiated requests](docs/client/server-requests.md) for the handlers that
+answer requests from the server.
 
 ## Documentation
 
@@ -103,6 +110,8 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 - **[Clients](docs/client/index.md)** — Client SDK for connecting to and communicating with MCP servers
 - **[Protocol versions](docs/protocol-versions.md)** — The two protocol eras, and what revision `2026-07-28` changed
 - **[Advanced](docs/advanced/index.md)** — Events, protocol extensions (including MCP Apps), and custom message handlers
+- **[Deprecation policy](docs/deprecation-policy.md)** — How deprecated features are handled
+- **[SDK tier target](docs/sdk-tier.md)** — Where the SDK stands on the MCP SDK tiers
 - **[Examples](docs/examples.md)** — Runnable server and client examples
 - **[API Reference](https://php.sdk.modelcontextprotocol.io/api/)** — Generated class reference
 
