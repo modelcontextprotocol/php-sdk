@@ -149,7 +149,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         $line = fgets($this->input, $this->maxLineBytes);
         if (false === $line) {
-            usleep(50000); // 50ms
+            $this->waitForInput();
 
             return;
         }
@@ -180,6 +180,21 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $trimmedLine = trim($line);
         if (!empty($trimmedLine)) {
             $this->route($trimmedLine);
+        }
+    }
+
+    /**
+     * Idles until input arrives, for at most 50ms, so the run loop still gets
+     * to suspended fibers, open streams and queued messages in between.
+     */
+    private function waitForInput(): void
+    {
+        $read = [$this->input];
+        $write = $except = null;
+
+        // Streams that cannot be selected, like php://memory, fall back to sleeping.
+        if (false === @stream_select($read, $write, $except, 0, 50000)) {
+            usleep(50000);
         }
     }
 
