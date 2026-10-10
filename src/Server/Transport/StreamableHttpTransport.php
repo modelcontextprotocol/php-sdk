@@ -293,6 +293,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     flush();
                 }
 
+                $lastKeepAlive = null;
+
                 while ($fiber->isSuspended()) {
                     $this->flushOutgoingMessages($this->sessionId);
 
@@ -319,6 +321,24 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     }
 
                     if (!$resumed) {
+                        // PHP only notices a dropped peer when it writes, so the
+                        // idle stream writes, or a vanished client would pin this
+                        // worker until the pending request times out. Paced like
+                        // the stateless keep-alive, not at every tick.
+                        $now = microtime(true);
+                        if (null === $lastKeepAlive || $now - $lastKeepAlive >= 0.25) {
+                            $lastKeepAlive = $now;
+                            echo ": keep-alive\n\n";
+                            @ob_flush();
+                            flush();
+                        }
+
+                        if ($this->isConnectionAborted()) {
+                            $this->logger->info('SSE: Client disconnected, dropping the suspended request.');
+
+                            return;
+                        }
+
                         usleep(100000);
                     } // Prevent tight loop
                 }
@@ -342,6 +362,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         }
 
         return $response;
+    }
+
+    protected function isConnectionAborted(): bool
+    {
+        return 1 === connection_aborted();
     }
 
     /**
