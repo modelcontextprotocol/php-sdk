@@ -89,8 +89,9 @@ $transport = new HttpTransport('http://localhost:8000', listen: true);
 `timeoutSeconds: ?float` arguments. The token's `isCancellationRequested()`
 method must return without blocking. The timeout must be finite and positive
 and replaces the default request timeout for this call.
-An observed cancellation throws `RequestCancelledException`. An observed
-per-call deadline expiry throws `TimeoutException`.
+An observed cancellation throws `RequestCancelledException`. When the per-call
+or default request timeout runs out, the client throws `TimeoutException`, a
+`RequestException`, and sends `notifications/cancelled` for the request.
 
 Interruption is checked before a request goes out and again once the send
 returns. The second check is what covers a synchronous `application/json`

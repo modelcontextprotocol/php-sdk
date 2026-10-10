@@ -329,7 +329,7 @@ class StdioTransport extends BaseTransport
             }
 
             // Check timeout
-            if (time() - $timestamp >= $timeout) {
+            if (microtime(true) - $timestamp >= $timeout) {
                 $this->logger->warning('Request timed out', ['request_id' => $requestId]);
                 $error = Error::forInternalError('Request timed out', $requestId);
                 $this->activeSuspend = $this->activeFiber->resume($error);

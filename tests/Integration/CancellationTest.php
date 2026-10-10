@@ -73,6 +73,29 @@ final class CancellationTest extends IntegrationTestCase
         }
     }
 
+    #[TestDox('the default request timeout throws a TimeoutException, no earlier than set, and cancels the request')]
+    public function testDefaultRequestTimeout(): void
+    {
+        $log = tempnam(sys_get_temp_dir(), 'mcp-cancel-');
+        try {
+            $client = $this->connect('cancellation', $this->clientBuilder()->setRequestTimeout(1), env: ['MCP_FIXTURE_LOG' => $log]);
+            $start = microtime(true);
+            try {
+                $client->callTool('slow');
+                $this->fail('The pending request should have timed out.');
+            } catch (TimeoutException) {
+            }
+
+            $this->assertGreaterThanOrEqual(1.0, microtime(true) - $start);
+            $this->assertSame('quick', $client->callTool('fast')->content[0]->text ?? null);
+            $events = $this->events($log);
+            $this->assertSame(['call', 'cancelled', 'call'], array_column($events, 'event'));
+            $this->assertSame($events[0]['id'], $events[1]['id']);
+        } finally {
+            unlink($log);
+        }
+    }
+
     #[TestDox('a pre-cancelled call sends no request')]
     public function testPreCancelledCall(): void
     {

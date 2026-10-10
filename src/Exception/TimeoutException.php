@@ -16,6 +16,6 @@ namespace Mcp\Exception;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class TimeoutException extends Exception
+class TimeoutException extends RequestException
 {
 }

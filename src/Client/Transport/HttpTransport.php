@@ -661,7 +661,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             }
 
             // The explicit per-call deadline replaces the default request timeout.
-            if (null === ($this->activeSuspend['deadline'] ?? null) && time() - $timestamp >= $timeout) {
+            if (null === ($this->activeSuspend['deadline'] ?? null) && microtime(true) - $timestamp >= $timeout) {
                 $this->logger->warning('Request timed out', ['request_id' => $requestId]);
                 $error = Error::forInternalError('Request timed out', $requestId);
                 $this->activeSuspend = $this->activeFiber->resume($error);

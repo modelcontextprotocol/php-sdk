@@ -219,7 +219,7 @@ class Client
      * @param float|null                                                              $timeoutSeconds Finite positive timeout replacing the default for this call
      *
      * @throws RequestCancelledException                                                      When cancellation is observed
-     * @throws Exception\TimeoutException                                                     When the per-call deadline is observed to have expired
+     * @throws Exception\TimeoutException                                                     When the request timeout is observed to have expired
      * @throws RequestException|ConnectionException|InvalidArgumentException|RuntimeException
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
@@ -400,7 +400,7 @@ class Client
         }
 
         $withProgress = null !== $onProgress;
-        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds));
+        $fiber = new \Fiber(fn () => $this->protocol->request($request, $this->config->requestTimeout, $withProgress, $cancellation, $timeoutSeconds ?? $this->config->requestTimeout));
         $this->protocol->setProgressCallback($onProgress);
 
         try {
