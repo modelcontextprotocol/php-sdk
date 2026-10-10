@@ -11,6 +11,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
+* Log the tool name of a `tools/call` at info level in `CallToolHandler`, so a server logging at INFO shows which tool is called; its arguments stay at debug level.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `JwtTokenValidator` with several issuers always fetching the keys of the first one: keys now come from the issuer the token claims, which must be configured.
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.
