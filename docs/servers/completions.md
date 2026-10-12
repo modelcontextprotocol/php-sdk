@@ -47,16 +47,21 @@ enum Status  // Unit enum
 
 #[McpResourceTemplate(uriTemplate: 'tasks://{priority}/{status}')]
 public function getTask(
-    #[CompletionProvider(enum: Priority::class)]  // Uses backing values
+    #[CompletionProvider(enum: Priority::class)]  // suggests the backing values
     string $priority,
 
-    #[CompletionProvider(enum: Status::class)]    // Uses case names
+    #[CompletionProvider(enum: Status::class)]    // suggests the case names
     string $status
 ): array
 {
     // Implementation
 }
 ```
+
+A string-backed enum suggests its backing values. Unit enums and int-backed enums suggest their case names.
+
+The SDK ignores `#[CompletionProvider]` on a parameter typed with a single class or enum (e.g. `Priority $priority`).
+Type the parameter as `string` or `int` instead.
 
 ### 3. Custom Provider Classes
 
@@ -88,7 +93,7 @@ public function getUserProfile(
 
 **Provider Resolution:**
 
-- **Class strings** (`Provider::class`) → Resolved from PSR-11 container
+- **Class strings** (`Provider::class`) → Resolved from the PSR-11 container, or created with `new Provider()` if the container doesn't have it
 - **Instances** (`new Provider()`) → Used directly
 - **Values** (`['a', 'b']`) → Wrapped in `ListCompletionProvider`
 - **Enums** (`MyEnum::class`) → Wrapped in `EnumCompletionProvider`
@@ -97,3 +102,22 @@ public function getUserProfile(
 > 
 > Completion providers only offer **suggestions** to users. Users can still input any value, so **always validate
 > parameters** in your handlers. Providers don't enforce validation - they're purely for UX improvement.
+
+## Registering Providers Without Discovery
+
+`#[CompletionProvider]` also works on the handlers you pass to `addPrompt()` and `addResourceTemplate()`.
+
+For a `Prompt` or `ResourceTemplate` registered with `Builder::add()`, pass the providers as the third argument. The
+keys are the argument or variable names:
+
+```php
+use Mcp\Capability\Completion\ListCompletionProvider;
+
+// $prompt is an Mcp\Schema\Prompt, ContentPromptHandler implements PromptHandlerInterface
+$builder->add($prompt, new ContentPromptHandler(), [
+    'contentType' => new ListCompletionProvider(['blog', 'article', 'tutorial']),
+]);
+```
+
+`Builder::add()` throws an `Mcp\Exception\InvalidArgumentException` if you pass providers with a `Tool` or a
+`ResourceDefinition`. See [Explicit element registration](registration.md#explicit-element-registration).

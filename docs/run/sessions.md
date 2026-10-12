@@ -8,6 +8,7 @@
 Configure session storage and lifecycle. By default, the SDK uses `InMemorySessionStore`:
 
 ```php
+use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
@@ -40,6 +41,13 @@ $server = Server::builder()
     ))
     ->build();
 ```
+
+## Sessions over HTTP
+
+With HTTP, PHP often serves each request in a different process (e.g. PHP-FPM workers).
+`InMemorySessionStore` keeps sessions in the memory of one process, so the next request
+doesn't find them. Use a store that all processes share, like `FileSessionStore` on a shared
+directory or `Psr16SessionStore` with a shared cache such as Redis.
 
 ## Garbage Collection Configuration
 

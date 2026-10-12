@@ -25,7 +25,7 @@ class ConfigProvider
 ## Parameters
 
 - **`uri`** (required): Unique resource identifier. Must comply with [RFC 3986](https://datatracker.ietf.org/doc/html/rfc3986).
-- **`name`** (optional): Short resource identifier. Defaults to method name if not provided.
+- **`name`** (optional): Short resource identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Resource description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.
@@ -125,10 +125,13 @@ public function getMultipleResources(): array
 Resource handlers can throw any exception, but the type determines how it's handled:
 
 - **`ResourceReadException`**: Converted to JSON-RPC error response with the actual exception message
+- **`ResourceNotFoundException`**: Converted to a "resource not found" JSON-RPC error. The code is `-32602` from
+  protocol version `2026-07-28` on, and `-32002` before
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 
 // A URI with variables is a resource *template*; `#[McpResource]` registers a
@@ -138,7 +141,7 @@ use Mcp\Exception\ResourceReadException;
 public function getFile(string $path): string
 {
     if (!file_exists($path)) {
-        throw new ResourceReadException("File not found: {$path}");
+        throw new ResourceNotFoundException("file://{$path}");
     }
 
     if (!is_readable($path)) {
@@ -150,3 +153,7 @@ public function getFile(string $path): string
 ```
 
 **Recommendation**: Use `ResourceReadException` when you want to communicate specific errors to clients. Any other exception will still be converted to JSON-RPC compliant errors but with generic error messages.
+
+Throw `ResourceNotFoundException` when nothing exists at the requested URI, for example an unknown ID in a
+[resource template](resource-templates.md). Its constructor takes that URI. Throw `ResourceReadException` when the
+resource exists but reading it fails.

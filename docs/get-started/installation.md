@@ -9,8 +9,9 @@ composer require mcp/sdk
 It requires **PHP 8.1+** and the `fileinfo` extension. Most of what it pulls in is PSR
 interface packages (`psr/container`, `psr/log`, `psr/http-message`, …); the rest is
 `opis/json-schema` for schema validation, `symfony/uid` for session identifiers,
-`phpdocumentor/reflection-docblock` for reading descriptions out of your docblocks, and
-`php-http/discovery` for finding PSR-17/PSR-18 implementations.
+`phpdocumentor/reflection-docblock` for reading descriptions out of your docblocks,
+`php-http/discovery` for finding PSR-17/PSR-18 implementations, and
+`symfony/deprecation-contracts` for deprecation notices.
 
 That is enough for a complete [STDIO server](../run/stdio.md) and for the
 [STDIO client](../client/transports.md).
@@ -26,7 +27,8 @@ Which extras you need depends on what you build:
 | emit the response from a standalone HTTP entry point | `laminas/laminas-httphandlerrunner` |
 | [connect a client over HTTP](../client/transports.md) | any PSR-18 client, e.g. `symfony/http-client` |
 | [validate JWT access tokens](../run/authorization.md) | `firebase/php-jwt` |
-| store sessions in a PSR-16 cache | `psr/simple-cache` implementation, e.g. `symfony/cache` |
+| store sessions, cache discovery or share notifications through a PSR-16 cache | `psr/simple-cache` implementation, e.g. `symfony/cache` |
+| [fetch JWT keys from an issuer](../run/authorization.md) with `JwtTokenValidator::fromIssuer()` | `psr/cache` (PSR-6) implementation, e.g. `symfony/cache` |
 
 PSR-17 and PSR-18 implementations are found through
 [`php-http/discovery`](https://docs.php-http.org/en/latest/discovery.html), so

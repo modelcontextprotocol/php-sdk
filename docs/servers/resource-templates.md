@@ -10,6 +10,7 @@ cannot contain `/`.
 
 ```php
 use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Exception\ResourceNotFoundException;
 
 class UserProvider
 {
@@ -24,7 +25,7 @@ class UserProvider
     )]
     public function getUserProfile(string $userId, string $section): array
     {
-        return $this->users[$userId][$section] ?? throw new \InvalidArgumentException("Profile section not found");
+        return $this->users[$userId][$section] ?? throw new ResourceNotFoundException("user://{$userId}/profile/{$section}");
     }
 }
 ```
@@ -32,7 +33,7 @@ class UserProvider
 ## Parameters
 
 - **`uriTemplate`** (required): URI with `{variables}`. Must start with a scheme (`file://`, `user://`, …) and contain at least one variable.
-- **`name`** (optional): Short resource template identifier. Defaults to method name if not provided.
+- **`name`** (optional): Short resource template identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Template description. Falls back to the docblock (summary plus long description).
 - **`mimeType`** (optional): MIME type of the resource content.

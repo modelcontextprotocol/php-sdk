@@ -1,8 +1,10 @@
 # Subscriptions
 
 > `subscriptions/listen` belongs to protocol revision `2026-07-28`; see
-> [Protocol versions](../protocol-versions.md). Handshake-era clients keep using the HTTP `GET` stream and
-> `resources/subscribe`, which the same server still answers.
+> [Protocol versions](../protocol-versions.md). Handshake-era clients use `resources/subscribe`, which the
+> same server still answers. The notification bus below doesn't reach them, and the server doesn't send
+> them change notifications by itself. Over HTTP, a notification queued for them goes out with the
+> response to their next `POST` request, and an HTTP `GET` is answered with `405`.
 
 `subscriptions/listen` replaces the HTTP `GET` stream and `resources/subscribe`. The client
 opens a long-lived POST whose response stream carries the notification types it asked for;
@@ -25,11 +27,14 @@ use Mcp\Server\Subscription\Psr16NotificationBus;
 ->setNotificationBus(new Psr16NotificationBus($cache))
 ```
 
-Registry changes (`registerTool()`, `unregisterPrompt()`, …) are published automatically.
+Registry changes (`registerTool()`, `unregisterPrompt()`, …) are published automatically, with or
+without an event dispatcher, unless you pass your own registry with `setRegistry()`.
 Anything else — `notifications/resources/updated` above all — is published by the
 application:
 
 ```php
+use Mcp\Schema\Notification\ResourceUpdatedNotification;
+
 $bus->publish(new ResourceUpdatedNotification('file:///project/config.json'));
 ```
 

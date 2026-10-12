@@ -19,8 +19,8 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 
 | Example | What it shows | Docs |
 | --- | --- | --- |
-| [`discovery-calculator`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/discovery-calculator) | Attribute discovery of tools, resources and prompts; `ResourceLink` content | [Tools](servers/tools.md) |
-| [`discovery-userprofile`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/discovery-userprofile) | Resource templates with completion providers; `FileSessionStore` | [Resource templates](servers/resource-templates.md), [Completions](servers/completions.md) |
+| [`discovery-calculator`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/discovery-calculator) | Attribute discovery of tools and a resource; `ToolCallException` for tool errors | [Tools](servers/tools.md) |
+| [`discovery-userprofile`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/discovery-userprofile) | Resource templates and prompts with completion providers; `ResourceLink` content | [Resource templates](servers/resource-templates.md), [Prompts](servers/prompts.md), [Completions](servers/completions.md) |
 | [`explicit-registration`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/explicit-registration) | Manual `addTool()`/`addResource()`/`addResourceTemplate()`/`addPrompt()` without discovery | [Registering elements](servers/registration.md) |
 | [`combined-registration`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/combined-registration) | Discovery and manual registration combined, and which wins on conflict | [Registering elements](servers/registration.md) |
 | [`cached-discovery`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/cached-discovery) | Caching the discovery scan in a PSR-16 cache | [Server builder](run/server-builder.md#discovery-configuration) |
@@ -31,7 +31,7 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`client-communication`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-communication) | Sampling, roots, progress and log messages from inside a handler | [Talking back to the client](handlers/client-communication.md) |
 | [`client-logging`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/client-logging) | Structured log notifications through the `ClientLogger` | [Logging](handlers/logging.md) |
 | [`elicitation`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/elicitation) | Asking the user for input mid-call with `ClientGateway::elicit()` and typed elicitation schemas, on either protocol era | [Asking for input](handlers/input-required.md) |
-| [`custom-method-handlers`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/custom-method-handlers) | Registering handlers for custom JSON-RPC methods | [Custom message handlers](advanced/custom-handlers.md) |
+| [`custom-method-handlers`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/custom-method-handlers) | Replacing the built-in `tools/list` and `tools/call` request handlers | [Custom message handlers](advanced/custom-handlers.md) |
 | [`mcp-apps`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/mcp-apps) | The MCP Apps extension: a tool that ships an interactive HTML view | [Protocol extensions](advanced/extensions.md) |
 | [`stateless-lifecycle`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/stateless-lifecycle) | Revision `2026-07-28`: cache policy, request state, notification bus | [Serving both eras](run/protocol-eras.md), [Caching](run/caching.md), [Subscriptions](run/subscriptions.md) |
 | [`oauth-keycloak`](https://github.com/modelcontextprotocol/php-sdk/tree/main/examples/server/oauth-keycloak) | OAuth authorization against a Keycloak instance (own README) | [Authorization](run/authorization.md) |
@@ -44,20 +44,16 @@ npx @modelcontextprotocol/inspector php examples/server/discovery-calculator/ser
 | [`stdio_discovery_calculator.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_discovery_calculator.php) | Connecting over STDIO, listing and calling tools, reading resources | [Connecting to a server](client/connecting.md) |
 | [`http_discovery_calculator.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/http_discovery_calculator.php) | The same conversation over the Streamable HTTP transport | [Transports](client/transports.md) |
 | [`stdio_client_communication.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_client_communication.php) | Answering server-initiated sampling, log and progress messages | [Server-initiated requests](client/server-requests.md) |
-| [`http_client_communication.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/http_client_communication.php) | The same handlers over HTTP — see the note on PHP's built-in server below | [Server-initiated requests](client/server-requests.md) |
+| [`http_client_communication.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/http_client_communication.php) | The same handlers over the Streamable HTTP transport | [Server-initiated requests](client/server-requests.md) |
 | [`stdio_elicitation.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_elicitation.php) | Answering elicitation requests from an interactive prompt | [Server-initiated requests](client/server-requests.md) |
 | [`stdio_roots.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stdio_roots.php) | Exposing workspace roots and signalling `roots/list_changed` | [Server-initiated requests](client/server-requests.md) |
-| [`stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php) | A client pinned to revision `2026-07-28` — see [Modern-era client](#modern-era-client) | [Connecting to a server](client/connecting.md) |
+| [`stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php) | A client that only connects on revision `2026-07-28`, see [Modern-era client](#modern-era-client) | [Connecting to a server](client/connecting.md) |
 
 Client examples run directly:
 
 ```bash
 php examples/client/stdio_discovery_calculator.php
 ```
-
-> **Note**: PHP's built-in development server handles one request at a time, so the sampling
-> round-trip in `http_client_communication.php` will not complete under a plain `php -S`.
-> Start it with worker processes instead: `PHP_CLI_SERVER_WORKERS=2 php -S 127.0.0.1:8000 …`.
 
 ## The 2026-07-28 lifecycle
 
@@ -85,13 +81,15 @@ same endpoint. [Serving both eras](run/protocol-eras.md) explains how the routin
 
 ## Modern-era client
 
-`stateless_lifecycle_client.php` drives the server above from PHP: it pins
-`ProtocolVersion::V2026_07_28`, skips the handshake, discovers the server through
-`server/discover` and calls a tool — one process, no session:
+`stateless_lifecycle_client.php` drives the server above from PHP. By default, a client probes
+the server with `server/discover` and falls back to the `initialize` handshake when the server
+doesn't speak `2026-07-28`. The example turns that fallback off with
+`setFallbackProtocolVersion(null)`, so it only connects on `2026-07-28`. Then it lists and calls
+tools without a session:
 
 ```bash
 php -S 127.0.0.1:8000 examples/server/stateless-lifecycle/server.php &
 php examples/client/stateless_lifecycle_client.php
 ```
 
-See [Clients on the modern revision](client/connecting.md) for the API it uses.
+See [Protocol version](client/connecting.md#protocol-version) for the API it uses.

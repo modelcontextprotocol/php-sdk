@@ -108,6 +108,7 @@ required to serve either one. Each knob is covered in depth elsewhere:
 ```php
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server;
 use Mcp\Server\Subscription\Psr16NotificationBus;
 use Mcp\Server\Wire\CachePolicy;
 
@@ -138,14 +139,17 @@ $server = Server::builder()
 
 `buildStateless()` returns the modern dispatcher alone, for an endpoint that serves no handshake-era traffic at all.
 Its requests are checked against the SEP-2243 standard headers — that `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` agree
-with the body they travel with. `setHeaderValidator(false)` turns that check off, which is needed only when the
-dispatcher is served by a transport that has no header layer to check.
+with the body they travel with. `build()` uses the same dispatcher for its modern leg, so the check applies there too.
+`setHeaderValidator(false)` turns that check off, which is needed only when the dispatcher is served by a transport
+that has no header layer to check.
 
 ## Discovery Configuration
 
 **Required when using MCP attributes.** If you're using PHP attributes (`#[McpTool]`, `#[McpResource]`, `#[McpResourceTemplate]`, `#[McpPrompt]`) to define your MCP elements, you **MUST** configure discovery to tell the server where to look for these attributes.
 
 ```php
+use Mcp\Server;
+
 $server = Server::builder()
     ->setDiscovery(
         basePath: __DIR__,
@@ -155,6 +159,9 @@ $server = Server::builder()
         namePatterns: ['*.php', '*.inc'],        // Optional: list of filename patterns to match
     );
 ```
+
+Discovery needs the `symfony/finder` package. Without it, the server skips discovery and logs a warning.
+See [First server](../get-started/first-server.md) for the install command.
 
 **Parameters:**
 
@@ -178,6 +185,7 @@ $server = Server::builder()
 
 **Production Setup with Caching:**
 ```php
+use Mcp\Server;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
 use Symfony\Component\Cache\Psr16Cache;
 
@@ -313,9 +321,11 @@ $server = Server::builder()
 
 | Method | Parameters | Description |
 |--------|------------|-------------|
-| `setServerInfo()` | name, version, description? | Set server identity |
-| `setPaginationLimit()` | limit | Set max items per page |
+| `setServerInfo()` | name, version, description?, icons?, websiteUrl?, title? | Set server identity |
+| `setPaginationLimit()` | paginationLimit | Set max items per page |
 | `setInstructions()` | instructions | Set usage instructions |
+| `setCapabilities()` | serverCapabilities | Set the server capabilities and turn off automatic detection |
+| `enableExtension()` | ...extensions | Enable protocol extensions, see [Protocol extensions](../advanced/extensions.md) |
 | `setProtocolVersion()` | protocolVersion | Pin the handshake to one protocol revision |
 | `setModernVersions()` | versions | Narrow the revisions the modern (2026-07-28) leg answers for |
 | `withoutModernEra()` | - | Serve the handshake era only |
@@ -325,20 +335,29 @@ $server = Server::builder()
 | `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
 | `setNotificationBus()` | bus | Delivery for `subscriptions/listen` streams |
 | `setSubscriptionLifetime()` | seconds | How long a subscription stream is held open over HTTP (`0` = unbounded) |
-| `setHeaderValidator()` | enabled | Toggle the SEP-2243 standard-header check on `buildStateless()` |
-| `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache? | Configure attribute discovery |
-| `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management |
+| `setResourceSubscriptionManager()` | subscriptionManager | Store `resources/subscribe` subscriptions somewhere other than the session |
+| `setHeaderValidator()` | headerValidation? | Toggle the SEP-2243 standard-header check on the modern leg of `build()` and on `buildStateless()` |
+| `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache?, namePatterns? | Configure attribute discovery |
+| `setDiscoverer()` | discoverer | Replace the class that scans for attributes (the discovery `cache` is then not used) |
+| `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management, see [Sessions](sessions.md) |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
-| `setEventDispatcher()` | dispatcher | Set PSR-14 event dispatcher |
+| `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
+| `setSchemaGenerator()` | schemaGenerator | Replace the generator that builds input schemas from PHP types, see [Schema generation](../servers/schemas.md) |
+| `setSchemaValidator()` | schemaValidator | Replace the validator for tool arguments and structured output, see [Schema generation](../servers/schemas.md) |
+| `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |
+| `setRegistry()` | registry | Use your own registry. It is loaded when the server is built |
+| `setLazyLoading()` | lazyLoading? | Load elements on the first registry read (default) or, with `false`, when the server is built |
+| `addLoader()` | loader | Add a custom loader that registers elements |
+| `addLoaders()` | loaders | Add several custom loaders |
 | `addRequestHandler()` | handler | Prepend a single custom request handler |
 | `addRequestHandlers()` | handlers | Prepend multiple custom request handlers |
 | `addNotificationHandler()` | handler | Prepend a single custom notification handler |
 | `addNotificationHandlers()` | handlers | Prepend multiple custom notification handlers |
-| `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, ... | Register tool |
+| `addTool()` | handler, name?, title?, description?, annotations?, inputSchema?, icons?, meta?, outputSchema? | Register tool |
 | `addResource()` | handler, uri, name?, title?, description?, mimeType?, size?, annotations?, icons?, meta? | Register resource |
 | `addResourceTemplate()` | handler, uriTemplate, name?, title?, description?, mimeType?, annotations?, meta? | Register resource template |
 | `addPrompt()` | handler, name?, title?, description?, icons?, meta? | Register prompt |
-| `add()` | definition, handler | Register an element from a schema VO + handler pair |
+| `add()` | definition, handler, completionProviders? | Register an element from a schema VO + handler pair, see [Explicit element registration](../servers/registration.md#explicit-element-registration) |
 | `build()` | - | Create the server instance |
 | `buildStateless()` | supportedVersions? | Create the modern dispatcher alone, for `StatelessHttpTransport` |

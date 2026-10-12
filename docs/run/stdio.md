@@ -15,8 +15,11 @@ $transport = new StdioTransport(
 - **`input`** (optional): Input stream resource. Defaults to `STDIN`.
 - **`output`** (optional): Output stream resource. Defaults to `STDOUT`.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
-- **`runnerControl`** (optional): `RunnerControlInterface` - controls the read loop; the default runs until the input stream closes.
-- **`maxLineBytes`** (optional): Maximum accepted line length in bytes. Oversized lines are rejected as invalid messages.
+- **`runnerControl`** (optional): `RunnerControlInterface` - controls the read loop. Defaults to a `RunnerControl`, which runs until the input stream closes.
+- **`maxLineBytes`** (optional): Maximum accepted line length in bytes. Defaults to 4 MiB (`StdioTransport::DEFAULT_MAX_LINE_BYTES`). The transport discards a longer line and logs a warning. It writes nothing back to the client. A value below `1` throws `InvalidArgumentException`.
+
+The STDIO transport serves both protocol versions. The client's first request decides which one the
+connection uses, see [Serving both eras](protocol-eras.md#over-stdio).
 
 !!! warning
     When using STDIO transport, **never** write to `STDOUT` in your handlers as it's reserved for JSON-RPC communication.

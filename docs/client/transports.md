@@ -26,6 +26,9 @@ $transport = new StdioTransport(
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxBufferSize` (int): Maximum buffered bytes per message before the transport gives up
 
+If the server process exits while a request waits for its answer, the request fails at once with a
+`RequestException`.
+
 ## HTTP Transport
 
 Communicates with remote MCP servers over HTTP:
@@ -63,6 +66,23 @@ The transport automatically discovers PSR-18 HTTP clients from:
 # Install any PSR-18 client - discovery works automatically
 composer require php-http/guzzle7-adapter
 ```
+
+**Error status codes:**
+
+If the server answers with an HTTP error status, the request fails at once with a `RequestException`.
+
+**Session ID:**
+
+On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header.
+`getSessionId()` returns it, for example to log it. It returns `null` on `2026-07-28` and after
+`close()`:
+
+```php
+$sessionId = $transport->getSessionId();
+```
+
+You can't continue a session with a new transport. Every `connect()` starts a new session, and
+`disconnect()` ends it.
 
 **Listening for server messages:**
 

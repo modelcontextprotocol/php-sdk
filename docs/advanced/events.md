@@ -104,9 +104,10 @@ Requests on protocol version `2026-07-28` dispatch the same request, response an
 
 - `ResponseEvent` fires on every `InputRequiredResult` round, not only on the final result. Listeners that only care about completed calls need to check the result type.
 - `getSession()` returns a new in-memory session for each request. Anything a listener stores there is gone by the next request.
-- `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers.
+- `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers. This includes `notifications/cancelled` on stdio.
 - `server/discover` and `subscriptions/listen` dispatch no events.
 - `ServerRequestEvent` and `ClientResponseEvent` are not dispatched: the server asks for input with an `InputRequiredResult`, which `ResponseEvent` carries, and the client answers with `inputResponses` on the retried request.
+- Requests the SDK rejects before a handler runs dispatch no events. Examples are parse errors, a missing `_meta`, a protocol version mismatch, a removed method or a `requestState` that fails verification.
 
 ## List Change Events
 
@@ -119,12 +120,24 @@ These events are dispatched when the lists of available capabilities change:
 | `ResourceTemplateListChangedEvent` | Dispatched when the list of available resource templates changes |
 | `PromptListChangedEvent`           | Dispatched when the list of available prompts changes            |
 
-These events carry no data and are used to notify clients that they should refresh their capability lists.
+These events carry no data. The registry dispatches them when you add or remove a tool, resource, resource
+template or prompt at runtime. They are not dispatched while the registry loads its initial elements.
+
+The SDK does not send these changes to handshake-era clients. To send them to clients, configure a notification
+bus: the SDK then publishes each change to clients listening with `subscriptions/listen`. See
+[Subscriptions](../run/subscriptions.md).
+
+To react to a change yourself, add a listener. This example uses `symfony/event-dispatcher`, one PSR-14
+implementation you can install with `composer require symfony/event-dispatcher`:
 
 ```php
 use Mcp\Event\ToolListChangedEvent;
+use Psr\Log\LoggerInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
-$dispatcher->addListener(ToolListChangedEvent::class, function (ToolListChangedEvent $event) {
-    $logger->info('Tool list has changed, clients should refresh');
+/** @var LoggerInterface $logger */
+$dispatcher = new EventDispatcher();
+$dispatcher->addListener(ToolListChangedEvent::class, function (ToolListChangedEvent $event) use ($logger) {
+    $logger->info('The tool list has changed.');
 });
 ```

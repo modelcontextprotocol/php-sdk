@@ -18,7 +18,7 @@ map; the mechanics live with the task they belong to.
 | Discovery | `initialize` result | `server/discover` |
 | Sessions | `Mcp-Session-Id` | removed |
 | Server → client requests | sent as JSON-RPC requests | returned in the result (MRTR) |
-| Change notifications | HTTP `GET` stream, `resources/subscribe` | `subscriptions/listen` |
+| Change notifications | `resources/subscribe` | `subscriptions/listen` |
 | Dispatcher | `Protocol` | `StatelessProtocol` |
 | HTTP entry | `StreamableHttpTransport` — the same one, for both |
 | stdio entry | `StdioTransport` — the same one, settled by the client's first request |
@@ -68,10 +68,11 @@ See [Serving both eras](run/protocol-eras.md).
 
 ### Pinning a revision
 
-`Builder::setProtocolVersion()` pins the handshake to exactly one revision instead of negotiating across the supported
-set. The pin wins over the client's request, so a client asking for anything else receives the pinned revision as a
-counter-offer and has to decide whether to continue. Leave it unset unless you have a reason to refuse other
-revisions.
+On the server, `Mcp\Server\Builder::setProtocolVersion()` pins the handshake to exactly one revision instead of
+negotiating across the supported set. The client builder has a method with the same name, described in
+[How the client settles on an era](#how-the-client-settles-on-an-era). The pin wins over the client's request,
+so a client asking for anything else receives the pinned revision as a counter-offer and has to decide whether
+to continue. Leave it unset unless you have a reason to refuse other revisions.
 
 It pins the handshake era only. `setModernVersions()` narrows what the modern leg answers for, and
 `withoutModernEra()` removes that leg altogether — see

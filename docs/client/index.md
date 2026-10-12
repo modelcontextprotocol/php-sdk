@@ -28,7 +28,7 @@ $client->disconnect();
 ```
 
 * **[Connecting to a server](connecting.md)** — the builder, the connection lifecycle,
-  and what the server told you about itself during initialization.
+  and what the server told you about itself when connecting.
 * **[Transports](transports.md)** — launching a local server process (STDIO) or talking
   to a remote one (HTTP).
 * **[Tools, resources & prompts](capabilities.md)** — listing and calling everything a
@@ -37,5 +37,5 @@ $client->disconnect();
   messages, sampling requests, and elicitations the server sends *you*.
 * **[Error handling](errors.md)** — which exception means what, plus a complete
   end-to-end example.
-* **[Clients on this revision](../protocol-versions.md)** — the one builder line that speaks
-  protocol revision `2026-07-28`, and what it changes underneath.
+* **[Protocol versions](../protocol-versions.md#speaking-it-from-a-client)**: the client
+  prefers revision `2026-07-28` and falls back to `2025-11-25` when the server doesn't speak it.
