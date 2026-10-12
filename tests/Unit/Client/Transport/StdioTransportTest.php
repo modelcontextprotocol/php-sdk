@@ -159,10 +159,42 @@ final class StdioTransportTest extends TestCase
             $client->connect(new StdioTransport(command: \PHP_BINARY, args: ['-r', 'exit(1);']));
             $this->fail('Connecting to a server that exits must fail.');
         } catch (ConnectionException $e) {
-            $this->assertStringContainsString('no longer running', $e->getMessage());
+            $this->assertStringContainsString('exited with code 1', $e->getMessage());
         }
 
         $this->assertLessThan(5, microtime(true) - $started);
+    }
+
+    #[TestDox('a server that dies tells why: its exit code and the end of its stderr')]
+    public function testExitedServerReportsExitCodeAndStderr(): void
+    {
+        $client = Client::builder()->setInitTimeout(10)->setMaxRetries(0)->build();
+
+        try {
+            $client->connect(new StdioTransport(command: \PHP_BINARY, args: ['-r', 'fwrite(STDERR, str_repeat("x", 9000)."Fatal: missing extension\n"); exit(7);']));
+            $this->fail('Connecting to a server that exits must fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('exited with code 7: ', $e->getMessage());
+            $this->assertStringEndsWith('Fatal: missing extension', $e->getMessage());
+            $this->assertLessThan(StdioTransport::MAX_STDERR_BUFFER_SIZE + 100, \strlen($e->getMessage()), 'only the tail of stderr is kept');
+        }
+    }
+
+    #[TestDox('a retried connection reports how its own process ended, not the previous one')]
+    public function testRetryReportsItsOwnProcess(): void
+    {
+        $counter = tempnam(sys_get_temp_dir(), 'mcp-stdio-');
+        $client = Client::builder()->setInitTimeout(10)->setMaxRetries(1)->build();
+
+        try {
+            $client->connect(new StdioTransport(command: \PHP_BINARY, args: ['-r', '$n = (int) file_get_contents($argv[1]) + 1; file_put_contents($argv[1], $n); fwrite(STDERR, "run $n"); exit(10 + $n);', $counter]));
+            $this->fail('Connecting to a server that exits must fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('exited with code 12: run 2', $e->getMessage());
+            $this->assertStringNotContainsString('run 1', $e->getMessage());
+        } finally {
+            unlink($counter);
+        }
     }
 
     #[TestDox('the buffer cap must be a positive number of bytes')]

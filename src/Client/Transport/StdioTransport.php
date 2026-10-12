@@ -49,10 +49,25 @@ class StdioTransport extends BaseTransport
 
     private string $inputBuffer = '';
 
+    private string $stderrBuffer = '';
+
+    /** Why the server's output ended, worked out once: the exit code is only reported once. */
+    private ?string $exitReason = null;
+
     /**
      * Default cap on the bytes buffered while waiting for a complete line.
      */
     public const DEFAULT_MAX_BUFFER_SIZE = 4 * 1024 * 1024;
+
+    /**
+     * Bytes of the most recent stderr kept to explain why the server stopped.
+     */
+    public const MAX_STDERR_BUFFER_SIZE = 8 * 1024;
+
+    /**
+     * How long a server that closed its output is given to exit, so its exit code can be reported.
+     */
+    private const EXIT_GRACE_SECONDS = 0.1;
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
@@ -172,6 +187,12 @@ class StdioTransport extends BaseTransport
 
     private function spawnProcess(): void
     {
+        // A transport may be respawned on a retry, so clear anything the
+        // previous process left behind.
+        $this->inputBuffer = '';
+        $this->stderrBuffer = '';
+        $this->exitReason = null;
+
         $descriptors = [
             0 => ['pipe', 'r'], // stdin
             1 => ['pipe', 'w'], // stdout
@@ -246,7 +267,7 @@ class StdioTransport extends BaseTransport
 
         // Only on an empty read, so an answer arriving with the end of output is taken first.
         if (('' === $data || false === $data) && \is_resource($this->stdout) && feof($this->stdout)) {
-            $this->failPending('The server process closed its output; it is no longer running.', [self::CONNECTION_LOST => true]);
+            $this->failPending($this->exitReason(), [self::CONNECTION_LOST => true]);
         }
     }
 
@@ -339,15 +360,65 @@ class StdioTransport extends BaseTransport
         }
     }
 
+    /**
+     * Read what the server wrote to stderr, keeping its tail to explain a later failure.
+     */
     private function processStderr(): void
     {
         if (null === $this->stderr || !\is_resource($this->stderr)) {
             return;
         }
 
-        $stderr = fread($this->stderr, 8192);
-        if (false !== $stderr && '' !== $stderr) {
-            $this->logger->debug('Server stderr', ['output' => trim($stderr)]);
+        while (false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
+            $this->logger->debug('Server stderr', ['output' => trim($chunk)]);
+
+            $this->stderrBuffer = substr($this->stderrBuffer.$chunk, -self::MAX_STDERR_BUFFER_SIZE);
         }
+    }
+
+    /**
+     * Why the server's output ended: how the process exited, if it did, and the end of its stderr.
+     */
+    private function exitReason(): string
+    {
+        if (null !== $this->exitReason) {
+            return $this->exitReason;
+        }
+
+        $exitCode = $this->awaitExit();
+        $this->processStderr();
+
+        $reason = null !== $exitCode
+            ? \sprintf('The server process exited with code %d', $exitCode)
+            : 'The server process closed its output; it is no longer running';
+
+        $stderr = trim($this->stderrBuffer);
+
+        return $this->exitReason = '' !== $stderr ? $reason.': '.$stderr : $reason.'.';
+    }
+
+    /**
+     * Give a server that closed its output a moment to exit, which it usually does next.
+     *
+     * @return int|null the exit code, or null if it is still running
+     */
+    private function awaitExit(): ?int
+    {
+        if (!\is_resource($this->process)) {
+            return null;
+        }
+
+        $deadline = microtime(true) + self::EXIT_GRACE_SECONDS;
+
+        do {
+            $status = proc_get_status($this->process);
+            if (!$status['running']) {
+                return $status['exitcode'];
+            }
+
+            usleep(1000);
+        } while (microtime(true) < $deadline);
+
+        return null;
     }
 }
