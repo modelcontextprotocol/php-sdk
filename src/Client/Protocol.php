@@ -188,6 +188,12 @@ class Protocol
         $this->envelope = null;
         $this->headers = null;
 
+        // `server/discover` may leave any of these out, so a field the previous
+        // server or attempt declared must not outlive it.
+        $this->state->setServerInfo(null);
+        $this->state->setInstructions(null);
+        $this->state->setServerCapabilities(null);
+
         if (!$config->protocolVersion->isModern()) {
             return $this->handshake($config->protocolVersion, $config);
         }
