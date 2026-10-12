@@ -371,12 +371,14 @@ final class HttpTransportTest extends TestCase
         $transport->setState($state);
 
         // A server that streams data without ever sending the "\n\n" delimiter.
-        $this->setActiveStream($transport, $this->factory->createStream(str_repeat('a', 4096)));
+        $stream = $this->factory->createStream(str_repeat('a', 4096));
+        $this->setActiveStream($transport, $stream);
 
         $this->invokeProcessSseStream($transport);
 
         $this->assertSame(0, $this->readPrivate($transport, 'sseParser')->bufferedBytes(), 'buffer must be cleared on abort');
         $this->assertNull($this->readPrivate($transport, 'activeStream'), 'stream must be released on abort');
+        $this->assertFalse($stream->isReadable(), 'stream must be closed on abort');
     }
 
     #[TestDox('aborting the SSE stream fails the in-flight request immediately instead of waiting for its timeout')]
@@ -483,6 +485,7 @@ final class HttpTransportTest extends TestCase
      */
     public static function reconnectStatusProvider(): iterable
     {
+        yield 'redirect' => [307, 2];
         yield 'session expired' => [404, 2];
         yield 'no GET stream offered' => [405, 2];
         yield 'unauthorized' => [401, 2];
@@ -551,7 +554,8 @@ final class HttpTransportTest extends TestCase
     {
         $clock = new SteppingClock();
         $reads = 0;
-        $stream = $this->createStub(StreamInterface::class);
+        $stream = $this->createMock(StreamInterface::class);
+        $stream->expects($this->once())->method('close');
         $stream->method('eof')->willReturn(false);
         $stream->method('read')->willReturnCallback(static function () use (&$reads): string {
             if (1 === ++$reads) {
@@ -665,6 +669,21 @@ final class HttpTransportTest extends TestCase
         $this->assertCount(1, $httpClient->requests);
     }
 
+    #[TestDox('a malformed answer to the request does not complete its stream')]
+    public function testMalformedAnswerDoesNotCompleteStream(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata: {\"jsonrpc\":\"2.0\",\"id\":3,\"result\":null}\n\n"),
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-1\ndata: {\"jsonrpc\":\"2.0\",\"id\":3,\"result\":{}}\n\n"),
+        ], $clock);
+        $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
+
+        $this->assertInstanceOf(JsonRpcResponse::class, $this->runRequest($transport, 3, timeout: 1));
+        $this->assertCount(2, $httpClient->requests);
+        $this->assertSame('event-0', $httpClient->requests[1]->getHeaderLine('Last-Event-ID'));
+    }
+
     #[TestDox('closing the transport from a message listener stops reading and reconnecting')]
     public function testCloseFromListenerStopsReconnecting(): void
     {
@@ -700,8 +719,9 @@ final class HttpTransportTest extends TestCase
     #[TestDox('an unfinished stream without an event ID fails instead of waiting for the request timeout')]
     public function testUnresumableEofFailsPendingRequest(): void
     {
+        $stream = $this->factory->createStream(": keep-alive\n\n");
         $httpClient = RecordingHttpClient::queued([
-            new Response(200, ['Content-Type' => 'text/event-stream'], ": keep-alive\n\n"),
+            new Response(200, ['Content-Type' => 'text/event-stream'], $stream),
         ]);
         $transport = $this->createTransport(httpClient: $httpClient, clock: new SteppingClock());
 
@@ -709,6 +729,7 @@ final class HttpTransportTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $result);
         $this->assertStringContainsString('did not provide an event ID', $result->message);
+        $this->assertFalse($stream->isReadable(), 'the ended stream must be closed');
     }
 
     /**
@@ -734,7 +755,8 @@ final class HttpTransportTest extends TestCase
         $messages = [];
         $result = $this->runRequest($transport, ReplayingSseServer::REQUEST_ID, messages: $messages);
 
-        if ($cut < ReplayingSseServer::primingEventLength($eol)) {
+        // A CR ends a line on its own, so the first byte of the blank line completes the event.
+        if ($cut < ReplayingSseServer::primingEventLength($eol) - \strlen($eol) + 1) {
             // Nothing complete arrived, so there is no event ID to resume from.
             $this->assertSame([], $messages);
             $this->assertInstanceOf(Error::class, $result);

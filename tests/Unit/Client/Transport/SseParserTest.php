@@ -43,6 +43,47 @@ final class SseParserTest extends TestCase
         $this->assertSame(['third'], self::drain($parser));
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function mixedBlankLineProvider(): iterable
+    {
+        yield 'LF then CRLF' => ["\n\r\n"];
+        yield 'LF then CR' => ["\n\r"];
+        yield 'CRLF then LF' => ["\r\n\n"];
+        yield 'CRLF then CR' => ["\r\n\r"];
+        yield 'CR then CRLF' => ["\r\r\n"];
+    }
+
+    #[DataProvider('mixedBlankLineProvider')]
+    #[TestDox('events are split on a blank line whose endings differ ($_dataName)')]
+    public function testSplitsOnMixedLineEndings(string $delimiter): void
+    {
+        $parser = new SseParser(1024);
+        $parser->append('id: 1'."\r\n".'data: first'.$delimiter.'id: 2'."\n".'data: second'.$delimiter);
+
+        $this->assertSame([
+            ['data' => 'first', 'id' => '1', 'retry' => null],
+            ['data' => 'second', 'id' => '2', 'retry' => null],
+        ], [$parser->next(), $parser->next()]);
+        $this->assertNull($parser->next());
+    }
+
+    #[TestDox('a CRLF split across chunks is one line ending')]
+    public function testCrlfSplitAcrossChunks(): void
+    {
+        $parser = new SseParser(1024);
+        $parser->append("id: 1\r");
+        $parser->append("\ndata: first\r\n\r");
+
+        $this->assertSame(['data' => 'first', 'id' => '1', 'retry' => null], $parser->next());
+
+        $parser->append("\nid: 2\r\ndata: second\r\n\r\n");
+
+        $this->assertSame(['data' => 'second', 'id' => '2', 'retry' => null], $parser->next());
+        $this->assertNull($parser->next());
+    }
+
     #[TestDox('fields follow the SSE specification')]
     public function testParsesFields(): void
     {
