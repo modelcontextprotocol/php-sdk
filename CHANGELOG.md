@@ -45,6 +45,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Bump the client's default protocol version to `2026-07-28`, so a client speaks both protocol eras unless told otherwise. Against a server that speaks both, a default client now settles on `2026-07-28`, where a server can no longer sample or list roots through `ClientGateway`; return those asks as an `InputRequiredResult` instead, or call `Builder::setProtocolVersion(ProtocolVersion::V2025_11_25)` on the client.
 * On a `2026-07-28` connection, `Client::setLoggingLevel()` stamps the level on every following request, `Client::ping()` sends `server/discover` and `Client::sendRootsListChanged()` sends nothing.
 * Fail a client request at once when the HTTP server refuses it with an error status or the stdio server process exits, instead of waiting out the timeout.
+* Report the exit code and the end of stderr when the stdio server process dies, instead of only that it is no longer running.
 * [BC Break] Bump `MessageInterface::PROTOCOL_VERSION` to `2026-07-28`. Use `ProtocolVersion::latestHandshake()` where a handshake revision is needed, e.g. in an `initialize` answer.
 * Add `ServerRequestEvent` and `ClientResponseEvent` for handshake-era server-initiated requests (`elicitation/create`, `sampling/createMessage`) and the client's replies.
 * Dispatch `ResponseEvent` and `ErrorEvent` when a suspended Fiber completes.
