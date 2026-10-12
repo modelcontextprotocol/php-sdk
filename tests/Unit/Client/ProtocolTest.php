@@ -389,6 +389,28 @@ final class ProtocolTest extends TestCase
         $this->assertNull($protocol->getState()->getServerCapabilities());
     }
 
+    #[TestDox('a reconnect that fails before initializing exposes nothing of the previous server')]
+    public function testReconnectForgetsServerBeforeInitializing(): void
+    {
+        $protocol = new Protocol();
+        $config = $this->createConfiguration(ProtocolVersion::V2026_07_28);
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+
+        $this->assertTrue($protocol->getState()->isInitialized());
+        $this->assertSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
+        $this->assertNotNull($protocol->getState()->getServerInfo());
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+
+        $this->assertFalse($protocol->getState()->isInitialized());
+        $this->assertNull($protocol->getState()->getProtocolVersion());
+        $this->assertNull($protocol->getState()->getServerInfo());
+        $this->assertNull($protocol->getState()->getInstructions());
+        $this->assertNull($protocol->getState()->getServerCapabilities());
+    }
+
     #[TestDox('an empty inputResponses map is retried as a JSON object, never an array')]
     public function testEmptyInputResponsesEncodesAsJsonObject(): void
     {

@@ -25,8 +25,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `Tool::$execution` (`ToolExecution` with a `TaskSupport` enum) and `ServerCapabilities::$tasks`, which were dropped when parsing a 2025-11-25 server's `tools/list` and `initialize` results.
 * Add `Client::getServerCapabilities()`, returning what the server declared in `initialize` or, from `2026-07-28` on, in `server/discover`.
 * [BC Break] `ClientStateInterface` declares `setServerCapabilities()` and `getServerCapabilities()`, which a custom implementation has to add.
-* Fix `Client::getServerInfo()`, `getInstructions()` and `getServerCapabilities()` reporting the previous server's values after reconnecting to a `2026-07-28` server whose `server/discover` leaves them out.
-* [BC Break] `ClientStateInterface::setServerInfo()` and `setServerCapabilities()` accept `null`, which a custom implementation has to accept too.
+* Fix `Client::getServerInfo()`, `getInstructions()`, `getServerCapabilities()` and `getProtocolVersion()` reporting the previous server's values after a reconnect, whether it failed or reached a `2026-07-28` server whose `server/discover` leaves them out.
+* [BC Break] `ClientStateInterface::setProtocolVersion()`, `setServerInfo()` and `setServerCapabilities()` accept `null`, which a custom implementation has to accept too.
 * Add a `listen` option to the client's `HttpTransport`, opening the standalone GET stream on which a 2025-era server sends requests and notifications outside of a client request, like `roots/list`. Needs a PSR-18 client that streams response bodies, such as `symfony/http-client`.
 * [BC Break] Narrow authorization to the resource server role (ADR 0002): remove `OAuthProxyMiddleware`, `ClientRegistrationMiddleware`, `ClientRegistrarInterface` and `ClientRegistrationException`.
 * [BC Break] Replace `OAuthRequestMetaMiddleware` with `RequestContext::getAccessToken()`, returning the validated `Server\Authorization\AccessToken`; `AuthorizationResult::allow()` takes an `AccessToken` instead of request attributes.

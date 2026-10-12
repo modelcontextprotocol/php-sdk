@@ -100,7 +100,7 @@ class ClientState implements ClientStateInterface
         return $this->initialized;
     }
 
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void
     {
         $this->protocolVersion = $protocolVersion;
     }

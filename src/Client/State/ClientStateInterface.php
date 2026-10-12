@@ -81,7 +81,7 @@ interface ClientStateInterface
     /**
      * Store the protocol version negotiated during initialization.
      */
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void;
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void;
 
     /**
      * Get the protocol version negotiated during initialization.
