@@ -591,6 +591,40 @@ final class ProtocolTest extends TestCase
         $this->assertGreaterThanOrEqual($boundary, microtime(true), 'The clock must pass the per-call deadline for this assertion to be about the deadline.');
     }
 
+    #[TestDox('progress for an earlier request does not reach the callback of the one in flight')]
+    public function testProgressIsRoutedByToken(): void
+    {
+        $protocol = new Protocol();
+        $protocol->connect(new ProgressReportingTransport(), $this->createConfiguration(ProtocolVersion::V2025_11_25));
+        $request = new CallToolRequest('slow', []);
+
+        $protocol->request($request, 30, withProgress: true);
+
+        $seen = [];
+        $protocol->setProgressCallback(static function (float $progress, ?float $total, ?string $message) use (&$seen): void {
+            $seen[] = $message;
+        });
+        $protocol->request($request, 30, withProgress: true);
+
+        $this->assertSame(['prog-2'], $seen, 'the late progress of the first request must be dropped');
+    }
+
+    #[TestDox('progress arriving after its request completed does not reach the callback')]
+    public function testProgressAfterCompletionIsDropped(): void
+    {
+        $protocol = new Protocol();
+        $protocol->connect(new ProgressReportingTransport(), $this->createConfiguration(ProtocolVersion::V2025_11_25));
+        $seen = [];
+        $protocol->setProgressCallback(static function (float $progress, ?float $total, ?string $message) use (&$seen): void {
+            $seen[] = $message;
+        });
+
+        $protocol->request(new CallToolRequest('slow', []), 30, withProgress: true);
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"prog-1","progress":2,"message":"late"}}');
+
+        $this->assertSame(['prog-1'], $seen);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
     {
         return new Configuration(
@@ -975,6 +1009,82 @@ final class InterruptingTransport implements TransportInterface
 
     public function onMessage(callable $callback): void
     {
+    }
+
+    public function onError(callable $callback): void
+    {
+    }
+
+    public function onClose(callable $callback): void
+    {
+    }
+}
+
+/** Reports progress for the previous request's token, then its own, each with the token as message. */
+final class ProgressReportingTransport implements TransportInterface
+{
+    private ClientStateInterface $state;
+
+    /** @var callable(string): void */
+    private $onMessage;
+
+    private string|int|null $previousToken = null;
+
+    public function send(string $data): void
+    {
+        /** @var array{id?: int, params?: array{_meta?: array{progressToken?: string|int}}} $message */
+        $message = json_decode($data, true);
+
+        if (!isset($message['id'])) {
+            return;
+        }
+
+        $token = $message['params']['_meta']['progressToken'] ?? null;
+
+        foreach ([$this->previousToken, $token] as $reported) {
+            if (null !== $reported) {
+                ($this->onMessage)(json_encode([
+                    'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+                    'method' => 'notifications/progress',
+                    'params' => ['progressToken' => $reported, 'progress' => 1, 'message' => (string) $reported],
+                ], \JSON_THROW_ON_ERROR));
+            }
+        }
+
+        $this->previousToken = $token;
+
+        $this->state->storeResponse($message['id'], [
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => $message['id'],
+            'result' => ['content' => []],
+        ]);
+    }
+
+    public function setState(ClientStateInterface $state): void
+    {
+        $this->state = $state;
+    }
+
+    public function connect(): void
+    {
+    }
+
+    public function close(): void
+    {
+    }
+
+    public function runRequest(\Fiber $fiber, ?callable $onProgress = null): Response|Error
+    {
+        throw new LogicException('Not used in this test.');
+    }
+
+    public function onInitialize(callable $callback): void
+    {
+    }
+
+    public function onMessage(callable $callback): void
+    {
+        $this->onMessage = $callback;
     }
 
     public function onError(callable $callback): void

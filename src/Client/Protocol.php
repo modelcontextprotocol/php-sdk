@@ -35,6 +35,7 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
@@ -92,6 +93,9 @@ class Protocol
      * a retry keeps the caller's one — the work being reported on is the same.
      */
     private int $progressTokens = 0;
+
+    /** The token of the request in flight, the only one whose progress reaches the callback. */
+    private ?string $progressToken = null;
 
     /**
      * @param RequestHandlerInterface<mixed>[] $requestHandlers
@@ -272,14 +276,16 @@ class Protocol
         $this->onProgress = $onProgress;
     }
 
-    private function deliverProgress(float $progress, ?float $total, ?string $message): void
+    private function deliverProgress(ProgressNotification $notification): void
     {
-        if (null === $this->onProgress) {
+        if (null === $this->onProgress || $notification->progressToken !== $this->progressToken) {
+            $this->logger->debug('Dropping progress for a request not in flight', ['progressToken' => $notification->progressToken]);
+
             return;
         }
 
         try {
-            ($this->onProgress)($progress, $total, $message);
+            ($this->onProgress)($notification->progress, $notification->total, $notification->message);
         } catch (\Throwable $e) {
             $this->logger->warning('Progress callback failed', ['exception' => $e]);
         }
@@ -551,62 +557,68 @@ class Protocol
         $payload = $request->withId(0)->jsonSerialize();
         unset($payload['id']);
 
-        if ($withProgress) {
-            $payload = self::withMeta($payload, ['progressToken' => 'prog-'.++$this->progressTokens]);
+        $this->progressToken = $withProgress ? 'prog-'.++$this->progressTokens : null;
+
+        if (null !== $this->progressToken) {
+            $payload = self::withMeta($payload, ['progressToken' => $this->progressToken]);
         }
 
-        if (null === $this->envelope) {
-            return $this->exchange($payload, $timeout, $cancellation, $deadline);
-        }
+        try {
+            if (null === $this->envelope) {
+                return $this->exchange($payload, $timeout, $cancellation, $deadline);
+            }
 
-        for ($attempt = 0; $attempt < self::MAX_ROUND_TRIPS; ++$attempt) {
-            $response = $this->exchange($payload, $timeout, $cancellation, $deadline);
+            for ($attempt = 0; $attempt < self::MAX_ROUND_TRIPS; ++$attempt) {
+                $response = $this->exchange($payload, $timeout, $cancellation, $deadline);
 
-            if ($response instanceof Error) {
-                $retry = $this->withAcceptedVersion($response);
+                if ($response instanceof Error) {
+                    $retry = $this->withAcceptedVersion($response);
 
-                if (null === $retry) {
+                    if (null === $retry) {
+                        return $response;
+                    }
+
+                    continue;
+                }
+
+                $asked = InputRequestResolver::asked($response->result);
+
+                if (null === $asked) {
                     return $response;
                 }
 
-                continue;
+                // A fresh `inputResponses`/`requestState` pair every round, never
+                // merged with the last: the answers belong to the ask that just
+                // arrived, and carrying an old one forward is how state leaks
+                // between rounds.
+                //
+                // Cast to object: inputResponses is a JSON object keyed by the
+                // server's ids, but a PHP array with no entries or with sequential
+                // numeric-string keys encodes as a JSON array instead.
+                $payload['params'] = [
+                    ...($payload['params'] ?? []),
+                    'inputResponses' => (object) $this->inputRequests->resolve($asked),
+                ];
+
+                unset($payload['params']['requestState']);
+
+                // Echoed byte-for-byte, and only when the server sent one: the
+                // value is the server's to read, and inventing or reshaping it
+                // would break whatever it encodes.
+                if (\is_string($response->result['requestState'] ?? null)) {
+                    $payload['params']['requestState'] = $response->result['requestState'];
+                }
+
+                $this->logger->debug('Retrying request with resolved input', [
+                    'method' => $payload['method'] ?? null,
+                    'round' => $attempt + 1,
+                ]);
             }
 
-            $asked = InputRequestResolver::asked($response->result);
-
-            if (null === $asked) {
-                return $response;
-            }
-
-            // A fresh `inputResponses`/`requestState` pair every round, never
-            // merged with the last: the answers belong to the ask that just
-            // arrived, and carrying an old one forward is how state leaks
-            // between rounds.
-            //
-            // Cast to object: inputResponses is a JSON object keyed by the
-            // server's ids, but a PHP array with no entries or with sequential
-            // numeric-string keys encodes as a JSON array instead.
-            $payload['params'] = [
-                ...($payload['params'] ?? []),
-                'inputResponses' => (object) $this->inputRequests->resolve($asked),
-            ];
-
-            unset($payload['params']['requestState']);
-
-            // Echoed byte-for-byte, and only when the server sent one: the
-            // value is the server's to read, and inventing or reshaping it
-            // would break whatever it encodes.
-            if (\is_string($response->result['requestState'] ?? null)) {
-                $payload['params']['requestState'] = $response->result['requestState'];
-            }
-
-            $this->logger->debug('Retrying request with resolved input', [
-                'method' => $payload['method'] ?? null,
-                'round' => $attempt + 1,
-            ]);
+            return Error::forInternalError(\sprintf('Server asked for input more than %d times without completing the request.', self::MAX_ROUND_TRIPS));
+        } finally {
+            $this->progressToken = null;
         }
-
-        return Error::forInternalError(\sprintf('Server asked for input more than %d times without completing the request.', self::MAX_ROUND_TRIPS));
     }
 
     /**
