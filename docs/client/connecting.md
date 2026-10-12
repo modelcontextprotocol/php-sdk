@@ -209,13 +209,16 @@ $client = Client::builder()
 $client->connect($transport);
 ```
 
-The `connect()` method opens the transport and sends a `server/discover` request. If the server
+By default, the `connect()` method opens the transport and sends a `server/discover` request. If the server
 speaks revision `2026-07-28`, the connection is ready. If it doesn't, the client falls back to the
 `initialize` handshake and offers `2025-11-25`, or the revision set with
 `setFallbackProtocolVersion()`. A server process that exits fails the connection instead.
 
 With `setFallbackProtocolVersion(null)`, `connect()` fails instead. See
 [How the client settles on an era](../protocol-versions.md#how-the-client-settles-on-an-era).
+
+A client pinned to a handshake revision with `setProtocolVersion()` skips `server/discover` and starts with the
+`initialize` handshake. See [Protocol Version](#protocol-version).
 
 !!! warning
     Always wrap connection in try/catch to handle `ConnectionException` for failed connections.
