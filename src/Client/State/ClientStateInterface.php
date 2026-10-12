@@ -49,7 +49,7 @@ interface ClientStateInterface
     /**
      * Get all pending requests.
      *
-     * @return array<int|string, array{request_id: int|string, timestamp: int, timeout: int}>
+     * @return array<int|string, array{request_id: int|string, timestamp: float, timeout: int}>
      */
     public function getPendingRequests(): array;
 
