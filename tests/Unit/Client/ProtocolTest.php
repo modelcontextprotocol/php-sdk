@@ -143,12 +143,12 @@ final class ProtocolTest extends TestCase
 
         $fiber = new \Fiber(static fn () => $protocol->initialize($config));
         $suspended = $fiber->start();
-        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output; it is no longer running.', [TransportInterface::CONNECTION_LOST => true]));
+        $fiber->resume(new Error($suspended['request_id'], Error::INTERNAL_ERROR, 'The server process closed its output.', [TransportInterface::CONNECTION_LOST => true]));
 
         $this->assertTrue($fiber->isTerminated());
         $error = $fiber->getReturn();
         $this->assertInstanceOf(Error::class, $error);
-        $this->assertStringContainsString('no longer running', $error->message);
+        $this->assertSame('The server process closed its output.', $error->message);
         $this->assertSame(['server/discover'], $transport->methods);
     }
 
