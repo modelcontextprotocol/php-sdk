@@ -17,6 +17,7 @@ use Symfony\Component\Uid\UuidV4;
 /**
  * Saving writes only the keys changed since the last save, onto what the store holds by then:
  * concurrent requests of one session keep each other's changes as long as they change different keys.
+ * The store reads and writes in separate steps, so two saves that overlap can still lose one of them.
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
