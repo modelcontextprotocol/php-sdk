@@ -58,7 +58,7 @@ class Protocol
 {
     /**
      * Largest id a request to the client gets: JavaScript clients read JSON numbers as doubles,
-     * which hold integers exactly only up to 2^53 - 1.
+     * which hold integers exactly only up to 2^53 - 1. On 32-bit PHP, \PHP_INT_MAX caps it.
      */
     private const MAX_REQUEST_ID = 9007199254740991;
 
@@ -544,7 +544,7 @@ class Protocol
      */
     private function registerRequest(Request $request, int $timeout, SessionInterface $session): int
     {
-        $requestId = random_int(1, self::MAX_REQUEST_ID);
+        $requestId = random_int(1, min(self::MAX_REQUEST_ID, \PHP_INT_MAX));
 
         $this->dispatchEvent(new ServerRequestEvent($request->withId($requestId), $timeout, $session));
 
