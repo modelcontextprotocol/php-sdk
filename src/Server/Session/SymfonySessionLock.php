@@ -33,7 +33,8 @@ final class SymfonySessionLock implements SessionLockInterface
 
     /**
      * @param float $timeout seconds to wait for the lock before giving up
-     * @param float $ttl     seconds after which the lock store expires a lock that was not released, e.g. by a crashed worker
+     * @param float $ttl     seconds after which the lock store expires a lock that was not released, e.g. by a crashed worker;
+     *                       it is not refreshed, so keep it above the duration of the longest handler
      */
     public function __construct(
         private readonly LockFactory $factory,

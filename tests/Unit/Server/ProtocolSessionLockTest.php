@@ -112,6 +112,27 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertNull($sessions->createWithId($sessionId)->get('counter'));
     }
 
+    #[TestDox('a session ended during a locked request stays destroyed after that request saves')]
+    public function testSessionEndWaitsForLockedRequest(): void
+    {
+        $store = new InterleavingSessionStore();
+        [$sessions, $sessionId] = $this->createSession($store);
+        $lock = new FiberSessionLock();
+
+        $working = new Protocol([$this->createIncrementHandler()], [], MessageFactory::make(), $sessions, sessionLock: $lock);
+        $ending = new Protocol([], [], MessageFactory::make(), $sessions, sessionLock: $lock);
+
+        // The client ends the session on another worker while the request is working on it.
+        $store->interleaveAfterNextRead(static function () use ($ending, $sessionId): void {
+            (new \Fiber(static fn () => $ending->destroySession($sessionId)))->start();
+        });
+
+        (new \Fiber(static fn () => $working->processInput(new RecordingTransport(), \sprintf(self::INCREMENT, 1), $sessionId)))->start();
+
+        $this->assertFalse($sessions->exists($sessionId));
+        $this->assertFalse($lock->isLocked($sessionId));
+    }
+
     private function incrementConcurrently(?SessionLockInterface $lock): int
     {
         $store = new InterleavingSessionStore();

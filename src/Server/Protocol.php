@@ -871,7 +871,8 @@ class Protocol
      */
     public function destroySession(Uuid $sessionId): void
     {
-        $this->sessionManager->destroy($sessionId);
+        // Waits for a request working on the session, so its save does not bring the session back.
+        $this->locked($sessionId, fn (): bool => $this->sessionManager->destroy($sessionId));
         $this->logger->info('Session destroyed.', ['session_id' => $sessionId->toRfc4122()]);
     }
 }

@@ -132,8 +132,8 @@ class RedisSessionStore implements SessionStoreInterface
 
 A client can send several requests of one session at the same time, for example parallel tool calls. Each
 request loads the session, changes it, and saves the keys it changed. When two requests change different keys,
-both changes are kept. When they change the same key, for example a counter in a tool handler, the request that
-saves last wins and the other change is lost.
+both changes are kept, unless both requests save at the same moment. When they change the same key, for example a
+counter in a tool handler, the request that saves last wins and the other change is lost.
 
 To prevent this, configure a session lock. A request then holds the lock from loading its session to saving it,
 and the other requests of that session wait for it:
@@ -157,7 +157,8 @@ when the workers run on several hosts.
   `TimeoutException` and the client gets an internal error. Use a value above the duration of your longest
   handler.
 - `$ttl` (float): Seconds after which the store expires a lock that was never released, e.g. by a crashed
-  worker (default: `300.0`).
+  worker (default: `300.0`). The lock is not refreshed while a request holds it, so use a value above the
+  duration of your longest handler as well, otherwise another request can take the lock while the first still runs.
 
 A request that waits on the client, for example for an elicitation or a sampling result, releases the lock
 while it waits. The lock is off by default, and the stdio transport does not need it, because it serves one
