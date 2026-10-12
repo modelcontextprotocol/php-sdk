@@ -239,19 +239,54 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if ($response->getStatusCode() >= 400) {
-            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $response->getBody()->getContents());
+            try {
+                $body = $response->getBody()->getContents();
+            } catch (\RuntimeException) {
+                // The status alone still tells what went wrong.
+                $body = '';
+            }
+
+            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $body);
 
             return;
         }
 
         if (str_contains($contentType, 'text/event-stream')) {
             $this->startSseStream($this->responseStream($response->getBody()), self::requestIdOf($data));
-        } elseif (str_contains($contentType, 'application/json')) {
-            $body = $response->getBody()->getContents();
-            if (!empty($body)) {
-                $this->handleMessage($body);
-            }
+
+            return;
         }
+
+        try {
+            $body = $response->getBody()->getContents();
+        } catch (\RuntimeException $e) {
+            $this->failUnanswered($data, $e->getMessage());
+
+            return;
+        }
+
+        $dispatched = str_contains($contentType, 'application/json') && '' !== trim($body);
+        if ($dispatched) {
+            $this->handleMessage($body);
+        }
+
+        if (null !== ($requestId = self::requestIdOf($data)) && !($dispatched && self::answers($body, $requestId))) {
+            $this->failUnanswered($data, '' === trim($body) ? 'empty body' : 'no answer in the body');
+        }
+    }
+
+    /**
+     * Fails a request whose response ended without its answer at once, rather than at its timeout.
+     */
+    private function failUnanswered(string $sent, string $reason): void
+    {
+        $requestId = self::requestIdOf($sent);
+        if (null === $requestId || null === $this->state) {
+            return;
+        }
+
+        $this->logger->warning('Response ended without answering the request', ['request_id' => $requestId, 'reason' => $reason]);
+        $this->state->storeResponse($requestId, Error::forInternalError('The response ended without answering the request: '.$reason, $requestId)->jsonSerialize());
     }
 
     /**
@@ -893,10 +928,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     private function isResponseForCurrentSseRequest(string $data): bool
     {
-        if (null === $this->sseRequestId || '' === $data) {
-            return false;
-        }
+        return null !== $this->sseRequestId && self::answers($data, $this->sseRequestId);
+    }
 
+    private static function answers(string $data, int|string $requestId): bool
+    {
         $decoded = json_decode($data, true);
         if (!\is_array($decoded)) {
             return false;
@@ -904,7 +940,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         foreach (array_is_list($decoded) ? $decoded : [$decoded] as $message) {
             // One the protocol cannot read is dropped there, so the request is still waiting.
-            if (\is_array($message) && !isset($message['method']) && ($message['id'] ?? null) === $this->sseRequestId
+            if (\is_array($message) && !isset($message['method']) && ($message['id'] ?? null) === $requestId
                 && self::isWellFormedAnswer($message)) {
                 return true;
             }
