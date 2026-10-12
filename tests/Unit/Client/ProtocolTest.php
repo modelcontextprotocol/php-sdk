@@ -367,6 +367,50 @@ final class ProtocolTest extends TestCase
         }
     }
 
+    #[TestDox('reconnecting forgets the previous server\'s info, instructions and capabilities')]
+    public function testReconnectResetsServerMetadata(): void
+    {
+        $protocol = new Protocol();
+        $config = $this->createConfiguration(ProtocolVersion::V2026_07_28);
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+
+        $this->assertNotNull($protocol->getState()->getServerInfo());
+        $this->assertNotNull($protocol->getState()->getInstructions());
+        $this->assertNotNull($protocol->getState()->getServerCapabilities());
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value, discoveryWithoutMetadata: true), $config);
+        $protocol->initialize($config);
+
+        $this->assertTrue($protocol->getState()->isInitialized());
+        $this->assertNull($protocol->getState()->getServerInfo());
+        $this->assertNull($protocol->getState()->getInstructions());
+        $this->assertNull($protocol->getState()->getServerCapabilities());
+    }
+
+    #[TestDox('a reconnect that fails before initializing exposes nothing of the previous server')]
+    public function testReconnectForgetsServerBeforeInitializing(): void
+    {
+        $protocol = new Protocol();
+        $config = $this->createConfiguration(ProtocolVersion::V2026_07_28);
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+        $protocol->initialize($config);
+
+        $this->assertTrue($protocol->getState()->isInitialized());
+        $this->assertSame(ProtocolVersion::V2026_07_28, $protocol->getState()->getProtocolVersion());
+        $this->assertNotNull($protocol->getState()->getServerInfo());
+
+        $protocol->connect(new RecordingTransport(ProtocolVersion::V2026_07_28->value), $config);
+
+        $this->assertFalse($protocol->getState()->isInitialized());
+        $this->assertNull($protocol->getState()->getProtocolVersion());
+        $this->assertNull($protocol->getState()->getServerInfo());
+        $this->assertNull($protocol->getState()->getInstructions());
+        $this->assertNull($protocol->getState()->getServerCapabilities());
+    }
+
     #[TestDox('an empty inputResponses map is retried as a JSON object, never an array')]
     public function testEmptyInputResponsesEncodesAsJsonObject(): void
     {
@@ -667,6 +711,7 @@ final class RecordingTransport implements TransportInterface
         private readonly ?Error $initializeError = null,
         private readonly bool $discoverAfterInitialize = false,
         private readonly bool $discoveryWithoutVersions = false,
+        private readonly bool $discoveryWithoutMetadata = false,
     ) {
     }
 
@@ -734,11 +779,20 @@ final class RecordingTransport implements TransportInterface
             return;
         }
 
+        $supportedVersions = [$discoverable ? ProtocolVersion::V2026_07_28->value : $this->counterOffer];
+
+        if ($this->discoveryWithoutMetadata) {
+            $this->answer($message['id'], ['resultType' => 'complete', 'supportedVersions' => $supportedVersions]);
+
+            return;
+        }
+
         $this->answer($message['id'], [
             'resultType' => 'complete',
-            'supportedVersions' => [$discoverable ? ProtocolVersion::V2026_07_28->value : $this->counterOffer],
+            'supportedVersions' => $supportedVersions,
             'capabilities' => [],
             'serverInfo' => ['name' => 'server', 'version' => '1.2.3'],
+            'instructions' => 'Use with care.',
         ]);
     }
 

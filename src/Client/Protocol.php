@@ -146,6 +146,9 @@ class Protocol
 
         $this->logLevel = null;
 
+        // A connect can fail before the transport initializes.
+        $this->forgetServer();
+
         $transport->setState($this->state);
         $transport->onInitialize(fn () => $this->initialize($config));
         $transport->onMessage($this->processMessage(...));
@@ -188,11 +191,22 @@ class Protocol
         $this->envelope = null;
         $this->headers = null;
 
+        $this->forgetServer();
+
         if (!$config->protocolVersion->isModern()) {
             return $this->handshake($config->protocolVersion, $config);
         }
 
         return $this->negotiate($config);
+    }
+
+    private function forgetServer(): void
+    {
+        $this->state->setInitialized(false);
+        $this->state->setProtocolVersion(null);
+        $this->state->setServerInfo(null);
+        $this->state->setInstructions(null);
+        $this->state->setServerCapabilities(null);
     }
 
     /**

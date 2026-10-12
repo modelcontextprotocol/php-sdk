@@ -81,7 +81,7 @@ interface ClientStateInterface
     /**
      * Store the protocol version negotiated during initialization.
      */
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void;
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void;
 
     /**
      * Get the protocol version negotiated during initialization.
@@ -93,7 +93,7 @@ interface ClientStateInterface
     /**
      * Store the server info from initialization.
      */
-    public function setServerInfo(Implementation $serverInfo): void;
+    public function setServerInfo(?Implementation $serverInfo): void;
 
     /**
      * Get the server info from initialization.
@@ -113,7 +113,7 @@ interface ClientStateInterface
     /**
      * Set the capabilities the server declared.
      */
-    public function setServerCapabilities(ServerCapabilities $capabilities): void;
+    public function setServerCapabilities(?ServerCapabilities $capabilities): void;
 
     /**
      * Get the capabilities the server declared, null until it declared them.

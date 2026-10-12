@@ -100,7 +100,7 @@ class ClientState implements ClientStateInterface
         return $this->initialized;
     }
 
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void
     {
         $this->protocolVersion = $protocolVersion;
     }
@@ -110,7 +110,7 @@ class ClientState implements ClientStateInterface
         return $this->protocolVersion;
     }
 
-    public function setServerInfo(Implementation $serverInfo): void
+    public function setServerInfo(?Implementation $serverInfo): void
     {
         $this->serverInfo = $serverInfo;
     }
@@ -130,7 +130,7 @@ class ClientState implements ClientStateInterface
         return $this->instructions;
     }
 
-    public function setServerCapabilities(ServerCapabilities $capabilities): void
+    public function setServerCapabilities(?ServerCapabilities $capabilities): void
     {
         $this->serverCapabilities = $capabilities;
     }
