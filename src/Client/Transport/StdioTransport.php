@@ -51,7 +51,11 @@ class StdioTransport extends BaseTransport
 
     private string $stderrBuffer = '';
 
-    /** Why the server's output ended, worked out once: the exit code is only reported once. */
+    /**
+     * Why the server's output ended, kept because every later tick sees the end of output
+     * again and would wait out the exit grace each time, and because before PHP 8.3
+     * proc_get_status() reports the exit code only on its first call after the exit.
+     */
     private ?string $exitReason = null;
 
     /**
@@ -68,6 +72,11 @@ class StdioTransport extends BaseTransport
      * How long a server that closed its output is given to exit, so its exit code can be reported.
      */
     private const EXIT_GRACE_SECONDS = 0.1;
+
+    /**
+     * Bytes of stderr read in one go at most: a pipe's usual capacity, so what an exited server left behind is read whole.
+     */
+    private const MAX_STDERR_READ = 64 * 1024;
 
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
@@ -369,7 +378,11 @@ class StdioTransport extends BaseTransport
             return;
         }
 
-        while (false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
+        // A server that never stops writing to stderr must not keep the loop
+        // from reading its answers and enforcing timeouts.
+        $read = 0;
+        while ($read < self::MAX_STDERR_READ && false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
+            $read += \strlen($chunk);
             $this->logger->debug('Server stderr', ['output' => trim($chunk)]);
 
             $this->stderrBuffer = substr($this->stderrBuffer.$chunk, -self::MAX_STDERR_BUFFER_SIZE);
@@ -385,12 +398,12 @@ class StdioTransport extends BaseTransport
             return $this->exitReason;
         }
 
-        $exitCode = $this->awaitExit();
+        $ending = $this->awaitExit();
         $this->processStderr();
 
-        $reason = null !== $exitCode
-            ? \sprintf('The server process exited with code %d', $exitCode)
-            : 'The server process closed its output; it is no longer running';
+        $reason = null !== $ending
+            ? 'The server process '.$ending
+            : 'The server process closed its output';
 
         $stderr = trim($this->stderrBuffer);
 
@@ -400,9 +413,9 @@ class StdioTransport extends BaseTransport
     /**
      * Give a server that closed its output a moment to exit, which it usually does next.
      *
-     * @return int|null the exit code, or null if it is still running
+     * @return string|null how the process ended, or null if it is still running
      */
-    private function awaitExit(): ?int
+    private function awaitExit(): ?string
     {
         if (!\is_resource($this->process)) {
             return null;
@@ -413,7 +426,12 @@ class StdioTransport extends BaseTransport
         do {
             $status = proc_get_status($this->process);
             if (!$status['running']) {
-                return $status['exitcode'];
+                // A process ended by a signal has no exit code; PHP reports -1 for it.
+                if ($status['signaled']) {
+                    return \sprintf('was killed by signal %d', $status['termsig']);
+                }
+
+                return $status['exitcode'] >= 0 ? \sprintf('exited with code %d', $status['exitcode']) : 'exited';
             }
 
             usleep(1000);

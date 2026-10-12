@@ -95,7 +95,7 @@ final class StdioTransportTest extends TestCase
         $response = $state->consumeResponse(1);
 
         $this->assertInstanceOf(Error::class, $response);
-        $this->assertStringContainsString('no longer running', $response->message);
+        $this->assertSame('The server process closed its output.', $response->message);
         $this->assertSame([TransportInterface::CONNECTION_LOST => true], $response->data);
     }
 
@@ -180,6 +180,34 @@ final class StdioTransportTest extends TestCase
         }
     }
 
+    #[TestDox('a server killed by a signal says so, instead of an exit code it never had')]
+    public function testKilledServerReportsTheSignal(): void
+    {
+        // Where /bin/sh forks the server instead of becoming it, the signal hits
+        // the shell, so the server lets go of the output itself.
+        $transport = new StdioTransport(command: \PHP_BINARY, args: ['-r', 'fclose(STDOUT); usleep(500000);']);
+        $state = new ClientState();
+        $transport->setState($state);
+        $state->addPendingRequest(1, 120);
+
+        (new \ReflectionMethod($transport, 'spawnProcess'))->invoke($transport);
+
+        try {
+            proc_terminate($this->readPrivate($transport, 'process'), 9);
+
+            $deadline = microtime(true) + 5;
+            while (null === ($response = $state->consumeResponse(1)) && microtime(true) < $deadline) {
+                $this->invokeProcessInput($transport);
+                usleep(1000);
+            }
+        } finally {
+            $transport->close();
+        }
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertStringStartsWith('The server process was killed by signal 9', $response->message);
+    }
+
     #[TestDox('a retried connection reports how its own process ended, not the previous one')]
     public function testRetryReportsItsOwnProcess(): void
     {
@@ -194,6 +222,45 @@ final class StdioTransportTest extends TestCase
             $this->assertStringNotContainsString('run 1', $e->getMessage());
         } finally {
             unlink($counter);
+        }
+    }
+
+    #[TestDox('a server that never stops writing to stderr does not hold up the transport')]
+    public function testEndlessStderrDoesNotBlock(): void
+    {
+        $endless = new class {
+            /** @var resource|null */
+            public $context;
+
+            public function stream_open(string $path, string $mode, int $options, ?string &$openedPath): bool
+            {
+                return true;
+            }
+
+            public function stream_read(int $count): string
+            {
+                return str_repeat('x', $count);
+            }
+
+            public function stream_eof(): bool
+            {
+                return false;
+            }
+        };
+
+        stream_wrapper_register('mcp-endless', $endless::class);
+
+        try {
+            $transport = new StdioTransport(command: 'true');
+            $stream = fopen('mcp-endless://', 'r');
+            $this->assertNotFalse($stream);
+            (new \ReflectionProperty($transport, 'stderr'))->setValue($transport, $stream);
+
+            (new \ReflectionMethod($transport, 'processStderr'))->invoke($transport);
+
+            $this->assertSame(StdioTransport::MAX_STDERR_BUFFER_SIZE, \strlen($this->readPrivate($transport, 'stderrBuffer')));
+        } finally {
+            stream_wrapper_unregister('mcp-endless');
         }
     }
 
