@@ -99,24 +99,17 @@ final class SseParser
 
     private function extract(): ?string
     {
-        $position = null;
-        $length = 0;
-
-        foreach (["\r\n\r\n", "\n\n", "\r\r"] as $delimiter) {
-            $found = strpos($this->buffer, $delimiter);
-
-            if (false !== $found && (null === $position || $found < $position)) {
-                $position = $found;
-                $length = \strlen($delimiter);
-            }
-        }
-
-        if (null === $position) {
+        // Any two line endings, each of which may differ. CRLF is atomic, or a
+        // single CRLF would also match as CR followed by LF. A CR that ends the
+        // buffer may still be the start of a CRLF; taking it as a line ending
+        // of its own leaves the LF as an empty line, which ends no event.
+        if (1 !== preg_match('/(?>\r\n|\r|\n)(?>\r\n|\r|\n)/', $this->buffer, $match, \PREG_OFFSET_CAPTURE)) {
             return null;
         }
 
+        [$delimiter, $position] = $match[0];
         $event = substr($this->buffer, 0, $position);
-        $this->buffer = substr($this->buffer, $position + $length);
+        $this->buffer = substr($this->buffer, $position + \strlen($delimiter));
 
         return $event;
     }

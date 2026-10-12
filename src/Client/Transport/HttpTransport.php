@@ -552,6 +552,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         try {
             $ended = $this->pumpSse($stream, $this->sseParser, $this->processSSEEvent(...), $this->abortSseStream(...));
         } catch (\RuntimeException $e) {
+            $stream->close();
             $this->activeStream = null;
             $this->sseParser->reset();
             $this->handleError($e);
@@ -570,11 +571,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         // be a truncated event: dispatching it would adopt its ID, and the
         // resumed stream would then replay only what follows it. Dispatch
         // it only when it completes the request or nothing will be resumed.
+        // Like the SSE standard, which discards an unterminated event, this
+        // also drops a complete one that lacks the blank line, so a priming
+        // event sent that way leaves no ID to resume from.
         $rest = $this->sseParser->rest();
         if (null !== $rest && (!$this->isSseStreamExpected() || $this->isResponseForCurrentSseRequest($rest['data']))) {
             $this->processSSEEvent($rest);
         }
 
+        $stream->close();
         $this->activeStream = null;
 
         if ($this->sseRequestCompleted) {
@@ -695,8 +700,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         // A client error will not resolve itself: 405 means the server offers no
-        // GET stream. Only a timeout or a rate limit is worth waiting out.
-        if ($status >= 400 && $status < 500 && 408 !== $status && 429 !== $status) {
+        // GET stream. Nor will a redirect the HTTP client did not follow. Only a
+        // timeout or a rate limit is worth waiting out.
+        if ($status >= 300 && $status < 500 && 408 !== $status && 429 !== $status) {
             $response->getBody()->close();
             $this->failSseStream(\sprintf('SSE stream ended before the request completed and the server rejected resuming it with HTTP %d', $status));
 
@@ -704,7 +710,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
-        if ($status >= 300 || !str_contains($contentType, 'text/event-stream')) {
+        if ($status >= 400 || !str_contains($contentType, 'text/event-stream')) {
             $response->getBody()->close();
             $this->logger->warning('SSE reconnect did not return an event stream', [
                 'attempt' => $this->reconnectAttempts,
@@ -731,6 +737,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             return;
         }
 
+        // No version is settled yet while probing with `server/discover`, so
+        // the server's era is unknown. A 2026-07-28 server sends no event IDs
+        // to resume from, and one that sends some anyway answers the GET with
+        // 405, which fails the request at once.
         $version = $this->state?->getProtocolVersion();
         if (null !== $version && !$version->supportsSseResumption()) {
             $this->failSseStream(\sprintf('SSE stream ended before the request completed and protocol version %s does not resume streams', $version->value));
@@ -791,6 +801,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private function failSseStream(string $reason): void
     {
+        $this->activeStream?->close();
         $this->activeStream = null;
         $this->sseParser->reset();
         $this->nextReconnectAtMs = null;
@@ -819,6 +830,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     {
         $bufferedBytes = $this->sseParser->bufferedBytes();
         $this->sseParser->reset();
+        $this->activeStream?->close();
         $this->activeStream = null;
         $this->nextReconnectAtMs = null;
 
@@ -891,8 +903,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         foreach (array_is_list($decoded) ? $decoded : [$decoded] as $message) {
+            // One the protocol cannot read is dropped there, so the request is still waiting.
             if (\is_array($message) && !isset($message['method']) && ($message['id'] ?? null) === $this->sseRequestId
-                && (\array_key_exists('result', $message) || \array_key_exists('error', $message))) {
+                && self::isWellFormedAnswer($message)) {
                 return true;
             }
         }
