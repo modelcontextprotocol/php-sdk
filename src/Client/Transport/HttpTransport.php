@@ -19,6 +19,7 @@ use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Wire\McpHeader;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
 use Psr\Http\Message\StreamFactoryInterface;
@@ -163,8 +164,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             ->withHeader('Accept', 'application/json, text/event-stream')
             ->withBody($this->streamFactory->createStream($data));
 
-        if (null !== $this->sessionId) {
-            $request = $request->withHeader('Mcp-Session-Id', $this->sessionId);
+        foreach ($this->sessionHeaders() as $name => $value) {
+            $request = $request->withHeader($name, $value);
         }
 
         // Protocol-derived first, so an explicitly configured header still wins:
@@ -315,10 +316,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     {
         if (null !== $this->sessionId) {
             try {
-                $request = $this->requestFactory->createRequest('DELETE', $this->endpoint)
-                    ->withHeader('Mcp-Session-Id', $this->sessionId);
+                $request = $this->requestFactory->createRequest('DELETE', $this->endpoint);
 
-                foreach ($this->headers as $name => $value) {
+                foreach ([...$this->sessionHeaders(), ...$this->headers] as $name => $value) {
                     $request = $request->withHeader($name, $value);
                 }
 
@@ -333,6 +333,34 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->activeStream = null;
         $this->closeListenStream();
         $this->handleClose('Transport closed');
+    }
+
+    /**
+     * Headers a handshake-era connection carries on every request after `initialize`.
+     *
+     * 2026-07-28 derives its version header from each message instead, see
+     * {@see protocolHeaders()}.
+     *
+     * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#protocol-version-header
+     *
+     * @return array<string, string>
+     */
+    private function sessionHeaders(): array
+    {
+        $headers = [];
+
+        if (null !== $this->sessionId) {
+            $headers['Mcp-Session-Id'] = $this->sessionId;
+        }
+
+        // Not on `initialize` itself, nor on the one that replaces an expired
+        // session: the version is only settled by its answer.
+        $version = $this->state?->getProtocolVersion();
+        if (null !== $version && !$version->isModern() && $this->state?->isInitialized()) {
+            $headers[McpHeader::PROTOCOL_VERSION] = $version->value;
+        }
+
+        return $headers;
     }
 
     /**
@@ -374,14 +402,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $request = $this->requestFactory->createRequest('GET', $this->endpoint)
             ->withHeader('Accept', 'text/event-stream');
 
-        if (null !== $this->sessionId) {
-            $request = $request->withHeader('Mcp-Session-Id', $this->sessionId);
-        }
-        if (null !== $version) {
-            $request = $request->withHeader('MCP-Protocol-Version', $version->value);
-        }
-
-        foreach ($this->headers as $name => $value) {
+        foreach ([...$this->sessionHeaders(), ...$this->headers] as $name => $value) {
             $request = $request->withHeader($name, $value);
         }
 

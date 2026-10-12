@@ -711,6 +711,61 @@ final class HttpTransportTest extends TestCase
         $client->disconnect();
     }
 
+    #[TestDox('a handshake-era connection names its revision on every request after "initialize", until the session expires')]
+    public function testHandshakeEraRequestsCarryTheProtocolVersion(): void
+    {
+        $expired = false;
+        $httpClient = new RecordingHttpClient(static function (array $message) use (&$expired): ?ResponseInterface {
+            if ('initialize' === ($message['method'] ?? null)) {
+                return new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => 'session'], json_encode([
+                    'jsonrpc' => '2.0',
+                    'id' => $message['id'],
+                    'result' => [
+                        'protocolVersion' => ProtocolVersion::V2025_06_18->value,
+                        'capabilities' => ['tools' => []],
+                        'serverInfo' => ['name' => 'test-server', 'version' => '1'],
+                    ],
+                ], \JSON_THROW_ON_ERROR));
+            }
+            if ('gone' === ($message['params']['name'] ?? null)) {
+                $expired = true;
+
+                return new Response(404);
+            }
+
+            return null;
+        });
+        $transport = new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory);
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+
+        $client->connect($transport);
+        try {
+            $client->callTool('gone');
+            $this->fail('An expired session must fail the call.');
+        } catch (ConnectionException) {
+        }
+        $this->assertTrue($expired);
+        $client->connect($transport);
+        $client->callTool('fast');
+        $client->disconnect();
+
+        $sent = array_map(static function (RequestInterface $request): string {
+            $method = json_decode((string) $request->getBody(), true)['method'] ?? $request->getMethod();
+
+            return $method.' '.($request->getHeaderLine('MCP-Protocol-Version') ?: '-');
+        }, $httpClient->requests);
+
+        $this->assertSame([
+            'initialize -',
+            'notifications/initialized 2025-06-18',
+            'tools/call 2025-06-18',
+            'initialize -',
+            'notifications/initialized 2025-06-18',
+            'tools/call 2025-06-18',
+            'DELETE 2025-06-18',
+        ], $sent);
+    }
+
     private function createTransport(int $maxSseBufferBytes = 8 * 1024 * 1024): HttpTransport
     {
         return new HttpTransport(
@@ -747,6 +802,9 @@ final class RecordingHttpClient implements ClientInterface
     /** @var list<array<string, mixed>> */
     public array $messages = [];
 
+    /** @var list<RequestInterface> */
+    public array $requests = [];
+
     /**
      * The hook sees every request first and may return its own answer; a null
      * return falls through to the default one.
@@ -759,6 +817,12 @@ final class RecordingHttpClient implements ClientInterface
 
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
+        $this->requests[] = $request;
+
+        if ('POST' !== $request->getMethod()) {
+            return new Response(202);
+        }
+
         /** @var array<string, mixed> $message */
         $message = json_decode((string) $request->getBody(), true, flags: \JSON_THROW_ON_ERROR);
         $this->messages[] = $message;
