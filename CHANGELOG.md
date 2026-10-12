@@ -57,6 +57,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `ClientLogger` dropping messages below `warning` on `2026-07-28` requests that ask for a lower level with `io.modelcontextprotocol/logLevel`.
 * Resume an interrupted SSE response in `HttpTransport` with a GET carrying `Last-Event-ID`, honouring the server's `retry` interval. Configure attempts and fallback backoff with `ReconnectPolicy`, the scheduling clock with any PSR-20 `ClockInterface` (default: a monotonic clock). Protocol version `2026-07-28` does not resume streams. A stream that ends without its response and without an event ID now fails the request instead of waiting for its timeout.
 * Fix a client `onProgress` callback receiving progress for an earlier request that timed out: progress now only reaches the callback of the request whose `progressToken` it carries.
+* Fix `Client::isConnected()` staying true after the stdio server process exited, which left later calls failing against the dead process.
 
 0.8.1
 -----
