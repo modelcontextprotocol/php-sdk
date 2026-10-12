@@ -672,6 +672,15 @@ class Protocol
             return null;
         }
 
+        // A session destroyed while the request ran, e.g. by a DELETE, must not be saved back.
+        if (!$this->sessionManager->exists($sessionId)) {
+            $this->logger->warning('Fiber yielded for a session that no longer exists.', [
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return null;
+        }
+
         $session = $this->sessionManager->createWithId($sessionId);
 
         if ($yieldedValue->sessionId !== $sessionId->toRfc4122()) {
