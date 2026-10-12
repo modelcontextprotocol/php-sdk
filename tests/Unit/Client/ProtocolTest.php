@@ -565,6 +565,22 @@ final class ProtocolTest extends TestCase
         $this->assertSame(['prog-2'], $seen, 'the late progress of the first request must be dropped');
     }
 
+    #[TestDox('progress arriving after its request completed does not reach the callback')]
+    public function testProgressAfterCompletionIsDropped(): void
+    {
+        $protocol = new Protocol();
+        $protocol->connect(new ProgressReportingTransport(), $this->createConfiguration(ProtocolVersion::V2025_11_25));
+        $seen = [];
+        $protocol->setProgressCallback(static function (float $progress, ?float $total, ?string $message) use (&$seen): void {
+            $seen[] = $message;
+        });
+
+        $protocol->request(new CallToolRequest('slow', []), 30, withProgress: true);
+        $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"prog-1","progress":2,"message":"late"}}');
+
+        $this->assertSame(['prog-1'], $seen);
+    }
+
     private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
     {
         return new Configuration(
@@ -950,11 +966,7 @@ final class InterruptingTransport implements TransportInterface
     }
 }
 
-/**
- * Before answering a request, reports progress for the previous request's
- * token, arriving late, and then for its own. Each notification's message is
- * the token it was sent for.
- */
+/** Reports progress for the previous request's token, then its own, each with the token as message. */
 final class ProgressReportingTransport implements TransportInterface
 {
     private ClientStateInterface $state;
