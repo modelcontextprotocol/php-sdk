@@ -309,7 +309,8 @@ final class ProtocolTest extends TestCase
                 $this->callback(static function ($data) {
                     $decoded = json_decode($data, true);
 
-                    return Error::INTERNAL_ERROR === ($decoded['error']['code'] ?? null);
+                    return Error::INTERNAL_ERROR === ($decoded['error']['code'] ?? null)
+                        && 1 === ($decoded['id'] ?? null);
                 }),
                 $this->callback(static function ($context) {
                     return 503 === ($context['status_code'] ?? null);
