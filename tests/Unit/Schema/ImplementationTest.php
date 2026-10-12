@@ -120,12 +120,15 @@ final class ImplementationTest extends TestCase
         Implementation::fromArray(['name' => 'my-client']);
     }
 
-    public function testFromArrayThrowsOnEmptyVersion(): void
+    /**
+     * The spec types the version as a plain string, and the Python SDK sends an
+     * empty one when the server has none configured.
+     */
+    public function testFromArrayAcceptsEmptyVersion(): void
     {
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid or missing "version" in Implementation data.');
+        $implementation = Implementation::fromArray(['name' => 'my-server', 'version' => '']);
 
-        Implementation::fromArray(['name' => 'my-client', 'version' => '']);
+        $this->assertSame('', $implementation->version);
     }
 
     public function testFromArrayThrowsOnNonStringVersion(): void

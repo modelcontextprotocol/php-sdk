@@ -14,6 +14,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `HttpTransport::getSessionId()` to read the server-minted `Mcp-Session-Id`: a request-scoped caller can persist it and pass it back through the constructor's `$headers` on a later transport. Always `null` on `2026-07-28`, which removed protocol-level sessions.
 * Fix `HttpTransport` omitting the `MCP-Protocol-Version` header on requests after the `initialize` handshake, including the closing `DELETE`.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
+* Fix `Client::connect()` rejecting an empty `serverInfo.version`, as the Python SDK sends, and leaving the transport open when initialization fails on a malformed result: the transport is now closed and the failure wrapped in a `ConnectionException`.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).
 * Fix `RequestEvent`, `ResponseEvent` and `ErrorEvent` not being dispatched for `2026-07-28` requests.

@@ -51,7 +51,7 @@ class Implementation implements \JsonSerializable
         if (!isset($data['name']) || !\is_string($data['name']) || '' === $data['name']) {
             throw new InvalidArgumentException('Invalid or missing "name" in Implementation data.');
         }
-        if (!isset($data['version']) || !\is_string($data['version']) || '' === $data['version']) {
+        if (!isset($data['version']) || !\is_string($data['version'])) {
             throw new InvalidArgumentException('Invalid or missing "version" in Implementation data.');
         }
 
