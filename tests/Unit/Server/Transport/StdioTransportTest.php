@@ -55,6 +55,10 @@ final class StdioTransportTest extends TestCase
     #[TestDox('a line arriving on an idle input is read as soon as it arrives')]
     public function testIdleInputWakesOnArrival(): void
     {
+        if (!\function_exists('proc_open')) {
+            $this->markTestSkipped('proc_open() is needed to feed the transport from a real pipe.');
+        }
+
         // The child sends a request, waits for the answer, idles for 10ms, then sends another and exits.
         $process = proc_open(
             [\PHP_BINARY, '-r', 'echo "{\"first\":1}\n"; fgets(STDIN); usleep(10000); echo "{\"second\":1}\n";'],
