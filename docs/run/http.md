@@ -138,18 +138,20 @@ defaults when they are absent.
 ## DNS Rebinding Protection
 
 `DnsRebindingProtectionMiddleware` validates `Host` on every request and additionally validates `Origin`
-whenever that header is present. An invalid or missing `Host`, or a cross-origin request with an unlisted `Origin`, receives `403 Forbidden`.
+whenever that header is present. An invalid or missing `Host`, or a cross-origin request with an unlisted
+`Origin`, receives `403 Forbidden`.
 
 `allowedHosts` contains server hostnames, compared case-insensitively without the port. It defaults to
-`localhost`, `127.0.0.1` and `[::1]`. Use `allowedHosts: ['*']` to allow any non-empty Host header,
-for example when a reverse proxy already validates it. An empty list allows no hosts. Origin validation
-remains active with wildcard hosts.
+`localhost`, `127.0.0.1` and `[::1]`. An empty list allows no hosts. Use `allowedHosts: ['*']` to allow any
+non-empty Host header, but only when a reverse proxy already validates it: the same-origin check below trusts
+the Host header, so wildcard hosts alone give no protection against DNS rebinding.
 
-`allowedOrigins` contains the full browser origins, matched exactly,
-including scheme and port, without a trailing slash. It defaults to an empty list. Same-origin requests are
-always permitted: the Origin scheme, hostname and effective port must match the request URI (omitted ports
-mean 80 for HTTP and 443 for HTTPS). Requests without `Origin` only need an allowed `Host`.
-Behind a reverse proxy, ensure the request URI reflects the public scheme, hostname and port.
+`allowedOrigins` contains the full browser origins, including scheme and port. Entries are normalized
+(lowercase, no trailing slash, default port omitted) and compared against the `Origin` header as browsers send
+it. It defaults to an empty list. Same-origin requests are always permitted: the Origin scheme, hostname and
+effective port must match the request URI (omitted ports mean 80 for HTTP and 443 for HTTPS).
+Requests without `Origin` only need an allowed `Host`. Behind a reverse proxy, ensure the request URI reflects
+the public scheme, hostname and port.
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -160,8 +162,8 @@ new DnsRebindingProtectionMiddleware(
 );
 ```
 
-Configure cross-origin browser clients in both this middleware and `CorsMiddleware`. Neither list is inferred from the
-other. Use `allowedOrigins: ['*']` to allow any Origin header while continuing to validate Host.
+Configure cross-origin browser clients in both this middleware and `CorsMiddleware`. Neither list is inferred
+from the other. Use `allowedOrigins: ['*']` to allow any Origin header while continuing to validate Host.
 A reverse proxy validating `Host` alone does not replace Origin validation.
 
 ## Protocol Version Validation
@@ -258,7 +260,7 @@ $transport = new StreamableHttpTransport(
 ```
 
 When a reverse proxy already validates Host, replace the default DNS rebinding middleware with
-`allowedHosts: ['*']` to retain Origin validation:
+`allowedHosts: ['*']` to keep validating cross-origin requests:
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;

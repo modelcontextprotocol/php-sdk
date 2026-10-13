@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Transport\Http\Middleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
+use Psr\Http\Server\RequestHandlerInterface;
 
 final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
 {
@@ -161,6 +162,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
     }
 
     #[DataProvider('rejectedOriginProvider')]
+    #[TestDox('rejects an Origin not exactly in the allowlist: $_dataName')]
     public function testRejectsUnlistedOrigin(string|array $origin): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(
@@ -170,13 +172,37 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
         );
         $request = $this->factory->createServerRequest('POST', 'http://localhost/')
             ->withHeader('Origin', $origin);
-        $handler = $this->createMock(\Psr\Http\Server\RequestHandlerInterface::class);
+        $handler = $this->createMock(RequestHandlerInterface::class);
         $handler->expects($this->never())->method('handle');
 
         $response = $middleware->process($request, $handler);
 
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame('Forbidden: Invalid Origin header.', (string) $response->getBody());
+    }
+
+    public static function nonCanonicalAllowedOriginProvider(): iterable
+    {
+        yield 'uppercase' => ['https://Client.example', 'https://client.example'];
+        yield 'trailing slash' => ['https://client.example/', 'https://client.example'];
+        yield 'explicit default port' => ['https://client.example:443', 'https://client.example'];
+        yield 'explicit HTTP default port' => ['HTTP://client.example:80/', 'http://client.example'];
+        yield 'custom port kept' => ['http://client.example:8080', 'http://client.example:8080'];
+    }
+
+    #[DataProvider('nonCanonicalAllowedOriginProvider')]
+    #[TestDox('allowed origins are normalized like browsers send them: $_dataName')]
+    public function testNonCanonicalAllowedOriginMatches(string $allowedOrigin, string $origin): void
+    {
+        $middleware = new DnsRebindingProtectionMiddleware(
+            allowedOrigins: [$allowedOrigin],
+            responseFactory: $this->factory,
+            streamFactory: $this->factory,
+        );
+        $request = $this->factory->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Origin', $origin);
+
+        $this->assertSame(200, $middleware->process($request, $this->passthroughHandler)->getStatusCode());
     }
 
     public static function wildcardOriginProvider(): iterable
@@ -189,6 +215,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
     }
 
     #[DataProvider('wildcardOriginProvider')]
+    #[TestDox('wildcard origins still validate Host: $_dataName')]
     public function testWildcardOriginsStillValidateHosts(?string $origin): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(
@@ -223,6 +250,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
     }
 
     #[DataProvider('wildcardHostProvider')]
+    #[TestDox('wildcard hosts still validate Origin: $_dataName')]
     public function testWildcardHosts(string $uri, ?string $origin, int $status): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(
@@ -244,6 +272,17 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
         }
     }
 
+    #[TestDox('wildcard hosts trust Host for the same-origin check, so they do not stop DNS rebinding alone')]
+    public function testWildcardHostsAcceptRebindingRequest(): void
+    {
+        $middleware = new DnsRebindingProtectionMiddleware(allowedHosts: ['*'], responseFactory: $this->factory, streamFactory: $this->factory);
+        $request = $this->factory->createServerRequest('POST', 'http://evil.example:8000/mcp')
+            ->withHeader('Origin', 'http://evil.example:8000');
+
+        $this->assertSame(200, $middleware->process($request, $this->passthroughHandler)->getStatusCode());
+    }
+
+    #[TestDox('wildcard hosts still require a Host header')]
     public function testWildcardHostsStillRequireHostHeader(): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(allowedHosts: ['*'], responseFactory: $this->factory, streamFactory: $this->factory);
@@ -252,6 +291,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
         $this->assertSame(403, $middleware->process($request, $this->passthroughHandler)->getStatusCode());
     }
 
+    #[TestDox('empty allowed hosts reject every Host')]
     public function testEmptyAllowedHostsRejectsAllHosts(): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(allowedHosts: [], responseFactory: $this->factory, streamFactory: $this->factory);
@@ -291,6 +331,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
     }
 
     #[DataProvider('sameOriginProvider')]
+    #[TestDox('same-origin check: $_dataName')]
     public function testSameOrigin(string $uri, string $origin, int $status): void
     {
         foreach ([[], ['https://client.example']] as $allowedOrigins) {
@@ -305,6 +346,7 @@ final class DnsRebindingProtectionMiddlewareTest extends MiddlewareTestCase
         }
     }
 
+    #[TestDox('a same-origin request cannot bypass Host validation')]
     public function testSameOriginCannotBypassHostValidation(): void
     {
         $middleware = new DnsRebindingProtectionMiddleware(responseFactory: $this->factory, streamFactory: $this->factory);

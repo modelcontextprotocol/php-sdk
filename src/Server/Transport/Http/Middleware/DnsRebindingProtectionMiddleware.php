@@ -23,10 +23,10 @@ use Psr\Http\Server\RequestHandlerInterface;
  * Protects local MCP servers against DNS rebinding attacks.
  *
  * The Host header is always validated against allowedHosts, ignoring case and
- * port. If present, Origin must match the request URI origin or an exact entry
- * in allowedOrigins, including scheme and port, unless allowedOrigins contains '*'.
- * By default, only localhost hosts
- * with same-origin requests or requests without an Origin header are allowed.
+ * port. If present, Origin must match the request URI origin or an entry in
+ * allowedOrigins, including scheme and port, unless allowedOrigins contains '*'.
+ * By default, only localhost hosts with same-origin requests or requests
+ * without an Origin header are allowed.
  *
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning
  *
@@ -40,20 +40,24 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
     /** @var list<string> */
     private readonly array $allowedHosts;
 
+    /** @var list<string> */
+    private readonly array $allowedOrigins;
+
     /**
      * @param list<string>                  $allowedHosts    Hostnames (without port) that are permitted. Defaults to localhost variants.
      *                                                       IPv6 addresses must be bracketed (e.g. `[::1]`). Use `['*']` to allow any non-empty Host header.
-     * @param list<string>                  $allowedOrigins  Exact origins (scheme, host and optional port) that are permitted. Same-origin requests are always permitted. Use `['*']` to allow any Origin header.
+     * @param list<string>                  $allowedOrigins  Origins (scheme, host and optional port) that are permitted, compared case-insensitively. Same-origin requests are always permitted. Use `['*']` to allow any Origin header.
      * @param ResponseFactoryInterface|null $responseFactory PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory   PSR-17 stream factory (auto-discovered if null)
      */
     public function __construct(
         array $allowedHosts = ['localhost', '127.0.0.1', '[::1]'],
-        private readonly array $allowedOrigins = [],
+        array $allowedOrigins = [],
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
         $this->allowedHosts = array_values(array_map('strtolower', $allowedHosts));
+        $this->allowedOrigins = array_values(array_map($this->normalizeOrigin(...), $allowedOrigins));
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
@@ -67,12 +71,20 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
         if ($request->hasHeader('Origin')
             && !\in_array('*', $this->allowedOrigins, true)
             && !$this->isSameOrigin($request)
-            && !\in_array($request->getHeaderLine('Origin'), $this->allowedOrigins, true)
+            && !\in_array(strtolower($request->getHeaderLine('Origin')), $this->allowedOrigins, true)
         ) {
             return $this->createForbiddenResponse('Forbidden: Invalid Origin header.');
         }
 
         return $handler->handle($request);
+    }
+
+    private function normalizeOrigin(string $origin): string
+    {
+        // Browsers send origins lowercase, without trailing slash or default port.
+        $origin = rtrim(strtolower($origin), '/');
+
+        return preg_replace(['#^(https://.+):443$#', '#^(http://.+):80$#'], '$1', $origin) ?? $origin;
     }
 
     private function isSameOrigin(ServerRequestInterface $request): bool

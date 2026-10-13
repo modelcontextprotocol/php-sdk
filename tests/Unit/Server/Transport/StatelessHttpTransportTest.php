@@ -71,6 +71,7 @@ final class StatelessHttpTransportTest extends TestCase
             ->withBody($this->factory->createStream($body));
     }
 
+    #[TestDox('Host and Origin are validated independently')]
     public function testHostAndOriginAreValidatedIndependently(): void
     {
         $transport = new StatelessHttpTransport($this->protocol(), middleware: [
