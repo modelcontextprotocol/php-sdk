@@ -448,6 +448,57 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertInstanceOf(Error::class, $received);
     }
 
+    #[TestDox('the polling loop stops once the client has disconnected')]
+    public function testPollingLoopStopsOnceTheClientHasDisconnected(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new class($request, $this->factory, $this->factory) extends StreamableHttpTransport {
+            protected function isConnectionAborted(): bool
+            {
+                return true;
+            }
+        };
+
+        $received = null;
+        $fiber = new \Fiber(static function () use (&$received) {
+            $received = \Fiber::suspend();
+
+            return null;
+        });
+        $fiber->start();
+
+        $transport->onMessage(static function (TransportInterface $transport) use ($fiber): void {
+            $transport->attachFiberToSession($fiber, Uuid::v4());
+        });
+        $transport->setOutgoingMessagesProvider(static fn (): array => []);
+        $transport->setResponseFinder(static fn () => null);
+        $transport->setPendingRequestsProvider(static fn (): array => [
+            ['request_id' => 1, 'timestamp' => time(), 'timeout' => 120],
+        ]);
+
+        $response = $transport->listen();
+
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertSame(": keep-alive\n\n", $output);
+        $this->assertTrue($fiber->isSuspended(), 'The abandoned call must not be resumed.');
+        $this->assertNull($received);
+    }
+
     /**
      * @return iterable<string, array{bool}>
      */
