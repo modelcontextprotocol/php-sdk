@@ -2611,6 +2611,29 @@ final class ProtocolTest extends TestCase
         $this->assertFalse($store->exists($sessionId));
     }
 
+    #[TestDox('A fiber yield does not send a client request the session could not store')]
+    public function testFiberYieldDoesNotSendARequestTheSessionCouldNotStore(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessions = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessions->createWithId($sessionId)->save();
+
+        $protocol = new Protocol([], [], MessageFactory::make(), $sessions);
+        $transport = new PollingLoopTransport();
+        $protocol->connect($transport);
+        $transport->setSessionId($sessionId);
+
+        // A DELETE lands after the yield read the session, before it saves.
+        $store->interleaveAfterNextRead(static function () use ($sessions, $sessionId): void {
+            $sessions->destroy($sessionId);
+        });
+        $requestId = $protocol->handleFiberYield(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 60), $sessionId, $transport);
+
+        $this->assertNull($requestId);
+        $this->assertSame([], $transport->takeOutgoingMessages());
+    }
+
     #[TestDox('A fiber yield that is not a suspension object is dropped without touching the session')]
     public function testFiberYieldedUnexpectedPayloadIsIgnored(): void
     {

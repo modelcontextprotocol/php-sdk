@@ -881,10 +881,19 @@ class Protocol
                     $this->queueOutgoing($outgoing, ['type' => null === $requestId ? 'notification' : 'request'], $session);
                 }
             } finally {
-                $session->save();
+                $saved = $session->save();
             }
         } finally {
             $this->releaseSessionLock($sessionId);
+        }
+
+        // As on the first suspension: a request the session does not hold would never be answered.
+        if (!$saved) {
+            $this->logger->warning('Failed to save the session of a suspended request.', [
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return null;
         }
 
         if (null !== $transport) {
