@@ -19,6 +19,7 @@ use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
@@ -830,19 +831,27 @@ class Protocol
 
         if (!$sessionId) {
             // Echo the id so a client probing with `server/discover` can correlate the refusal.
-            $id = match (true) {
-                1 !== \count($messages) => null,
-                $messages[0] instanceof Request => $messages[0]->getId(),
-                $messages[0] instanceof InvalidInputMessageException => $messages[0]->getRequestId(),
-                default => null,
-            };
-            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', $id);
+            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', self::findRequestId($messages));
             $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
             return null;
         }
 
-        if (!$this->sessionManager->exists($sessionId)) {
+        try {
+            $exists = $this->sessionManager->exists($sessionId);
+        } catch (SessionStoreException $e) {
+            // Not a 404: the session may well exist, so the client should retry instead of re-initializing.
+            $this->logger->error('Session store is unavailable.', [
+                'session_id' => $sessionId->toRfc4122(),
+                'exception' => $e,
+            ]);
+            $error = Error::forInternalError('Session store is unavailable.', self::findRequestId($messages));
+            $this->sendResponse($transport, $error, null, ['status_code' => 503]);
+
+            return null;
+        }
+
+        if (!$exists) {
             $error = Error::forInvalidRequest('Session not found or has expired.');
             $this->sendResponse($transport, $error, null, ['status_code' => 404]);
 
@@ -850,6 +859,21 @@ class Protocol
         }
 
         return $this->sessionManager->createWithId($sessionId);
+    }
+
+    /**
+     * The id of a single request, so a refusal of the whole input can be correlated with it.
+     *
+     * @param array<int,mixed> $messages
+     */
+    private static function findRequestId(array $messages): string|int|null
+    {
+        return match (true) {
+            1 !== \count($messages) => null,
+            $messages[0] instanceof Request => $messages[0]->getId(),
+            $messages[0] instanceof InvalidInputMessageException => $messages[0]->getRequestId(),
+            default => null,
+        };
     }
 
     /**
