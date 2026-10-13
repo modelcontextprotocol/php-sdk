@@ -314,7 +314,8 @@ final class Builder
      * {@see Psr16NotificationBus} or an implementation over your own broker.
      *
      * Registry changes are published automatically, with or without an event
-     * dispatcher, unless you pass your own registry with setRegistry(). Anything
+     * dispatcher, unless you pass your own registry with setRegistry(), and
+     * only then is `listChanged` announced. Anything
      * else, `notifications/resources/updated` for example, is published by the
      * application calling {@see NotificationBusInterface::publish()}.
      */
@@ -408,6 +409,9 @@ final class Builder
 
     /**
      * Explicitly set server capabilities. If set, this overrides automatic detection.
+     *
+     * A `listChanged` flag set here is announced on `server/discover` only; the
+     * `initialize` handshake has no way to deliver list changes.
      */
     public function setCapabilities(ServerCapabilities $serverCapabilities): self
     {
@@ -1094,7 +1098,7 @@ final class Builder
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
-        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded, $eventDispatcher);
+        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
@@ -1150,11 +1154,11 @@ final class Builder
      * the load, so they are advertised from the configured sources instead — opaque sources (custom
      * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
      */
-    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded, ?EventDispatcherInterface $eventDispatcher): ServerCapabilities
+    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
     {
-        // Without a dispatcher the registry announces nothing, so there is no
-        // list-changed notification to advertise.
-        $listChanged = $eventDispatcher instanceof EventDispatcherInterface;
+        // Only the bus delivers list changes, and only the built-in registry is
+        // wired to it; a custom registry's events never reach a client here.
+        $listChanged = null !== $this->notificationBus && !$this->hasCustomRegistry;
 
         if ($eagerlyLoaded) {
             $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();

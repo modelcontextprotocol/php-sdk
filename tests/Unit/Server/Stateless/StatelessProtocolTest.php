@@ -1236,6 +1236,20 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(['flavour' => 'vanilla'], (array) $answer['body']['result']['capabilities']['extensions']['com.example/things']);
     }
 
+    #[TestDox('listChanged is announced on server/discover when a notification bus delivers it')]
+    public function testListChangedIsAdvertisedWithANotificationBus(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $capabilities = self::call($protocol, 'server/discover')['body']['result']['capabilities'];
+
+        $this->assertTrue($capabilities['tools']['listChanged']);
+    }
+
     #[TestDox('a method of an extension this server has never heard of stays generic')]
     public function testUnknownExtensionMethodStaysGeneric(): void
     {

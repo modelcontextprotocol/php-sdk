@@ -145,6 +145,29 @@ class ServerCapabilities implements \JsonSerializable
     }
 
     /**
+     * Returns a copy that announces no list-changed notifications.
+     *
+     * A kind announced only through its `listChanged` flag stays announced.
+     */
+    public function withoutListChanged(): self
+    {
+        return new self(
+            $this->tools || $this->toolsListChanged,
+            false,
+            $this->resources || $this->resourcesListChanged,
+            $this->resourcesSubscribe,
+            false,
+            $this->prompts || $this->promptsListChanged,
+            false,
+            $this->logging,
+            $this->completions,
+            $this->experimental,
+            $this->extensions,
+            $this->tasks,
+        );
+    }
+
+    /**
      * @return array{
      *     logging?: \stdClass,
      *     completions?: \stdClass,

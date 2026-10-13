@@ -7,6 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * [BC Break] `DnsRebindingProtectionMiddleware` always validates `Host` (a missing one is rejected) and checks `Origin` separately against the new `allowedOrigins`, including scheme and port and empty by default. Same-origin requests are always allowed and both lists accept `['*']`. `allowedOrigins` is the new second constructor argument; pass the factories by name.
 * Fix the client throwing a native `\JsonException` for request params it cannot encode (e.g. invalid UTF-8): it now throws `InvalidArgumentException`, and a request handler result it cannot encode is answered with an internal error instead of no answer.
+* Fix servers announcing `listChanged` where no list changes are delivered: the `initialize` result never carries it, and `server/discover` only with a notification bus and the built-in registry. A server with only an event dispatcher no longer announces it.
 * Fix concurrent requests of one session overwriting each other's session changes: `Session::save()` now writes only the keys it changed, onto what the store holds at that point.
 * Fix `ClientGateway::progress()` sending another call's progress token when calls of one session run in parallel: the token now comes from the gateway's own request.
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
