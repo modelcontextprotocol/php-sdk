@@ -979,13 +979,15 @@ final class ProtocolTest extends TestCase
         $firstIds = $firstStream->getPendingRequestIds();
         $secondIds = $secondStream->getPendingRequestIds();
 
-        $protocol->processInput($secondStream, \sprintf('{"jsonrpc": "2.0", "id": %d, "result": {}}', $secondIds[0]), $sessionId);
+        $protocol->processInput($secondStream, \sprintf('{"jsonrpc": "2.0", "id": %s, "result": {}}', json_encode($secondIds[0])), $sessionId);
 
         $this->assertCount(1, $firstIds);
         $this->assertCount(1, $secondIds);
         $this->assertNotSame($firstIds, $secondIds);
         $this->assertSame($firstIds, $firstStream->getPendingRequestIds());
         $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
+        $this->assertNull($protocol->checkResponse(Uuid::fromString($firstIds[0]), $sessionId));
+        $this->assertInstanceOf(Response::class, $protocol->checkResponse(Uuid::fromString($secondIds[0]), $sessionId));
     }
 
     #[TestDox('A client request a fiber sends after resuming is polled only by its own stream')]
