@@ -56,12 +56,6 @@ use Symfony\Component\Uid\Uuid;
  */
 class Protocol
 {
-    /**
-     * Largest id a request to the client gets: JavaScript clients read JSON numbers as doubles,
-     * which hold integers exactly only up to 2^53 - 1. On 32-bit PHP, \PHP_INT_MAX caps it.
-     */
-    private const MAX_REQUEST_ID = 9007199254740991;
-
     /** Session key for pending outgoing requests */
     private const SESSION_PENDING_REQUESTS = '_mcp.pending_requests';
 
@@ -90,7 +84,7 @@ class Protocol
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
      * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
      *
-     * @var \WeakMap<McpFiber, int>
+     * @var \WeakMap<McpFiber, string>
      */
     private \WeakMap $awaitedRequestIds;
 
@@ -486,8 +480,8 @@ class Protocol
             return;
         }
 
-        // Request IDs are ints: a string ID like "1000" would otherwise match through PHP's key coercion.
-        $pending = \is_int($messageId) ? $session->get(self::SESSION_PENDING_REQUESTS, [])[$messageId] ?? null : null;
+        // Request IDs are UUID strings: an int ID cannot be one the server sent.
+        $pending = \is_string($messageId) ? $session->get(self::SESSION_PENDING_REQUESTS, [])[$messageId] ?? null : null;
         if (!\is_array($pending) || $this->hasTimedOut($pending)) {
             $this->logger->warning('Received a client response for an unknown or timed out request ID.', ['message_id' => $messageId]);
 
@@ -527,7 +521,7 @@ class Protocol
     /**
      * Sends a request to the client and returns the request ID.
      */
-    public function sendRequest(Request $request, int $timeout, SessionInterface $session): int
+    public function sendRequest(Request $request, int $timeout, SessionInterface $session): string
     {
         $requestId = $this->registerRequest($request, $timeout, $session);
 
@@ -539,12 +533,12 @@ class Protocol
     /**
      * Picks the id of a request to the client and stores the request as pending in the session.
      *
-     * The id is random, not counted in the session: concurrent requests of a client load
+     * The id is a UUID, not counted in the session: concurrent requests of a client load
      * the session at the same time and would count up to the same id.
      */
-    private function registerRequest(Request $request, int $timeout, SessionInterface $session): int
+    private function registerRequest(Request $request, int $timeout, SessionInterface $session): string
     {
-        $requestId = random_int(1, min(self::MAX_REQUEST_ID, \PHP_INT_MAX));
+        $requestId = Uuid::v4()->toRfc4122();
 
         $this->dispatchEvent(new ServerRequestEvent($request->withId($requestId), $timeout, $session));
 
@@ -726,7 +720,7 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error|null
      */
-    public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
+    public function checkResponse(string $requestId, Uuid $sessionId): Response|Error|null
     {
         if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return null;
@@ -777,7 +771,7 @@ class Protocol
      * The session is loaded again as the caller's copy may be as old as the last
      * poll, and saving it back would undo what other streams stored since.
      */
-    private function expireRequest(int $requestId, Uuid $sessionId): ?Error
+    private function expireRequest(string $requestId, Uuid $sessionId): ?Error
     {
         $session = $this->sessionManager->createWithId($sessionId);
         $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
@@ -809,7 +803,7 @@ class Protocol
     /**
      * Get pending requests for a session.
      *
-     * @return array<int, mixed> The pending requests
+     * @return array<string, mixed> The pending requests
      */
     public function getPendingRequests(Uuid $sessionId): array
     {
@@ -827,9 +821,9 @@ class Protocol
      * @param FiberSuspend|null              $yieldedValue
      * @param TransportInterface<mixed>|null $transport
      *
-     * @return int|null the ID of the request sent to the client, which the fiber now waits on
+     * @return string|null the ID of the request sent to the client, which the fiber now waits on
      */
-    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId, ?TransportInterface $transport = null): ?int
+    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId, ?TransportInterface $transport = null): ?string
     {
         if (!$sessionId) {
             $this->logger->warning('Fiber yielded value without associated session context.');
@@ -899,7 +893,7 @@ class Protocol
     /**
      * @param McpFiber $fiber
      */
-    private function trackAwaitedRequest(\Fiber $fiber, ?int $requestId): void
+    private function trackAwaitedRequest(\Fiber $fiber, ?string $requestId): void
     {
         if (null === $requestId) {
             unset($this->awaitedRequestIds[$fiber]);
@@ -913,7 +907,7 @@ class Protocol
     /**
      * @param McpFiber $fiber
      *
-     * @return array<int, mixed>
+     * @return array<string, mixed>
      */
     private function getAwaitedPendingRequests(\Fiber $fiber, Uuid $sessionId): array
     {

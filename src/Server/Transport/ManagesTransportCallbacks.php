@@ -37,10 +37,10 @@ trait ManagesTransportCallbacks
     /** @var callable(Uuid): array<int, array{message: string, context: array<string, mixed>}> */
     protected $outgoingMessagesProvider;
 
-    /** @var callable(Uuid, McpFiber): array<int, array<string, mixed>> */
+    /** @var callable(Uuid, McpFiber): array<string, array<string, mixed>> */
     protected $pendingRequestsProvider;
 
-    /** @var (callable(int, Uuid): (Response<array<string, mixed>>|Error|null))|null */
+    /** @var (callable(string, Uuid): (Response<array<string, mixed>>|Error|null))|null */
     protected $responseFinder;
 
     /** @var callable(FiberSuspend|null, ?Uuid, McpFiber): void */
@@ -67,7 +67,7 @@ trait ManagesTransportCallbacks
     }
 
     /**
-     * @param callable(int, Uuid):(Response<array<string, mixed>>|Error|null) $finder
+     * @param callable(string, Uuid):(Response<array<string, mixed>>|Error|null) $finder
      */
     public function setResponseFinder(callable $finder): void
     {

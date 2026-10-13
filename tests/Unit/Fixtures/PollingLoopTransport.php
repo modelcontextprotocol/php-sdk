@@ -25,7 +25,7 @@ use Mcp\Server\Transport\TransportInterface;
 final class PollingLoopTransport extends InMemoryTransport
 {
     /**
-     * @return list<int>
+     * @return list<string>
      */
     public function getPendingRequestIds(): array
     {

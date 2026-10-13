@@ -101,14 +101,14 @@ interface TransportInterface
      *
      * The transport calls this to decide if it should wait for a client response before resuming a Fiber.
      *
-     * @param callable(Uuid $sessionId, McpFiber $fiber): array<int, array<string, mixed>> $provider
+     * @param callable(Uuid $sessionId, McpFiber $fiber): array<string, array<string, mixed>> $provider
      */
     public function setPendingRequestsProvider(callable $provider): void;
 
     /**
      * Set a finder function to check for a specific client response.
      *
-     * @param callable(int, Uuid):FiberResume $finder
+     * @param callable(string, Uuid):FiberResume $finder
      */
     public function setResponseFinder(callable $finder): void;
 

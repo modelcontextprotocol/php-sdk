@@ -496,9 +496,9 @@ final class StreamableHttpTransportTest extends TestCase
             $transport->attachFiberToSession($fiber, Uuid::v4());
         });
         $transport->setOutgoingMessagesProvider(static fn (): array => []);
-        $transport->setResponseFinder(static fn (int $requestId): Error => Error::forInternalError('Request timed out', $requestId));
+        $transport->setResponseFinder(static fn (string $requestId): Error => Error::forInternalError('Request timed out', $requestId));
         $transport->setPendingRequestsProvider(static fn (): array => [
-            ['request_id' => 1, 'timestamp' => 1_000_000, 'timeout' => 120],
+            'request-1' => ['request_id' => 'request-1', 'timestamp' => 1_000_000, 'timeout' => 120],
         ]);
 
         $response = $transport->listen();
@@ -541,7 +541,7 @@ final class StreamableHttpTransportTest extends TestCase
         $transport->setOutgoingMessagesProvider(static fn (): array => []);
         $transport->setResponseFinder(static fn () => null);
         $transport->setPendingRequestsProvider(static fn (): array => [
-            ['request_id' => 1, 'timestamp' => time(), 'timeout' => 120],
+            'request-1' => ['request_id' => 'request-1', 'timestamp' => time(), 'timeout' => 120],
         ]);
 
         $response = $transport->listen();
