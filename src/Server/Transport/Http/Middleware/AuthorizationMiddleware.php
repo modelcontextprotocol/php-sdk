@@ -67,6 +67,12 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
+        // A CORS preflight never carries credentials (Fetch §4.8), and the transport
+        // answers OPTIONS without dispatching anything.
+        if ('OPTIONS' === $request->getMethod()) {
+            return $handler->handle($request);
+        }
+
         // No credentials, or another scheme: a plain challenge without error code (RFC 6750 §3.1).
         $authorization = $request->getHeaderLine('Authorization');
         if (!preg_match('/^Bearer(?: |$)/i', $authorization)) {

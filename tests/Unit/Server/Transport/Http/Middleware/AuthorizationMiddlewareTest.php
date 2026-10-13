@@ -40,6 +40,20 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         );
     }
 
+    public function testOptionsRequestPassesWithoutToken(): void
+    {
+        // A CORS preflight never carries credentials (Fetch §4.8).
+        $request = $this->factory->createServerRequest('OPTIONS', 'https://mcp.example.com/mcp')
+            ->withHeader('Origin', 'https://app.example.com')
+            ->withHeader('Access-Control-Request-Method', 'POST');
+        $handler = $this->capturingHandler();
+
+        $response = $this->middleware()->process($request, $handler);
+
+        $this->assertNotSame(401, $response->getStatusCode());
+        $this->assertSame($request, $handler->request);
+    }
+
     public function testMetadataUrlDoesNotFollowHostHeader(): void
     {
         $request = $this->factory->createServerRequest('POST', 'http://evil.example.com/mcp')->withHeader('Host', 'evil.example.com');
