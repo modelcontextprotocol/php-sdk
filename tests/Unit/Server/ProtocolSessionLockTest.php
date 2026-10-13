@@ -70,7 +70,15 @@ final class ProtocolSessionLockTest extends TestCase
     {
         $lock = new RecordingSessionLock($this->log);
         $sessionManager = $this->createMock(SessionManagerInterface::class);
-        $sessionManager->method('exists')->willThrowException(new \RuntimeException('store down'));
+        // Found before the lock is taken, the store fails when the session is looked up again under it.
+        $lookups = 0;
+        $sessionManager->method('exists')->willReturnCallback(static function () use (&$lookups): bool {
+            if (++$lookups > 1) {
+                throw new \RuntimeException('store down');
+            }
+
+            return true;
+        });
         $protocol = new Protocol([new PingHandler()], [], MessageFactory::make(), $sessionManager, sessionLock: $lock);
         $sessionId = Uuid::v4();
         $transport = new RecordingTransport();
@@ -81,6 +89,38 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame([], $lock->heldSessions());
         $this->assertCount(1, $transport->sent);
         $this->assertSame(Error::INTERNAL_ERROR, json_decode($transport->sent[0]['message'], true)['error']['code']);
+    }
+
+    #[TestDox('a request for an unknown session takes no lock, so no lock is left behind for an id nobody uses')]
+    public function testUnknownSessionTakesNoLock(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $protocol = $this->protocol($lock);
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', Uuid::v4());
+
+        $this->assertSame([], $this->log);
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(404, $transport->sent[0]['context']['status_code']);
+    }
+
+    #[TestDox('a session that ends while a request waits for its lock is refused under the lock')]
+    public function testSessionEndedWhileWaitingForTheLockIsRefused(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $sessionManager = $this->createMock(SessionManagerInterface::class);
+        $sessionManager->method('exists')->willReturnOnConsecutiveCalls(true, false);
+        $sessionManager->expects($this->never())->method('createWithId');
+        $protocol = new Protocol([new PingHandler()], [], MessageFactory::make(), $sessionManager, sessionLock: $lock);
+        $sessionId = Uuid::v4();
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
+
+        $this->assertSame(["acquire $sessionId", "release $sessionId"], $this->log);
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(404, $transport->sent[0]['context']['status_code']);
     }
 
     #[TestDox('a request without a session id, like initialize, takes no lock')]
@@ -132,7 +172,51 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame('', json_decode($transport->sent[0]['message'], true)['id']);
     }
 
-    #[TestDox('consuming the outgoing queue locks around its read and save')]
+    #[TestDox('a client response refused for a busy session is not answered under its id, which is the client\'s own request id')]
+    public function testRefusedClientResponseIsNotAnsweredUnderItsId(): void
+    {
+        $lock = new RecordingSessionLock($this->log, acquirable: false);
+        $protocol = $this->protocol($lock);
+        $sessionId = $this->existingSession();
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1000,"result":{"action":"accept"}}', $sessionId);
+
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(503, $transport->sent[0]['context']['status_code']);
+        $error = json_decode($transport->sent[0]['message'], true);
+        $this->assertNull($error['id']);
+        $this->assertSame(Error::SERVER_ERROR, $error['error']['code']);
+    }
+
+    #[TestDox('a refused batch of client responses is not answered under the empty id either')]
+    public function testRefusedBatchOfClientResponsesIsNotAnsweredUnderTheEmptyId(): void
+    {
+        $lock = new RecordingSessionLock($this->log, acquirable: false);
+        $protocol = $this->protocol($lock);
+        $sessionId = $this->existingSession();
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '[{"jsonrpc":"2.0","id":1000,"result":{}},{"jsonrpc":"2.0","method":"notifications/initialized"}]', $sessionId);
+
+        $this->assertCount(1, $transport->sent);
+        $this->assertNull(json_decode($transport->sent[0]['message'], true)['id']);
+    }
+
+    #[TestDox('a client response whose processing fails is not answered at all, like a notification')]
+    public function testFailingClientResponseIsNotAnswered(): void
+    {
+        $sessionManager = $this->createMock(SessionManagerInterface::class);
+        $sessionManager->method('exists')->willThrowException(new \RuntimeException('store down'));
+        $protocol = new Protocol([new PingHandler()], [], MessageFactory::make(), $sessionManager, sessionLock: new RecordingSessionLock($this->log));
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1000,"result":{}}', Uuid::v4());
+
+        $this->assertSame([], $transport->sent);
+    }
+
+    #[TestDox('consuming the outgoing queue locks around its read and save, without waiting for the lock')]
     public function testConsumingOutgoingMessagesLocks(): void
     {
         $lock = new RecordingSessionLock($this->log);
@@ -145,7 +229,7 @@ final class ProtocolSessionLockTest extends TestCase
 
         $this->assertCount(1, $messages);
         $this->assertSame([
-            "acquire $sessionId",
+            "try-acquire $sessionId",
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
@@ -160,10 +244,10 @@ final class ProtocolSessionLockTest extends TestCase
         $sessionId = $this->existingSession();
 
         $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
-        $this->assertSame(["acquire $sessionId", "read $sessionId", "release $sessionId"], $this->log);
+        $this->assertSame(["try-acquire $sessionId", "read $sessionId", "release $sessionId"], $this->log);
     }
 
-    #[TestDox('consuming a client response locks around its read and save')]
+    #[TestDox('consuming a client response locks around its read and save, without waiting for the lock')]
     public function testCheckingForAResponseLocks(): void
     {
         $lock = new RecordingSessionLock($this->log);
@@ -175,7 +259,7 @@ final class ProtocolSessionLockTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $protocol->checkResponse(7, $sessionId));
         $this->assertSame([
-            "acquire $sessionId",
+            "try-acquire $sessionId",
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
@@ -270,6 +354,18 @@ final class ProtocolSessionLockTest extends TestCase
 
         $this->assertSame(["destroy $sessionId"], $this->log);
         $this->assertFalse($this->store->exists($sessionId));
+    }
+
+    #[TestDox('ending an unknown session takes no lock')]
+    public function testDestroyingAnUnknownSessionTakesNoLock(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $protocol = $this->protocol($lock);
+        $sessionId = Uuid::v4();
+
+        $protocol->destroySession($sessionId);
+
+        $this->assertSame(["destroy $sessionId"], $this->log);
     }
 
     #[TestDox('without a lock configured, nothing but the store is touched')]

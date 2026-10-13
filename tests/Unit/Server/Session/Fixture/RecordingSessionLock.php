@@ -24,12 +24,13 @@ final class RecordingSessionLock implements SessionLockInterface
     private array $held = [];
 
     /**
-     * @param list<string> $log        receives "acquire <id>" and "release <id>" entries
-     * @param bool         $acquirable false makes every acquire() fail, like a lock another worker holds past the timeout
+     * @param list<string> $log        receives "acquire <id>", "try-acquire <id>" and "release <id>" entries
+     * @param bool         $acquirable false makes every acquire() fail and every tryAcquire() return false,
+     *                                 like a lock another worker holds past the timeout
      */
     public function __construct(
         public array &$log,
-        private readonly bool $acquirable = true,
+        public bool $acquirable = true,
     ) {
     }
 
@@ -41,12 +42,22 @@ final class RecordingSessionLock implements SessionLockInterface
             throw new SessionLockException(\sprintf('Timed out waiting for the lock of session "%s".', $key));
         }
 
-        if (isset($this->held[$key])) {
-            throw new SessionLockException(\sprintf('The lock of session "%s" is already held.', $key));
+        $this->hold($key);
+        $this->log[] = 'acquire '.$key;
+    }
+
+    public function tryAcquire(Uuid $sessionId): bool
+    {
+        $key = $sessionId->toRfc4122();
+
+        if (!$this->acquirable) {
+            return false;
         }
 
-        $this->held[$key] = true;
-        $this->log[] = 'acquire '.$key;
+        $this->hold($key);
+        $this->log[] = 'try-acquire '.$key;
+
+        return true;
     }
 
     public function release(Uuid $sessionId): void
@@ -59,6 +70,15 @@ final class RecordingSessionLock implements SessionLockInterface
 
         unset($this->held[$key]);
         $this->log[] = 'release '.$key;
+    }
+
+    private function hold(string $key): void
+    {
+        if (isset($this->held[$key])) {
+            throw new SessionLockException(\sprintf('The lock of session "%s" is already held.', $key));
+        }
+
+        $this->held[$key] = true;
     }
 
     /**

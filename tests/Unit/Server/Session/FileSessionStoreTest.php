@@ -142,6 +142,25 @@ class FileSessionStoreTest extends TestCase
         $this->assertFileExists($this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122());
     }
 
+    #[TestDox('gc() leaves the lock file of a request that holds it alone, however long the request runs')]
+    public function testGcKeepsAHeldLockFile(): void
+    {
+        $store = new FileSessionStore($this->directory, ttl: 60);
+        $id = new UuidV4();
+        $holder = new FileSessionLock($this->directory);
+        $holder->acquire($id);
+
+        $path = $this->directory.\DIRECTORY_SEPARATOR.$id->toRfc4122().FileSessionLock::FILE_SUFFIX;
+        touch($path, time() - 7200);
+
+        $store->gc();
+
+        $this->assertFileExists($path);
+        $this->assertFalse((new FileSessionLock($this->directory))->tryAcquire($id), 'A second worker locked the session next to its holder.');
+
+        $holder->release($id);
+    }
+
     #[TestDox('rejects an unwritable directory with the SDK\'s own exception')]
     public function testUnwritableDirectoryThrowsPackageException(): void
     {

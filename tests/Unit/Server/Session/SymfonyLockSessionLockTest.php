@@ -65,6 +65,52 @@ final class SymfonyLockSessionLockTest extends TestCase
         $second->release($id);
     }
 
+    #[TestDox('tryAcquire() returns false at once for a lock another worker holds, and takes it once it is free')]
+    public function testTryAcquireDoesNotWait(): void
+    {
+        $store = new InMemoryStore();
+        $id = Uuid::v4();
+        $first = new SymfonyLockSessionLock(new LockFactory($store));
+        $second = new SymfonyLockSessionLock(new LockFactory($store), timeout: 30);
+
+        $first->acquire($id);
+
+        $start = hrtime(true);
+        $this->assertFalse($second->tryAcquire($id));
+        $this->assertLessThan(1_000_000_000, hrtime(true) - $start);
+
+        $first->release($id);
+
+        $this->assertTrue($second->tryAcquire($id));
+        $second->release($id);
+    }
+
+    #[TestDox('tryAcquire() of a lock this instance already holds is an error')]
+    public function testTryAcquiringAHeldLockThrows(): void
+    {
+        $lock = new SymfonyLockSessionLock(new LockFactory(new InMemoryStore()));
+        $id = Uuid::v4();
+        $lock->acquire($id);
+
+        $this->expectException(SessionLockException::class);
+        $this->expectExceptionMessage('already held');
+
+        $lock->tryAcquire($id);
+    }
+
+    #[TestDox('tryAcquire() surfaces a failing store as the SDK\'s exception')]
+    public function testTryAcquireWrapsStoreFailure(): void
+    {
+        $store = $this->createMock(PersistingStoreInterface::class);
+        $store->method('save')->willThrowException(new LockAcquiringException('redis is down'));
+        $store->method('exists')->willReturn(false);
+
+        $this->expectException(SessionLockException::class);
+        $this->expectExceptionMessage('Failed to acquire the lock of session');
+
+        (new SymfonyLockSessionLock(new LockFactory($store)))->tryAcquire(Uuid::v4());
+    }
+
     #[TestDox('locks of different sessions do not block each other')]
     public function testDifferentSessionsDoNotBlockEachOther(): void
     {

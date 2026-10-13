@@ -168,8 +168,10 @@ class Protocol
      * Determines the id an unprocessable input has to be answered under.
      *
      * Returns null when the input carries no request at all, in which case it consists of
-     * notifications only and JSON-RPC forbids answering it. A batch resolves to the empty id
-     * because its failure cannot be attributed to one of its requests.
+     * notifications and client responses only, and JSON-RPC forbids answering it: an error
+     * under a response's id would read as the answer to the client's own request of that id.
+     * A batch resolves to the empty id because its failure cannot be attributed to one of
+     * its requests.
      */
     private static function findResponseId(string $input): string|int|null
     {
@@ -186,11 +188,11 @@ class Protocol
         if (!array_is_list($data)) {
             $id = $data['id'] ?? null;
 
-            return \is_string($id) || \is_int($id) ? $id : null;
+            return isset($data['method']) && (\is_string($id) || \is_int($id)) ? $id : null;
         }
 
         foreach ($data as $message) {
-            if (\is_array($message) && isset($message['id'])) {
+            if (\is_array($message) && isset($message['id'], $message['method'])) {
                 return '';
             }
         }
@@ -220,8 +222,12 @@ class Protocol
 
         // Taken before the session is read and held until it is saved, so no other request of
         // the session reads a state this one is about to replace. A session created here for
-        // an `initialize` is not known to anyone else yet and needs no lock.
-        if (null !== $sessionId && !$this->acquireSessionLock($sessionId)) {
+        // an `initialize` is not known to anyone else yet and needs no lock, and an unknown
+        // session id is refused by resolveSession() without one; the session is looked up
+        // again under the lock, as it may have ended while this request waited.
+        $takesLock = null !== $sessionId && null !== $this->sessionLock && $this->sessionManager->exists($sessionId);
+
+        if ($takesLock && !$this->acquireSessionLock($sessionId)) {
             $this->sendResponse($transport, Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input)), null, ['status_code' => 503]);
 
             return;
@@ -230,7 +236,7 @@ class Protocol
         try {
             $this->handleMessages($transport, $sessionId, $messages, $accessToken);
         } finally {
-            if (null !== $sessionId) {
+            if ($takesLock) {
                 $this->releaseSessionLock($sessionId);
             }
         }
@@ -600,8 +606,8 @@ class Protocol
      */
     public function consumeOutgoingMessages(Uuid $sessionId): array
     {
-        // Polled again on the stream's next turn, so a lock that is not free now costs nothing.
-        if (!$this->acquireSessionLock($sessionId)) {
+        // Polled again on the stream's next turn, so it does not wait for a lock that is not free now.
+        if (!$this->acquireSessionLock($sessionId, wait: false)) {
             return [];
         }
 
@@ -633,8 +639,8 @@ class Protocol
      */
     public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
     {
-        // Polled again on the stream's next turn, so a lock that is not free now costs nothing.
-        if (!$this->acquireSessionLock($sessionId)) {
+        // Polled again on the stream's next turn, so it does not wait for a lock that is not free now.
+        if (!$this->acquireSessionLock($sessionId, wait: false)) {
             return null;
         }
 
@@ -755,7 +761,8 @@ class Protocol
             ]);
         }
 
-        // The request the fiber waits on must be stored, so an unavailable lock is an error here.
+        // The message the fiber suspended on must be stored, so this waits for the lock; when it
+        // cannot be had, the exception makes the transport resume the fiber with an error.
         $this->sessionLock?->acquire($sessionId);
 
         try {
@@ -956,9 +963,10 @@ class Protocol
      */
     public function destroySession(Uuid $sessionId): void
     {
-        // Destroyed either way: a request still running would only write the session back,
-        // which is the lesser harm compared to keeping a session the client ended.
-        $locked = $this->acquireSessionLock($sessionId);
+        // Destroyed even when a request of the session holds the lock past the timeout: the
+        // client ended the session, and Session::save() does not write back a session that
+        // was destroyed since it was read. An unknown session id has nothing to lock.
+        $locked = null !== $this->sessionLock && $this->sessionManager->exists($sessionId) && $this->acquireSessionLock($sessionId);
 
         try {
             $this->sessionManager->destroy($sessionId);
@@ -973,14 +981,20 @@ class Protocol
 
     /**
      * Returns false when a configured lock could not be acquired in time; true when it was, or there is none.
+     *
+     * @param bool $wait false to only take a lock that is free right now
      */
-    private function acquireSessionLock(Uuid $sessionId): bool
+    private function acquireSessionLock(Uuid $sessionId, bool $wait = true): bool
     {
         if (null === $this->sessionLock) {
             return true;
         }
 
         try {
+            if (!$wait) {
+                return $this->sessionLock->tryAcquire($sessionId);
+            }
+
             $this->sessionLock->acquire($sessionId);
         } catch (SessionLockException $e) {
             $this->logger->warning(\sprintf('Failed to acquire session lock: %s', $e->getMessage()), [

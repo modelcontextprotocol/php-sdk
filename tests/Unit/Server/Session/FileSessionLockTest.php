@@ -131,6 +131,94 @@ final class FileSessionLockTest extends TestCase
         $first->release($id);
     }
 
+    #[TestDox('tryAcquire() takes a free lock')]
+    public function testTryAcquireTakesAFreeLock(): void
+    {
+        $lock = new FileSessionLock($this->directory);
+        $id = Uuid::v4();
+
+        $this->assertTrue($lock->tryAcquire($id));
+        $this->assertFalse((new FileSessionLock($this->directory))->tryAcquire($id));
+
+        $lock->release($id);
+    }
+
+    #[TestDox('tryAcquire() returns false at once for a lock another worker holds, and does not wait for the timeout')]
+    public function testTryAcquireDoesNotWait(): void
+    {
+        $id = Uuid::v4();
+        $first = new FileSessionLock($this->directory);
+        $second = new FileSessionLock($this->directory, timeout: 30);
+
+        $first->acquire($id);
+
+        $start = hrtime(true);
+        $this->assertFalse($second->tryAcquire($id));
+        $this->assertLessThan(1_000_000_000, hrtime(true) - $start);
+
+        $first->release($id);
+
+        $this->assertTrue($second->tryAcquire($id));
+        $second->release($id);
+    }
+
+    #[TestDox('tryAcquire() of a lock this instance already holds is an error')]
+    public function testTryAcquiringAHeldLockThrows(): void
+    {
+        $lock = new FileSessionLock($this->directory);
+        $id = Uuid::v4();
+        $lock->acquire($id);
+
+        $this->expectException(SessionLockException::class);
+        $this->expectExceptionMessage('already held');
+
+        $lock->tryAcquire($id);
+    }
+
+    #[TestDox('a worker that waited on a lock file gc() removed locks the file now at the path, not the removed one')]
+    public function testWaiterOnARemovedLockFileStartsOver(): void
+    {
+        if (!\function_exists('proc_open') || '\\' === \DIRECTORY_SEPARATOR) {
+            $this->markTestSkipped('Needs proc_open() and POSIX unlink semantics.');
+        }
+
+        $id = Uuid::v4();
+        $path = $this->directory.'/'.$id->toRfc4122().FileSessionLock::FILE_SUFFIX;
+        new FileSessionLock($this->directory);
+
+        // Another process does what FileSessionStore::gc() does: it locks the file, unlinks it and releases it.
+        $script = <<<'PHP'
+            <?php
+
+            $handle = fopen($argv[1], 'c');
+            flock($handle, \LOCK_EX);
+            fwrite(\STDOUT, "locked\n");
+            usleep(200_000);
+            unlink($argv[1]);
+            flock($handle, \LOCK_UN);
+            fclose($handle);
+            PHP;
+        $file = $this->directory.'/gc.php';
+        file_put_contents($file, $script);
+
+        $process = proc_open([\PHP_BINARY, $file, $path], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $pipes);
+        $this->assertIsResource($process);
+        $this->assertSame("locked\n", fgets($pipes[1]));
+
+        $waiter = new FileSessionLock($this->directory, timeout: 5);
+        $waiter->acquire($id);
+
+        $this->assertSame('', stream_get_contents($pipes[2]));
+        fclose($pipes[1]);
+        fclose($pipes[2]);
+        $this->assertSame(0, proc_close($process));
+
+        $this->assertFileExists($path);
+        $this->assertFalse((new FileSessionLock($this->directory))->tryAcquire($id), 'A second worker locked the session next to the waiter.');
+
+        $waiter->release($id);
+    }
+
     #[TestDox('locks of different sessions do not block each other')]
     public function testDifferentSessionsDoNotBlockEachOther(): void
     {

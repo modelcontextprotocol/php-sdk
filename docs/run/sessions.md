@@ -112,7 +112,7 @@ $server = Server::builder()
 ```
 
 Point `FileSessionLock` at the session directory: `FileSessionStore::gc()` then removes the lock files of
-expired sessions along with them.
+expired sessions along with them. It never removes the file of a lock a request still holds.
 
 For a store shared across machines, use `SymfonyLockSessionLock` with any
 [symfony/lock](https://symfony.com/doc/current/components/lock.html) store (`composer require symfony/lock`):
@@ -134,19 +134,27 @@ $server = Server::builder()
 ```
 
 The lock is held from before a request reads its session until it saved it, so while its handlers run. It
-is released when a handler suspends to wait for the client (elicitation, sampling), and taken briefly on each
-poll of the stream that waits for the answer, so the answer's own request can be processed. Parallel tool
-calls of one session therefore run one after the other.
+is released when a handler suspends to wait for the client (elicitation, sampling), so the answer's own
+request can be processed. The stream that waits for the answer takes the lock briefly on each poll, and only
+when it is free; otherwise it tries again on its next poll. Parallel tool calls of one session therefore run
+one after the other.
 
 A request that cannot get the lock within the timeout (30 seconds by default, the constructors' `$timeout`)
 is answered with HTTP `503` and a JSON-RPC error, instead of running on a session another request is about
-to overwrite. `SymfonyLockSessionLock` also expires a held lock after `$ttl` (300 seconds by default), so a
-worker that dies holding one does not block the session for good.
+to overwrite. A handler that resumed after the client answered gets an error when the lock cannot be had to
+store its next request or notification: the `ClientGateway` method throws a `ClientException`, and the
+message does not reach the client.
+
+`SymfonyLockSessionLock` expires a held lock after `$ttl` (300 seconds by default), so a worker that dies
+holding one does not block the session for good. The lease is not refreshed while a handler runs, so `$ttl`
+must be longer than your longest handler runs; otherwise another request can take the lock before the first
+one saved the session.
 
 **Custom Session Locks:**
 
 Implement `SessionLockInterface` for another lock backend. `acquire()` blocks until the lock is held or
-throws `SessionLockException` after the backend's timeout; `release()` gives it back.
+throws `SessionLockException` after the backend's timeout; `tryAcquire()` takes the lock only if it is free
+right now and returns `false` otherwise; `release()` gives it back.
 
 **Available Session Stores:**
 

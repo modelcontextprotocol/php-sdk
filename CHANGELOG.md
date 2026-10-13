@@ -76,7 +76,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Fix concurrent stdio tool calls that report progress, log, elicit or sample never finishing: `StdioTransport` keeps every suspended fiber and resumes each with the answer to its own request. A transport passes the suspended `\Fiber` as last argument to the pending-requests provider and the fiber yield handler.
 * Add an opt-in per-session lock, `Builder::setSessionLock()`, serializing the concurrent requests of one session so none of them overwrites what another saved: pending server requests, client answers, client info. `FileSessionLock` locks with `flock()` next to `FileSessionStore`, `SymfonyLockSessionLock` uses a symfony/lock store for sessions shared across machines; `SessionLockInterface` takes custom ones. Off by default. A request that cannot get the lock in time is answered with `503` and a JSON-RPC error.
 * `Protocol::__construct()` takes an optional `SessionLockInterface $sessionLock` as its last argument.
-* `FileSessionStore::gc()` also removes the lock files of expired sessions a `FileSessionLock` in the same directory left behind.
+* `FileSessionStore::gc()` also removes the lock files of expired sessions a `FileSessionLock` in the same directory left behind, each only while no request holds it.
+* Resume a suspended handler with an error when the transport fails to store what it sends to the client next, instead of resuming it with `null`; `ClientGateway::notify()` then throws a `ClientException`.
 
 0.8.1
 -----

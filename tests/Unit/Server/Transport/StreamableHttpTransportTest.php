@@ -11,8 +11,10 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Exception\ClientException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
@@ -26,6 +28,7 @@ use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Server\Session\Fixture\HeldElsewhereSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\InterleavingSessionStore;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -693,6 +696,29 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame([1000, 1001], array_keys($session->get('_mcp.pending_requests')));
     }
 
+    #[TestDox('a message a resumed handler cannot store fails in the handler instead of resuming it with nothing')]
+    public function testMessageThatCannotBeStoredFailsInTheHandler(): void
+    {
+        $store = new InterleavingSessionStore();
+        $lock = new HeldElsewhereSessionLock($this->fileLock());
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $lock)
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $stream = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask-then-notify","arguments":{}}}', $sessionId, $lock);
+        $this->assertSame('text/event-stream', $stream->getHeaderLine('Content-Type'));
+
+        // The client answers the first request on a POST of its own, then another worker holds the
+        // session past the timeout, so what the resumed handler sends next cannot be stored.
+        $answer = $this->post($store, '{"jsonrpc":"2.0","id":1000,"result":{}}', $sessionId, $this->fileLock());
+        $this->assertLessThan(300, $answer->getStatusCode());
+        $lock->heldElsewhere = true;
+
+        $output = $this->readStream($stream);
+
+        $this->assertMatchesRegularExpression('/"id":2,"result".*first: ok, second: Failed to send the message to the client\., notify: Failed to send the message to the client\./s', $output);
+        $this->assertStringNotContainsString('"error"', $output);
+    }
+
     /**
      * Sends one POST to a fresh server sharing $store, like a PHP worker would.
      */
@@ -725,13 +751,52 @@ final class StreamableHttpTransportTest extends TestCase
                 \Fiber::suspend(new RequestSuspension(new PingRequest(), $context->getSession()->getId()->toRfc4122(), 5));
 
                 return 'done';
-            }, 'ask');
+            }, 'ask')
+            ->addTool(static function (RequestContext $context): string {
+                $gateway = $context->getClientGateway();
+                $first = $gateway->request(new PingRequest(), 5);
+                $second = $gateway->request(new PingRequest(), 5);
+
+                try {
+                    $gateway->notify(new ProgressNotification('p', 0.5));
+                    $notified = 'ok';
+                } catch (ClientException $e) {
+                    $notified = $e->getMessage();
+                }
+
+                return \sprintf(
+                    'first: %s, second: %s, notify: %s',
+                    $first instanceof Error ? $first->message : 'ok',
+                    $second instanceof Error ? $second->message : 'ok',
+                    $notified,
+                );
+            }, 'ask-then-notify');
 
         if (null !== $lock) {
             $builder->setSessionLock($lock);
         }
 
         return $builder->build()->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+    }
+
+    /**
+     * Reads an SSE response; the stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
+     */
+    private function readStream(ResponseInterface $response): string
+    {
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        return $output;
     }
 
     /**

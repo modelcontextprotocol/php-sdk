@@ -37,6 +37,8 @@ abstract class BaseTransport implements TransportInterface
 {
     use ManagesTransportCallbacks;
 
+    private const YIELD_FAILED_MESSAGE = 'Failed to send the message to the client.';
+
     protected ?Uuid $sessionId = null;
 
     /**
@@ -112,22 +114,34 @@ abstract class BaseTransport implements TransportInterface
     }
 
     /**
+     * Hands what the session's fiber yielded to the yield handler.
+     *
+     * When the handler fails, the message the fiber suspended on never reaches the client, so
+     * the fiber is resumed with an error instead of being left waiting on nothing; whatever it
+     * yields next is handled the same way.
+     *
      * @param FiberSuspend|null $yielded
      * @param McpFiber          $fiber   the fiber that yielded
      */
     protected function handleFiberYield(mixed $yielded, ?Uuid $sessionId, \Fiber $fiber): void
     {
-        if (null === $yielded || !\is_callable($this->fiberYieldHandler)) {
-            return;
-        }
+        while (null !== $yielded && \is_callable($this->fiberYieldHandler)) {
+            try {
+                ($this->fiberYieldHandler)($yielded, $sessionId, $fiber);
 
-        try {
-            ($this->fiberYieldHandler)($yielded, $sessionId, $fiber);
-        } catch (\Throwable $e) {
-            $this->logger->error('Fiber yield handler failed.', [
-                'exception' => $e,
-                'sessionId' => $sessionId?->toRfc4122(),
-            ]);
+                return;
+            } catch (\Throwable $e) {
+                $this->logger->error('Fiber yield handler failed.', [
+                    'exception' => $e,
+                    'sessionId' => $sessionId?->toRfc4122(),
+                ]);
+            }
+
+            if (!$fiber->isSuspended()) {
+                return;
+            }
+
+            $yielded = $fiber->resume(Error::forInternalError(self::YIELD_FAILED_MESSAGE));
         }
     }
 

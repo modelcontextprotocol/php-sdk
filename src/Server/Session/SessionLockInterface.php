@@ -20,7 +20,8 @@ use Symfony\Component\Uid\Uuid;
  * A request loads its session, changes it and writes it back whole, so two requests
  * of one session running at the same time can overwrite each other's changes. The
  * {@see \Mcp\Server\Protocol} holds the lock from before it reads the session until
- * it saved it, and releases it while a handler waits for the client.
+ * it saved it, and releases it while a handler waits for the client. A stream polling
+ * for the client's answer only takes the lock when it is free.
  *
  * @author Vitalii Cherepanov <vbcherepanov@gmail.com>
  */
@@ -32,6 +33,15 @@ interface SessionLockInterface
      * @throws SessionLockException when the lock could not be acquired in time, or the lock is already held by this instance
      */
     public function acquire(Uuid $sessionId): void;
+
+    /**
+     * Takes the lock of the session only if no other request holds it right now, without waiting.
+     *
+     * @return bool false when another request holds the lock
+     *
+     * @throws SessionLockException when the lock is already held by this instance, or the backend failed
+     */
+    public function tryAcquire(Uuid $sessionId): bool;
 
     /**
      * @throws SessionLockException when the lock is not held by this instance, or releasing it failed
