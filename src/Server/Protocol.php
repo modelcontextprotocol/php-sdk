@@ -81,6 +81,12 @@ class Protocol
     private const SESSION_LOCK_UNAVAILABLE_MESSAGE = 'The session lock is unavailable.';
 
     /**
+     * Seconds past its timeout after which a pending client request counts as abandoned by its stream.
+     * Until then, the stream that sent it expires it itself and reports the timeout.
+     */
+    private const ABANDONED_REQUEST_GRACE = 60;
+
+    /**
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
      * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
      *
@@ -559,6 +565,8 @@ class Protocol
             'method' => $request::getMethod(),
         ]);
 
+        $this->dropAbandonedRequests($session);
+
         // Per entry, so saving does not write back what other streams changed in the others.
         $session->set(self::SESSION_PENDING_REQUESTS.".{$id}", [
             'request_id' => $id,
@@ -805,6 +813,30 @@ class Protocol
         $session->save();
 
         return Error::forInternalError('Request timed out', $id);
+    }
+
+    /**
+     * Drops the pending client requests, and their unconsumed answers, that no stream waits for anymore.
+     *
+     * Only the stream that sent a request clears it, so one whose stream is gone, through a client
+     * disconnect or a dead worker, would stay until the session expires.
+     */
+    private function dropAbandonedRequests(SessionInterface $session): void
+    {
+        foreach ($session->get(self::SESSION_PENDING_REQUESTS, []) as $id => $pending) {
+            if (!\is_array($pending) || time() < (int) ($pending['timestamp'] ?? 0) + (int) ($pending['timeout'] ?? 120) + self::ABANDONED_REQUEST_GRACE) {
+                continue;
+            }
+
+            $this->logger->debug('Dropping abandoned client request.', [
+                'request_id' => $id,
+                'session_id' => $session->getId()->toRfc4122(),
+            ]);
+
+            // Per entry, so saving does not write back what other streams changed in the others.
+            $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
+            $session->forget(self::SESSION_RESPONSES.".{$id}");
+        }
     }
 
     /**

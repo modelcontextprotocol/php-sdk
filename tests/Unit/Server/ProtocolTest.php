@@ -2291,6 +2291,43 @@ final class ProtocolTest extends TestCase
         $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
     }
 
+    #[TestDox('A client request its stream abandoned is dropped with its answer once another one is sent')]
+    public function testAbandonedRequestIsDroppedWhenAnotherRequestIsSent(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 100],
+        ]);
+        $session->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => []]);
+        $session->save();
+
+        $session = $sessionManager->createWithId($session->getId());
+        $requestId = $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $session = $sessionManager->createWithId($session->getId());
+        $this->assertSame([$requestId->toRfc4122()], array_keys($session->get('_mcp.pending_requests')));
+        $this->assertNull($session->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+    }
+
+    #[TestDox('A timed out client request within the grace period is left to its own stream')]
+    public function testTimedOutRequestWithinGracePeriodIsKeptWhenAnotherRequestIsSent(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
+        ]);
+
+        $session = $sessionManager->createWithId($session->getId());
+        $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $this->assertArrayHasKey('00000000-0000-4000-8000-000000001000', $protocol->getPendingRequests($session->getId()));
+
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Request timed out', $result->message);
+    }
+
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
     public function testClientResponseEventGetIdCanBeNull(): void
     {
