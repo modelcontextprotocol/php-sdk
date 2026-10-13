@@ -31,6 +31,11 @@ class Session implements SessionInterface
      */
     private array $data;
 
+    /**
+     * Whether the store held this session when it was read or last saved.
+     */
+    private bool $stored = false;
+
     public function __construct(
         private SessionStoreInterface $store,
         private Uuid $id = new UuidV4(),
@@ -44,7 +49,18 @@ class Session implements SessionInterface
 
     public function save(): bool
     {
-        return $this->store->write($this->id, json_encode($this->readData(), \JSON_THROW_ON_ERROR));
+        $data = json_encode($this->readData(), \JSON_THROW_ON_ERROR);
+
+        // A session destroyed since it was read, e.g. by a DELETE while a request ran, must stay gone.
+        if ($this->stored && !$this->store->exists($this->id)) {
+            return false;
+        }
+
+        if (!$this->store->write($this->id, $data)) {
+            return false;
+        }
+
+        return $this->stored = true;
     }
 
     public function get(string $key, mixed $default = null): mixed
@@ -160,6 +176,8 @@ class Session implements SessionInterface
         if (false === $rawData) {
             return $this->data = [];
         }
+
+        $this->stored = true;
 
         // Empty session should not throw
         $decoded = json_decode($rawData, true);

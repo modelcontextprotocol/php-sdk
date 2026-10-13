@@ -2316,6 +2316,7 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $session = new Session(new InMemorySessionStore(), $sessionId);
 
+        $this->sessionManager->method('exists')->willReturn(true);
         $this->sessionManager->method('createWithId')->willReturn($session);
 
         $protocol = new Protocol(
@@ -2348,6 +2349,7 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $session = new Session(new InMemorySessionStore(), $sessionId);
 
+        $this->sessionManager->method('exists')->willReturn(true);
         $this->sessionManager->method('createWithId')->willReturn($session);
 
         $protocol = new Protocol(
@@ -2380,6 +2382,23 @@ final class ProtocolTest extends TestCase
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertSame('roots/list', $message['method']);
         $this->assertSame(1000, $message['id']);
+    }
+
+    #[TestDox('A fiber yield does not bring back a session destroyed while the request ran')]
+    public function testFiberYieldDoesNotResurrectADestroyedSession(): void
+    {
+        $store = new InMemorySessionStore();
+        $sessions = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessions->createWithId($sessionId)->save();
+
+        $protocol = new Protocol([], [], MessageFactory::make(), $sessions);
+
+        // A DELETE lands while the tool still runs, then the tool notifies the client.
+        $sessions->destroy($sessionId);
+        $protocol->handleFiberYield(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()), $sessionId);
+
+        $this->assertFalse($store->exists($sessionId));
     }
 
     #[TestDox('A fiber yield that is not a suspension object is dropped without touching the session')]
