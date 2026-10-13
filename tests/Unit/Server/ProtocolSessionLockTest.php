@@ -14,14 +14,18 @@ namespace Mcp\Tests\Unit\Server;
 use Mcp\Exception\SessionLockException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\Handler\Request\PingHandler;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
@@ -451,6 +455,112 @@ final class ProtocolSessionLockTest extends TestCase
         $protocol->processInput(new RecordingTransport(), '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
 
         $this->assertSame(["read $sessionId", "read $sessionId", "write $sessionId"], $this->log);
+    }
+
+    #[TestDox('what a handler writes after it resumed is saved under the lock, as the code after a resume runs without it')]
+    public function testSessionWritesAfterResumeAreSavedUnderTheLock(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $sessionId = $this->existingSession();
+        $fiber = $this->suspendedHandler($this->resumingProtocol($lock), $sessionId);
+
+        $this->log = [];
+        $result = $fiber->resume(new Response(1000, []));
+
+        $this->assertTrue($fiber->isTerminated());
+        $this->assertNull($result);
+        $this->assertInstanceOf(Response::class, $fiber->getReturn());
+        $this->assertSame([
+            "acquire $sessionId",
+            "read $sessionId",
+            "read $sessionId",
+            "write $sessionId",
+            "release $sessionId",
+        ], $this->log);
+        $this->assertTrue((new Session($this->store, $sessionId))->get('after'));
+    }
+
+    #[TestDox('a resumed handler whose session stays locked still gets its response out, without its later writes')]
+    public function testResumedHandlerOnABusySessionIsStillAnswered(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $sessionId = $this->existingSession();
+        $fiber = $this->suspendedHandler($this->resumingProtocol($lock), $sessionId);
+
+        $lock->acquirable = false;
+        $this->log = [];
+        $fiber->resume(new Response(1000, []));
+
+        $this->assertInstanceOf(Response::class, $fiber->getReturn());
+        $this->assertSame([], $this->log);
+        $this->assertSame([], $lock->heldSessions());
+        $this->assertNull((new Session($this->store, $sessionId))->get('after'));
+    }
+
+    #[TestDox('a session the client ended while the handler waited is not brought back by its later writes')]
+    public function testSessionDestroyedWhileTheHandlerWaitedStaysDestroyed(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $sessionId = $this->existingSession();
+        $protocol = $this->resumingProtocol($lock);
+        $fiber = $this->suspendedHandler($protocol, $sessionId);
+
+        $protocol->destroySession($sessionId);
+        $fiber->resume(new Response(1000, []));
+
+        $this->assertInstanceOf(Response::class, $fiber->getReturn());
+        $this->assertFalse($this->store->exists($sessionId));
+        $this->assertSame([], $lock->heldSessions());
+    }
+
+    private function resumingProtocol(RecordingSessionLock $lock): Protocol
+    {
+        $handler = new class implements RequestHandlerInterface {
+            public function supports(Request $request): bool
+            {
+                return true;
+            }
+
+            public function handle(Request $request, SessionInterface $session): Response
+            {
+                $session->set('before', true);
+                \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+                $session->set('after', true);
+
+                return new Response($request->getId(), []);
+            }
+        };
+
+        return new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager($this->store, gcProbability: 0),
+            sessionLock: $lock,
+        );
+    }
+
+    /**
+     * @return \Fiber<null, mixed, mixed, mixed>
+     */
+    private function suspendedHandler(Protocol $protocol, Uuid $sessionId): \Fiber
+    {
+        $transport = new class extends InMemoryTransport {
+            /** @var \Fiber<null, mixed, mixed, mixed>|null */
+            public ?\Fiber $fiber = null;
+
+            public function attachFiberToSession(\Fiber $fiber, Uuid $sessionId): void
+            {
+                $this->fiber = $fiber;
+            }
+        };
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
+
+        $this->assertNotNull($transport->fiber);
+        $this->assertTrue($transport->fiber->isSuspended());
+
+        return $transport->fiber;
     }
 
     private function protocol(RecordingSessionLock $lock, LoggerInterface $logger = new NullLogger()): Protocol

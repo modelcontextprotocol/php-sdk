@@ -391,20 +391,29 @@ class Protocol
                 $codec = $this->requestStateCodec;
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
+                $saveResumedSession = $this->saveResumedSession(...);
+                /** @var array<string, mixed>|null $suspendedState what the session held once the fiber first suspended */
+                $suspendedState = null;
 
                 // One fiber for the whole exchange: with the shim, the handler
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable): Response|Error {
+                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspendedState): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                        $result = $dispatchResult($result, $request, $session);
                     } catch (\Throwable $e) {
-                        return $errorForThrowable($e, $request, $session);
+                        $result = $errorForThrowable($e, $request, $session);
                     }
 
-                    return $dispatchResult($result, $request, $session);
+                    // A fiber that never suspended is saved by doProcessInput(); after a resume nothing else saves it.
+                    if (null !== $suspendedState) {
+                        $saveResumedSession($session, $suspendedState);
+                    }
+
+                    return $result;
                 });
 
                 $result = $fiber->start();
@@ -437,6 +446,8 @@ class Protocol
 
                         throw new RuntimeException('Failed to save the session of a suspended request.');
                     }
+
+                    $suspendedState = $session->all();
 
                     $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
@@ -948,6 +959,56 @@ class Protocol
             return $this->dispatchEvent(new ErrorEvent($result, $request, $session, null))->getError();
         } catch (\Throwable $e) {
             return $this->errorForThrowable($e, $request, $session);
+        }
+    }
+
+    /**
+     * Stores what a handler wrote to its session after it resumed.
+     *
+     * The fiber's session holds the state it suspended with, while the stored one has moved
+     * on: the client's answer was consumed, the outgoing queue drained, and other requests of
+     * the session saved theirs. So only the keys the handler changed since it suspended are
+     * written onto the stored session, under the lock, as the code after a resume runs without it.
+     *
+     * @param array<string, mixed> $suspendedState
+     */
+    private function saveResumedSession(SessionInterface $session, array $suspendedState): void
+    {
+        $state = $session->all();
+        $changed = array_filter($state, static fn (mixed $value, int|string $key): bool => !\array_key_exists($key, $suspendedState) || $suspendedState[$key] !== $value, \ARRAY_FILTER_USE_BOTH);
+        $removed = array_diff_key($suspendedState, $state);
+
+        if ([] === $changed && [] === $removed) {
+            return;
+        }
+
+        $sessionId = $session->getId();
+
+        if (!$this->acquireSessionLock($sessionId)) {
+            $this->logger->error('Lost the session writes of a resumed request, its session stayed locked.', ['session_id' => $sessionId->toRfc4122()]);
+
+            return;
+        }
+
+        try {
+            // A session the client ended while the handler waited must not be brought back.
+            if (!$this->sessionManager->exists($sessionId)) {
+                return;
+            }
+
+            $stored = $this->sessionManager->createWithId($sessionId);
+            foreach ($changed as $key => $value) {
+                $stored->set((string) $key, $value);
+            }
+            foreach (array_keys($removed) as $key) {
+                $stored->forget((string) $key);
+            }
+            $stored->save();
+        } catch (\Throwable $e) {
+            // The response is already decided: an error for the same request would contradict it.
+            $this->logger->error(\sprintf('Failed to save the session of a resumed request: %s', $e->getMessage()), ['exception' => $e]);
+        } finally {
+            $this->releaseSessionLock($sessionId);
         }
     }
 

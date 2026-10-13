@@ -699,6 +699,64 @@ final class ProtocolTest extends TestCase
         $this->assertSame([], $protocol->getPendingRequests($sessionId));
     }
 
+    #[TestDox('What a handler writes to its session after it resumed is stored, onto what the session holds by then')]
+    public function testSessionWritesAfterResumeAreSaved(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            $session->set('before', true);
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+            $session->set('after', true);
+            $session->forget('dropped');
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $session = $sessionManager->createWithId($sessionId);
+        $session->set('dropped', true);
+        $session->save();
+
+        $fiber = null;
+        $this->transport->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $attached) use (&$fiber): void {
+            $fiber = $attached;
+        });
+
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+        $this->assertInstanceOf(\Fiber::class, $fiber);
+
+        // The request reaches the client and its answer comes back while the handler waits.
+        $pendingIds = array_keys($protocol->getPendingRequests($sessionId));
+        $this->assertCount(1, $pendingIds);
+        $protocol->processInput($this->transport, \sprintf('{"jsonrpc": "2.0", "id": %s, "result": {}}', json_encode($pendingIds[0])), $sessionId);
+        $answer = $protocol->checkResponse(Uuid::fromString($pendingIds[0]), $sessionId);
+        $this->assertInstanceOf(Response::class, $answer);
+        $protocol->handleFiberYield(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'ping'), $sessionId->toRfc4122()), $sessionId);
+
+        $fiber->resume($answer);
+        $this->assertTrue($fiber->isTerminated());
+
+        $stored = $sessionManager->createWithId($sessionId);
+        $this->assertTrue($stored->get('before'));
+        $this->assertTrue($stored->get('after'));
+        $this->assertFalse($stored->has('dropped'));
+        // What happened to the session while the handler waited stays: the answered request is
+        // not pending again, the sent request is not queued again, the queued notification stays.
+        $this->assertSame([], $protocol->getPendingRequests($sessionId));
+        $queued = $protocol->consumeOutgoingMessages($sessionId);
+        $this->assertCount(1, $queued);
+        $this->assertSame('notification', $queued[0]['context']['type']);
+    }
+
     #[TestDox('A failing notification event listener does not produce a response')]
     public function testFailingNotificationListenerDoesNotProduceResponse(): void
     {
