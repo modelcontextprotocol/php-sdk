@@ -23,6 +23,7 @@ use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
@@ -776,6 +777,8 @@ class Protocol
      * envelope on the way out when the revision calls for one.
      *
      * @param array<string, mixed> $payload
+     *
+     * @throws InvalidArgumentException if the payload cannot be encoded as JSON, e.g. invalid UTF-8
      */
     private function send(array $payload, string $kind): void
     {
@@ -788,7 +791,13 @@ class Protocol
             'method' => $payload['method'] ?? null,
         ]);
 
-        $this->transport?->send(json_encode($payload, \JSON_THROW_ON_ERROR));
+        try {
+            $encoded = json_encode($payload, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException(\sprintf('Could not encode the "%s" %s as JSON: %s', $payload['method'] ?? 'unknown', $kind, $e->getMessage()), previous: $e);
+        }
+
+        $this->transport?->send($encoded);
     }
 
     /**
@@ -817,7 +826,15 @@ class Protocol
     {
         $this->logger->debug('Sending response', ['id' => $response->getId()]);
 
-        $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        try {
+            $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            // The server still awaits an answer, so it gets an error instead.
+            $this->logger->warning('Could not encode the response', ['id' => $response->getId(), 'exception' => $e]);
+
+            $encoded = json_encode(Error::forInternalError('Could not encode the response', $response->getId()), \JSON_THROW_ON_ERROR);
+        }
+
         $this->transport?->send($encoded);
     }
 
