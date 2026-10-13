@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
+* [BC Break] `DnsRebindingProtectionMiddleware` always validates `Host` (including rejecting a missing header) and independently checks `Origin` against a new exact `allowedOrigins` list, empty by default. Same-origin requests are always allowed after Host validation; configure cross-origin browser clients explicitly, including scheme and port. Use `allowedHosts: ['*']` to allow any non-empty Host header or `allowedOrigins: ['*']` to allow any Origin header independently. The new second constructor argument moves the response and stream factories to third and fourth; pass them by name.
 * Fix concurrent requests of one session overwriting each other's session changes: `Session::save()` now writes only the keys it changed, onto what the store holds at that point.
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
 * [BC Break] `SchemaValidator::validateAgainstJsonSchema()` no longer validates an empty array as an object. Pass `new \stdClass()` for an empty object.
