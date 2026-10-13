@@ -49,6 +49,11 @@ With HTTP, PHP often serves each request in a different process (e.g. PHP-FPM wo
 doesn't find them. Use a store that all processes share, like `FileSessionStore` on a shared
 directory or `Psr16SessionStore` with a shared cache such as Redis.
 
+`FileSessionStore` suits a single host. Once requests are spread over several hosts, or sessions number in the
+tens of thousands, use `Psr16SessionStore` with Redis or a similar shared cache: it is shared across hosts,
+expires sessions on its own and needs no garbage collection (see below). A directory shared over a network
+filesystem is no good substitute, file locking is unreliable there.
+
 ## Garbage Collection Configuration
 
 The SDK periodically runs garbage collection to clean up expired sessions, similar to PHP's native
