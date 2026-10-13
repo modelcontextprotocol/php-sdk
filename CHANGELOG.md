@@ -51,7 +51,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix the client's `HttpTransport` waiting out the request timeout when a non-streamed response to a request ends without its answer (truncated, empty, unreadable or not JSON): the call now fails at once with a `RequestException`, also when the body of an error status fails to read.
 * Fix an unreachable `Psr16SessionStore` cache being answered as "session not found" (`404`): the failure is logged and answered with `503`, so clients retry instead of re-initializing. `SessionStoreInterface::exists()` may throw the new `SessionStoreException`.
 * Serve both protocol eras over stdio: `StdioTransport` settles the era on the client's first request and serves `2026-07-28` requests, `subscriptions/listen` and `notifications/cancelled` on the one channel.
-* Fix `ClientGateway::log()` sending messages below the level the client set with `logging/setLevel`; `ClientLogger` already dropped them.
+* Fix `ClientGateway::log()` ignoring the client's log level: like `ClientLogger`, it drops messages below the level set with `logging/setLevel`, and below `warning` while the client has set none.
 * [BC Break] `ClientLogger` takes only the `ClientGateway`, which now applies the client-set level itself.
 * [BC Break] `StatelessAwareTransportInterface` declares `setHandshakeVersions()`, so a server without the modern era names only the revisions it negotiates when refusing a `2026-07-28` request, e.g. the one set with `Builder::setProtocolVersion()`.
 * Answer a bare `initialize` on a `2026-07-28`-only endpoint with `-32022` naming the served revisions, and a request without a session on the handshake leg with its id.
