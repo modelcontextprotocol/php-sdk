@@ -162,7 +162,7 @@ final class RequestContext
     public function getClientLogger(): ClientLogger
     {
         if (null === $this->clientLogger) {
-            $this->clientLogger = new ClientLogger($this->getClientGateway(), $this->session);
+            $this->clientLogger = new ClientLogger($this->getClientGateway());
         }
 
         return $this->clientLogger;

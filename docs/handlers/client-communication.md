@@ -128,6 +128,9 @@ use Mcp\Schema\Enum\LoggingLevel;
 $clientGateway->log(LoggingLevel::Warning, 'The end is near.');
 ```
 
+Messages below the client's log level are dropped, the same way as with the
+[client logger](logging.md). Until the client sets a level with `logging/setLevel`, the level is `warning`.
+
 ## Progress
 
 With a [Progress](https://modelcontextprotocol.io/specification/2025-06-18/basic/utilities/progress#progress)

@@ -496,7 +496,7 @@ final class StatelessProtocol
         $session->set('protocol_version', $meta->protocolVersion);
 
         // The requested log level is what the handshake era's logging/setLevel
-        // would have stored, so ClientLogger applies it instead of its default.
+        // would have stored, so ClientGateway::log() applies it instead of its default.
         if (null !== $meta->logLevel) {
             $session->set(Protocol::SESSION_LOGGING_LEVEL, $meta->logLevel->value);
         }
