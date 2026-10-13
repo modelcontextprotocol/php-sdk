@@ -313,11 +313,11 @@ final class Builder
      * runtimes; under PHP-FPM, where they are different workers, use
      * {@see Psr16NotificationBus} or an implementation over your own broker.
      *
-     * Registry changes are published automatically, with or without an event
-     * dispatcher, unless you pass your own registry with setRegistry(), and
-     * only then is `listChanged` announced. Anything
-     * else, `notifications/resources/updated` for example, is published by the
-     * application calling {@see NotificationBusInterface::publish()}.
+     * With the built-in registry, registry changes are published automatically,
+     * with or without an event dispatcher, and `listChanged` is announced. A
+     * registry passed with setRegistry() is neither published nor announced.
+     * Anything else, `notifications/resources/updated` for example, is
+     * published by the application calling {@see NotificationBusInterface::publish()}.
      */
     public function setNotificationBus(NotificationBusInterface $bus): self
     {

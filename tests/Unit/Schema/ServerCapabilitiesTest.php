@@ -429,4 +429,28 @@ class ServerCapabilitiesTest extends TestCase
 
         $this->assertSame(['list' => []], $capabilities->tasks);
     }
+
+    public function testWithoutListChangedKeepsKindsAnnouncedOnlyThroughListChanged(): void
+    {
+        $capabilities = (new ServerCapabilities(
+            tools: false,
+            toolsListChanged: true,
+            resources: false,
+            resourcesListChanged: true,
+            prompts: false,
+            promptsListChanged: true,
+        ))->withoutListChanged();
+
+        $this->assertTrue($capabilities->tools);
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resources);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->prompts);
+        $this->assertFalse($capabilities->promptsListChanged);
+        $this->assertEquals([
+            'prompts' => new \stdClass(),
+            'resources' => new \stdClass(),
+            'tools' => new \stdClass(),
+        ], $capabilities->jsonSerialize());
+    }
 }
