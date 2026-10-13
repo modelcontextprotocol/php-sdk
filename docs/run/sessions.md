@@ -81,6 +81,36 @@ $server = Server::builder()
     ->build();
 ```
 
+**Running GC Out of Band:**
+
+GC runs inside a request, before the server handles the message. `FileSessionStore::gc()` scans every file in
+the session directory, so its cost grows with the number of sessions. On a busy server, a random request then
+waits for that scan.
+
+In that case, disable GC in the server and call `gc()` from a cron job or a console command. Use the same
+directory and TTL as the server:
+
+```php
+// bin/session-gc.php, e.g. run every 10 minutes from cron
+use Mcp\Server\Session\FileSessionStore;
+
+require __DIR__ . '/../vendor/autoload.php';
+
+$store = new FileSessionStore(__DIR__ . '/../sessions', ttl: 3600);
+$deleted = $store->gc(); // returns the IDs of the deleted sessions
+
+echo count($deleted) . " expired sessions deleted\n";
+```
+
+```php
+$server = Server::builder()
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions', ttl: 3600), gcProbability: 0)
+    ->build();
+```
+
+`Psr16SessionStore` doesn't scan anything: it stores each session with the TTL, and its `gc()` does nothing.
+With a cache like Redis, the cache expires the keys itself.
+
 **Parameters:**
 
 - `$gcProbability` (int): The numerator of the GC probability fraction (default: `1`). Set to `0` to disable GC.
