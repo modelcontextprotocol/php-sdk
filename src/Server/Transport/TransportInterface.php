@@ -108,7 +108,7 @@ interface TransportInterface
     /**
      * Set a finder function to check for a specific client response.
      *
-     * @param callable(string, Uuid):FiberResume $finder
+     * @param callable(Uuid, Uuid):FiberResume $finder
      */
     public function setResponseFinder(callable $finder): void;
 

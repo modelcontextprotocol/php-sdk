@@ -84,7 +84,7 @@ class Protocol
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
      * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
      *
-     * @var \WeakMap<McpFiber, string>
+     * @var \WeakMap<McpFiber, Uuid>
      */
     private \WeakMap $awaitedRequestIds;
 
@@ -418,7 +418,7 @@ class Protocol
                         $outgoing = $result->notification;
                     } elseif ($result instanceof RequestSuspension) {
                         $awaitedRequestId = $this->registerRequest($result->request, $result->timeout, $session);
-                        $outgoing = $result->request->withId($awaitedRequestId);
+                        $outgoing = $result->request->withId($awaitedRequestId->toRfc4122());
                     }
 
                     // The transport resumes the fiber from what the session holds: it must
@@ -480,8 +480,8 @@ class Protocol
             return;
         }
 
-        // Request IDs are UUID strings: an int ID cannot be one the server sent.
-        $pending = \is_string($messageId) ? $session->get(self::SESSION_PENDING_REQUESTS, [])[$messageId] ?? null : null;
+        // Request IDs are UUIDs: any other ID cannot be one the server sent.
+        $pending = \is_string($messageId) && Uuid::isValid($messageId) ? $session->get(self::SESSION_PENDING_REQUESTS, [])[$messageId] ?? null : null;
         if (!\is_array($pending) || $this->hasTimedOut($pending)) {
             $this->logger->warning('Received a client response for an unknown or timed out request ID.', ['message_id' => $messageId]);
 
@@ -521,11 +521,11 @@ class Protocol
     /**
      * Sends a request to the client and returns the request ID.
      */
-    public function sendRequest(Request $request, int $timeout, SessionInterface $session): string
+    public function sendRequest(Request $request, int $timeout, SessionInterface $session): Uuid
     {
         $requestId = $this->registerRequest($request, $timeout, $session);
 
-        $this->queueOutgoing($request->withId($requestId), ['type' => 'request'], $session);
+        $this->queueOutgoing($request->withId($requestId->toRfc4122()), ['type' => 'request'], $session);
 
         return $requestId;
     }
@@ -536,20 +536,21 @@ class Protocol
      * The id is a UUID, not counted in the session: concurrent requests of a client load
      * the session at the same time and would count up to the same id.
      */
-    private function registerRequest(Request $request, int $timeout, SessionInterface $session): string
+    private function registerRequest(Request $request, int $timeout, SessionInterface $session): Uuid
     {
-        $requestId = Uuid::v4()->toRfc4122();
+        $requestId = Uuid::v4();
+        $id = $requestId->toRfc4122();
 
-        $this->dispatchEvent(new ServerRequestEvent($request->withId($requestId), $timeout, $session));
+        $this->dispatchEvent(new ServerRequestEvent($request->withId($id), $timeout, $session));
 
         $this->logger->info('Queueing server request to client', [
-            'request_id' => $requestId,
+            'request_id' => $id,
             'method' => $request::getMethod(),
         ]);
 
         // Per entry, so saving does not write back what other streams changed in the others.
-        $session->set(self::SESSION_PENDING_REQUESTS.".{$requestId}", [
-            'request_id' => $requestId,
+        $session->set(self::SESSION_PENDING_REQUESTS.".{$id}", [
+            'request_id' => $id,
             'timeout' => $timeout,
             'timestamp' => time(),
         ]);
@@ -720,29 +721,31 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error|null
      */
-    public function checkResponse(string $requestId, Uuid $sessionId): Response|Error|null
+    public function checkResponse(Uuid $requestId, Uuid $sessionId): Response|Error|null
     {
+        $id = $requestId->toRfc4122();
+
         if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return null;
         }
 
         try {
             $session = $this->sessionManager->createWithId($sessionId);
-            $responseData = $session->get(self::SESSION_RESPONSES.".{$requestId}");
+            $responseData = $session->get(self::SESSION_RESPONSES.".{$id}");
 
             if (null === $responseData) {
-                $pending = $session->get(self::SESSION_PENDING_REQUESTS, [])[$requestId] ?? null;
+                $pending = $session->get(self::SESSION_PENDING_REQUESTS, [])[$id] ?? null;
 
                 return \is_array($pending) && $this->hasTimedOut($pending) ? $this->expireRequest($requestId, $sessionId) : null;
             }
 
             $this->logger->debug('Found and consuming client response.', [
-                'request_id' => $requestId,
+                'request_id' => $id,
                 'session_id' => $sessionId->toRfc4122(),
             ]);
 
-            $session->set(self::SESSION_RESPONSES.".{$requestId}", null);
-            $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
+            $session->set(self::SESSION_RESPONSES.".{$id}", null);
+            $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
             $session->save();
         } finally {
             $this->releaseSessionLock($sessionId);
@@ -756,7 +759,7 @@ class Protocol
             return Response::fromArray($responseData);
         } catch (\Throwable $e) {
             $this->logger->error('Failed to reconstruct client response from session.', [
-                'request_id' => $requestId,
+                'request_id' => $id,
                 'exception' => $e,
                 'response_data' => $responseData,
             ]);
@@ -771,25 +774,26 @@ class Protocol
      * The session is loaded again as the caller's copy may be as old as the last
      * poll, and saving it back would undo what other streams stored since.
      */
-    private function expireRequest(string $requestId, Uuid $sessionId): ?Error
+    private function expireRequest(Uuid $requestId, Uuid $sessionId): ?Error
     {
+        $id = $requestId->toRfc4122();
         $session = $this->sessionManager->createWithId($sessionId);
         $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
 
         // Answered or expired by another stream in the meantime: the next poll sorts it out.
-        if (!isset($pending[$requestId]) || null !== $session->get(self::SESSION_RESPONSES.".{$requestId}")) {
+        if (!isset($pending[$id]) || null !== $session->get(self::SESSION_RESPONSES.".{$id}")) {
             return null;
         }
 
         $this->logger->warning('Client request timed out.', [
-            'request_id' => $requestId,
+            'request_id' => $id,
             'session_id' => $sessionId->toRfc4122(),
         ]);
 
-        $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
+        $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
         $session->save();
 
-        return Error::forInternalError('Request timed out', $requestId);
+        return Error::forInternalError('Request timed out', $id);
     }
 
     /**
@@ -821,9 +825,9 @@ class Protocol
      * @param FiberSuspend|null              $yieldedValue
      * @param TransportInterface<mixed>|null $transport
      *
-     * @return string|null the ID of the request sent to the client, which the fiber now waits on
+     * @return Uuid|null the ID of the request sent to the client, which the fiber now waits on
      */
-    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId, ?TransportInterface $transport = null): ?string
+    public function handleFiberYield(mixed $yieldedValue, ?Uuid $sessionId, ?TransportInterface $transport = null): ?Uuid
     {
         if (!$sessionId) {
             $this->logger->warning('Fiber yielded value without associated session context.');
@@ -868,7 +872,7 @@ class Protocol
             try {
                 if ($yieldedValue instanceof RequestSuspension) {
                     $requestId = $this->registerRequest($yieldedValue->request, $yieldedValue->timeout, $session);
-                    $outgoing = $yieldedValue->request->withId($requestId);
+                    $outgoing = $yieldedValue->request->withId($requestId->toRfc4122());
                 } else {
                     $outgoing = $yieldedValue->notification;
                 }
@@ -893,7 +897,7 @@ class Protocol
     /**
      * @param McpFiber $fiber
      */
-    private function trackAwaitedRequest(\Fiber $fiber, ?string $requestId): void
+    private function trackAwaitedRequest(\Fiber $fiber, ?Uuid $requestId): void
     {
         if (null === $requestId) {
             unset($this->awaitedRequestIds[$fiber]);
@@ -916,7 +920,7 @@ class Protocol
             return [];
         }
 
-        return array_intersect_key($this->getPendingRequests($sessionId), [$requestId => true]);
+        return array_intersect_key($this->getPendingRequests($sessionId), [$requestId->toRfc4122() => true]);
     }
 
     /**

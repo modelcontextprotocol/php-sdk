@@ -104,7 +104,7 @@ abstract class BaseTransport implements TransportInterface
     /**
      * @phpstan-return FiberResume
      */
-    protected function checkForResponse(string $requestId, ?Uuid $sessionId): Response|Error|null
+    protected function checkForResponse(Uuid $requestId, ?Uuid $sessionId): Response|Error|null
     {
         if ($sessionId && \is_callable($this->responseFinder)) {
             return ($this->responseFinder)($requestId, $sessionId);

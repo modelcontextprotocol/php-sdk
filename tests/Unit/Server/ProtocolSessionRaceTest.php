@@ -36,7 +36,7 @@ final class ProtocolSessionRaceTest extends TestCase
         $sessions = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
         $session = $sessions->createWithId($sessionId);
-        $session->set('_mcp.pending_requests', ['request-7' => ['request_id' => 'request-7', 'timeout' => 120, 'timestamp' => time()]]);
+        $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000000007' => ['request_id' => '00000000-0000-4000-8000-000000000007', 'timeout' => 120, 'timestamp' => time()]]);
         $session->save();
 
         $waiting = new Protocol([], [], MessageFactory::make(), $sessions);
@@ -46,13 +46,13 @@ final class ProtocolSessionRaceTest extends TestCase
         // The answer lands right after the waiting worker read the session,
         // before anything it does next could write the session back.
         $store->interleaveAfterNextRead(static function () use ($answering, $transport, $sessionId): void {
-            $answering->processInput($transport, '{"jsonrpc": "2.0", "id": "request-7", "result": {"ok": true}}', $sessionId);
+            $answering->processInput($transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000000007", "result": {"ok": true}}', $sessionId);
         });
 
         // One turn of the waiting worker's loop, with nothing queued to send.
         $this->assertSame([], $waiting->consumeOutgoingMessages($sessionId));
 
-        $this->assertInstanceOf(Response::class, $waiting->checkResponse('request-7', $sessionId));
+        $this->assertInstanceOf(Response::class, $waiting->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000000007'), $sessionId));
     }
 
     #[TestDox('polling a timed out request does not overwrite a client response stored meanwhile')]
@@ -63,8 +63,8 @@ final class ProtocolSessionRaceTest extends TestCase
         $sessionId = Uuid::v4();
         $session = $sessions->createWithId($sessionId);
         $session->set('_mcp.pending_requests', [
-            'request-7' => ['request_id' => 'request-7', 'timeout' => 5, 'timestamp' => time() - 10],
-            'request-8' => ['request_id' => 'request-8', 'timeout' => 120, 'timestamp' => time()],
+            '00000000-0000-4000-8000-000000000007' => ['request_id' => '00000000-0000-4000-8000-000000000007', 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000000008' => ['request_id' => '00000000-0000-4000-8000-000000000008', 'timeout' => 120, 'timestamp' => time()],
         ]);
         $session->save();
 
@@ -74,14 +74,14 @@ final class ProtocolSessionRaceTest extends TestCase
 
         // Another stream's answer lands while this stream polls its timed out request.
         $store->interleaveAfterNextRead(static function () use ($answering, $transport, $sessionId): void {
-            $answering->processInput($transport, '{"jsonrpc": "2.0", "id": "request-8", "result": {"ok": true}}', $sessionId);
+            $answering->processInput($transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000000008", "result": {"ok": true}}', $sessionId);
         });
 
-        $timeout = $waiting->checkResponse('request-7', $sessionId);
+        $timeout = $waiting->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000000007'), $sessionId);
         $this->assertInstanceOf(Error::class, $timeout);
-        $this->assertSame('request-7', $timeout->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000000007', $timeout->getId());
 
-        $this->assertInstanceOf(Response::class, $waiting->checkResponse('request-8', $sessionId));
+        $this->assertInstanceOf(Response::class, $waiting->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000000008'), $sessionId));
     }
 
     #[TestDox('expiring a timed out request keeps a request another stream sent meanwhile')]
@@ -91,7 +91,7 @@ final class ProtocolSessionRaceTest extends TestCase
         $sessions = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
         $session = $sessions->createWithId($sessionId);
-        $session->set('_mcp.pending_requests', ['request-7' => ['request_id' => 'request-7', 'timeout' => 5, 'timestamp' => time() - 10]]);
+        $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000000007' => ['request_id' => '00000000-0000-4000-8000-000000000007', 'timeout' => 5, 'timestamp' => time() - 10]]);
         $session->save();
 
         $waiting = new Protocol([], [], MessageFactory::make(), $sessions);
@@ -101,14 +101,14 @@ final class ProtocolSessionRaceTest extends TestCase
             $store->interleaveAfterNextRead(static function () use ($sessions, $sessionId): void {
                 $sending = $sessions->createWithId($sessionId);
                 $pending = $sending->get('_mcp.pending_requests', []);
-                $pending['request-9'] = ['request_id' => 'request-9', 'timeout' => 120, 'timestamp' => time()];
+                $pending['00000000-0000-4000-8000-000000000009'] = ['request_id' => '00000000-0000-4000-8000-000000000009', 'timeout' => 120, 'timestamp' => time()];
                 $sending->set('_mcp.pending_requests', $pending);
                 $sending->save();
             });
         });
 
-        $this->assertInstanceOf(Error::class, $waiting->checkResponse('request-7', $sessionId));
+        $this->assertInstanceOf(Error::class, $waiting->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000000007'), $sessionId));
 
-        $this->assertSame(['request-9'], array_keys($sessions->createWithId($sessionId)->get('_mcp.pending_requests')));
+        $this->assertSame(['00000000-0000-4000-8000-000000000009'], array_keys($sessions->createWithId($sessionId)->get('_mcp.pending_requests')));
     }
 }

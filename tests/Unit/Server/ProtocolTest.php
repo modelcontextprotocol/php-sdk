@@ -1125,7 +1125,7 @@ final class ProtocolTest extends TestCase
 
         $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
 
-        $this->assertInstanceOf(Error::class, $protocol->checkResponse($pendingRequestIds[0], $sessionId));
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(Uuid::fromString($pendingRequestIds[0]), $sessionId));
 
         $this->assertSame([], $stream->getPendingRequestIds());
     }
@@ -2001,7 +2001,7 @@ final class ProtocolTest extends TestCase
         $this->assertSame($session, $capturedEvent->getSession());
         $this->assertSame(60, $capturedEvent->getTimeout());
         $this->assertSame('ping', $capturedEvent->getMethod());
-        $this->assertSame($requestId, $capturedEvent->getRequest()->getId());
+        $this->assertSame($requestId->toRfc4122(), $capturedEvent->getRequest()->getId());
     }
 
     #[TestDox('ClientResponseEvent is dispatched when a client response is received')]
@@ -2020,7 +2020,7 @@ final class ProtocolTest extends TestCase
             }))
             ->willReturnArgument(0);
 
-        $session = $this->createSessionWithPendingRequests(['request-1000']);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -2036,13 +2036,13 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": "request-1000", "result": {"action": "accept"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {"action": "accept"}}',
             $sessionId
         );
 
         $this->assertInstanceOf(ClientResponseEvent::class, $capturedEvent);
         $this->assertSame($session, $capturedEvent->getSession());
-        $this->assertSame('request-1000', $capturedEvent->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $capturedEvent->getId());
         $this->assertFalse($capturedEvent->isError());
     }
 
@@ -2062,7 +2062,7 @@ final class ProtocolTest extends TestCase
                 return $event;
             });
 
-        $session = $this->createSessionWithPendingRequests(['request-1000']);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -2078,13 +2078,13 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": "request-1000", "error": {"code": -32603, "message": "Client error"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "error": {"code": -32603, "message": "Client error"}}',
             $sessionId
         );
 
         $this->assertInstanceOf(ClientResponseEvent::class, $capturedEvent);
         $this->assertTrue($capturedEvent->isError());
-        $this->assertSame('request-1000', $capturedEvent->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $capturedEvent->getId());
     }
 
     #[TestDox('A response to an unknown request ID is neither dispatched nor stored')]
@@ -2095,7 +2095,7 @@ final class ProtocolTest extends TestCase
             ->expects($this->never())
             ->method('dispatch');
 
-        $session = $this->createSessionWithPendingRequests(['request-1000']);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
         $session->expects($this->never())->method('set');
 
         $this->sessionManager->method('createWithId')->willReturn($session);
@@ -2111,7 +2111,7 @@ final class ProtocolTest extends TestCase
 
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": "request-4711", "result": {"action": "accept"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000004711", "result": {"action": "accept"}}',
             Uuid::v4()
         );
     }
@@ -2155,41 +2155,41 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
-        $session->set('_mcp.pending_requests', ['request-1000' => ['request_id' => 'request-1000', 'timeout' => 5, 'timestamp' => time() - 10]]);
+        $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10]]);
         $session->save();
 
-        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "request-1000", "result": {}}', $session->getId());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {}}', $session->getId());
 
-        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.request-1000'));
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
     }
 
     #[TestDox('A timed out client request is reported as an error and its pending entry is dropped')]
     public function testCheckResponseReportsTimedOutRequestAndDropsItsPendingEntry(): void
     {
         [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
-            'request-1000' => ['request_id' => 'request-1000', 'timeout' => 5, 'timestamp' => time() - 10],
-            'request-1001' => ['request_id' => 'request-1001', 'timeout' => 120, 'timestamp' => time()],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001001' => ['request_id' => '00000000-0000-4000-8000-000000001001', 'timeout' => 120, 'timestamp' => time()],
         ]);
 
-        $result = $protocol->checkResponse('request-1000', $session->getId());
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
 
         $this->assertInstanceOf(Error::class, $result);
-        $this->assertSame('request-1000', $result->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $result->getId());
         $this->assertSame(Error::INTERNAL_ERROR, $result->code);
         $this->assertSame('Request timed out', $result->message);
-        $this->assertSame(['request-1001'], array_keys($protocol->getPendingRequests($session->getId())));
-        $this->assertSame(['request-1001'], array_keys($sessionManager->createWithId($session->getId())->get('_mcp.pending_requests')));
+        $this->assertSame(['00000000-0000-4000-8000-000000001001'], array_keys($protocol->getPendingRequests($session->getId())));
+        $this->assertSame(['00000000-0000-4000-8000-000000001001'], array_keys($sessionManager->createWithId($session->getId())->get('_mcp.pending_requests')));
 
-        $this->assertNull($protocol->checkResponse('request-1000', $session->getId()), 'The timeout is reported once.');
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()), 'The timeout is reported once.');
     }
 
     #[TestDox('A client request within its timeout stays pending')]
     public function testCheckResponseKeepsRequestWithinItsTimeout(): void
     {
-        $pending = ['request-1000' => ['request_id' => 'request-1000', 'timeout' => 120, 'timestamp' => time() - 10]];
+        $pending = ['00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 120, 'timestamp' => time() - 10]];
         [$protocol, , $session] = $this->createProtocolWithPendingRequests($pending);
 
-        $this->assertNull($protocol->checkResponse('request-1000', $session->getId()));
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
         $this->assertSame($pending, $protocol->getPendingRequests($session->getId()));
     }
 
@@ -2197,15 +2197,15 @@ final class ProtocolTest extends TestCase
     public function testCheckResponseReturnsAnswerOfExpiredRequest(): void
     {
         [$protocol, , $session] = $this->createProtocolWithPendingRequests([
-            'request-1000' => ['request_id' => 'request-1000', 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
         ]);
-        $session->set('_mcp.responses.request-1000', ['jsonrpc' => '2.0', 'id' => 'request-1000', 'result' => ['action' => 'accept']]);
+        $session->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => ['action' => 'accept']]);
         $session->save();
 
-        $result = $protocol->checkResponse('request-1000', $session->getId());
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
 
         $this->assertInstanceOf(Response::class, $result);
-        $this->assertSame('request-1000', $result->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $result->getId());
         $this->assertSame([], $protocol->getPendingRequests($session->getId()));
     }
 
@@ -2213,15 +2213,15 @@ final class ProtocolTest extends TestCase
     public function testAnswerAfterReportedTimeoutIsDropped(): void
     {
         [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
-            'request-1000' => ['request_id' => 'request-1000', 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
         ]);
 
-        $this->assertInstanceOf(Error::class, $protocol->checkResponse('request-1000', $session->getId()));
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
 
-        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "request-1000", "result": {}}', $session->getId());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {}}', $session->getId());
 
-        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.request-1000'));
-        $this->assertNull($protocol->checkResponse('request-1000', $session->getId()));
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
     }
 
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
@@ -2581,7 +2581,7 @@ final class ProtocolTest extends TestCase
 
         $pending = $protocol->getPendingRequests($sessionId);
         $this->assertCount(1, $pending);
-        $this->assertSame(45, $pending[$requestId]['timeout']);
+        $this->assertSame(45, $pending[$requestId->toRfc4122()]['timeout']);
 
         $outgoing = $protocol->consumeOutgoingMessages($sessionId);
         $this->assertCount(1, $outgoing);
@@ -2589,7 +2589,7 @@ final class ProtocolTest extends TestCase
 
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertSame('roots/list', $message['method']);
-        $this->assertSame($requestId, $message['id']);
+        $this->assertSame($requestId->toRfc4122(), $message['id']);
     }
 
     #[TestDox('A fiber yield does not bring back a session destroyed while the request ran')]
