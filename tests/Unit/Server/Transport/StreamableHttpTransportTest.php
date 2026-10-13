@@ -27,7 +27,6 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
-use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -411,34 +410,15 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('', (string) $second->getBody());
     }
 
-    #[TestDox('the polling loop times out a pending request via the injected clock')]
-    public function testPollingLoopTimesOutPendingRequestViaInjectedClock(): void
+    #[TestDox('the polling loop resumes the fiber with the timeout error the response finder reports')]
+    public function testPollingLoopResumesFiberWithTimeoutErrorFromResponseFinder(): void
     {
         $request = $this->factory
             ->createServerRequest('POST', 'http://localhost/')
             ->withHeader('Host', 'localhost')
             ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
 
-        $requestedAt = 1_000_000;
-
-        // Frozen 121s after the pending request was issued — past its 120s timeout.
-        $clock = new class($requestedAt + 121) implements ClockInterface {
-            public function __construct(private readonly int $timestamp)
-            {
-            }
-
-            public function now(): \DateTimeImmutable
-            {
-                return (new \DateTimeImmutable())->setTimestamp($this->timestamp);
-            }
-        };
-
-        $transport = new StreamableHttpTransport(
-            $request,
-            $this->factory,
-            $this->factory,
-            clock: $clock,
-        );
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
 
         $received = null;
         $fiber = new \Fiber(static function () use (&$received) {
@@ -452,9 +432,9 @@ final class StreamableHttpTransportTest extends TestCase
             $transport->attachFiberToSession($fiber, Uuid::v4());
         });
         $transport->setOutgoingMessagesProvider(static fn (): array => []);
-        $transport->setResponseFinder(static fn () => null);
+        $transport->setResponseFinder(static fn (int $requestId): Error => Error::forInternalError('Request timed out', $requestId));
         $transport->setPendingRequestsProvider(static fn (): array => [
-            ['request_id' => 1, 'timestamp' => $requestedAt, 'timeout' => 120],
+            ['request_id' => 1, 'timestamp' => 1_000_000, 'timeout' => 120],
         ]);
 
         $response = $transport->listen();

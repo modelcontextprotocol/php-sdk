@@ -16,7 +16,6 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
-use Mcp\Server\NativeClock;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -24,7 +23,6 @@ use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\Http\MiddlewareRequestHandler;
 use Mcp\Server\Transport\Http\StatelessResponder;
 use Mcp\Server\Wire\InboundClassifier;
-use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -101,7 +99,6 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         ?LoggerInterface $logger = null,
         ?iterable $middleware = null,
         private readonly int $maxBodyBytes = self::DEFAULT_MAX_BODY_BYTES,
-        private readonly ClockInterface $clock = new NativeClock(),
     ) {
         parent::__construct($logger);
 
@@ -310,21 +307,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     $resumed = false;
                     foreach ($pendingRequests as $pending) {
                         $requestId = $pending['request_id'];
-                        $timestamp = $pending['timestamp'];
-                        $timeout = $pending['timeout'] ?? 120;
 
                         $response = $this->checkForResponse($requestId, $this->sessionId);
 
                         if (null !== $response) {
                             $yielded = $fiber->resume($response);
-                            $this->handleFiberYield($yielded, $this->sessionId);
-                            $resumed = true;
-                            break;
-                        }
-
-                        if ($this->clock->now()->getTimestamp() - $timestamp >= $timeout) {
-                            $error = Error::forInternalError('Request timed out', $requestId);
-                            $yielded = $fiber->resume($error);
                             $this->handleFiberYield($yielded, $this->sessionId);
                             $resumed = true;
                             break;
