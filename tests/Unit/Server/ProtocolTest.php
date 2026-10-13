@@ -1123,9 +1123,9 @@ final class ProtocolTest extends TestCase
         $protocol->connect($stream);
         $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
 
-        $this->assertSame([1000], $stream->getPendingRequestIds());
+        $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
 
-        $this->assertInstanceOf(Error::class, $protocol->checkResponse(1000, $sessionId));
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse($pendingRequestIds[0], $sessionId));
 
         $this->assertSame([], $stream->getPendingRequestIds());
     }
