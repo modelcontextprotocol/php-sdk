@@ -80,8 +80,12 @@ use Mcp\Server\Suspension\RequestSuspension;
  */
 class ClientGateway
 {
+    /**
+     * @param Request|null $request the request the handler serves; its meta carries the progress token
+     */
     public function __construct(
         private readonly SessionInterface $session,
+        private readonly ?Request $request = null,
     ) {
     }
 
@@ -122,7 +126,11 @@ class ClientGateway
      */
     public function progress(float $progress, ?float $total = null, ?string $message = null): void
     {
-        $meta = $this->session->get(Protocol::SESSION_ACTIVE_REQUEST_META, []);
+        // The session holds the meta of whichever request of the session came last,
+        // so it only stands in when the gateway does not know its own request.
+        $meta = null !== $this->request
+            ? $this->request->getMeta()
+            : $this->session->get(Protocol::SESSION_ACTIVE_REQUEST_META, []);
         $progressToken = $meta['progressToken'] ?? null;
 
         if (null === $progressToken) {

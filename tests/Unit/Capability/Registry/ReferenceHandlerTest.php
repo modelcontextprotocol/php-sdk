@@ -15,6 +15,7 @@ use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\ReferenceHandler;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
@@ -57,7 +58,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'kept' => 'value',
             'other' => 'value2',
         ]);
@@ -100,7 +101,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'uri' => 'config://x',
         ]);
 
@@ -127,7 +128,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle(new ElementReference([$handler, 'search']), [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'query' => 'foo',
         ]);
 
@@ -142,7 +143,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle(new ElementReference([ArrayHandlerFixture::class, 'greet']), [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'who' => 'bob',
         ]);
 
@@ -158,7 +159,7 @@ final class ReferenceHandlerTest extends TestCase
 
         (new ReferenceHandler())->handle(new ElementReference([new ArrayHandlerFixture(), 'hidden']), [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
         ]);
     }
 
@@ -177,7 +178,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'kept' => 'value',
         ]);
 
@@ -269,7 +270,7 @@ final class ReferenceHandlerTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $this->createMock(SessionInterface::class),
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'parts' => ['a', 'b'],
         ]);
 

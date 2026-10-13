@@ -24,12 +24,14 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
 use Mcp\Server\ClientGateway;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
@@ -2216,6 +2218,67 @@ final class ProtocolTest extends TestCase
         $this->assertSame(2, $results[0]->getRequest()->getId());
         $this->assertInstanceOf(ResponseEvent::class, $results[1]);
         $this->assertSame(1, $results[1]->getRequest()->getId());
+    }
+
+    #[TestDox('Progress of a suspended call keeps its own token while a parallel call of the session saves in between')]
+    public function testProgressKeepsItsTokenAcrossAParallelCall(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            $gateway = (new RequestContext($session, $request))->getClientGateway();
+            $gateway->progress(1, 2);
+            $gateway->progress(2, 2);
+
+            return new Response($request->getId(), []);
+        });
+
+        // Runs call B right after call A's first write, between the save after
+        // A's fiber suspended and the one closing A's processInput().
+        $store = new class extends InMemorySessionStore {
+            public ?\Closure $afterWrite = null;
+
+            public function write(Uuid $id, string $data): bool
+            {
+                $written = parent::write($id, $data);
+                $hook = $this->afterWrite;
+                $this->afterWrite = null;
+                $hook?->__invoke();
+
+                return $written;
+            }
+        };
+
+        $session = (new SessionManager($store))->create();
+        $session->save();
+
+        $fibers = [];
+        $protocols = [];
+        $transports = [];
+        foreach (['a', 'b'] as $call) {
+            $transports[$call] = $this->createMock(TransportInterface::class);
+            $transports[$call]->method('attachFiberToSession')->willReturnCallback(static function (\Fiber $fiber) use (&$fibers, $call): void {
+                $fibers[$call] = $fiber;
+            });
+            $protocols[$call] = new Protocol(
+                requestHandlers: [$handler],
+                notificationHandlers: [],
+                messageFactory: MessageFactory::make(),
+                sessionManager: new SessionManager($store),
+            );
+        }
+
+        $store->afterWrite = static fn () => $protocols['b']->processInput($transports['b'], '{"jsonrpc": "2.0", "id": 2, "method": "ping", "params": {"_meta": {"progressToken": "token-b"}}}', $session->getId());
+        $protocols['a']->processInput($transports['a'], '{"jsonrpc": "2.0", "id": 1, "method": "ping", "params": {"_meta": {"progressToken": "token-a"}}}', $session->getId());
+
+        $this->assertCount(2, $fibers);
+
+        foreach (['a' => 'token-a', 'b' => 'token-b'] as $call => $token) {
+            $suspension = $fibers[$call]->resume();
+            $this->assertInstanceOf(NotificationSuspension::class, $suspension);
+            $this->assertInstanceOf(ProgressNotification::class, $suspension->notification);
+            $this->assertSame($token, $suspension->notification->progressToken, \sprintf('Call %s sent its second progress step with the wrong token.', strtoupper($call)));
+        }
     }
 
     #[TestDox('A throwing result listener of a resumed fiber is answered with an internal error')]

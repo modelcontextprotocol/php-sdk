@@ -94,7 +94,7 @@ final class RequestContext
     public function getClientGateway(): ClientGateway
     {
         if (null == $this->clientGateway) {
-            $this->clientGateway = new ClientGateway($this->session);
+            $this->clientGateway = new ClientGateway($this->session, $this->request);
         }
 
         return $this->clientGateway;
