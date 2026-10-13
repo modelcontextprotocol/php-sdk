@@ -2309,6 +2309,26 @@ final class ProtocolTest extends TestCase
         $this->assertNull($session->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
     }
 
+    #[TestDox('An answer to an abandoned client request is dropped even if it arrived after the session was loaded')]
+    public function testAnswerStoredAfterLoadingIsDroppedWithAbandonedRequest(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 100],
+        ]);
+
+        $snapshot = $sessionManager->createWithId($session->getId());
+        $snapshot->get('_mcp.pending_requests');
+
+        $other = $sessionManager->createWithId($session->getId());
+        $other->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => []]);
+        $other->save();
+
+        $protocol->sendRequest(new PingRequest(), 5, $snapshot);
+        $snapshot->save();
+
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+    }
+
     #[TestDox('A timed out client request within the grace period is left to its own stream')]
     public function testTimedOutRequestWithinGracePeriodIsKeptWhenAnotherRequestIsSent(): void
     {

@@ -833,9 +833,10 @@ class Protocol
                 'session_id' => $session->getId()->toRfc4122(),
             ]);
 
-            // Per entry, so saving does not write back what other streams changed in the others.
+            // Per entry, so saving does not write back what other streams changed in the others. The answer
+            // may have been stored after this session was loaded, so it is overwritten, not forgotten.
             $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
-            $session->forget(self::SESSION_RESPONSES.".{$id}");
+            $session->set(self::SESSION_RESPONSES.".{$id}", null);
         }
     }
 
