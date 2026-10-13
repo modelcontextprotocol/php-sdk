@@ -83,4 +83,32 @@ final class ProtocolSessionRaceTest extends TestCase
 
         $this->assertInstanceOf(Response::class, $waiting->checkResponse(8, $sessionId));
     }
+
+    #[TestDox('expiring a timed out request keeps a request another stream sent meanwhile')]
+    public function testExpiringATimedOutRequestKeepsAConcurrentlySentRequest(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessions = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.pending_requests', [7 => ['request_id' => 7, 'timeout' => 5, 'timestamp' => time() - 10]]);
+        $session->save();
+
+        $waiting = new Protocol([], [], MessageFactory::make(), $sessions);
+
+        // Another stream sends a request right after the expiry reloaded the session, the poll's own read comes first.
+        $store->interleaveAfterNextRead(static function () use ($store, $sessions, $sessionId): void {
+            $store->interleaveAfterNextRead(static function () use ($sessions, $sessionId): void {
+                $sending = $sessions->createWithId($sessionId);
+                $pending = $sending->get('_mcp.pending_requests', []);
+                $pending[9] = ['request_id' => 9, 'timeout' => 120, 'timestamp' => time()];
+                $sending->set('_mcp.pending_requests', $pending);
+                $sending->save();
+            });
+        });
+
+        $this->assertInstanceOf(Error::class, $waiting->checkResponse(7, $sessionId));
+
+        $this->assertSame([9], array_keys($sessions->createWithId($sessionId)->get('_mcp.pending_requests')));
+    }
 }

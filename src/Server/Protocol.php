@@ -479,13 +479,12 @@ class Protocol
             'method' => $request::getMethod(),
         ]);
 
-        $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
-        $pending[$requestId] = [
+        // Per entry, so saving does not write back what other streams changed in the others.
+        $session->set(self::SESSION_PENDING_REQUESTS.".{$requestId}", [
             'request_id' => $requestId,
             'timeout' => $timeout,
             'timestamp' => time(),
-        ];
-        $session->set(self::SESSION_PENDING_REQUESTS, $pending);
+        ]);
 
         $this->queueOutgoing($requestWithId, ['type' => 'request'], $session);
 
@@ -617,9 +616,7 @@ class Protocol
         ]);
 
         $session->set(self::SESSION_RESPONSES.".{$requestId}", null);
-        $pending = $session->get(self::SESSION_PENDING_REQUESTS, []);
-        unset($pending[$requestId]);
-        $session->set(self::SESSION_PENDING_REQUESTS, $pending);
+        $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
         $session->save();
 
         try {
@@ -660,8 +657,7 @@ class Protocol
             'session_id' => $sessionId->toRfc4122(),
         ]);
 
-        unset($pending[$requestId]);
-        $session->set(self::SESSION_PENDING_REQUESTS, $pending);
+        $session->forget(self::SESSION_PENDING_REQUESTS.".{$requestId}");
         $session->save();
 
         return Error::forInternalError('Request timed out', $requestId);
