@@ -249,13 +249,14 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     protected function createJsonResponse(): ResponseInterface
     {
+        // A POST without requests (only responses or notifications) is accepted
+        // without a body, so the session's queued messages stay for a later answer.
+        if ([] === $this->responses) {
+            return $this->responseFactory->createResponse(202);
+        }
+
         $messages = [...array_column($this->getOutgoingMessages($this->sessionId), 'message'), ...$this->responses];
         $this->responses = [];
-
-        if ([] === $messages) {
-            return $this->responseFactory->createResponse(202)
-                ->withHeader('Content-Type', 'application/json');
-        }
 
         $responseBody = 1 === \count($messages) ? $messages[0] : '['.implode(',', $messages).']';
 
