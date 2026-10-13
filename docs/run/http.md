@@ -56,7 +56,7 @@ When the `middleware` argument is omitted (or set to `null`), the transport inst
 | Order | Middleware | Purpose |
 |-------|------------|---------|
 | 1     | `CorsMiddleware`                    | Applies CORS headers to every response. By default does **not** set `Access-Control-Allow-Origin` (cross-origin requests are blocked). |
-| 2     | `DnsRebindingProtectionMiddleware`  | Validates `Origin`/`Host` against an allowlist. Defaults to localhost variants only. |
+| 2     | `DnsRebindingProtectionMiddleware`  | Validates `Host` and `Origin` independently. Defaults to localhost hosts and same-origin requests only (requests without Origin are also allowed). |
 
 ```php
 // Zero-config, secure-by-default — local servers get full protection automatically.
@@ -87,7 +87,7 @@ $transport = new StreamableHttpTransport(
     $request,
     middleware: [
         new CorsMiddleware(allowedOrigins: ['https://myapp.com']),
-        new DnsRebindingProtectionMiddleware(),
+        new DnsRebindingProtectionMiddleware(allowedOrigins: ['https://myapp.com']),
     ],
 );
 
@@ -96,7 +96,7 @@ $transport = new StreamableHttpTransport(
     $request,
     middleware: [
         new CorsMiddleware(allowedOrigins: ['*']),
-        new DnsRebindingProtectionMiddleware(),
+        new DnsRebindingProtectionMiddleware(allowedOrigins: ['*']),
     ],
 );
 ```
@@ -137,17 +137,34 @@ defaults when they are absent.
 
 ## DNS Rebinding Protection
 
-`DnsRebindingProtectionMiddleware` validates the `Origin` header against an allowlist (falling back to `Host`
-when `Origin` is absent). The default allowlist is localhost-only:
+`DnsRebindingProtectionMiddleware` validates `Host` on every request and additionally validates `Origin`
+whenever that header is present. An invalid or missing `Host`, or a cross-origin request with an unlisted
+`Origin`, receives `403 Forbidden`.
+
+`allowedHosts` contains server hostnames, compared case-insensitively without the port. It defaults to
+`localhost`, `127.0.0.1` and `[::1]`. An empty list allows no hosts. Use `allowedHosts: ['*']` to allow any
+non-empty Host header, but only when a reverse proxy already validates it: the same-origin check below trusts
+the Host header, so wildcard hosts alone give no protection against DNS rebinding.
+
+`allowedOrigins` contains the full browser origins, including scheme and port. Entries are normalized
+(lowercase, no trailing slash, default port omitted) and compared against the `Origin` header as browsers send
+it. It defaults to an empty list. Same-origin requests are always permitted: the Origin scheme, hostname and
+effective port must match the request URI (omitted ports mean 80 for HTTP and 443 for HTTPS).
+Requests without `Origin` only need an allowed `Host`. Behind a reverse proxy, ensure the request URI reflects
+the public scheme, hostname and port.
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 
-new DnsRebindingProtectionMiddleware(allowedHosts: ['myapp.local', 'mcp.internal']);
+new DnsRebindingProtectionMiddleware(
+    allowedHosts: ['myapp.local', 'mcp.internal'],
+    allowedOrigins: ['https://myapp.com', 'http://localhost:3000'],
+);
 ```
 
-If the server is fronted by a reverse proxy that already validates `Host`, drop this middleware from the chain
-or supply a permissive allowlist.
+Configure cross-origin browser clients in both this middleware and `CorsMiddleware`. Neither list is inferred
+from the other. Use `allowedOrigins: ['*']` to allow any Origin header while continuing to validate Host.
+A reverse proxy validating `Host` alone does not replace Origin validation.
 
 ## Protocol Version Validation
 
@@ -242,7 +259,8 @@ $transport = new StreamableHttpTransport(
 );
 ```
 
-To selectively drop one default (for example DNS rebinding when running behind a proxy), filter the default list:
+When a reverse proxy already validates Host, replace the default DNS rebinding middleware with
+`allowedHosts: ['*']` to keep validating cross-origin requests:
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -251,9 +269,11 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 $transport = new StreamableHttpTransport(
     $request,
     middleware: [
-        ...array_filter(
+        ...array_map(
+            fn ($m) => $m instanceof DnsRebindingProtectionMiddleware
+                ? new DnsRebindingProtectionMiddleware(allowedHosts: ['*'])
+                : $m,
             StreamableHttpTransport::defaultMiddleware(),
-            fn ($m) => !$m instanceof DnsRebindingProtectionMiddleware,
         ),
         new AuthMiddleware($responseFactory),
     ],

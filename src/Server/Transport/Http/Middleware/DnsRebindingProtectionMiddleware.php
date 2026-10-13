@@ -22,12 +22,11 @@ use Psr\Http\Server\RequestHandlerInterface;
 /**
  * Protects local MCP servers against DNS rebinding attacks.
  *
- * When the request carries an `Origin` header it is validated against the
- * allowlist; otherwise the `Host` header is validated. Both checks are
- * case-insensitive and ignore port. Default allowlist contains localhost
- * variants only — for non-local deployments either pass a tailored list of
- * hostnames or omit this middleware entirely (e.g. when fronted by a reverse
- * proxy that enforces Host validation).
+ * The Host header is always validated against allowedHosts, ignoring case and
+ * port. If present, Origin must match the request URI origin or an entry in
+ * allowedOrigins, including scheme and port, unless allowedOrigins contains '*'.
+ * By default, only localhost hosts with same-origin requests or requests
+ * without an Origin header are allowed.
  *
  * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/transports#security-warning
  *
@@ -41,53 +40,76 @@ final class DnsRebindingProtectionMiddleware implements MiddlewareInterface
     /** @var list<string> */
     private readonly array $allowedHosts;
 
+    /** @var list<string> */
+    private readonly array $allowedOrigins;
+
     /**
      * @param list<string>                  $allowedHosts    Hostnames (without port) that are permitted. Defaults to localhost variants.
-     *                                                       IPv6 addresses must be bracketed (e.g. `[::1]`) — that is the canonical form returned by `parse_url`.
+     *                                                       IPv6 addresses must be bracketed (e.g. `[::1]`). Use `['*']` to allow any non-empty Host header.
+     * @param list<string>                  $allowedOrigins  Origins (scheme, host and optional port) that are permitted, compared case-insensitively. Same-origin requests are always permitted. Use `['*']` to allow any Origin header.
      * @param ResponseFactoryInterface|null $responseFactory PSR-17 response factory (auto-discovered if null)
      * @param StreamFactoryInterface|null   $streamFactory   PSR-17 stream factory (auto-discovered if null)
      */
     public function __construct(
         array $allowedHosts = ['localhost', '127.0.0.1', '[::1]'],
+        array $allowedOrigins = [],
         ?ResponseFactoryInterface $responseFactory = null,
         ?StreamFactoryInterface $streamFactory = null,
     ) {
         $this->allowedHosts = array_values(array_map('strtolower', $allowedHosts));
+        $this->allowedOrigins = array_values(array_map($this->normalizeOrigin(...), $allowedOrigins));
         $this->responseFactory = $responseFactory ?? Psr17FactoryDiscovery::findResponseFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
 
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $origin = $request->getHeaderLine('Origin');
-        if ('' !== $origin) {
-            if (!$this->isAllowedOrigin($origin)) {
-                return $this->createForbiddenResponse('Forbidden: Invalid Origin header.');
-            }
-
-            return $handler->handle($request);
+        if (!$this->isAllowedHost($request->getHeaderLine('Host'))) {
+            return $this->createForbiddenResponse('Forbidden: Invalid Host header.');
         }
 
-        $host = $request->getHeaderLine('Host');
-        if ('' !== $host && !$this->isAllowedHost($host)) {
-            return $this->createForbiddenResponse('Forbidden: Invalid Host header.');
+        if ($request->hasHeader('Origin')
+            && !\in_array('*', $this->allowedOrigins, true)
+            && !$this->isSameOrigin($request)
+            && !\in_array(strtolower($request->getHeaderLine('Origin')), $this->allowedOrigins, true)
+        ) {
+            return $this->createForbiddenResponse('Forbidden: Invalid Origin header.');
         }
 
         return $handler->handle($request);
     }
 
-    private function isAllowedOrigin(string $origin): bool
+    private function normalizeOrigin(string $origin): string
     {
-        $host = parse_url($origin, \PHP_URL_HOST);
-        if (!\is_string($host) || '' === $host) {
+        // Browsers send origins lowercase, without trailing slash or default port.
+        $origin = rtrim(strtolower($origin), '/');
+
+        return preg_replace(['#^(https://.+):443$#', '#^(http://.+):80$#'], '$1', $origin) ?? $origin;
+    }
+
+    private function isSameOrigin(ServerRequestInterface $request): bool
+    {
+        $uri = $request->getUri()->withUserInfo('')->withPath('')->withQuery('')->withFragment('');
+        if ('' === $uri->getScheme() || '' === $uri->getHost()) {
             return false;
         }
 
-        return \in_array(strtolower($host), $this->allowedHosts, true);
+        $origin = strtolower($request->getHeaderLine('Origin'));
+        if ($origin === (string) $uri) {
+            return true;
+        }
+
+        // PSR-7 omits default ports, but an Origin may include one explicitly.
+        return null === $uri->getPort()
+            && $origin === $uri.('https' === $uri->getScheme() ? ':443' : ':80');
     }
 
     private function isAllowedHost(string $host): bool
     {
+        if (\in_array('*', $this->allowedHosts, true)) {
+            return '' !== $host;
+        }
+
         if (str_starts_with($host, '[')) {
             $closingBracket = strpos($host, ']');
             if (false === $closingBracket) {

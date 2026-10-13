@@ -269,6 +269,31 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
+    #[TestDox('defaults can swap DNS rebinding for wildcard hosts and keep validating Origin behind a proxy')]
+    public function testDefaultsCanSwapDnsRebindingForWildcardHosts(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'https://api.myapp.com/')
+            ->withHeader('Origin', 'https://myapp.com');
+        $middleware = [
+            ...array_map(
+                static fn (MiddlewareInterface $m): MiddlewareInterface => $m instanceof DnsRebindingProtectionMiddleware
+                    ? new DnsRebindingProtectionMiddleware(allowedHosts: ['*'], allowedOrigins: ['https://myapp.com'])
+                    : $m,
+                StreamableHttpTransport::defaultMiddleware(),
+            ),
+            $this->stubAuth401(),
+        ];
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, $middleware);
+        $this->assertSame(401, $transport->listen()->getStatusCode());
+
+        $transport = new StreamableHttpTransport($request->withHeader('Origin', 'https://evil.example'), $this->factory, $this->factory, null, $middleware);
+        $response = $transport->listen();
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Origin header.', (string) $response->getBody());
+    }
+
     #[TestDox('configured CorsMiddleware reflects matching Origin')]
     public function testConfiguredCorsReflectsMatchingOrigin(): void
     {
@@ -284,13 +309,30 @@ final class StreamableHttpTransportTest extends TestCase
             null,
             [
                 new CorsMiddleware(allowedOrigins: ['https://myapp.example.com']),
-                new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost']),
+                new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost'], allowedOrigins: ['https://myapp.example.com']),
                 new ProtocolVersionMiddleware(),
             ],
         );
 
         $response = $transport->listen();
 
+        $this->assertSame('https://myapp.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
+    }
+
+    #[TestDox('an allowed Origin does not bypass Host validation')]
+    public function testAllowedOriginDoesNotBypassHostValidation(): void
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://evil.example/')
+            ->withHeader('Origin', 'https://myapp.example.com');
+        $transport = new StreamableHttpTransport($request, middleware: [
+            new CorsMiddleware(allowedOrigins: ['https://myapp.example.com']),
+            new DnsRebindingProtectionMiddleware(allowedOrigins: ['https://myapp.example.com']),
+        ]);
+
+        $response = $transport->listen();
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Host header.', (string) $response->getBody());
         $this->assertSame('https://myapp.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
     }
 
