@@ -96,7 +96,7 @@ class SchemaValidator
 
         if (empty($formattedErrors) && $topError) { // Fallback
             $formattedErrors[] = [
-                'pointer' => $this->formatJsonPointerPath($topError->data()->path()),
+                'pointer' => $this->formatJsonPointerPath($topError->data()->fullPath()),
                 'keyword' => $topError->keyword(),
                 'message' => $this->formatValidationError($topError),
             ];
@@ -160,7 +160,7 @@ class SchemaValidator
         $subErrors = $error->subErrors();
         if (empty($subErrors)) {
             $collectedErrors[] = [
-                'pointer' => $this->formatJsonPointerPath($error->data()->path()),
+                'pointer' => $this->formatJsonPointerPath($error->data()->fullPath()),
                 'keyword' => $error->keyword(),
                 'message' => $this->formatValidationError($error),
             ];
@@ -199,7 +199,7 @@ class SchemaValidator
         $args = $error->args();
         $message = "Constraint `{$keyword}` failed.";
 
-        switch (strtolower($keyword)) {
+        switch ($keyword) {
             case 'required':
                 $missing = $args['missing'] ?? [];
                 $formattedMissing = implode(', ', array_map(static fn ($p) => "`{$p}`", $missing));
@@ -243,11 +243,11 @@ class SchemaValidator
                 $expected = json_encode($args['expected'] ?? 'null', \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
                 $message = "Value must be equal to the constant value: {$expected}.";
                 break;
-            case 'minLength': // Corrected casing
+            case 'minLength':
                 $min = $args['min'] ?? '?';
                 $message = "String must be at least {$min} characters long.";
                 break;
-            case 'maxLength': // Corrected casing
+            case 'maxLength':
                 $max = $args['max'] ?? '?';
                 $message = "String must not be longer than {$max} characters.";
                 break;
@@ -263,38 +263,38 @@ class SchemaValidator
                 $max = $args['max'] ?? '?';
                 $message = "Number must be less than or equal to {$max}.";
                 break;
-            case 'exclusiveMinimum': // Corrected casing
+            case 'exclusiveMinimum':
                 $min = $args['min'] ?? '?';
                 $message = "Number must be strictly greater than {$min}.";
                 break;
-            case 'exclusiveMaximum': // Corrected casing
+            case 'exclusiveMaximum':
                 $max = $args['max'] ?? '?';
                 $message = "Number must be strictly less than {$max}.";
                 break;
-            case 'multipleOf': // Corrected casing
-                $value = $args['value'] ?? '?';
-                $message = "Number must be a multiple of {$value}.";
+            case 'multipleOf':
+                $divisor = $args['divisor'] ?? '?';
+                $message = "Number must be a multiple of {$divisor}.";
                 break;
-            case 'minItems': // Corrected casing
+            case 'minItems':
                 $min = $args['min'] ?? '?';
                 $message = "Array must contain at least {$min} items.";
                 break;
-            case 'maxItems': // Corrected casing
+            case 'maxItems':
                 $max = $args['max'] ?? '?';
                 $message = "Array must contain no more than {$max} items.";
                 break;
-            case 'uniqueItems': // Corrected casing
+            case 'uniqueItems':
                 $message = 'Array items must be unique.';
                 break;
-            case 'minProperties': // Corrected casing
+            case 'minProperties':
                 $min = $args['min'] ?? '?';
                 $message = "Object must have at least {$min} properties.";
                 break;
-            case 'maxProperties': // Corrected casing
+            case 'maxProperties':
                 $max = $args['max'] ?? '?';
                 $message = "Object must have no more than {$max} properties.";
                 break;
-            case 'additionalProperties': // Corrected casing
+            case 'additionalProperties':
                 $unexpected = $args['properties'] ?? [];
                 $formattedUnexpected = implode(', ', array_map(static fn ($p) => "`{$p}`", $unexpected));
                 $message = "Object contains unexpected additional properties: {$formattedUnexpected}.";
