@@ -109,7 +109,8 @@ new CorsMiddleware(
     // sent in Access-Control-Allow-Methods, on preflight responses only
     allowedMethods: ['GET', 'POST', 'DELETE'],
     // sent in Access-Control-Allow-Headers, on preflight responses only
-    // default: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id
+    // default: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id,
+    // Mcp-Method, Mcp-Name, Mcp-Param-*
     allowedHeaders: ['Accept', 'Authorization', 'Content-Type'],
     // sent in Access-Control-Expose-Headers; default: Mcp-Session-Id, WWW-Authenticate
     exposedHeaders: ['Mcp-Session-Id', 'WWW-Authenticate'],
@@ -118,8 +119,7 @@ new CorsMiddleware(
 );
 ```
 
-Browser clients on `2026-07-28` also send the `Mcp-Method`, `Mcp-Name` and `Mcp-Param-*` headers, which the
-default list doesn't include. Add them to `allowedHeaders`, each `Mcp-Param-*` header by its full name.
+An `allowedHeaders` entry ending in `*` (like the default `Mcp-Param-*`) allows every requested header with that prefix.
 
 Combining `allowCredentials: true` with `allowedOrigins: ['*']` throws `InvalidArgumentException`.
 
