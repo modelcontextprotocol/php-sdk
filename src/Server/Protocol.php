@@ -391,20 +391,29 @@ class Protocol
                 $codec = $this->requestStateCodec;
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
+                $saveResumedSession = $this->saveResumedSession(...);
+                /** @var bool $suspended set by reference once the fiber first suspended */
+                $suspended = false;
 
                 // One fiber for the whole exchange: with the shim, the handler
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable): Response|Error {
+                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+                        $result = $dispatchResult($result, $request, $session);
                     } catch (\Throwable $e) {
-                        return $errorForThrowable($e, $request, $session);
+                        $result = $errorForThrowable($e, $request, $session);
                     }
 
-                    return $dispatchResult($result, $request, $session);
+                    // A fiber that never suspended is saved by doProcessInput(); after a resume nothing else saves it.
+                    if ($suspended) {
+                        $saveResumedSession($session);
+                    }
+
+                    return $result;
                 });
 
                 $result = $fiber->start();
@@ -437,6 +446,8 @@ class Protocol
 
                         throw new RuntimeException('Failed to save the session of a suspended request.');
                     }
+
+                    $suspended = true;
 
                     $this->trackAwaitedRequest($fiber, $awaitedRequestId);
                     $transport->attachFiberToSession($fiber, $session->getId());
@@ -948,6 +959,35 @@ class Protocol
             return $this->dispatchEvent(new ErrorEvent($result, $request, $session, null))->getError();
         } catch (\Throwable $e) {
             return $this->errorForThrowable($e, $request, $session);
+        }
+    }
+
+    /**
+     * The code after a resume runs without the lock, so the session's changes since it suspended are saved under it.
+     */
+    private function saveResumedSession(SessionInterface $session): void
+    {
+        $sessionId = $session->getId();
+        $locked = false;
+
+        try {
+            if (!$locked = $this->acquireSessionLock($sessionId)) {
+                $this->logger->error('Lost the session writes of a resumed request, its session stayed locked.', ['session_id' => $sessionId->toRfc4122()]);
+
+                return;
+            }
+
+            // A session the client ended while the handler waited is not saved back, and that is no failure.
+            if ($this->sessionManager->exists($sessionId) && !$session->save()) {
+                $this->logger->error('Failed to save the session of a resumed request.', ['session_id' => $sessionId->toRfc4122()]);
+            }
+        } catch (\Throwable $e) {
+            // The response is already decided: an error for the same request would contradict it.
+            $this->logger->error(\sprintf('Failed to save the session of a resumed request: %s', $e->getMessage()), ['exception' => $e]);
+        } finally {
+            if ($locked) {
+                $this->releaseSessionLock($sessionId);
+            }
         }
     }
 
