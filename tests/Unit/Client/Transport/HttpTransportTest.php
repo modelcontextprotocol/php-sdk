@@ -1206,6 +1206,39 @@ final class HttpTransportTest extends TestCase
         ], $sent);
     }
 
+    #[TestDox('an HTTP client that suspends the calling fiber, as amphp does, is not called inside the request fiber')]
+    public function testHttpClientIsCalledOutsideTheRequestFiber(): void
+    {
+        $httpClient = new class(new RecordingHttpClient()) implements ClientInterface {
+            public function __construct(private readonly RecordingHttpClient $server)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                FiberSuspendingStream::awaitEventLoop();
+
+                $response = $this->server->sendRequest($request);
+
+                // The body of an amphp response is read through the event loop too.
+                return $response->withBody(new FiberSuspendingStream($response->getBody()));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setInitTimeout(1)
+            ->setMaxRetries(0)
+            ->build();
+
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertTrue($client->isConnected());
+        $this->assertSame('test-server', $client->getServerInfo()?->name);
+        $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
+        $client->disconnect();
+    }
+
     /**
      * @param array<string, string> $headers
      */
@@ -1527,5 +1560,112 @@ final class ReplayingSseServer implements ClientInterface
         }
 
         return $events;
+    }
+}
+
+/**
+ * A response body that, like one read through Revolt's event loop, suspends the
+ * fiber it is read from and expects only that loop to resume it.
+ */
+final class FiberSuspendingStream implements StreamInterface
+{
+    public function __construct(private readonly StreamInterface $inner)
+    {
+    }
+
+    /**
+     * Inside a fiber, a Revolt-based client suspends and waits for its event loop
+     * to resume it; only from {main} does it run the loop itself and carry on.
+     */
+    public static function awaitEventLoop(): void
+    {
+        if (null === \Fiber::getCurrent()) {
+            return;
+        }
+
+        $resumedWith = \Fiber::suspend();
+
+        throw new \LogicException(\sprintf('Resumed by something other than the event loop, with %s.', get_debug_type($resumedWith)));
+    }
+
+    public function __toString(): string
+    {
+        self::awaitEventLoop();
+
+        return (string) $this->inner;
+    }
+
+    public function close(): void
+    {
+        $this->inner->close();
+    }
+
+    public function detach()
+    {
+        return $this->inner->detach();
+    }
+
+    public function getSize(): ?int
+    {
+        return $this->inner->getSize();
+    }
+
+    public function tell(): int
+    {
+        return $this->inner->tell();
+    }
+
+    public function eof(): bool
+    {
+        return $this->inner->eof();
+    }
+
+    public function isSeekable(): bool
+    {
+        return $this->inner->isSeekable();
+    }
+
+    public function seek(int $offset, int $whence = \SEEK_SET): void
+    {
+        $this->inner->seek($offset, $whence);
+    }
+
+    public function rewind(): void
+    {
+        $this->inner->rewind();
+    }
+
+    public function isWritable(): bool
+    {
+        return false;
+    }
+
+    public function write(string $string): int
+    {
+        throw new \LogicException('A response body is not writable.');
+    }
+
+    public function isReadable(): bool
+    {
+        return true;
+    }
+
+    public function read(int $length): string
+    {
+        self::awaitEventLoop();
+
+        return $this->inner->read($length);
+    }
+
+    public function getContents(): string
+    {
+        self::awaitEventLoop();
+
+        return $this->inner->getContents();
+    }
+
+    public function getMetadata(?string $key = null)
+    {
+        return null === $key ? [] : null;
     }
 }
