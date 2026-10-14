@@ -103,6 +103,14 @@ class Protocol
     private \WeakMap $fiberOutgoingMessages;
 
     /**
+     * Awaited requests another worker dropped as abandoned, e.g. while this one could not get the session
+     * lock to expire them: their fiber is still owed the timeout.
+     *
+     * @var array<string, true>
+     */
+    private array $droppedAwaitedRequestIds = [];
+
+    /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
      */
@@ -744,6 +752,16 @@ class Protocol
     {
         $id = $requestId->toRfc4122();
 
+        if (isset($this->droppedAwaitedRequestIds[$id])) {
+            unset($this->droppedAwaitedRequestIds[$id]);
+            $this->logger->warning('Client request timed out.', [
+                'request_id' => $id,
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return Error::forInternalError('Request timed out', $id);
+        }
+
         if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return null;
         }
@@ -766,6 +784,7 @@ class Protocol
             $session->set(self::SESSION_RESPONSES.".{$id}", null);
             $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
             $session->save();
+            $this->settleAwaitedRequest($id);
         } finally {
             $this->releaseSessionLock($sessionId);
         }
@@ -811,6 +830,7 @@ class Protocol
 
         $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
         $session->save();
+        $this->settleAwaitedRequest($id);
 
         return Error::forInternalError('Request timed out', $id);
     }
@@ -969,6 +989,18 @@ class Protocol
     }
 
     /**
+     * The fiber that awaited this request gets its answer now, so a later poll must not take it for one dropped elsewhere.
+     */
+    private function settleAwaitedRequest(string $id): void
+    {
+        foreach ($this->awaitedRequestIds as $fiber => $requestId) {
+            if ($requestId->toRfc4122() === $id) {
+                unset($this->awaitedRequestIds[$fiber]);
+            }
+        }
+    }
+
+    /**
      * @param McpFiber $fiber
      *
      * @return array<string, mixed>
@@ -980,7 +1012,16 @@ class Protocol
             return [];
         }
 
-        return array_intersect_key($this->getPendingRequests($sessionId), [$requestId->toRfc4122() => true]);
+        $id = $requestId->toRfc4122();
+        $pending = $this->getPendingRequests($sessionId)[$id] ?? null;
+
+        if (null === $pending) {
+            $this->droppedAwaitedRequestIds[$id] = true;
+
+            return [$id => ['request_id' => $id]];
+        }
+
+        return [$id => $pending];
     }
 
     /**
