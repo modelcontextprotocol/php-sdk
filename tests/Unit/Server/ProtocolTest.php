@@ -42,6 +42,7 @@ use Mcp\Server\Transport\TransportInterface;
 use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
+use Mcp\Tests\Unit\Server\Session\Fixture\InterleavingSessionStore;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\MockObject\MockObject;
@@ -963,10 +964,8 @@ final class ProtocolTest extends TestCase
         $this->assertSame($exception, $errorEvents[0]->getThrowable());
         $this->assertSame(1, $errorEvents[0]->getError()->getId());
 
-        // The outbound request was queued for the client before the failure; the error is the response.
-        $outgoing = array_map(static fn (array $outgoingMessage): array => json_decode($outgoingMessage['message'], true), $protocol->consumeOutgoingMessages($sessionId));
-        $this->assertCount(1, $outgoing);
-        $this->assertSame('ping', $outgoing[0]['method']);
+        // Nobody would resume the fiber, so the outbound request is not sent; the error is the response.
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
 
         $this->assertCount(1, $sent);
         $this->assertSame(1, $sent[0]['id']);
@@ -977,46 +976,125 @@ final class ProtocolTest extends TestCase
     public function testConcurrentStreamsPollOnlyTheirOwnPendingRequest(): void
     {
         [$protocol, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstIds = $firstStream->getPendingRequestIds();
+        $secondIds = $secondStream->getPendingRequestIds();
 
-        $protocol->processInput($secondStream, '{"jsonrpc": "2.0", "id": 1001, "result": {}}', $sessionId);
+        $protocol->processInput($secondStream, \sprintf('{"jsonrpc": "2.0", "id": %s, "result": {}}', json_encode($secondIds[0])), $sessionId);
 
-        $this->assertSame([1000], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertCount(1, $firstIds);
+        $this->assertCount(1, $secondIds);
+        $this->assertNotSame($firstIds, $secondIds);
+        $this->assertSame($firstIds, $firstStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
+        $this->assertNull($protocol->checkResponse(Uuid::fromString($firstIds[0]), $sessionId));
+        $this->assertInstanceOf(Response::class, $protocol->checkResponse(Uuid::fromString($secondIds[0]), $sessionId));
     }
 
     #[TestDox('A client request a fiber sends after resuming is polled only by its own stream')]
     public function testRequestYieldedOnResumeIsPolledOnlyByItsOwnStream(): void
     {
         [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstIds = $firstStream->getPendingRequestIds();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $firstStream->yieldFromFiber(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5));
 
-        $this->assertSame([1002], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertCount(1, $firstStream->getPendingRequestIds());
+        $this->assertNotSame($firstIds, $firstStream->getPendingRequestIds());
+        $this->assertNotSame($secondIds, $firstStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
     }
 
     #[TestDox('A stream whose fiber resumes and sends a notification no longer polls the request it was waiting on')]
     public function testNotificationYieldedOnResumeClearsTheAwaitedRequest(): void
     {
         [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $firstStream->yieldFromFiber(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()));
 
         $this->assertSame([], $firstStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
     }
 
     #[TestDox('A stream whose fiber first suspends on a notification polls none of the session\'s pending requests')]
     public function testStreamSuspendedOnNotificationPollsNoPendingRequest(): void
     {
         [$protocol, $sessionId, , $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $secondIds = $secondStream->getPendingRequestIds();
 
         $thirdStream = new PollingLoopTransport();
         $protocol->connect($thirdStream);
         $protocol->processInput($thirdStream, '{"jsonrpc": "2.0", "id": 3, "method": "ping"}', $sessionId);
 
         $this->assertSame([], $thirdStream->getPendingRequestIds());
-        $this->assertSame([1001], $secondStream->getPendingRequestIds());
+        $this->assertSame($secondIds, $secondStream->getPendingRequestIds());
+    }
+
+    #[TestDox('Concurrent streams on one session each send the client request their own fiber sent')]
+    public function testConcurrentStreamsSendOnlyTheirOwnRequest(): void
+    {
+        [, , $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+
+        $firstOutgoing = $firstStream->takeOutgoingMessages();
+        $secondOutgoing = $secondStream->takeOutgoingMessages();
+
+        $this->assertCount(1, $firstOutgoing);
+        $this->assertSame($firstStream->getPendingRequestIds(), [$firstOutgoing[0]['id']]);
+        $this->assertCount(1, $secondOutgoing);
+        $this->assertSame($secondStream->getPendingRequestIds(), [$secondOutgoing[0]['id']]);
+    }
+
+    #[TestDox('A client request a fiber sends after resuming goes out on its own stream')]
+    public function testRequestYieldedOnResumeIsSentOnItsOwnStream(): void
+    {
+        [, $sessionId, $firstStream, $secondStream] = $this->startTwoStreamsWaitingOnClient();
+        $firstStream->takeOutgoingMessages();
+        $secondStream->takeOutgoingMessages();
+
+        $firstStream->yieldFromFiber(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5));
+
+        $this->assertSame([], $secondStream->takeOutgoingMessages());
+        $firstOutgoing = $firstStream->takeOutgoingMessages();
+        $this->assertCount(1, $firstOutgoing);
+        $this->assertSame($firstStream->getPendingRequestIds(), [$firstOutgoing[0]['id']]);
+    }
+
+    #[TestDox('Client requests of calls handled by different workers on one session get distinct ids')]
+    public function testConcurrentWorkersSendClientRequestsUnderDistinctIds(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response(1, []);
+        });
+
+        $store = new InterleavingSessionStore();
+        $sessionManager = new SessionManager($store, gcProbability: 0);
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $firstWorker = new Protocol([$handler], [], MessageFactory::make(), $sessionManager);
+        $secondWorker = new Protocol([$handler], [], MessageFactory::make(), $sessionManager);
+        $firstStream = new PollingLoopTransport();
+        $secondStream = new PollingLoopTransport();
+        $firstWorker->connect($firstStream);
+        $secondWorker->connect($secondStream);
+
+        // The second call is handled after the first worker loaded the session, before it saved it.
+        $secondIds = null;
+        $store->interleaveAfterNextRead(static function () use ($secondWorker, $secondStream, $sessionId, &$secondIds): void {
+            $secondWorker->processInput($secondStream, '{"jsonrpc": "2.0", "id": 2, "method": "ping"}', $sessionId);
+            $secondIds = $secondStream->getPendingRequestIds();
+        });
+        $firstWorker->processInput($firstStream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+
+        $this->assertCount(1, $firstStream->getPendingRequestIds());
+        $this->assertCount(1, $secondIds ?? []);
+        $this->assertNotSame($secondIds, $firstStream->getPendingRequestIds());
     }
 
     #[TestDox('A stream stops polling a client request once it timed out')]
@@ -1047,9 +1125,9 @@ final class ProtocolTest extends TestCase
         $protocol->connect($stream);
         $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
 
-        $this->assertSame([1000], $stream->getPendingRequestIds());
+        $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
 
-        $this->assertInstanceOf(Error::class, $protocol->checkResponse(1000, $sessionId));
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(Uuid::fromString($pendingRequestIds[0]), $sessionId));
 
         $this->assertSame([], $stream->getPendingRequestIds());
     }
@@ -1902,13 +1980,7 @@ final class ProtocolTest extends TestCase
             ->willReturnArgument(0);
 
         $session = $this->createMock(SessionInterface::class);
-        $session->method('get')->willReturnCallback(static function ($key, $default = null) {
-            if ('_mcp.request_id_counter' === $key) {
-                return 1000;
-            }
-
-            return $default;
-        });
+        $session->method('get')->willReturnArgument(1);
         $session->method('getId')->willReturn(Uuid::v4());
 
         $protocol = new Protocol(
@@ -1925,13 +1997,13 @@ final class ProtocolTest extends TestCase
             'method' => 'ping',
         ]);
 
-        $protocol->sendRequest($request, 60, $session);
+        $requestId = $protocol->sendRequest($request, 60, $session);
 
         $this->assertInstanceOf(ServerRequestEvent::class, $capturedEvent);
         $this->assertSame($session, $capturedEvent->getSession());
         $this->assertSame(60, $capturedEvent->getTimeout());
         $this->assertSame('ping', $capturedEvent->getMethod());
-        $this->assertSame(1000, $capturedEvent->getRequest()->getId());
+        $this->assertSame($requestId->toRfc4122(), $capturedEvent->getRequest()->getId());
     }
 
     #[TestDox('ClientResponseEvent is dispatched when a client response is received')]
@@ -1950,7 +2022,7 @@ final class ProtocolTest extends TestCase
             }))
             ->willReturnArgument(0);
 
-        $session = $this->createSessionWithPendingRequests([1000]);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1966,13 +2038,13 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": 1000, "result": {"action": "accept"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {"action": "accept"}}',
             $sessionId
         );
 
         $this->assertInstanceOf(ClientResponseEvent::class, $capturedEvent);
         $this->assertSame($session, $capturedEvent->getSession());
-        $this->assertSame(1000, $capturedEvent->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $capturedEvent->getId());
         $this->assertFalse($capturedEvent->isError());
     }
 
@@ -1992,7 +2064,7 @@ final class ProtocolTest extends TestCase
                 return $event;
             });
 
-        $session = $this->createSessionWithPendingRequests([1000]);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -2008,13 +2080,13 @@ final class ProtocolTest extends TestCase
         $sessionId = Uuid::v4();
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": 1000, "error": {"code": -32603, "message": "Client error"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "error": {"code": -32603, "message": "Client error"}}',
             $sessionId
         );
 
         $this->assertInstanceOf(ClientResponseEvent::class, $capturedEvent);
         $this->assertTrue($capturedEvent->isError());
-        $this->assertSame(1000, $capturedEvent->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $capturedEvent->getId());
     }
 
     #[TestDox('A response to an unknown request ID is neither dispatched nor stored')]
@@ -2025,7 +2097,7 @@ final class ProtocolTest extends TestCase
             ->expects($this->never())
             ->method('dispatch');
 
-        $session = $this->createSessionWithPendingRequests([1000]);
+        $session = $this->createSessionWithPendingRequests(['00000000-0000-4000-8000-000000001000']);
         $session->expects($this->never())->method('set');
 
         $this->sessionManager->method('createWithId')->willReturn($session);
@@ -2041,18 +2113,18 @@ final class ProtocolTest extends TestCase
 
         $protocol->processInput(
             $this->transport,
-            '{"jsonrpc": "2.0", "id": 4711, "result": {"action": "accept"}}',
+            '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000004711", "result": {"action": "accept"}}',
             Uuid::v4()
         );
     }
 
-    #[TestDox('A response with a string ID does not match the integer ID of a pending request')]
-    public function testClientResponseEventIsNotDispatchedForNumericStringId(): void
+    #[TestDox('A response with an integer ID does not match the numeric string ID of a pending request')]
+    public function testClientResponseEventIsNotDispatchedForIntegerId(): void
     {
         $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
         $eventDispatcher->expects($this->never())->method('dispatch');
 
-        $session = $this->createSessionWithPendingRequests([1000]);
+        $session = $this->createSessionWithPendingRequests(['1000']);
         $session->expects($this->never())->method('set');
 
         $this->sessionManager->method('createWithId')->willReturn($session);
@@ -2066,7 +2138,7 @@ final class ProtocolTest extends TestCase
             eventDispatcher: $eventDispatcher,
         );
 
-        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "1000", "result": {}}', Uuid::v4());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1000, "result": {}}', Uuid::v4());
     }
 
     #[TestDox('A late response to a timed out request is neither dispatched nor stored')]
@@ -2085,41 +2157,41 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
-        $session->set('_mcp.pending_requests', [1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10]]);
+        $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10]]);
         $session->save();
 
-        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1000, "result": {}}', $session->getId());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {}}', $session->getId());
 
-        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.1000'));
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
     }
 
     #[TestDox('A timed out client request is reported as an error and its pending entry is dropped')]
     public function testCheckResponseReportsTimedOutRequestAndDropsItsPendingEntry(): void
     {
         [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
-            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
-            1001 => ['request_id' => 1001, 'timeout' => 120, 'timestamp' => time()],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001001' => ['request_id' => '00000000-0000-4000-8000-000000001001', 'timeout' => 120, 'timestamp' => time()],
         ]);
 
-        $result = $protocol->checkResponse(1000, $session->getId());
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
 
         $this->assertInstanceOf(Error::class, $result);
-        $this->assertSame(1000, $result->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $result->getId());
         $this->assertSame(Error::INTERNAL_ERROR, $result->code);
         $this->assertSame('Request timed out', $result->message);
-        $this->assertSame([1001], array_keys($protocol->getPendingRequests($session->getId())));
-        $this->assertSame([1001], array_keys($sessionManager->createWithId($session->getId())->get('_mcp.pending_requests')));
+        $this->assertSame(['00000000-0000-4000-8000-000000001001'], array_keys($protocol->getPendingRequests($session->getId())));
+        $this->assertSame(['00000000-0000-4000-8000-000000001001'], array_keys($sessionManager->createWithId($session->getId())->get('_mcp.pending_requests')));
 
-        $this->assertNull($protocol->checkResponse(1000, $session->getId()), 'The timeout is reported once.');
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()), 'The timeout is reported once.');
     }
 
     #[TestDox('A client request within its timeout stays pending')]
     public function testCheckResponseKeepsRequestWithinItsTimeout(): void
     {
-        $pending = [1000 => ['request_id' => 1000, 'timeout' => 120, 'timestamp' => time() - 10]];
+        $pending = ['00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 120, 'timestamp' => time() - 10]];
         [$protocol, , $session] = $this->createProtocolWithPendingRequests($pending);
 
-        $this->assertNull($protocol->checkResponse(1000, $session->getId()));
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
         $this->assertSame($pending, $protocol->getPendingRequests($session->getId()));
     }
 
@@ -2127,15 +2199,15 @@ final class ProtocolTest extends TestCase
     public function testCheckResponseReturnsAnswerOfExpiredRequest(): void
     {
         [$protocol, , $session] = $this->createProtocolWithPendingRequests([
-            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
         ]);
-        $session->set('_mcp.responses.1000', ['jsonrpc' => '2.0', 'id' => 1000, 'result' => ['action' => 'accept']]);
+        $session->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => ['action' => 'accept']]);
         $session->save();
 
-        $result = $protocol->checkResponse(1000, $session->getId());
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
 
         $this->assertInstanceOf(Response::class, $result);
-        $this->assertSame(1000, $result->getId());
+        $this->assertSame('00000000-0000-4000-8000-000000001000', $result->getId());
         $this->assertSame([], $protocol->getPendingRequests($session->getId()));
     }
 
@@ -2143,15 +2215,15 @@ final class ProtocolTest extends TestCase
     public function testAnswerAfterReportedTimeoutIsDropped(): void
     {
         [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
-            1000 => ['request_id' => 1000, 'timeout' => 5, 'timestamp' => time() - 10],
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
         ]);
 
-        $this->assertInstanceOf(Error::class, $protocol->checkResponse(1000, $session->getId()));
+        $this->assertInstanceOf(Error::class, $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
 
-        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1000, "result": {}}', $session->getId());
+        $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": "00000000-0000-4000-8000-000000001000", "result": {}}', $session->getId());
 
-        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.1000'));
-        $this->assertNull($protocol->checkResponse(1000, $session->getId()));
+        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+        $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
     }
 
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
@@ -2506,11 +2578,12 @@ final class ProtocolTest extends TestCase
         $this->assertSame(45, $suspension->timeout);
         $this->assertNull($suspension->inputKey);
 
-        $protocol->handleFiberYield($suspension, $sessionId);
+        $requestId = $protocol->handleFiberYield($suspension, $sessionId);
+        $this->assertNotNull($requestId);
 
         $pending = $protocol->getPendingRequests($sessionId);
         $this->assertCount(1, $pending);
-        $this->assertSame(45, $pending[1000]['timeout']);
+        $this->assertSame(45, $pending[$requestId->toRfc4122()]['timeout']);
 
         $outgoing = $protocol->consumeOutgoingMessages($sessionId);
         $this->assertCount(1, $outgoing);
@@ -2518,7 +2591,7 @@ final class ProtocolTest extends TestCase
 
         $message = json_decode($outgoing[0]['message'], true);
         $this->assertSame('roots/list', $message['method']);
-        $this->assertSame(1000, $message['id']);
+        $this->assertSame($requestId->toRfc4122(), $message['id']);
     }
 
     #[TestDox('A fiber yield does not bring back a session destroyed while the request ran')]
@@ -2536,6 +2609,29 @@ final class ProtocolTest extends TestCase
         $protocol->handleFiberYield(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'hello'), $sessionId->toRfc4122()), $sessionId);
 
         $this->assertFalse($store->exists($sessionId));
+    }
+
+    #[TestDox('A fiber yield does not send a client request the session could not store')]
+    public function testFiberYieldDoesNotSendARequestTheSessionCouldNotStore(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessions = new SessionManager($store, gcProbability: 0);
+        $sessionId = Uuid::v4();
+        $sessions->createWithId($sessionId)->save();
+
+        $protocol = new Protocol([], [], MessageFactory::make(), $sessions);
+        $transport = new PollingLoopTransport();
+        $protocol->connect($transport);
+        $transport->setSessionId($sessionId);
+
+        // A DELETE lands after the yield read the session, before it saves.
+        $store->interleaveAfterNextRead(static function () use ($sessions, $sessionId): void {
+            $sessions->destroy($sessionId);
+        });
+        $requestId = $protocol->handleFiberYield(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 60), $sessionId, $transport);
+
+        $this->assertNull($requestId);
+        $this->assertSame([], $transport->takeOutgoingMessages());
     }
 
     #[TestDox('A fiber yield that is not a suspension object is dropped without touching the session')]
@@ -2556,7 +2652,7 @@ final class ProtocolTest extends TestCase
     }
 
     /**
-     * @param array<int, array{request_id: int, timeout: int, timestamp: int}> $pending
+     * @param array<string, array{request_id: string, timeout: int, timestamp: int}> $pending
      *
      * @return array{Protocol, SessionManager, SessionInterface}
      */
@@ -2578,7 +2674,7 @@ final class ProtocolTest extends TestCase
     }
 
     /**
-     * @param list<int> $requestIds
+     * @param list<string> $requestIds
      */
     private function createSessionWithPendingRequests(array $requestIds): SessionInterface&MockObject
     {

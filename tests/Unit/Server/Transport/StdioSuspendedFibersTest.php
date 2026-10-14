@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Event\ServerRequestEvent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -19,6 +20,7 @@ use Mcp\Server\RequestContext;
 use Mcp\Server\Transport\StdioTransport;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * Several handshake-era tool calls in flight on one stdio connection, each
@@ -46,16 +48,17 @@ final class StdioSuspendedFibersTest extends TestCase
     #[TestDox('concurrent elicitations each resume with their own answer')]
     public function testConcurrentElicitationsResumeWithTheirOwnAnswer(): void
     {
-        // The server numbers its requests to the client from 1000 on, in the order the calls ask.
+        // Request ids are random, so the client answers once both elicitations went out, the second one first.
         $lines = $this->exchange([
             self::call(2, 'ask'),
             self::call(3, 'ask'),
-            ['jsonrpc' => '2.0', 'id' => 1001, 'result' => ['action' => 'accept', 'content' => ['name' => 'second']]],
-            ['jsonrpc' => '2.0', 'id' => 1000, 'result' => ['action' => 'accept', 'content' => ['name' => 'first']]],
+        ], static fn (int|string $first, int|string $second): array => [
+            ['jsonrpc' => '2.0', 'id' => $second, 'result' => ['action' => 'accept', 'content' => ['name' => 'second']]],
+            ['jsonrpc' => '2.0', 'id' => $first, 'result' => ['action' => 'accept', 'content' => ['name' => 'first']]],
         ]);
 
         $elicitations = array_values(array_filter($lines, static fn (array $line): bool => 'elicitation/create' === ($line['method'] ?? null)));
-        $this->assertSame([1000, 1001], array_column($elicitations, 'id'));
+        $this->assertCount(2, $elicitations);
 
         $this->assertSame('first', $this->answer($lines, 2)['result']['content'][0]['text'] ?? null);
         $this->assertSame('second', $this->answer($lines, 3)['result']['content'][0]['text'] ?? null);
@@ -93,12 +96,46 @@ final class StdioSuspendedFibersTest extends TestCase
     /**
      * Runs a handshake-era session with the given messages after the handshake.
      *
-     * @param list<array<string, mixed>> $messages
+     * @param list<array<string, mixed>>                                          $messages
+     * @param (\Closure(int|string, int|string): list<array<string, mixed>>)|null $answer   the client's messages once the server sent two requests, given their ids
      *
      * @return list<array<string, mixed>>
      */
-    private function exchange(array $messages): array
+    private function exchange(array $messages, ?\Closure $answer = null): array
     {
+        $input = fopen('php://temp', 'r+');
+        $this->assertNotFalse($input);
+
+        $requestIds = [];
+        $dispatcher = new class(static function (ServerRequestEvent $event) use ($input, $answer, &$requestIds): void {
+            $requestIds[] = $event->getRequest()->getId();
+            if (null === $answer || 2 !== \count($requestIds)) {
+                return;
+            }
+
+            // Appended behind what the server has yet to read.
+            $position = ftell($input);
+            fseek($input, 0, \SEEK_END);
+            foreach ($answer(...$requestIds) as $message) {
+                fwrite($input, json_encode($message, \JSON_THROW_ON_ERROR)."\n");
+            }
+            fwrite($input, str_repeat("\n", 5));
+            fseek($input, (int) $position);
+        }) implements EventDispatcherInterface {
+            public function __construct(private readonly \Closure $onServerRequest)
+            {
+            }
+
+            public function dispatch(object $event): object
+            {
+                if ($event instanceof ServerRequestEvent) {
+                    ($this->onServerRequest)($event);
+                }
+
+                return $event;
+            }
+        };
+
         $server = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
             ->addTool(static function (RequestContext $context): string {
@@ -112,10 +149,9 @@ final class StdioSuspendedFibersTest extends TestCase
 
                 return $result->content['name'] ?? 'none';
             }, name: 'ask', description: 'Asks for a name')
+            ->setEventDispatcher($dispatcher)
             ->build();
 
-        $input = fopen('php://temp', 'r+');
-        $this->assertNotFalse($input);
         // A file rather than memory: running the server closes its streams.
         $outputFile = tempnam(sys_get_temp_dir(), 'mcp-stdio');
         $output = fopen($outputFile, 'w');

@@ -207,7 +207,7 @@ final class ProtocolSessionLockTest extends TestCase
         $protocol = $this->protocol(new RecordingSessionLock($this->log, failure: 'Connection refused'));
         $sessionId = $this->existingSession();
 
-        $this->assertNull($protocol->checkResponse(1, $sessionId));
+        $this->assertNull($protocol->checkResponse(Uuid::v4(), $sessionId));
         $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
         $this->assertSame([], $this->log);
     }
@@ -320,12 +320,14 @@ final class ProtocolSessionLockTest extends TestCase
     {
         $lock = new RecordingSessionLock($this->log);
         $protocol = $this->protocol($lock);
+        $requestId = Uuid::v4();
+        $id = $requestId->toRfc4122();
         $sessionId = $this->existingSession([
-            '_mcp.pending_requests' => [7 => ['request_id' => 7, 'timeout' => 120, 'timestamp' => time()]],
-            '_mcp.responses' => [7 => ['jsonrpc' => '2.0', 'id' => 7, 'result' => ['ok' => true]]],
+            '_mcp.pending_requests' => [$id => ['request_id' => $id, 'timeout' => 120, 'timestamp' => time()]],
+            '_mcp.responses' => [$id => ['jsonrpc' => '2.0', 'id' => $id, 'result' => ['ok' => true]]],
         ]);
 
-        $this->assertInstanceOf(Response::class, $protocol->checkResponse(7, $sessionId));
+        $this->assertInstanceOf(Response::class, $protocol->checkResponse($requestId, $sessionId));
         $this->assertSame([
             "try-acquire $sessionId",
             "read $sessionId",
@@ -353,19 +355,21 @@ final class ProtocolSessionLockTest extends TestCase
     {
         $lock = new RecordingSessionLock($this->log, acquirable: false);
         $protocol = $this->protocol($lock);
+        $requestId = Uuid::v4();
+        $id = $requestId->toRfc4122();
         $sessionId = $this->existingSession([
             '_mcp.outgoing_queue' => [['message' => '{"jsonrpc":"2.0","method":"notifications/message"}', 'context' => ['type' => 'notification']]],
-            '_mcp.pending_requests' => [7 => ['request_id' => 7, 'timeout' => 120, 'timestamp' => time()]],
-            '_mcp.responses' => [7 => ['jsonrpc' => '2.0', 'id' => 7, 'result' => ['ok' => true]]],
+            '_mcp.pending_requests' => [$id => ['request_id' => $id, 'timeout' => 120, 'timestamp' => time()]],
+            '_mcp.responses' => [$id => ['jsonrpc' => '2.0', 'id' => $id, 'result' => ['ok' => true]]],
         ]);
 
         $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
-        $this->assertNull($protocol->checkResponse(7, $sessionId));
+        $this->assertNull($protocol->checkResponse($requestId, $sessionId));
         $this->assertSame([], $this->log);
 
         $session = new Session($this->store, $sessionId);
         $this->assertCount(1, $session->get('_mcp.outgoing_queue'));
-        $this->assertArrayHasKey(7, $session->get('_mcp.responses'));
+        $this->assertArrayHasKey($id, $session->get('_mcp.responses'));
     }
 
     #[TestDox('storing the request a resumed fiber sends locks around its read and save')]
@@ -377,7 +381,7 @@ final class ProtocolSessionLockTest extends TestCase
 
         $requestId = $protocol->handleFiberYield(new RequestSuspension(new PingRequest(), $sessionId->toRfc4122(), 5), $sessionId);
 
-        $this->assertSame(1000, $requestId);
+        $this->assertInstanceOf(Uuid::class, $requestId);
         $this->assertSame([
             "acquire $sessionId",
             "read $sessionId",
@@ -385,7 +389,7 @@ final class ProtocolSessionLockTest extends TestCase
             "write $sessionId",
             "release $sessionId",
         ], $this->log);
-        $this->assertArrayHasKey(1000, (new Session($this->store, $sessionId))->get('_mcp.pending_requests'));
+        $this->assertArrayHasKey($requestId->toRfc4122(), (new Session($this->store, $sessionId))->get('_mcp.pending_requests'));
     }
 
     #[TestDox('a resumed fiber whose session is locked by another request fails loudly: its request must not be lost silently')]

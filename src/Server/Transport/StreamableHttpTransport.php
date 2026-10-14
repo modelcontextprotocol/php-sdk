@@ -308,7 +308,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
                     $resumed = false;
                     foreach ($pendingRequests as $pending) {
-                        $requestId = $pending['request_id'];
+                        $requestId = Uuid::fromString($pending['request_id']);
 
                         $response = $this->checkForResponse($requestId, $this->sessionId);
 

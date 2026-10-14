@@ -18,6 +18,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix memory growing with every `tools/call` in long-lived processes like FrankenPHP workers or stdio servers.
 * Fix OIDC discovery rejecting issuers with a trailing slash (e.g. Authentik, Auth0).
 * Fix `Client::connect()` rejecting an empty `serverInfo.version`, as the Python SDK sends, and leaving the transport open when initialization fails on a malformed result: the transport is now closed and the failure wrapped in a `ConnectionException`.
+* Fix parallel elicitations on one session getting each other's answers: requests to the client get UUID ids instead of a session counter, and a request or notification a handler sends goes out on the stream of its own call.
+* [BC Break] Ids of requests to the client are UUIDs: `Protocol::sendRequest()`, `Protocol::checkResponse()` and `Protocol::handleFiberYield()` take and return a `Uuid` instead of an `int`, as does the response finder of a transport. On the wire and in the session they are RFC 4122 strings.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Fix a session deleted while one of its requests still ran coming back when that request saved it.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).

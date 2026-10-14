@@ -25,13 +25,21 @@ use Mcp\Server\Transport\TransportInterface;
 final class PollingLoopTransport extends InMemoryTransport
 {
     /**
-     * @return list<int>
+     * @return list<string>
      */
     public function getPendingRequestIds(): array
     {
         \assert(null !== $this->sessionFiber);
 
         return array_keys($this->getPendingRequests($this->sessionId, $this->sessionFiber));
+    }
+
+    /**
+     * @return array<int, array<mixed>> the messages this stream sends the client next, decoded
+     */
+    public function takeOutgoingMessages(): array
+    {
+        return array_map(static fn (array $message): array => json_decode($message['message'], true), $this->getOutgoingMessages($this->sessionId));
     }
 
     /**

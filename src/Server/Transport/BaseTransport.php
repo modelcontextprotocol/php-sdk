@@ -90,7 +90,7 @@ abstract class BaseTransport implements TransportInterface
     /**
      * @param McpFiber $fiber
      *
-     * @return array<int, array<string, mixed>>
+     * @return array<string, array<string, mixed>>
      */
     protected function getPendingRequests(?Uuid $sessionId, \Fiber $fiber): array
     {
@@ -104,7 +104,7 @@ abstract class BaseTransport implements TransportInterface
     /**
      * @phpstan-return FiberResume
      */
-    protected function checkForResponse(int $requestId, ?Uuid $sessionId): Response|Error|null
+    protected function checkForResponse(Uuid $requestId, ?Uuid $sessionId): Response|Error|null
     {
         if ($sessionId && \is_callable($this->responseFinder)) {
             return ($this->responseFinder)($requestId, $sessionId);
