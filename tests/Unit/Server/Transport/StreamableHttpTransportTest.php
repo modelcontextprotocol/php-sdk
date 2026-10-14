@@ -622,8 +622,21 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertMatchesRegularExpression('/"id":3,"result".*"progressToken":"p".*"id":2,"result"/s', $output);
     }
 
-    #[TestDox('a batch answered as JSON carries the queued notifications first, then its responses, in one array')]
-    public function testJsonBatchCarriesQueuedNotificationsAndItsResponses(): void
+    /**
+     * @return iterable<string, array{string, list<int>}>
+     */
+    public static function provideRequestsMeetingQueuedNotifications(): iterable
+    {
+        yield 'single request' => ['{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', [2]];
+        yield 'batch' => ['[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', [2, 3]];
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    #[DataProvider('provideRequestsMeetingQueuedNotifications')]
+    #[TestDox('a request meeting queued notifications is answered as SSE with them first, then its responses')]
+    public function testQueuedNotificationsGoOutOnAStreamBeforeTheResponses(string $body, array $ids): void
     {
         $store = new InterleavingSessionStore();
         $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
@@ -637,19 +650,33 @@ final class StreamableHttpTransportTest extends TestCase
         ]]);
         $session->save();
 
-        $response = $this->post($store, '[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', $sessionId);
+        $response = $this->post($store, $body, $sessionId);
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
         $this->assertSame($sessionId, $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER));
 
-        $messages = json_decode((string) $response->getBody(), true);
-        $this->assertIsArray($messages);
-        $this->assertTrue(array_is_list($messages));
+        preg_match_all('/^data: (.+)$/m', (string) $response->getBody(), $matches);
+        $messages = array_map(static fn (string $data): array => json_decode($data, true), $matches[1]);
         $this->assertSame(
-            ['notifications/resources/updated', 2, 3],
+            ['notifications/resources/updated', ...$ids],
             array_map(static fn (array $message): string|int => $message['method'] ?? $message['id'], $messages),
         );
+
+        $this->assertSame([], (new Session($store, Uuid::fromString($sessionId)))->get('_mcp.outgoing_queue'));
+    }
+
+    #[TestDox('a request answered as JSON carries its response alone, a single object')]
+    public function testJsonAnswerIsTheResponseAlone(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $response = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"ping"}', $sessionId);
+
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame(['jsonrpc' => '2.0', 'id' => 2, 'result' => []], json_decode((string) $response->getBody(), true));
     }
 
     #[TestDox('with a session lock, a POST arriving while another of the session runs is held off instead of overwriting it')]
