@@ -425,6 +425,9 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     {
         $finalResult = $fiber->getReturn();
 
+        // A client may stop reading once it has its answer, so what the call sent goes out first.
+        $this->flushOutgoingMessages();
+
         if (null !== $finalResult) {
             try {
                 $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);

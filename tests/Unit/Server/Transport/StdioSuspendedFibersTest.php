@@ -14,7 +14,9 @@ namespace Mcp\Tests\Unit\Server\Transport;
 use Mcp\Event\ServerRequestEvent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Transport\StdioTransport;
@@ -62,6 +64,15 @@ final class StdioSuspendedFibersTest extends TestCase
 
         $this->assertSame('first', $this->answer($lines, 2)['result']['content'][0]['text'] ?? null);
         $this->assertSame('second', $this->answer($lines, 3)['result']['content'][0]['text'] ?? null);
+    }
+
+    #[TestDox('notifications a call sent reach the client before its answer')]
+    public function testNotificationsPrecedeTheAnswer(): void
+    {
+        $lines = $this->exchange([self::call(2, 'announce')]);
+
+        $this->assertSame(['notifications/message', null], array_map(static fn (array $line): ?string => $line['method'] ?? null, \array_slice($lines, 1)));
+        $this->assertSame('announced', $lines[2]['result']['content'][0]['text'] ?? null);
     }
 
     /**
@@ -149,6 +160,11 @@ final class StdioSuspendedFibersTest extends TestCase
 
                 return $result->content['name'] ?? 'none';
             }, name: 'ask', description: 'Asks for a name')
+            ->addTool(static function (RequestContext $context): string {
+                $context->getClientGateway()->notify(new LoggingMessageNotification(LoggingLevel::Info, 'starting'));
+
+                return 'announced';
+            }, name: 'announce', description: 'Notifies, then answers')
             ->setEventDispatcher($dispatcher)
             ->build();
 
