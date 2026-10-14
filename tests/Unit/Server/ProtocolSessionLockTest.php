@@ -473,7 +473,6 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame([
             "acquire $sessionId",
             "read $sessionId",
-            "read $sessionId",
             "write $sessionId",
             "release $sessionId",
         ], $this->log);

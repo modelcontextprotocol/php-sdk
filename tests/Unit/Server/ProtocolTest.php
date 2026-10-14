@@ -708,6 +708,7 @@ final class ProtocolTest extends TestCase
             $session->set('before', true);
             \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
             $session->set('after', true);
+            $session->set('shared.handler', true);
             $session->forget('dropped');
 
             return new Response($request->getId(), []);
@@ -741,6 +742,9 @@ final class ProtocolTest extends TestCase
         $answer = $protocol->checkResponse(Uuid::fromString($pendingIds[0]), $sessionId);
         $this->assertInstanceOf(Response::class, $answer);
         $protocol->handleFiberYield(new NotificationSuspension(new LoggingMessageNotification(LoggingLevel::Info, 'ping'), $sessionId->toRfc4122()), $sessionId);
+        $other = $sessionManager->createWithId($sessionId);
+        $other->set('shared.other', true);
+        $other->save();
 
         $fiber->resume($answer);
         $this->assertTrue($fiber->isTerminated());
@@ -749,6 +753,7 @@ final class ProtocolTest extends TestCase
         $this->assertTrue($stored->get('before'));
         $this->assertTrue($stored->get('after'));
         $this->assertFalse($stored->has('dropped'));
+        $this->assertSame(['other' => true, 'handler' => true], $stored->get('shared'));
         // What happened to the session while the handler waited stays: the answered request is
         // not pending again, the sent request is not queued again, the queued notification stays.
         $this->assertSame([], $protocol->getPendingRequests($sessionId));
