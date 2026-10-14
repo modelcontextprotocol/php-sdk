@@ -2291,6 +2291,104 @@ final class ProtocolTest extends TestCase
         $this->assertNull($protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId()));
     }
 
+    #[TestDox('A client request its stream abandoned is dropped with its answer once another one is sent')]
+    public function testAbandonedRequestIsDroppedWhenAnotherRequestIsSent(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 100],
+        ]);
+        $session->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => []]);
+        $session->save();
+
+        $session = $sessionManager->createWithId($session->getId());
+        $requestId = $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $session = $sessionManager->createWithId($session->getId());
+        $this->assertSame([$requestId->toRfc4122()], array_keys($session->get('_mcp.pending_requests')));
+        $this->assertArrayNotHasKey('00000000-0000-4000-8000-000000001000', $session->get('_mcp.responses', []));
+    }
+
+    #[TestDox('An answer to an abandoned client request is dropped even if it arrived after the session was loaded')]
+    public function testAnswerStoredAfterLoadingIsDroppedWithAbandonedRequest(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 100],
+        ]);
+
+        $snapshot = $sessionManager->createWithId($session->getId());
+        $snapshot->get('_mcp.pending_requests');
+
+        $other = $sessionManager->createWithId($session->getId());
+        $other->set('_mcp.responses.00000000-0000-4000-8000-000000001000', ['jsonrpc' => '2.0', 'id' => '00000000-0000-4000-8000-000000001000', 'result' => []]);
+        $other->save();
+
+        $protocol->sendRequest(new PingRequest(), 5, $snapshot);
+        $snapshot->save();
+
+        $this->assertArrayNotHasKey('00000000-0000-4000-8000-000000001000', $sessionManager->createWithId($session->getId())->get('_mcp.responses', []));
+    }
+
+    #[TestDox('A client request a suspended fiber of the same process still waits on is not dropped as abandoned')]
+    public function testRequestAwaitedByLocalFiberIsKeptPastGracePeriod(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $stream = new PollingLoopTransport();
+        $protocol->connect($stream);
+        $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+        $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
+
+        // The loop that would poll the fiber was blocked well past the request's timeout.
+        $session = $sessionManager->createWithId($sessionId);
+        $session->set("_mcp.pending_requests.{$pendingRequestIds[0]}.timestamp", time() - 100);
+        $session->save();
+
+        $session = $sessionManager->createWithId($sessionId);
+        $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $this->assertArrayHasKey($pendingRequestIds[0], $protocol->getPendingRequests($sessionId));
+        $this->assertSame($pendingRequestIds, $stream->getPendingRequestIds());
+    }
+
+    #[TestDox('A timed out client request within the grace period is left to its own stream')]
+    public function testTimedOutRequestWithinGracePeriodIsKeptWhenAnotherRequestIsSent(): void
+    {
+        [$protocol, $sessionManager, $session] = $this->createProtocolWithPendingRequests([
+            '00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10],
+        ]);
+
+        $session = $sessionManager->createWithId($session->getId());
+        $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $this->assertArrayHasKey('00000000-0000-4000-8000-000000001000', $protocol->getPendingRequests($session->getId()));
+
+        $result = $protocol->checkResponse(Uuid::fromString('00000000-0000-4000-8000-000000001000'), $session->getId());
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Request timed out', $result->message);
+    }
+
     #[TestDox('ClientResponseEvent::getId() is null when the error has no id')]
     public function testClientResponseEventGetIdCanBeNull(): void
     {

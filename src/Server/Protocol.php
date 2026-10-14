@@ -81,6 +81,12 @@ class Protocol
     private const SESSION_LOCK_UNAVAILABLE_MESSAGE = 'The session lock is unavailable.';
 
     /**
+     * Seconds past its timeout after which a pending client request counts as abandoned by its stream.
+     * Until then, the stream that sent it expires it itself and reports the timeout.
+     */
+    private const ABANDONED_REQUEST_GRACE = 60;
+
+    /**
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
      * which concurrent calls share, so a fiber must only be resumed with the answer to the one it sent.
      *
@@ -95,6 +101,14 @@ class Protocol
      * @var \WeakMap<TransportInterface<mixed>, list<array{message: string, context: array<string, mixed>}>>
      */
     private \WeakMap $fiberOutgoingMessages;
+
+    /**
+     * Awaited requests another worker dropped as abandoned, e.g. while this one could not get the session
+     * lock to expire them: their fiber is still owed the timeout.
+     *
+     * @var array<string, true>
+     */
+    private array $droppedAwaitedRequestIds = [];
 
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
@@ -559,6 +573,8 @@ class Protocol
             'method' => $request::getMethod(),
         ]);
 
+        $this->dropAbandonedRequests($session);
+
         // Per entry, so saving does not write back what other streams changed in the others.
         $session->set(self::SESSION_PENDING_REQUESTS.".{$id}", [
             'request_id' => $id,
@@ -736,6 +752,17 @@ class Protocol
     {
         $id = $requestId->toRfc4122();
 
+        if (isset($this->droppedAwaitedRequestIds[$id])) {
+            unset($this->droppedAwaitedRequestIds[$id]);
+            $this->settleAwaitedRequest($id);
+            $this->logger->warning('Client request timed out.', [
+                'request_id' => $id,
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return Error::forInternalError('Request timed out', $id);
+        }
+
         if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return null;
         }
@@ -758,6 +785,7 @@ class Protocol
             $session->set(self::SESSION_RESPONSES.".{$id}", null);
             $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
             $session->save();
+            $this->settleAwaitedRequest($id);
         } finally {
             $this->releaseSessionLock($sessionId);
         }
@@ -803,8 +831,41 @@ class Protocol
 
         $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
         $session->save();
+        $this->settleAwaitedRequest($id);
 
         return Error::forInternalError('Request timed out', $id);
+    }
+
+    /**
+     * Drops the pending client requests, and their unconsumed answers, that no stream waits for anymore.
+     *
+     * Only the stream that sent a request clears it, so one whose stream is gone, through a client
+     * disconnect or a dead worker, would stay until the session expires.
+     */
+    private function dropAbandonedRequests(SessionInterface $session): void
+    {
+        // A fiber of this process still waits on these, e.g. on stdio while another handler blocked the loop.
+        $awaited = [];
+        foreach ($this->awaitedRequestIds as $requestId) {
+            $awaited[$requestId->toRfc4122()] = true;
+        }
+
+        foreach ($session->get(self::SESSION_PENDING_REQUESTS, []) as $id => $pending) {
+            if (isset($awaited[$id]) || !\is_array($pending) || time() < (int) ($pending['timestamp'] ?? 0) + (int) ($pending['timeout'] ?? 120) + self::ABANDONED_REQUEST_GRACE) {
+                continue;
+            }
+
+            $this->logger->debug('Dropping abandoned client request.', [
+                'request_id' => $id,
+                'session_id' => $session->getId()->toRfc4122(),
+            ]);
+
+            // Per entry, so saving does not write back what other streams changed in the others. The answer
+            // may have been stored after this session was loaded: set() makes forget() record its removal.
+            $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
+            $session->set(self::SESSION_RESPONSES.".{$id}", null);
+            $session->forget(self::SESSION_RESPONSES.".{$id}");
+        }
     }
 
     /**
@@ -929,6 +990,18 @@ class Protocol
     }
 
     /**
+     * The fiber that awaited this request gets its answer now, so a later poll must not take it for one dropped elsewhere.
+     */
+    private function settleAwaitedRequest(string $id): void
+    {
+        foreach ($this->awaitedRequestIds as $fiber => $requestId) {
+            if ($requestId->toRfc4122() === $id) {
+                unset($this->awaitedRequestIds[$fiber]);
+            }
+        }
+    }
+
+    /**
      * @param McpFiber $fiber
      *
      * @return array<string, mixed>
@@ -940,7 +1013,16 @@ class Protocol
             return [];
         }
 
-        return array_intersect_key($this->getPendingRequests($sessionId), [$requestId->toRfc4122() => true]);
+        $id = $requestId->toRfc4122();
+        $pending = $this->getPendingRequests($sessionId)[$id] ?? null;
+
+        if (null === $pending) {
+            $this->droppedAwaitedRequestIds[$id] = true;
+
+            return [$id => ['request_id' => $id]];
+        }
+
+        return [$id => $pending];
     }
 
     /**

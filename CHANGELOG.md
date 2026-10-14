@@ -87,6 +87,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * `FileSessionStore::gc()` also removes the lock files of expired sessions a `FileSessionLock` in the same directory left behind, each only while no request holds it.
 * Resume a suspended handler with an error when the transport fails to store what it sends to the client next, instead of resuming it with `null`; `ClientGateway::notify()` then throws a `ClientException`.
 * Fix session writes of a handler after it resumed from an elicitation, sampling request or notification being lost.
+* Fix pending client requests of a vanished stream, and their late answers, staying in the session until it expires: they are dropped once a minute past their timeout.
 
 0.8.1
 -----

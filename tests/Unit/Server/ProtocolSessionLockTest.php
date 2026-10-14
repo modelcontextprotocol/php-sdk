@@ -26,6 +26,7 @@ use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\InMemoryTransport;
+use Mcp\Tests\Unit\Fixtures\PollingLoopTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
@@ -510,6 +511,41 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertInstanceOf(Response::class, $fiber->getReturn());
         $this->assertFalse($this->store->exists($sessionId));
         $this->assertSame([], $lock->heldSessions());
+    }
+
+    #[TestDox('a request another worker dropped as abandoned while the lock kept its stream from expiring it still times out')]
+    public function testAwaitedRequestDroppedByAnotherWorkerTimesOut(): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $waiting = $this->resumingProtocol($lock);
+        $sessionId = $this->existingSession();
+        $stream = new PollingLoopTransport();
+        $waiting->connect($stream);
+        $waiting->processInput($stream, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
+        $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
+        $requestId = Uuid::fromString($pendingRequestIds[0]);
+
+        $session = new Session($this->store, $sessionId);
+        $session->set("_mcp.pending_requests.{$pendingRequestIds[0]}.timestamp", time() - 100);
+        $session->save();
+
+        // Another worker holds the session past the request's timeout, then sends a request of its own.
+        $lock->acquirable = false;
+        $this->assertNull($waiting->checkResponse($requestId, $sessionId));
+        $lock->acquirable = true;
+
+        $sweeping = $this->protocol($lock);
+        $session = new Session($this->store, $sessionId);
+        $sweeping->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+        $this->assertArrayNotHasKey($pendingRequestIds[0], (new Session($this->store, $sessionId))->get('_mcp.pending_requests'));
+
+        $this->assertSame($pendingRequestIds, $stream->getPendingRequestIds());
+        $result = $waiting->checkResponse($requestId, $sessionId);
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Request timed out', $result->message);
+        $this->assertSame([], $stream->getPendingRequestIds());
+        $this->assertNull($waiting->checkResponse($requestId, $sessionId), 'The timeout is reported only once.');
     }
 
     private function resumingProtocol(RecordingSessionLock $lock): Protocol
