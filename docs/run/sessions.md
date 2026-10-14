@@ -177,7 +177,7 @@ one after the other.
 A request that cannot get the lock within the timeout (30 seconds by default, the constructors' `$timeout`)
 is answered with HTTP `503` and a JSON-RPC error, instead of running on a session another request is about
 to overwrite. A lock backend that fails, e.g. a Redis that refuses connections, is answered with `503` too,
-but at once, with the error message `The session lock is unavailable.`, and logged as an error with its cause;
+but at once, with the error message `Session lock is unavailable.`, and logged as an error with its cause;
 a timeout is only logged as a warning. A handler that resumed after the client answered gets an error when the lock cannot be had to
 store its next request or notification: the `ClientGateway` method throws a `ClientException`, and the
 message does not reach the client.
