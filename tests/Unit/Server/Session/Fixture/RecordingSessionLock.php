@@ -1,0 +1,103 @@
+<?php
+
+/*
+ * This file is part of the official PHP MCP SDK.
+ *
+ * A collaboration between Symfony and the PHP Foundation.
+ *
+ * For the full copyright and license information, please view the LICENSE
+ * file that was distributed with this source code.
+ */
+
+namespace Mcp\Tests\Unit\Server\Session\Fixture;
+
+use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
+use Mcp\Server\Session\SessionLockInterface;
+use Symfony\Component\Uid\Uuid;
+
+/**
+ * A session lock that records its calls, next to the store's, in one shared log.
+ */
+final class RecordingSessionLock implements SessionLockInterface
+{
+    /** @var array<string, true> */
+    private array $held = [];
+
+    /**
+     * @param list<string> $log        receives "acquire <id>", "try-acquire <id>" and "release <id>" entries
+     * @param bool         $acquirable false makes every acquire() fail and every tryAcquire() return false,
+     *                                 like a lock another worker holds past the timeout
+     * @param ?string      $failure    makes every acquire() and tryAcquire() fail with this cause, like a lock backend that is down
+     */
+    public function __construct(
+        public array &$log,
+        public bool $acquirable = true,
+        public ?string $failure = null,
+    ) {
+    }
+
+    public function acquire(Uuid $sessionId): void
+    {
+        $key = $sessionId->toRfc4122();
+        $this->failIfBroken($key);
+
+        if (!$this->acquirable) {
+            throw new SessionLockTimeoutException(\sprintf('Timed out waiting for the lock of session "%s".', $key));
+        }
+
+        $this->hold($key);
+        $this->log[] = 'acquire '.$key;
+    }
+
+    public function tryAcquire(Uuid $sessionId): bool
+    {
+        $key = $sessionId->toRfc4122();
+        $this->failIfBroken($key);
+
+        if (!$this->acquirable) {
+            return false;
+        }
+
+        $this->hold($key);
+        $this->log[] = 'try-acquire '.$key;
+
+        return true;
+    }
+
+    public function release(Uuid $sessionId): void
+    {
+        $key = $sessionId->toRfc4122();
+
+        if (!isset($this->held[$key])) {
+            throw new SessionLockException(\sprintf('The lock of session "%s" is not held.', $key));
+        }
+
+        unset($this->held[$key]);
+        $this->log[] = 'release '.$key;
+    }
+
+    private function failIfBroken(string $key): void
+    {
+        if (null !== $this->failure) {
+            throw new SessionLockException(\sprintf('Failed to acquire the lock of session "%s": %s', $key, $this->failure));
+        }
+    }
+
+    private function hold(string $key): void
+    {
+        if (isset($this->held[$key])) {
+            throw new SessionLockException(\sprintf('The lock of session "%s" is already held.', $key));
+        }
+
+        $this->held[$key] = true;
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function heldSessions(): array
+    {
+        return array_keys($this->held);
+    }
+}

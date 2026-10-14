@@ -24,6 +24,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\ElicitResult;
@@ -236,6 +237,35 @@ final class ClientGatewayTest extends TestCase
         $this->assertInstanceOf(LoggingMessageNotification::class, $suspend->notification);
 
         return $suspend->notification;
+    }
+
+    public function testNotifyReturnsWhenResumedWithNothing(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $gateway = new ClientGateway($session);
+
+        $fiber = new \Fiber(static fn () => $gateway->notify(new ProgressNotification('p', 0.5)));
+        $this->assertInstanceOf(NotificationSuspension::class, $fiber->start());
+
+        $fiber->resume();
+
+        $this->assertTrue($fiber->isTerminated());
+    }
+
+    public function testNotifyThrowsClientExceptionWhenTheNotificationCouldNotBeQueued(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $gateway = new ClientGateway($session);
+
+        $fiber = new \Fiber(static fn () => $gateway->notify(new ProgressNotification('p', 0.5)));
+        $fiber->start();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('could not be queued');
+
+        $fiber->resume(Error::forInternalError('The notification could not be queued.'));
     }
 
     /**

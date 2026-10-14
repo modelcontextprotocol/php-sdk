@@ -144,7 +144,8 @@ class FileSessionStore implements SessionStoreInterface
 
     /**
      * Remove sessions older than the configured TTL, along with the temporary files
-     * of writes that never made it into place.
+     * of writes that never made it into place and the lock files a {@see FileSessionLock}
+     * in the same directory left behind.
      * Returns an array of deleted session IDs (UUID instances).
      */
     public function gc(): array
@@ -168,12 +169,19 @@ class FileSessionStore implements SessionStoreInterface
                 continue;
             }
 
+            $path = $this->directory.\DIRECTORY_SEPARATOR.$entry;
+
+            if ($this->isLockFile($entry)) {
+                $this->deleteExpiredLockFile($path, $now);
+
+                continue;
+            }
+
             $isSession = Uuid::isValid($entry);
             if (!$isSession && !$this->isTemporaryFile($entry)) {
                 continue;
             }
 
-            $path = $this->directory.\DIRECTORY_SEPARATOR.$entry;
             if (!is_file($path)) {
                 continue;
             }
@@ -200,6 +208,45 @@ class FileSessionStore implements SessionStoreInterface
         return $deleted;
     }
 
+    /**
+     * Unlinks the file only while holding its lock: a request that holds the lock keeps its
+     * file however long it runs, and one waiting for it notices the file is gone once it gets
+     * the lock, see {@see FileSessionLock}.
+     */
+    private function deleteExpiredLockFile(string $path, int $now): void
+    {
+        if (!is_file($path) || ($now - (@filemtime($path) ?: 0)) <= $this->ttl) {
+            return;
+        }
+
+        $handle = @fopen($path, 'r');
+        if (false === $handle) {
+            return;
+        }
+
+        try {
+            if (!flock($handle, \LOCK_EX | \LOCK_NB)) {
+                return;
+            }
+
+            // Checked again under the lock: the file may have been locked, touched and released,
+            // or replaced, since it was first looked at.
+            if (!FileSessionLock::isFileAt($handle, $path) || ($now - (@filemtime($path) ?: 0)) <= $this->ttl) {
+                return;
+            }
+
+            if (!@unlink($path) && is_file($path)) {
+                $this->logger->warning('Failed to delete expired session lock file.', [
+                    'path' => $path,
+                    'error' => error_get_last()['message'] ?? 'unknown',
+                ]);
+            }
+        } finally {
+            flock($handle, \LOCK_UN);
+            fclose($handle);
+        }
+    }
+
     private function isTemporaryFile(string $entry): bool
     {
         if (1 !== preg_match('/^(?<id>[^.]+)\\.[0-9a-f]{12}\\.tmp$/', $entry, $matches)) {
@@ -207,6 +254,15 @@ class FileSessionStore implements SessionStoreInterface
         }
 
         return Uuid::isValid($matches['id']);
+    }
+
+    private function isLockFile(string $entry): bool
+    {
+        if (!str_ends_with($entry, FileSessionLock::FILE_SUFFIX)) {
+            return false;
+        }
+
+        return Uuid::isValid(substr($entry, 0, -\strlen(FileSessionLock::FILE_SUFFIX)));
     }
 
     private function pathFor(Uuid $id): string

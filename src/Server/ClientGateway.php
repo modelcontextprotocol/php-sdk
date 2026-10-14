@@ -90,10 +90,16 @@ class ClientGateway
      *
      * This suspends the Fiber to let the transport flush the notification via SSE,
      * then immediately resumes execution.
+     *
+     * @throws ClientException if the notification could not be queued for the client
      */
     public function notify(Notification $notification): void
     {
-        \Fiber::suspend(new NotificationSuspension($notification, $this->session->getId()->toRfc4122()));
+        $result = \Fiber::suspend(new NotificationSuspension($notification, $this->session->getId()->toRfc4122()));
+
+        if ($result instanceof Error) {
+            throw new ClientException($result);
+        }
     }
 
     /**
