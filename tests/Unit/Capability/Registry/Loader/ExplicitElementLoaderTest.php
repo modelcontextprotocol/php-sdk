@@ -18,6 +18,7 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Prompt;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
@@ -68,7 +69,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'foo' => 'bar',
         ]);
 
@@ -111,7 +112,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'uri' => 'config://demo',
         ]);
 
@@ -154,7 +155,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'uri' => 'config://abc',
             'key' => 'abc',
         ]);
@@ -197,7 +198,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'topic' => 'php',
         ]);
 

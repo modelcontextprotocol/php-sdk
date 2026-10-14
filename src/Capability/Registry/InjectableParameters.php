@@ -55,7 +55,7 @@ final class InjectableParameters
         }
 
         if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
-            return new ClientGateway($arguments['_session']);
+            return new ClientGateway($arguments['_session'], $arguments['_request'] ?? null);
         }
 
         return null;

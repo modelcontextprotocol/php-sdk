@@ -27,6 +27,7 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\ClientGateway;
@@ -212,6 +213,62 @@ final class ClientGatewayTest extends TestCase
     {
         $this->assertNull($this->logInFiber(null, LoggingLevel::Info));
         $this->assertInstanceOf(LoggingMessageNotification::class, $this->logInFiber(null, LoggingLevel::Warning));
+    }
+
+    public function testProgressUsesTheTokenOfItsOwnRequest(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        // The session holds the meta of whichever call of the session came last.
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $gateway = new ClientGateway($session, (new PingRequest())->withId(1)->withMeta(['progressToken' => 'token-a']));
+
+        $this->assertSame('token-a', $this->progressInFiber($gateway)?->progressToken);
+    }
+
+    public function testProgressIsDroppedWhenItsRequestAskedForNone(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $gateway = new ClientGateway($session, (new PingRequest())->withId(1));
+
+        $this->assertNull($this->progressInFiber($gateway));
+    }
+
+    public function testProgressFallsBackToTheSessionWithoutARequest(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $this->assertSame('token-b', $this->progressInFiber(new ClientGateway($session))?->progressToken);
+    }
+
+    /**
+     * Reports progress inside a Fiber and returns the notification the gateway suspended with, if any.
+     */
+    private function progressInFiber(ClientGateway $gateway): ?ProgressNotification
+    {
+        $fiber = new \Fiber(static fn () => $gateway->progress(1, 2));
+        $suspend = $fiber->start();
+
+        if (null === $suspend) {
+            return null;
+        }
+
+        $this->assertInstanceOf(NotificationSuspension::class, $suspend);
+        $this->assertInstanceOf(ProgressNotification::class, $suspend->notification);
+
+        return $suspend->notification;
     }
 
     /**
