@@ -285,6 +285,8 @@ class Client
      * @param string                                                                  $uri        The resource URI
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *                                                                                            Optional callback for progress updates
+     *
+     * @throws RequestException|ConnectionException|InvalidArgumentException
      */
     public function readResource(string $uri, ?callable $onProgress = null): ReadResourceResult
     {
@@ -318,6 +320,8 @@ class Client
      * @param array<string, string>                                                   $arguments  Prompt arguments
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *                                                                                            Optional callback for progress updates
+     *
+     * @throws RequestException|ConnectionException|InvalidArgumentException
      */
     public function getPrompt(string $name, array $arguments = [], ?callable $onProgress = null): GetPromptResult
     {
@@ -333,6 +337,8 @@ class Client
      *
      * @param PromptReference|ResourceReference  $ref      The prompt or resource reference
      * @param array{name: string, value: string} $argument The argument to complete
+     *
+     * @throws RequestException|ConnectionException|InvalidArgumentException
      */
     public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
     {
@@ -397,7 +403,7 @@ class Client
      *
      * @return Response<mixed>
      *
-     * @throws RequestException|ConnectionException
+     * @throws RequestException|ConnectionException|InvalidArgumentException
      */
     private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {

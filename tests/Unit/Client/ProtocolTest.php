@@ -13,10 +13,12 @@ namespace Mcp\Tests\Unit\Client;
 
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
+use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientStateInterface;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
+use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
@@ -26,6 +28,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\MessageInterface;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\PingRequest;
@@ -623,6 +626,54 @@ final class ProtocolTest extends TestCase
         $protocol->processMessage('{"jsonrpc":"2.0","method":"notifications/progress","params":{"progressToken":"prog-1","progress":2,"message":"late"}}');
 
         $this->assertSame(['prog-1'], $seen);
+    }
+
+    #[TestDox('a request that cannot be encoded as JSON fails with an SDK exception and leaves the client usable')]
+    public function testUnencodableRequestThrowsInvalidArgument(): void
+    {
+        $transport = new InterruptingTransport();
+        $protocol = new Protocol();
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        try {
+            $protocol->request(new CallToolRequest('echo', ['text' => "\xB1"]), 5);
+            $this->fail('A request with invalid UTF-8 must not reach the transport.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertStringContainsString('"tools/call"', $e->getMessage());
+            $this->assertInstanceOf(\JsonException::class, $e->getPrevious());
+        }
+
+        $this->assertSame([], $transport->messages);
+        $this->assertSame([], $protocol->getState()->getPendingRequests());
+        $this->assertSame('fast', $this->toolText($protocol->request(new CallToolRequest('fast', []), 5)));
+    }
+
+    #[TestDox('a request handler result that cannot be encoded as JSON is answered with an internal error')]
+    public function testUnencodableResponseIsAnsweredWithInternalError(): void
+    {
+        $handler = new class implements RequestHandlerInterface {
+            public function supports(Request $request): bool
+            {
+                return true;
+            }
+
+            public function handle(Request $request): Response
+            {
+                return new Response($request->getId(), ['text' => "\xB1"]);
+            }
+        };
+
+        $transport = new InterruptingTransport();
+        $protocol = new Protocol([$handler], logger: $logger = new CollectingLogger());
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->processMessage('{"jsonrpc":"2.0","id":7,"method":"ping"}');
+
+        $this->assertCount(1, $transport->messages);
+        $this->assertSame(7, $transport->messages[0]['id']);
+        $this->assertSame(Error::INTERNAL_ERROR, $transport->messages[0]['error']['code'] ?? null);
+        $this->assertCount(1, $logger->warnings);
+        $this->assertInstanceOf(\JsonException::class, $logger->warnings[0]['exception'] ?? null);
     }
 
     private function createConfiguration(ProtocolVersion $protocolVersion, ?ProtocolVersion $fallback = ProtocolVersion::V2025_11_25): Configuration
