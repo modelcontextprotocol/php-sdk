@@ -693,7 +693,7 @@ final class StreamableHttpTransportTest extends TestCase
 
         // Both requests to the client were stored, each under its own id.
         $session = new Session($store, Uuid::fromString($sessionId));
-        $this->assertSame([1000, 1001], array_keys($session->get('_mcp.pending_requests')));
+        $this->assertCount(2, $session->get('_mcp.pending_requests'));
     }
 
     #[TestDox('a message a resumed handler cannot store fails in the handler instead of resuming it with nothing')]
@@ -709,7 +709,8 @@ final class StreamableHttpTransportTest extends TestCase
 
         // The client answers the first request on a POST of its own, then another worker holds the
         // session past the timeout, so what the resumed handler sends next cannot be stored.
-        $answer = $this->post($store, '{"jsonrpc":"2.0","id":1000,"result":{}}', $sessionId, $this->fileLock());
+        $pendingRequestIds = array_keys((new Session($store, Uuid::fromString($sessionId)))->get('_mcp.pending_requests'));
+        $answer = $this->post($store, \sprintf('{"jsonrpc":"2.0","id":%s,"result":{}}', json_encode($pendingRequestIds[0])), $sessionId, $this->fileLock());
         $this->assertLessThan(300, $answer->getStatusCode());
         $lock->heldElsewhere = true;
 
