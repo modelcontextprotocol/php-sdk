@@ -2329,6 +2329,46 @@ final class ProtocolTest extends TestCase
         $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
     }
 
+    #[TestDox('A client request a suspended fiber of the same process still waits on is not dropped as abandoned')]
+    public function testRequestAwaitedByLocalFiberIsKeptPastGracePeriod(): void
+    {
+        $handler = $this->createMock(RequestHandlerInterface::class);
+        $handler->method('supports')->willReturn(true);
+        $handler->method('handle')->willReturnCallback(static function (Request $request, SessionInterface $session): Response {
+            \Fiber::suspend(new RequestSuspension(new PingRequest(), $session->getId()->toRfc4122(), 5));
+
+            return new Response($request->getId(), []);
+        });
+
+        $sessionManager = new SessionManager(new InMemorySessionStore());
+        $protocol = new Protocol(
+            requestHandlers: [$handler],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $sessionManager,
+        );
+
+        $session = $sessionManager->create();
+        $session->save();
+        $sessionId = $session->getId();
+
+        $stream = new PollingLoopTransport();
+        $protocol->connect($stream);
+        $protocol->processInput($stream, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $sessionId);
+        $this->assertCount(1, $pendingRequestIds = $stream->getPendingRequestIds());
+
+        // The loop that would poll the fiber was blocked well past the request's timeout.
+        $session = $sessionManager->createWithId($sessionId);
+        $session->set("_mcp.pending_requests.{$pendingRequestIds[0]}.timestamp", time() - 100);
+        $session->save();
+
+        $session = $sessionManager->createWithId($sessionId);
+        $protocol->sendRequest(new PingRequest(), 5, $session);
+        $session->save();
+
+        $this->assertSame($pendingRequestIds, $stream->getPendingRequestIds());
+    }
+
     #[TestDox('A timed out client request within the grace period is left to its own stream')]
     public function testTimedOutRequestWithinGracePeriodIsKeptWhenAnotherRequestIsSent(): void
     {

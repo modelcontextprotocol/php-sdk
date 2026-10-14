@@ -823,8 +823,14 @@ class Protocol
      */
     private function dropAbandonedRequests(SessionInterface $session): void
     {
+        // A fiber of this process still waits on these, e.g. on stdio while another handler blocked the loop.
+        $awaited = [];
+        foreach ($this->awaitedRequestIds as $requestId) {
+            $awaited[$requestId->toRfc4122()] = true;
+        }
+
         foreach ($session->get(self::SESSION_PENDING_REQUESTS, []) as $id => $pending) {
-            if (!\is_array($pending) || time() < (int) ($pending['timestamp'] ?? 0) + (int) ($pending['timeout'] ?? 120) + self::ABANDONED_REQUEST_GRACE) {
+            if (isset($awaited[$id]) || !\is_array($pending) || time() < (int) ($pending['timestamp'] ?? 0) + (int) ($pending['timeout'] ?? 120) + self::ABANDONED_REQUEST_GRACE) {
                 continue;
             }
 
