@@ -21,6 +21,7 @@ use Symfony\Component\Uid\Uuid;
 /**
  * File-based session store.
  * Stores each session as a file named by the RFC4122 UUID, with the payload.
+ * gc() scans the whole directory, so its cost grows with the number of sessions.
  */
 class FileSessionStore implements SessionStoreInterface
 {
