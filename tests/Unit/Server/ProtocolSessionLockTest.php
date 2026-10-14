@@ -544,6 +544,7 @@ final class ProtocolSessionLockTest extends TestCase
         $result = $waiting->checkResponse($requestId, $sessionId);
         $this->assertInstanceOf(Error::class, $result);
         $this->assertSame('Request timed out', $result->message);
+        $this->assertSame([], $stream->getPendingRequestIds());
         $this->assertNull($waiting->checkResponse($requestId, $sessionId), 'The timeout is reported only once.');
     }
 

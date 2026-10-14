@@ -2366,6 +2366,7 @@ final class ProtocolTest extends TestCase
         $protocol->sendRequest(new PingRequest(), 5, $session);
         $session->save();
 
+        $this->assertArrayHasKey($pendingRequestIds[0], $protocol->getPendingRequests($sessionId));
         $this->assertSame($pendingRequestIds, $stream->getPendingRequestIds());
     }
 

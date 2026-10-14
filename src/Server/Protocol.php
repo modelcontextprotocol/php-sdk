@@ -754,6 +754,7 @@ class Protocol
 
         if (isset($this->droppedAwaitedRequestIds[$id])) {
             unset($this->droppedAwaitedRequestIds[$id]);
+            $this->settleAwaitedRequest($id);
             $this->logger->warning('Client request timed out.', [
                 'request_id' => $id,
                 'session_id' => $sessionId->toRfc4122(),
