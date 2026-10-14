@@ -43,6 +43,7 @@ use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 final class BuilderTest extends TestCase
 {
@@ -239,6 +240,52 @@ final class BuilderTest extends TestCase
             "destroy $sessionId",
             "release $sessionId",
         ], $log);
+    }
+
+    #[TestDox('listChanged is announced when a notification bus delivers the built-in registry\'s changes')]
+    public function testListChangedIsAnnouncedWithANotificationBus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced with an event dispatcher alone, nothing delivers the changes')]
+    public function testListChangedIsNotAnnouncedWithoutANotificationBus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setEventDispatcher($this->createStub(EventDispatcherInterface::class))
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced for a custom registry, the builder cannot wire it to the bus')]
+    public function testListChangedIsNotAnnouncedForACustomRegistry(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry())
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
     }
 
     #[TestDox('setLazyLoading() returns the builder for fluent chaining')]
