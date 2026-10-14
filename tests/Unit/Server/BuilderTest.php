@@ -221,14 +221,16 @@ final class BuilderTest extends TestCase
             '{"jsonrpc":"2.0","id":2,"method":"ping"}',
         ]));
 
-        $this->assertCount(9, $log, implode(', ', $log));
+        $this->assertCount(11, $log, implode(', ', $log));
         $sessionId = substr($log[0], \strlen('read '));
         $this->assertSame([
             // initialize: the session is new, nobody else can know it yet
             "read $sessionId",
+            "read $sessionId",
             "write $sessionId",
             // ping: locked around read and save
             "acquire $sessionId",
+            "read $sessionId",
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",

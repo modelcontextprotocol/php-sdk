@@ -20,6 +20,7 @@ use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -80,6 +81,7 @@ class Protocol
 
     /** Answer to a request that could not get its session's lock in time, see {@see SessionLockInterface}. */
     private const SESSION_BUSY_MESSAGE = 'Another request of this session is still being processed.';
+    private const SESSION_LOCK_UNAVAILABLE_MESSAGE = 'The session lock is unavailable.';
 
     /**
      * The client request each suspended fiber waits on. Pending requests are stored in the session,
@@ -227,10 +229,18 @@ class Protocol
         // again under the lock, as it may have ended while this request waited.
         $takesLock = null !== $sessionId && null !== $this->sessionLock && $this->sessionManager->exists($sessionId);
 
-        if ($takesLock && !$this->acquireSessionLock($sessionId)) {
-            $this->sendResponse($transport, Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input)), null, ['status_code' => 503]);
+        if ($takesLock) {
+            try {
+                $refusal = $this->acquireSessionLock($sessionId) ? null : self::SESSION_BUSY_MESSAGE;
+            } catch (SessionLockException) {
+                $refusal = self::SESSION_LOCK_UNAVAILABLE_MESSAGE;
+            }
 
-            return;
+            if (null !== $refusal) {
+                $this->sendResponse($transport, Error::forServerError($refusal, self::findResponseId($input)), null, ['status_code' => 503]);
+
+                return;
+            }
         }
 
         try {
@@ -606,8 +616,7 @@ class Protocol
      */
     public function consumeOutgoingMessages(Uuid $sessionId): array
     {
-        // Polled again on the stream's next turn, so it does not wait for a lock that is not free now.
-        if (!$this->acquireSessionLock($sessionId, wait: false)) {
+        if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return [];
         }
 
@@ -639,8 +648,7 @@ class Protocol
      */
     public function checkResponse(int $requestId, Uuid $sessionId): Response|Error|null
     {
-        // Polled again on the stream's next turn, so it does not wait for a lock that is not free now.
-        if (!$this->acquireSessionLock($sessionId, wait: false)) {
+        if (!$this->tryAcquireSessionLockForPoll($sessionId)) {
             return null;
         }
 
@@ -963,10 +971,14 @@ class Protocol
      */
     public function destroySession(Uuid $sessionId): void
     {
-        // Destroyed even when a request of the session holds the lock past the timeout: the
-        // client ended the session, and Session::save() does not write back a session that
-        // was destroyed since it was read. An unknown session id has nothing to lock.
-        $locked = null !== $this->sessionLock && $this->sessionManager->exists($sessionId) && $this->acquireSessionLock($sessionId);
+        // Destroyed even when a request of the session holds the lock past the timeout, or the
+        // lock is unavailable: the client ended the session, and Session::save() does not write
+        // back a session that was destroyed since it was read. An unknown session id has nothing to lock.
+        try {
+            $locked = null !== $this->sessionLock && $this->sessionManager->exists($sessionId) && $this->acquireSessionLock($sessionId);
+        } catch (SessionLockException) {
+            $locked = false;
+        }
 
         try {
             $this->sessionManager->destroy($sessionId);
@@ -980,9 +992,12 @@ class Protocol
     }
 
     /**
-     * Returns false when a configured lock could not be acquired in time; true when it was, or there is none.
+     * Returns false when another request holds the lock past the timeout, or right now when not waiting;
+     * true when it was acquired, or there is no lock.
      *
      * @param bool $wait false to only take a lock that is free right now
+     *
+     * @throws SessionLockException when the lock backend failed
      */
     private function acquireSessionLock(Uuid $sessionId, bool $wait = true): bool
     {
@@ -996,16 +1011,35 @@ class Protocol
             }
 
             $this->sessionLock->acquire($sessionId);
-        } catch (SessionLockException $e) {
+        } catch (SessionLockTimeoutException $e) {
             $this->logger->warning(\sprintf('Failed to acquire session lock: %s', $e->getMessage()), [
                 'session_id' => $sessionId->toRfc4122(),
                 'exception' => $e,
             ]);
 
             return false;
+        } catch (SessionLockException $e) {
+            $this->logger->error(\sprintf('Session lock is unavailable: %s', $e->getMessage()), [
+                'session_id' => $sessionId->toRfc4122(),
+                'exception' => $e,
+            ]);
+
+            throw $e;
         }
 
         return true;
+    }
+
+    /**
+     * A stream polls again on its next turn, so neither a busy lock nor a failing backend is waited on here.
+     */
+    private function tryAcquireSessionLockForPoll(Uuid $sessionId): bool
+    {
+        try {
+            return $this->acquireSessionLock($sessionId, wait: false);
+        } catch (SessionLockException) {
+            return false;
+        }
     }
 
     private function releaseSessionLock(Uuid $sessionId): void

@@ -13,6 +13,9 @@ namespace Mcp\Server\Session;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Lock\Exception\ExceptionInterface as LockExceptionInterface;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\LockInterface;
@@ -27,6 +30,10 @@ use Symfony\Component\Uid\Uuid;
  * The lease is not refreshed while a handler runs: `$ttl` must exceed the longest
  * handler, or another request can take the lock before the first one saved.
  *
+ * A fatal error in a handler (memory limit, max_execution_time) skips the protocol's
+ * release and Lock::__destruct(), so the first acquire registers {@see releaseAll()}
+ * as a shutdown function, which still runs after one.
+ *
  * @author Vitalii Cherepanov <vbcherepanov@gmail.com>
  */
 final class SymfonyLockSessionLock implements SessionLockInterface
@@ -35,6 +42,8 @@ final class SymfonyLockSessionLock implements SessionLockInterface
 
     /** @var array<string, LockInterface> */
     private array $locks = [];
+
+    private bool $releasesOnShutdown = false;
 
     /**
      * @param float  $timeout how long to wait for a lock held by another request, in seconds
@@ -46,6 +55,7 @@ final class SymfonyLockSessionLock implements SessionLockInterface
         private readonly float $timeout = 30.0,
         private readonly float $ttl = 300.0,
         private readonly string $prefix = 'mcp-session-',
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
         if ($this->timeout < 0) {
             throw new InvalidArgumentException('timeout must be greater than or equal to 0.');
@@ -59,7 +69,7 @@ final class SymfonyLockSessionLock implements SessionLockInterface
     public function acquire(Uuid $sessionId): void
     {
         if (!$this->lock($sessionId, $this->timeout)) {
-            throw new SessionLockException(\sprintf('Timed out after %.3fs waiting for the lock of session "%s".', $this->timeout, $sessionId->toRfc4122()));
+            throw new SessionLockTimeoutException(\sprintf('Timed out after %.3fs waiting for the lock of session "%s".', $this->timeout, $sessionId->toRfc4122()));
         }
     }
 
@@ -82,7 +92,26 @@ final class SymfonyLockSessionLock implements SessionLockInterface
         try {
             $lock->release();
         } catch (LockExceptionInterface $e) {
-            throw new SessionLockException(\sprintf('Failed to release the lock of session "%s": %s', $key, $e->getMessage()), 0, $e);
+            throw new SessionLockException(\sprintf('Failed to release the lock of session "%s": %s', $key, self::describe($e)), 0, $e);
+        }
+    }
+
+    /**
+     * Releases every lock this instance still holds; a lock that fails to release is logged and left to expire.
+     */
+    public function releaseAll(): void
+    {
+        foreach ($this->locks as $key => $lock) {
+            unset($this->locks[$key]);
+
+            try {
+                $lock->release();
+            } catch (LockExceptionInterface $e) {
+                $this->logger->warning(\sprintf('Failed to release the lock of session "%s", it expires after its ttl: %s', $key, self::describe($e)), [
+                    'session_id' => $key,
+                    'exception' => $e,
+                ]);
+            }
         }
     }
 
@@ -109,11 +138,30 @@ final class SymfonyLockSessionLock implements SessionLockInterface
                 usleep(self::RETRY_DELAY_MICROSECONDS);
             }
         } catch (LockExceptionInterface $e) {
-            throw new SessionLockException(\sprintf('Failed to acquire the lock of session "%s": %s', $key, $e->getMessage()), 0, $e);
+            throw new SessionLockException(\sprintf('Failed to acquire the lock of session "%s": %s', $key, self::describe($e)), 0, $e);
         }
 
         $this->locks[$key] = $lock;
 
+        if (!$this->releasesOnShutdown) {
+            register_shutdown_function($this->releaseAll(...));
+            $this->releasesOnShutdown = true;
+        }
+
         return true;
+    }
+
+    /**
+     * The lock component wraps a failing store in its own exception with a generic message, so the cause, e.g.
+     * a refused connection, is added from the innermost exception.
+     */
+    private static function describe(\Throwable $e): string
+    {
+        $cause = $e;
+        while (null !== $cause->getPrevious()) {
+            $cause = $cause->getPrevious();
+        }
+
+        return $cause === $e ? $e->getMessage() : \sprintf('%s (%s)', $e->getMessage(), $cause->getMessage());
     }
 }

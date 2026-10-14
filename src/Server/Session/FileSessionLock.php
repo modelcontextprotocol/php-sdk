@@ -14,6 +14,7 @@ namespace Mcp\Server\Session;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
@@ -67,7 +68,7 @@ final class FileSessionLock implements SessionLockInterface
     public function acquire(Uuid $sessionId): void
     {
         if (!$this->lock($sessionId, $this->timeout)) {
-            throw new SessionLockException(\sprintf('Timed out after %.3fs waiting for the lock of session "%s".', $this->timeout, $sessionId->toRfc4122()));
+            throw new SessionLockTimeoutException(\sprintf('Timed out after %.3fs waiting for the lock of session "%s".', $this->timeout, $sessionId->toRfc4122()));
         }
     }
 

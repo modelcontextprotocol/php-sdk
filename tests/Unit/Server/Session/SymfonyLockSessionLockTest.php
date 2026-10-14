@@ -13,10 +13,14 @@ namespace Mcp\Tests\Unit\Server\Session;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Server\Session\SymfonyLockSessionLock;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
 use Symfony\Component\Lock\Exception\LockAcquiringException;
+use Symfony\Component\Lock\Exception\LockReleasingException;
 use Symfony\Component\Lock\Key;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\PersistingStoreInterface;
@@ -55,6 +59,7 @@ final class SymfonyLockSessionLockTest extends TestCase
             $second->acquire($id);
             $this->fail('The lock was acquired twice.');
         } catch (SessionLockException $e) {
+            $this->assertInstanceOf(SessionLockTimeoutException::class, $e);
             $this->assertStringContainsString('Timed out after 0.050s', $e->getMessage());
             $this->assertStringContainsString($id->toRfc4122(), $e->getMessage());
         }
@@ -109,6 +114,67 @@ final class SymfonyLockSessionLockTest extends TestCase
         $this->expectExceptionMessage('Failed to acquire the lock of session');
 
         (new SymfonyLockSessionLock(new LockFactory($store)))->tryAcquire(Uuid::v4());
+    }
+
+    #[TestDox('acquire() reports a failing store as a failure, not as a timeout')]
+    public function testAcquireStoreFailureIsNotATimeout(): void
+    {
+        $store = $this->createMock(PersistingStoreInterface::class);
+        $store->method('save')->willThrowException(new LockAcquiringException('Connection refused'));
+        $store->method('exists')->willReturn(false);
+
+        try {
+            (new SymfonyLockSessionLock(new LockFactory($store)))->acquire(Uuid::v4());
+            $this->fail('The lock was acquired from a failing store.');
+        } catch (SessionLockException $e) {
+            $this->assertNotInstanceOf(SessionLockTimeoutException::class, $e);
+            $this->assertStringContainsString('Connection refused', $e->getMessage());
+            $this->assertInstanceOf(LockAcquiringException::class, $e->getPrevious());
+        }
+    }
+
+    #[TestDox('releaseAll(), registered as a shutdown function, frees every lock still held, e.g. after a fatal error')]
+    public function testReleaseAllFreesEveryHeldLock(): void
+    {
+        $store = new InMemoryStore();
+        $crashed = new SymfonyLockSessionLock(new LockFactory($store));
+        $other = new SymfonyLockSessionLock(new LockFactory($store));
+        $a = Uuid::v4();
+        $b = Uuid::v4();
+        $crashed->acquire($a);
+        $crashed->acquire($b);
+
+        $crashed->releaseAll();
+
+        $this->assertTrue($other->tryAcquire($a));
+        $this->assertTrue($other->tryAcquire($b));
+
+        // Nothing left to release on the next call, e.g. the shutdown after a normal request.
+        $crashed->releaseAll();
+        $this->assertTrue($crashed->tryAcquire(Uuid::v4()));
+    }
+
+    #[TestDox('releaseAll() logs a lock that fails to release and still releases the others')]
+    public function testReleaseAllLogsAFailingReleaseAndGoesOn(): void
+    {
+        $held = [];
+        $store = $this->createMock(PersistingStoreInterface::class);
+        $store->method('save')->willReturnCallback(static function (Key $key) use (&$held): void {
+            $held[(string) $key] = true;
+        });
+        $store->method('exists')->willReturnCallback(static fn (Key $key): bool => isset($held[(string) $key]));
+        $store->expects($this->exactly(2))->method('delete')->willThrowException(new LockReleasingException('Connection refused'));
+
+        $logger = new RecordingLogger();
+        $lock = new SymfonyLockSessionLock(new LockFactory($store), logger: $logger);
+        $lock->acquire(Uuid::v4());
+        $lock->acquire(Uuid::v4());
+
+        $lock->releaseAll();
+
+        $warnings = $logger->messagesAt(LogLevel::WARNING);
+        $this->assertCount(2, $warnings);
+        $this->assertStringContainsString('Connection refused', $warnings[0]);
     }
 
     #[TestDox('locks of different sessions do not block each other')]

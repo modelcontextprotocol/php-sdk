@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Session;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Server\Session\FileSessionLock;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -101,6 +102,7 @@ final class FileSessionLockTest extends TestCase
             $second->acquire($id);
             $this->fail('The lock was acquired twice.');
         } catch (SessionLockException $e) {
+            $this->assertInstanceOf(SessionLockTimeoutException::class, $e);
             $this->assertStringContainsString('Timed out after 0.050s', $e->getMessage());
             $this->assertStringContainsString($id->toRfc4122(), $e->getMessage());
         }

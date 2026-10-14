@@ -12,6 +12,7 @@
 namespace Mcp\Server\Session;
 
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -30,7 +31,8 @@ interface SessionLockInterface
     /**
      * Blocks until the lock of the session is held, or gives up after the implementation's timeout.
      *
-     * @throws SessionLockException when the lock could not be acquired in time, or the lock is already held by this instance
+     * @throws SessionLockTimeoutException when another request still held the lock after the timeout
+     * @throws SessionLockException        when the lock is already held by this instance, or the backend failed
      */
     public function acquire(Uuid $sessionId): void;
 

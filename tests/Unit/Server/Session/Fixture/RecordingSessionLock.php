@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Session\Fixture;
 
 use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Server\Session\SessionLockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -27,19 +28,22 @@ final class RecordingSessionLock implements SessionLockInterface
      * @param list<string> $log        receives "acquire <id>", "try-acquire <id>" and "release <id>" entries
      * @param bool         $acquirable false makes every acquire() fail and every tryAcquire() return false,
      *                                 like a lock another worker holds past the timeout
+     * @param ?string      $failure    makes every acquire() and tryAcquire() fail with this cause, like a lock backend that is down
      */
     public function __construct(
         public array &$log,
         public bool $acquirable = true,
+        public ?string $failure = null,
     ) {
     }
 
     public function acquire(Uuid $sessionId): void
     {
         $key = $sessionId->toRfc4122();
+        $this->failIfBroken($key);
 
         if (!$this->acquirable) {
-            throw new SessionLockException(\sprintf('Timed out waiting for the lock of session "%s".', $key));
+            throw new SessionLockTimeoutException(\sprintf('Timed out waiting for the lock of session "%s".', $key));
         }
 
         $this->hold($key);
@@ -49,6 +53,7 @@ final class RecordingSessionLock implements SessionLockInterface
     public function tryAcquire(Uuid $sessionId): bool
     {
         $key = $sessionId->toRfc4122();
+        $this->failIfBroken($key);
 
         if (!$this->acquirable) {
             return false;
@@ -70,6 +75,13 @@ final class RecordingSessionLock implements SessionLockInterface
 
         unset($this->held[$key]);
         $this->log[] = 'release '.$key;
+    }
+
+    private function failIfBroken(string $key): void
+    {
+        if (null !== $this->failure) {
+            throw new SessionLockException(\sprintf('Failed to acquire the lock of session "%s": %s', $key, $this->failure));
+        }
     }
 
     private function hold(string $key): void

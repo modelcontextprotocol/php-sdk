@@ -23,10 +23,14 @@ use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Tests\Unit\Fixtures\RecordingTransport;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LoggerInterface;
+use Psr\Log\LogLevel;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -56,6 +60,8 @@ final class ProtocolSessionLockTest extends TestCase
 
         $this->assertSame([
             "acquire $sessionId",
+            "read $sessionId",
+            // save() reads again to write back only the keys this request changed
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
@@ -157,6 +163,67 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame('Another request of this session is still being processed.', $error['error']['message']);
     }
 
+    #[TestDox('a busy session is logged as a warning, not as an error')]
+    public function testBusySessionIsLoggedAsAWarning(): void
+    {
+        $logger = new RecordingLogger();
+        $protocol = $this->protocol(new RecordingSessionLock($this->log, acquirable: false), $logger);
+
+        $protocol->processInput(new RecordingTransport(), '{"jsonrpc":"2.0","id":1,"method":"ping"}', $this->existingSession());
+
+        $this->assertCount(1, $logger->messagesAt(LogLevel::WARNING));
+        $this->assertStringContainsString('Timed out', $logger->messagesAt(LogLevel::WARNING)[0]);
+        $this->assertSame([], $logger->messagesAt(LogLevel::ERROR));
+    }
+
+    #[TestDox('a lock backend that is down is answered with 503 saying so, and logged as an error with its cause')]
+    public function testUnavailableLockIsRefusedAndLoggedWithItsCause(): void
+    {
+        $logger = new RecordingLogger();
+        $protocol = $this->protocol(new RecordingSessionLock($this->log, failure: 'Connection refused'), $logger);
+        $sessionId = $this->existingSession();
+        $transport = new RecordingTransport();
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
+
+        $this->assertSame([], $this->log);
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(503, $transport->sent[0]['context']['status_code']);
+
+        $error = json_decode($transport->sent[0]['message'], true);
+        $this->assertSame(1, $error['id']);
+        $this->assertSame(Error::SERVER_ERROR, $error['error']['code']);
+        $this->assertSame('The session lock is unavailable.', $error['error']['message']);
+
+        $errors = $logger->messagesAt(LogLevel::ERROR);
+        $this->assertCount(1, $errors);
+        $this->assertStringContainsString('Connection refused', $errors[0]);
+        $this->assertSame([], $logger->messagesAt(LogLevel::WARNING));
+    }
+
+    #[TestDox('a stream polling while the lock backend is down gets nothing yet, instead of an exception')]
+    public function testPollingWithAnUnavailableLockReturnsNothing(): void
+    {
+        $protocol = $this->protocol(new RecordingSessionLock($this->log, failure: 'Connection refused'));
+        $sessionId = $this->existingSession();
+
+        $this->assertNull($protocol->checkResponse(1, $sessionId));
+        $this->assertSame([], $protocol->consumeOutgoingMessages($sessionId));
+        $this->assertSame([], $this->log);
+    }
+
+    #[TestDox('a session the client ended is destroyed even when the lock backend is down')]
+    public function testDestroyingWithAnUnavailableLockStillDestroys(): void
+    {
+        $protocol = $this->protocol(new RecordingSessionLock($this->log, failure: 'Connection refused'));
+        $sessionId = $this->existingSession();
+
+        $protocol->destroySession($sessionId);
+
+        $this->assertSame(["destroy $sessionId"], $this->log);
+        $this->assertFalse($this->store->exists($sessionId));
+    }
+
     #[TestDox('a refused batch is answered under the empty id, as a batch failure is')]
     public function testRefusedBatchIsAnsweredUnderTheEmptyId(): void
     {
@@ -231,6 +298,7 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame([
             "try-acquire $sessionId",
             "read $sessionId",
+            "read $sessionId",
             "write $sessionId",
             "release $sessionId",
         ], $this->log);
@@ -260,6 +328,7 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertInstanceOf(Response::class, $protocol->checkResponse(7, $sessionId));
         $this->assertSame([
             "try-acquire $sessionId",
+            "read $sessionId",
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
@@ -311,6 +380,7 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame(1000, $requestId);
         $this->assertSame([
             "acquire $sessionId",
+            "read $sessionId",
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
@@ -376,16 +446,17 @@ final class ProtocolSessionLockTest extends TestCase
 
         $protocol->processInput(new RecordingTransport(), '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
 
-        $this->assertSame(["read $sessionId", "write $sessionId"], $this->log);
+        $this->assertSame(["read $sessionId", "read $sessionId", "write $sessionId"], $this->log);
     }
 
-    private function protocol(RecordingSessionLock $lock): Protocol
+    private function protocol(RecordingSessionLock $lock, LoggerInterface $logger = new NullLogger()): Protocol
     {
         return new Protocol(
             requestHandlers: [new PingHandler()],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
             sessionManager: new SessionManager($this->store, gcProbability: 0),
+            logger: $logger,
             sessionLock: $lock,
         );
     }

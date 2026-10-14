@@ -141,19 +141,24 @@ one after the other.
 
 A request that cannot get the lock within the timeout (30 seconds by default, the constructors' `$timeout`)
 is answered with HTTP `503` and a JSON-RPC error, instead of running on a session another request is about
-to overwrite. A handler that resumed after the client answered gets an error when the lock cannot be had to
+to overwrite. A lock backend that fails, e.g. a Redis that refuses connections, is answered with `503` too,
+but at once, with the error message `The session lock is unavailable.`, and logged as an error with its cause;
+a timeout is only logged as a warning. A handler that resumed after the client answered gets an error when the lock cannot be had to
 store its next request or notification: the `ClientGateway` method throws a `ClientException`, and the
 message does not reach the client.
 
 `SymfonyLockSessionLock` expires a held lock after `$ttl` (300 seconds by default), so a worker that dies
 holding one does not block the session for good. The lease is not refreshed while a handler runs, so `$ttl`
 must be longer than your longest handler runs; otherwise another request can take the lock before the first
-one saved the session.
+one saved the session. A fatal error in a handler (memory limit, `max_execution_time`) skips the normal
+release, so `SymfonyLockSessionLock` also releases its locks from a shutdown function; `FileSessionLock` needs
+none, as the operating system drops a `flock()` with the process.
 
 **Custom Session Locks:**
 
 Implement `SessionLockInterface` for another lock backend. `acquire()` blocks until the lock is held or
-throws `SessionLockException` after the backend's timeout; `tryAcquire()` takes the lock only if it is free
+throws `SessionLockTimeoutException` after the backend's timeout, and `SessionLockException` when the backend
+fails; `tryAcquire()` takes the lock only if it is free
 right now and returns `false` otherwise; `release()` gives it back.
 
 **Available Session Stores:**

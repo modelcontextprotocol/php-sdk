@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Session\Fixture;
 
-use Mcp\Exception\SessionLockException;
+use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Server\Session\SessionLockInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -31,7 +31,7 @@ final class HeldElsewhereSessionLock implements SessionLockInterface
     public function acquire(Uuid $sessionId): void
     {
         if ($this->heldElsewhere) {
-            throw new SessionLockException(\sprintf('Timed out waiting for the lock of session "%s".', $sessionId->toRfc4122()));
+            throw new SessionLockTimeoutException(\sprintf('Timed out waiting for the lock of session "%s".', $sessionId->toRfc4122()));
         }
 
         $this->lock->acquire($sessionId);
