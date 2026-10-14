@@ -23,6 +23,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `Client::connect()` rejecting an empty `serverInfo.version`, as the Python SDK sends, and leaving the transport open when initialization fails on a malformed result: the transport is now closed and the failure wrapped in a `ConnectionException`.
 * Fix parallel elicitations on one session getting each other's answers: requests to the client get UUID ids instead of a session counter, and a request or notification a handler sends goes out on the stream of its own call.
 * [BC Break] Ids of requests to the client are UUIDs: `Protocol::sendRequest()`, `Protocol::checkResponse()` and `Protocol::handleFiberYield()` take and return a `Uuid` instead of an `int`, as does the response finder of a transport. On the wire and in the session they are RFC 4122 strings.
+* Fix `StreamableHttpTransport` answering a POST of only responses or notifications with `200` and the session's queued messages: it is now accepted with `202` and no body, and the queued messages stay.
 * Fix stateless SSE streams holding back frames until close when PHP output buffering is enabled.
 * Fix a session deleted while one of its requests still ran coming back when that request saved it.
 * Reject a recognized `Mcp-Param-*` header whose mirrored argument is absent from the body with `-32020`, instead of accepting the request (SEP-2243).

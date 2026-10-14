@@ -721,6 +721,40 @@ final class StreamableHttpTransportTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string}>
+     */
+    public static function providePostsWithoutRequest(): iterable
+    {
+        yield 'client response' => ['{"jsonrpc":"2.0","id":"7","result":{}}'];
+        yield 'notification' => ['{"jsonrpc":"2.0","method":"notifications/roots/list_changed"}'];
+    }
+
+    #[DataProvider('providePostsWithoutRequest')]
+    #[TestDox('a POST without a request is accepted with 202 and no body, and leaves the queued messages in place')]
+    public function testPostWithoutRequestDoesNotDrainTheOutgoingQueue(string $body): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $queued = [[
+            'message' => '{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"uri":"file:///a"}}',
+            'context' => ['type' => 'notification'],
+        ]];
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $session->set('_mcp.outgoing_queue', $queued);
+        $session->save();
+
+        $response = $this->post($store, $body, $sessionId);
+
+        $this->assertSame(202, $response->getStatusCode());
+        $this->assertSame('', (string) $response->getBody());
+
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $this->assertSame($queued, $session->get('_mcp.outgoing_queue'));
+    }
+
+    /**
      * Sends one POST to a fresh server sharing $store, like a PHP worker would.
      */
     private function post(InterleavingSessionStore $store, string $body, string $sessionId = '', ?SessionLockInterface $lock = null): ResponseInterface
