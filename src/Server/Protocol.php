@@ -840,9 +840,10 @@ class Protocol
             ]);
 
             // Per entry, so saving does not write back what other streams changed in the others. The answer
-            // may have been stored after this session was loaded, so it is overwritten, not forgotten.
+            // may have been stored after this session was loaded: set() makes forget() record its removal.
             $session->forget(self::SESSION_PENDING_REQUESTS.".{$id}");
             $session->set(self::SESSION_RESPONSES.".{$id}", null);
+            $session->forget(self::SESSION_RESPONSES.".{$id}");
         }
     }
 

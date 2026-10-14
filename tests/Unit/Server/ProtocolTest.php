@@ -2306,7 +2306,7 @@ final class ProtocolTest extends TestCase
 
         $session = $sessionManager->createWithId($session->getId());
         $this->assertSame([$requestId->toRfc4122()], array_keys($session->get('_mcp.pending_requests')));
-        $this->assertNull($session->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+        $this->assertArrayNotHasKey('00000000-0000-4000-8000-000000001000', $session->get('_mcp.responses', []));
     }
 
     #[TestDox('An answer to an abandoned client request is dropped even if it arrived after the session was loaded')]
@@ -2326,7 +2326,7 @@ final class ProtocolTest extends TestCase
         $protocol->sendRequest(new PingRequest(), 5, $snapshot);
         $snapshot->save();
 
-        $this->assertNull($sessionManager->createWithId($session->getId())->get('_mcp.responses.00000000-0000-4000-8000-000000001000'));
+        $this->assertArrayNotHasKey('00000000-0000-4000-8000-000000001000', $sessionManager->createWithId($session->getId())->get('_mcp.responses', []));
     }
 
     #[TestDox('A client request a suspended fiber of the same process still waits on is not dropped as abandoned')]
