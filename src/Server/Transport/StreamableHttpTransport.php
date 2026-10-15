@@ -255,14 +255,25 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->responseFactory->createResponse(202);
         }
 
-        $messages = [...array_column($this->getOutgoingMessages($this->sessionId), 'message'), ...$this->responses];
+        $responses = $this->responses;
         $this->responses = [];
 
-        $responseBody = 1 === \count($messages) ? $messages[0] : '['.implode(',', $messages).']';
+        // A JSON answer holds the responses alone, so messages queued for the
+        // session make it a stream that carries them ahead of the responses.
+        $queued = array_column($this->getOutgoingMessages($this->sessionId), 'message');
 
-        $response = $this->responseFactory->createResponse(200)
-            ->withHeader('Content-Type', 'application/json')
-            ->withBody($this->streamFactory->createStream($responseBody));
+        if ([] === $queued) {
+            $response = $this->responseFactory->createResponse(200)
+                ->withHeader('Content-Type', 'application/json')
+                ->withBody($this->streamFactory->createStream(1 === \count($responses) ? $responses[0] : '['.implode(',', $responses).']'));
+        } else {
+            $events = array_map(static fn (string $message): string => "event: message\ndata: {$message}\n\n", [...$queued, ...$responses]);
+
+            $response = $this->responseFactory->createResponse(200)
+                ->withHeader('Content-Type', 'text/event-stream')
+                ->withHeader('Cache-Control', 'no-cache')
+                ->withBody($this->streamFactory->createStream(implode('', $events)));
+        }
 
         if ($this->sessionId) {
             $response = $response->withHeader(self::SESSION_HEADER, $this->sessionId->toRfc4122());
