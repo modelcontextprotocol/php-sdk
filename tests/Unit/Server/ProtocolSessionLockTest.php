@@ -197,8 +197,8 @@ final class ProtocolSessionLockTest extends TestCase
 
         $error = json_decode($transport->sent[0]['message'], true);
         $this->assertSame(1, $error['id']);
-        $this->assertSame(Error::SERVER_ERROR, $error['error']['code']);
-        $this->assertSame('The session lock is unavailable.', $error['error']['message']);
+        $this->assertSame(Error::INTERNAL_ERROR, $error['error']['code']);
+        $this->assertSame('Session lock is unavailable.', $error['error']['message']);
 
         $errors = $logger->messagesAt(LogLevel::ERROR);
         $this->assertCount(1, $errors);

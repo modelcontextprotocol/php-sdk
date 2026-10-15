@@ -78,7 +78,6 @@ class Protocol
 
     /** Answer to a request that could not get its session's lock in time, see {@see SessionLockInterface}. */
     private const SESSION_BUSY_MESSAGE = 'Another request of this session is still being processed.';
-    private const SESSION_LOCK_UNAVAILABLE_MESSAGE = 'The session lock is unavailable.';
 
     /**
      * Seconds past its timeout after which a pending client request counts as abandoned by its stream.
@@ -257,13 +256,13 @@ class Protocol
 
         if ($takesLock) {
             try {
-                $refusal = $this->acquireSessionLock($sessionId) ? null : self::SESSION_BUSY_MESSAGE;
+                $refusal = $this->acquireSessionLock($sessionId) ? null : Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input));
             } catch (SessionLockException) {
-                $refusal = self::SESSION_LOCK_UNAVAILABLE_MESSAGE;
+                $refusal = Error::forInternalError('Session lock is unavailable.', self::findResponseId($input));
             }
 
             if (null !== $refusal) {
-                $this->sendResponse($transport, Error::forServerError($refusal, self::findResponseId($input)), null, ['status_code' => 503]);
+                $this->sendResponse($transport, $refusal, null, ['status_code' => 503]);
 
                 return;
             }
