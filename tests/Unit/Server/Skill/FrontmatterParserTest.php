@@ -86,4 +86,30 @@ class FrontmatterParserTest extends TestCase
 
         (new FrontmatterParser())->parseMetadata("---\ndescription: no name\n---\nbody");
     }
+
+    public function testKeepsEmptyAndNestedMappingsAsObjects(): void
+    {
+        $content = "---\nname: a\ndescription: b\nmetadata: {}\nnested:\n  inner:\n    key: value\n---\nbody";
+
+        [$frontmatter] = (new FrontmatterParser())->parse($content);
+
+        $this->assertSame(
+            '{"name":"a","description":"b","metadata":{},"nested":{"inner":{"key":"value"}}}',
+            json_encode($frontmatter, \JSON_THROW_ON_ERROR),
+        );
+    }
+
+    public function testKeepsListsAsLists(): void
+    {
+        [$frontmatter] = (new FrontmatterParser())->parse("---\nname: a\ntags: [x, y]\nempty: []\n---\n");
+
+        $this->assertSame('{"name":"a","tags":["x","y"],"empty":[]}', json_encode($frontmatter, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testMetadataSerializesEmptyMappingsAsObjects(): void
+    {
+        $metadata = (new FrontmatterParser())->parseMetadata("---\nname: a\ndescription: b\nmetadata: {}\n---\n");
+
+        $this->assertSame('{"name":"a","description":"b","metadata":{}}', json_encode($metadata, \JSON_THROW_ON_ERROR));
+    }
 }

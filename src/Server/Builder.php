@@ -1129,6 +1129,12 @@ final class Builder
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
+        // SEP-2640: a server declaring the skills extension MUST also declare `resources`, because
+        // every skill file is served through resources/read.
+        if (null !== $this->serverCapabilities && null !== $this->skillRegistry && true !== $this->serverCapabilities->resources) {
+            throw new LogicException('The skills extension serves skills as resources, so the capabilities passed to setCapabilities() must declare "resources".');
+        }
+
         $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
@@ -1192,7 +1198,7 @@ final class Builder
         $listChanged = null !== $this->notificationBus && !$this->hasCustomRegistry;
 
         if ($eagerlyLoaded) {
-            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();
+            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates() || null !== $this->skillRegistry;
 
             return new ServerCapabilities(
                 tools: $registry->hasTools(),
@@ -1209,7 +1215,7 @@ final class Builder
         }
 
         $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
-        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources;
+        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources || null !== $this->skillRegistry;
 
         return new ServerCapabilities(
             tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,

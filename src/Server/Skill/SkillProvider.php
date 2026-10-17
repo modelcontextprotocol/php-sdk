@@ -17,7 +17,6 @@ use Mcp\Schema\Extension\Skills\Skill;
 use Mcp\Schema\Extension\Skills\SkillMetadata;
 use Mcp\Schema\Extension\Skills\SkillResource;
 use Mcp\Server\Builder;
-use Symfony\Component\Finder\Finder;
 
 /**
  * Exposes a directory of skills as `skill://` resources on a {@see Builder}, and registers each
@@ -41,6 +40,12 @@ final class SkillProvider
 
     /** Total file size per skill this extension fixes as the limit every conforming host must accept. */
     private const MAX_TOTAL_SIZE_PER_SKILL = 16_777_216;
+
+    /** Longest skill name the Agent Skills specification allows. */
+    private const MAX_NAME_LENGTH = 64;
+
+    /** Longest skill description the Agent Skills specification allows. */
+    private const MAX_DESCRIPTION_LENGTH = 1024;
 
     public function __construct(
         private readonly FrontmatterParser $frontmatter = new FrontmatterParser(),
@@ -87,7 +92,9 @@ final class SkillProvider
             throw new InvalidArgumentException(\sprintf('Skill at "%s": frontmatter name "%s" must match the final path segment "%s".', $skillPath, $metadata->name, $lastSegment));
         }
 
-        $entryUri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $skillPath, McpSkills::ENTRY_POINT);
+        $this->validateMetadata($skillPath, $metadata);
+
+        $entryUri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $this->encodePath($skillPath), McpSkills::ENTRY_POINT);
         $entrySize = \strlen($content);
         $entryDigest = 'sha256:'.hash('sha256', $content);
 
@@ -107,7 +114,7 @@ final class SkillProvider
 
         foreach ($this->findSupportingFiles($skillDir, $manifestPath) as $filePath) {
             $relative = $this->relativePath($skillDir, $filePath);
-            $uri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $skillPath, $relative);
+            $uri = \sprintf('%s://%s/%s', McpSkills::URI_SCHEME, $this->encodePath($skillPath), $this->encodePath($relative));
             $size = (int) filesize($filePath);
             $digest = 'sha256:'.hash_file('sha256', $filePath);
 
@@ -136,6 +143,31 @@ final class SkillProvider
         $this->checkLimits($skillPath, $resources);
 
         return new Skill($entryUri, $metadata, $resources);
+    }
+
+    /**
+     * Enforces the Agent Skills naming rules the extension requires of the skill name, and the
+     * description length limit.
+     */
+    private function validateMetadata(string $skillPath, SkillMetadata $metadata): void
+    {
+        if (\strlen($metadata->name) > self::MAX_NAME_LENGTH || 1 !== preg_match('/^[a-z0-9]+(?:-[a-z0-9]+)*$/', $metadata->name)) {
+            throw new InvalidArgumentException(\sprintf('Skill at "%s": name "%s" must be 1-%d characters of lowercase letters, digits and single hyphens, and must not start or end with a hyphen.', $skillPath, $metadata->name, self::MAX_NAME_LENGTH));
+        }
+
+        $descriptionLength = \function_exists('mb_strlen') ? mb_strlen($metadata->description) : \strlen($metadata->description);
+        if ($descriptionLength > self::MAX_DESCRIPTION_LENGTH) {
+            throw new InvalidArgumentException(\sprintf('Skill at "%s": description has %d characters, exceeding the limit of %d.', $skillPath, $descriptionLength, self::MAX_DESCRIPTION_LENGTH));
+        }
+    }
+
+    /**
+     * Percent-encodes each segment of a slash separated path, so a file name like `my file.md` or
+     * `a#b.md` still yields a valid URI.
+     */
+    private function encodePath(string $path): string
+    {
+        return implode('/', array_map(rawurlencode(...), explode('/', $path)));
     }
 
     /**
@@ -197,15 +229,6 @@ final class SkillProvider
      */
     private function findSkillManifests(string $base): iterable
     {
-        if (class_exists(Finder::class)) {
-            $finder = (new Finder())->files()->in($base)->name(McpSkills::ENTRY_POINT)->sortByName();
-            foreach ($finder as $file) {
-                yield $file->getPathname();
-            }
-
-            return;
-        }
-
         yield from $this->iterateFiles($base, static fn (string $path): bool => McpSkills::ENTRY_POINT === basename($path));
     }
 
@@ -214,21 +237,14 @@ final class SkillProvider
      */
     private function findSupportingFiles(string $skillDir, string $manifestPath): iterable
     {
-        if (class_exists(Finder::class)) {
-            $finder = (new Finder())->files()->in($skillDir)->sortByName();
-            foreach ($finder as $file) {
-                if ($file->getPathname() !== $manifestPath) {
-                    yield $file->getPathname();
-                }
-            }
-
-            return;
-        }
-
         yield from $this->iterateFiles($skillDir, static fn (string $path): bool => $path !== $manifestPath);
     }
 
     /**
+     * Lists the files below $directory in a stable order, skipping hidden files and folders (`.env`,
+     * `.git/`). The same walk runs whichever optional packages are installed, so a skill's manifest
+     * never depends on the environment it was built in.
+     *
      * @param callable(string): bool $accept
      *
      * @return iterable<string>
@@ -236,7 +252,10 @@ final class SkillProvider
     private function iterateFiles(string $directory, callable $accept): iterable
     {
         $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            new \RecursiveCallbackFilterIterator(
+                new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                static fn (\SplFileInfo $file): bool => !str_starts_with($file->getFilename(), '.'),
+            ),
         );
 
         $paths = [];
