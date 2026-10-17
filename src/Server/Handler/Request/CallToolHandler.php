@@ -114,7 +114,8 @@ final class CallToolHandler implements RequestHandlerInterface
                     ]);
                 }
 
-                $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
+                $content = $reference->structuredContentOnly && null !== $structuredContent ? [] : $reference->formatResult($result);
+                $result = new CallToolResult($content, structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
                 && null !== $result->structuredContent
                 && !self::isJsonObject($result->structuredContent)

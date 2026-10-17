@@ -157,6 +157,22 @@ The same schema can be passed to manual registration:
 $builder->addTool([WeatherHandler::class, 'getWeather'], outputSchema: [/* ... */]);
 ```
 
+To omit the generated text representation for a tool, opt in with `structuredContentOnly`:
+
+```php
+#[McpTool(structuredContentOnly: true)]
+public function getData(): array
+{
+    return ['foo' => 'bar'];
+}
+```
+
+For manual registration, use `$builder->addTool($handler, structuredContentOnly: true)`.
+When structured content is available, the result has `content: []` and the data in `structuredContent`.
+The default behavior remains unchanged. If the return value cannot be sent as structured content under the
+call's protocol revision, the SDK keeps its regular `content` representation. Explicit `Content` items and
+manually returned `CallToolResult` instances retain their existing behavior.
+
 The SDK fills `structuredContent` whenever the return value qualifies — `outputSchema` is what tells clients to expect it
 and lets them validate it. What qualifies depends on the protocol revision the call is served under:
 

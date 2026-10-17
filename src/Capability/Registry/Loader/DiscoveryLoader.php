@@ -89,7 +89,7 @@ final class DiscoveryLoader implements LoaderInterface
             if (!$this->mayWriteTool($registry, $name)) {
                 continue;
             }
-            $tools[$name] = $registry->registerTool($reference->tool, $reference->handler);
+            $tools[$name] = $registry->registerTool($reference->tool, $reference->handler, $reference->structuredContentOnly);
         }
 
         $resources = [];

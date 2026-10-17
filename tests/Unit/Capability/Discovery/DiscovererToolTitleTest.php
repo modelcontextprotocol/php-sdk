@@ -29,5 +29,7 @@ class DiscovererToolTitleTest extends TestCase
         $toolRef = $tools['greet_user'];
         $this->assertInstanceOf(ToolReference::class, $toolRef);
         $this->assertSame('Greet User', $toolRef->tool->title);
+        $this->assertFalse($toolRef->structuredContentOnly);
+        $this->assertTrue($tools['repeatAction']->structuredContentOnly);
     }
 }

@@ -42,7 +42,7 @@ class DiscoveryLoaderTest extends TestCase
     public function testLoadRegistersAllDiscoveredElements(): void
     {
         $loader = new DiscoveryLoader('/base', [], [], new MutableDiscoverer(new DiscoveryState(
-            tools: ['t1' => new ToolReference($this->makeTool('t1'), static fn () => 't1')],
+            tools: ['t1' => new ToolReference($this->makeTool('t1'), static fn () => 't1', structuredContentOnly: true)],
             resources: ['r://1' => new ResourceReference($this->makeResource('r://1'), static fn () => 'r1')],
             prompts: ['p1' => new PromptReference($this->makePrompt('p1'), static fn () => [])],
             resourceTemplates: ['t://{id}' => new ResourceTemplateReference($this->makeTemplate('t://{id}'), static fn () => 'tpl')],
@@ -51,6 +51,7 @@ class DiscoveryLoaderTest extends TestCase
         $loader->load($this->registry);
 
         $this->assertInstanceOf(ToolReference::class, $this->registry->getTool('t1'));
+        $this->assertTrue($this->registry->getTool('t1')->structuredContentOnly);
         $this->assertInstanceOf(ResourceReference::class, $this->registry->getResource('r://1', false));
         $this->assertInstanceOf(PromptReference::class, $this->registry->getPrompt('p1'));
         $this->assertInstanceOf(ResourceTemplateReference::class, $this->registry->getResourceTemplate('t://{id}'));

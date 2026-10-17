@@ -166,6 +166,7 @@ final class Builder
      *     icons: ?Icon[],
      *     meta: ?array<string, mixed>,
      *     outputSchema: ?array<string, mixed>,
+     *     structuredContentOnly: bool,
      * }[]
      */
     private array $tools = [];
@@ -690,11 +691,12 @@ final class Builder
      * Manually registers a tool handler.
      *
      * @param Handler                   $handler
-     * @param ?string                   $title        Optional human-readable title for display in UI
+     * @param ?string                   $title                 Optional human-readable title for display in UI
      * @param array<string, mixed>|null $inputSchema
      * @param ?Icon[]                   $icons
      * @param array<string, mixed>|null $meta
      * @param array<string, mixed>|null $outputSchema
+     * @param bool                      $structuredContentOnly Omit generated content when structured content is available
      */
     public function addTool(
         callable|array|string $handler,
@@ -706,6 +708,7 @@ final class Builder
         ?array $icons = null,
         ?array $meta = null,
         ?array $outputSchema = null,
+        bool $structuredContentOnly = false,
     ): self {
         $this->tools[] = compact(
             'handler',
@@ -717,6 +720,7 @@ final class Builder
             'icons',
             'meta',
             'outputSchema',
+            'structuredContentOnly',
         );
 
         return $this;

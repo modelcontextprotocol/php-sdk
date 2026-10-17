@@ -34,6 +34,7 @@ class ReflectedElementLoaderToolTitleTest extends TestCase
                 'icons' => null,
                 'meta' => null,
                 'outputSchema' => null,
+                'structuredContentOnly' => true,
             ],
         ];
 
@@ -44,5 +45,6 @@ class ReflectedElementLoaderToolTitleTest extends TestCase
 
         $toolRef = $registry->getTool('weather_lookup');
         $this->assertSame('Weather Lookup', $toolRef->tool->title);
+        $this->assertTrue($toolRef->structuredContentOnly);
     }
 }

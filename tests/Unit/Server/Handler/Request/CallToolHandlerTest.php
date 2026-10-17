@@ -60,6 +60,46 @@ class CallToolHandlerTest extends TestCase
         );
     }
 
+    #[\PHPUnit\Framework\Attributes\DataProvider('structuredContentOnlyProvider')]
+    public function testStructuredContentOnly(mixed $value, bool $enabled, bool $expectStructured): void
+    {
+        $request = $this->createCallToolRequest('data', []);
+        $tool = new Tool('data', null, ['type' => 'object', 'properties' => new \stdClass(), 'required' => []], null, null);
+        $reference = new ToolReference($tool, static fn () => $value, structuredContentOnly: $enabled);
+        $this->registry->method('getTool')->willReturn($reference);
+        $this->referenceHandler->method('handle')->willReturn($value);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        if ($value instanceof CallToolResult) {
+            $this->assertSame($value, $response->result);
+
+            return;
+        }
+
+        $this->assertSame($expectStructured ? ['foo' => 'bar'] : null, $response->result->structuredContent);
+        if ($enabled && $expectStructured) {
+            $this->assertSame([], $response->result->content);
+        } else {
+            $this->assertNotEmpty($response->result->content);
+        }
+    }
+
+    public static function structuredContentOnlyProvider(): iterable
+    {
+        yield 'opt in' => [['foo' => 'bar'], true, true];
+        yield 'default' => [['foo' => 'bar'], false, true];
+        yield 'object' => [(object) ['foo' => 'bar'], true, true];
+        yield 'string fallback' => ['hello', true, false];
+        yield 'null fallback' => [null, true, false];
+        yield 'list fallback for legacy protocol' => [[1, 2], true, false];
+        yield 'content' => [new TextContent('hello'), true, false];
+        yield 'mixed content' => [[new TextContent('hello'), 'world'], true, false];
+        yield 'explicit result' => [new CallToolResult([new TextContent('explicit')], structuredContent: ['foo' => 'bar']), true, true];
+    }
+
     public function testSupportsCallToolRequest(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['param' => 'value']);
