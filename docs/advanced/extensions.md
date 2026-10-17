@@ -254,8 +254,21 @@ tags: [review, quality]
 ```
 
 > The frontmatter `name` **must** equal the final segment of the skill's directory
-> path (`code-review/` → `name: code-review`), and `description` is required; a
-> violation throws an `InvalidArgumentException`.
+> path (`code-review/` → `name: code-review`), and `description` is required. The
+> name follows the Agent Skills rules: 1 to 64 characters of lowercase letters,
+> digits and single hyphens, with no hyphen at the start or end. The description
+> has at most 1024 characters. A violation throws an `InvalidArgumentException`.
+
+Hidden files and folders (`.env`, `.git/`) are neither listed nor served. File
+and folder names are percent-encoded in the URIs, so `my docs/a b.md` becomes
+`skill://my-skill/my%20docs/a%20b.md`.
+
+The server declares the `resources` capability whenever the extension is enabled.
+`setCapabilities()` therefore has to keep `resources` on.
+
+The frontmatter is sent as parsed, so a host that compares it with the file sees
+the same content. One limit: YAML turns an unquoted date like `2025-01-02` into a
+timestamp. Quote such values (`"2025-01-02"`) to keep them as strings.
 
 The extension fixes two per-skill limits so every conforming host knows what it
 must accept: 512 resources and 16 MiB total content. `addSkillsFromDirectory()`

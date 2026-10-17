@@ -18,6 +18,7 @@ use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\Skill\SkillProvider;
 use Mcp\Server\Skill\SkillRegistry;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class SkillProviderTest extends TestCase
@@ -75,8 +76,6 @@ class SkillProviderTest extends TestCase
         $this->assertCount(2, $skills);
 
         $codeReview = array_values(array_filter($skills, static fn ($s) => 'code-review' === $s->frontmatter->name))[0];
-        $this->assertIsArray($codeReview->resources);
-        $this->assertNotFalse($codeReview);
         $this->assertIsArray($codeReview->resources);
         $this->assertCount(2, $codeReview->resources); // SKILL.md + references/SECURITY.md
 
@@ -242,6 +241,163 @@ class SkillProviderTest extends TestCase
         } finally {
             $this->removeDir($dir);
         }
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideInvalidNames(): iterable
+    {
+        yield 'uppercase' => ['Code-Review'];
+        yield 'underscore' => ['code_review'];
+        yield 'leading hyphen' => ['-review'];
+        yield 'trailing hyphen' => ['review-'];
+        yield 'double hyphen' => ['code--review'];
+        yield 'too long' => [str_repeat('a', 65)];
+    }
+
+    #[DataProvider('provideInvalidNames')]
+    public function testRejectsNamesBreakingTheAgentSkillsNamingRules(string $name): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, $name, "name: {$name}\ndescription: Some skill.");
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage('must be 1-64 characters');
+
+            (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testAcceptsTheLongestValidName(): void
+    {
+        $dir = $this->makeTempDir();
+        $name = str_repeat('a', 64);
+        $this->writeSkill($dir, $name, "name: {$name}\ndescription: Some skill.");
+
+        try {
+            $skills = (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+
+            $this->assertCount(1, $skills);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testRejectsDescriptionsLongerThan1024Characters(): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, 'long-description', 'name: long-description'."\n".'description: '.str_repeat('x', 1025));
+
+        try {
+            $this->expectException(InvalidArgumentException::class);
+            $this->expectExceptionMessage('exceeding the limit of 1024');
+
+            (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testAcceptsA1024CharacterDescription(): void
+    {
+        $dir = $this->makeTempDir();
+        $this->writeSkill($dir, 'max-description', "name: max-description\ndescription: ".str_repeat('x', 1024));
+
+        try {
+            $skills = (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+
+            $this->assertCount(1, $skills);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testSkipsHiddenFilesAndFoldersWhateverIsInstalled(): void
+    {
+        $dir = $this->makeTempDir();
+        $skillDir = $this->writeSkill($dir, 'visible', "name: visible\ndescription: Has hidden files.");
+        file_put_contents($skillDir.'/guide.md', 'guide');
+        file_put_contents($skillDir.'/.env', 'SECRET=1');
+        mkdir($skillDir.'/.git', 0777, true);
+        file_put_contents($skillDir.'/.git/config', 'repo');
+        mkdir($skillDir.'/refs/.cache', 0777, true);
+        file_put_contents($skillDir.'/refs/.cache/blob', 'cache');
+        file_put_contents($skillDir.'/refs/note.md', 'note');
+
+        try {
+            $builder = Server::builder();
+            $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+
+            $this->assertIsArray($skills[0]->resources);
+            $listed = array_map(static fn (SkillResource $r): string => $r->uri, $skills[0]->resources);
+            sort($listed);
+
+            $this->assertSame(['skill://visible/SKILL.md', 'skill://visible/guide.md', 'skill://visible/refs/note.md'], $listed);
+            $served = array_column($this->registeredResources($builder), 'uri');
+            sort($served);
+            $this->assertSame($listed, $served, 'Everything served is listed, and the other way round.');
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testPercentEncodesUrisAndKeepsThemServable(): void
+    {
+        $dir = $this->makeTempDir();
+        $skillDir = $this->writeSkill($dir, 'encoded', "name: encoded\ndescription: Odd file names.");
+        mkdir($skillDir.'/my docs', 0777, true);
+        file_put_contents($skillDir.'/my docs/a b.md', 'one');
+        file_put_contents($skillDir.'/a#b.md', 'two');
+        file_put_contents($skillDir.'/x%y.md', 'three');
+
+        try {
+            $builder = Server::builder();
+            $skills = (new SkillProvider())->registerInto($builder, new SkillRegistry(), $dir);
+
+            $this->assertIsArray($skills[0]->resources);
+            $listed = array_map(static fn (SkillResource $r): string => $r->uri, $skills[0]->resources);
+
+            $this->assertContains('skill://encoded/my%20docs/a%20b.md', $listed);
+            $this->assertContains('skill://encoded/a%23b.md', $listed);
+            $this->assertContains('skill://encoded/x%25y.md', $listed);
+            foreach ($listed as $uri) {
+                $this->assertDoesNotMatchRegularExpression('/[ #]/', $uri);
+                $resource = $this->resourceByUri($builder, $uri);
+                $file = ($resource['handler'])();
+                $this->assertInstanceOf(\SplFileInfo::class, $file);
+                $this->assertFileExists($file->getPathname());
+            }
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    public function testEncodesPrefixSegmentsToo(): void
+    {
+        $dir = $this->makeTempDir();
+        mkdir($dir.'/team a', 0777, true);
+        $this->writeSkill($dir.'/team a', 'tool', "name: tool\ndescription: Prefixed skill.");
+
+        try {
+            $skills = (new SkillProvider())->registerInto(Server::builder(), new SkillRegistry(), $dir);
+
+            $this->assertSame('skill://team%20a/tool/SKILL.md', $skills[0]->uri);
+        } finally {
+            $this->removeDir($dir);
+        }
+    }
+
+    private function writeSkill(string $baseDir, string $name, string $frontmatter): string
+    {
+        $skillDir = $baseDir.'/'.$name;
+        mkdir($skillDir, 0777, true);
+        file_put_contents($skillDir.'/SKILL.md', "---\n{$frontmatter}\n---\nbody");
+
+        return $skillDir;
     }
 
     /**

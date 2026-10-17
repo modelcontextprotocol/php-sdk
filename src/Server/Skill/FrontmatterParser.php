@@ -43,8 +43,12 @@ final class FrontmatterParser
             throw new RuntimeException('Parsing SKILL.md frontmatter requires the "symfony/yaml" component. Run: composer require symfony/yaml');
         }
 
-        $data = Yaml::parse($matches[1]) ?? [];
-        if (!\is_array($data) || ([] !== $data && array_is_list($data))) {
+        // Nested mappings stay objects, so an empty `metadata: {}` is sent as `{}` and not as `[]`.
+        // The spec requires the frontmatter in a skill entry to be identical in content to the file's.
+        $data = Yaml::parse($matches[1], Yaml::PARSE_OBJECT_FOR_MAP) ?? [];
+        if ($data instanceof \stdClass) {
+            $data = get_object_vars($data);
+        } elseif (!\is_array($data) || ([] !== $data && array_is_list($data))) {
             throw new InvalidArgumentException('SKILL.md frontmatter must be a YAML mapping.');
         }
 
