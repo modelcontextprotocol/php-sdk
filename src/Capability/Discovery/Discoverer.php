@@ -241,7 +241,7 @@ final class Discoverer implements DiscovererInterface
                     meta: $instance->meta,
                     outputSchema: $outputSchema,
                 );
-                $tools[$name] = new ToolReference($tool, [$className, $methodName]);
+                $tools[$name] = new ToolReference($tool, [$className, $methodName], $instance->structuredContentOnly);
                 ++$discoveredCount['tools'];
             } elseif ($instance instanceof McpResource) {
                 $name = ElementMetadataResolver::resolveName($method, $instance->name);

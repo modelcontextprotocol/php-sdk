@@ -495,6 +495,17 @@ final class BuilderTest extends TestCase
         $this->fail('InitializeHandler not found in request handlers');
     }
 
+    public function testStructuredContentOnlyOptionReachesRegistry(): void
+    {
+        $registry = new Registry();
+        Server::builder()
+            ->setRegistry($registry)
+            ->addTool(static fn (): array => ['foo' => 'bar'], name: 'data', structuredContentOnly: true)
+            ->build();
+
+        $this->assertTrue($registry->getTool('data')->structuredContentOnly);
+    }
+
     private function callTool(Server $server, string $toolName): mixed
     {
         $protocol = (new \ReflectionClass($server))->getProperty('protocol')->getValue($server);

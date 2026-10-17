@@ -39,7 +39,7 @@ interface RegistryInterface
      *
      * @param Handler $handler
      */
-    public function registerTool(Tool $tool, callable|array|string $handler): ToolReference;
+    public function registerTool(Tool $tool, callable|array|string $handler, bool $structuredContentOnly = false): ToolReference;
 
     /**
      * Registers a resource with its handler. Overwrites any prior registration of the same URI.

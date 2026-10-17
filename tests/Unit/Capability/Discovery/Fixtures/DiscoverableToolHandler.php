@@ -39,7 +39,7 @@ class DiscoverableToolHandler
      *
      * @return array an array with results
      */
-    #[McpTool(annotations: new ToolAnnotations(readOnlyHint: true))]
+    #[McpTool(annotations: new ToolAnnotations(readOnlyHint: true), structuredContentOnly: true)]
     public function repeatAction(int $count, bool $loudly = false, BackedStringEnum $mode = BackedStringEnum::OptionA): array
     {
         return ['count' => $count, 'loudly' => $loudly, 'mode' => $mode->value, 'message' => 'Action repeated.'];
