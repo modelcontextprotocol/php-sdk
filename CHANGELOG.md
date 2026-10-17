@@ -95,6 +95,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Fix variadic tool parameters (e.g. `int ...$scores`) failing with a cast error: each element of the array a client sends is now cast on its own.
 * Fix `Builder::build()` with a registry passed to `setRegistry()` publishing one `list_changed` notification per loaded element. Adds `Registry::loadFrom()`.
+* Add the Skills extension (`io.modelcontextprotocol/skills`, SEP-2640). `Builder::addSkillsFromDirectory()` serves a directory of `SKILL.md` skills as `skill://` resources, and `skills/list`/`skills/get` answer with a complete, digest-and-size manifest per skill.
 
 0.8.0
 -----
