@@ -272,13 +272,46 @@ final class BuilderTest extends TestCase
         $this->assertFalse($capabilities->promptsListChanged);
     }
 
-    #[TestDox('listChanged is not announced for a custom registry, the builder cannot wire it to the bus')]
+    #[TestDox('listChanged is not announced for a custom registry that does not publish its changes')]
     public function testListChangedIsNotAnnouncedForACustomRegistry(): void
     {
         $server = Server::builder()
             ->setServerInfo('test', '1.0.0')
             ->setRegistry(new Registry())
             ->setNotificationBus(new InMemoryNotificationBus())
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is announced for a custom registry that publishes its changes to the bus')]
+    public function testListChangedIsAnnouncedForACustomRegistryPublishingChanges(): void
+    {
+        $bus = new InMemoryNotificationBus();
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry(new PublishingEventDispatcher($bus)))
+            ->setNotificationBus($bus)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced for a custom registry publishing its changes without a notification bus')]
+    public function testListChangedIsNotAnnouncedForACustomRegistryPublishingChangesWithoutABus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry(new PublishingEventDispatcher(new InMemoryNotificationBus())))
             ->build();
 
         $capabilities = $this->extractServerCapabilities($server);

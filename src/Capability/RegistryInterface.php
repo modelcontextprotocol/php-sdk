@@ -24,6 +24,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -96,6 +97,12 @@ interface RegistryInterface
      * Removes a prompt by name. No-op if absent.
      */
     public function unregisterPrompt(string $name): void;
+
+    /**
+     * Whether list changes reach a notification bus, e.g. through a {@see PublishingEventDispatcher}.
+     * A decorator forwards the answer of the registry it wraps.
+     */
+    public function publishesListChanges(): bool;
 
     public function hasTool(string $name): bool;
 
