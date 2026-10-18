@@ -118,9 +118,10 @@ final class SamplingTest extends IntegrationTestCase
 
         try {
             $client->callTool('summarize', ['text' => 'hello']);
-            $this->fail('Sampling must not be reachable on 2026-07-28, which removed it.');
+            $this->fail('Sampling must not be sent from inside a request on 2026-07-28.');
         } catch (RequestException $e) {
-            $this->assertStringContainsString('sampling and roots were removed', $e->getMessage());
+            $this->assertStringContainsString('"sampling/createMessage"', $e->getMessage());
+            $this->assertStringContainsString('InputRequiredResult', $e->getMessage());
         }
     }
 
