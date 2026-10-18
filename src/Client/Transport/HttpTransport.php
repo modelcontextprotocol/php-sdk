@@ -37,6 +37,8 @@ use Psr\Log\LoggerInterface;
  * @phpstan-import-type FiberSuspend from TransportInterface
  * @phpstan-import-type SseEvent from SseParser
  *
+ * @phpstan-type SendSuspend array{type: 'send', data: string}
+ *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 class HttpTransport extends BaseTransport implements HeaderAwareTransportInterface
@@ -53,7 +55,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /** @var McpFiber|null */
     private ?\Fiber $activeFiber = null;
 
-    /** @var FiberSuspend|null */
+    /** @var FiberSuspend|SendSuspend|null */
     private ?array $activeSuspend = null;
 
     /** @var StreamInterface|null Active SSE stream being read */
@@ -141,7 +143,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $fiber = new \Fiber(fn () => $this->handleInitialize());
         $this->activeFiber = $fiber;
 
-        $fiber->start();
+        $this->activeSuspend = $fiber->start();
 
         while (!$fiber->isTerminated()) {
             $this->tick();
@@ -149,6 +151,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $result = $fiber->getReturn();
         $this->activeFiber = null;
+        $this->activeSuspend = null;
         $this->resetSseState();
 
         if ($result instanceof Error) {
@@ -185,6 +188,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     public function send(string $data): void
     {
+        // An asynchronous PSR-18 client (amphp, through Symfony's AmpHttpClient
+        // or its own adapter) suspends the fiber it is called from, for its event
+        // loop to resume; only from {main} does it run that loop itself. Inside
+        // the request fiber, the one thing that would resume it is this
+        // transport, with an answer meant for the protocol. So the request fiber
+        // steps out and the next tick sends from {main}, body reads included.
+        if (null !== $this->activeFiber && \Fiber::getCurrent() === $this->activeFiber) {
+            \Fiber::suspend(['type' => 'send', 'data' => $data]);
+
+            return;
+        }
+
         $request = $this->requestFactory->createRequest('POST', $this->endpoint)
             ->withHeader('Content-Type', 'application/json')
             ->withHeader('Accept', 'application/json, text/event-stream')
@@ -272,6 +287,30 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if (null !== ($requestId = self::requestIdOf($data)) && !($dispatched && self::answers($body, $requestId))) {
             $this->failUnanswered($data, '' === trim($body) ? 'empty body' : 'no answer in the body');
+        }
+    }
+
+    /**
+     * Send what the request fiber stepped out for, from {main}.
+     *
+     * A failure is thrown back into the fiber, so it surfaces from send() as it
+     * would have had the message been sent in place.
+     */
+    private function processSends(): void
+    {
+        while (null !== ($fiber = $this->activeFiber) && $fiber->isSuspended() && 'send' === ($this->activeSuspend['type'] ?? null)) {
+            /** @var SendSuspend $suspend */
+            $suspend = $this->activeSuspend;
+
+            try {
+                $this->send($suspend['data']);
+            } catch (\Throwable $e) {
+                $this->activeSuspend = $fiber->throw($e);
+
+                continue;
+            }
+
+            $this->activeSuspend = $fiber->resume();
         }
     }
 
@@ -544,6 +583,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
     private function tick(): void
     {
+        $this->processSends();
+        // The send may have been the fiber's last step, leaving nothing to read for.
+        if ($this->activeFiber?->isTerminated()) {
+            return;
+        }
+
         $this->checkInterruption();
         $this->processSSEStream();
         $this->processListenStream();
@@ -570,7 +615,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         if (null !== $error) {
             // A blocking read may have delivered a response after cancellation.
             $this->state?->consumeResponse($this->activeSuspend['request_id']);
-            $this->activeFiber->throw($error);
+            // The fiber may step out again to send the cancellation notification:
+            // send it now, before any read on the abandoned stream can block.
+            $this->activeSuspend = $this->activeFiber->throw($error);
+            $this->processSends();
         }
     }
 
@@ -997,6 +1045,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     private function processFiber(): void
     {
         if (null === $this->activeFiber || !$this->activeFiber->isSuspended()) {
+            return;
+        }
+
+        // Waiting to have a message sent, which the next tick does.
+        if ('send' === ($this->activeSuspend['type'] ?? null)) {
             return;
         }
 

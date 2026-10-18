@@ -865,6 +865,73 @@ final class HttpTransportTest extends TestCase
         $transport->runRequest($fiber);
     }
 
+    public function testCancellationNotificationIsSentBeforeTheStreamIsRead(): void
+    {
+        $httpClient = RecordingHttpClient::queued([new Response(202)]);
+        $transport = $this->createTransport(httpClient: $httpClient);
+        $state = new ClientState();
+        $transport->setState($state);
+        $state->addPendingRequest(1, 30);
+        $body = $this->createMock(StreamInterface::class);
+        $body->expects($this->never())->method('read');
+        $body->expects($this->once())->method('close');
+        $this->setActiveStream($transport, $body);
+
+        // Like Protocol::exchange(), the fiber notifies the server before it rethrows.
+        $fiber = new \Fiber(static function () use ($transport): never {
+            try {
+                \Fiber::suspend([
+                    'type' => 'await_response',
+                    'request_id' => 1,
+                    'timeout' => 30,
+                    'deadline' => microtime(true) - 1,
+                ]);
+            } catch (TimeoutException $e) {
+                $transport->send('{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1}}');
+
+                throw $e;
+            }
+
+            throw new \LogicException('The deadline did not interrupt the request.');
+        });
+
+        try {
+            $transport->runRequest($fiber);
+            $this->fail('Expected a timeout.');
+        } catch (TimeoutException) {
+        }
+
+        $this->assertCount(1, $httpClient->requests);
+        $this->assertStringContainsString('notifications/cancelled', (string) $httpClient->requests[0]->getBody());
+    }
+
+    #[TestDox('an initialize stream the server leaves open is not read again once "initialized" went out')]
+    public function testInitializeStreamIsNotReadAfterHandshake(): void
+    {
+        $body = $this->createMock(StreamInterface::class);
+        $body->method('eof')->willReturn(false);
+        $body->expects($this->once())->method('read')->willReturn('data: '.json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'result' => [
+                'protocolVersion' => '2025-11-25',
+                'capabilities' => [],
+                'serverInfo' => ['name' => 'test', 'version' => '1'],
+            ],
+        ], \JSON_THROW_ON_ERROR)."\n\n");
+
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $body),
+            new Response(202),
+        ]);
+
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertTrue($client->isConnected());
+        $this->assertSame('notifications/initialized', json_decode((string) $httpClient->requests[1]->getBody(), true, flags: \JSON_THROW_ON_ERROR)['method'] ?? null);
+    }
+
     /** @return iterable<string, array{string}> */
     public static function notificationAnswerProvider(): iterable
     {
@@ -1206,6 +1273,39 @@ final class HttpTransportTest extends TestCase
         ], $sent);
     }
 
+    #[TestDox('an HTTP client that suspends the calling fiber, as amphp does, is not called inside the request fiber')]
+    public function testHttpClientIsCalledOutsideTheRequestFiber(): void
+    {
+        $httpClient = new class(new RecordingHttpClient()) implements ClientInterface {
+            public function __construct(private readonly RecordingHttpClient $server)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                FiberSuspendingStream::awaitEventLoop();
+
+                $response = $this->server->sendRequest($request);
+
+                // The body of an amphp response is read through the event loop too.
+                return $response->withBody(new FiberSuspendingStream($response->getBody()));
+            }
+        };
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setInitTimeout(1)
+            ->setMaxRetries(0)
+            ->build();
+
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertTrue($client->isConnected());
+        $this->assertSame('test-server', $client->getServerInfo()?->name);
+        $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
+        $client->disconnect();
+    }
+
     /**
      * @param array<string, string> $headers
      */
@@ -1527,5 +1627,112 @@ final class ReplayingSseServer implements ClientInterface
         }
 
         return $events;
+    }
+}
+
+/**
+ * A response body that, like one read through Revolt's event loop, suspends the
+ * fiber it is read from and expects only that loop to resume it.
+ */
+final class FiberSuspendingStream implements StreamInterface
+{
+    public function __construct(private readonly StreamInterface $inner)
+    {
+    }
+
+    /**
+     * Inside a fiber, a Revolt-based client suspends and waits for its event loop
+     * to resume it; only from {main} does it run the loop itself and carry on.
+     */
+    public static function awaitEventLoop(): void
+    {
+        if (null === \Fiber::getCurrent()) {
+            return;
+        }
+
+        $resumedWith = \Fiber::suspend();
+
+        throw new \LogicException(\sprintf('Resumed by something other than the event loop, with %s.', get_debug_type($resumedWith)));
+    }
+
+    public function __toString(): string
+    {
+        self::awaitEventLoop();
+
+        return (string) $this->inner;
+    }
+
+    public function close(): void
+    {
+        $this->inner->close();
+    }
+
+    public function detach()
+    {
+        return $this->inner->detach();
+    }
+
+    public function getSize(): ?int
+    {
+        return $this->inner->getSize();
+    }
+
+    public function tell(): int
+    {
+        return $this->inner->tell();
+    }
+
+    public function eof(): bool
+    {
+        return $this->inner->eof();
+    }
+
+    public function isSeekable(): bool
+    {
+        return $this->inner->isSeekable();
+    }
+
+    public function seek(int $offset, int $whence = \SEEK_SET): void
+    {
+        $this->inner->seek($offset, $whence);
+    }
+
+    public function rewind(): void
+    {
+        $this->inner->rewind();
+    }
+
+    public function isWritable(): bool
+    {
+        return false;
+    }
+
+    public function write(string $string): int
+    {
+        throw new \LogicException('A response body is not writable.');
+    }
+
+    public function isReadable(): bool
+    {
+        return true;
+    }
+
+    public function read(int $length): string
+    {
+        self::awaitEventLoop();
+
+        return $this->inner->read($length);
+    }
+
+    public function getContents(): string
+    {
+        self::awaitEventLoop();
+
+        return $this->inner->getContents();
+    }
+
+    public function getMetadata(?string $key = null)
+    {
+        return null === $key ? [] : null;
     }
 }
