@@ -30,6 +30,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -236,6 +237,11 @@ final class Registry implements RegistryInterface
         $this->load();
 
         return isset($this->prompts[$name]);
+    }
+
+    public function publishesListChanges(): bool
+    {
+        return $this->eventDispatcher instanceof PublishingEventDispatcher;
     }
 
     public function hasTools(): bool

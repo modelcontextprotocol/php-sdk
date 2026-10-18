@@ -28,7 +28,22 @@ use Mcp\Server\Subscription\Psr16NotificationBus;
 ```
 
 Registry changes (`registerTool()`, `unregisterPrompt()`, …) are published automatically, with or
-without an event dispatcher, unless you pass your own registry with `setRegistry()`.
+without an event dispatcher, unless you pass your own registry with `setRegistry()`. Then you wire
+it to the bus yourself, and the builder announces `listChanged` for it:
+
+```php
+use Mcp\Capability\Registry;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
+
+$bus = new InMemoryNotificationBus();
+$registry = new Registry(new PublishingEventDispatcher($bus));
+
+$server = Server::builder()
+    ->setRegistry($registry)
+    ->setNotificationBus($bus)
+    ->build();
+```
+
 Anything else — `notifications/resources/updated` above all — is published by the
 application:
 

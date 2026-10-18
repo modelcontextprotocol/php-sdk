@@ -315,7 +315,9 @@ final class Builder
      *
      * With the built-in registry, registry changes are published automatically,
      * with or without an event dispatcher, and `listChanged` is announced. A
-     * registry passed with setRegistry() is neither published nor announced.
+     * registry passed with setRegistry() is announced only if
+     * {@see RegistryInterface::publishesListChanges()} says so, as {@see Registry}
+     * does with a {@see PublishingEventDispatcher}.
      * Anything else, `notifications/resources/updated` for example, is
      * published by the application calling {@see NotificationBusInterface::publish()}.
      */
@@ -1156,9 +1158,8 @@ final class Builder
      */
     private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
     {
-        // Only the bus delivers list changes, and only the built-in registry is
-        // wired to it; a custom registry's events never reach a client here.
-        $listChanged = null !== $this->notificationBus && !$this->hasCustomRegistry;
+        // Only the bus delivers list changes, and only if the registry publishes to it.
+        $listChanged = null !== $this->notificationBus && $registry->publishesListChanges();
 
         if ($eagerlyLoaded) {
             $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();
