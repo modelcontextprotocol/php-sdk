@@ -5,7 +5,12 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
-Concurrent requests of one session no longer lose or swap each other's answers, session changes and fibers, and the client fails fast instead of waiting out its timeout. Authorization narrows to the resource server role, and the stdio transport and the client speak both protocol eras.
+### TL;DR
+
+* Concurrent requests of one session keep their own answers, session changes and fibers
+* The client fails fast instead of waiting out its timeout
+* Authorization narrows to the resource server role
+* stdio and the client speak both protocol eras
 
 ### Server
 
