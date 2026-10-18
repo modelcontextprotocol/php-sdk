@@ -229,7 +229,32 @@ three cases:
   above. A `CallToolResult` you build yourself without `structuredContent` gets no warning.
 - The result is already marked `isError: true`, because its content is a failure message and not the declared output.
 
+#### Sending only structured content
+
+By default, the SDK also JSON-encodes structured content into `content`. To send a large result only once, return a
+`CallToolResult` with an empty `content` list:
+
+```php
+use Mcp\Schema\Result\CallToolResult;
+
+#[McpTool(outputSchema: [/* ... */])]
+public function getWeather(string $city): CallToolResult
+{
+    return new CallToolResult([], structuredContent: ['temperature' => 22.5, 'conditions' => 'sunny']);
+}
+```
+
+The SDK still validates `structuredContent` against the `outputSchema`, but it doesn't change the value for older
+protocol versions. Before `2026-07-28`, clients may reject a list or a scalar, so always pass an associative array or an
+object.
+
+!!! warning
+    The [specification][sep-2106] recommends also sending the serialized JSON as text, and [SEP-2106][sep-2106-proposal]
+    requires it for a list or a scalar. Some hosts pass only `content` to the model, which then sees an empty result.
+    Send only structured content with object values and for clients that read `structuredContent`.
+
 [sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
+[sep-2106-proposal]: https://modelcontextprotocol.io/seps/2106-json-schema-2020-12#backward-compatibility
 
 ### Error Handling
 
