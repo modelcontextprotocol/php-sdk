@@ -324,6 +324,88 @@ class SchemaValidatorTest extends TestCase
         $this->assertSame([], $this->validator->validateAgainstJsonSchema(new \stdClass(), ['type' => 'object']));
     }
 
+    /**
+     * @param array<string, mixed> $schema
+     */
+    #[DataProvider('provideEmptyArraysDecodedFromObjects')]
+    public function testEmptyArrayMayBeAnObject(string $json, array $schema): void
+    {
+        $data = json_decode($json, true, flags: \JSON_THROW_ON_ERROR);
+
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema($data, $schema, emptyArrayMayBeObject: true));
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>}>
+     */
+    public static function provideEmptyArraysDecodedFromObjects(): iterable
+    {
+        yield 'root object' => ['{}', ['type' => 'object']];
+        yield 'nested object' => ['{"parameters":{}}', [
+            'type' => 'object',
+            'properties' => ['parameters' => ['type' => 'object']],
+        ]];
+        yield 'nested array' => ['{"tags":[]}', [
+            'type' => 'object',
+            'properties' => ['tags' => ['type' => 'array']],
+        ]];
+        yield 'array item' => ['[{}]', ['type' => 'array', 'items' => ['type' => 'object']]];
+        yield 'additionalProperties' => ['{"a":{}}', [
+            'type' => 'object',
+            'additionalProperties' => ['type' => 'object'],
+        ]];
+        yield 'local $ref' => ['{"addr":{}}', [
+            'type' => 'object',
+            'properties' => ['addr' => ['$ref' => '#/$defs/address']],
+            '$defs' => ['address' => ['type' => 'object']],
+        ]];
+        yield 'object or array, sent as object' => ['{"p":{}}', [
+            'type' => 'object',
+            'properties' => ['p' => ['oneOf' => [['type' => 'object'], ['type' => 'array']]]],
+        ]];
+        yield 'object or array, sent as array' => ['{"p":[]}', [
+            'type' => 'object',
+            'properties' => ['p' => ['oneOf' => [['type' => 'object'], ['type' => 'array']]]],
+        ]];
+        yield 'object or string' => ['{"p":{}}', [
+            'type' => 'object',
+            'properties' => ['p' => ['anyOf' => [['type' => 'object'], ['type' => 'string']]]],
+        ]];
+    }
+
+    public function testNestedEmptyArrayIsNotAnObjectByDefault(): void
+    {
+        $schema = ['type' => 'object', 'properties' => ['parameters' => ['type' => 'object']]];
+
+        $errors = $this->validator->validateAgainstJsonSchema(['parameters' => []], $schema);
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('/parameters', $errors[0]['pointer']);
+    }
+
+    public function testNonEmptyListIsNotAnObjectEvenIfEmptyArraysMayBe(): void
+    {
+        $schema = ['type' => 'object', 'properties' => ['parameters' => ['type' => 'object']]];
+
+        $errors = $this->validator->validateAgainstJsonSchema(['parameters' => ['x']], $schema, emptyArrayMayBeObject: true);
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('/parameters', $errors[0]['pointer']);
+    }
+
+    public function testEmptyObjectStillHasToMeetTheObjectSchema(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => ['parameters' => ['type' => 'object', 'required' => ['id']]],
+        ];
+
+        $errors = $this->validator->validateAgainstJsonSchema(['parameters' => []], $schema, emptyArrayMayBeObject: true);
+
+        $this->assertCount(1, $errors);
+        $this->assertSame('required', $errors[0]['keyword']);
+    }
+
     public function testHandlesEmptySchemaAllowsAnything(): void
     {
         $schema = []; // Empty schema object/array implies no constraints

@@ -13,6 +13,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `ClientGateway::progress()` sending another call's progress token when calls of one session run in parallel: the token now comes from the gateway's own request.
 * [BC Break] `SchemaValidator` takes an optional `Opis\JsonSchema\Validator` as its first constructor argument, moving `$logger` to second. Pass `logger:` by name.
 * [BC Break] `SchemaValidator::validateAgainstJsonSchema()` no longer validates an empty array as an object. Pass `new \stdClass()` for an empty object.
+* Fix `tools/call` rejecting an empty object nested in the arguments as an array. `SchemaValidator::validateAgainstJsonSchema()` takes `emptyArrayMayBeObject: true` for data decoded with `assoc: true`.
 * Fix `SchemaValidator` falling back to opis' wording for camelCase keywords like `minLength`, `multipleOf` or `additionalProperties`, and reporting a pointer relative to the `$ref` target inside `$defs`. Clients now see the SDK's messages and the full pointer.
 * Add `Builder::setSchemaValidator()` to configure the validator used for `tools/call` input and output, e.g. with a resolver for external `$ref` schemas.
 * [BC Break] Remove the `providerClass` argument of `#[CompletionProvider]`. Use `provider:`, which takes the same class-string and is now the first positional argument.

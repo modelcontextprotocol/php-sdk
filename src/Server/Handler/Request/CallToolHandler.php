@@ -80,8 +80,8 @@ final class CallToolHandler implements RequestHandlerInterface
         }
 
         $inputSchema = $reference->tool->inputSchema;
-        // Arguments are always a JSON object, but an empty one decodes to `[]`.
-        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema([] === $arguments ? new \stdClass() : $arguments, $inputSchema);
+        // Arguments are decoded with `assoc: true`, so any `{}` in them arrives as `[]`.
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($arguments, $inputSchema, emptyArrayMayBeObject: true);
         if (!empty($validationErrors)) {
             $summaryMessage = "Invalid parameters for tool '{$toolName}': ".self::summarizeValidationErrors($validationErrors);
 

@@ -43,12 +43,13 @@ class SchemaValidator
     /**
      * Validates data against a JSON schema.
      *
-     * @param mixed                       $data   the data to validate (should generally be decoded JSON)
-     * @param array<string, mixed>|object $schema the JSON Schema definition (as PHP array or object)
+     * @param mixed                       $data                  the data to validate (should generally be decoded JSON)
+     * @param array<string, mixed>|object $schema                the JSON Schema definition (as PHP array or object)
+     * @param bool                        $emptyArrayMayBeObject whether an empty array may stand for `{}`, as it does after `json_decode(assoc: true)`
      *
      * @return list<array{pointer: string, keyword: string, message: string}> array of validation errors, empty if valid
      */
-    public function validateAgainstJsonSchema(mixed $data, array|object $schema): array
+    public function validateAgainstJsonSchema(mixed $data, array|object $schema, bool $emptyArrayMayBeObject = false): array
     {
         try {
             // --- Schema Preparation ---
@@ -73,6 +74,9 @@ class SchemaValidator
 
         try {
             $result = $validator->validate($dataToValidate, $schemaObject);
+            while ($emptyArrayMayBeObject && !$result->isValid() && $this->replaceEmptyArraysExpectedAsObject($result->error(), $dataToValidate)) {
+                $result = $validator->validate($dataToValidate, $schemaObject);
+            }
         } catch (\Throwable $e) {
             $this->logger->error('MCP SDK: JSON Schema validation failed internally.', [
                 'exception' => $e,
@@ -148,6 +152,56 @@ class SchemaValidator
 
         // Leave other objects and scalar types as they are
         return $data;
+    }
+
+    /**
+     * Turns each empty array that failed only for not being an object into `{}`.
+     */
+    private function replaceEmptyArraysExpectedAsObject(?ValidationError $error, mixed &$data): bool
+    {
+        $errors = [];
+        if (null !== $error) {
+            $this->collectLeafErrors($error, $errors);
+        }
+
+        $replaced = false;
+        foreach ($errors as $leaf) {
+            $expected = (array) ($leaf->args()['expected'] ?? []);
+            if ('type' !== $leaf->keyword() || [] !== $leaf->data()->value() || !\in_array('object', $expected, true) || \in_array('array', $expected, true)) {
+                continue;
+            }
+
+            $target = &$data;
+            foreach ($leaf->data()->fullPath() as $key) {
+                if ($target instanceof \stdClass) {
+                    $target = &$target->{$key};
+                } else {
+                    $target = &$target[$key];
+                }
+            }
+            $target = new \stdClass();
+            unset($target);
+            $replaced = true;
+        }
+
+        return $replaced;
+    }
+
+    /**
+     * @param list<ValidationError> $leaves
+     */
+    private function collectLeafErrors(ValidationError $error, array &$leaves): void
+    {
+        $subErrors = $error->subErrors();
+        if (empty($subErrors)) {
+            $leaves[] = $error;
+
+            return;
+        }
+
+        foreach ($subErrors as $subError) {
+            $this->collectLeafErrors($subError, $leaves);
+        }
     }
 
     /**

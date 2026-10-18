@@ -710,6 +710,33 @@ class CallToolHandlerTest extends TestCase
         $this->assertEquals(Error::INVALID_PARAMS, $response->code);
     }
 
+    public function testNestedEmptyObjectArgumentPassesValidation(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => ['parameters' => ['type' => 'object']],
+            'required' => ['parameters'],
+        ];
+        $arguments = json_decode('{"parameters":{}}', true, flags: \JSON_THROW_ON_ERROR);
+        $request = $this->createCallToolRequest('query_tool', $arguments);
+        $toolReference = $this->getMockBuilder(ToolReference::class)
+            ->setConstructorArgs([new Tool('query_tool', null, $schema, null, null), static function () {}])
+            ->onlyMethods(['formatResult'])
+            ->getMock();
+        $toolReference->method('formatResult')->willReturn([new TextContent('ok')]);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, ['parameters' => [], '_session' => $this->session, '_request' => $request])
+            ->willReturn('ok');
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+    }
+
     public function testStructuredContentMissingARequiredPropertyIsReportedAsAToolError(): void
     {
         $request = $this->createCallToolRequest('get_weather', []);
