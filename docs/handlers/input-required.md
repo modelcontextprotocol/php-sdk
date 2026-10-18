@@ -116,11 +116,17 @@ They can return `true` there, but `sample()` and `listRoots()` still fail (see b
 ## What not to call
 
 `ClientGateway::sample()` and `listRoots()` belong to the handshake era. Revision
-`2026-07-28` removed both, so calling one there fails the call with an internal error
-(`-32603`). The error happens outside your handler, so a `try`/`catch` around the call
-never runs. Take what they gave you from tool arguments, resource URIs or server
-configuration instead. `elicit()` and `elicitUrl()` are unaffected: elicitation survived
-that revision, as an ask carried in the result.
+`2026-07-28` has no server-initiated requests, so calling one there fails the call with an
+internal error (`-32603`). The error happens outside your handler, so a `try`/`catch` around
+the call never runs. To sample or list roots on that revision,
+[return the ask](#returning-the-ask) as an `InputRequiredResult` with a
+`CreateSamplingMessageRequest` or `ListRootsRequest`, and read the answer with
+`samplingResult()` or `rootsResult()`. `elicit()` and `elicitUrl()` are unaffected: the SDK
+turns them into such an ask for you.
+
+Sampling and roots are deprecated since `2026-07-28`
+([SEP-2577](https://github.com/modelcontextprotocol/modelcontextprotocol/pull/2577)). For new
+code, prefer tool arguments, resource URIs or server configuration.
 
 ## Which revision called
 
