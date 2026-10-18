@@ -865,6 +865,46 @@ final class HttpTransportTest extends TestCase
         $transport->runRequest($fiber);
     }
 
+    public function testCancellationNotificationIsSentBeforeTheStreamIsRead(): void
+    {
+        $httpClient = RecordingHttpClient::queued([new Response(202)]);
+        $transport = $this->createTransport(httpClient: $httpClient);
+        $state = new ClientState();
+        $transport->setState($state);
+        $state->addPendingRequest(1, 30);
+        $body = $this->createMock(StreamInterface::class);
+        $body->expects($this->never())->method('read');
+        $body->expects($this->once())->method('close');
+        $this->setActiveStream($transport, $body);
+
+        // Like Protocol::exchange(), the fiber notifies the server before it rethrows.
+        $fiber = new \Fiber(static function () use ($transport): never {
+            try {
+                \Fiber::suspend([
+                    'type' => 'await_response',
+                    'request_id' => 1,
+                    'timeout' => 30,
+                    'deadline' => microtime(true) - 1,
+                ]);
+            } catch (TimeoutException $e) {
+                $transport->send('{"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":1}}');
+
+                throw $e;
+            }
+
+            throw new \LogicException('The deadline did not interrupt the request.');
+        });
+
+        try {
+            $transport->runRequest($fiber);
+            $this->fail('Expected a timeout.');
+        } catch (TimeoutException) {
+        }
+
+        $this->assertCount(1, $httpClient->requests);
+        $this->assertStringContainsString('notifications/cancelled', (string) $httpClient->requests[0]->getBody());
+    }
+
     /** @return iterable<string, array{string}> */
     public static function notificationAnswerProvider(): iterable
     {

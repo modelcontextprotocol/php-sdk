@@ -610,8 +610,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         if (null !== $error) {
             // A blocking read may have delivered a response after cancellation.
             $this->state?->consumeResponse($this->activeSuspend['request_id']);
-            // The fiber may step out again to send the cancellation notification.
+            // The fiber may step out again to send the cancellation notification:
+            // send it now, before any read on the abandoned stream can block.
             $this->activeSuspend = $this->activeFiber->throw($error);
+            $this->processSends();
         }
     }
 
