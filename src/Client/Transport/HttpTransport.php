@@ -584,6 +584,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     private function tick(): void
     {
         $this->processSends();
+        // The send may have been the fiber's last step, leaving nothing to read for.
+        if ($this->activeFiber?->isTerminated()) {
+            return;
+        }
+
         $this->checkInterruption();
         $this->processSSEStream();
         $this->processListenStream();

@@ -905,6 +905,33 @@ final class HttpTransportTest extends TestCase
         $this->assertStringContainsString('notifications/cancelled', (string) $httpClient->requests[0]->getBody());
     }
 
+    #[TestDox('an initialize stream the server leaves open is not read again once "initialized" went out')]
+    public function testInitializeStreamIsNotReadAfterHandshake(): void
+    {
+        $body = $this->createMock(StreamInterface::class);
+        $body->method('eof')->willReturn(false);
+        $body->expects($this->once())->method('read')->willReturn('data: '.json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'result' => [
+                'protocolVersion' => '2025-11-25',
+                'capabilities' => [],
+                'serverInfo' => ['name' => 'test', 'version' => '1'],
+            ],
+        ], \JSON_THROW_ON_ERROR)."\n\n");
+
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], $body),
+            new Response(202),
+        ]);
+
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->build();
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->assertTrue($client->isConnected());
+        $this->assertSame('notifications/initialized', json_decode((string) $httpClient->requests[1]->getBody(), true, flags: \JSON_THROW_ON_ERROR)['method'] ?? null);
+    }
+
     /** @return iterable<string, array{string}> */
     public static function notificationAnswerProvider(): iterable
     {
