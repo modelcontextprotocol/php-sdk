@@ -723,9 +723,10 @@ final class StatelessProtocol
         if (!$suspended instanceof NotificationSuspension) {
             if ($suspended instanceof RequestSuspension) {
                 // Elicitation never reaches here — it is answered in run(). What
-                // is left are the kinds this revision removed outright, and no
-                // multi round-trip shape brings them back.
-                throw new LogicException('This protocol revision has no server-initiated requests: sampling and roots were removed with it, so take what you need through tool arguments, resource URIs or server configuration instead. Elicitation is the one ask that survived, as a multi round-trip request.');
+                // is left, sampling and roots, cannot be sent from inside a request
+                // on this revision, but a handler still gets them answered by
+                // returning them as an InputRequiredResult.
+                throw new LogicException(\sprintf('This protocol revision has no server-initiated requests, so "%s" cannot be sent from inside a request. Return it from the handler as an InputRequiredResult instead, and read the answer from RequestContext::getInputContext() when the client retries.', $suspended->request::getMethod()));
             }
 
             return null;

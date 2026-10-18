@@ -502,6 +502,8 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(500, $result->httpStatus);
         $this->assertStringContainsString('no server-initiated requests', $body['error']['message']);
+        $this->assertStringContainsString('"roots/list"', $body['error']['message']);
+        $this->assertStringContainsString('InputRequiredResult', $body['error']['message']);
     }
 
     #[TestDox('a gateway elicitation becomes the ask this revision carries in the result')]
