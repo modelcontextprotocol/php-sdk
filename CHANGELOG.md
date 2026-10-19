@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.10.0
+------
+
+* [BC Break] `Builder::build()` throws a `RuntimeException` when `setDiscovery()` is used without `symfony/finder` and without a custom discoverer, instead of logging a warning and discovering nothing
+
 0.9.0
 -----
 
