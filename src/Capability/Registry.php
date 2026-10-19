@@ -30,6 +30,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -88,10 +89,27 @@ final class Registry implements RegistryInterface
             return;
         }
 
+        $this->loadFrom($this->loader);
+
+        $this->loaded = true;
+    }
+
+    /**
+     * Runs $loader with the change events its registrations would dispatch suppressed, since they
+     * describe the registry filling up rather than changing.
+     *
+     * Re-entrant-safe, and failure propagates. Does not mark the registry loaded: $loader is the
+     * caller's, and the one the constructor took is still owed its run.
+     */
+    public function loadFrom(LoaderInterface $loader): void
+    {
+        if ($this->loading) {
+            return;
+        }
+
         $this->loading = true;
         try {
-            $this->loader->load($this);
-            $this->loaded = true;
+            $loader->load($this);
         } finally {
             $this->loading = false;
         }
@@ -108,7 +126,7 @@ final class Registry implements RegistryInterface
         $reference = new ToolReference($tool, $handler);
         $this->tools[$tool->name] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->dispatch(new ToolListChangedEvent());
 
         return $reference;
     }
@@ -118,7 +136,7 @@ final class Registry implements RegistryInterface
         $reference = new ResourceReference($resource, $handler);
         $this->resources[$resource->uri] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->dispatch(new ResourceListChangedEvent());
 
         return $reference;
     }
@@ -131,7 +149,7 @@ final class Registry implements RegistryInterface
         $reference = new ResourceTemplateReference($template, $handler, $completionProviders);
         $this->resourceTemplates[$template->uriTemplate] = $reference;
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        $this->dispatch(new ResourceTemplateListChangedEvent());
 
         return $reference;
     }
@@ -144,7 +162,7 @@ final class Registry implements RegistryInterface
         $reference = new PromptReference($prompt, $handler, $completionProviders);
         $this->prompts[$prompt->name] = $reference;
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->dispatch(new PromptListChangedEvent());
 
         return $reference;
     }
@@ -157,7 +175,7 @@ final class Registry implements RegistryInterface
 
         unset($this->tools[$name]);
 
-        $this->eventDispatcher?->dispatch(new ToolListChangedEvent());
+        $this->dispatch(new ToolListChangedEvent());
     }
 
     public function unregisterResource(string $uri): void
@@ -168,7 +186,7 @@ final class Registry implements RegistryInterface
 
         unset($this->resources[$uri]);
 
-        $this->eventDispatcher?->dispatch(new ResourceListChangedEvent());
+        $this->dispatch(new ResourceListChangedEvent());
     }
 
     public function unregisterResourceTemplate(string $uriTemplate): void
@@ -179,7 +197,7 @@ final class Registry implements RegistryInterface
 
         unset($this->resourceTemplates[$uriTemplate]);
 
-        $this->eventDispatcher?->dispatch(new ResourceTemplateListChangedEvent());
+        $this->dispatch(new ResourceTemplateListChangedEvent());
     }
 
     public function unregisterPrompt(string $name): void
@@ -190,7 +208,7 @@ final class Registry implements RegistryInterface
 
         unset($this->prompts[$name]);
 
-        $this->eventDispatcher?->dispatch(new PromptListChangedEvent());
+        $this->dispatch(new PromptListChangedEvent());
     }
 
     public function hasTool(string $name): bool
@@ -221,6 +239,11 @@ final class Registry implements RegistryInterface
         return isset($this->prompts[$name]);
     }
 
+    public function publishesListChanges(): bool
+    {
+        return $this->eventDispatcher instanceof PublishingEventDispatcher;
+    }
+
     public function hasTools(): bool
     {
         $this->load();
@@ -228,6 +251,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->tools;
     }
 
+    /**
+     * @return Page<Tool>
+     */
     public function getTools(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -266,6 +292,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->resources;
     }
 
+    /**
+     * @return Page<ResourceDefinition>
+     */
     public function getResources(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -321,6 +350,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->resourceTemplates;
     }
 
+    /**
+     * @return Page<ResourceTemplate>
+     */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -359,6 +391,9 @@ final class Registry implements RegistryInterface
         return [] !== $this->prompts;
     }
 
+    /**
+     * @return Page<Prompt>
+     */
     public function getPrompts(?int $limit = null, ?string $cursor = null): Page
     {
         $this->load();
@@ -391,6 +426,18 @@ final class Registry implements RegistryInterface
     }
 
     /**
+     * Suppressed while the deferred loader runs, since it only sets up initial state.
+     */
+    private function dispatch(object $event): void
+    {
+        if ($this->loading) {
+            return;
+        }
+
+        $this->eventDispatcher?->dispatch($event);
+    }
+
+    /**
      * Calculate next cursor for pagination.
      *
      * @param int         $totalItems    Count of all items
@@ -420,11 +467,13 @@ final class Registry implements RegistryInterface
     /**
      * Helper method to paginate results using cursor-based pagination.
      *
-     * @param array<int|string, mixed> $items  The full array of items to paginate The full array of items to paginate
-     * @param int                      $limit  Maximum number of items to return
-     * @param string|null              $cursor Base64 encoded offset position
+     * @template T
      *
-     * @return array<int|string, mixed> Paginated results
+     * @param array<int|string, T> $items  The full array of items to paginate
+     * @param int                  $limit  Maximum number of items to return
+     * @param string|null          $cursor Base64 encoded offset position
+     *
+     * @return list<T> Paginated results
      *
      * @throws InvalidCursorException When cursor is invalid (MCP error code -32602)
      */

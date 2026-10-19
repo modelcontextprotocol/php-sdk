@@ -75,8 +75,20 @@ jobs:
       - name: Tests
         run: vendor/bin/phpunit --testsuite=integration
 
-  inspector:
+  interop:
+    name: interop / ${{ matrix.side }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Our server, driven by the MCP Inspector.
+          - side: server
+            path: tests/Interop/Server
+          # Our client, against the TypeScript SDK's reference server.
+          - side: client
+            path: tests/Interop/Client
+
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -91,12 +103,19 @@ jobs:
         uses: actions/setup-node@v7
         with:
           node-version: '22'
+          cache: npm
+          cache-dependency-path: tests/Interop/package-lock.json
 
       - name: Install Composer
         uses: "ramsey/composer-install@v4"
 
+      # The implementations under test, from the lockfile, so their
+      # dependencies cannot change under the snapshots.
+      - name: Install Node tools
+        run: npm ci --prefix tests/Interop --no-audit --no-fund
+
       - name: Tests
-        run: vendor/bin/phpunit --testsuite=inspector
+        run: vendor/bin/phpunit ${{ matrix.path }}
 
   conformance-server:
     name: conformance / server (${{ matrix.spec-version }})

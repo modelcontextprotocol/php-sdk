@@ -17,6 +17,7 @@ use Mcp\Client\Transport\BaseTransport;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -31,6 +32,17 @@ final class ClientTest extends TestCase
         $this->assertInstanceOf(Builder::class, Client::builder());
     }
 
+    #[TestDox('readResource() refuses an empty URI before it reaches the wire')]
+    public function testReadResourceRejectsAnEmptyUri(): void
+    {
+        $client = Client::builder()->build();
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Resource URI must not be empty.');
+
+        $client->readResource('');
+    }
+
     #[TestDox('connect() succeeds on the first attempt without retrying')]
     public function testConnectSucceedsWithoutRetrying(): void
     {
@@ -42,6 +54,19 @@ final class ClientTest extends TestCase
         $this->assertSame(1, $transport->connectCalls);
         $this->assertSame(0, $transport->closeCalls);
         $this->assertTrue($client->isConnected());
+    }
+
+    #[TestDox('setting the log level after disconnecting a modern connection fails like any other call')]
+    public function testSetLoggingLevelRequiresAConnection(): void
+    {
+        $client = Client::builder()->setProtocolVersion(ProtocolVersion::V2026_07_28)->build();
+        $client->connect(new FakeTransport([FakeTransport::ACCEPT_MODERN]));
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+        $client->disconnect();
+
+        $this->expectException(ConnectionException::class);
+
+        $client->setLoggingLevel(LoggingLevel::Info);
     }
 
     #[TestDox('connect() retries a failed attempt and succeeds on a later one')]
@@ -132,6 +157,25 @@ final class ClientTest extends TestCase
         $this->assertFalse($client->isConnected());
     }
 
+    #[TestDox('a malformed handshake result fails with a ConnectionException and closes the transport')]
+    public function testMalformedHandshakeResultClosesTheTransport(): void
+    {
+        $transport = new FakeTransport([FakeTransport::MALFORMED]);
+
+        $client = Client::builder()->setMaxRetries(2)->build();
+
+        try {
+            $client->connect($transport);
+            $this->fail(\sprintf('Expected a "%s" to be thrown.', ConnectionException::class));
+        } catch (ConnectionException $e) {
+            $this->assertInstanceOf(InvalidArgumentException::class, $e->getPrevious());
+        }
+
+        $this->assertSame(1, $transport->connectCalls, 'a malformed result is not retried');
+        $this->assertSame(1, $transport->closeCalls);
+        $this->assertFalse($client->isConnected());
+    }
+
     #[TestDox('a timed out attempt does not leave state behind that fails the retry')]
     public function testTimedOutAttemptDoesNotPoisonTheRetry(): void
     {
@@ -160,6 +204,9 @@ final class FakeTransport extends BaseTransport
     /** The initialize request is answered with a result. */
     public const ACCEPT = 'accept';
 
+    /** The `server/discover` probe is answered as a modern server would, settling the connection on 2026-07-28. */
+    public const ACCEPT_MODERN = 'accept_modern';
+
     /** The initialize request is answered with a JSON-RPC error. */
     public const REJECT = 'reject';
 
@@ -168,6 +215,9 @@ final class FakeTransport extends BaseTransport
 
     /** The initialize request is answered, but the connection breaks right after. */
     public const BREAK_AFTER_ACCEPT = 'break_after_accept';
+
+    /** The initialize request is answered with a result lacking `serverInfo.version`. */
+    public const MALFORMED = 'malformed';
 
     public int $connectCalls = 0;
     public int $closeCalls = 0;
@@ -178,7 +228,7 @@ final class FakeTransport extends BaseTransport
     private array $outbox = [];
 
     /**
-     * @param list<self::ACCEPT|self::REJECT|self::IGNORE|self::BREAK_AFTER_ACCEPT> $attempts How each successive connect() call behaves
+     * @param list<self::ACCEPT|self::ACCEPT_MODERN|self::REJECT|self::IGNORE|self::BREAK_AFTER_ACCEPT|self::MALFORMED> $attempts How each successive connect() call behaves
      */
     public function __construct(private array $attempts = [self::ACCEPT])
     {
@@ -213,12 +263,24 @@ final class FakeTransport extends BaseTransport
             return; // A notification, nothing to answer.
         }
 
+        if (self::ACCEPT_MODERN === $this->outcome && 'server/discover' === ($message['method'] ?? null)) {
+            $this->outbox[] = json_encode(['jsonrpc' => '2.0', 'id' => $message['id'], 'result' => [
+                'resultType' => 'complete',
+                'supportedVersions' => [ProtocolVersion::V2026_07_28->value],
+                'capabilities' => [],
+            ]], \JSON_THROW_ON_ERROR);
+
+            return;
+        }
+
         $answer = self::REJECT === $this->outcome
             ? ['error' => ['code' => Error::INTERNAL_ERROR, 'message' => 'Server unavailable']]
             : ['result' => [
                 'protocolVersion' => ProtocolVersion::V2025_11_25->value,
                 'capabilities' => [],
-                'serverInfo' => ['name' => 'Test Server', 'version' => '1.0.0'],
+                'serverInfo' => self::MALFORMED === $this->outcome
+                    ? ['name' => 'Test Server']
+                    : ['name' => 'Test Server', 'version' => '1.0.0'],
             ]];
 
         $this->outbox[] = json_encode(['jsonrpc' => '2.0', 'id' => $message['id']] + $answer, \JSON_THROW_ON_ERROR);

@@ -16,6 +16,7 @@ use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
 use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\SchemaGeneratorInterface;
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\Container;
 use Mcp\Capability\Registry\ElementReference;
@@ -53,6 +54,7 @@ use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Resource\SessionSubscriptionManager;
 use Mcp\Server\Resource\SubscriptionManagerInterface;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
@@ -104,6 +106,8 @@ final class Builder
 
     private ?SchemaGeneratorInterface $schemaGenerator = null;
 
+    private ?SchemaValidator $schemaValidator = null;
+
     private ?ReferenceHandlerInterface $referenceHandler = null;
 
     private ?DiscovererInterface $discoverer = null;
@@ -111,6 +115,8 @@ final class Builder
     private ?SessionManagerInterface $sessionManager = null;
 
     private ?SessionStoreInterface $sessionStore = null;
+
+    private ?SessionLockInterface $sessionLock = null;
 
     private int $gcProbability = 1;
 
@@ -238,9 +244,9 @@ final class Builder
     private array $discoveryExcludeDirs = [];
 
     /**
-     * @var string[]|null
+     * @var string[]
      */
-    private ?array $discoveryNamePatterns = null;
+    private array $discoveryNamePatterns = DiscovererInterface::DEFAULT_NAME_PATERNS;
 
     private ?ServerCapabilities $serverCapabilities = null;
 
@@ -306,10 +312,13 @@ final class Builder
      * runtimes; under PHP-FPM, where they are different workers, use
      * {@see Psr16NotificationBus} or an implementation over your own broker.
      *
-     * Registry changes are published automatically when an event dispatcher is
-     * configured; anything else — `notifications/resources/updated` above all —
-     * is published by the application calling
-     * {@see NotificationBusInterface::publish()}.
+     * With the built-in registry, registry changes are published automatically,
+     * with or without an event dispatcher, and `listChanged` is announced. A
+     * registry passed with setRegistry() is announced only if
+     * {@see RegistryInterface::publishesListChanges()} says so, as {@see Registry}
+     * does with a {@see PublishingEventDispatcher}.
+     * Anything else, `notifications/resources/updated` for example, is
+     * published by the application calling {@see NotificationBusInterface::publish()}.
      */
     public function setNotificationBus(NotificationBusInterface $bus): self
     {
@@ -401,6 +410,9 @@ final class Builder
 
     /**
      * Explicitly set server capabilities. If set, this overrides automatic detection.
+     *
+     * A `listChanged` flag set here is announced on `server/discover` only; the
+     * `initialize` handshake has no way to deliver list changes.
      */
     public function setCapabilities(ServerCapabilities $serverCapabilities): self
     {
@@ -521,7 +533,8 @@ final class Builder
      *
      * Lazy (the default) defers loading to the first registry read so a persistent runtime does not
      * freeze the registry to a source not yet ready at build time. Disable to load eagerly at build.
-     * A registry supplied via setRegistry() is always loaded eagerly.
+     * A registry supplied via setRegistry() is always loaded eagerly; its own constructor loader,
+     * if it has one, still runs on the first read.
      */
     public function setLazyLoading(bool $lazyLoading = true): self
     {
@@ -580,6 +593,13 @@ final class Builder
         return $this;
     }
 
+    public function setSchemaValidator(SchemaValidator $schemaValidator): self
+    {
+        $this->schemaValidator = $schemaValidator;
+
+        return $this;
+    }
+
     public function setReferenceHandler(ReferenceHandlerInterface $referenceHandler): self
     {
         $this->referenceHandler = $referenceHandler;
@@ -621,6 +641,20 @@ final class Builder
         if (null !== $sessionManager && null !== $sessionStore) {
             throw new InvalidArgumentException('Cannot set both SessionStore and SessionManager. Set only one or the other.');
         }
+
+        return $this;
+    }
+
+    /**
+     * Serializes the requests of one session, so two of them running at the same time
+     * cannot overwrite each other's changes to the session. Off by default.
+     *
+     * Pair the lock with the store: {@see Session\FileSessionLock} for {@see Session\FileSessionStore},
+     * {@see Session\SymfonyLockSessionLock} for a store shared across machines like {@see Session\Psr16SessionStore}.
+     */
+    public function setSessionLock(SessionLockInterface $sessionLock): self
+    {
+        $this->sessionLock = $sessionLock;
 
         return $this;
     }
@@ -943,6 +977,7 @@ final class Builder
                 ? new InputRequiredShim($this->inputRequiredRounds, $this->inputRequiredTimeout, $parts['logger'])
                 : null,
             requestStateCodec: $this->requestStateCodec(),
+            sessionLock: $this->sessionLock,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -951,6 +986,7 @@ final class Builder
             $protocol,
             $parts['logger'],
             [] === $modernVersions ? null : $this->buildStateless($modernVersions),
+            $parts['configuration']->handshakeVersions(),
         );
     }
 
@@ -980,6 +1016,7 @@ final class Builder
             cachePolicy: $this->cachePolicy,
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
+            eventDispatcher: $parts['eventDispatcher'],
         );
     }
 
@@ -1040,8 +1077,13 @@ final class Builder
 
         if ($this->hasCustomRegistry) {
             // Builder can't inject the loader into an already-constructed instance, so load it eagerly.
+            // Via loadFrom(), which suppresses the change events the load would otherwise dispatch.
             $registry = $this->registry;
-            $chainLoader->load($registry);
+            if ($registry instanceof Registry) {
+                $registry->loadFrom($chainLoader);
+            } else {
+                $chainLoader->load($registry);
+            }
             $eagerlyLoaded = true;
         } else {
             $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
@@ -1053,7 +1095,7 @@ final class Builder
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
 
-        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded, $eventDispatcher);
+        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
@@ -1073,8 +1115,8 @@ final class Builder
         $referenceHandler = $this->referenceHandler ?? new ReferenceHandler($container);
 
         $requestHandlers = array_merge($this->requestHandlers, [
-            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger),
-            new Handler\Request\CompletionCompleteHandler($registry, $container),
+            new Handler\Request\CallToolHandler($registry, $referenceHandler, $logger, $this->schemaValidator),
+            new Handler\Request\CompletionCompleteHandler($registry, $container, $logger),
             new Handler\Request\GetPromptHandler($registry, $referenceHandler, $logger),
             new Handler\Request\InitializeHandler($configuration),
             new Handler\Request\ListPromptsHandler($registry, $this->paginationLimit),
@@ -1109,11 +1151,10 @@ final class Builder
      * the load, so they are advertised from the configured sources instead — opaque sources (custom
      * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
      */
-    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded, ?EventDispatcherInterface $eventDispatcher): ServerCapabilities
+    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
     {
-        // Without a dispatcher the registry announces nothing, so there is no
-        // list-changed notification to advertise.
-        $listChanged = $eventDispatcher instanceof EventDispatcherInterface;
+        // Only the bus delivers list changes, and only if the registry publishes to it.
+        $listChanged = null !== $this->notificationBus && $registry->publishesListChanges();
 
         if ($eagerlyLoaded) {
             $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();

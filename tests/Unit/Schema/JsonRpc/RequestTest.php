@@ -55,4 +55,41 @@ final class RequestTest extends TestCase
 
         $this->assertSame($expectedMeta, $notification->jsonSerialize());
     }
+
+    public function testMetaDoesNotOverrideMetaFromParams(): void
+    {
+        $requestImplementation = new class extends Request {
+            public static function getMethod(): string
+            {
+                return 'foo/bar';
+            }
+
+            public static function fromParams(?array $params): static
+            {
+                return new self();
+            }
+
+            protected function getParams(): array
+            {
+                return [
+                    '_meta' => ['key' => 'from-params'],
+                ];
+            }
+        };
+
+        $request = $requestImplementation::fromParams(null)
+            ->withId('12345')
+            ->withMeta(['key' => 'from-meta']);
+
+        $expected = [
+            'jsonrpc' => '2.0',
+            'id' => '12345',
+            'method' => 'foo/bar',
+            'params' => [
+                '_meta' => ['key' => 'from-params'],
+            ],
+        ];
+
+        $this->assertSame($expected, $request->jsonSerialize());
+    }
 }

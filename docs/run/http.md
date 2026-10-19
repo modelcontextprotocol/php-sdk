@@ -4,7 +4,7 @@ The HTTP transport was designed to sit between any PHP project, regardless of th
 and process requests and send responses. It provides a flexible architecture that can integrate with any PSR-7 compatible application.
 
 ```php
-use Psr\Http\Message\ServerRequestInterface;
+use Mcp\Server\Transport\StreamableHttpTransport;
 
 // PSR-17 factories are automatically discovered
 $transport = new StreamableHttpTransport(
@@ -21,8 +21,9 @@ $transport = new StreamableHttpTransport(
 - **`responseFactory`** (optional): `ResponseFactoryInterface` - PSR-17 factory for creating HTTP responses. Auto-discovered if not provided.
 - **`streamFactory`** (optional): `StreamFactoryInterface` - PSR-17 factory for creating response body streams. Auto-discovered if not provided.
 - **`logger`** (optional): `LoggerInterface` - PSR-3 logger for debugging. Defaults to `NullLogger`.
-- **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). `[]` disables all defaults — useful when the surrounding application already handles CORS, host validation, etc.
+- **`middleware`** (optional): `iterable<MiddlewareInterface>|null` - PSR-15 middleware chain. `null` (omitted) installs the [default stack](#default-middleware). A list replaces the defaults. When the surrounding application already handles CORS, host validation, etc., see [Opting Out of All Middleware](#opting-out-of-all-middleware).
 - **`maxBodyBytes`** (optional): `int` - Upper bound on the POST request body read, in bytes. Defaults to 4 MiB (`StreamableHttpTransport::DEFAULT_MAX_BODY_BYTES`). See [Request Body Size Limit](#request-body-size-limit).
+- **`clock`** (optional): `ClockInterface` - PSR-20 clock used to time out requests the server sent to the client. Defaults to `NativeClock`.
 
 ## PSR-17 Auto-Discovery
 
@@ -55,7 +56,7 @@ When the `middleware` argument is omitted (or set to `null`), the transport inst
 | Order | Middleware | Purpose |
 |-------|------------|---------|
 | 1     | `CorsMiddleware`                    | Applies CORS headers to every response. By default does **not** set `Access-Control-Allow-Origin` (cross-origin requests are blocked). |
-| 2     | `DnsRebindingProtectionMiddleware`  | Validates `Origin`/`Host` against an allowlist. Defaults to localhost variants only. |
+| 2     | `DnsRebindingProtectionMiddleware`  | Validates `Host` and `Origin` independently. Defaults to localhost hosts and same-origin requests only (requests without Origin are also allowed). |
 
 ```php
 // Zero-config, secure-by-default — local servers get full protection automatically.
@@ -68,12 +69,8 @@ The default stack can be inspected and recomposed via the public factory:
 $middleware = StreamableHttpTransport::defaultMiddleware();
 ```
 
-These run at the edge, before the request's protocol era is known, because what they enforce is true of
-both eras. `ProtocolVersionMiddleware` is not in that stack: the `MCP-Protocol-Version` header rule belongs
-to the handshake era, so the transport applies it only to requests it classified as handshake-era traffic,
-and the modern leg answers for its own revisions. It is available as
-`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the edge stack.
-See [Serving both eras](protocol-eras.md).
+These run for both protocol eras. `ProtocolVersionMiddleware` is not part of this stack, see
+[Protocol Version Validation](#protocol-version-validation).
 
 ## CORS Configuration
 
@@ -90,7 +87,7 @@ $transport = new StreamableHttpTransport(
     $request,
     middleware: [
         new CorsMiddleware(allowedOrigins: ['https://myapp.com']),
-        new DnsRebindingProtectionMiddleware(),
+        new DnsRebindingProtectionMiddleware(allowedOrigins: ['https://myapp.com']),
     ],
 );
 
@@ -99,10 +96,32 @@ $transport = new StreamableHttpTransport(
     $request,
     middleware: [
         new CorsMiddleware(allowedOrigins: ['*']),
-        new DnsRebindingProtectionMiddleware(),
+        new DnsRebindingProtectionMiddleware(allowedOrigins: ['*']),
     ],
 );
 ```
+
+`CorsMiddleware` accepts more options:
+
+```php
+new CorsMiddleware(
+    allowedOrigins: ['https://myapp.com'],
+    // sent in Access-Control-Allow-Methods, on preflight responses only
+    allowedMethods: ['GET', 'POST', 'DELETE'],
+    // sent in Access-Control-Allow-Headers, on preflight responses only
+    // default: Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id,
+    // Mcp-Method, Mcp-Name, Mcp-Param-*
+    allowedHeaders: ['Accept', 'Authorization', 'Content-Type'],
+    // sent in Access-Control-Expose-Headers; default: Mcp-Session-Id, WWW-Authenticate
+    exposedHeaders: ['Mcp-Session-Id', 'WWW-Authenticate'],
+    // sends Access-Control-Allow-Credentials: true (default: false)
+    allowCredentials: true,
+);
+```
+
+An `allowedHeaders` entry ending in `*` (like the default `Mcp-Param-*`) allows every requested header with that prefix.
+
+Combining `allowCredentials: true` with `allowedOrigins: ['*']` throws `InvalidArgumentException`.
 
 When the allowlist is a concrete set of origins (not `['*']`), `CorsMiddleware` automatically adds `Vary: Origin`
 so shared caches/CDNs do not serve a response generated for one origin to a request from another.
@@ -118,17 +137,34 @@ defaults when they are absent.
 
 ## DNS Rebinding Protection
 
-`DnsRebindingProtectionMiddleware` validates the `Origin` header against an allowlist (falling back to `Host`
-when `Origin` is absent). The default allowlist is localhost-only:
+`DnsRebindingProtectionMiddleware` validates `Host` on every request and additionally validates `Origin`
+whenever that header is present. An invalid or missing `Host`, or a cross-origin request with an unlisted
+`Origin`, receives `403 Forbidden`.
+
+`allowedHosts` contains server hostnames, compared case-insensitively without the port. It defaults to
+`localhost`, `127.0.0.1` and `[::1]`. An empty list allows no hosts. Use `allowedHosts: ['*']` to allow any
+non-empty Host header, but only when a reverse proxy already validates it: the same-origin check below trusts
+the Host header, so wildcard hosts alone give no protection against DNS rebinding.
+
+`allowedOrigins` contains the full browser origins, including scheme and port. Entries are normalized
+(lowercase, no trailing slash, default port omitted) and compared against the `Origin` header as browsers send
+it. It defaults to an empty list. Same-origin requests are always permitted: the Origin scheme, hostname and
+effective port must match the request URI (omitted ports mean 80 for HTTP and 443 for HTTPS).
+Requests without `Origin` only need an allowed `Host`. Behind a reverse proxy, ensure the request URI reflects
+the public scheme, hostname and port.
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 
-new DnsRebindingProtectionMiddleware(allowedHosts: ['myapp.local', 'mcp.internal']);
+new DnsRebindingProtectionMiddleware(
+    allowedHosts: ['myapp.local', 'mcp.internal'],
+    allowedOrigins: ['https://myapp.com', 'http://localhost:3000'],
+);
 ```
 
-If the server is fronted by a reverse proxy that already validates `Host`, drop this middleware from the chain
-or supply a permissive allowlist.
+Configure cross-origin browser clients in both this middleware and `CorsMiddleware`. Neither list is inferred
+from the other. Use `allowedOrigins: ['*']` to allow any Origin header while continuing to validate Host.
+A reverse proxy validating `Host` alone does not replace Origin validation.
 
 ## Protocol Version Validation
 
@@ -136,17 +172,9 @@ or supply a permissive allowlist.
 set with `400 Bad Request`. Requests without the header pass through, since the `initialize` round-trip and some
 legacy clients do not send it.
 
-It is applied by the transport itself, to handshake-era traffic only — do not add it to a custom `middleware`
-list, where it would run before the era is classified and reject every modern-era request. Construct it
-yourself only to narrow the supported set on a server that also pins its handshake:
-
-```php
-use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
-
-// Only accept the latest spec version
-new ProtocolVersionMiddleware(supportedVersions: [ProtocolVersion::V2025_11_25]);
-```
+The transport applies it to handshake-era traffic only, always with the default set, and also when you replace the
+default stack. `StreamableHttpTransport::handshakeMiddleware()` returns it. Don't add it to a custom
+`middleware` list: there it runs before the era is classified and rejects every modern-era request.
 
 The default set is `ProtocolVersion::handshakeVersions()` — every revision the server can actually negotiate over
 `initialize`, rather than every revision the enum declares. A request without the header is treated as
@@ -155,9 +183,8 @@ header itself, so a header-less request cannot be newer than that.
 
 This header check is separate from, and happens after, the handshake itself. See
 [Protocol versions](../protocol-versions.md#negotiating-in-the-handshake-era) for how the revision is agreed in the
-first place. Being separate also means it is unaffected by `setProtocolVersion()`: the middleware validates against
-the set it was constructed with, not against the revision a given session negotiated, so a server that pins the
-handshake has to pass that revision here as well.
+first place. The check is also unaffected by `setProtocolVersion()`, so a server that pins the handshake still
+accepts every handshake revision in this header.
 
 Modern revisions never reach it. A `2026-07-28` request declares its revision in `params._meta` rather than in a
 header, and is routed away from this check entirely — see
@@ -232,7 +259,8 @@ $transport = new StreamableHttpTransport(
 );
 ```
 
-To selectively drop one default (for example DNS rebinding when running behind a proxy), filter the default list:
+When a reverse proxy already validates Host, replace the default DNS rebinding middleware with
+`allowedHosts: ['*']` to keep validating cross-origin requests:
 
 ```php
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -241,16 +269,18 @@ use Mcp\Server\Transport\StreamableHttpTransport;
 $transport = new StreamableHttpTransport(
     $request,
     middleware: [
-        ...array_filter(
+        ...array_map(
+            fn ($m) => $m instanceof DnsRebindingProtectionMiddleware
+                ? new DnsRebindingProtectionMiddleware(allowedHosts: ['*'])
+                : $m,
             StreamableHttpTransport::defaultMiddleware(),
-            fn ($m) => !$m instanceof DnsRebindingProtectionMiddleware,
         ),
         new AuthMiddleware($responseFactory),
     ],
 );
 ```
 
-Pass `middleware: []` to disable every default and run only your own chain:
+Leave the defaults out of the list to run only your own chain:
 
 ```php
 $transport = new StreamableHttpTransport(
@@ -258,3 +288,22 @@ $transport = new StreamableHttpTransport(
     middleware: [new AuthMiddleware($responseFactory)],
 );
 ```
+
+### Opting Out of All Middleware
+
+When the surrounding application already handles CORS and host validation, pass `PassthroughMiddleware`. It hands
+every request to the next handler unchanged:
+
+```php
+use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
+use Mcp\Server\Transport\StreamableHttpTransport;
+
+$transport = new StreamableHttpTransport(
+    $request,
+    middleware: [new PassthroughMiddleware()],
+);
+```
+
+Do not pass `middleware: []`. The transport treats an empty list as a likely mistake and logs a warning on every
+request. The pass-through makes the opt-out explicit. The transport still applies
+`StreamableHttpTransport::handshakeMiddleware()` to handshake-era requests.

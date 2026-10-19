@@ -1,7 +1,8 @@
 # Running your server
 
 `Server::builder()` configures a server; `run()` puts it on a transport and starts
-answering. Every transport implements `TransportInterface` and is used the same way:
+answering. `StdioTransport`, `StreamableHttpTransport` and `InMemoryTransport` implement
+`TransportInterface` and are used the same way:
 
 ```php
 $server = Server::builder()
@@ -13,6 +14,10 @@ $transport = new SomeTransport();
 
 $result = $server->run($transport); // Blocks for STDIO, returns a response for HTTP
 ```
+
+`StatelessHttpTransport` works differently. It serves only protocol revision `2026-07-28`.
+You create it with the result of `buildStateless()` and call `handle()` with the request. See
+[Serving one era only](protocol-eras.md#serving-one-era-only).
 
 ## Choosing a transport
 

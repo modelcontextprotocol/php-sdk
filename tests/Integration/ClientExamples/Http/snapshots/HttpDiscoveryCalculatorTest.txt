@@ -1,0 +1,21 @@
+Connecting to MCP server at http://127.0.0.1:<port>/...
+Connected! Server info:
+  Name: Calculator
+  Version: 1.1.0
+
+Available tools:
+  - calculate: Performs a calculation based on the operation.
+
+Supports 'add', 'subtract', 'multiply', 'divide'.
+Obeys the 'precision' and 'allow_negative' settings from the config resource.
+  - update_setting: Updates a specific configuration setting.
+
+Note: This requires more robust validation in a real app.
+
+Available resources:
+  - config://calculator/settings: calculator_config
+
+Available prompts:
+
+Disconnecting...
+Done.

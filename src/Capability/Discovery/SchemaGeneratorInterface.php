@@ -11,8 +11,12 @@
 
 namespace Mcp\Capability\Discovery;
 
+use Mcp\Schema\Tool;
+
 /**
  * Provides JSON Schema generation for reflected elements.
+ *
+ * @phpstan-import-type ToolInputSchema from Tool
  *
  * @author Antoine Bluchet <soyuka@gmail.com>
  */
@@ -24,11 +28,7 @@ interface SchemaGeneratorInterface
      * The returned schema must be a valid JSON Schema object (type: 'object')
      * with properties corresponding to a tool's parameters.
      *
-     * @return array{
-     *     type: 'object',
-     *     properties: array<string, mixed>|object,
-     *     required?: string[]
-     * }
+     * @return ToolInputSchema
      */
     public function generate(\Reflector $reflection): array;
 

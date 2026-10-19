@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\ServerCapabilities;
 
 /**
  * In-memory client state implementation.
@@ -32,8 +33,9 @@ class ClientState implements ClientStateInterface
     private ?ProtocolVersion $protocolVersion = null;
     private ?Implementation $serverInfo = null;
     private ?string $instructions = null;
+    private ?ServerCapabilities $serverCapabilities = null;
 
-    /** @var array<int|string, array{request_id: int|string, timestamp: int, timeout: int}> */
+    /** @var array<int|string, array{request_id: int|string, timestamp: float, timeout: int}> */
     private array $pendingRequests = [];
 
     /** @var array<int|string, array<string, mixed>> */
@@ -51,7 +53,7 @@ class ClientState implements ClientStateInterface
     {
         $this->pendingRequests[$requestId] = [
             'request_id' => $requestId,
-            'timestamp' => time(),
+            'timestamp' => microtime(true),
             'timeout' => $timeout,
         ];
     }
@@ -98,7 +100,7 @@ class ClientState implements ClientStateInterface
         return $this->initialized;
     }
 
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void
     {
         $this->protocolVersion = $protocolVersion;
     }
@@ -108,7 +110,7 @@ class ClientState implements ClientStateInterface
         return $this->protocolVersion;
     }
 
-    public function setServerInfo(Implementation $serverInfo): void
+    public function setServerInfo(?Implementation $serverInfo): void
     {
         $this->serverInfo = $serverInfo;
     }
@@ -126,6 +128,16 @@ class ClientState implements ClientStateInterface
     public function getInstructions(): ?string
     {
         return $this->instructions;
+    }
+
+    public function setServerCapabilities(?ServerCapabilities $capabilities): void
+    {
+        $this->serverCapabilities = $capabilities;
+    }
+
+    public function getServerCapabilities(): ?ServerCapabilities
+    {
+        return $this->serverCapabilities;
     }
 
     public function storeProgress(string $token, float $progress, ?float $total, ?string $message): void

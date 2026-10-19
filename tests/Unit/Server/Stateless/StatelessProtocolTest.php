@@ -11,6 +11,9 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\Event\ErrorEvent;
+use Mcp\Event\RequestEvent;
+use Mcp\Event\ResponseEvent;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextResourceContents;
@@ -23,6 +26,7 @@ use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
 use Mcp\Schema\Result\InputRequiredResult;
@@ -40,15 +44,16 @@ use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 class StatelessProtocolTest extends TestCase
 {
     /**
      * @param array<string, mixed> $capabilities
      */
-    private static function protocol(array $capabilities = []): StatelessProtocol
+    private static function protocol(array $capabilities = [], ?EventDispatcherInterface $eventDispatcher = null): StatelessProtocol
     {
-        return Server::builder()
+        $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
             ->addTool(static fn (): string => 'ok', name: 'plain_tool', description: 'Returns a fixed string')
             ->addTool(
@@ -88,6 +93,18 @@ class StatelessProtocolTest extends TestCase
                 },
                 name: 'logging_tool',
                 description: 'Emits one message at each of four levels',
+            )
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $logger = $context->getClientLogger();
+                    $logger->debug('debug message');
+                    $logger->info('info message');
+                    $logger->warning('warning message');
+
+                    return 'logged';
+                },
+                name: 'client_logger_tool',
+                description: 'Logs through the PSR-3 client logger',
             )
             ->addTool(
                 static function (): never {
@@ -174,8 +191,13 @@ class StatelessProtocolTest extends TestCase
                 'test://gated',
                 'gated',
                 'A resource that asks who is reading before it answers',
-            )
-            ->buildStateless([ProtocolVersion::V2026_07_28]);
+            );
+
+        if (null !== $eventDispatcher) {
+            $builder->setEventDispatcher($eventDispatcher);
+        }
+
+        return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
     }
 
     /**
@@ -268,7 +290,6 @@ class StatelessProtocolTest extends TestCase
      */
     public static function removedMethods(): iterable
     {
-        yield 'initialize' => ['initialize', []];
         yield 'ping' => ['ping', []];
         yield 'logging/setLevel' => ['logging/setLevel', ['level' => 'info']];
         yield 'resources/subscribe' => ['resources/subscribe', ['uri' => 'test://static']];
@@ -288,6 +309,25 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
     }
 
+    #[TestDox('a handshake-era client opening with "initialize" is told which revisions are served')]
+    public function testInitializeNamesTheServedRevisions(): void
+    {
+        $result = self::protocol()->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => ['protocolVersion' => '2025-11-25', 'capabilities' => new \stdClass(), 'clientInfo' => ['name' => 'legacy', 'version' => '1.0.0']],
+        ], \JSON_THROW_ON_ERROR));
+
+        $answer = json_decode($result->toJson(), true);
+
+        $this->assertSame(400, $result->httpStatus);
+        $this->assertSame(Error::UNSUPPORTED_PROTOCOL_VERSION, $answer['error']['code']);
+        $this->assertSame(1, $answer['id']);
+        $this->assertSame('2025-11-25', $answer['error']['data']['requested']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $answer['error']['data']['supported']);
+    }
+
     /**
      * Drains a streaming result into the frames it would write.
      *
@@ -296,8 +336,10 @@ class StatelessProtocolTest extends TestCase
     private static function frames(StatelessResult $result): array
     {
         $frames = [];
+        $stream = $result->frames;
+        self::assertNotNull($stream);
 
-        foreach (($result->frames)() as $frame) {
+        foreach ($stream() as $frame) {
             if (null !== $frame) {
                 $frames[] = $frame;
             }
@@ -424,6 +466,21 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(['debug', 'info', 'warning', 'error'], $levels);
     }
 
+    #[TestDox('the client logger honours the requested level instead of its warning default')]
+    public function testClientLoggerHonoursTheRequestedLevel(): void
+    {
+        $frames = self::frames(self::callStreaming(self::protocol(), 'client_logger_tool', [RequestMeta::LOG_LEVEL => 'info']));
+
+        $levels = [];
+        foreach ($frames as $frame) {
+            if ('notifications/message' === ($frame['method'] ?? null)) {
+                $levels[] = $frame['params']['level'];
+            }
+        }
+
+        $this->assertSame(['info', 'warning'], $levels);
+    }
+
     #[TestDox('an error raised before any notification keeps its own status')]
     public function testEarlyFailureIsStillAStatusCode(): void
     {
@@ -445,6 +502,8 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(500, $result->httpStatus);
         $this->assertStringContainsString('no server-initiated requests', $body['error']['message']);
+        $this->assertStringContainsString('"roots/list"', $body['error']['message']);
+        $this->assertStringContainsString('InputRequiredResult', $body['error']['message']);
     }
 
     #[TestDox('a gateway elicitation becomes the ask this revision carries in the result')]
@@ -527,10 +586,15 @@ class StatelessProtocolTest extends TestCase
                     $gateway = $context->getClientGateway();
                     $schema = new ElicitationSchema(['v' => new StringSchemaDefinition('V')], ['v']);
 
-                    $when = $gateway->elicit('When?', $schema, key: 'when');
-                    $seat = $gateway->elicit('Seat?', $schema, key: 'seat');
+                    $when = $gateway->elicit('When?', $schema, key: 'when')->content['v'] ?? null;
+                    $seat = $gateway->elicit('Seat?', $schema, key: 'seat')->content['v'] ?? null;
 
-                    return $when->content['v'].'/'.$seat->content['v'];
+                    // Fail here rather than answering '/' and failing downstream.
+                    if (!\is_string($when) || !\is_string($seat)) {
+                        throw new \RuntimeException('An elicitation answer arrived without its value.');
+                    }
+
+                    return $when.'/'.$seat;
                 },
                 name: 'books_flight',
                 description: 'Asks twice before it answers',
@@ -639,6 +703,53 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(
             'traceparent=00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01;baggage=tenant=acme',
+            $answer['body']['result']['content'][0]['text'],
+        );
+    }
+
+    #[TestDox('a native traceparent/tracestate header reaches the handler when `_meta` carries none')]
+    public function testHttpTraceHeadersReachTheHandler(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            ['name' => 'probe_trace', 'arguments' => []],
+            [
+                'Mcp-Name' => 'probe_trace',
+                'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+                'tracestate' => 'acme=1',
+            ],
+        );
+
+        $this->assertSame(
+            'traceparent=00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01;tracestate=acme=1',
+            $answer['body']['result']['content'][0]['text'],
+        );
+    }
+
+    #[TestDox('`_meta` trace context wins over a conflicting native header')]
+    public function testMetaTraceContextWinsOverHeader(): void
+    {
+        $answer = self::call(
+            self::protocol(),
+            'tools/call',
+            [
+                'name' => 'probe_trace',
+                'arguments' => [],
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                    'traceparent' => '00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
+                ],
+            ],
+            [
+                'Mcp-Name' => 'probe_trace',
+                'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+            ],
+        );
+
+        $this->assertSame(
+            'traceparent=00-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa-bbbbbbbbbbbbbbbb-01',
             $answer['body']['result']['content'][0]['text'],
         );
     }
@@ -804,6 +915,7 @@ class StatelessProtocolTest extends TestCase
         $this->assertTrue($result->isStream());
 
         $frames = self::frames($result);
+        $this->assertNotEmpty($frames);
         $last = json_decode(json_encode($frames[array_key_last($frames)], \JSON_THROW_ON_ERROR), true, flags: \JSON_THROW_ON_ERROR);
 
         $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $last['error']['code']);
@@ -906,8 +1018,10 @@ class StatelessProtocolTest extends TestCase
 
         $frames = [];
         $published = false;
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
 
-        foreach (($result->frames)() as $frame) {
+        foreach ($stream() as $frame) {
             if (null === $frame) {
                 // Publish once the stream is established, so the notifications
                 // arrive the way a concurrent request would deliver them.
@@ -949,6 +1063,111 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame('complete', $frames[3]['result']['resultType']);
     }
 
+    /**
+     * A request the way stdio carries it: the metadata inline, no headers.
+     *
+     * @param array<string, mixed> $params
+     */
+    private static function inlineRequest(string $method, array $params = []): string
+    {
+        $params['_meta'] = [
+            RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+            RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+            ...($params['_meta'] ?? []),
+        ];
+
+        return json_encode(['jsonrpc' => '2.0', 'id' => 9, 'method' => $method, 'params' => $params], \JSON_THROW_ON_ERROR);
+    }
+
+    #[TestDox('a message off a transport without headers is answered without them')]
+    public function testInlineMessageNeedsNoHeaders(): void
+    {
+        $protocol = self::protocol();
+        $message = self::inlineRequest('tools/call', ['name' => 'plain_tool', 'arguments' => []]);
+
+        // The same message over HTTP is missing headers it has to carry.
+        $this->assertSame(Error::HEADER_MISMATCH, json_decode($protocol->handle($message)->toJson(), true)['error']['code']);
+
+        $result = $protocol->handleInline($message);
+
+        $this->assertSame(200, $result->httpStatus);
+        $this->assertSame('ok', json_decode($result->toJson(), true)['result']['content'][0]['text']);
+    }
+
+    #[TestDox('an inline request streams its progress without being asked to')]
+    public function testInlineProgressIsStreamed(): void
+    {
+        $result = self::protocol()->handleInline(self::inlineRequest('tools/call', [
+            'name' => 'progress_tool',
+            'arguments' => [],
+            '_meta' => ['progressToken' => 'tok-1'],
+        ]));
+
+        $this->assertTrue($result->isStream());
+
+        $frames = self::frames($result);
+
+        $this->assertSame(['notifications/progress', 'notifications/progress'], [$frames[0]['method'], $frames[1]['method']]);
+        $this->assertSame(9, $frames[2]['id']);
+    }
+
+    #[TestDox('an inline listen stream leaves the pacing to its consumer')]
+    public function testInlineListenIsNotPaced(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(60)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $this->assertTrue($result->isStream());
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $started = microtime(true);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames->current()['method']);
+
+        // A paced stream sleeps between polls, stalling the shared stdio channel.
+        for ($i = 0; $i < 5; ++$i) {
+            $frames->next();
+            $this->assertNull($frames->current());
+        }
+
+        $this->assertLessThan(0.2, microtime(true) - $started);
+    }
+
+    #[TestDox('an inline listen stream outlives the subscription lifetime, since its consumer ends it')]
+    public function testInlineListenIsNotBoundedByTheLifetime(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(0.01)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = $stream();
+        $frames->current();
+        usleep(20_000);
+
+        for ($i = 0; $i < 3; ++$i) {
+            $frames->next();
+            $this->assertTrue($frames->valid());
+            $this->assertNull($frames->current());
+        }
+    }
+
     #[TestDox('the acknowledgment drops types the server cannot honour')]
     public function testAcknowledgmentReflectsWhatTheServerCanDo(): void
     {
@@ -976,7 +1195,10 @@ class StatelessProtocolTest extends TestCase
         ]);
 
         $first = null;
-        foreach (($result->frames)() as $frame) {
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        foreach ($stream() as $frame) {
             if (null !== $frame) {
                 $first = $frame;
                 break;
@@ -1014,6 +1236,20 @@ class StatelessProtocolTest extends TestCase
         $answer = self::call($protocol, 'server/discover');
 
         $this->assertSame(['flavour' => 'vanilla'], (array) $answer['body']['result']['capabilities']['extensions']['com.example/things']);
+    }
+
+    #[TestDox('listChanged is announced on server/discover when a notification bus delivers it')]
+    public function testListChangedIsAdvertisedWithANotificationBus(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $capabilities = self::call($protocol, 'server/discover')['body']['result']['capabilities'];
+
+        $this->assertTrue($capabilities['tools']['listChanged']);
     }
 
     #[TestDox('a method of an extension this server has never heard of stays generic')]
@@ -1155,5 +1391,102 @@ class StatelessProtocolTest extends TestCase
         );
 
         $this->assertSame('elicitation', $answer['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * @param list<object>                  $events
+     * @param (\Closure(object): void)|null $listener
+     */
+    private function eventDispatcher(array &$events, ?\Closure $listener = null): EventDispatcherInterface
+    {
+        $eventDispatcher = $this->createStub(EventDispatcherInterface::class);
+        $eventDispatcher->method('dispatch')->willReturnCallback(static function (object $event) use (&$events, $listener): object {
+            $events[] = $event;
+
+            if (null !== $listener) {
+                $listener($event);
+            }
+
+            return $event;
+        });
+
+        return $eventDispatcher;
+    }
+
+    #[TestDox('request and response events are dispatched for a modern-era request')]
+    public function testRequestAndResponseEventsAreDispatched(): void
+    {
+        $events = [];
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events)),
+            'tools/call',
+            ['name' => 'plain_tool', 'arguments' => []],
+            ['Mcp-Name' => 'plain_tool'],
+        );
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertSame('tools/call', $events[0]->getMethod());
+        $this->assertInstanceOf(ResponseEvent::class, $events[1]);
+    }
+
+    #[TestDox('a request replaced by a RequestEvent listener is the one handled')]
+    public function testRequestEventCanReplaceTheRequest(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof RequestEvent) {
+                $request = $event->getRequest();
+                $event->setRequest((new CallToolRequest('plain_tool', []))->withId($request->getId())->withMeta($request->getMeta()));
+            }
+        };
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
+            'tools/call',
+            ['name' => 'probe_trace', 'arguments' => []],
+            ['Mcp-Name' => 'probe_trace'],
+        );
+
+        $this->assertSame('ok', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('an error event is dispatched and can replace the error of a modern-era request')]
+    public function testErrorEventIsDispatched(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof ErrorEvent) {
+                $event->setError(Error::forInvalidParams('replaced', $event->getError()->id));
+            }
+        };
+
+        $answer = self::call(
+            self::protocol(eventDispatcher: $this->eventDispatcher($events, $listener)),
+            'tools/call',
+            ['name' => 'capability_tool', 'arguments' => []],
+            ['Mcp-Name' => 'capability_tool'],
+        );
+
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertInstanceOf(ErrorEvent::class, $events[1]);
+        $this->assertInstanceOf(MissingRequiredClientCapabilityException::class, $events[1]->getThrowable());
+        $this->assertSame('replaced', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('a response event is dispatched for a streamed response too')]
+    public function testResponseEventIsDispatchedWhenStreamed(): void
+    {
+        $events = [];
+
+        $frames = self::frames(self::callStreaming(self::protocol(eventDispatcher: $this->eventDispatcher($events)), 'progress_tool', ['progressToken' => 'tok-1']));
+
+        $this->assertCount(3, $frames);
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertInstanceOf(ResponseEvent::class, $events[1]);
     }
 }

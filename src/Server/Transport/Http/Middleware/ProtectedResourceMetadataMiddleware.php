@@ -21,10 +21,10 @@ use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 
 /**
- * Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) at well-known endpoints.
+ * Serves OAuth 2.0 Protected Resource Metadata (RFC 9728) at its well-known path.
  *
  * This is a thin path-guard adapter: it decides *when* the metadata endpoint applies
- * (a GET to one of the configured well-known paths) and delegates the *what* to
+ * (a GET to the metadata path derived from the resource identifier) and delegates the *what* to
  * {@see ProtectedResourceMetadataHandler}, the reusable request handler that can also be
  * mounted directly as a framework controller.
  *
@@ -55,10 +55,11 @@ final class ProtectedResourceMetadataMiddleware implements MiddlewareInterface
 
     private function isMetadataRequest(ServerRequestInterface $request): bool
     {
-        if ('GET' !== $request->getMethod()) {
-            return false;
-        }
+        // Resources distinguished by query share a path, so the query decides between them, an absent one included.
+        $query = (string) parse_url($this->metadata->getMetadataUrl(), \PHP_URL_QUERY);
 
-        return \in_array($request->getUri()->getPath(), $this->metadata->getMetadataPaths(), true);
+        return 'GET' === $request->getMethod()
+            && $request->getUri()->getPath() === $this->metadata->getMetadataPath()
+            && $request->getUri()->getQuery() === $query;
     }
 }

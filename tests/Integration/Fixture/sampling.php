@@ -14,8 +14,13 @@
  */
 
 use Mcp\Exception\ClientException;
+use Mcp\Schema\Content\SamplingMessage;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\Role;
+use Mcp\Schema\Request\CreateSamplingMessageRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Transport\StdioTransport;
 
@@ -37,6 +42,39 @@ Server::builder()
         },
         name: 'summarize',
         description: 'Summarizes text by asking the client to sample.',
+    )
+    ->addTool(
+        static function (ClientGateway $client, string $text): string {
+            try {
+                $result = $client->sample($text, maxTokens: 64);
+            } catch (ClientException $e) {
+                return $e->getMessage();
+            }
+
+            assert($result->content instanceof TextContent);
+
+            return sprintf('%s said: %s', $result->model, $result->content->text);
+        },
+        name: 'summarize_via_gateway',
+        description: 'Summarizes text through a directly injected gateway.',
+    )
+    ->addTool(
+        static function (RequestContext $context, string $text): string|InputRequiredResult {
+            $result = $context->getInputContext()?->samplingResult('summary');
+
+            if (null === $result) {
+                return new InputRequiredResult(['summary' => new CreateSamplingMessageRequest(
+                    messages: [new SamplingMessage(Role::User, new TextContent($text))],
+                    maxTokens: 64,
+                )]);
+            }
+
+            assert($result->content instanceof TextContent);
+
+            return sprintf('%s said: %s', $result->model, $result->content->text);
+        },
+        name: 'summarize_by_asking',
+        description: 'Summarizes text by returning a sampling ask.',
     )
     ->build()
     ->run(new StdioTransport());

@@ -79,7 +79,7 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
      *     default?: string[],
      *     minItems?: int,
      *     maxItems?: int,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -97,6 +97,14 @@ final class MultiSelectEnumSchemaDefinition extends AbstractSchemaDefinition
             minItems: isset($data['minItems']) ? (int) $data['minItems'] : null,
             maxItems: isset($data['maxItems']) ? (int) $data['maxItems'] : null,
         );
+    }
+
+    /**
+     * @return string[]|null
+     */
+    public function getDefault(): ?array
+    {
+        return $this->default;
     }
 
     /**

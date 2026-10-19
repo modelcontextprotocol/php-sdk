@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
 use Mcp\Server\Transport\StatelessHttpTransport;
 use Mcp\Tests\Unit\Server\Transport\Fixture\ShortReadStream;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -68,6 +69,25 @@ final class StatelessHttpTransportTest extends TestCase
             ->withHeader('Mcp-Method', 'tools/call')
             ->withHeader('Mcp-Name', 'echo_tool')
             ->withBody($this->factory->createStream($body));
+    }
+
+    #[TestDox('Host and Origin are validated independently')]
+    public function testHostAndOriginAreValidatedIndependently(): void
+    {
+        $transport = new StatelessHttpTransport($this->protocol(), middleware: [
+            new DnsRebindingProtectionMiddleware(allowedOrigins: ['https://client.example']),
+        ]);
+        $request = $this->post($this->callBody())->withHeader('Origin', 'https://client.example');
+
+        $this->assertSame(200, $transport->handle($request)->getStatusCode());
+
+        $response = $transport->handle($request->withHeader('Host', 'evil.example'));
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Host header.', (string) $response->getBody());
+
+        $response = $transport->handle($request->withHeader('Origin', 'http://client.example'));
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Origin header.', (string) $response->getBody());
     }
 
     #[TestDox('a body arriving in short reads is assembled whole, not truncated')]

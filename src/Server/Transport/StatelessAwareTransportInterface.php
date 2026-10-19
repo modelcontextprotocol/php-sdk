@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Transport;
 
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server\Stateless\StatelessProtocol;
 
 /**
@@ -26,4 +27,12 @@ use Mcp\Server\Stateless\StatelessProtocol;
 interface StatelessAwareTransportInterface
 {
     public function connectStateless(StatelessProtocol $protocol): void;
+
+    /**
+     * Revisions the handshake dispatcher negotiates, named when a modern-era
+     * request reaches a server without the modern era.
+     *
+     * @param non-empty-list<ProtocolVersion> $versions
+     */
+    public function setHandshakeVersions(array $versions): void;
 }

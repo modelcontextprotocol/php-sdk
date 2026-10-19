@@ -54,7 +54,9 @@ class CapabilitiesExtensionsTest extends TestCase
         $json = $caps->jsonSerialize();
 
         $this->assertArrayHasKey('extensions', $json);
-        $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $json['extensions']);
+        $extensions = $json['extensions'] ?? null;
+        $this->assertNotNull($extensions);
+        $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $extensions);
     }
 
     public function testServerCapabilitiesSerializeSettinglessExtensionAsObject(): void
@@ -125,7 +127,7 @@ class CapabilitiesExtensionsTest extends TestCase
 
         $merged = $caps->withExtensions(['b' => ['y' => 99], 'c' => ['z' => 3]]);
 
-        $this->assertSame(['x' => 1], $merged->extensions['a']);
+        $this->assertSame(['x' => 1], $merged->extensions['a'] ?? null);
         $this->assertSame(['y' => 99], $merged->extensions['b'], 'new entry overrides existing id');
         $this->assertSame(['z' => 3], $merged->extensions['c']);
         $this->assertSame(['a' => ['x' => 1], 'b' => ['y' => 2]], $caps->extensions, 'original is unchanged');
@@ -171,9 +173,12 @@ class CapabilitiesExtensionsTest extends TestCase
         );
 
         $json = $caps->jsonSerialize();
+        $this->assertIsArray($json);
 
         $this->assertArrayHasKey('extensions', $json);
-        $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $json['extensions']);
+        $extensions = $json['extensions'] ?? null;
+        $this->assertNotNull($extensions);
+        $this->assertObjectHasProperty(McpApps::EXTENSION_ID, $extensions);
     }
 
     public function testClientCapabilitiesJsonSerializeWithoutExtensions(): void
@@ -256,6 +261,7 @@ class CapabilitiesExtensionsTest extends TestCase
         $this->assertNull($caps->extensions);
 
         $json = $caps->jsonSerialize();
+        $this->assertIsArray($json);
         $this->assertArrayNotHasKey('extensions', $json);
     }
 }

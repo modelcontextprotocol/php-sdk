@@ -67,6 +67,58 @@ final class ElicitationSchemaTest extends TestCase
         $this->assertInstanceOf(EnumSchemaDefinition::class, $schema->properties['rating']);
     }
 
+    public function testGetDefaults(): void
+    {
+        $schema = ElicitationSchema::fromArray([
+            'type' => 'object',
+            'properties' => [
+                'name' => ['type' => 'string', 'title' => 'Name', 'default' => 'Ada'],
+                'age' => ['type' => 'integer', 'title' => 'Age', 'default' => 0],
+                'score' => ['type' => 'number', 'title' => 'Score', 'default' => 95.5],
+                'color' => ['type' => 'string', 'title' => 'Color', 'enum' => ['red', 'blue'], 'default' => 'blue'],
+                'plan' => [
+                    'type' => 'string',
+                    'title' => 'Plan',
+                    'oneOf' => [
+                        ['const' => 'free', 'title' => 'Free'],
+                        ['const' => 'pro', 'title' => 'Pro'],
+                    ],
+                    'default' => 'pro',
+                ],
+                'subscribe' => ['type' => 'boolean', 'title' => 'Subscribe', 'default' => false],
+                'tags' => [
+                    'type' => 'array',
+                    'title' => 'Tags',
+                    'items' => ['type' => 'string', 'enum' => ['php', 'mcp']],
+                    'default' => ['php'],
+                ],
+                'channels' => [
+                    'type' => 'array',
+                    'title' => 'Channels',
+                    'items' => [
+                        'anyOf' => [
+                            ['const' => 'mail', 'title' => 'Mail'],
+                            ['const' => 'sms', 'title' => 'SMS'],
+                        ],
+                    ],
+                    'default' => ['mail', 'sms'],
+                ],
+                'withoutDefault' => ['type' => 'string', 'title' => 'Without default'],
+            ],
+        ]);
+
+        $this->assertSame([
+            'name' => 'Ada',
+            'age' => 0,
+            'score' => 95.5,
+            'color' => 'blue',
+            'plan' => 'pro',
+            'subscribe' => false,
+            'tags' => ['php'],
+            'channels' => ['mail', 'sms'],
+        ], $schema->getDefaults());
+    }
+
     public function testConstructorWithEmptyProperties(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -128,7 +180,6 @@ final class ElicitationSchemaTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "properties"');
 
-        /* @phpstan-ignore argument.type */
         ElicitationSchema::fromArray([]);
     }
 
@@ -167,7 +218,6 @@ final class ElicitationSchemaTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Missing or invalid "type"');
 
-        /* @phpstan-ignore argument.type */
         ElicitationSchema::fromArray([
             'properties' => [
                 'name' => ['title' => 'Name'],
@@ -283,7 +333,7 @@ final class ElicitationSchemaTest extends TestCase
 
         $result = $schema->jsonSerialize();
 
-        $this->assertSame(['name'], $result['required']);
+        $this->assertSame(['name'], $result['required'] ?? null);
     }
 
     public function testJsonSerializeWithFullSchema(): void
@@ -301,7 +351,7 @@ final class ElicitationSchemaTest extends TestCase
 
         $this->assertSame('object', $result['type']);
         $this->assertCount(3, $result['properties']);
-        $this->assertSame(['name', 'age'], $result['required']);
+        $this->assertSame(['name', 'age'], $result['required'] ?? null);
 
         $this->assertSame('string', $result['properties']['name']['type']);
         $this->assertSame('Full Name', $result['properties']['name']['title']);

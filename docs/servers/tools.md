@@ -4,6 +4,7 @@ Tools are callable functions that perform actions and return results.
 
 ```php
 use Mcp\Capability\Attribute\McpTool;
+use Mcp\Exception\ToolCallException;
 
 class Calculator
 {
@@ -17,8 +18,8 @@ class Calculator
             'add' => $a + $b,
             'subtract' => $a - $b,
             'multiply' => $a * $b,
-            'divide' => $b != 0 ? $a / $b : throw new \InvalidArgumentException('Division by zero'),
-            default => throw new \InvalidArgumentException('Invalid operation')
+            'divide' => $b != 0 ? $a / $b : throw new ToolCallException('Division by zero'),
+            default => throw new ToolCallException('Invalid operation')
         };
     }
 }
@@ -26,7 +27,7 @@ class Calculator
 
 ## Parameters
 
-- **`name`** (optional): Tool identifier. Defaults to method name if not provided.
+- **`name`** (optional): Tool identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Tool description. Falls back to the docblock (summary plus long description); stays unset if there is no docblock.
 - **`annotations`** (optional): `ToolAnnotations` object for additional metadata.
@@ -34,7 +35,7 @@ class Calculator
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
 - **`meta`** (optional): Arbitrary key-value pairs for custom metadata.
 
-**Priority**: `name` is the attribute parameter, else the method name. `description` is the attribute parameter, else the docblock — the method name is never used as a description.
+**Priority**: `name` is the attribute parameter, else the method name (the class short name for an invokable class). `description` is the attribute parameter, else the docblock. The method name is never used as a description.
 
 For tool parameter validation and JSON schema generation, see [Schema generation](schemas.md).
 
@@ -129,7 +130,7 @@ public function getMultipleContent(): array
 ### Structured Output
 
 Besides the human-readable `content`, a tool result can carry a machine-readable `structuredContent` value. Declare its
-shape with `outputSchema`, a JSON Schema of type `object`:
+shape with `outputSchema`, a JSON Schema. This example uses an object schema, which works with every protocol version:
 
 ```php
 #[McpTool(
@@ -165,7 +166,8 @@ and lets them validate it. What qualifies depends on the protocol revision the c
 | Object (`stdClass`, DTO, `JsonSerializable`) that serializes to a JSON object | Its JSON representation |
 | List (`[1, 2, 3]`, `[['id' => 1], ['id' => 2]]`), or an object serializing to one | Omitted before `2026-07-28`, kept from it on |
 | Array holding `Content` instances | Omitted (already carried in `content`) |
-| Scalars, `null`, `Content` instances | Omitted |
+| Scalar (`22.5`, `'sunny'`), or a `JsonSerializable` serializing to one | Omitted before `2026-07-28`. From it on, kept if the tool declares an `outputSchema` |
+| `null`, `Content` instances | Omitted |
 
 Up to revision `2025-11-25`, `structuredContent` had to be a JSON object, so a PHP list — which serializes to a JSON
 array — was not emittable and strict clients rejected the whole tool call over one. [SEP-2106][sep-2106], part of
@@ -198,9 +200,61 @@ Either way the data reaches the client: a return value with no structured repres
 `structuredContent`, the SDK logs a warning — the value is not silently dropped.
 
 A tool that wants to branch on the revision itself can read it from the injected `RequestContext`, see
-[Talking back to the client](../handlers/client-communication.md#clientgateway).
+[Talking back to the client](../handlers/client-communication.md#request-metadata).
+
+#### Output validation
+
+The specification states that a server **must** produce structured results that conform to the declared schema. The SDK
+holds you to it: when a tool declares an `outputSchema` and the result carries `structuredContent`, the SDK validates
+that value against the schema before sending it. A mismatch becomes a tool error result, so the model reads the reason
+and can retry:
+
+```json
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Invalid structured output for tool 'get_weather': Missing required properties: `temperature`."
+    }
+  ],
+  "isError": true
+}
+```
+
+The check applies to a `CallToolResult` you build yourself as well as to one the SDK wraps for you. It is skipped in
+three cases:
+
+- The tool declares no `outputSchema`.
+- The result carries no `structuredContent`. If the SDK wrapped your return value, it logs the warning described
+  above. A `CallToolResult` you build yourself without `structuredContent` gets no warning.
+- The result is already marked `isError: true`, because its content is a failure message and not the declared output.
+
+#### Sending only structured content
+
+By default, the SDK also JSON-encodes structured content into `content`. To send a large result only once, return a
+`CallToolResult` with an empty `content` list:
+
+```php
+use Mcp\Schema\Result\CallToolResult;
+
+#[McpTool(outputSchema: [/* ... */])]
+public function getWeather(string $city): CallToolResult
+{
+    return new CallToolResult([], structuredContent: ['temperature' => 22.5, 'conditions' => 'sunny']);
+}
+```
+
+The SDK still validates `structuredContent` against the `outputSchema`, but it doesn't change the value for older
+protocol versions. Before `2026-07-28`, clients may reject a list or a scalar, so always pass an associative array or an
+object.
+
+!!! warning
+    The [specification][sep-2106] recommends also sending the serialized JSON as text, and [SEP-2106][sep-2106-proposal]
+    requires it for a list or a scalar. Some hosts pass only `content` to the model, which then sees an empty result.
+    Send only structured content with object values and for clients that read `structuredContent`.
 
 [sep-2106]: https://modelcontextprotocol.io/specification/2026-07-28/server/tools#structured-content
+[sep-2106-proposal]: https://modelcontextprotocol.io/seps/2106-json-schema-2020-12#backward-compatibility
 
 ### Error Handling
 

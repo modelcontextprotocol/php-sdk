@@ -5,8 +5,12 @@
 which of them answers. There is nothing to configure:
 
 ```php
+use Http\Discovery\Psr17Factory;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
 use Mcp\Server;
 use Mcp\Server\Transport\StreamableHttpTransport;
+
+$request = (new Psr17Factory())->createServerRequestFromGlobals();
 
 $server = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
@@ -39,10 +43,10 @@ them into headers so an intermediary can route without parsing the body:
 | `progressToken` | no | — |
 | `traceparent`, `tracestate`, `baggage` | no | — |
 
-Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get` and
-`resources/read`. A header that disagrees with the body is refused with `-32020`; a missing
-required `_meta` member with `-32602`; an unsupported version with `-32022`, carrying the
-supported set for the client to retry from.
+Plus `Mcp-Method` on every request, and `Mcp-Name` on `tools/call`, `prompts/get`,
+`resources/read`, `tasks/get`, `tasks/update` and `tasks/cancel`. A header that disagrees
+with the body is refused with `-32020`; a missing required `_meta` member with `-32602`; an
+unsupported version with `-32022`, carrying the supported set for the client to retry from.
 
 What a handler can read off all this is
 [Talking back to the client](../handlers/client-communication.md#request-metadata).
@@ -73,6 +77,10 @@ refuses a definition that breaks any of those rather than letting it fail later 
 mismatch. See [Schema generation](../servers/schemas.md) for where a hand-written
 `inputSchema` fits.
 
+The server refuses a `tools/call` with `-32020` when the header and the argument don't match.
+This includes an `Mcp-Param-*` header sent without the argument in the body, and an argument
+sent without its header.
+
 ## How a request is routed
 
 Every request is classified once, before anything else looks at it. The decision is
@@ -85,6 +93,7 @@ Every request is classified once, before anything else looks at it. The decision
 | no such member | handshake era — `initialize` included |
 | a notification with no member, under a modern header | modern era |
 | `GET` / `DELETE` | handshake era |
+| a batch with a message that names a modern revision | refused with `-32600` |
 
 The `MCP-Protocol-Version` header never decides. It is cross-checked against the body, and a
 request whose header contradicts its `_meta` is refused with `-32020` before either leg sees
@@ -100,15 +109,38 @@ Both legs come from **one** builder configuration — one registry, one set of h
 instances, one session manager. A tool registered once is reachable from both, and a change
 made through one is visible to the other.
 
+## Over stdio
+
+`StdioTransport` serves both eras too, but stdio carries one client per process, so the era is
+settled once rather than per request: the client's **first request** decides it, by the same
+body-primary rule as above.
+
+| Opening request | The connection |
+| --- | --- |
+| carries a modern revision in `params._meta` | is served by the modern dispatcher from then on |
+| anything else — `initialize` above all | runs the handshake, as before `2026-07-28` |
+
+A request from the other era after that is refused rather than served: `initialize` on a modern
+connection gets `-32022` naming the modern revisions, an enveloped request on a handshake one
+gets `-32600`. That is what a client that probed, gave up waiting and fell back to the handshake
+needs to learn that the server settled on the modern era after all.
+
+On a modern connection everything shares the one channel, and requests are served one at a
+time: a request's progress and log messages are written as its handler emits them, ahead of its
+result, and the next message is read once that result is out. A `subscriptions/listen` is the
+long-lived exception: it stays open alongside other requests, each of its messages tagged with
+the subscription id, until the client sends `notifications/cancelled` for it, since there is no
+stream to close. `setSubscriptionLifetime()` does not apply here. stdio has no headers, so none
+of the `Mcp-*` header rules apply.
+
+A server built `withoutModernEra()` refuses a modern opening with `-32022` naming the handshake
+revisions, and still accepts the handshake that follows.
+
 ## Middleware
 
-The [default middleware stack](http.md#default-middleware) runs at the edge, before the
-request's era is known, because what it enforces is true of both. `ProtocolVersionMiddleware`
-is not in that stack: the `MCP-Protocol-Version` header rule belongs to the handshake era, so
-the transport applies it only to requests it classified as handshake-era traffic, and the
-modern leg answers for its own revisions. It is available as
-`StreamableHttpTransport::handshakeMiddleware()` and is applied whether or not you replace the
-edge stack.
+The [default middleware stack](http.md#default-middleware) runs for both eras.
+`ProtocolVersionMiddleware` runs for handshake-era requests only, see
+[Protocol Version Validation](http.md#protocol-version-validation).
 
 ## Serving one era only
 
@@ -128,9 +160,35 @@ For the opposite — an endpoint that serves the modern era and nothing else —
 dispatcher on its own and mount it on `StatelessHttpTransport`:
 
 ```php
+use Http\Discovery\Psr17Factory;
+use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Server;
+use Mcp\Server\Transport\StatelessHttpTransport;
+
+$request = (new Psr17Factory())->createServerRequestFromGlobals();
+
 $protocol = Server::builder()
     ->setServerInfo('My Server', '1.0.0')
     ->buildStateless([ProtocolVersion::V2026_07_28]);
 
 (new SapiEmitter())->emit((new StatelessHttpTransport($protocol))->handle($request));
 ```
+
+This endpoint answers a bare `initialize` with `-32022`, naming the revisions it serves.
+
+`StatelessHttpTransport` accepts these constructor arguments:
+
+```php
+new StatelessHttpTransport(
+    $protocol,         // the result of buildStateless()
+    $responseFactory,  // PSR-17, auto-discovered if null
+    $streamFactory,    // PSR-17, auto-discovered if null
+    $logger,           // PSR-3, default: NullLogger
+    $maxBodyBytes,     // default: 4 MiB, a larger body gets 413
+    $middleware,       // null installs CorsMiddleware and DnsRebindingProtectionMiddleware
+);
+```
+
+An empty `middleware` list turns off all middleware, without a warning. The transport answers
+`OPTIONS` with `204` and any other method except `POST` with `405`.

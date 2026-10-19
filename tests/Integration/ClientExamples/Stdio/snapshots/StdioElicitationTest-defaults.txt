@@ -1,0 +1,27 @@
+Connecting to MCP server...
+Connected to: Elicitation Demo
+
+Calling 'book_restaurant'...
+
+[ELICIT] Please provide your reservation details for The Test Kitchen:
+  Party Size [2]:   Reservation Date [<today>]:   Dietary Restrictions [none]: 
+Result:
+{
+    "status": "confirmed",
+    "message": "Reservation confirmed at The Test Kitchen for 2 guests on 2026-12-24.",
+    "booking": {
+        "party_size": 2,
+        "date": "2026-12-24",
+        "dietary": "none"
+    }
+}
+
+Calling 'confirm_action'...
+
+[ELICIT] Are you sure you want to: Delete all temporary files?
+  Confirm [false]: 
+Result:
+{
+    "status": "not_confirmed",
+    "message": "User did not check the confirmation box."
+}

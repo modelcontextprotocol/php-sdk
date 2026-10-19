@@ -49,7 +49,7 @@ final class ToolUseContentTest extends TestCase
 
     public function testEmptyInputSurvivesRoundTrip(): void
     {
-        $decoded = json_decode(json_encode(new ToolUseContent('call-1', 'ping', [])), true);
+        $decoded = json_decode(json_encode(new ToolUseContent('call-1', 'ping', []), \JSON_THROW_ON_ERROR), true);
 
         $this->assertSame([], ToolUseContent::fromArray($decoded)->input);
     }

@@ -26,10 +26,20 @@ use Mcp\Server\Handler\Request\CallToolHandler;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
 class CallToolHandlerTest extends TestCase
 {
+    private const WEATHER_OUTPUT_SCHEMA = [
+        'type' => 'object',
+        'properties' => [
+            'temperature' => ['type' => 'number'],
+            'conditions' => ['type' => 'string'],
+        ],
+        'required' => ['temperature', 'conditions'],
+    ];
+
     private CallToolHandler $handler;
     private RegistryInterface&MockObject $registry;
     private ReferenceHandlerInterface&MockObject $referenceHandler;
@@ -207,16 +217,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "failing_tool": "Tool execution failed".',
-                [
-                    'tool' => 'failing_tool',
-                    'arguments' => ['param' => 'value', '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -229,6 +231,61 @@ class CallToolHandlerTest extends TestCase
         $this->assertCount(1, $result->content);
         $this->assertInstanceOf(TextContent::class, $result->content[0]);
         $this->assertEquals('Tool execution failed', $result->content[0]->text);
+    }
+
+    public function testHandleToolCallExceptionLogsAtDebugLevel(): void
+    {
+        $request = $this->createCallToolRequest('failing_tool', ['param' => 'value']);
+        $exception = new ToolCallException('Expected tool failure');
+        $logger = new class extends AbstractLogger {
+            public array $records = [];
+
+            // @phpstan-ignore missingType.parameter (compatible with psr/log 1.x)
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, $logger);
+        $toolReference = $this->createToolReference('failing_tool', static function () {
+            return 'unused';
+        });
+
+        $this->registry
+            ->expects($this->once())
+            ->method('getTool')
+            ->with('failing_tool')
+            ->willReturn($toolReference);
+
+        $arguments = ['param' => 'value', '_session' => $this->session, '_request' => $request];
+        $this->referenceHandler
+            ->expects($this->once())
+            ->method('handle')
+            ->with($toolReference, $arguments)
+            ->willThrowException($exception);
+
+        $handler->handle($request, $this->session);
+
+        $failureRecords = array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => str_contains($record['message'], 'Expected tool failure'),
+        ));
+
+        $this->assertSame([
+            [
+                'level' => 'debug',
+                'message' => 'Error while executing tool "failing_tool": "Expected tool failure".',
+                'context' => [
+                    'tool' => 'failing_tool',
+                    'arguments' => $arguments,
+                    'exception' => $exception,
+                ],
+            ],
+        ], $failureRecords);
+        $this->assertSame([], array_values(array_filter(
+            $logger->records,
+            static fn (array $record): bool => \in_array($record['level'], ['error', 'critical'], true),
+        )));
     }
 
     public function testHandleWithNullResult(): void
@@ -270,7 +327,7 @@ class CallToolHandlerTest extends TestCase
         $this->assertInstanceOf(CallToolHandler::class, $handler);
     }
 
-    public function testHandleLogsErrorWithCorrectParameters(): void
+    public function testHandleLogsToolCallException(): void
     {
         $request = $this->createCallToolRequest('test_tool', ['key1' => 'value1', 'key2' => 42]);
         $exception = new ToolCallException('Custom error message');
@@ -291,16 +348,8 @@ class CallToolHandlerTest extends TestCase
             ->willThrowException($exception);
 
         $this->logger
-            ->expects($this->once())
-            ->method('error')
-            ->with(
-                'Error while executing tool "test_tool": "Custom error message".',
-                [
-                    'tool' => 'test_tool',
-                    'arguments' => ['key1' => 'value1', 'key2' => 42, '_session' => $this->session, '_request' => $request],
-                    'exception' => $exception,
-                ],
-            );
+            ->expects($this->atLeastOnce())
+            ->method('debug');
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -335,6 +384,14 @@ class CallToolHandlerTest extends TestCase
             ->method('handle')
             ->with($toolReference, ['param' => 'value', '_session' => $this->session, '_request' => $request])
             ->willThrowException($exception);
+
+        $this->logger
+            ->expects($this->once())
+            ->method('error')
+            ->with('Unhandled error during tool execution', [
+                'name' => 'failing_tool',
+                'exception' => $exception,
+            ]);
 
         $response = $this->handler->handle($request, $this->session);
 
@@ -506,6 +563,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertSame($expected, $response->result->structuredContent);
     }
 
@@ -529,7 +587,7 @@ class CallToolHandlerTest extends TestCase
      */
     public function testSelfBuiltResultIsSentUnchangedAndOnlyWarnedAbout(
         ?string $negotiated,
-        ?array $structuredContent,
+        array|\stdClass|null $structuredContent,
         int $expectedWarnings,
     ): void {
         $request = $this->createCallToolRequest('build_result', []);
@@ -566,7 +624,7 @@ class CallToolHandlerTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{?string, ?array<mixed>, int}>
+     * @return iterable<string, array{?string, array<mixed>|\stdClass|null, int}>
      */
     public static function provideSelfBuiltResults(): iterable
     {
@@ -575,8 +633,8 @@ class CallToolHandlerTest extends TestCase
         yield 'list from SEP-2106 on' => ['2026-07-28', [['id' => 1]], 0];
         yield 'object before SEP-2106' => ['2025-11-25', ['items' => [['id' => 1]]], 0];
         yield 'none at all' => ['2025-11-25', null, 0];
-        // Dropped by `CallToolResult::jsonSerialize()` anyway, so nothing to warn about.
-        yield 'empty' => ['2025-11-25', [], 0];
+        yield 'empty list before SEP-2106' => ['2025-11-25', [], 1];
+        yield 'empty object before SEP-2106' => ['2025-11-25', new \stdClass(), 0];
     }
 
     public function testDeclaredOutputSchemaWithoutStructuredContentIsLogged(): void
@@ -611,6 +669,7 @@ class CallToolHandlerTest extends TestCase
         $response = $this->handler->handle($request, $this->session);
 
         $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
         $this->assertNull($response->result->structuredContent);
     }
 
@@ -651,6 +710,219 @@ class CallToolHandlerTest extends TestCase
         $this->assertEquals(Error::INVALID_PARAMS, $response->code);
     }
 
+    public function testStructuredContentMissingARequiredPropertyIsReportedAsAToolError(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => ['conditions' => 'sunny'], self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn(['conditions' => 'sunny']);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertTrue($response->result->isError);
+        $this->assertNull($response->result->structuredContent);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+        $this->assertStringContainsString('temperature', $this->firstText($response->result));
+    }
+
+    public function testStructuredContentOfTheWrongTypeIsReportedAsAToolError(): void
+    {
+        $structuredContent = ['temperature' => 'warm', 'conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent, self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":"warm","conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertTrue($response->result->isError);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+    }
+
+    public function testConformingStructuredContentIsSentUnchanged(): void
+    {
+        $structuredContent = ['temperature' => 22.5, 'conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent, self::WEATHER_OUTPUT_SCHEMA);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":22.5,"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    public function testStructuredContentIsNotValidatedWithoutAnOutputSchema(): void
+    {
+        $structuredContent = ['conditions' => 'sunny'];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $structuredContent);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($structuredContent);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"conditions":"sunny"}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame($structuredContent, $response->result->structuredContent);
+    }
+
+    public function testSelfBuiltResultIsValidatedAgainstTheOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, ['conditions' => 'sunny']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertNotSame($callToolResult, $response->result);
+        $this->assertTrue($response->result->isError);
+        $this->assertStringContainsString("Invalid structured output for tool 'get_weather'", $this->firstText($response->result));
+    }
+
+    public function testErrorResultIsNotValidatedAgainstTheOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('The weather service is down.')], true, ['reason' => 'timeout']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertSame($callToolResult, $response->result);
+        $this->assertSame('The weather service is down.', $this->firstText($response->result));
+    }
+
+    public function testEmptyArrayStructuredContentConformsToAnArrayOutputSchema(): void
+    {
+        $request = $this->createCallToolRequest('list_items', []);
+        $toolReference = $this->createToolReference('list_items', static fn () => null, ['type' => 'array']);
+        $callToolResult = new CallToolResult([new TextContent('[]')], false, []);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError);
+        $this->assertSame([], $response->result->structuredContent);
+    }
+
+    public function testEmptyObjectResultConformsToAnObjectOutputSchema(): void
+    {
+        $result = new \stdClass();
+        $request = $this->createCallToolRequest('get_nothing', []);
+        $toolReference = $this->createToolReference('get_nothing', static fn () => $result, ['type' => 'object']);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($result);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError);
+        $this->assertEquals(new \stdClass(), $response->result->structuredContent);
+        $this->assertStringContainsString('"structuredContent":{}', json_encode($response->result, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testSelfBuiltJsonSerializableStructuredContentIsValidatedAsSent(): void
+    {
+        $structuredContent = new class(22.5) implements \JsonSerializable {
+            public function __construct(private float $temperature)
+            {
+            }
+
+            public function jsonSerialize(): array
+            {
+                return ['temperature' => $this->temperature, 'conditions' => 'sunny'];
+            }
+        };
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => null, self::WEATHER_OUTPUT_SCHEMA);
+        $callToolResult = new CallToolResult([new TextContent('Built by hand')], false, $structuredContent);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($callToolResult);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError, $this->firstText($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"conditions":"sunny"}', json_encode($response->result, \JSON_THROW_ON_ERROR));
+    }
+
+    public function testNestedEmptyObjectIsValidatedAndSentAsAnObject(): void
+    {
+        $result = new class {
+            public float $temperature = 22.5;
+            public \stdClass $meta;
+
+            public function __construct()
+            {
+                $this->meta = new \stdClass();
+            }
+        };
+        $outputSchema = [
+            'type' => 'object',
+            'properties' => [
+                'temperature' => ['type' => 'number'],
+                'meta' => ['type' => 'object'],
+            ],
+            'required' => ['temperature', 'meta'],
+        ];
+        $request = $this->createCallToolRequest('get_weather', []);
+        $toolReference = $this->createToolReference('get_weather', static fn () => $result, $outputSchema);
+
+        $this->registry->method('getTool')->willReturn($toolReference);
+        $this->referenceHandler->method('handle')->willReturn($result);
+        $toolReference->method('formatResult')->willReturn([new TextContent('{"temperature":22.5,"meta":{}}')]);
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Response::class, $response);
+        $this->assertInstanceOf(CallToolResult::class, $response->result);
+        $this->assertFalse($response->result->isError, $this->firstText($response->result));
+        $this->assertStringContainsString('"structuredContent":{"temperature":22.5,"meta":{}}', json_encode($response->result, \JSON_THROW_ON_ERROR));
+    }
+
+    private function firstText(CallToolResult $result): string
+    {
+        $content = $result->content[0];
+        $this->assertInstanceOf(TextContent::class, $content);
+
+        return $content->text;
+    }
+
     /**
      * @param array<string, mixed> $arguments
      */
@@ -667,6 +939,10 @@ class CallToolHandlerTest extends TestCase
         ]);
     }
 
+    /**
+     * @param array<string, mixed>|null $outputSchema
+     * @param list<non-empty-string>    $methodsToMock
+     */
     private function createToolReference(
         string $name,
         callable $handler,

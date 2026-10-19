@@ -14,8 +14,10 @@ namespace Mcp\Tests\Integration;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Handler\Request\SamplingCallbackInterface;
 use Mcp\Client\Handler\Request\SamplingRequestHandler;
+use Mcp\Exception\RequestException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
@@ -28,6 +30,15 @@ use PHPUnit\Framework\Attributes\TestDox;
  */
 final class SamplingTest extends IntegrationTestCase
 {
+    /**
+     * The gateway call-out exists only on the handshake era, so a client and
+     * server that could both settle on the modern era are kept off it.
+     */
+    protected function clientBuilder(): ClientBuilder
+    {
+        return parent::clientBuilder()->setProtocolVersion(ProtocolVersion::V2025_11_25);
+    }
+
     #[TestDox('the sampled completion reaches the tool that asked for it')]
     public function testSampledCompletionReachesTheTool(): void
     {
@@ -51,9 +62,38 @@ final class SamplingTest extends IntegrationTestCase
         $client->callTool('summarize', ['text' => 'inspect me']);
 
         $this->assertCount(1, $seen);
-        $this->assertInstanceOf(TextContent::class, $seen[0]->messages[0]->content);
-        $this->assertSame('inspect me', $seen[0]->messages[0]->content->text);
-        $this->assertSame(64, $seen[0]->maxTokens);
+
+        $request = $seen[0];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $request);
+        $this->assertInstanceOf(TextContent::class, $request->messages[0]->content);
+        $this->assertSame('inspect me', $request->messages[0]->content->text);
+        $this->assertSame(64, $request->maxTokens);
+    }
+
+    #[TestDox('a gateway parameter is injected, not published in the schema')]
+    public function testGatewayParameterIsInjectedNotPublished(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling());
+
+        $tool = null;
+        foreach ($client->listTools()->tools as $candidate) {
+            if ('summarize_via_gateway' === $candidate->name) {
+                $tool = $candidate;
+            }
+        }
+
+        $this->assertNotNull($tool);
+
+        $properties = $tool->inputSchema['properties'] ?? null;
+        $this->assertIsArray($properties);
+        $this->assertArrayNotHasKey('client', $properties);
+        $this->assertArrayHasKey('text', $properties);
+        $this->assertSame(['text'], $tool->inputSchema['required'] ?? null);
+
+        $result = $client->callTool('summarize_via_gateway', ['text' => 'a long report']);
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('test-model said: a long report', $result->content[0]->text);
     }
 
     #[TestDox('a client that cannot sample refuses instead of stalling the tool')]
@@ -69,10 +109,40 @@ final class SamplingTest extends IntegrationTestCase
         $this->assertSame('Client does not handle "sampling/createMessage" requests.', $result->content[0]->text);
     }
 
+    #[TestDox('a tool that samples tells a client on the modern era it cannot, rather than hanging')]
+    public function testSamplingIsUnavailableOnTheModernEra(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling()->setProtocolVersion(ProtocolVersion::V2026_07_28));
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        try {
+            $client->callTool('summarize', ['text' => 'hello']);
+            $this->fail('Sampling must not be sent from inside a request on 2026-07-28.');
+        } catch (RequestException $e) {
+            $this->assertStringContainsString('"sampling/createMessage"', $e->getMessage());
+            $this->assertStringContainsString('InputRequiredResult', $e->getMessage());
+        }
+    }
+
+    #[TestDox('a sampling ask the tool returns is answered on the modern era a default client settles on')]
+    public function testReturnedAskIsAnsweredOnTheModernEra(): void
+    {
+        $client = $this->connect('sampling', $this->clientSampling(on: parent::clientBuilder()));
+
+        $this->assertSame(ProtocolVersion::V2026_07_28, $client->getProtocolVersion());
+
+        $result = $client->callTool('summarize_by_asking', ['text' => 'a long report']);
+
+        $this->assertInstanceOf(TextContent::class, $result->content[0]);
+        $this->assertSame('test-model said: a long report', $result->content[0]->text);
+    }
+
     /**
      * @param \ArrayObject<int, CreateSamplingMessageRequest>|null $seen collects what the server asked for
+     * @param ClientBuilder|null                                   $on   a builder other than this test's era-pinned one
      */
-    private function clientSampling(?\ArrayObject $seen = null): ClientBuilder
+    private function clientSampling(?\ArrayObject $seen = null, ?ClientBuilder $on = null): ClientBuilder
     {
         $callback = new class($seen ?? new \ArrayObject()) implements SamplingCallbackInterface {
             /** @param \ArrayObject<int, CreateSamplingMessageRequest> $seen */
@@ -91,7 +161,7 @@ final class SamplingTest extends IntegrationTestCase
             }
         };
 
-        return $this->clientBuilder()
+        return ($on ?? $this->clientBuilder())
             ->setCapabilities(new ClientCapabilities(sampling: true))
             ->addRequestHandler(new SamplingRequestHandler($callback));
     }

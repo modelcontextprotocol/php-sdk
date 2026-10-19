@@ -24,6 +24,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Schema\Tool;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Log\LoggerInterface;
@@ -48,7 +49,7 @@ final class CallToolHandler implements RequestHandlerInterface
         private readonly LoggerInterface $logger = new NullLogger(),
         ?SchemaValidator $schemaValidator = null,
     ) {
-        $this->schemaValidator = $schemaValidator ?? new SchemaValidator($logger);
+        $this->schemaValidator = $schemaValidator ?? new SchemaValidator(logger: $logger);
     }
 
     public function supports(Request $request): bool
@@ -79,20 +80,10 @@ final class CallToolHandler implements RequestHandlerInterface
         }
 
         $inputSchema = $reference->tool->inputSchema;
-        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($arguments, $inputSchema);
+        // Arguments are always a JSON object, but an empty one decodes to `[]`.
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema([] === $arguments ? new \stdClass() : $arguments, $inputSchema);
         if (!empty($validationErrors)) {
-            $errorMessages = [];
-
-            foreach ($validationErrors as $errorDetail) {
-                $pointer = $errorDetail['pointer'] ?? '';
-                $message = $errorDetail['message'] ?? 'Unknown validation error';
-                $errorMessages[] = ('/' !== $pointer && '' !== $pointer ? "Property '{$pointer}': " : '').$message;
-            }
-
-            $summaryMessage = "Invalid parameters for tool '{$toolName}': ".implode('; ', \array_slice($errorMessages, 0, 3));
-            if (\count($errorMessages) > 3) {
-                $summaryMessage .= '; ...and more errors.';
-            }
+            $summaryMessage = "Invalid parameters for tool '{$toolName}': ".self::summarizeValidationErrors($validationErrors);
 
             return Error::forInvalidParams($summaryMessage, $request->getId(), ['validation_errors' => $validationErrors]);
         }
@@ -126,7 +117,6 @@ final class CallToolHandler implements RequestHandlerInterface
                 $result = new CallToolResult($reference->formatResult($result), structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
                 && null !== $result->structuredContent
-                && [] !== $result->structuredContent
                 && !self::isJsonObject($result->structuredContent)
             ) {
                 // A tool building its own `CallToolResult` bypasses the extraction
@@ -146,13 +136,13 @@ final class CallToolHandler implements RequestHandlerInterface
                 'structured_content' => $structuredContent,
             ]);
 
-            return new Response($request->getId(), $result);
+            return new Response($request->getId(), $this->validateStructuredContent($reference->tool, $result) ?? $result);
         } catch (MissingRequiredClientCapabilityException $e) {
             // Not a tool failure — the request was unservable, and the client
             // needs to retry declaring the capability. Rendered as -32021.
             throw $e;
         } catch (ToolCallException $e) {
-            $this->logger->error(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
+            $this->logger->debug(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [
                 'tool' => $toolName,
                 'arguments' => $arguments,
                 'exception' => $e,
@@ -172,11 +162,67 @@ final class CallToolHandler implements RequestHandlerInterface
     }
 
     /**
+     * A tool declaring an `outputSchema` promises every `structuredContent` it sends
+     * conforms to it, in every revision. A mismatch is the server's own bug, but it
+     * is reported as a tool execution error rather than a protocol error so that the
+     * model sees what went wrong.
+     *
+     * @return CallToolResult|null the error result to send instead, or null when there is nothing to report
+     */
+    private function validateStructuredContent(Tool $tool, CallToolResult $result): ?CallToolResult
+    {
+        // An error result carries a failure message, not the tool's declared output.
+        // A null `structuredContent` is absent from the wire, and the caller has
+        // already warned about it.
+        if (null === $tool->outputSchema || $result->isError || null === $result->structuredContent) {
+            return null;
+        }
+
+        // Validate the value as it is sent, incl. `JsonSerializable` and `{}` vs. `[]`.
+        $sent = json_decode(json_encode($result->structuredContent, \JSON_THROW_ON_ERROR), false, 512, \JSON_THROW_ON_ERROR);
+
+        $validationErrors = $this->schemaValidator->validateAgainstJsonSchema($sent, $tool->outputSchema);
+        if ([] === $validationErrors) {
+            return null;
+        }
+
+        $summaryMessage = "Invalid structured output for tool '{$tool->name}': ".self::summarizeValidationErrors($validationErrors);
+
+        $this->logger->error($summaryMessage, [
+            'name' => $tool->name,
+            'validation_errors' => $validationErrors,
+        ]);
+
+        return CallToolResult::error([new TextContent($summaryMessage)]);
+    }
+
+    /**
+     * @param list<array{pointer: string, keyword: string, message: string}> $validationErrors
+     */
+    private static function summarizeValidationErrors(array $validationErrors): string
+    {
+        $errorMessages = [];
+
+        foreach ($validationErrors as $errorDetail) {
+            $pointer = $errorDetail['pointer'] ?? '';
+            $message = $errorDetail['message'] ?? 'Unknown validation error';
+            $errorMessages[] = ('/' !== $pointer && '' !== $pointer ? "Property '{$pointer}': " : '').$message;
+        }
+
+        $summary = implode('; ', \array_slice($errorMessages, 0, 3));
+        if (\count($errorMessages) > 3) {
+            $summary .= '; ...and more errors.';
+        }
+
+        return $summary;
+    }
+
+    /**
      * Whether a `structuredContent` value encodes as a JSON object — the only shape
      * revisions predating SEP-2106 accept.
      */
     private static function isJsonObject(mixed $value): bool
     {
-        return \is_array($value) && !array_is_list($value);
+        return $value instanceof \stdClass || (\is_array($value) && !array_is_list($value));
     }
 }

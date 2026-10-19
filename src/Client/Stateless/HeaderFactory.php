@@ -13,6 +13,7 @@ namespace Mcp\Client\Stateless;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Wire\McpHeader;
+use Mcp\Server\Stateless\RequestMeta;
 
 /**
  * The HTTP headers a modern-era client puts on every POST (SEP-2243, SEP-2575).
@@ -41,18 +42,21 @@ final class HeaderFactory
     public function forMessage(array $payload, ProtocolVersion $protocolVersion): array
     {
         $method = $payload['method'] ?? null;
+        $params = \is_array($payload['params'] ?? null) ? $payload['params'] : null;
 
         // A response to a server-initiated request carries no method to mirror;
-        // the version header is unconditional and still applies.
+        // the version header is unconditional and still applies. Trace context
+        // still rides along if the application put it in `_meta` — the party
+        // that started the trace is not necessarily the one with a method to
+        // report.
         if (!\is_string($method)) {
-            return [McpHeader::PROTOCOL_VERSION => $protocolVersion->value];
+            return [McpHeader::PROTOCOL_VERSION => $protocolVersion->value, ...$this->traceHeaders($params)];
         }
-
-        $params = \is_array($payload['params'] ?? null) ? $payload['params'] : null;
 
         $headers = [
             McpHeader::PROTOCOL_VERSION => $protocolVersion->value,
             McpHeader::METHOD => $method,
+            ...$this->traceHeaders($params),
         ];
 
         if (null !== $name = McpHeader::nameFor($method, $params)) {
@@ -67,6 +71,29 @@ final class HeaderFactory
 
             foreach ($this->tools->headersFor($params['name'], $arguments) as $suffix => $value) {
                 $headers[McpHeader::PARAM_PREFIX.$suffix] = $value;
+            }
+        }
+
+        return $headers;
+    }
+
+    /**
+     * Mirrors W3C trace context from `_meta` onto its native HTTP headers, so
+     * an application that only knows how to set `_meta` — the transport-agnostic
+     * surface — still gets header-based propagation for free on HTTP.
+     *
+     * @param array<string, mixed>|null $params
+     *
+     * @return array<string, string>
+     */
+    private function traceHeaders(?array $params): array
+    {
+        $meta = \is_array($params['_meta'] ?? null) ? $params['_meta'] : [];
+
+        $headers = [];
+        foreach (RequestMeta::TRACE_KEYS as $key) {
+            if (\is_string($meta[$key] ?? null)) {
+                $headers[$key] = $meta[$key];
             }
         }
 

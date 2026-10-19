@@ -177,6 +177,32 @@ class InitializeHandlerTest extends TestCase
         $this->assertSame(ProtocolVersion::V2025_06_18, $response->result->protocolVersion);
     }
 
+    #[TestDox('listChanged is not announced, the handshake era never delivers list changes')]
+    public function testListChangedIsStrippedFromTheHandshake(): void
+    {
+        $handler = new InitializeHandler(new Configuration(
+            serverInfo: new Implementation('server', '1.2.3'),
+            capabilities: new ServerCapabilities(
+                toolsListChanged: true,
+                resourcesSubscribe: true,
+                resourcesListChanged: true,
+                promptsListChanged: true,
+            ),
+        ));
+
+        $response = $handler->handle(
+            $this->createInitializeRequest(ProtocolVersion::V2025_06_18->value),
+            $this->createStub(SessionInterface::class),
+        );
+
+        \assert($response->result instanceof InitializeResult);
+        $this->assertEquals([
+            'prompts' => new \stdClass(),
+            'resources' => (object) ['subscribe' => true],
+            'tools' => new \stdClass(),
+        ], $response->result->capabilities->jsonSerialize());
+    }
+
     private function createConfiguration(?ProtocolVersion $protocolVersion = null): Configuration
     {
         return new Configuration(

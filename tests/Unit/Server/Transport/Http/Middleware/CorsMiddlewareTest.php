@@ -28,7 +28,7 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
         $response = $middleware->process($request, $this->passthroughHandler);
 
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
-        $this->assertTrue($response->hasHeader('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
         // Non-preflight: Methods/Headers must NOT be emitted per CORS spec.
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Methods'));
         $this->assertFalse($response->hasHeader('Access-Control-Allow-Headers'));
@@ -44,6 +44,33 @@ final class CorsMiddlewareTest extends MiddlewareTestCase
 
         $this->assertSame('GET, POST, DELETE', $response->getHeaderLine('Access-Control-Allow-Methods'));
         $this->assertNotSame('', $response->getHeaderLine('Access-Control-Allow-Headers'));
+    }
+
+    #[TestDox('preflight allows the standard MCP request headers by default')]
+    public function testPreflightAllowsStandardMcpHeaders(): void
+    {
+        $middleware = new CorsMiddleware(allowedOrigins: ['https://app.example.com']);
+        $request = $this->preflightRequest('https://app.example.com')
+            ->withHeader('Access-Control-Request-Headers', 'content-type, mcp-method, mcp-name, mcp-param-region, x-other');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertSame(
+            'Accept, Authorization, Content-Type, Last-Event-ID, Mcp-Protocol-Version, Mcp-Session-Id, Mcp-Method, Mcp-Name, mcp-param-region',
+            $response->getHeaderLine('Access-Control-Allow-Headers'),
+        );
+    }
+
+    #[TestDox('a prefix pattern in allowedHeaders allows each requested header that matches it')]
+    public function testPrefixPatternAllowsMatchingRequestedHeaders(): void
+    {
+        $middleware = new CorsMiddleware(allowedOrigins: ['*'], allowedHeaders: ['Content-Type', 'X-Acme-*']);
+        $request = $this->preflightRequest()
+            ->withHeader('Access-Control-Request-Headers', 'X-Acme-Tenant, x-acme-user, X-Other');
+
+        $response = $middleware->process($request, $this->passthroughHandler);
+
+        $this->assertSame('Content-Type, X-Acme-Tenant, x-acme-user', $response->getHeaderLine('Access-Control-Allow-Headers'));
     }
 
     #[TestDox('non-preflight OPTIONS request does not receive Methods/Headers advertisements')]

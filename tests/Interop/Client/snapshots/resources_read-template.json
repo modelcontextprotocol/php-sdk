@@ -1,0 +1,11 @@
+{
+    "result": {
+        "contents": [
+            {
+                "uri": "demo://resource/dynamic/text/7",
+                "mimeType": "text/plain",
+                "text": "Resource 7: This is a plaintext resource created at <time>"
+            }
+        ]
+    }
+}

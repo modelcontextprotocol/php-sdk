@@ -43,7 +43,7 @@ final class ToolResultContentTest extends TestCase
         $this->assertInstanceOf(TextContent::class, $textContent);
         $this->assertSame('21 C', $textContent->text);
 
-        $restored = ToolResultContent::fromArray(json_decode(json_encode($content), true));
+        $restored = ToolResultContent::fromArray(json_decode(json_encode($content, \JSON_THROW_ON_ERROR), true));
         $this->assertEquals($content, $restored);
     }
 
@@ -56,7 +56,7 @@ final class ToolResultContentTest extends TestCase
         $this->assertArrayNotHasKey('isError', $serialized);
         $this->assertArrayNotHasKey('structuredContent', $serialized);
         $this->assertArrayNotHasKey('_meta', $serialized);
-        $this->assertFalse(ToolResultContent::fromArray(json_decode(json_encode($content), true))->isError);
+        $this->assertFalse(ToolResultContent::fromArray(json_decode(json_encode($content, \JSON_THROW_ON_ERROR), true))->isError);
     }
 
     public function testAcceptsEveryCallToolResultContentBlock(): void

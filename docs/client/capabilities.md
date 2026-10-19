@@ -121,13 +121,17 @@ foreach ($promptsResult->prompts as $prompt) {
 ### Getting Prompts
 
 ```php
+use Mcp\Schema\Content\TextContent;
+
 $promptResult = $client->getPrompt(
     name: 'code_review',
     arguments: ['language' => 'php', 'code' => '...'],
 );
 
 foreach ($promptResult->messages as $message) {
-    echo "{$message->role->value}: {$message->content->text}\n";
+    if ($message->content instanceof TextContent) {
+        echo "{$message->role->value}: {$message->content->text}\n";
+    }
 }
 ```
 

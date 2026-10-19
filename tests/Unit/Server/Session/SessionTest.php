@@ -11,9 +11,14 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
+use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionStoreInterface;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
+use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Uid\UuidV4;
 
 class SessionTest extends TestCase
@@ -208,6 +213,37 @@ class SessionTest extends TestCase
         $this->assertSame('value', $newSession->get('persisted'));
     }
 
+    /**
+     * @return iterable<string, array{\Closure(): SessionStoreInterface}>
+     */
+    public static function provideStores(): iterable
+    {
+        yield 'in-memory' => [static fn () => new InMemorySessionStore()];
+        yield 'file' => [static fn () => new FileSessionStore(sys_get_temp_dir().'/mcp-sessions-'.bin2hex(random_bytes(6)))];
+        yield 'psr-16' => [static fn () => new Psr16SessionStore(self::arrayCache())];
+    }
+
+    /**
+     * @param \Closure(): SessionStoreInterface $createStore
+     */
+    #[DataProvider('provideStores')]
+    public function testSaveDoesNotResurrectADestroyedSession(\Closure $createStore): void
+    {
+        $store = $createStore();
+        $session = new Session($store);
+        $session->set('initialized', true);
+        $this->assertTrue($session->save());
+
+        // A request in flight loaded the session before it was destroyed.
+        $inFlight = new Session($store, $session->getId());
+        $inFlight->set('foo', 'bar');
+
+        $store->destroy($session->getId());
+
+        $this->assertFalse($inFlight->save());
+        $this->assertFalse($store->exists($session->getId()));
+    }
+
     public function testSetCreatesNestedStructure(): void
     {
         $this->session->set('a.b.c.d', 'value');
@@ -243,6 +279,21 @@ class SessionTest extends TestCase
         $this->session->forget('nested.nonexistent');
 
         $this->assertFalse($this->session->has('nonexistent'));
+    }
+
+    public function testForgetDoesNotCreateIntermediateSegments(): void
+    {
+        $this->session->forget('a.b');
+
+        $this->assertSame([], $this->session->all());
+    }
+
+    public function testForgetDoesNotOverwriteNonArrayIntermediateValue(): void
+    {
+        $this->session->set('key', 'string_value');
+        $this->session->forget('key.nested');
+
+        $this->assertSame('string_value', $this->session->get('key'));
     }
 
     public function testSessionCanStoreVariousDataTypes(): void
@@ -310,5 +361,224 @@ class SessionTest extends TestCase
         $result = $session->all();
 
         $this->assertSame([], $result);
+    }
+
+    public function testGetReturnsDefaultForEmptyPayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->get('outgoing_queue', []));
+    }
+
+    public function testAllReturnsEmptyArrayForEmptyPayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->all());
+    }
+
+    public function testAllReturnsEmptyArrayForUndecodablePayload(): void
+    {
+        $store = $this->getMockBuilder(InMemorySessionStore::class)
+            ->disableOriginalConstructor()
+            ->onlyMethods(['read'])
+            ->getMock();
+        $store->expects($this->once())->method('read')->willReturn('{"initialized":');
+
+        $session = new Session($store);
+
+        $this->assertSame([], $session->all());
+    }
+
+    public function testSaveKeepsWhatAConcurrentSessionSaved(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['initialized' => true], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->get('initialized');
+        $second->get('initialized');
+
+        $first->set('_mcp.logging_level', 'debug');
+        $first->save();
+        $second->set('counter', 1);
+        $second->save();
+
+        $this->assertSame(
+            ['initialized' => true, '_mcp' => ['logging_level' => 'debug'], 'counter' => 1],
+            (new Session($this->store, $id))->all(),
+        );
+    }
+
+    public function testSaveMergesNestedKeysOfConcurrentSessions(): void
+    {
+        $id = new UuidV4();
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->set('_mcp.responses.1', ['result' => 'a']);
+        $first->save();
+        $second->set('_mcp.responses.2', ['result' => 'b']);
+        $second->save();
+
+        $this->assertSame(
+            ['1' => ['result' => 'a'], '2' => ['result' => 'b']],
+            (new Session($this->store, $id))->get('_mcp.responses'),
+        );
+    }
+
+    public function testSaveAppliesForgetOntoConcurrentChanges(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->forget('stale');
+        $first->save();
+        $second->set('fresh', true);
+        $second->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    public function testSaveDoesNotWriteBackUnchangedKeys(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['level' => 'info'], \JSON_THROW_ON_ERROR));
+
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+        $second->all();
+
+        $first->set('level', 'debug');
+        $first->save();
+        $second->set('level', 'error', overwrite: false);
+        $second->save();
+
+        $this->assertSame('debug', (new Session($this->store, $id))->get('level'));
+    }
+
+    public function testSaveSeesConcurrentChangesAfterwards(): void
+    {
+        $id = new UuidV4();
+        $first = new Session($this->store, $id);
+        $second = new Session($this->store, $id);
+        $first->all();
+
+        $second->set('other', true);
+        $second->save();
+        $first->set('mine', true);
+        $first->save();
+
+        $this->assertSame(['other' => true, 'mine' => true], $first->all());
+    }
+
+    public function testSaveAfterClearReplacesStoredData(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $session = new Session($this->store, $id);
+        $session->clear();
+        $session->set('fresh', true);
+        $session->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    public function testSaveAfterHydrateReplacesStoredData(): void
+    {
+        $id = new UuidV4();
+        $this->store->write($id, json_encode(['stale' => true], \JSON_THROW_ON_ERROR));
+
+        $session = new Session($this->store, $id);
+        $session->hydrate(['fresh' => true]);
+        $session->save();
+
+        $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    private static function arrayCache(): CacheInterface
+    {
+        return new class implements CacheInterface {
+            /** @var array<string, mixed> */
+            private array $values = [];
+
+            public function get(string $key, mixed $default = null): mixed
+            {
+                return $this->values[$key] ?? $default;
+            }
+
+            public function set(string $key, mixed $value, int|\DateInterval|null $ttl = null): bool
+            {
+                $this->values[$key] = $value;
+
+                return true;
+            }
+
+            public function delete(string $key): bool
+            {
+                unset($this->values[$key]);
+
+                return true;
+            }
+
+            public function clear(): bool
+            {
+                $this->values = [];
+
+                return true;
+            }
+
+            public function getMultiple(iterable $keys, mixed $default = null): iterable
+            {
+                foreach ($keys as $key) {
+                    yield $key => $this->get($key, $default);
+                }
+            }
+
+            public function setMultiple(iterable $values, int|\DateInterval|null $ttl = null): bool
+            {
+                foreach ($values as $key => $value) {
+                    $this->set((string) $key, $value, $ttl);
+                }
+
+                return true;
+            }
+
+            public function deleteMultiple(iterable $keys): bool
+            {
+                foreach ($keys as $key) {
+                    $this->delete($key);
+                }
+
+                return true;
+            }
+
+            public function has(string $key): bool
+            {
+                return \array_key_exists($key, $this->values);
+            }
+        };
     }
 }

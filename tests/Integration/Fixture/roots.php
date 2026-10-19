@@ -13,6 +13,8 @@
  * Server for {@see \Mcp\Tests\Integration\RootsTest}.
  */
 
+use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Transport\StdioTransport;
@@ -38,6 +40,24 @@ Server::builder()
         },
         name: 'inspect_roots',
         description: 'Reports the workspace roots the client exposes.',
+    )
+    ->addTool(
+        static function (RequestContext $context): string|InputRequiredResult {
+            $result = $context->getInputContext()?->rootsResult('roots');
+
+            if (null === $result) {
+                return new InputRequiredResult(['roots' => new ListRootsRequest()]);
+            }
+
+            $described = [];
+            foreach ($result->roots as $root) {
+                $described[] = sprintf('%s (%s)', $root->uri, $root->name ?? '-');
+            }
+
+            return implode(', ', $described);
+        },
+        name: 'inspect_roots_by_asking',
+        description: 'Reports the workspace roots by returning a roots ask.',
     )
     ->build()
     ->run(new StdioTransport());

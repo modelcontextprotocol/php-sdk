@@ -18,9 +18,10 @@ map; the mechanics live with the task they belong to.
 | Discovery | `initialize` result | `server/discover` |
 | Sessions | `Mcp-Session-Id` | removed |
 | Server → client requests | sent as JSON-RPC requests | returned in the result (MRTR) |
-| Change notifications | HTTP `GET` stream, `resources/subscribe` | `subscriptions/listen` |
+| Change notifications | `resources/subscribe` | `subscriptions/listen` |
 | Dispatcher | `Protocol` | `StatelessProtocol` |
 | HTTP entry | `StreamableHttpTransport` — the same one, for both |
+| stdio entry | `StdioTransport` — the same one, settled by the client's first request |
 
 `ProtocolVersion::isModern()` tells the two apart, and
 `Mcp\Schema\Enum\ProtocolVersion::FIRST_MODERN_VERSION` is where the boundary sits.
@@ -67,10 +68,11 @@ See [Serving both eras](run/protocol-eras.md).
 
 ### Pinning a revision
 
-`Builder::setProtocolVersion()` pins the handshake to exactly one revision instead of negotiating across the supported
-set. The pin wins over the client's request, so a client asking for anything else receives the pinned revision as a
-counter-offer and has to decide whether to continue. Leave it unset unless you have a reason to refuse other
-revisions.
+On the server, `Mcp\Server\Builder::setProtocolVersion()` pins the handshake to exactly one revision instead of
+negotiating across the supported set. The client builder has a method with the same name, described in
+[How the client settles on an era](#how-the-client-settles-on-an-era). The pin wins over the client's request,
+so a client asking for anything else receives the pinned revision as a counter-offer and has to decide whether
+to continue. Leave it unset unless you have a reason to refuse other revisions.
 
 It pins the handshake era only. `setModernVersions()` narrows what the modern leg answers for, and
 `withoutModernEra()` removes that leg altogether — see
@@ -78,10 +80,8 @@ It pins the handshake era only. `setModernVersions()` narrows what the modern le
 
 !!! note
     On the Streamable HTTP transport, every handshake-era request after the handshake also carries an
-    `MCP-Protocol-Version` header, which is validated separately by `ProtocolVersionMiddleware`. The pin does not reach
-    that check: the transport builds the middleware without access to the server configuration, so the header keeps
-    being accepted for every revision in `ProtocolVersion::handshakeVersions()`. To narrow it too, construct the
-    middleware yourself with the same revision — see
+    `MCP-Protocol-Version` header. The transport checks this header against every revision in
+    `ProtocolVersion::handshakeVersions()`, and the pin doesn't change that set. See
     [Protocol Version Validation](run/http.md#protocol-version-validation).
 
 ## What changes, and where it is written down
@@ -105,28 +105,63 @@ either lifecycle. What changes:
 
 ## Speaking it from a client
 
-One line selects the lifecycle; nothing else about the [client API](client/index.md) changes.
+A client speaks both eras out of the box. It prefers `2026-07-28`, and finds out on
+`connect()` whether the server does too; nothing about the [client API](client/index.md)
+depends on the answer.
 
 ```php
 $client = Client::builder()
     ->setClientInfo('my-client', '1.0.0')
-    ->setProtocolVersion(ProtocolVersion::V2026_07_28)
     ->setCapabilities(new ClientCapabilities(elicitation: true))
     ->addRequestHandler($myElicitationHandler)
     ->build();
 
 $client->connect(new HttpTransport('https://example.com/mcp'));
 
+$client->getProtocolVersion(); // 2026-07-28, or 2025-11-25 against an older server
 $client->callTool('greet', []);
 ```
 
-What that changes underneath:
+### How the client settles on an era
 
-- **No handshake.** `connect()` sends no `initialize`. It asks `server/discover` only for the
-  server's identity, and a server that does not answer it still yields a usable connection —
-  the method is optional. If discovery *does* report `supportedVersions` and the configured
-  revision is not among them, the client moves to a modern revision the server lists, or
-  refuses the connection outright rather than talking past it.
+`connect()` probes with `server/discover`, stamped with the preferred revision, before
+anything else — as the specification's backward-compatibility rules for
+[stdio](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility)
+and
+[Streamable HTTP](https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#backward-compatibility)
+describe.
+
+| The probe gets | The client |
+| --- | --- |
+| a `DiscoverResult` listing a modern revision it speaks | stays modern, on that revision |
+| `-32022` naming a modern revision it speaks | retries the probe with that revision |
+| `-32022` naming only handshake revisions | falls back to `initialize` |
+| `-32022` naming nothing it speaks | fails the connection |
+| any other error, an HTTP refusal without one, or no answer in time | falls back to `initialize` |
+| a `DiscoverResult` listing only handshake revisions | falls back to `initialize` |
+
+The fallback is not keyed to one error code: servers from before the modern era refuse an
+unexpected request however they like, or not at all. A refusal costs nothing — the client
+falls back as soon as it arrives — but a server that stays silent costs the
+[initialization timeout](client/connecting.md#basic-configuration). A server process that exits fails the
+attempt outright: an outage is not an answer about the era.
+
+The fallback offers `2025-11-25`; `setFallbackProtocolVersion()` picks another handshake
+revision, and `setFallbackProtocolVersion(null)` makes the client modern-only, failing the
+connection instead. A handshake revision passed to `setProtocolVersion()` skips the probe
+and opens with `initialize`, as a client from before the modern era would.
+
+Once modern, a handful of calls change shape under the same API: `setLoggingLevel()` rides on
+every following request instead of sending the removed `logging/setLevel`, `ping()` becomes a
+`server/discover`, and `sendRootsListChanged()` sends nothing, since the server asks for roots
+with each call that needs them. A server can still ask for sampling and roots by
+[returning the ask](handlers/input-required.md); calling out for them through `ClientGateway`
+is handshake-era only and fails the call on a modern connection.
+
+What being modern changes underneath:
+
+- **No handshake.** `connect()` sends no `initialize`; the probe's `DiscoverResult` is what
+  fills in the server's identity and instructions.
 - **An envelope on every request**, carrying the revision, the declared capabilities and the
   client identity. The capabilities are what let a server decide, per request, whether it may
   ask for input.
@@ -143,8 +178,8 @@ What that changes underneath:
 
 Headers are an HTTP concern, so a transport opts into them by implementing
 `HeaderAwareTransportInterface`; `HttpTransport` does, `StdioTransport` has nothing to carry
-them on. Everything else — the envelope, the skipped handshake, the round-trip loop — applies
-to both.
+them on. Everything else — the probe, the envelope, the skipped handshake, the round-trip
+loop — applies to both.
 
 See
 [`examples/client/stateless_lifecycle_client.php`](https://github.com/modelcontextprotocol/php-sdk/blob/main/examples/client/stateless_lifecycle_client.php)
@@ -152,7 +187,9 @@ for a runnable version, described in [Examples](examples.md#modern-era-client).
 
 ## What was removed
 
-Answered with `404` and `-32601` by a modern server:
+Answered with `404` and `-32601` by a modern server — except a bare `initialize`, which is how
+a client from before the modern era opens, and is refused with `-32022` naming the revisions
+the server does speak:
 
 - `initialize`, `notifications/initialized`
 - `ping`

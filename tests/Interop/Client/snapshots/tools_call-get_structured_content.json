@@ -1,0 +1,15 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "{\"temperature\":36,\"conditions\":\"Light rain / drizzle\",\"humidity\":82}"
+            }
+        ],
+        "structuredContent": {
+            "temperature": 36,
+            "conditions": "Light rain / drizzle",
+            "humidity": 82
+        }
+    }
+}

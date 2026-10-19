@@ -14,13 +14,14 @@ namespace Mcp\Tests\Unit\Capability\Discovery\Fixtures;
 use Mcp\Capability\Attribute\CompletionProvider;
 use Mcp\Capability\Attribute\McpPrompt;
 use Mcp\Capability\Attribute\McpResourceTemplate;
+use Mcp\Tests\Unit\Capability\Attribute\CompletionProviderFixture;
 use Mcp\Tests\Unit\Fixtures\Enum\PriorityEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\StatusEnum;
 
 class EnhancedCompletionHandler
 {
     /**
-     * Create content with list and enum completion providers.
+     * Create content with list, enum and positional provider completion providers.
      */
     #[McpPrompt(name: 'content_creator')]
     public function createContent(
@@ -30,9 +31,11 @@ class EnhancedCompletionHandler
         string $status,
         #[CompletionProvider(enum: PriorityEnum::class)]
         string $priority,
+        #[CompletionProvider(CompletionProviderFixture::class)]
+        string $author,
     ): array {
         return [
-            ['role' => 'user', 'content' => "Create a {$type} with status {$status} and priority {$priority}"],
+            ['role' => 'user', 'content' => "Create a {$type} with status {$status} and priority {$priority} for {$author}"],
         ];
     }
 

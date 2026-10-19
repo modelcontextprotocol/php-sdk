@@ -24,6 +24,7 @@ use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
 
 /**
  * @phpstan-import-type Handler from ElementReference
@@ -97,6 +98,12 @@ interface RegistryInterface
      */
     public function unregisterPrompt(string $name): void;
 
+    /**
+     * Whether list changes reach a notification bus, e.g. through a {@see PublishingEventDispatcher}.
+     * A decorator forwards the answer of the registry it wraps.
+     */
+    public function publishesListChanges(): bool;
+
     public function hasTool(string $name): bool;
 
     public function hasResource(string $uri): bool;
@@ -112,6 +119,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered tools.
+     *
+     * @return Page<Tool>
      */
     public function getTools(?int $limit = null, ?string $cursor = null): Page;
 
@@ -129,6 +138,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered resources.
+     *
+     * @return Page<ResourceDefinition>
      */
     public function getResources(?int $limit = null, ?string $cursor = null): Page;
 
@@ -146,6 +157,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered resource templates.
+     *
+     * @return Page<ResourceTemplate>
      */
     public function getResourceTemplates(?int $limit = null, ?string $cursor = null): Page;
 
@@ -163,6 +176,8 @@ interface RegistryInterface
 
     /**
      * Gets all registered prompts.
+     *
+     * @return Page<Prompt>
      */
     public function getPrompts(?int $limit = null, ?string $cursor = null): Page;
 

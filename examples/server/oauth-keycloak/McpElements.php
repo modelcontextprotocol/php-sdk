@@ -37,27 +37,24 @@ final class McpElements
     )]
     public function getAuthStatus(RequestContext $context): array
     {
-        $meta = $context->getRequest()->getMeta() ?? [];
-        $oauth = isset($meta['oauth']) && \is_array($meta['oauth']) ? $meta['oauth'] : [];
-        $claims = isset($oauth['oauth.claims']) && \is_array($oauth['oauth.claims']) ? $oauth['oauth.claims'] : [];
-        $scopes = isset($oauth['oauth.scopes']) && \is_array($oauth['oauth.scopes']) ? $oauth['oauth.scopes'] : [];
+        $token = $context->getAccessToken();
+        $expiresAt = $token?->getClaim('exp');
 
         return [
-            'authenticated' => true,
+            'authenticated' => null !== $token,
             'provider' => 'Keycloak',
             'message' => 'You have successfully authenticated with OAuth!',
             'timestamp' => date('c'),
             'user' => [
-                'subject' => $oauth['oauth.subject'] ?? ($claims['sub'] ?? null),
-                'username' => $claims['preferred_username'] ?? null,
-                'name' => $claims['name'] ?? null,
-                'email' => $claims['email'] ?? null,
-                'issuer' => $claims['iss'] ?? null,
-                'audience' => $claims['aud'] ?? null,
-                'scopes' => $scopes,
-                'expires_at' => isset($claims['exp']) && is_numeric($claims['exp'])
-                    ? date('c', (int) $claims['exp'])
-                    : null,
+                'subject' => $token?->getSubject(),
+                'client_id' => $token?->getClientId(),
+                'username' => $token?->getClaim('preferred_username'),
+                'name' => $token?->getClaim('name'),
+                'email' => $token?->getClaim('email'),
+                'issuer' => $token?->getClaim('iss'),
+                'audience' => $token?->getClaim('aud'),
+                'scopes' => $token?->getScopes() ?? [],
+                'expires_at' => is_numeric($expiresAt) ? date('c', (int) $expiresAt) : null,
             ],
             'note' => 'This endpoint is protected by JWT validation. If you see this, your token was valid.',
         ];
@@ -65,6 +62,8 @@ final class McpElements
 
     /**
      * Simulates calling a protected external API.
+     *
+     * Requires the `mcp:write` scope, see the ScopePolicy in server.php.
      *
      * @return array<string, mixed>
      */

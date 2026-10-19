@@ -13,8 +13,6 @@ namespace Mcp\Capability\Logger;
 
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Server\ClientGateway;
-use Mcp\Server\Protocol;
-use Mcp\Server\Session\SessionInterface;
 use Psr\Log\AbstractLogger;
 
 /**
@@ -30,7 +28,6 @@ final class ClientLogger extends AbstractLogger
 {
     public function __construct(
         private ClientGateway $client,
-        private SessionInterface $session,
     ) {
     }
 
@@ -46,13 +43,6 @@ final class ClientLogger extends AbstractLogger
         $mcpLevel = $this->convertToMcpLevel($level);
         if (null === $mcpLevel) {
             return; // Unknown level, skip MCP notification
-        }
-
-        $minimumLevel = $this->session->get(Protocol::SESSION_LOGGING_LEVEL, '');
-        $minimumLevel = LoggingLevel::tryFrom($minimumLevel) ?? LoggingLevel::Warning;
-
-        if (!$mcpLevel->isAtLeast($minimumLevel)) {
-            return;
         }
 
         $this->client->log($mcpLevel, $message);

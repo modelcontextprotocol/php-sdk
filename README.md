@@ -1,18 +1,9 @@
 # MCP PHP SDK
 
-<div align="center">
-
 [![Latest Version](https://img.shields.io/packagist/v/mcp/sdk.svg)](https://packagist.org/packages/mcp/sdk)
 [![CI](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml/badge.svg)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/pipeline.yaml)
 [![PHP Version](https://img.shields.io/packagist/php-v/mcp/sdk.svg)](https://packagist.org/packages/mcp/sdk)
 [![License](https://img.shields.io/packagist/l/mcp/sdk.svg)](LICENSE)
-
-[![Server Conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
-[![Client Conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
-[![Server Conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
-[![Client Conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml)
-
-</div>
 
 The official PHP SDK for the Model Context Protocol (MCP). It provides a framework-agnostic API for implementing MCP
 servers and clients in PHP — tools, resources, prompts, STDIO and HTTP transports, sessions, authorization, and both
@@ -24,6 +15,17 @@ development practices and standards from the Symfony project, including [Coding 
 
 Until the first major release, this SDK is considered [experimental](https://symfony.com/doc/current/contributing/code/experimental.html), please see the [roadmap](./ROADMAP.md) for
 planned next steps and features.
+
+## Protocol Conformance
+
+Measured weekly against the [MCP Conformance Test Framework](https://github.com/modelcontextprotocol/conformance),
+as passing checks out of total. The `2026-07-28` scores run against the framework's `alpha` releases, so they move as
+upstream publishes new scenarios.
+
+| Revision | Server | Client |
+|:--------:|:------:|:------:|
+| `2026-07-28` | [![Server conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml) | [![Client conformance 2026-07-28](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2026-07-28.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml) |
+| `2025-11-25` | [![Server conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/server-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml) | [![Client conformance 2025-11-25](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/modelcontextprotocol/php-sdk/badges/client-conformance-2025-11-25.json)](https://github.com/modelcontextprotocol/php-sdk/actions/workflows/conformance-weekly.yaml) |
 
 ## Installation
 
@@ -66,6 +68,12 @@ exit(Server::builder()
     ->run(new StdioTransport()));
 ```
 
+The `setDiscovery()` call needs `symfony/finder`:
+
+```bash
+composer require symfony/finder
+```
+
 The walkthrough in [First server](docs/get-started/first-server.md) explains each piece, and
 [Try it with the Inspector](docs/get-started/inspector.md) shows it running.
 
@@ -87,8 +95,9 @@ $result = $client->callTool('add', ['a' => 5, 'b' => 3]);
 $client->disconnect();
 ```
 
-See [Connecting to a server](docs/client/connecting.md) for transports, timeouts, and the
-handlers that answer server-initiated requests.
+See [Transports](docs/client/transports.md) for STDIO and HTTP, [Connecting to a server](docs/client/connecting.md)
+for timeouts, and [Server-initiated requests](docs/client/server-requests.md) for the handlers that
+answer requests from the server.
 
 ## Documentation
 
@@ -101,6 +110,8 @@ The full documentation is published at **[php.sdk.modelcontextprotocol.io](https
 - **[Clients](docs/client/index.md)** — Client SDK for connecting to and communicating with MCP servers
 - **[Protocol versions](docs/protocol-versions.md)** — The two protocol eras, and what revision `2026-07-28` changed
 - **[Advanced](docs/advanced/index.md)** — Events, protocol extensions (including MCP Apps), and custom message handlers
+- **[Deprecation policy](docs/deprecation-policy.md)** — How deprecated features are handled
+- **[SDK tier target](docs/sdk-tier.md)** — Where the SDK stands on the MCP SDK tiers
 - **[Examples](docs/examples.md)** — Runnable server and client examples
 - **[API Reference](https://php.sdk.modelcontextprotocol.io/api/)** — Generated class reference
 
@@ -126,7 +137,9 @@ Building something on top of the SDK? Open a pull request to add it to this list
 
 We are passionate about supporting contributors of all levels of experience and would love to see you get involved in
 the project. Start by [reporting issues](https://github.com/modelcontextprotocol/php-sdk/issues) or
-[sending pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls).
+[sending pull requests](https://github.com/modelcontextprotocol/php-sdk/pulls). See
+[CONTRIBUTING.md](CONTRIBUTING.md) for development setup, coding standards, and what to run before
+opening a PR.
 
 ## Credits
 

@@ -13,9 +13,9 @@ namespace Mcp\Capability\Discovery;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Capability\Registry\InjectableParameters;
 use Mcp\Exception\BadMethodCallException;
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Server\RequestContext;
 use phpDocumentor\Reflection\DocBlock\Tags\Param;
 
 /**
@@ -48,12 +48,6 @@ use phpDocumentor\Reflection\DocBlock\Tags\Param;
  *     default?: mixed,
  *     enum?: array<int, int|float|string|null>,
  *     items?: array<string, mixed>,
- * }
- * @phpstan-type VariadicParameterSchema array{
- *     type: 'array',
- *     items?: array<string, mixed>,
- *     description?: string,
- *     parameter_schema?: array<string, mixed>
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -328,7 +322,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      *
      * @param ParameterInfo $paramInfo
      *
-     * @return VariadicParameterSchema
+     * @return array<string, mixed>
      */
     private function buildVariadicParameterSchema(array $paramInfo): array
     {
@@ -528,17 +522,16 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         foreach ($reflection->getParameters() as $rp) {
             $reflectionType = $rp->getType();
 
-            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()) {
-                $typeName = $reflectionType->getName();
-
-                if (is_a($typeName, RequestContext::class, true)) {
-                    continue;
-                }
+            if ($reflectionType instanceof \ReflectionNamedType && !$reflectionType->isBuiltin()
+                && InjectableParameters::supports($reflectionType->getName())
+            ) {
+                continue;
             }
 
             $paramName = $rp->getName();
             if (\in_array(strtolower($paramName), ['_session', '_request'], true)) {
-                throw new InvalidArgumentException(\sprintf('Handler method "%s::%s" has parameter named "%s" which is not allowed. Please change the name of that parameter.', $reflection->class, $reflection->name, $paramName));
+                $handlerName = $reflection instanceof \ReflectionMethod ? $reflection->class.'::'.$reflection->name : $reflection->name;
+                throw new InvalidArgumentException(\sprintf('Handler "%s" has parameter named "%s" which is not allowed. Please change the name of that parameter.', $handlerName, $paramName));
             }
             $paramTag = $paramTags['$'.$paramName] ?? null;
 
@@ -695,8 +688,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Remove leading backslash from class names, but handle built-ins like 'int' or unions like 'int|string'
         if (str_contains($typeString, '\\')) {
             $parts = preg_split('/([|&])/', $typeString, -1, \PREG_SPLIT_DELIM_CAPTURE);
-            $processedParts = array_map(static fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
-            $typeString = implode('', $processedParts);
+            if (false !== $parts) {
+                $processedParts = array_map(static fn ($part) => str_starts_with($part, '\\') ? ltrim($part, '\\') : $part, $parts);
+                $typeString = implode('', $processedParts);
+            }
         }
 
         return $typeString ?: 'mixed';

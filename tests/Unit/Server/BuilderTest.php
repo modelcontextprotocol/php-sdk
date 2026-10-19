@@ -18,6 +18,7 @@ use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
+use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
@@ -36,12 +37,18 @@ use Mcp\Server\Handler\Request\InitializeHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
+use Mcp\Server\Subscription\PublishingEventDispatcher;
+use Mcp\Server\Transport\InMemoryTransport;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LogLevel;
 use Symfony\Component\Finder\Finder;
 
@@ -149,6 +156,23 @@ final class BuilderTest extends TestCase
         $this->assertSame('intercepted', $result);
     }
 
+    #[TestDox('Custom SchemaValidator is used when calling a tool')]
+    public function testCustomSchemaValidatorIsUsedForToolCalls(): void
+    {
+        $schemaValidator = $this->createMock(\Mcp\Capability\Discovery\SchemaValidator::class);
+        $schemaValidator->expects($this->once())
+            ->method('validateAgainstJsonSchema')
+            ->willReturn([]);
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setSchemaValidator($schemaValidator)
+            ->addTool(static fn (): string => 'validated', name: 'test_tool', description: 'A test tool')
+            ->build();
+
+        $this->assertSame('validated', $this->callTool($server, 'test_tool'));
+    }
+
     #[TestDox('A pre-built instance handler with constructor dependencies is registered and invoked on that instance')]
     public function testPreBuiltInstanceHandlerIsInvokedOnTheGivenInstance(): void
     {
@@ -224,6 +248,131 @@ final class BuilderTest extends TestCase
         $capabilities = $this->extractServerCapabilities($server);
 
         $this->assertTrue($capabilities->tools);
+    }
+
+    #[TestDox('setSessionLock() returns the builder for fluent chaining')]
+    public function testSetSessionLockReturnsSelf(): void
+    {
+        $log = [];
+        $builder = Server::builder();
+
+        $this->assertSame($builder, $builder->setSessionLock(new RecordingSessionLock($log)));
+    }
+
+    #[TestDox('setSessionLock() wires the lock around every session access of the built server')]
+    public function testSetSessionLockIsWiredIntoTheProtocol(): void
+    {
+        $log = [];
+        $store = new RecordingSessionStore($log);
+        $lock = new RecordingSessionLock($log);
+
+        $server = Server::builder()
+            ->setSession($store, gcProbability: 0)
+            ->setSessionLock($lock)
+            ->build();
+
+        $server->run(new InMemoryTransport([
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}',
+            '{"jsonrpc":"2.0","id":2,"method":"ping"}',
+        ]));
+
+        $this->assertCount(11, $log, implode(', ', $log));
+        $sessionId = substr($log[0], \strlen('read '));
+        $this->assertSame([
+            // initialize: the session is new, nobody else can know it yet
+            "read $sessionId",
+            "read $sessionId",
+            "write $sessionId",
+            // ping: locked around read and save
+            "acquire $sessionId",
+            "read $sessionId",
+            "read $sessionId",
+            "write $sessionId",
+            "release $sessionId",
+            // the transport ends the session when it is done
+            "acquire $sessionId",
+            "destroy $sessionId",
+            "release $sessionId",
+        ], $log);
+    }
+
+    #[TestDox('listChanged is announced when a notification bus delivers the built-in registry\'s changes')]
+    public function testListChangedIsAnnouncedWithANotificationBus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced with an event dispatcher alone, nothing delivers the changes')]
+    public function testListChangedIsNotAnnouncedWithoutANotificationBus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setEventDispatcher($this->createStub(EventDispatcherInterface::class))
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced for a custom registry that does not publish its changes')]
+    public function testListChangedIsNotAnnouncedForACustomRegistry(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry())
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is announced for a custom registry that publishes its changes to the bus')]
+    public function testListChangedIsAnnouncedForACustomRegistryPublishingChanges(): void
+    {
+        $bus = new InMemoryNotificationBus();
+
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry(new PublishingEventDispatcher($bus)))
+            ->setNotificationBus($bus)
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertTrue($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->promptsListChanged);
+    }
+
+    #[TestDox('listChanged is not announced for a custom registry publishing its changes without a notification bus')]
+    public function testListChangedIsNotAnnouncedForACustomRegistryPublishingChangesWithoutABus(): void
+    {
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setRegistry(new Registry(new PublishingEventDispatcher(new InMemoryNotificationBus())))
+            ->build();
+
+        $capabilities = $this->extractServerCapabilities($server);
+
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertFalse($capabilities->promptsListChanged);
     }
 
     #[TestDox('setLazyLoading() returns the builder for fluent chaining')]
@@ -408,6 +557,8 @@ final class BuilderTest extends TestCase
 
         foreach ($requestHandlers as $handler) {
             if ($handler instanceof InitializeHandler) {
+                $this->assertNotNull($handler->configuration);
+
                 return $handler->configuration->serverInfo;
             }
         }
@@ -422,6 +573,8 @@ final class BuilderTest extends TestCase
 
         foreach ($requestHandlers as $handler) {
             if ($handler instanceof InitializeHandler) {
+                $this->assertNotNull($handler->configuration);
+
                 return $handler->configuration->capabilities;
             }
         }
@@ -457,6 +610,42 @@ final class BuilderTest extends TestCase
         }
 
         $this->fail('CallToolHandler not found in request handlers');
+    }
+
+    public function testBuildingWithASuppliedRegistryDoesNotAnnounceTheLoadAsAChange(): void
+    {
+        // Otherwise every build publishes one list_changed per element, for no change.
+        $bus = new InMemoryNotificationBus();
+        $registry = new Registry(new PublishingEventDispatcher($bus));
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->setNotificationBus($bus)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->addTool(static fn (): string => 'ok', 'beta')
+            ->build();
+
+        $this->assertSame(0, $bus->cursor());
+        $this->assertTrue($registry->hasTool('alpha'));
+        $this->assertTrue($registry->hasTool('beta'));
+
+        // A real change after the build is still published.
+        $registry->unregisterTool('alpha');
+
+        $this->assertSame(1, $bus->cursor());
+    }
+
+    public function testAThirdPartyRegistryIsStillLoadedThroughThePlainLoader(): void
+    {
+        $registry = $this->createMock(RegistryInterface::class);
+        $registry->expects($this->once())
+            ->method('registerTool')
+            ->with($this->callback(static fn (Tool $tool): bool => 'alpha' === $tool->name));
+
+        Server::builder()
+            ->setRegistry($registry)
+            ->addTool(static fn (): string => 'ok', 'alpha')
+            ->build();
     }
 }
 

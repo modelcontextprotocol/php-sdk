@@ -80,6 +80,7 @@ final class StatelessResponder
                     echo null === $frame
                         ? ": keep-alive\n\n"
                         : 'data: '.json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES)."\n\n";
+                    @ob_flush();
                     flush();
                 }
             } catch (\Throwable $e) {

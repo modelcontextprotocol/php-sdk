@@ -30,14 +30,11 @@ class ProtectedResourceMetadataHandlerTest extends TestCase
         $factory = new Psr17Factory();
 
         $metadata = new ProtectedResourceMetadata(
+            resource: 'https://mcp.example.com/mcp',
             authorizationServers: ['https://auth.example.com'],
             scopesSupported: ['mcp:read', 'mcp:write'],
-            resource: 'https://mcp.example.com/mcp',
             resourceName: 'Example MCP API',
             resourceDocumentation: 'https://mcp.example.com/docs',
-            localizedHumanReadable: [
-                'resource_name#uk' => 'Pryklad MCP API',
-            ],
         );
 
         $handler = new ProtectedResourceMetadataHandler(
@@ -62,7 +59,6 @@ class ProtectedResourceMetadataHandlerTest extends TestCase
         $this->assertSame('https://mcp.example.com/mcp', $payload['resource']);
         $this->assertSame('Example MCP API', $payload['resource_name']);
         $this->assertSame('https://mcp.example.com/docs', $payload['resource_documentation']);
-        $this->assertSame('Pryklad MCP API', $payload['resource_name#uk']);
     }
 
     #[TestDox('handle serves metadata regardless of request path or method')]
@@ -71,9 +67,7 @@ class ProtectedResourceMetadataHandlerTest extends TestCase
         $factory = new Psr17Factory();
 
         $handler = new ProtectedResourceMetadataHandler(
-            metadata: new ProtectedResourceMetadata(
-                authorizationServers: ['https://auth.example.com'],
-            ),
+            metadata: new ProtectedResourceMetadata('https://mcp.example.com', ['https://auth.example.com']),
             responseFactory: $factory,
             streamFactory: $factory,
         );

@@ -67,7 +67,7 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
      *     format?: string,
      *     minLength?: int,
      *     maxLength?: int,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -81,6 +81,11 @@ final class StringSchemaDefinition extends AbstractSchemaDefinition
             minLength: isset($data['minLength']) ? (int) $data['minLength'] : null,
             maxLength: isset($data['maxLength']) ? (int) $data['maxLength'] : null,
         );
+    }
+
+    public function getDefault(): ?string
+    {
+        return $this->default;
     }
 
     /**

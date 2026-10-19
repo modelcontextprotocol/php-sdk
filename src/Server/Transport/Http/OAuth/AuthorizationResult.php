@@ -11,6 +11,8 @@
 
 namespace Mcp\Server\Transport\Http\OAuth;
 
+use Mcp\Server\Authorization\AccessToken;
+
 /**
  * Describes the outcome of an authorization decision.
  *
@@ -25,8 +27,7 @@ namespace Mcp\Server\Transport\Http\OAuth;
 final class AuthorizationResult
 {
     /**
-     * @param list<string>|null    $scopes     Scopes to include in WWW-Authenticate challenge
-     * @param array<string, mixed> $attributes Attributes to attach to the request on success
+     * @param list<string>|null $scopes Scopes to include in WWW-Authenticate challenge
      */
     private function __construct(
         private readonly bool $allowed,
@@ -34,18 +35,16 @@ final class AuthorizationResult
         private readonly ?string $error,
         private readonly ?string $errorDescription,
         private readonly ?array $scopes,
-        private readonly array $attributes,
+        private readonly ?AccessToken $accessToken,
     ) {
     }
 
     /**
      * Creates a result indicating access is allowed.
-     *
-     * @param array<string, mixed> $attributes Attributes to attach to the request (e.g., user_id, scopes)
      */
-    public static function allow(array $attributes = []): self
+    public static function allow(AccessToken $accessToken): self
     {
-        return new self(true, 200, null, null, null, $attributes);
+        return new self(true, 200, null, null, null, $accessToken);
     }
 
     /**
@@ -62,7 +61,7 @@ final class AuthorizationResult
         ?string $errorDescription = null,
         ?array $scopes = null,
     ): self {
-        return new self(false, 401, $error, $errorDescription, $scopes, []);
+        return new self(false, 401, $error, $errorDescription, $scopes, null);
     }
 
     /**
@@ -79,7 +78,7 @@ final class AuthorizationResult
         ?string $errorDescription = null,
         ?array $scopes = null,
     ): self {
-        return new self(false, 403, $error ?? 'insufficient_scope', $errorDescription, $scopes, []);
+        return new self(false, 403, $error ?? 'insufficient_scope', $errorDescription, $scopes, null);
     }
 
     /**
@@ -94,7 +93,7 @@ final class AuthorizationResult
         ?string $error = 'invalid_request',
         ?string $errorDescription = null,
     ): self {
-        return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, []);
+        return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, null);
     }
 
     public function isAllowed(): bool
@@ -126,10 +125,10 @@ final class AuthorizationResult
     }
 
     /**
-     * @return array<string, mixed>
+     * The validated token; set only on an allowed result.
      */
-    public function getAttributes(): array
+    public function getAccessToken(): ?AccessToken
     {
-        return $this->attributes;
+        return $this->accessToken;
     }
 }

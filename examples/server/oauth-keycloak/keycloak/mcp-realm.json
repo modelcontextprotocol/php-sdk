@@ -71,7 +71,7 @@
           "protocolMapper": "oidc-audience-mapper",
           "consentRequired": false,
           "config": {
-            "included.client.audience": "mcp-server",
+            "included.custom.audience": "http://localhost:8000/mcp",
             "id.token.claim": "false",
             "access.token.claim": "true"
           }

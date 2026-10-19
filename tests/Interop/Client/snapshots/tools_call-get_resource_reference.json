@@ -1,0 +1,22 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "Returning resource reference for Resource 3:"
+            },
+            {
+                "type": "resource",
+                "resource": {
+                    "uri": "demo://resource/dynamic/text/3",
+                    "mimeType": "text/plain",
+                    "text": "Resource 3: This is a plaintext resource created at <time>"
+                }
+            },
+            {
+                "type": "text",
+                "text": "You can access this resource using the URI: demo://resource/dynamic/text/3"
+            }
+        ]
+    }
+}

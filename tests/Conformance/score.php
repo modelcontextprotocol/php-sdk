@@ -16,11 +16,12 @@
  *   php score.php <server|client> <spec-version> [results-dir]
  *
  * The conformance CLI writes one `checks.json` per scenario into
- * `[results-dir]` (default `results`), relative to this file. A scenario
- * counts as passing when none of its checks has a FAILURE status; the badge
- * message is "<passed>/<total> (<pct>%)" and is written to
+ * `[results-dir]` (default `results`), relative to this file. Every check with
+ * a SUCCESS or FAILURE status counts towards the score; the badge message is
+ * "<passed>/<total> (<pct>%)" and is written to
  * `<suite>-conformance-<spec-version>.json`, so each revision gets its own
- * badge.
+ * badge. The badge is labelled "checks" only: the README renders the badges in
+ * a table whose row and column headers already name the revision and suite.
  */
 
 use Symfony\Component\Console\Command\Command;
@@ -92,7 +93,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
         $badge = [
             'schemaVersion' => 1,
-            'label' => sprintf('%s %s', $suite, $specVersion),
+            'label' => 'checks',
             'message' => $total > 0 ? sprintf('%d/%d (%d%%)', $passed, $total, $pct) : 'no data',
             'color' => match (true) {
                 0 === $total => 'lightgrey',
@@ -116,7 +117,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
             $io->listing($failures);
         }
 
-        $io->success(sprintf('%s: %s', $badge['label'], $badge['message']));
+        $io->success(sprintf('%s %s: %s', $suite, $specVersion, $badge['message']));
 
         return Command::SUCCESS;
     })

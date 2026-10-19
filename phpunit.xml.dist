@@ -5,6 +5,7 @@
          colors="true"
          executionOrder="depends,defects"
          beStrictAboutOutputDuringTests="true"
+         failOnIncomplete="true"
          failOnRisky="true"
          failOnWarning="true">
 
@@ -15,11 +16,8 @@
         <testsuite name="integration">
             <directory>tests/Integration</directory>
         </testsuite>
-        <testsuite name="examples">
-            <directory>examples/server/oauth-microsoft/tests</directory>
-        </testsuite>
-        <testsuite name="inspector">
-            <directory>tests/Inspector</directory>
+        <testsuite name="interop">
+            <directory>tests/Interop</directory>
         </testsuite>
     </testsuites>
 

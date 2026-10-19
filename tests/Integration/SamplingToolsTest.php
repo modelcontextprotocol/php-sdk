@@ -18,6 +18,7 @@ use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Content\ToolResultContent;
 use Mcp\Schema\Content\ToolUseContent;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
@@ -30,6 +31,15 @@ use PHPUnit\Framework\Attributes\TestDox;
  */
 final class SamplingToolsTest extends IntegrationTestCase
 {
+    /**
+     * The gateway call-out exists only on the handshake era, so a client and
+     * server that could both settle on the modern era are kept off it.
+     */
+    protected function clientBuilder(): ClientBuilder
+    {
+        return parent::clientBuilder()->setProtocolVersion(ProtocolVersion::V2025_11_25);
+    }
+
     #[TestDox('the server runs a full tool loop and gets the model\'s final answer')]
     public function testToolLoopCompletes(): void
     {
@@ -51,12 +61,18 @@ final class SamplingToolsTest extends IntegrationTestCase
         $client->callTool('weather_report', ['city' => 'Paris']);
 
         $this->assertCount(2, $seen);
-        $this->assertSame('get_weather', $seen[0]->tools[0]->name);
+
+        $first = $seen[0];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $first);
+        $this->assertNotNull($first->tools);
+        $this->assertSame('get_weather', $first->tools[0]->name);
 
         // Second turn carries the assistant's tool use and the server's tool result.
-        $this->assertCount(3, $seen[1]->messages);
-        $this->assertInstanceOf(ToolUseContent::class, $seen[1]->messages[1]->getContentBlocks()[0]);
-        $toolResult = $seen[1]->messages[2]->getContentBlocks()[0];
+        $second = $seen[1];
+        $this->assertInstanceOf(CreateSamplingMessageRequest::class, $second);
+        $this->assertCount(3, $second->messages);
+        $this->assertInstanceOf(ToolUseContent::class, $second->messages[1]->getContentBlocks()[0]);
+        $toolResult = $second->messages[2]->getContentBlocks()[0];
         $this->assertInstanceOf(ToolResultContent::class, $toolResult);
         $this->assertSame('call-1', $toolResult->toolUseId);
     }

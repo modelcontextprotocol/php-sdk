@@ -20,13 +20,6 @@
  * Usage:
  *   1. Start the server: php -S 127.0.0.1:8000 examples/server/client-communication/server.php
  *   2. Run this script: php examples/client/http_client_communication.php
- *
- * Note: PHP's built-in server works for listing tools, calling tools, and receiving
- * progress/logging notifications. However, sampling requires a concurrent-capable server
- * (e.g., Symfony CLI, PHP-FPM) since the server must process the client's sampling
- * response while the original tool request is still pending.
- *
- * Eg. symfony serve --passthru=examples/server/client-communication/server.php --no-tls
  */
 
 require_once __DIR__.'/../../vendor/autoload.php';
@@ -38,12 +31,13 @@ use Mcp\Client\Handler\Request\SamplingRequestHandler;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\Role;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\CreateSamplingMessageRequest;
 use Mcp\Schema\Result\CreateSamplingMessageResult;
 
-$endpoint = 'http://127.0.0.1:8000';
+$endpoint = getenv('MCP_SERVER_URL') ?: 'http://127.0.0.1:8000';
 
 $loggingNotificationHandler = new LoggingNotificationHandler(static function (LoggingMessageNotification $n) {
     echo "[LOG {$n->level->value}] {$n->data}\n";
@@ -77,9 +71,14 @@ $client = Client::builder()
 
 $transport = new HttpTransport(endpoint: $endpoint);
 
+$status = 0;
+
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";
     $client->connect($transport);
+
+    // Ask for log messages: from 2026-07-28 on a server sends none unless asked.
+    $client->setLoggingLevel(LoggingLevel::Info);
 
     $serverInfo = $client->getServerInfo();
     echo 'Connected to: '.($serverInfo->name ?? 'unknown')."\n\n";
@@ -127,6 +126,9 @@ try {
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
     echo $e->getTraceAsString()."\n";
+    $status = 1;
 } finally {
     $client->disconnect();
 }
+
+exit($status);

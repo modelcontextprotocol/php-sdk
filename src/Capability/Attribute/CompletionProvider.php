@@ -24,9 +24,9 @@ class CompletionProvider
      * @param class-string<ProviderInterface>|ProviderInterface|null $provider if a class-string, it will be resolved
      *                                                                         from the container at the point of use
      * @param ?array<int, int|float|string>                          $values   a list of values to use for completion
+     * @param class-string|null                                      $enum     an enum whose cases are the completions
      */
     public function __construct(
-        public ?string $providerClass = null,
         public string|ProviderInterface|null $provider = null,
         public ?array $values = null,
         public ?string $enum = null,

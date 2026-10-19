@@ -15,6 +15,7 @@ use Mcp\Exception\MissingRequestMetaException;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Implementation;
+use Mcp\Server\Wire\InboundClassifier;
 
 /**
  * The per-request metadata that replaces the `initialize` handshake in the
@@ -56,11 +57,13 @@ final class RequestMeta
     }
 
     /**
-     * @param array<string, mixed>|null $params the request's `params` member, if any
+     * @param array<string, mixed>|null $params  the request's `params` member, if any
+     * @param array<string, string>     $headers request headers, case-insensitively matched; a
+     *                                           transport without a header layer (stdio) passes none
      *
      * @throws MissingRequestMetaException when a structurally required member is absent or malformed
      */
-    public static function fromParams(?array $params): self
+    public static function fromParams(?array $params, array $headers = []): self
     {
         $meta = $params['_meta'] ?? null;
 
@@ -86,7 +89,7 @@ final class RequestMeta
             ClientCapabilities::fromArray((array) $capabilities),
             \is_array($clientInfo) ? Implementation::fromArray($clientInfo) : null,
             self::parseLogLevel($meta[self::LOG_LEVEL] ?? null),
-            self::parseTraceContext($meta),
+            self::parseTraceContext($meta, $headers),
         );
     }
 
@@ -103,17 +106,25 @@ final class RequestMeta
      * Carried through opaquely: the values are the tracing ecosystem's to
      * interpret, and a malformed one is not this server's to reject.
      *
-     * @param array<string, mixed> $meta
+     * `_meta` wins over the native W3C header of the same name when both are
+     * present — it is the more specific of the two, scoped to this one call
+     * rather than the whole HTTP request, and a caller that put it there did
+     * so deliberately.
+     *
+     * @param array<string, mixed>  $meta
+     * @param array<string, string> $headers
      *
      * @return array<string, string>
      */
-    private static function parseTraceContext(array $meta): array
+    private static function parseTraceContext(array $meta, array $headers): array
     {
         $context = [];
 
         foreach (self::TRACE_KEYS as $key) {
             if (\is_string($meta[$key] ?? null)) {
                 $context[$key] = $meta[$key];
+            } elseif (null !== $header = InboundClassifier::header($headers, $key)) {
+                $context[$key] = $header;
             }
         }
 

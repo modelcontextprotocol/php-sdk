@@ -13,6 +13,9 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Attribute\Schema;
 use Mcp\Capability\Discovery\SchemaValidator;
+use Opis\JsonSchema\SchemaLoader;
+use Opis\JsonSchema\Validator;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 class SchemaValidatorTest extends TestCase
@@ -22,6 +25,28 @@ class SchemaValidatorTest extends TestCase
     protected function setUp(): void
     {
         $this->validator = new SchemaValidator();
+    }
+
+    public function testRepeatedValidationDoesNotGrowSchemaLoaderCache(): void
+    {
+        $loader = new class extends SchemaLoader {
+            public function cacheSize(): int
+            {
+                return \count($this->dataCache) + \count($this->uriCache);
+            }
+        };
+        $validator = new SchemaValidator(new Validator($loader));
+
+        $validator->validateAgainstJsonSchema($this->getValidData(), $this->getSimpleSchema());
+        $validator->validateAgainstJsonSchema($this->getValidData(), (object) $this->getSimpleSchema());
+        $size = $loader->cacheSize();
+
+        for ($i = 0; $i < 10; ++$i) {
+            $validator->validateAgainstJsonSchema($this->getValidData(), $this->getSimpleSchema());
+            $validator->validateAgainstJsonSchema($this->getValidData(), (object) $this->getSimpleSchema());
+        }
+
+        $this->assertSame($size, $loader->cacheSize());
     }
 
     // --- Basic Validation Tests ---
@@ -72,7 +97,7 @@ class SchemaValidatorTest extends TestCase
         $this->assertCount(1, $errors);
         $this->assertEquals('/', $errors[0]['pointer']); // Error reported at the object root
         $this->assertEquals('additionalProperties', $errors[0]['keyword']);
-        $this->assertStringContainsString('Additional object properties are not allowed: ["extra"]', $errors[0]['message']);
+        $this->assertStringContainsString('Object contains unexpected additional properties: `extra`.', $errors[0]['message']);
     }
 
     // --- Keyword Constraint Tests ---
@@ -107,7 +132,7 @@ class SchemaValidatorTest extends TestCase
         $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
         $this->assertCount(1, $errors);
         $this->assertEquals('maxLength', $errors[0]['keyword']);
-        $this->assertStringContainsString('Maximum string length is 5, found 7', $errors[0]['message']);
+        $this->assertStringContainsString('String must not be longer than 5 characters.', $errors[0]['message']);
     }
 
     public function testPatternConstraintViolation(): void
@@ -129,7 +154,7 @@ class SchemaValidatorTest extends TestCase
         $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
         $this->assertCount(1, $errors);
         $this->assertEquals('minItems', $errors[0]['keyword']);
-        $this->assertStringContainsString('Array should have at least 2 items, 1 found', $errors[0]['message']);
+        $this->assertStringContainsString('Array must contain at least 2 items.', $errors[0]['message']);
     }
 
     public function testUniqueItemsConstraintViolation(): void
@@ -140,7 +165,37 @@ class SchemaValidatorTest extends TestCase
         $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
         $this->assertCount(1, $errors);
         $this->assertEquals('uniqueItems', $errors[0]['keyword']);
-        $this->assertStringContainsString('Array must have unique items', $errors[0]['message']);
+        $this->assertSame('Array items must be unique.', $errors[0]['message']);
+    }
+
+    /**
+     * @param array<string, mixed> $schema
+     */
+    #[DataProvider('provideCamelCaseKeywordViolations')]
+    public function testCamelCaseKeywordViolationUsesSdkMessage(array $schema, mixed $data, string $keyword, string $message): void
+    {
+        $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
+        $this->assertCount(1, $errors);
+        $this->assertSame($keyword, $errors[0]['keyword']);
+        $this->assertSame($message, $errors[0]['message']);
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, mixed, string, string}>
+     */
+    public static function provideCamelCaseKeywordViolations(): iterable
+    {
+        yield 'minLength' => [['type' => 'string', 'minLength' => 3], 'ab', 'minLength', 'String must be at least 3 characters long.'];
+        yield 'maxLength' => [['type' => 'string', 'maxLength' => 2], 'abc', 'maxLength', 'String must not be longer than 2 characters.'];
+        yield 'exclusiveMinimum' => [['type' => 'number', 'exclusiveMinimum' => 5], 5, 'exclusiveMinimum', 'Number must be strictly greater than 5.'];
+        yield 'exclusiveMaximum' => [['type' => 'number', 'exclusiveMaximum' => 5], 5, 'exclusiveMaximum', 'Number must be strictly less than 5.'];
+        yield 'multipleOf' => [['type' => 'number', 'multipleOf' => 3], 7, 'multipleOf', 'Number must be a multiple of 3.'];
+        yield 'minItems' => [['type' => 'array', 'minItems' => 2], ['a'], 'minItems', 'Array must contain at least 2 items.'];
+        yield 'maxItems' => [['type' => 'array', 'maxItems' => 1], ['a', 'b'], 'maxItems', 'Array must contain no more than 1 items.'];
+        yield 'uniqueItems' => [['type' => 'array', 'uniqueItems' => true], ['a', 'a'], 'uniqueItems', 'Array items must be unique.'];
+        yield 'minProperties' => [['type' => 'object', 'minProperties' => 2], ['a' => 1], 'minProperties', 'Object must have at least 2 properties.'];
+        yield 'maxProperties' => [['type' => 'object', 'maxProperties' => 1], ['a' => 1, 'b' => 2], 'maxProperties', 'Object must have no more than 1 properties.'];
+        yield 'additionalProperties' => [['type' => 'object', 'additionalProperties' => false], ['a' => 1], 'additionalProperties', 'Object contains unexpected additional properties: `a`.'];
     }
 
     // --- Nested Structures and Pointers ---
@@ -177,11 +232,33 @@ class SchemaValidatorTest extends TestCase
         $this->assertEquals('/2', $errors[0]['pointer']); // Pointer to the index of the invalid item
     }
 
+    public function testRefValidationErrorPointerIncludesFullPath(): void
+    {
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'addr' => ['$ref' => '#/$defs/address'],
+            ],
+            '$defs' => [
+                'address' => [
+                    'type' => 'object',
+                    'properties' => ['zip' => ['type' => 'string']],
+                ],
+            ],
+        ];
+        $data = ['addr' => ['zip' => 12345]];
+
+        $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
+        $this->assertCount(1, $errors);
+        $this->assertSame('/addr/zip', $errors[0]['pointer']);
+        $this->assertSame('type', $errors[0]['keyword']);
+    }
+
     // --- Data Conversion Tests ---
     public function testValidatesDataPassedAsStdClassObject(): void
     {
         $schema = $this->getSimpleSchema();
-        $dataObj = json_decode(json_encode($this->getValidData())); // Convert to stdClass
+        $dataObj = json_decode(json_encode($this->getValidData(), \JSON_THROW_ON_ERROR)); // Convert to stdClass
 
         $errors = $this->validator->validateAgainstJsonSchema($dataObj, $schema);
         $this->assertEmpty($errors);
@@ -221,12 +298,30 @@ class SchemaValidatorTest extends TestCase
     public function testHandlesEmptyDataObjectAgainstSchemaRequiringProperties(): void
     {
         $schema = $this->getSimpleSchema(); // Requires name, age etc.
-        $data = []; // Empty data
+        $data = new \stdClass(); // Empty data
 
         $errors = $this->validator->validateAgainstJsonSchema($data, $schema);
 
         $this->assertNotEmpty($errors);
         $this->assertEquals('required', $errors[0]['keyword']);
+    }
+
+    public function testEmptyArrayValidatesAgainstArraySchema(): void
+    {
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema([], ['type' => 'array']));
+    }
+
+    public function testEmptyArrayIsNotAnObject(): void
+    {
+        $errors = $this->validator->validateAgainstJsonSchema([], ['type' => 'object']);
+
+        $this->assertNotEmpty($errors);
+        $this->assertSame('type', $errors[0]['keyword']);
+    }
+
+    public function testEmptyStdClassValidatesAgainstObjectSchema(): void
+    {
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema(new \stdClass(), ['type' => 'object']));
     }
 
     public function testHandlesEmptySchemaAllowsAnything(): void

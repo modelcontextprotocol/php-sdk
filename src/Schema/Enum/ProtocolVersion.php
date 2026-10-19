@@ -80,7 +80,13 @@ enum ProtocolVersion: string
      */
     public static function handshakeVersions(): array
     {
-        return array_values(array_filter(self::cases(), static fn (self $v): bool => !$v->isModern()));
+        $versions = array_values(array_filter(self::cases(), static fn (self $v): bool => !$v->isModern()));
+
+        if ([] === $versions) {
+            throw new LogicException('No handshake-era protocol revision is declared.');
+        }
+
+        return $versions;
     }
 
     /**
@@ -90,7 +96,13 @@ enum ProtocolVersion: string
      */
     public static function modernVersions(): array
     {
-        return array_values(array_filter(self::cases(), static fn (self $v): bool => $v->isModern()));
+        $versions = array_values(array_filter(self::cases(), static fn (self $v): bool => $v->isModern()));
+
+        if ([] === $versions) {
+            throw new LogicException('No modern-era protocol revision is declared.');
+        }
+
+        return $versions;
     }
 
     /**
@@ -128,6 +140,20 @@ enum ProtocolVersion: string
     public function usesInvalidParamsForResourceNotFound(): bool
     {
         return $this->isAtLeast(self::V2026_07_28);
+    }
+
+    /**
+     * Whether this revision resumes an interrupted SSE stream with `Last-Event-ID`.
+     *
+     * SEP-2575, part of {@see self::V2026_07_28}, removed resumability and the
+     * GET stream endpoint: a broken response stream loses the in-flight request,
+     * which the client re-issues under a new request ID.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http
+     */
+    public function supportsSseResumption(): bool
+    {
+        return !$this->isAtLeast(self::V2026_07_28);
     }
 
     /**

@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -126,7 +127,9 @@ final class StatelessHttpTransport
             $headers[$name] = implode(', ', $values);
         }
 
-        return $this->responder->respond($this->protocol->handle($payload, $headers));
+        $accessToken = $request->getAttribute(AccessToken::class);
+
+        return $this->responder->respond($this->protocol->handle($payload, $headers, $accessToken instanceof AccessToken ? $accessToken : null));
     }
 
     private function json(string $payload, int $status): ResponseInterface

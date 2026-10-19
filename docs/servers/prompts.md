@@ -23,7 +23,7 @@ class PromptGenerator
 
 ## Parameters
 
-- **`name`** (optional): Prompt identifier. Defaults to method name if not provided.
+- **`name`** (optional): Prompt identifier. Defaults to the method name. On an invokable class, it defaults to the class short name.
 - **`title`** (optional): Human-readable display title shown in client UI. Distinct from `name`.
 - **`description`** (optional): Prompt description. Falls back to the docblock (summary plus long description).
 - **`icons`** (optional): Array of `Icon` objects for visual representation.
@@ -31,11 +31,15 @@ class PromptGenerator
 
 ## Prompt Return Values
 
-Prompt handlers must return an array of message structures that are automatically formatted into MCP prompt messages.
+Prompt handlers return an array of messages or a single `PromptMessage`. The SDK formats the result into MCP prompt
+messages.
 
 ### Supported Return Formats
 
 ```php
+use Mcp\Schema\Content\{TextContent, ImageContent, PromptMessage};
+use Mcp\Schema\Enum\Role;
+
 // Array of message objects with role and content
 public function basicPrompt(): array
 {
@@ -45,12 +49,16 @@ public function basicPrompt(): array
     ];
 }
 
-// Single message (automatically wrapped in array)
+// Single message (automatically wrapped in a list)
 public function singleMessage(): array
 {
-    return [
-        ['role' => 'user', 'content' => 'Write a poem about PHP']
-    ];
+    return ['role' => 'user', 'content' => 'Write a poem about PHP'];
+}
+
+// Single PromptMessage (automatically wrapped in a list)
+public function singlePromptMessage(): PromptMessage
+{
+    return new PromptMessage(Role::User, new TextContent('Write a poem about PHP'));
 }
 
 // Associative array with user/assistant keys
@@ -64,8 +72,6 @@ public function userAssistantFormat(): array
 
 // Non-text content — each message carries exactly one content block,
 // so an image goes into its own message
-use Mcp\Schema\Content\{TextContent, ImageContent};
-
 public function mixedContent(): array
 {
     return [
@@ -75,9 +81,6 @@ public function mixedContent(): array
 }
 
 // Using explicit PromptMessage objects
-use Mcp\Schema\Content\PromptMessage;
-use Mcp\Schema\Enum\Role;
-
 public function explicitMessages(): array
 {
     return [
@@ -100,6 +103,7 @@ makes the prompt handler throw.
 ### Error Handling
 
 Prompt handlers can throw any exception, but the type determines how it's handled:
+
 - **`PromptGetException`**: Converted to JSON-RPC error response with the actual exception message
 - **Any other exception**: Converted to JSON-RPC error response, but with a generic error message
 

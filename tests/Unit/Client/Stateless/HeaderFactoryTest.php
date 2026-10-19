@@ -81,6 +81,45 @@ final class HeaderFactoryTest extends TestCase
         $this->assertSame(['MCP-Protocol-Version' => '2026-07-28'], $headers);
     }
 
+    #[TestDox('mirrors trace context an application put in `_meta` onto its native headers')]
+    public function testTraceContextMirrorsOntoHeaders(): void
+    {
+        $payload = [
+            'method' => 'tools/list',
+            'params' => [
+                '_meta' => [
+                    'traceparent' => '00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01',
+                    'tracestate' => 'acme=1',
+                ],
+            ],
+        ];
+
+        $headers = $this->headersFor($payload);
+
+        $this->assertSame('00-0af7651916cd43dd8448eb211c80319c-00f067aa0ba902b7-01', $headers['traceparent']);
+        $this->assertSame('acme=1', $headers['tracestate']);
+    }
+
+    #[TestDox('a response with no method still mirrors its trace context')]
+    public function testTraceContextMirrorsOntoAResponse(): void
+    {
+        $payload = ['id' => 1, 'result' => [], 'params' => ['_meta' => ['traceparent' => 'tp-1']]];
+
+        $this->assertSame(
+            ['MCP-Protocol-Version' => '2026-07-28', 'traceparent' => 'tp-1'],
+            $this->headersFor($payload),
+        );
+    }
+
+    #[TestDox('an untraced request mirrors nothing')]
+    public function testNoTraceContextMirrorsNothing(): void
+    {
+        $headers = $this->headersFor(['method' => 'tools/list', 'params' => []]);
+
+        $this->assertArrayNotHasKey('traceparent', $headers);
+        $this->assertArrayNotHasKey('tracestate', $headers);
+    }
+
     /**
      * @param array<string, mixed> $payload
      *

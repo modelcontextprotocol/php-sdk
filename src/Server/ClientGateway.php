@@ -40,6 +40,8 @@ use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolChoice;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Suspension\NotificationSuspension;
+use Mcp\Server\Suspension\RequestSuspension;
 
 /**
  * @final
@@ -78,8 +80,12 @@ use Mcp\Server\Session\SessionInterface;
  */
 class ClientGateway
 {
+    /**
+     * @param Request|null $request the request the handler serves; its meta carries the progress token
+     */
     public function __construct(
         private readonly SessionInterface $session,
+        private readonly ?Request $request = null,
     ) {
     }
 
@@ -88,18 +94,23 @@ class ClientGateway
      *
      * This suspends the Fiber to let the transport flush the notification via SSE,
      * then immediately resumes execution.
+     *
+     * @throws ClientException if the notification could not be queued for the client
      */
     public function notify(Notification $notification): void
     {
-        \Fiber::suspend([
-            'type' => 'notification',
-            'notification' => $notification,
-            'session_id' => $this->session->getId()->toRfc4122(),
-        ]);
+        $result = \Fiber::suspend(new NotificationSuspension($notification, $this->session->getId()->toRfc4122()));
+
+        if ($result instanceof Error) {
+            throw new ClientException($result);
+        }
     }
 
     /**
      * Convenience method to send a logging notification to the client.
+     *
+     * Messages below the level the client set are dropped; without one, the
+     * level defaults to warning.
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Log to stderr (stdio) or use OpenTelemetry instead.
@@ -107,6 +118,11 @@ class ClientGateway
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
         trigger_deprecation('mcp/sdk', '0.8', 'MCP logging is deprecated since protocol revision 2026-07-28 (SEP-2577); log to stderr or use OpenTelemetry instead.');
+
+        $minimumLevel = LoggingLevel::tryFrom($this->session->get(Protocol::SESSION_LOGGING_LEVEL, '')) ?? LoggingLevel::Warning;
+        if (!$level->isAtLeast($minimumLevel)) {
+            return;
+        }
 
         $this->notify(new LoggingMessageNotification($level, $data, $logger));
     }
@@ -116,7 +132,11 @@ class ClientGateway
      */
     public function progress(float $progress, ?float $total = null, ?string $message = null): void
     {
-        $meta = $this->session->get(Protocol::SESSION_ACTIVE_REQUEST_META, []);
+        // The session holds the meta of whichever request of the session came last,
+        // so it only stands in when the gateway does not know its own request.
+        $meta = null !== $this->request
+            ? $this->request->getMeta()
+            : $this->session->get(Protocol::SESSION_ACTIVE_REQUEST_META, []);
         $progressToken = $meta['progressToken'] ?? null;
 
         if (null === $progressToken) {
@@ -157,12 +177,13 @@ class ClientGateway
         if (\is_string($message)) {
             $message = new TextContent($message);
         }
-        if (\is_object($message) && \in_array($message::class, [TextContent::class, AudioContent::class, ImageContent::class], true)) {
-            $message = [new SamplingMessage(Role::User, $message)];
-        }
+
+        $messages = $message instanceof TextContent || $message instanceof AudioContent || $message instanceof ImageContent
+            ? [new SamplingMessage(Role::User, $message)]
+            : $message;
 
         $request = new CreateSamplingMessageRequest(
-            messages: $message,
+            messages: $messages,
             maxTokens: $maxTokens,
             preferences: $preferences,
             systemPrompt: $options['systemPrompt'] ?? null,
@@ -449,13 +470,7 @@ class ClientGateway
      */
     private function suspend(Request $request, int $timeout, ?string $key = null): Response|Error
     {
-        $response = \Fiber::suspend([
-            'type' => 'request',
-            'request' => $request,
-            'session_id' => $this->session->getId()->toRfc4122(),
-            'timeout' => $timeout,
-            'input_key' => $key,
-        ]);
+        $response = \Fiber::suspend(new RequestSuspension($request, $this->session->getId()->toRfc4122(), $timeout, $key));
 
         if (!$response instanceof Response && !$response instanceof Error) {
             throw new RuntimeException('Transport returned an unexpected payload; expected a Response or Error message.');

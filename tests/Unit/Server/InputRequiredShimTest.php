@@ -27,6 +27,7 @@ use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\InputContext;
+use Mcp\Server\Suspension\RequestSuspension;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -149,8 +150,7 @@ final class InputRequiredShimTest extends TestCase
         $suspended = $fiber->start();
 
         while ($fiber->isSuspended()) {
-            $this->assertIsArray($suspended);
-            $this->assertSame('request', $suspended['type'], 'the shim only ever suspends to send a client request');
+            $this->assertInstanceOf(RequestSuspension::class, $suspended, 'the shim only ever suspends to send a client request');
             $this->assertNotEmpty($answers, 'the shim sent more requests than the test queued answers for');
 
             $suspended = $fiber->resume(array_shift($answers));

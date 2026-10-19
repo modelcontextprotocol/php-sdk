@@ -13,6 +13,8 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Attribute\McpTool;
 use Mcp\Capability\Attribute\Schema;
+use Mcp\Server\ClientGateway;
+use Mcp\Server\RequestContext;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedIntEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\BackedStringEnum;
 use Mcp\Tests\Unit\Fixtures\Enum\UnitEnum;
@@ -516,6 +518,13 @@ class SchemaGeneratorFixture
     }
 
     public function withParameterNamedRequest(string $_request): void
+    {
+    }
+
+    /**
+     * @param string $query The search query
+     */
+    public function withInjectableParameters(string $query, ClientGateway $gateway, RequestContext $context, int $limit = 10): void
     {
     }
 

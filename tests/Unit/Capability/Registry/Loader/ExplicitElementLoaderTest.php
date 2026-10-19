@@ -14,9 +14,11 @@ namespace Mcp\Tests\Unit\Capability\Registry\Loader;
 use Mcp\Capability\Completion\ProviderInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ReferenceHandler;
+use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Prompt;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\Tool;
@@ -67,7 +69,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'foo' => 'bar',
         ]);
 
@@ -100,6 +102,7 @@ final class ExplicitElementLoaderTest extends TestCase
         $registry = $this->buildAndGetRegistry(static fn (Server\Builder $b) => $b->add($resource, $handler));
 
         $reference = $registry->getResource('config://demo', false);
+        $this->assertInstanceOf(ResourceReference::class, $reference);
         $this->assertSame('config://demo', $reference->resource->uri);
         $this->assertSame('demo', $reference->resource->name);
         $this->assertSame('text/plain', $reference->resource->mimeType);
@@ -109,7 +112,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'uri' => 'config://demo',
         ]);
 
@@ -152,7 +155,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'uri' => 'config://abc',
             'key' => 'abc',
         ]);
@@ -195,7 +198,7 @@ final class ExplicitElementLoaderTest extends TestCase
 
         $result = (new ReferenceHandler())->handle($reference, [
             '_session' => $session,
-            '_request' => new \stdClass(),
+            '_request' => new PingRequest(),
             'topic' => 'php',
         ]);
 

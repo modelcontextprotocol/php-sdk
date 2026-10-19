@@ -26,7 +26,7 @@ require_once __DIR__.'/../../vendor/autoload.php';
 use Mcp\Client;
 use Mcp\Client\Transport\HttpTransport;
 
-$endpoint = 'http://localhost:8000';
+$endpoint = getenv('MCP_SERVER_URL') ?: 'http://localhost:8000';
 
 $client = Client::builder()
     ->setClientInfo('HTTP Example Client', '1.0.0')
@@ -35,6 +35,8 @@ $client = Client::builder()
     ->build();
 
 $transport = new HttpTransport($endpoint);
+
+$status = 0;
 
 try {
     echo "Connecting to MCP server at {$endpoint}...\n";
@@ -68,8 +70,11 @@ try {
 } catch (Throwable $e) {
     echo "Error: {$e->getMessage()}\n";
     echo $e->getTraceAsString()."\n";
+    $status = 1;
 } finally {
     echo "Disconnecting...\n";
     $client->disconnect();
     echo "Done.\n";
 }
+
+exit($status);

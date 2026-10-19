@@ -1,0 +1,20 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "Long running operation completed. Duration: 1 seconds, Steps: 2."
+            }
+        ]
+    },
+    "progress": [
+        {
+            "progress": 1,
+            "total": 2
+        },
+        {
+            "progress": 2,
+            "total": 2
+        }
+    ]
+}

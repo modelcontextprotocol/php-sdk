@@ -148,7 +148,6 @@ final class NumberSchemaDefinitionTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('Invalid "title" for number schema definition.');
 
-        /* @phpstan-ignore argument.type */
         NumberSchemaDefinition::fromArray(['title' => 42]);
     }
 

@@ -11,6 +11,9 @@
 
 namespace Mcp\Server\Stateless;
 
+use Mcp\Event\ErrorEvent;
+use Mcp\Event\RequestEvent;
+use Mcp\Event\ResponseEvent;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\LogicException;
 use Mcp\Exception\MissingRequestMetaException;
@@ -27,16 +30,20 @@ use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Subscription\NotificationBusInterface;
+use Mcp\Server\Suspension\NotificationSuspension;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Server\Wire\InboundClassifier;
 use Mcp\Server\Wire\Rev2026Codec;
 use Mcp\Server\Wire\WireCodecInterface;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
@@ -106,6 +113,7 @@ final class StatelessProtocol
         ?CachePolicy $cachePolicy = null,
         private readonly ?NotificationBusInterface $notificationBus = null,
         private readonly array $extensionMethods = [],
+        private readonly ?EventDispatcherInterface $eventDispatcher = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -144,9 +152,32 @@ final class StatelessProtocol
     /**
      * Answers one JSON-RPC request read from an HTTP request body.
      *
-     * @param array<string, string> $headers request headers, case-insensitively matched
+     * @param array<string, string> $headers     request headers, case-insensitively matched
+     * @param AccessToken|null      $accessToken the token the request was authorized with, if the transport authorizes
      */
-    public function handle(string $body, array $headers = []): StatelessResult
+    public function handle(string $body, array $headers = [], ?AccessToken $accessToken = null): StatelessResult
+    {
+        return $this->answer($body, $headers, true, $accessToken);
+    }
+
+    /**
+     * Answers one JSON-RPC message read off a transport without a header layer.
+     *
+     * stdio carries the request metadata inline (see the stdio binding's
+     * "Request Metadata"), so there is no header to require or cross-check, and
+     * its one channel always carries a request's notifications. A long-lived
+     * stream is left for the caller to pace, since it interleaves it with
+     * everything else arriving on that channel.
+     */
+    public function handleInline(string $message): StatelessResult
+    {
+        return $this->answer($message, [], false);
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function answer(string $body, array $headers, bool $headerLayer, ?AccessToken $accessToken = null): StatelessResult
     {
         try {
             /** @var array<string, mixed>|null $decoded */
@@ -196,19 +227,26 @@ final class StatelessProtocol
             return StatelessResult::error(Error::forInvalidRequest('A JSON-RPC request id must be a string or a number.'), 400);
         }
 
+        // A pre-modern client opens with a bare initialize: name the served revisions, not the missing envelope.
+        if ('initialize' === $method && !isset($params['_meta'][RequestMeta::PROTOCOL_VERSION])) {
+            $offered = $params['protocolVersion'] ?? null;
+
+            return StatelessResult::error(Error::forUnsupportedProtocolVersion(\is_string($offered) ? $offered : '', $this->supportedVersions, $id), 400);
+        }
+
         try {
-            $meta = RequestMeta::fromParams($params);
+            $meta = RequestMeta::fromParams($params, $headers);
         } catch (MissingRequestMetaException $e) {
             return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
         }
 
-        if (null !== $versionError = $this->checkVersion($meta, $headers, $id)) {
+        if (null !== $versionError = $this->checkVersion($meta, $headers, $id, $headerLayer)) {
             return $versionError;
         }
 
         // After the version check: a peer on the wrong revision has a more
         // fundamental problem than headers that disagree with its body.
-        if (null !== $headerError = $this->headerValidator?->validate($method, $params, $headers)) {
+        if ($headerLayer && null !== $headerError = $this->headerValidator?->validate($method, $params, $headers)) {
             return StatelessResult::error(Error::forHeaderMismatch($headerError, $id), 400);
         }
 
@@ -217,7 +255,7 @@ final class StatelessProtocol
                 return $this->encode($method, $id, $this->discover());
             }
 
-            return $this->listen($params, $id);
+            return $this->listen($params, $id, paced: $headerLayer);
         }
 
         if (\in_array($method, self::REMOVED_METHODS, true)) {
@@ -227,7 +265,7 @@ final class StatelessProtocol
             );
         }
 
-        return $this->dispatch($method, $decoded, $meta, $id, self::acceptsEventStream($headers));
+        return $this->dispatch($method, $decoded, $meta, $id, !$headerLayer || self::acceptsEventStream($headers), $accessToken);
     }
 
     /**
@@ -260,14 +298,14 @@ final class StatelessProtocol
      *
      * @param array<string, string> $headers
      */
-    private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id): ?StatelessResult
+    private function checkVersion(RequestMeta $meta, array $headers, string|int|null $id, bool $headerLayer = true): ?StatelessResult
     {
         $headerVersion = $this->header($headers, 'MCP-Protocol-Version');
 
         // REQUIRED on every POST. The 2025-03-26 fallback for a header-less
         // request exists only for servers choosing to serve pre-2025-06-18
         // clients, which a modern-only endpoint is not.
-        if (null === $headerVersion && $this->requiresTransportHeaders()) {
+        if (null === $headerVersion && $headerLayer && $this->requiresTransportHeaders()) {
             return StatelessResult::error(
                 Error::forHeaderMismatch(
                     \sprintf('Missing required MCP-Protocol-Version header (_meta declares "%s").', $meta->protocolVersion),
@@ -300,8 +338,11 @@ final class StatelessProtocol
      * JSON-RPC id of this request, so there is none to mint.
      *
      * @param array<string, mixed>|null $params
+     * @param bool                      $paced  whether the stream sleeps between polls itself and ends after
+     *                                          the subscription lifetime, or its consumer paces it by how often
+     *                                          it asks for the next frame and ends it by dropping it
      */
-    private function listen(?array $params, string|int $id): StatelessResult
+    private function listen(?array $params, string|int $id, bool $paced = true): StatelessResult
     {
         $notifications = \is_array($params['notifications'] ?? null) ? $params['notifications'] : null;
         $agreed = NotificationFilter::fromParams($notifications)->intersect($this->configuration->capabilities);
@@ -310,7 +351,7 @@ final class StatelessProtocol
         $bus = $this->notificationBus;
         $codec = $this->codec;
 
-        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec): \Generator {
+        return StatelessResult::stream(static function () use ($agreed, $id, $lifetime, $bus, $codec, $paced): \Generator {
             // MUST be the first message carrying this subscription's id, and
             // MUST precede any notification on it.
             yield [
@@ -328,7 +369,8 @@ final class StatelessProtocol
 
             // The tick is not optional: PHP spots a dropped peer by writing,
             // and a sleeping loop would pin an FPM worker for the full lifetime.
-            $deadline = 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
+            // An unpaced stream is ended by its consumer, so it is not bounded.
+            $deadline = !$paced || 0.0 >= $lifetime ? \INF : microtime(true) + $lifetime;
 
             while (microtime(true) < $deadline) {
                 if (null !== $bus) {
@@ -344,6 +386,10 @@ final class StatelessProtocol
                 }
 
                 yield null;
+
+                if (!$paced) {
+                    continue;
+                }
 
                 if (connection_aborted()) {
                     return;
@@ -399,7 +445,7 @@ final class StatelessProtocol
     /**
      * @param array<string, mixed> $decoded
      */
-    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false): StatelessResult
+    private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false, ?AccessToken $accessToken = null): StatelessResult
     {
         try {
             $messages = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
@@ -441,12 +487,19 @@ final class StatelessProtocol
 
         $session = new Session(new InMemorySessionStore());
         $session->set(RequestMeta::class, $meta);
+        $session->set(AccessToken::class, $accessToken);
 
         // Under the same keys the handshake era writes, so everything reading
         // connection state — ClientGateway's capability probes above all — sees
         // this request's declaration instead of an empty session.
         $session->set('client_capabilities', $meta->clientCapabilities->jsonSerialize());
         $session->set('protocol_version', $meta->protocolVersion);
+
+        // The requested log level is what the handshake era's logging/setLevel
+        // would have stored, so ClientGateway::log() applies it instead of its default.
+        if (null !== $meta->logLevel) {
+            $session->set(Protocol::SESSION_LOGGING_LEVEL, $meta->logLevel->value);
+        }
 
         try {
             $input = $this->liftInputContext($decoded['params'] ?? null);
@@ -470,6 +523,8 @@ final class StatelessProtocol
         // the handshake era sets under the same key.
         $session->set(Protocol::SESSION_ACTIVE_REQUEST_META, $request->getMeta());
 
+        $request = $this->dispatchEvent(new RequestEvent($request, $session))->getRequest();
+
         foreach ($this->requestHandlers as $handler) {
             if (!$handler->supports($request)) {
                 continue;
@@ -485,11 +540,11 @@ final class StatelessProtocol
                 // with 400 rather than an error frame under a 200.
                 $run->rewind();
             } catch (\Throwable $e) {
-                return $this->toErrorResult($method, $id, $e);
+                return $this->toErrorResult($request, $session, $method, $id, $e);
             }
 
             if ($run->valid() && $wantsStream) {
-                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $meta, $method, $id, null === $input));
+                return StatelessResult::stream(fn (): \Generator => $this->streamFrames($run, $request, $session, $meta, $method, $id, null === $input));
             }
 
             try {
@@ -506,21 +561,68 @@ final class StatelessProtocol
 
                 $result = $run->getReturn();
             } catch (\Throwable $e) {
-                return $this->toErrorResult($method, $id, $e);
+                return $this->toErrorResult($request, $session, $method, $id, $e);
             }
 
             if ($result instanceof Error) {
-                return StatelessResult::error($result, 400);
+                return StatelessResult::error($this->dispatchError($result, $request, $session), 400);
             }
 
             if (null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
-                return $capabilityError;
+                return StatelessResult::error($this->dispatchError($capabilityError, $request, $session), 400);
             }
 
-            return $this->encode($method, $id, $result->result, null === $input);
+            return $this->encode($method, $id, $this->dispatchResponse($result, $request, $session)->result, null === $input);
         }
 
-        return StatelessResult::error($this->unknownMethod($method, $id), 404);
+        return StatelessResult::error($this->dispatchError($this->unknownMethod($method, $id), $request, $session), 404);
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param T $event
+     *
+     * @return T
+     */
+    private function dispatchEvent(object $event): object
+    {
+        if (null === $this->eventDispatcher) {
+            return $event;
+        }
+
+        $dispatched = $this->eventDispatcher->dispatch($event);
+
+        // PSR-14 dispatchers return the event they were given; a dispatcher that
+        // swaps it for something else is not what the caller asked to dispatch.
+        if (!$dispatched instanceof $event) {
+            $this->logger->debug('Event dispatcher returned a different object than it was given; keeping the original.', [
+                'event' => $event::class,
+                'returned' => $dispatched::class,
+            ]);
+
+            return $event;
+        }
+
+        return $dispatched;
+    }
+
+    /**
+     * @param Response<ResultInterface> $response
+     *
+     * @return Response<ResultInterface>
+     */
+    private function dispatchResponse(Response $response, Request $request, Session $session): Response
+    {
+        /** @var Response<ResultInterface> $response */
+        $response = $this->dispatchEvent(new ResponseEvent($response, $request, $session))->getResponse();
+
+        return $response;
+    }
+
+    private function dispatchError(Error $error, Request $request, Session $session, ?\Throwable $throwable = null): Error
+    {
+        return $this->dispatchEvent(new ErrorEvent($error, $request, $session, $throwable))->getError();
     }
 
     /**
@@ -530,7 +632,7 @@ final class StatelessProtocol
      * server genuinely does not implement it — but naming the extension turns
      * an opaque refusal into something the caller can act on.
      */
-    private function unknownMethod(string $method, string|int $id): Error
+    private function unknownMethod(string $method, string|int|null $id): Error
     {
         $extension = $this->extensionMethods[$method] ?? null;
 
@@ -618,22 +720,19 @@ final class StatelessProtocol
      */
     private function readNotification(mixed $suspended, RequestMeta $meta): ?Notification
     {
-        if (!\is_array($suspended) || 'notification' !== ($suspended['type'] ?? null)) {
-            if (\is_array($suspended) && 'request' === ($suspended['type'] ?? null)) {
+        if (!$suspended instanceof NotificationSuspension) {
+            if ($suspended instanceof RequestSuspension) {
                 // Elicitation never reaches here — it is answered in run(). What
-                // is left are the kinds this revision removed outright, and no
-                // multi round-trip shape brings them back.
-                throw new LogicException('This protocol revision has no server-initiated requests: sampling and roots were removed with it, so take what you need through tool arguments, resource URIs or server configuration instead. Elicitation is the one ask that survived, as a multi round-trip request.');
+                // is left, sampling and roots, cannot be sent from inside a request
+                // on this revision, but a handler still gets them answered by
+                // returning them as an InputRequiredResult.
+                throw new LogicException(\sprintf('This protocol revision has no server-initiated requests, so "%s" cannot be sent from inside a request. Return it from the handler as an InputRequiredResult instead, and read the answer from RequestContext::getInputContext() when the client retries.', $suspended->request::getMethod()));
             }
 
             return null;
         }
 
-        $notification = $suspended['notification'] ?? null;
-
-        if (!$notification instanceof Notification) {
-            return null;
-        }
+        $notification = $suspended->notification;
 
         // The client opts into logs per request; with no level named the server
         // MUST NOT send any, which is why an absent level drops rather than
@@ -656,19 +755,11 @@ final class StatelessProtocol
      */
     private static function readElicitation(mixed $suspended): ?array
     {
-        if (!\is_array($suspended) || 'request' !== ($suspended['type'] ?? null)) {
+        if (!$suspended instanceof RequestSuspension || !$suspended->request instanceof ElicitRequest) {
             return null;
         }
 
-        $request = $suspended['request'] ?? null;
-
-        if (!$request instanceof ElicitRequest) {
-            return null;
-        }
-
-        $key = $suspended['input_key'] ?? null;
-
-        return [\is_string($key) ? $key : null, $request];
+        return [$suspended->inputKey, $suspended->request];
     }
 
     /**
@@ -679,7 +770,7 @@ final class StatelessProtocol
      *
      * @return \Generator<mixed>
      */
-    private function streamFrames(\Generator $run, RequestMeta $meta, string $method, string|int $id, bool $cacheable): \Generator
+    private function streamFrames(\Generator $run, Request $request, Session $session, RequestMeta $meta, string $method, string|int $id, bool $cacheable): \Generator
     {
         try {
             while ($run->valid()) {
@@ -692,20 +783,24 @@ final class StatelessProtocol
         } catch (\Throwable $e) {
             // Headers left long ago, so the status is already 200 and the only
             // way left to report this is a frame.
-            yield $this->toErrorResult($method, $id, $e)->message?->jsonSerialize();
+            yield $this->toErrorResult($request, $session, $method, $id, $e)->message?->jsonSerialize();
 
             return;
         }
 
         if (!$result instanceof Error && null !== $capabilityError = $this->checkInputRequests($result->result, $meta, $method, $id)) {
-            yield $capabilityError->message?->jsonSerialize();
+            $result = $capabilityError;
+        }
+
+        if ($result instanceof Error) {
+            yield $this->dispatchError($result, $request, $session)->jsonSerialize();
 
             return;
         }
 
-        yield $result instanceof Error
-            ? $result->jsonSerialize()
-            : ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $result->result->jsonSerialize(), $cacheable)];
+        $response = $this->dispatchResponse($result, $request, $session);
+
+        yield ['jsonrpc' => '2.0', 'id' => $id, 'result' => $this->codec->encodeResult($method, (array) $response->result->jsonSerialize(), $cacheable)];
     }
 
     /**
@@ -716,7 +811,7 @@ final class StatelessProtocol
      * "processing this needs a capability you did not declare" — so it is
      * reported as that, and logged as the server-side bug it is.
      */
-    private function checkInputRequests(ResultInterface $result, RequestMeta $meta, string $method, string|int $id): ?StatelessResult
+    private function checkInputRequests(ResultInterface $result, RequestMeta $meta, string $method, string|int $id): ?Error
     {
         if (!$result instanceof InputRequiredResult) {
             return null;
@@ -733,13 +828,10 @@ final class StatelessProtocol
             'required' => $missing->jsonSerialize(),
         ]);
 
-        return StatelessResult::error(
-            Error::forMissingRequiredClientCapability(
-                'The server needs input this client did not declare it can provide.',
-                $missing,
-                $id,
-            ),
-            400,
+        return Error::forMissingRequiredClientCapability(
+            'The server needs input this client did not declare it can provide.',
+            $missing,
+            $id,
         );
     }
 
@@ -772,28 +864,28 @@ final class StatelessProtocol
      * The one place a handler's exception becomes an answer, so the streaming
      * and non-streaming paths cannot disagree about which code it earns.
      */
-    private function toErrorResult(string $method, string|int $id, \Throwable $e): StatelessResult
+    private function toErrorResult(Request $request, Session $session, string $method, string|int $id, \Throwable $e): StatelessResult
     {
         if ($e instanceof MissingRequiredClientCapabilityException) {
             return StatelessResult::error(
-                Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $id),
+                $this->dispatchError(Error::forMissingRequiredClientCapability($e->getMessage(), $e->requiredCapabilities, $id), $request, $session, $e),
                 400,
             );
         }
 
         if ($e instanceof \InvalidArgumentException) {
-            return StatelessResult::error(Error::forInvalidParams($e->getMessage(), $id), 400);
+            return StatelessResult::error($this->dispatchError(Error::forInvalidParams($e->getMessage(), $id), $request, $session, $e), 400);
         }
 
         if ($e instanceof LogicException) {
             // Guidance for the tool author, not a detail leaked from their
             // code or a dependency's — safe to echo back verbatim.
-            return StatelessResult::error(Error::forInternalError($e->getMessage(), $id), 500);
+            return StatelessResult::error($this->dispatchError(Error::forInternalError($e->getMessage(), $id), $request, $session, $e), 500);
         }
 
         $this->logger->error('Uncaught exception handling a modern-era request.', ['method' => $method, 'exception' => $e]);
 
-        return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
+        return StatelessResult::error($this->dispatchError(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), $request, $session, $e), 500);
     }
 
     /**

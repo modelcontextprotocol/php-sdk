@@ -15,6 +15,7 @@ use Mcp\Client;
 use Mcp\Client\Builder as ClientBuilder;
 use Mcp\Client\Transport\StdioTransport;
 use Mcp\Exception\ConnectionException;
+use Mcp\Schema\Enum\ProtocolVersion;
 use PHPUnit\Framework\TestCase;
 
 /**
@@ -46,6 +47,15 @@ abstract class IntegrationTestCase extends TestCase
     }
 
     /**
+     * @return iterable<string, array{ProtocolVersion}>
+     */
+    public static function provideEras(): iterable
+    {
+        yield 'the handshake era' => [ProtocolVersion::V2025_11_25];
+        yield 'the modern era' => [ProtocolVersion::V2026_07_28];
+    }
+
+    /**
      * Spawn a fixture server and connect a client to it.
      *
      * The returned client has completed the handshake.
@@ -60,8 +70,8 @@ abstract class IntegrationTestCase extends TestCase
         try {
             $this->client->connect($this->transport($fixture, $env));
         } catch (ConnectionException $e) {
-            // The transport discards the child's stderr, so a fixture dying on
-            // startup arrives here as a bare timeout.
+            // A fixture dying on startup arrives here with its exit code and the
+            // end of its stderr, usually enough to see why.
             $this->fail(\sprintf('Could not connect to fixture server "%s": %s. Run `%s %s` to see why.', $fixture, $e->getMessage(), \PHP_BINARY, self::script($fixture)));
         }
 

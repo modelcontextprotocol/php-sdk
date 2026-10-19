@@ -38,4 +38,22 @@ class Configuration
         public readonly ?ProtocolVersion $protocolVersion = null,
     ) {
     }
+
+    /**
+     * Versions this server is willing to negotiate over `initialize`.
+     *
+     * A configured version pins the handshake to exactly that revision. Modern
+     * revisions are never offered here: they have no `initialize` at all, so a
+     * client negotiating one could not use the connection.
+     *
+     * @return non-empty-list<ProtocolVersion>
+     */
+    public function handshakeVersions(): array
+    {
+        if (null !== $this->protocolVersion && !$this->protocolVersion->isModern()) {
+            return [$this->protocolVersion];
+        }
+
+        return ProtocolVersion::handshakeVersions();
+    }
 }

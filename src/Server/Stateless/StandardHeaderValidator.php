@@ -227,9 +227,11 @@ final class StandardHeaderValidator
     {
         $declared = $this->header($headers, $headerName);
 
-        // An omitted argument means an omitted header.
+        // An omitted argument means an omitted header - and the other way around.
         if (null === $argument) {
-            return null;
+            return null === $declared
+                ? null
+                : \sprintf('%s header is present, but the body omits the mirrored argument.', $headerName);
         }
 
         if (null === $declared) {

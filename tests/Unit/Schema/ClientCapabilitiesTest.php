@@ -21,7 +21,7 @@ class ClientCapabilitiesTest extends TestCase
     {
         $capabilities = new ClientCapabilities(roots: true);
 
-        $data = json_decode(json_encode($capabilities), true);
+        $data = json_decode(json_encode($capabilities, \JSON_THROW_ON_ERROR), true);
 
         $this->assertArrayHasKey('roots', $data);
         $this->assertSame([], $data['roots']);
@@ -31,7 +31,7 @@ class ClientCapabilitiesTest extends TestCase
     {
         $capabilities = new ClientCapabilities(roots: true, rootsListChanged: true);
 
-        $data = json_decode(json_encode($capabilities), true);
+        $data = json_decode(json_encode($capabilities, \JSON_THROW_ON_ERROR), true);
 
         $this->assertSame(['listChanged' => true], $data['roots']);
     }
@@ -63,7 +63,7 @@ class ClientCapabilitiesTest extends TestCase
     {
         $capabilities = new ClientCapabilities(roots: true, rootsListChanged: true);
 
-        $data = json_decode(json_encode($capabilities), true);
+        $data = json_decode(json_encode($capabilities, \JSON_THROW_ON_ERROR), true);
         $restored = ClientCapabilities::fromArray($data);
 
         $this->assertTrue($restored->roots);
@@ -75,10 +75,13 @@ class ClientCapabilitiesTest extends TestCase
         $capabilities = new ClientCapabilities(sampling: true, samplingContext: true, samplingTools: true);
 
         $serialized = $capabilities->jsonSerialize();
-        $this->assertObjectHasProperty('context', $serialized['sampling']);
-        $this->assertObjectHasProperty('tools', $serialized['sampling']);
+        $this->assertIsArray($serialized);
+        $sampling = $serialized['sampling'] ?? null;
+        $this->assertIsObject($sampling);
+        $this->assertObjectHasProperty('context', $sampling);
+        $this->assertObjectHasProperty('tools', $sampling);
 
-        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities), true));
+        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities, \JSON_THROW_ON_ERROR), true));
 
         $this->assertTrue($restored->sampling);
         $this->assertTrue($restored->samplingContext);
@@ -90,10 +93,13 @@ class ClientCapabilitiesTest extends TestCase
         $capabilities = new ClientCapabilities(sampling: true);
 
         $serialized = $capabilities->jsonSerialize();
-        $this->assertObjectNotHasProperty('context', $serialized['sampling']);
-        $this->assertObjectNotHasProperty('tools', $serialized['sampling']);
+        $this->assertIsArray($serialized);
+        $sampling = $serialized['sampling'] ?? null;
+        $this->assertIsObject($sampling);
+        $this->assertObjectNotHasProperty('context', $sampling);
+        $this->assertObjectNotHasProperty('tools', $sampling);
 
-        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities), true));
+        $restored = ClientCapabilities::fromArray(json_decode(json_encode($capabilities, \JSON_THROW_ON_ERROR), true));
 
         $this->assertTrue($restored->sampling);
         $this->assertFalse($restored->samplingContext);

@@ -21,19 +21,26 @@ use Mcp\Client\Stateless\InputRequestResolver;
 use Mcp\Client\Stateless\RequestEnvelope;
 use Mcp\Client\Stateless\ToolCatalog;
 use Mcp\Client\Transport\HeaderAwareTransportInterface;
+use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
-use Mcp\Exception\ConnectionException;
+use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\RequestCancelledException;
+use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\CancelledNotification;
 use Mcp\Schema\Notification\InitializedNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
+use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Stateless\RequestMeta;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
@@ -75,6 +82,11 @@ class Protocol
 
     private ToolCatalog $tools;
 
+    private ?LoggingLevel $logLevel = null;
+
+    /** @var (callable(float, ?float, ?string): void)|null */
+    private $onProgress;
+
     private readonly InputRequestResolver $inputRequests;
 
     /**
@@ -82,6 +94,9 @@ class Protocol
      * a retry keeps the caller's one — the work being reported on is the same.
      */
     private int $progressTokens = 0;
+
+    /** The token of the request in flight, the only one whose progress reaches the callback. */
+    private ?string $progressToken = null;
 
     /**
      * @param RequestHandlerInterface<mixed>[] $requestHandlers
@@ -98,7 +113,7 @@ class Protocol
         $this->logger = $logger ?? new NullLogger();
 
         $this->notificationHandlers = [
-            new ProgressNotificationHandler($this->state),
+            new ProgressNotificationHandler($this->deliverProgress(...)),
             ...$notificationHandlers,
         ];
 
@@ -134,14 +149,10 @@ class Protocol
         // or another — has said nothing yet.
         $this->tools = new ToolCatalog($this->logger);
 
-        if ($config->protocolVersion->isModern()) {
-            $this->envelope = new RequestEnvelope(
-                $config->protocolVersion,
-                $config->capabilities,
-                $config->clientInfo,
-            );
-            $this->headers = new HeaderFactory($this->tools);
-        }
+        $this->logLevel = null;
+
+        // A connect can fail before the transport initializes.
+        $this->forgetServer();
 
         $transport->setState($this->state);
         $transport->onInitialize(fn () => $this->initialize($config));
@@ -174,11 +185,7 @@ class Protocol
     }
 
     /**
-     * Ready the connection for use.
-     *
-     * Up to 2025-11-25 that means the `initialize` handshake: offer a revision,
-     * take the server's answer, confirm with `notifications/initialized`. From
-     * 2026-07-28 there is no handshake at all — see {@see self::discover()}.
+     * Ready the connection for use, settling which protocol era it speaks.
      *
      * @param Configuration $config The client configuration
      *
@@ -186,12 +193,214 @@ class Protocol
      */
     public function initialize(Configuration $config): Response|Error
     {
-        if (null !== $this->envelope) {
-            return $this->discover($config);
+        $this->envelope = null;
+        $this->headers = null;
+
+        $this->forgetServer();
+
+        if (!$config->protocolVersion->isModern()) {
+            return $this->handshake($config->protocolVersion, $config);
         }
 
-        $offered = $config->protocolVersion;
+        return $this->negotiate($config);
+    }
 
+    private function forgetServer(): void
+    {
+        $this->state->setInitialized(false);
+        $this->state->setProtocolVersion(null);
+        $this->state->setServerInfo(null);
+        $this->state->setInstructions(null);
+        $this->state->setServerCapabilities(null);
+    }
+
+    /**
+     * Probe for the modern era, falling back to the handshake unless the server proves to speak it.
+     *
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/stdio#backward-compatibility
+     * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/transports/streamable-http#backward-compatibility
+     *
+     * @return Response<array<string, mixed>>|Error
+     */
+    private function negotiate(Configuration $config, ?ProtocolVersion $version = null, bool $reprobed = false): Response|Error
+    {
+        $this->enterModernEra($version ?? $config->protocolVersion, $config);
+
+        $probe = $this->request(new DiscoverRequest(), $config->initTimeout);
+        $adopted = $this->adopt($probe);
+
+        if ($adopted instanceof Response || $adopted instanceof Error) {
+            return $adopted;
+        }
+
+        if (null === $config->fallbackProtocolVersion) {
+            return Error::forInvalidRequest(\sprintf(
+                'Server does not speak protocol version %s and this client is configured without a handshake fallback: %s',
+                $config->protocolVersion->value,
+                self::describe($probe),
+            ));
+        }
+
+        $this->logger->info('Server does not speak the modern era; falling back to the "initialize" handshake.', [
+            'probe' => self::describe($probe),
+            'offering' => $config->fallbackProtocolVersion->value,
+        ]);
+
+        $this->envelope = null;
+        $this->headers = null;
+
+        $handshake = $this->handshake($config->fallbackProtocolVersion, $config);
+
+        // Once more: a timed-out probe may still have settled a slow server on the modern era.
+        if ($handshake instanceof Error && !$reprobed && null !== $modern = self::mutualModern($handshake)) {
+            $this->logger->info('Server settled on the modern era after all; probing again.', ['version' => $modern->value]);
+
+            return $this->negotiate($config, $modern, true);
+        }
+
+        return $handshake;
+    }
+
+    private function enterModernEra(ProtocolVersion $version, Configuration $config): void
+    {
+        $this->envelope = new RequestEnvelope($version, $config->capabilities, $config->clientInfo, $this->logLevel);
+        $this->headers = new HeaderFactory($this->tools);
+    }
+
+    /**
+     * Set the callback for progress on the request in flight, null to clear it.
+     *
+     * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
+     */
+    public function setProgressCallback(?callable $onProgress): void
+    {
+        $this->onProgress = $onProgress;
+    }
+
+    private function deliverProgress(ProgressNotification $notification): void
+    {
+        if (null === $this->onProgress || $notification->progressToken !== $this->progressToken) {
+            $this->logger->debug('Dropping progress for a request not in flight', ['progressToken' => $notification->progressToken]);
+
+            return;
+        }
+
+        try {
+            ($this->onProgress)($notification->progress, $notification->total, $notification->message);
+        } catch (\Throwable $e) {
+            $this->logger->warning('Progress callback failed', ['exception' => $e]);
+        }
+    }
+
+    public function isModern(): bool
+    {
+        return null !== $this->envelope;
+    }
+
+    /**
+     * The modern era's stand-in for `logging/setLevel`.
+     */
+    public function setLogLevel(LoggingLevel $level): void
+    {
+        $this->logLevel = $level;
+        $this->envelope = $this->envelope?->withLogLevel($level);
+    }
+
+    /**
+     * The modern connection, an error ending the attempt, or null to fall back.
+     *
+     * @param Response<array<string, mixed>>|Error $probe
+     *
+     * @return Response<array<string, mixed>>|Error|null
+     */
+    private function adopt(Response|Error $probe): Response|Error|null
+    {
+        \assert(null !== $this->envelope);
+
+        if ($probe instanceof Error) {
+            if (\is_array($probe->data) && true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null)) {
+                return $probe;
+            }
+
+            if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $probe->code) {
+                return null;
+            }
+
+            // Modern revisions it names were already retried by request().
+            $supported = self::supportedVersions($probe);
+
+            foreach ($supported as $version) {
+                if (!$version->isModern()) {
+                    return null;
+                }
+            }
+
+            $named = self::namedVersions($probe);
+
+            return Error::forInvalidRequest(\sprintf('Server supports none of the protocol versions this client speaks (it advertises %s).', [] === $named ? 'none' : implode(', ', $named)), $probe->id);
+        }
+
+        $advertised = $probe->result['supportedVersions'] ?? null;
+
+        if (!\is_array($advertised)) {
+            return null;
+        }
+
+        $current = $this->envelope->protocolVersion();
+        $chosen = null;
+
+        foreach (ProtocolVersion::modernVersions() as $version) {
+            if (\in_array($version->value, $advertised, true) && (null === $chosen || $version->isAtLeast($chosen))) {
+                $chosen = $version;
+            }
+        }
+
+        if (\in_array($current->value, $advertised, true)) {
+            $chosen = $current;
+        }
+
+        if (null === $chosen) {
+            return null;
+        }
+
+        if ($chosen !== $current) {
+            $this->logger->warning('Server does not speak the configured revision; continuing on one it advertises.', [
+                'configured' => $current->value,
+                'using' => $chosen->value,
+            ]);
+
+            $this->envelope = $this->envelope->withProtocolVersion($chosen);
+        }
+
+        $this->readDiscovery($probe->result);
+
+        return $this->settleModern($probe);
+    }
+
+    /**
+     * @param Response<array<string, mixed>> $probe
+     *
+     * @return Response<array<string, mixed>>
+     */
+    private function settleModern(Response $probe): Response
+    {
+        \assert(null !== $this->envelope);
+
+        $this->state->setProtocolVersion($this->envelope->protocolVersion());
+        $this->state->setInitialized(true);
+
+        $this->logger->info('Connection settled on the modern era', [
+            'protocolVersion' => $this->envelope->protocolVersion()->value,
+        ]);
+
+        return $probe;
+    }
+
+    /**
+     * @return Response<array<string, mixed>>|Error
+     */
+    private function handshake(ProtocolVersion $offered, Configuration $config): Response|Error
+    {
         $request = new InitializeRequest(
             $offered->value,
             $config->capabilities,
@@ -199,6 +408,16 @@ class Protocol
         );
 
         $response = $this->request($request, $config->initTimeout);
+
+        if ($response instanceof Error && Error::UNSUPPORTED_PROTOCOL_VERSION === $response->code) {
+            $named = self::namedVersions($response);
+
+            return new Error($response->id, $response->code, \sprintf(
+                'Server does not speak protocol version %s; it supports %s.',
+                $offered->value,
+                [] === $named ? 'none it named' : implode(', ', $named),
+            ), $response->data);
+        }
 
         if ($response instanceof Response) {
             $initResult = InitializeResult::fromArray($response->result);
@@ -224,6 +443,7 @@ class Protocol
             $this->state->setProtocolVersion($negotiated);
             $this->state->setServerInfo($initResult->serverInfo);
             $this->state->setInstructions($initResult->instructions);
+            $this->state->setServerCapabilities($initResult->capabilities);
             $this->state->setInitialized(true);
 
             $this->sendNotification(new InitializedNotification());
@@ -238,41 +458,7 @@ class Protocol
     }
 
     /**
-     * Stand in for the handshake in the modern era.
-     *
-     * There is nothing to negotiate: the revision travels on every request, so
-     * the connection is usable the moment the transport is. `server/discover`
-     * is only asked because the facade exposes `getServerInfo()`, and a server
-     * that will not answer it still serves every other method — so a failure
-     * here is logged and the connection proceeds.
-     *
-     * @return Response<array<string, mixed>>
-     */
-    private function discover(Configuration $config): Response
-    {
-        $this->state->setProtocolVersion($config->protocolVersion);
-        $this->state->setInitialized(true);
-
-        $response = $this->request(new DiscoverRequest(), $config->initTimeout);
-
-        if ($response instanceof Error) {
-            $this->logger->info('Server did not answer "server/discover"; continuing without its metadata.', [
-                'code' => $response->code,
-                'message' => $response->message,
-            ]);
-
-            return new Response(0, []);
-        }
-
-        $this->readDiscovery($response->result);
-
-        return $response;
-    }
-
-    /**
-     * Read defensively: `server/discover` is optional, so a server may answer
-     * with something that is not a DiscoverResult at all, and none of it is
-     * load-bearing for the requests that follow.
+     * Read defensively: nothing beyond the revisions is load-bearing.
      *
      * @param array<string, mixed> $result
      */
@@ -296,55 +482,57 @@ class Protocol
             $this->state->setInstructions($result['instructions']);
         }
 
-        $this->reconcileVersion($result['supportedVersions'] ?? null);
-
-        $this->logger->info('Discovery complete', [
-            'supportedVersions' => $result['supportedVersions'] ?? null,
-        ]);
+        if (\is_array($result['capabilities'] ?? null)) {
+            $this->state->setServerCapabilities(ServerCapabilities::fromArray($result['capabilities']));
+        }
     }
 
     /**
-     * Move to a revision the server actually speaks, if it said which.
-     *
-     * `server/discover` reports rather than negotiates, so a client that asked
-     * for something the server does not list learns it here — and learning it
-     * now is far better than a stream of refusals later. A server that stays
-     * silent about its versions is left alone; the method is optional and
-     * saying nothing is not the same as saying no.
+     * The newest modern revision a refusal names that this client speaks.
      */
-    private function reconcileVersion(mixed $supportedVersions): void
+    private static function mutualModern(Error $error): ?ProtocolVersion
     {
-        if (!\is_array($supportedVersions) || [] === $supportedVersions || null === $this->envelope) {
-            return;
+        if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $error->code) {
+            return null;
         }
 
-        $current = $this->envelope->protocolVersion();
+        $mutual = null;
 
-        if (\in_array($current->value, $supportedVersions, true)) {
-            return;
-        }
-
-        foreach ($supportedVersions as $candidate) {
-            $version = \is_string($candidate) ? ProtocolVersion::tryFrom($candidate) : null;
-
-            if (null === $version || !$version->isModern()) {
-                continue;
+        foreach (self::supportedVersions($error) as $version) {
+            if ($version->isModern() && (null === $mutual || $version->isAtLeast($mutual))) {
+                $mutual = $version;
             }
-
-            $this->logger->warning('Server does not speak the configured revision; continuing on one it advertises.', [
-                'configured' => $current->value,
-                'using' => $version->value,
-            ]);
-
-            $this->envelope = $this->envelope->withProtocolVersion($version);
-            $this->state->setProtocolVersion($version);
-
-            return;
         }
 
-        // Everything it offers is handshake era, which this connection cannot
-        // reach — it has already skipped the handshake.
-        throw new ConnectionException(\sprintf('Server does not support any modern protocol revision (it advertises %s); the configured "%s" cannot be used against it.', implode(', ', array_map(strval(...), $supportedVersions)), $current->value));
+        return $mutual;
+    }
+
+    /**
+     * @return list<ProtocolVersion>
+     */
+    private static function supportedVersions(Error $error): array
+    {
+        return array_values(array_filter(array_map(ProtocolVersion::tryFrom(...), self::namedVersions($error))));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function namedVersions(Error $error): array
+    {
+        $supported = \is_array($error->data) && \is_array($error->data['supported'] ?? null) ? $error->data['supported'] : [];
+
+        return array_values(array_filter($supported, is_string(...)));
+    }
+
+    /**
+     * @param Response<array<string, mixed>>|Error $probe
+     */
+    private static function describe(Response|Error $probe): string
+    {
+        return $probe instanceof Error
+            ? \sprintf('"server/discover" was answered with error %d (%s)', $probe->code, $probe->message)
+            : '"server/discover" was answered without a modern revision';
     }
 
     /**
@@ -364,67 +552,74 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    public function request(Request $request, int $timeout, bool $withProgress = false): Response|Error
+    public function request(Request $request, int $timeout, bool $withProgress = false, ?CancellationTokenInterface $cancellation = null, ?float $callTimeout = null): Response|Error
     {
+        $deadline = null !== $callTimeout ? microtime(true) + $callTimeout : null;
         $payload = $request->withId(0)->jsonSerialize();
         unset($payload['id']);
 
-        if ($withProgress) {
-            $payload = self::withMeta($payload, ['progressToken' => 'prog-'.++$this->progressTokens]);
+        $this->progressToken = $withProgress ? 'prog-'.++$this->progressTokens : null;
+
+        if (null !== $this->progressToken) {
+            $payload = self::withMeta($payload, ['progressToken' => $this->progressToken]);
         }
 
-        if (null === $this->envelope) {
-            return $this->exchange($payload, $timeout);
-        }
+        try {
+            if (null === $this->envelope) {
+                return $this->exchange($payload, $timeout, $cancellation, $deadline);
+            }
 
-        for ($attempt = 0; $attempt < self::MAX_ROUND_TRIPS; ++$attempt) {
-            $response = $this->exchange($payload, $timeout);
+            for ($attempt = 0; $attempt < self::MAX_ROUND_TRIPS; ++$attempt) {
+                $response = $this->exchange($payload, $timeout, $cancellation, $deadline);
 
-            if ($response instanceof Error) {
-                $retry = $this->withAcceptedVersion($response);
+                if ($response instanceof Error) {
+                    $retry = $this->withAcceptedVersion($response);
 
-                if (null === $retry) {
+                    if (null === $retry) {
+                        return $response;
+                    }
+
+                    continue;
+                }
+
+                $asked = InputRequestResolver::asked($response->result);
+
+                if (null === $asked) {
                     return $response;
                 }
 
-                continue;
+                // A fresh `inputResponses`/`requestState` pair every round, never
+                // merged with the last: the answers belong to the ask that just
+                // arrived, and carrying an old one forward is how state leaks
+                // between rounds.
+                //
+                // Cast to object: inputResponses is a JSON object keyed by the
+                // server's ids, but a PHP array with no entries or with sequential
+                // numeric-string keys encodes as a JSON array instead.
+                $payload['params'] = [
+                    ...($payload['params'] ?? []),
+                    'inputResponses' => (object) $this->inputRequests->resolve($asked),
+                ];
+
+                unset($payload['params']['requestState']);
+
+                // Echoed byte-for-byte, and only when the server sent one: the
+                // value is the server's to read, and inventing or reshaping it
+                // would break whatever it encodes.
+                if (\is_string($response->result['requestState'] ?? null)) {
+                    $payload['params']['requestState'] = $response->result['requestState'];
+                }
+
+                $this->logger->debug('Retrying request with resolved input', [
+                    'method' => $payload['method'] ?? null,
+                    'round' => $attempt + 1,
+                ]);
             }
 
-            $asked = InputRequestResolver::asked($response->result);
-
-            if (null === $asked) {
-                return $response;
-            }
-
-            // A fresh `inputResponses`/`requestState` pair every round, never
-            // merged with the last: the answers belong to the ask that just
-            // arrived, and carrying an old one forward is how state leaks
-            // between rounds.
-            //
-            // Cast to object: inputResponses is a JSON object keyed by the
-            // server's ids, but a PHP array with no entries or with sequential
-            // numeric-string keys encodes as a JSON array instead.
-            $payload['params'] = [
-                ...($payload['params'] ?? []),
-                'inputResponses' => (object) $this->inputRequests->resolve($asked),
-            ];
-
-            unset($payload['params']['requestState']);
-
-            // Echoed byte-for-byte, and only when the server sent one: the
-            // value is the server's to read, and inventing or reshaping it
-            // would break whatever it encodes.
-            if (\is_string($response->result['requestState'] ?? null)) {
-                $payload['params']['requestState'] = $response->result['requestState'];
-            }
-
-            $this->logger->debug('Retrying request with resolved input', [
-                'method' => $payload['method'] ?? null,
-                'round' => $attempt + 1,
-            ]);
+            return Error::forInternalError(\sprintf('Server asked for input more than %d times without completing the request.', self::MAX_ROUND_TRIPS));
+        } finally {
+            $this->progressToken = null;
         }
-
-        return Error::forInternalError(\sprintf('Server asked for input more than %d times without completing the request.', self::MAX_ROUND_TRIPS));
     }
 
     /**
@@ -477,8 +672,12 @@ class Protocol
      *
      * @return Response<array<string, mixed>>|Error
      */
-    private function exchange(array $payload, int $timeout): Response|Error
+    private function exchange(array $payload, int $timeout, ?CancellationTokenInterface $cancellation = null, ?float $deadline = null): Response|Error
     {
+        if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+            throw $interruption;
+        }
+
         $requestId = $this->state->nextRequestId();
         $payload['id'] = $requestId;
 
@@ -486,6 +685,12 @@ class Protocol
 
         try {
             $this->send($payload, 'request');
+
+            // send() can block and leave a JSON answer already buffered: drop it
+            // and report the interruption instead of a success nobody awaits.
+            if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+                throw $interruption;
+            }
 
             $immediate = $this->state->consumeResponse($requestId);
             if (null !== $immediate) {
@@ -496,15 +701,66 @@ class Protocol
 
             $this->logger->debug('Suspending fiber for response', ['id' => $requestId]);
 
-            return \Fiber::suspend([
+            $response = \Fiber::suspend([
                 'type' => 'await_response',
                 'request_id' => $requestId,
                 'timeout' => $timeout,
+                'cancellation' => $cancellation,
+                'deadline' => $deadline,
             ]);
+
+            // A transport may resume with a buffered reply before checking interruption.
+            if (null !== ($interruption = self::interruption($cancellation, $deadline))) {
+                throw $interruption;
+            }
+
+            return $response;
+        } catch (RequestCancelledException|TimeoutException $e) {
+            $this->state->consumeResponse($requestId);
+            $this->notifyCancellation($requestId, $e->getMessage());
+
+            throw $e;
         } finally {
             // Only the response path clears it, so a request that timed out or
             // whose send() threw would stay pending and fail every later one.
             $this->state->removePendingRequest($requestId);
+        }
+    }
+
+    /**
+     * The interruption an in-flight request is subject to, if any. Checked on
+     * both sides of a send and after the transport resumes a suspended request.
+     *
+     * @phpstan-impure
+     */
+    private static function interruption(?CancellationTokenInterface $cancellation, ?float $deadline): RequestCancelledException|TimeoutException|null
+    {
+        if ($cancellation?->isCancellationRequested()) {
+            return new RequestCancelledException('The client cancelled the request.');
+        }
+
+        if (null !== $deadline && microtime(true) >= $deadline) {
+            return new TimeoutException('The request deadline expired.');
+        }
+
+        return null;
+    }
+
+    /**
+     * Tell the server an abandoned request's result will go unused. Only stdio and
+     * handshake-era HTTP need it: a modern connection signals by closing the
+     * response stream. Best effort — a send failure is logged, not raised.
+     */
+    private function notifyCancellation(int $requestId, string $reason): void
+    {
+        if ($this->transport instanceof HttpTransport && true === $this->state->getProtocolVersion()?->isModern()) {
+            return;
+        }
+
+        try {
+            $this->sendNotification(new CancelledNotification($requestId, $reason));
+        } catch (\Throwable $notificationError) {
+            $this->logger->warning('Could not send request cancellation notification.', ['request_id' => $requestId, 'exception' => $notificationError]);
         }
     }
 
@@ -521,6 +777,8 @@ class Protocol
      * envelope on the way out when the revision calls for one.
      *
      * @param array<string, mixed> $payload
+     *
+     * @throws InvalidArgumentException if the payload cannot be encoded as JSON, e.g. invalid UTF-8
      */
     private function send(array $payload, string $kind): void
     {
@@ -533,7 +791,13 @@ class Protocol
             'method' => $payload['method'] ?? null,
         ]);
 
-        $this->transport?->send(json_encode($payload, \JSON_THROW_ON_ERROR));
+        try {
+            $encoded = json_encode($payload, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new InvalidArgumentException(\sprintf('Could not encode the "%s" %s as JSON: %s', $payload['method'] ?? 'unknown', $kind, $e->getMessage()), previous: $e);
+        }
+
+        $this->transport?->send($encoded);
     }
 
     /**
@@ -562,7 +826,15 @@ class Protocol
     {
         $this->logger->debug('Sending response', ['id' => $response->getId()]);
 
-        $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        try {
+            $encoded = json_encode($response, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            // The server still awaits an answer, so it gets an error instead.
+            $this->logger->warning('Could not encode the response', ['id' => $response->getId(), 'exception' => $e]);
+
+            $encoded = json_encode(Error::forInternalError('Could not encode the response', $response->getId()), \JSON_THROW_ON_ERROR);
+        }
+
         $this->transport?->send($encoded);
     }
 
@@ -607,6 +879,12 @@ class Protocol
 
         if (null === $requestId) {
             $this->logger->warning('Received an id-less error response; cannot correlate it to a request.', ['response' => $response->jsonSerialize()]);
+
+            return;
+        }
+
+        if (!\array_key_exists($requestId, $this->state->getPendingRequests())) {
+            $this->logger->debug('Ignoring response for a request that is no longer pending.', ['id' => $requestId]);
 
             return;
         }

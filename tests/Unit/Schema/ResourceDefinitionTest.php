@@ -102,7 +102,7 @@ class ResourceDefinitionTest extends TestCase
         );
 
         $data = $resource->jsonSerialize();
-        $this->assertSame('Book Listing', $data['title']);
+        $this->assertSame('Book Listing', $data['title'] ?? null);
     }
 
     public function testTitleOmittedWhenNull(): void

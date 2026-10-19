@@ -287,23 +287,29 @@ class ServerCapabilitiesTest extends TestCase
         $json = $capabilities->jsonSerialize();
 
         $this->assertArrayHasKey('logging', $json);
-        $this->assertEquals(new \stdClass(), $json['logging']);
+        $this->assertEquals(new \stdClass(), $json['logging'] ?? null);
 
         $this->assertArrayHasKey('completions', $json);
-        $this->assertEquals(new \stdClass(), $json['completions']);
+        $this->assertEquals(new \stdClass(), $json['completions'] ?? null);
 
         $this->assertArrayHasKey('prompts', $json);
-        $this->assertTrue($json['prompts']->listChanged);
+        $prompts = $json['prompts'] ?? null;
+        $this->assertNotNull($prompts);
+        $this->assertTrue($prompts->listChanged);
 
         $this->assertArrayHasKey('resources', $json);
-        $this->assertTrue($json['resources']->subscribe);
-        $this->assertTrue($json['resources']->listChanged);
+        $resources = $json['resources'] ?? null;
+        $this->assertNotNull($resources);
+        $this->assertTrue($resources->subscribe);
+        $this->assertTrue($resources->listChanged);
 
         $this->assertArrayHasKey('tools', $json);
-        $this->assertTrue($json['tools']->listChanged);
+        $tools = $json['tools'] ?? null;
+        $this->assertNotNull($tools);
+        $this->assertTrue($tools->listChanged);
 
         $this->assertArrayHasKey('experimental', $json);
-        $this->assertEquals((object) $experimental, $json['experimental']);
+        $this->assertEquals((object) $experimental, $json['experimental'] ?? null);
     }
 
     public function testJsonSerializeWithFalseValues(): void
@@ -402,5 +408,49 @@ class ServerCapabilitiesTest extends TestCase
         $this->assertNull($capabilities->resourcesListChanged);
         $this->assertTrue($capabilities->tools);
         $this->assertNull($capabilities->toolsListChanged);
+    }
+
+    public function testTasksRoundTripAsNestedObjects(): void
+    {
+        $json = '{"tasks":{"list":{},"cancel":{},"requests":{"tools":{"call":{}}}}}';
+
+        $capabilities = ServerCapabilities::fromArray(json_decode($json, true));
+
+        $this->assertSame(['list' => [], 'cancel' => [], 'requests' => ['tools' => ['call' => []]]], $capabilities->tasks);
+        $this->assertSame(
+            '{"tasks":{"list":{},"cancel":{},"requests":{"tools":{"call":{}}}}}',
+            json_encode(new ServerCapabilities(tools: false, resources: false, prompts: false, tasks: $capabilities->tasks)),
+        );
+    }
+
+    public function testWithExtensionsKeepsTasks(): void
+    {
+        $capabilities = (new ServerCapabilities(tasks: ['list' => []]))->withExtensions(['io.example/ext' => []]);
+
+        $this->assertSame(['list' => []], $capabilities->tasks);
+    }
+
+    public function testWithoutListChangedKeepsKindsAnnouncedOnlyThroughListChanged(): void
+    {
+        $capabilities = (new ServerCapabilities(
+            tools: false,
+            toolsListChanged: true,
+            resources: false,
+            resourcesListChanged: true,
+            prompts: false,
+            promptsListChanged: true,
+        ))->withoutListChanged();
+
+        $this->assertTrue($capabilities->tools);
+        $this->assertFalse($capabilities->toolsListChanged);
+        $this->assertTrue($capabilities->resources);
+        $this->assertFalse($capabilities->resourcesListChanged);
+        $this->assertTrue($capabilities->prompts);
+        $this->assertFalse($capabilities->promptsListChanged);
+        $this->assertEquals([
+            'prompts' => new \stdClass(),
+            'resources' => new \stdClass(),
+            'tools' => new \stdClass(),
+        ], $capabilities->jsonSerialize());
     }
 }

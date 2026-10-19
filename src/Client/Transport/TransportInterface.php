@@ -23,13 +23,18 @@ use Mcp\Schema\JsonRpc\Response;
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (Response<mixed>|Error)
- * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int}
+ * @phpstan-type FiberSuspend array{type: 'await_response', request_id: int, timeout: int, cancellation?: \Mcp\Client\CancellationTokenInterface|null, deadline?: float|null}
  * @phpstan-type McpFiber \Fiber<null, FiberResume, FiberReturn, FiberSuspend>
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
 interface TransportInterface
 {
+    /**
+     * Error data key marking an error the transport filed because the connection is gone.
+     */
+    public const CONNECTION_LOST = 'connectionLost';
+
     /**
      * Connect to the MCP server and perform initialization handshake.
      *
@@ -54,12 +59,9 @@ interface TransportInterface
      * The transport starts the fiber, runs its internal loop, and resumes
      * the fiber when a response arrives or timeout occurs.
      *
-     * During the loop, the transport checks session for progress data and
-     * executes the callback if provided.
-     *
      * @param McpFiber                                                                $fiber      The fiber to execute
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
-     *                                                                                            Optional callback for progress updates
+     *                                                                                            Unused: the protocol delivers progress as it is parsed
      *
      * @return Response<array<string, mixed>>|Error The response or error
      */

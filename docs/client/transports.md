@@ -18,12 +18,16 @@ $transport = new StdioTransport(
 ```
 
 **Parameters:**
+
 - `command` (string): The command to execute
 - `args` (array): Command arguments
 - `cwd` (string|null): Working directory for the process
 - `env` (array|null): Environment variables
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
 - `maxBufferSize` (int): Maximum buffered bytes per message before the transport gives up
+
+If the server process exits while a request waits for its answer, the request fails at once with a
+`RequestException`.
 
 ## HTTP Transport
 
@@ -39,17 +43,37 @@ $transport = new HttpTransport(
 ```
 
 **Parameters:**
+
 - `endpoint` (string): The MCP server URL
 - `headers` (array): Additional HTTP headers
 - `httpClient` (ClientInterface|null): PSR-18 HTTP client (auto-discovered)
 - `requestFactory` (RequestFactoryInterface|null): PSR-17 request factory (auto-discovered)
 - `streamFactory` (StreamFactoryInterface|null): PSR-17 stream factory (auto-discovered)
 - `logger` (LoggerInterface|null): Optional PSR-3 logger
-- `maxSseBufferBytes` (int): Maximum buffered bytes for a streamed SSE response
+- `maxSseBufferBytes` (int): Maximum bytes buffered for one incomplete SSE event (default: 8 MiB)
+- `listen` (bool): Open the server's listening stream after the handshake (see below)
+- `reconnectPolicy` (ReconnectPolicy|null): How an interrupted SSE stream is resumed (default: 5 attempts, 1–10 s backoff)
+- `clock` (ClockInterface|null): PSR-20 clock used to schedule reconnects (default: a monotonic clock)
+
+When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
+
+To change the attempts or the fallback delays, pass a `ReconnectPolicy`:
+
+```php
+use Mcp\Client\Transport\ReconnectPolicy;
+
+$transport = new HttpTransport(
+    endpoint: 'https://example.com/mcp',
+    reconnectPolicy: new ReconnectPolicy(maxAttempts: 3, initialDelayMs: 500, maxDelayMs: 5000),
+);
+```
+
+`maxAttempts: 0` disables resumption: an interrupted stream then fails the request at once instead of waiting for its timeout.
 
 **PSR-18 Auto-Discovery:**
 
 The transport automatically discovers PSR-18 HTTP clients from:
+
 - `php-http/guzzle7-adapter`
 - `php-http/curl-client`
 - `symfony/http-client`
@@ -59,3 +83,86 @@ The transport automatically discovers PSR-18 HTTP clients from:
 # Install any PSR-18 client - discovery works automatically
 composer require php-http/guzzle7-adapter
 ```
+
+**Error status codes:**
+
+If the server answers with an HTTP error status, the request fails at once with a `RequestException`.
+
+**Session ID:**
+
+On revision `2025-11-25` and earlier, the server may return an `Mcp-Session-Id` header.
+`getSessionId()` returns it, for example to log it. It returns `null` on `2026-07-28` and after
+`close()`:
+
+```php
+$sessionId = $transport->getSessionId();
+```
+
+You can't continue a session with a new transport. Every `connect()` starts a new session, and
+`disconnect()` ends it.
+
+**Listening for server messages:**
+
+Most of what a server sends belongs to one of the client's requests and arrives on that request's
+response. Up to the 2025 revisions, a server may also send requests and notifications that belong to
+none of them, like asking for the client's roots, on a standalone GET stream. Pass `listen: true` to
+open it:
+
+```php
+$transport = new HttpTransport('http://localhost:8000', listen: true);
+```
+
+- The stream is read while one of the client's requests is in flight. A message that arrives while
+  the client is idle waits for its next request.
+- It needs a PSR-18 client that returns before the response body has ended and whose body can be read
+  without blocking, such as `symfony/http-client`. A client that buffers the whole body never
+  returns from a stream the server keeps open.
+- A server without a listening stream answers `405`, and the connection carries on without one.
+- On `2026-07-28`, which has no standalone stream, the option does nothing.
+
+## Cancellation and deadlines
+
+`callTool()` accepts optional `cancellation: ?CancellationTokenInterface` and
+`timeoutSeconds: ?float` arguments. The token's `isCancellationRequested()`
+method must return without blocking. The timeout must be finite and positive
+and replaces the default request timeout for this call.
+An observed cancellation throws `RequestCancelledException`. When the per-call
+or default request timeout runs out, the client throws `TimeoutException`, a
+`RequestException`, and sends `notifications/cancelled` for the request.
+
+Interruption is checked before a request goes out and again once the send
+returns. The second check is what covers a synchronous `application/json`
+answer: the reply is buffered while `send()` is still on the stack, and a call
+the caller has given up on must not come back as successful. Its buffered reply
+is dropped with the pending request, and the connection stays available for
+later calls.
+
+STDIO checks for interruption while polling the server and sends
+`notifications/cancelled` for an interrupted pending request. Late responses
+are ignored.
+
+HTTP cancellation is cooperative, and what it signals depends on the revision:
+
+- up to `2025-11-25` a disconnect is not a cancellation, so the client sends
+  `notifications/cancelled` for the abandoned request. That notification is
+  another request on the same connection and can therefore block; it is best
+  effort, and a failure to send it is logged rather than reported in place of
+  the interruption.
+- from `2026-07-28` closing the request's response stream is the signal, so no
+  separate notification goes out.
+
+Either way the transport closes the active response body on interruption and
+clears the pending request without closing the MCP session. Closing a response
+does not guarantee that server-side work stops, and physical socket cleanup
+depends on the HTTP client.
+
+PSR-18 requests and PSR-7 body reads can block. Cancellation and deadlines
+cannot interrupt those operations, including waiting for headers, reading a
+JSON body, or waiting for the next SSE chunk. They take effect only after
+control returns to the transport. A per-call deadline is therefore not a hard
+HTTP wall-clock limit. Configure network timeouts on the underlying HTTP client
+to bound blocking I/O.
+
+This keeps HTTP transport compatible with PSR-18 clients and uses the existing
+SSE parser. It requires no framework-specific asynchronous client, at the cost
+of delayed cancellation during blocking I/O.

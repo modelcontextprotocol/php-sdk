@@ -1,0 +1,38 @@
+Connecting to MCP server...
+Connected to: Client Communication Demo
+
+Available tools:
+  - run_dataset_quality_checks
+  - inspect_workspace_roots
+  - coordinate_incident_response
+
+Calling 'run_dataset_quality_checks'...
+
+[LOG info] Running quality checks on dataset "customer_orders_2024"
+[PROGRESS 33%] Validating schema
+[PROGRESS 67%] Scanning for anomalies
+[PROGRESS 100%] Reviewing statistical summary
+[LOG info] Dataset "customer_orders_2024" passed automated checks.
+
+Result:
+{
+    "dataset": "customer_orders_2024",
+    "status": "passed",
+    "notes": "No significant integrity issues detected during automated checks."
+}
+
+Calling 'coordinate_incident_response'...
+
+[LOG warning] Incident triage started: Database connection pool exhausted
+[PROGRESS 33%] Collecting telemetry
+[PROGRESS 67%] Assessing scope
+[PROGRESS 100%] Coordinating responders
+[SAMPLING] Server requested LLM sampling (max 350 tokens)
+[LOG info] Incident triage completed for Database connection pool exhausted
+
+Result:
+{
+    "incident": "Database connection pool exhausted",
+    "recommended_actions": "Based on the incident analysis, I recommend: 1) Activate the on-call team, 2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.",
+    "model": "mock-gpt-4"
+}

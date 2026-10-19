@@ -11,12 +11,27 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Exception\ClientException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\ProgressNotification;
+use Mcp\Schema\Request\PingRequest;
+use Mcp\Server;
+use Mcp\Server\RequestContext;
+use Mcp\Server\Session\FileSessionLock;
+use Mcp\Server\Session\Session;
+use Mcp\Server\Session\SessionLockInterface;
+use Mcp\Server\Suspension\RequestSuspension;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
+use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\Middleware\ProtocolVersionMiddleware;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Server\Transport\TransportInterface;
+use Mcp\Tests\Unit\Server\Session\Fixture\HeldElsewhereSessionLock;
+use Mcp\Tests\Unit\Server\Session\Fixture\InterleavingSessionStore;
 use Nyholm\Psr7\Factory\Psr17Factory;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Message\ResponseFactoryInterface;
@@ -25,14 +40,30 @@ use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 final class StreamableHttpTransportTest extends TestCase
 {
     private Psr17Factory $factory;
 
+    private ?string $lockDirectory = null;
+
     protected function setUp(): void
     {
         $this->factory = new Psr17Factory();
+    }
+
+    protected function tearDown(): void
+    {
+        if (null === $this->lockDirectory || !is_dir($this->lockDirectory)) {
+            return;
+        }
+
+        foreach (glob($this->lockDirectory.'/*') ?: [] as $file) {
+            @unlink($file);
+        }
+
+        @rmdir($this->lockDirectory);
     }
 
     #[TestDox('default middleware is applied when none is passed')]
@@ -118,6 +149,31 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
     }
 
+    #[TestDox('pass-through middleware disables defaults without a warning log')]
+    public function testPassthroughMiddlewareDisablesDefaultsWithoutWarning(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'evil.example.com')
+            ->withHeader('Origin', 'http://evil.example.com');
+
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->never())->method('warning');
+
+        $transport = new StreamableHttpTransport(
+            $request,
+            $this->factory,
+            $this->factory,
+            $logger,
+            [new PassthroughMiddleware()],
+        );
+
+        $response = $transport->listen();
+
+        $this->assertNotSame(403, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('Access-Control-Allow-Origin'));
+    }
+
     #[TestDox('explicit empty middleware list disables defaults and emits a warning log')]
     public function testEmptyMiddlewareListDisablesDefaultsAndWarns(): void
     {
@@ -200,7 +256,7 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame(401, $response->getStatusCode());
         // CORS middleware is outermost — Expose-Headers is emitted on all responses, including 401.
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
     }
 
     #[TestDox('defaults can be filtered to drop DNS rebinding for proxy deployments')]
@@ -232,7 +288,32 @@ final class StreamableHttpTransportTest extends TestCase
         // Auth short-circuits with 401 — proves DNS rebinding didn't reject the request first.
         $this->assertSame(401, $response->getStatusCode());
         // CORS middleware is still in the chain — Expose-Headers attached to the 401.
-        $this->assertSame('Mcp-Session-Id', $response->getHeaderLine('Access-Control-Expose-Headers'));
+        $this->assertSame('Mcp-Session-Id, WWW-Authenticate', $response->getHeaderLine('Access-Control-Expose-Headers'));
+    }
+
+    #[TestDox('defaults can swap DNS rebinding for wildcard hosts and keep validating Origin behind a proxy')]
+    public function testDefaultsCanSwapDnsRebindingForWildcardHosts(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'https://api.myapp.com/')
+            ->withHeader('Origin', 'https://myapp.com');
+        $middleware = [
+            ...array_map(
+                static fn (MiddlewareInterface $m): MiddlewareInterface => $m instanceof DnsRebindingProtectionMiddleware
+                    ? new DnsRebindingProtectionMiddleware(allowedHosts: ['*'], allowedOrigins: ['https://myapp.com'])
+                    : $m,
+                StreamableHttpTransport::defaultMiddleware(),
+            ),
+            $this->stubAuth401(),
+        ];
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, null, $middleware);
+        $this->assertSame(401, $transport->listen()->getStatusCode());
+
+        $transport = new StreamableHttpTransport($request->withHeader('Origin', 'https://evil.example'), $this->factory, $this->factory, null, $middleware);
+        $response = $transport->listen();
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Origin header.', (string) $response->getBody());
     }
 
     #[TestDox('configured CorsMiddleware reflects matching Origin')]
@@ -250,13 +331,30 @@ final class StreamableHttpTransportTest extends TestCase
             null,
             [
                 new CorsMiddleware(allowedOrigins: ['https://myapp.example.com']),
-                new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost']),
+                new DnsRebindingProtectionMiddleware(allowedHosts: ['localhost'], allowedOrigins: ['https://myapp.example.com']),
                 new ProtocolVersionMiddleware(),
             ],
         );
 
         $response = $transport->listen();
 
+        $this->assertSame('https://myapp.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
+    }
+
+    #[TestDox('an allowed Origin does not bypass Host validation')]
+    public function testAllowedOriginDoesNotBypassHostValidation(): void
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://evil.example/')
+            ->withHeader('Origin', 'https://myapp.example.com');
+        $transport = new StreamableHttpTransport($request, middleware: [
+            new CorsMiddleware(allowedOrigins: ['https://myapp.example.com']),
+            new DnsRebindingProtectionMiddleware(allowedOrigins: ['https://myapp.example.com']),
+        ]);
+
+        $response = $transport->listen();
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('Forbidden: Invalid Host header.', (string) $response->getBody());
         $this->assertSame('https://myapp.example.com', $response->getHeaderLine('Access-Control-Allow-Origin'));
     }
 
@@ -345,6 +443,432 @@ final class StreamableHttpTransportTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         new StreamableHttpTransport($request, $this->factory, $this->factory, null, [], maxBodyBytes: 0);
+    }
+
+    #[TestDox('an immediate response is consumed once and not replayed on a later POST')]
+    public function testImmediateResponseIsNotReplayedOnSecondPost(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $calls = 0;
+        $transport->onMessage(static function (TransportInterface $transport, string $payload) use (&$calls): void {
+            if (1 === ++$calls) {
+                $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}', ['status_code' => 200]);
+            }
+        });
+
+        $first = $transport->listen();
+
+        $this->assertSame(200, $first->getStatusCode());
+        $this->assertSame('{"jsonrpc":"2.0","id":1,"result":{}}', (string) $first->getBody());
+
+        $second = $transport->listen();
+
+        $this->assertSame(2, $calls);
+        $this->assertSame(202, $second->getStatusCode());
+        $this->assertSame('', (string) $second->getBody());
+    }
+
+    #[TestDox('the polling loop resumes the fiber with the timeout error the response finder reports')]
+    public function testPollingLoopResumesFiberWithTimeoutErrorFromResponseFinder(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory);
+
+        $received = null;
+        $fiber = new \Fiber(static function () use (&$received) {
+            $received = \Fiber::suspend();
+
+            return null;
+        });
+        $fiber->start();
+
+        $transport->onMessage(static function (TransportInterface $transport) use ($fiber): void {
+            $transport->attachFiberToSession($fiber, Uuid::v4());
+        });
+        $transport->setOutgoingMessagesProvider(static fn (): array => []);
+        $transport->setResponseFinder(static fn (Uuid $requestId): Error => Error::forInternalError('Request timed out', $requestId->toRfc4122()));
+        $transport->setPendingRequestsProvider(static fn (): array => [
+            '00000000-0000-4000-8000-000000000001' => ['request_id' => '00000000-0000-4000-8000-000000000001', 'timestamp' => 1_000_000, 'timeout' => 120],
+        ]);
+
+        $response = $transport->listen();
+
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+
+        $this->expectOutputString('');
+        $response->getBody()->getContents();
+
+        $this->assertTrue($fiber->isTerminated());
+        $this->assertInstanceOf(Error::class, $received);
+    }
+
+    #[TestDox('the polling loop stops once the client has disconnected')]
+    public function testPollingLoopStopsOnceTheClientHasDisconnected(): void
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"ping"}'));
+
+        $transport = new class($request, $this->factory, $this->factory) extends StreamableHttpTransport {
+            protected function isConnectionAborted(): bool
+            {
+                return true;
+            }
+        };
+
+        $received = null;
+        $fiber = new \Fiber(static function () use (&$received) {
+            $received = \Fiber::suspend();
+
+            return null;
+        });
+        $fiber->start();
+
+        $transport->onMessage(static function (TransportInterface $transport) use ($fiber): void {
+            $transport->attachFiberToSession($fiber, Uuid::v4());
+        });
+        $transport->setOutgoingMessagesProvider(static fn (): array => []);
+        $transport->setResponseFinder(static fn () => null);
+        $transport->setPendingRequestsProvider(static fn (): array => [
+            '00000000-0000-4000-8000-000000000001' => ['request_id' => '00000000-0000-4000-8000-000000000001', 'timestamp' => time(), 'timeout' => 120],
+        ]);
+
+        $response = $transport->listen();
+
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertSame(": keep-alive\n\n", $output);
+        $this->assertTrue($fiber->isSuspended(), 'The abandoned call must not be resumed.');
+        $this->assertNull($received);
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function provideInterleavings(): iterable
+    {
+        yield 'B runs between A saving its session and A answering' => [false];
+        yield 'B loaded the session before A saved it (lost update)' => [true];
+    }
+
+    #[TestDox('concurrent POSTs of one session each get their own response: $_dataName')]
+    #[DataProvider('provideInterleavings')]
+    public function testConcurrentPostsOfOneSessionEachGetTheirOwnResponse(bool $readBeforeWrite): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $responseB = null;
+        $store->interleaveOnNextWrite(function () use ($store, $sessionId, &$responseB): void {
+            $responseB = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"text":"b"}}}', $sessionId);
+        }, $readBeforeWrite);
+
+        $responseA = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', $sessionId);
+
+        $this->assertInstanceOf(ResponseInterface::class, $responseB);
+        foreach ([2 => $responseA, 3 => $responseB] as $id => $response) {
+            $this->assertSame(200, $response->getStatusCode(), \sprintf('Request %d was answered %d.', $id, $response->getStatusCode()));
+            $this->assertSame($sessionId, $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER));
+            $this->assertSame($id, json_decode((string) $response->getBody(), true)['id'] ?? null, \sprintf('Request %d got: %s', $id, $response->getBody()));
+        }
+    }
+
+    #[TestDox('a batch streamed over SSE still carries the responses that did not suspend')]
+    public function testStreamedBatchCarriesItsOtherResponses(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $response = $this->post($store, '[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"progress","arguments":{},"_meta":{"progressToken":"p"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', $sessionId);
+
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+
+        // The stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertMatchesRegularExpression('/"id":3,"result".*"progressToken":"p".*"id":2,"result"/s', $output);
+    }
+
+    /**
+     * @return iterable<string, array{string, list<int>}>
+     */
+    public static function provideRequestsMeetingQueuedNotifications(): iterable
+    {
+        yield 'single request' => ['{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', [2]];
+        yield 'batch' => ['[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', [2, 3]];
+    }
+
+    /**
+     * @param list<int> $ids
+     */
+    #[DataProvider('provideRequestsMeetingQueuedNotifications')]
+    #[TestDox('a request meeting queued notifications is answered as SSE with them first, then its responses')]
+    public function testQueuedNotificationsGoOutOnAStreamBeforeTheResponses(string $body, array $ids): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        // A notification another request of the session queued, e.g. a resource update.
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $session->set('_mcp.outgoing_queue', [[
+            'message' => '{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"uri":"file:///a"}}',
+            'context' => ['type' => 'notification'],
+        ]]);
+        $session->save();
+
+        $response = $this->post($store, $body, $sessionId);
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
+        $this->assertSame($sessionId, $response->getHeaderLine(StreamableHttpTransport::SESSION_HEADER));
+
+        preg_match_all('/^data: (.+)$/m', (string) $response->getBody(), $matches);
+        $messages = array_map(static fn (string $data): array => json_decode($data, true), $matches[1]);
+        $this->assertSame(
+            ['notifications/resources/updated', ...$ids],
+            array_map(static fn (array $message): string|int => $message['method'] ?? $message['id'], $messages),
+        );
+
+        $this->assertSame([], (new Session($store, Uuid::fromString($sessionId)))->get('_mcp.outgoing_queue'));
+    }
+
+    #[TestDox('a request answered as JSON carries its response alone, a single object')]
+    public function testJsonAnswerIsTheResponseAlone(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $response = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"ping"}', $sessionId);
+
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertSame(['jsonrpc' => '2.0', 'id' => 2, 'result' => []], json_decode((string) $response->getBody(), true));
+    }
+
+    #[TestDox('with a session lock, a POST arriving while another of the session runs is held off instead of overwriting it')]
+    public function testSessionLockHoldsOffAConcurrentPostOfTheSameSession(): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $this->fileLock())
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        // B loads the session before A saved it, the lost update: on its own worker, with its own lock instance.
+        $responseB = null;
+        $store->interleaveOnNextWrite(function () use ($store, $sessionId, &$responseB): void {
+            $responseB = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"echo","arguments":{"text":"b"}}}', $sessionId, $this->fileLock());
+        }, readBeforeWrite: true);
+
+        $responseA = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', $sessionId, $this->fileLock());
+
+        $this->assertSame(200, $responseA->getStatusCode());
+        $this->assertSame(2, json_decode((string) $responseA->getBody(), true)['id'] ?? null);
+
+        $this->assertInstanceOf(ResponseInterface::class, $responseB);
+        $this->assertSame(503, $responseB->getStatusCode());
+        $error = json_decode((string) $responseB->getBody(), true);
+        $this->assertSame(3, $error['id'] ?? null);
+        $this->assertSame(Error::SERVER_ERROR, $error['error']['code'] ?? null);
+    }
+
+    #[TestDox('the session lock is released while a handler waits for the client, so the next request of the session proceeds')]
+    public function testSessionLockIsReleasedWhileAHandlerWaitsForTheClient(): void
+    {
+        $store = new InterleavingSessionStore();
+        $lock = $this->fileLock();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $lock)
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $first = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask","arguments":{}}}', $sessionId, $lock);
+        $second = $this->post($store, '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"ask","arguments":{}}}', $sessionId, $lock);
+
+        $this->assertSame('text/event-stream', $first->getHeaderLine('Content-Type'));
+        $this->assertSame('text/event-stream', $second->getHeaderLine('Content-Type'));
+
+        // Both requests to the client were stored, each under its own id.
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $this->assertCount(2, $session->get('_mcp.pending_requests'));
+    }
+
+    #[TestDox('a message a resumed handler cannot store fails in the handler instead of resuming it with nothing')]
+    public function testMessageThatCannotBeStoredFailsInTheHandler(): void
+    {
+        $store = new InterleavingSessionStore();
+        $lock = new HeldElsewhereSessionLock($this->fileLock());
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}', lock: $lock)
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $stream = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"ask-then-notify","arguments":{}}}', $sessionId, $lock);
+        $this->assertSame('text/event-stream', $stream->getHeaderLine('Content-Type'));
+
+        // The client answers the first request on a POST of its own, then another worker holds the
+        // session past the timeout, so what the resumed handler sends next cannot be stored.
+        $pendingRequestIds = array_keys((new Session($store, Uuid::fromString($sessionId)))->get('_mcp.pending_requests'));
+        $answer = $this->post($store, \sprintf('{"jsonrpc":"2.0","id":%s,"result":{}}', json_encode($pendingRequestIds[0])), $sessionId, $this->fileLock());
+        $this->assertLessThan(300, $answer->getStatusCode());
+        $lock->heldElsewhere = true;
+
+        $output = $this->readStream($stream);
+
+        $this->assertMatchesRegularExpression('/"id":2,"result".*first: ok, second: Failed to send the message to the client\., notify: Failed to send the message to the client\./s', $output);
+        $this->assertStringNotContainsString('"error"', $output);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function providePostsWithoutRequest(): iterable
+    {
+        yield 'client response' => ['{"jsonrpc":"2.0","id":"7","result":{}}'];
+        yield 'notification' => ['{"jsonrpc":"2.0","method":"notifications/roots/list_changed"}'];
+    }
+
+    #[DataProvider('providePostsWithoutRequest')]
+    #[TestDox('a POST without a request is accepted with 202 and no body, and leaves the queued messages in place')]
+    public function testPostWithoutRequestDoesNotDrainTheOutgoingQueue(string $body): void
+    {
+        $store = new InterleavingSessionStore();
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+            ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $queued = [[
+            'message' => '{"jsonrpc":"2.0","method":"notifications/resources/updated","params":{"uri":"file:///a"}}',
+            'context' => ['type' => 'notification'],
+        ]];
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $session->set('_mcp.outgoing_queue', $queued);
+        $session->save();
+
+        $response = $this->post($store, $body, $sessionId);
+
+        $this->assertSame(202, $response->getStatusCode());
+        $this->assertSame('', (string) $response->getBody());
+
+        $session = new Session($store, Uuid::fromString($sessionId));
+        $this->assertSame($queued, $session->get('_mcp.outgoing_queue'));
+    }
+
+    /**
+     * Sends one POST to a fresh server sharing $store, like a PHP worker would.
+     */
+    private function post(InterleavingSessionStore $store, string $body, string $sessionId = '', ?SessionLockInterface $lock = null): ResponseInterface
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream($body));
+
+        if ('' !== $sessionId) {
+            $request = $request
+                ->withHeader(StreamableHttpTransport::SESSION_HEADER, $sessionId)
+                ->withHeader(StreamableHttpTransport::PROTOCOL_VERSION_HEADER, '2025-06-18');
+        }
+
+        $builder = Server::builder()
+            ->setServerInfo('test', '1.0')
+            ->setSession($store)
+            ->addTool(static fn (string $text): string => $text, 'echo')
+            ->addTool(static function (RequestContext $context): string {
+                $context->getClientGateway()->progress(0.5);
+
+                return 'done';
+            }, 'progress')
+            ->addTool(static function (RequestContext $context): string {
+                // Suspends on a request to the client, as elicitation and sampling do.
+                \Fiber::suspend(new RequestSuspension(new PingRequest(), $context->getSession()->getId()->toRfc4122(), 5));
+
+                return 'done';
+            }, 'ask')
+            ->addTool(static function (RequestContext $context): string {
+                $gateway = $context->getClientGateway();
+                $first = $gateway->request(new PingRequest(), 5);
+                $second = $gateway->request(new PingRequest(), 5);
+
+                try {
+                    $gateway->notify(new ProgressNotification('p', 0.5));
+                    $notified = 'ok';
+                } catch (ClientException $e) {
+                    $notified = $e->getMessage();
+                }
+
+                return \sprintf(
+                    'first: %s, second: %s, notify: %s',
+                    $first instanceof Error ? $first->message : 'ok',
+                    $second instanceof Error ? $second->message : 'ok',
+                    $notified,
+                );
+            }, 'ask-then-notify');
+
+        if (null !== $lock) {
+            $builder->setSessionLock($lock);
+        }
+
+        return $builder->build()->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+    }
+
+    /**
+     * Reads an SSE response; the stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
+     */
+    private function readStream(ResponseInterface $response): string
+    {
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $response->getBody()->getContents();
+        } finally {
+            ob_end_flush();
+        }
+
+        return $output;
+    }
+
+    /**
+     * A lock instance of its own, as each worker has, over one shared directory.
+     */
+    private function fileLock(): FileSessionLock
+    {
+        $this->lockDirectory ??= sys_get_temp_dir().'/mcp-session-lock-'.bin2hex(random_bytes(6));
+
+        return new FileSessionLock($this->lockDirectory, timeout: 0.05);
     }
 
     private function stubAuth401(): MiddlewareInterface

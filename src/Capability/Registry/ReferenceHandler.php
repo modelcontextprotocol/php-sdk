@@ -13,8 +13,6 @@ namespace Mcp\Capability\Registry;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RegistryException;
-use Mcp\Server\ClientGateway;
-use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
 use Psr\Container\ContainerInterface;
 
@@ -50,7 +48,11 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 $instance = $this->getClassInstance($reference->handler);
                 $arguments = $this->prepareArguments($reflection, $arguments);
 
-                return \call_user_func($instance, ...$arguments);
+                if (!\is_callable($instance)) {
+                    throw new InvalidArgumentException(\sprintf('Handler "%s" is not invokable.', $reference->handler));
+                }
+
+                return $instance(...$arguments);
             }
 
             if (\function_exists($reference->handler)) {
@@ -69,12 +71,17 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         }
 
         if (\is_array($reference->handler)) {
-            [$className, $methodName] = $reference->handler;
-            $reflection = new \ReflectionMethod($className, $methodName);
-            $instance = $this->getClassInstance($className);
+            [$classOrObject, $methodName] = $reference->handler;
+            $reflection = new \ReflectionMethod($classOrObject, $methodName);
+            $instance = \is_object($classOrObject) ? $classOrObject : $this->getClassInstance($classOrObject);
             $arguments = $this->prepareArguments($reflection, $arguments);
 
-            return \call_user_func([$instance, $methodName], ...$arguments);
+            $callable = [$instance, $methodName];
+            if (!\is_callable($callable)) {
+                throw new InvalidArgumentException(\sprintf('Handler "%s::%s" is not callable.', $instance::class, $methodName));
+            }
+
+            return $callable(...$arguments);
         }
 
         throw new InvalidArgumentException('Invalid handler type');
@@ -99,22 +106,38 @@ final class ReferenceHandler implements ReferenceHandlerInterface
         $finalArgs = [];
 
         foreach ($reflection->getParameters() as $parameter) {
-            // TODO: Handle variadic parameters.
             $paramName = $parameter->getName();
             $paramPosition = $parameter->getPosition();
+
+            if ($parameter->isVariadic()) {
+                // Each element is cast individually below; a non-array value is
+                // wrapped as a single element, since prompt arguments arrive as
+                // plain strings (Record<string,string> per the protocol) even
+                // though tool arguments follow the advertised "array" schema.
+                $values = $arguments[$paramName] ?? [];
+                if (!\is_array($values)) {
+                    $values = [$values];
+                } elseif (!array_is_list($values)) {
+                    throw RegistryException::invalidParams(\sprintf('Parameter `%s` must be a list of values, not an object.', $paramName));
+                }
+                foreach ($values as $index => $value) {
+                    try {
+                        $finalArgs[] = $this->castArgumentType($value, $parameter);
+                    } catch (InvalidArgumentException $e) {
+                        throw RegistryException::invalidParams(\sprintf('Parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    } catch (\Throwable $e) {
+                        throw RegistryException::internalError(\sprintf('Error processing parameter `%s[%d]`: %s', $paramName, $index, $e->getMessage()), $e);
+                    }
+                }
+                continue;
+            }
 
             // Check if parameter is a special injectable type
             $type = $parameter->getType();
             if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
-                $typeName = $type->getName();
-
-                if (RequestContext::class === $typeName && isset($arguments['_session'], $arguments['_request'])) {
-                    $finalArgs[$paramPosition] = new RequestContext($arguments['_session'], $arguments['_request']);
-                    continue;
-                }
-
-                if (ClientGateway::class === $typeName && isset($arguments['_session'])) {
-                    $finalArgs[$paramPosition] = new ClientGateway($arguments['_session']);
+                $injected = InjectableParameters::resolve($type->getName(), $arguments);
+                if (null !== $injected) {
+                    $finalArgs[$paramPosition] = $injected;
                     continue;
                 }
             }

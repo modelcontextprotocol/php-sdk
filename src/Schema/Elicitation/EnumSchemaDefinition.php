@@ -64,7 +64,7 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
      *     description?: string,
      *     default?: string,
      *     enumNames?: string[],
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -81,6 +81,11 @@ final class EnumSchemaDefinition extends AbstractSchemaDefinition
             default: $data['default'] ?? null,
             enumNames: $data['enumNames'] ?? null,
         );
+    }
+
+    public function getDefault(): ?string
+    {
+        return $this->default;
     }
 
     /**

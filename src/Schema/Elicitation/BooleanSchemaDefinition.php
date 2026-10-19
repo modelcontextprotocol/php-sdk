@@ -36,7 +36,7 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
      *     title?: string,
      *     description?: string,
      *     default?: bool,
-     * } $data
+     * }|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -47,6 +47,11 @@ final class BooleanSchemaDefinition extends AbstractSchemaDefinition
             description: $data['description'] ?? null,
             default: isset($data['default']) ? (bool) $data['default'] : null,
         );
+    }
+
+    public function getDefault(): ?bool
+    {
+        return $this->default;
     }
 
     /**

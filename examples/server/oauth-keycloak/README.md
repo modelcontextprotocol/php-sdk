@@ -4,9 +4,10 @@ This example demonstrates MCP server authorization using Keycloak as the OAuth 2
 
 ## Features
 
-- JWT token validation with automatic JWKS discovery
-- Protected Resource Metadata (RFC 9728) at `/.well-known/oauth-protected-resource`
-- MCP tools protected by OAuth authentication
+- JWT token validation against Keycloak's key set, with the audience bound to the MCP server's resource URI
+- Protected Resource Metadata (RFC 9728) at `/.well-known/oauth-protected-resource/mcp`
+- Scope enforcement: every request needs `mcp:read`, the `call_protected_api` tool needs `mcp:write`
+- Tools read the caller's identity via `RequestContext::getAccessToken()`
 - Pre-configured Keycloak realm with test user
 
 ## Quick Start
@@ -43,7 +44,7 @@ echo $TOKEN
 
 ```bash
 # Get Protected Resource Metadata
-curl http://localhost:8000/.well-known/oauth-protected-resource
+curl http://localhost:8000/.well-known/oauth-protected-resource/mcp
 
 # Call MCP endpoint without token (should get 401)
 curl -i http://localhost:8000/mcp
@@ -68,6 +69,7 @@ The realm is pre-configured with:
 | Realm | `mcp` |
 | Client (public) | `mcp-client` |
 | Client (resource) | `mcp-server` |
+| Token audience | `http://localhost:8000/mcp` |
 | Test User | `demo` / `demo123` |
 | Scopes | `mcp:read`, `mcp:write` |
 
@@ -105,10 +107,13 @@ Access at http://localhost:8180/admin with:
 ## Configuration
 
 This example uses hard-coded values in `server.php` for consistency with other examples:
-- Keycloak external URL: `http://localhost:8180`
-- Keycloak internal URL: `http://keycloak:8180`
-- Realm: `mcp`
-- Audience: `mcp-server`
+- Issuer: `http://localhost:8180/realms/mcp` (what tokens fetched through the published port carry)
+- JWKS URI: `http://keycloak:8180/realms/mcp/protocol/openid-connect/certs` (reachable inside the Docker network)
+- Resource and audience: `http://localhost:8000/mcp`
+
+Because the JWKS URI is plain http on a non-loopback host, `server.php` builds the
+`CachedKeySet` itself instead of using `JwtTokenValidator::fromIssuer()`, which requires https.
+Do not do that in production.
 
 ## Troubleshooting
 
@@ -116,7 +121,7 @@ This example uses hard-coded values in `server.php` for consistency with other e
 
 1. Ensure Keycloak is fully started (check health endpoint)
 2. Verify the token hasn't expired (default: 5 minutes)
-3. Check that the audience claim matches `mcp-server`
+3. Check that the audience claim contains `http://localhost:8000/mcp`
 
 ### Connection refused
 

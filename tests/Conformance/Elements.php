@@ -200,7 +200,7 @@ final class Elements
                 'id' => $id,
                 'templateTest' => true,
                 'data' => \sprintf('Data for ID: %s', $id),
-            ]),
+            ], \JSON_THROW_ON_ERROR),
         );
     }
 

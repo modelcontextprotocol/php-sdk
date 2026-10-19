@@ -43,7 +43,7 @@ class TextResourceContents extends ResourceContents
     }
 
     /**
-     * @param TextResourceContentsData $data
+     * @param TextResourceContentsData|array<mixed> $data
      */
     public static function fromArray(array $data): self
     {

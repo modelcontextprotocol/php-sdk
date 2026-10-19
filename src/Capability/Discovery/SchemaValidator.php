@@ -11,7 +11,6 @@
 
 namespace Mcp\Capability\Discovery;
 
-use Mcp\Exception\InvalidArgumentException;
 use Opis\JsonSchema\Errors\ValidationError;
 use Opis\JsonSchema\Validator;
 use Psr\Log\LoggerInterface;
@@ -30,9 +29,13 @@ use Psr\Log\NullLogger;
  */
 class SchemaValidator
 {
-    private ?Validator $jsonSchemaValidator = null;
+    /**
+     * @var array<string, mixed>
+     */
+    private array $decodedSchemas = [];
 
     public function __construct(
+        private ?Validator $jsonSchemaValidator = null,
         private LoggerInterface $logger = new NullLogger(),
     ) {
     }
@@ -47,22 +50,11 @@ class SchemaValidator
      */
     public function validateAgainstJsonSchema(mixed $data, array|object $schema): array
     {
-        if (\is_array($data) && empty($data)) {
-            $data = new \stdClass();
-        }
-
         try {
             // --- Schema Preparation ---
-            if (\is_array($schema)) {
-                $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
-                $schemaObject = json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
-            } elseif (\is_object($schema)) {
-                // This might be overly cautious but safer against varied inputs.
-                $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
-                $schemaObject = json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
-            } else {
-                throw new InvalidArgumentException('Schema must be an array or object.');
-            }
+            // Opis caches every schema object it sees for good, so the same schema has to map to the same object.
+            $schemaJson = json_encode($schema, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+            $schemaObject = $this->decodedSchemas[$schemaJson] ??= json_decode($schemaJson, false, 512, \JSON_THROW_ON_ERROR);
 
             // --- Data Preparation ---
             // Opis Validator generally prefers objects for object validation
@@ -71,10 +63,6 @@ class SchemaValidator
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation (JSON conversion failed).', ['exception' => $e]);
 
             return [['pointer' => '', 'keyword' => 'internal', 'message' => 'Invalid schema definition provided (JSON error).']];
-        } catch (InvalidArgumentException $e) {
-            $this->logger->error('MCP SDK: Invalid schema structure provided for validation.', ['exception' => $e]);
-
-            return [['pointer' => '', 'keyword' => 'internal', 'message' => $e->getMessage()]];
         } catch (\Throwable $e) {
             $this->logger->error('MCP SDK: Error preparing data/schema for validation.', ['exception' => $e]);
 
@@ -108,7 +96,7 @@ class SchemaValidator
 
         if (empty($formattedErrors) && $topError) { // Fallback
             $formattedErrors[] = [
-                'pointer' => $this->formatJsonPointerPath($topError->data()->path()),
+                'pointer' => $this->formatJsonPointerPath($topError->data()->fullPath()),
                 'keyword' => $topError->keyword(),
                 'message' => $this->formatValidationError($topError),
             ];
@@ -137,7 +125,7 @@ class SchemaValidator
     {
         if (\is_array($data)) {
             // Check if it's an associative array (keys are not sequential numbers 0..N-1)
-            if (!empty($data) && array_keys($data) !== range(0, \count($data) - 1)) {
+            if (!array_is_list($data)) {
                 $obj = new \stdClass();
                 foreach ($data as $key => $value) {
                     $obj->{$key} = $this->convertDataForValidator($value);
@@ -165,14 +153,14 @@ class SchemaValidator
     /**
      * Recursively collects leaf validation errors.
      *
-     * @param Error[] $collectedErrors
+     * @param list<Error> $collectedErrors
      */
     private function collectSubErrors(ValidationError $error, array &$collectedErrors): void
     {
         $subErrors = $error->subErrors();
         if (empty($subErrors)) {
             $collectedErrors[] = [
-                'pointer' => $this->formatJsonPointerPath($error->data()->path()),
+                'pointer' => $this->formatJsonPointerPath($error->data()->fullPath()),
                 'keyword' => $error->keyword(),
                 'message' => $this->formatValidationError($error),
             ];
@@ -211,7 +199,7 @@ class SchemaValidator
         $args = $error->args();
         $message = "Constraint `{$keyword}` failed.";
 
-        switch (strtolower($keyword)) {
+        switch ($keyword) {
             case 'required':
                 $missing = $args['missing'] ?? [];
                 $formattedMissing = implode(', ', array_map(static fn ($p) => "`{$p}`", $missing));
@@ -255,11 +243,11 @@ class SchemaValidator
                 $expected = json_encode($args['expected'] ?? 'null', \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
                 $message = "Value must be equal to the constant value: {$expected}.";
                 break;
-            case 'minLength': // Corrected casing
+            case 'minLength':
                 $min = $args['min'] ?? '?';
                 $message = "String must be at least {$min} characters long.";
                 break;
-            case 'maxLength': // Corrected casing
+            case 'maxLength':
                 $max = $args['max'] ?? '?';
                 $message = "String must not be longer than {$max} characters.";
                 break;
@@ -275,38 +263,38 @@ class SchemaValidator
                 $max = $args['max'] ?? '?';
                 $message = "Number must be less than or equal to {$max}.";
                 break;
-            case 'exclusiveMinimum': // Corrected casing
+            case 'exclusiveMinimum':
                 $min = $args['min'] ?? '?';
                 $message = "Number must be strictly greater than {$min}.";
                 break;
-            case 'exclusiveMaximum': // Corrected casing
+            case 'exclusiveMaximum':
                 $max = $args['max'] ?? '?';
                 $message = "Number must be strictly less than {$max}.";
                 break;
-            case 'multipleOf': // Corrected casing
-                $value = $args['value'] ?? '?';
-                $message = "Number must be a multiple of {$value}.";
+            case 'multipleOf':
+                $divisor = $args['divisor'] ?? '?';
+                $message = "Number must be a multiple of {$divisor}.";
                 break;
-            case 'minItems': // Corrected casing
+            case 'minItems':
                 $min = $args['min'] ?? '?';
                 $message = "Array must contain at least {$min} items.";
                 break;
-            case 'maxItems': // Corrected casing
+            case 'maxItems':
                 $max = $args['max'] ?? '?';
                 $message = "Array must contain no more than {$max} items.";
                 break;
-            case 'uniqueItems': // Corrected casing
+            case 'uniqueItems':
                 $message = 'Array items must be unique.';
                 break;
-            case 'minProperties': // Corrected casing
+            case 'minProperties':
                 $min = $args['min'] ?? '?';
                 $message = "Object must have at least {$min} properties.";
                 break;
-            case 'maxProperties': // Corrected casing
+            case 'maxProperties':
                 $max = $args['max'] ?? '?';
                 $message = "Object must have no more than {$max} properties.";
                 break;
-            case 'additionalProperties': // Corrected casing
+            case 'additionalProperties':
                 $unexpected = $args['properties'] ?? [];
                 $formattedUnexpected = implode(', ', array_map(static fn ($p) => "`{$p}`", $unexpected));
                 $message = "Object contains unexpected additional properties: {$formattedUnexpected}.";
@@ -319,13 +307,12 @@ class SchemaValidator
                 $builtInMessage = $error->message();
                 if ($builtInMessage && 'The data must match the schema' !== $builtInMessage) {
                     $placeholders = $args;
-                    $builtInMessage = preg_replace_callback('/\{(\w+)\}/', static function ($match) use ($placeholders) {
+                    $message = preg_replace_callback('/\{(\w+)\}/', static function (array $match) use ($placeholders): string {
                         $key = $match[1];
                         $value = $placeholders[$key] ?? '{'.$key.'}';
 
-                        return \is_array($value) ? json_encode($value) : (string) $value;
-                    }, $builtInMessage);
-                    $message = $builtInMessage;
+                        return \is_array($value) ? (json_encode($value) ?: '{}') : (string) $value;
+                    }, $builtInMessage) ?? $builtInMessage;
                 }
                 break;
         }

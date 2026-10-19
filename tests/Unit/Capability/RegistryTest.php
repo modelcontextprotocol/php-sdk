@@ -19,6 +19,7 @@ use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\Registry\ResourceTemplateReference;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Event\ToolListChangedEvent;
 use Mcp\Exception\PromptNotFoundException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ToolNotFoundException;
@@ -28,15 +29,17 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Prompt;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
+use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Tool;
 use PHPUnit\Framework\MockObject\MockObject;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
 
 class RegistryTest extends TestCase
 {
     private Registry $registry;
-    private LoggerInterface|MockObject $logger;
+    private LoggerInterface&MockObject $logger;
 
     protected function setUp(): void
     {
@@ -98,7 +101,9 @@ class RegistryTest extends TestCase
         $this->registry->registerTool($second, static fn () => 'second');
 
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertEquals('second', ($toolRef->handler)());
+        $handler = $toolRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetToolThrowsExceptionForUnregisteredTool(): void
@@ -155,7 +160,9 @@ class RegistryTest extends TestCase
         $this->registry->registerResource($second, static fn () => 'second');
 
         $resourceRef = $this->registry->getResource('test://resource');
-        $this->assertEquals('second', ($resourceRef->handler)());
+        $handler = $resourceRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetResourceThrowsExceptionForUnregisteredResource(): void
@@ -265,7 +272,9 @@ class RegistryTest extends TestCase
         $this->registry->registerResourceTemplate($second, static fn () => 'second');
 
         $templateRef = $this->registry->getResourceTemplate('test://{id}');
-        $this->assertEquals('second', ($templateRef->handler)());
+        $handler = $templateRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testResourceTemplateMatchingPrefersMoreSpecificMatches(): void
@@ -347,7 +356,9 @@ class RegistryTest extends TestCase
         $this->registry->registerPrompt($second, static fn () => 'second');
 
         $promptRef = $this->registry->getPrompt('test_prompt');
-        $this->assertEquals('second', ($promptRef->handler)());
+        $handler = $promptRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testGetPromptThrowsExceptionForUnregisteredPrompt(): void
@@ -452,7 +463,9 @@ class RegistryTest extends TestCase
 
         // Second registration should override the first
         $toolRef = $this->registry->getTool('test_tool');
-        $this->assertEquals('second', ($toolRef->handler)());
+        $handler = $toolRef->handler;
+        $this->assertInstanceOf(\Closure::class, $handler);
+        $this->assertEquals('second', $handler());
     }
 
     public function testExtractStructuredContentReturnsNullWhenOutputSchemaIsNull(): void
@@ -495,6 +508,17 @@ class RegistryTest extends TestCase
 
         $toolRef = $this->registry->getTool('test_tool');
         $this->assertEquals(['success' => true, 'message' => 'done'], $toolRef->extractStructuredContent(['success' => true, 'message' => 'done']));
+    }
+
+    public function testExtractStructuredContentKeepsAnEmptyObjectAsAnObject(): void
+    {
+        $tool = $this->createValidTool('test_tool', ['type' => 'object']);
+        $this->registry->registerTool($tool, static fn () => new \stdClass());
+
+        $structuredContent = $this->registry->getTool('test_tool')->extractStructuredContent(new \stdClass());
+
+        $this->assertInstanceOf(\stdClass::class, $structuredContent);
+        $this->assertStringContainsString('"structuredContent":{}', json_encode(new CallToolResult([], structuredContent: $structuredContent), \JSON_THROW_ON_ERROR));
     }
 
     /**
@@ -720,6 +744,118 @@ class RegistryTest extends TestCase
         }
 
         $this->assertArrayHasKey('loaded', $registry->getTools()->references);
+    }
+
+    public function testListChangedEventsAreSuppressedDuringTheDeferredLoad(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $loader = new class($this->createValidTool('loaded'), $this->createValidResource('file:///loaded'), $this->createValidResourceTemplate('file:///loaded/{id}'), $this->createValidPrompt('loaded_prompt')) implements LoaderInterface {
+            public function __construct(
+                private readonly Tool $tool,
+                private readonly ResourceDefinition $resource,
+                private readonly ResourceTemplate $template,
+                private readonly Prompt $prompt,
+            ) {
+            }
+
+            public function load(RegistryInterface $registry): void
+            {
+                $registry->registerTool($this->tool, 'handler');
+                $registry->registerResource($this->resource, 'handler');
+                $registry->registerResourceTemplate($this->template, 'handler');
+                $registry->registerPrompt($this->prompt, 'handler');
+            }
+        };
+
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+
+        $this->assertTrue($registry->hasTools());
+        $this->assertTrue($registry->hasPrompts());
+    }
+
+    public function testListChangedEventsAreSuppressedWhenTheLoaderIsSuppliedFromOutside(): void
+    {
+        // As quiet as the deferred load above: these are the initial contents, not a change.
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->never())->method('dispatch');
+
+        $registry = new Registry($eventDispatcher, $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('loaded')));
+
+        $this->assertTrue($registry->hasTool('loaded'));
+    }
+
+    public function testARuntimeRegistrationAfterAnExternalLoadIsStillDispatched(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(ToolListChangedEvent::class))
+            ->willReturnArgument(0);
+
+        $registry = new Registry($eventDispatcher, $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('loaded')));
+
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
+    }
+
+    public function testAnExternalLoadDoesNotConsumeTheRegistrysOwnLoader(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger, loader: $this->toolLoader($this->createValidTool('own')));
+        $registry->loadFrom($this->toolLoader($this->createValidTool('external')));
+
+        $this->assertTrue($registry->hasTool('external'));
+        $this->assertTrue($registry->hasTool('own'));
+    }
+
+    public function testAnExternalLoadCanRunMoreThanOnce(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger);
+        $registry->loadFrom($this->toolLoader($this->createValidTool('first')));
+        $registry->loadFrom($this->toolLoader($this->createValidTool('second')));
+
+        $this->assertTrue($registry->hasTool('first'));
+        $this->assertTrue($registry->hasTool('second'));
+    }
+
+    public function testAFailedExternalLoadLeavesTheRegistryRetryable(): void
+    {
+        $registry = new Registry($this->createMock(EventDispatcherInterface::class), $this->logger);
+        $failing = new class implements LoaderInterface {
+            public function load(RegistryInterface $registry): void
+            {
+                // Reads during its own run, as discovery's identity check does.
+                $registry->hasTool('anything');
+
+                throw new \RuntimeException('data source not ready');
+            }
+        };
+
+        foreach ([1, 2] as $attempt) {
+            try {
+                $registry->loadFrom($failing);
+                $this->fail('The loader was expected to fail.');
+            } catch (\RuntimeException $e) {
+                $this->assertSame('data source not ready', $e->getMessage());
+            }
+        }
+    }
+
+    public function testListChangedEventsAreStillDispatchedForRuntimeRegistrations(): void
+    {
+        $eventDispatcher = $this->createMock(EventDispatcherInterface::class);
+        $eventDispatcher->expects($this->once())
+            ->method('dispatch')
+            ->with($this->isInstanceOf(ToolListChangedEvent::class))
+            ->willReturnArgument(0);
+
+        $loader = $this->toolLoader($this->createValidTool('loaded'));
+        $registry = new Registry($eventDispatcher, $this->logger, loader: $loader);
+        $registry->load();
+
+        $registry->registerTool($this->createValidTool('runtime'), 'handler');
     }
 
     public function testLoadRunsTheConfiguredLoaderEagerly(): void

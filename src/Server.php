@@ -11,6 +11,7 @@
 
 namespace Mcp;
 
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server\Builder;
 use Mcp\Server\Protocol;
 use Mcp\Server\Stateless\StatelessProtocol;
@@ -26,13 +27,15 @@ use Psr\Log\NullLogger;
 final class Server
 {
     /**
-     * @param StatelessProtocol|null $statelessProtocol the modern-era (SEP-2575) dispatcher, absent on a
-     *                                                  server that serves the handshake era alone
+     * @param StatelessProtocol|null               $statelessProtocol the modern-era (SEP-2575) dispatcher, absent on a
+     *                                                                server that serves the handshake era alone
+     * @param non-empty-list<ProtocolVersion>|null $handshakeVersions revisions `initialize` negotiates, all of them by default
      */
     public function __construct(
         private readonly Protocol $protocol,
         private readonly LoggerInterface $logger = new NullLogger(),
         private readonly ?StatelessProtocol $statelessProtocol = null,
+        private readonly ?array $handshakeVersions = null,
     ) {
     }
 
@@ -56,9 +59,13 @@ final class Server
 
         // The eras share the transport, not the dispatcher: a transport that
         // can tell them apart takes both and picks per request. One that
-        // cannot — stdio — carries the handshake era alone.
-        if (null !== $this->statelessProtocol && $transport instanceof StatelessAwareTransportInterface) {
-            $transport->connectStateless($this->statelessProtocol);
+        // cannot carries the handshake era alone.
+        if ($transport instanceof StatelessAwareTransportInterface) {
+            $transport->setHandshakeVersions($this->handshakeVersions ?? ProtocolVersion::handshakeVersions());
+
+            if (null !== $this->statelessProtocol) {
+                $transport->connectStateless($this->statelessProtocol);
+            }
         }
 
         $this->logger->info('Running server...');

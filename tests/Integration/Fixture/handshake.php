@@ -13,6 +13,7 @@
  * Server for {@see \Mcp\Tests\Integration\HandshakeTest}.
  *
  * The test pins the revision through the environment; unset negotiates freely.
+ * MCP_INTEGRATION_HANDSHAKE_ONLY makes it a server from before the modern era.
  */
 
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -27,6 +28,10 @@ $builder = Server::builder()
 
 if (is_string($pinned = getenv('MCP_INTEGRATION_PROTOCOL_VERSION')) && '' !== $pinned) {
     $builder->setProtocolVersion(ProtocolVersion::from($pinned));
+}
+
+if ('' !== (string) getenv('MCP_INTEGRATION_HANDSHAKE_ONLY')) {
+    $builder->withoutModernEra();
 }
 
 $builder->build()->run(new StdioTransport());

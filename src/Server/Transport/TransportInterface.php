@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Server\Authorization\AccessToken;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -20,10 +21,7 @@ use Symfony\Component\Uid\Uuid;
  *
  * @phpstan-type FiberReturn (Response<mixed>|Error)
  * @phpstan-type FiberResume (FiberReturn|null)
- * @phpstan-type FiberSuspend (
- *    array{type: 'notification', notification: \Mcp\Schema\JsonRpc\Notification}|
- *    array{type: 'request', request: \Mcp\Schema\JsonRpc\Request, timeout?: int}
- * )
+ * @phpstan-type FiberSuspend (\Mcp\Server\Suspension\NotificationSuspension|\Mcp\Server\Suspension\RequestSuspension)
  * @phpstan-type McpFiber \Fiber<null, FiberReturn, FiberReturn, FiberSuspend>
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -50,8 +48,12 @@ interface TransportInterface
     /**
      * Send a message to the client immediately (bypassing session queue).
      *
-     * Used for session resolution errors when no session is available.
-     * The transport decides HOW to send based on context.
+     * Used for every response of a handler that returns without suspending, on
+     * the exchange that carried its request: a transport must deliver each one,
+     * a batch gets several. A handler that suspends returns its result from the
+     * fiber the transport resumes instead. An error with a `status_code` was
+     * raised before a session was resolved and rejects the whole exchange. The
+     * transport decides HOW to send based on context.
      *
      * @param array<string, mixed> $context Context about this message:
      *                                      - 'session_id': Uuid|null
@@ -70,7 +72,9 @@ interface TransportInterface
      *
      * The transport calls this whenever ANY message arrives, regardless of source.
      *
-     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId): void $listener
+     * The access token is the one the message was authorized with, if the transport authorizes requests.
+     *
+     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId, ?AccessToken $accessToken): void $listener
      */
     public function onMessage(callable $listener): void;
 
@@ -93,18 +97,18 @@ interface TransportInterface
     public function setOutgoingMessagesProvider(callable $provider): void;
 
     /**
-     * Set a provider function to retrieve all pending server-initiated requests.
+     * Set a provider function to retrieve the pending server-initiated request a suspended Fiber waits on.
      *
      * The transport calls this to decide if it should wait for a client response before resuming a Fiber.
      *
-     * @param callable(Uuid $sessionId): array<int, array<string, mixed>> $provider
+     * @param callable(Uuid $sessionId, McpFiber $fiber): array<string, array<string, mixed>> $provider
      */
     public function setPendingRequestsProvider(callable $provider): void;
 
     /**
      * Set a finder function to check for a specific client response.
      *
-     * @param callable(int, Uuid):FiberResume $finder
+     * @param callable(Uuid, Uuid):FiberResume $finder
      */
     public function setResponseFinder(callable $finder): void;
 
@@ -114,7 +118,7 @@ interface TransportInterface
      * The transport calls this to let the Protocol handle new requests/notifications
      * that are yielded from a Fiber's execution.
      *
-     * @param callable(FiberSuspend|null, ?Uuid $sessionId): void $handler
+     * @param callable(FiberSuspend|null, ?Uuid $sessionId, McpFiber $fiber): void $handler
      */
     public function setFiberYieldHandler(callable $handler): void;
 

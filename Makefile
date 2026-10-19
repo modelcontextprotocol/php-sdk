@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests inspector-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
+.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests interop-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
@@ -32,8 +32,9 @@ unit-tests:
 integration-tests:
 	vendor/bin/phpunit --testsuite=integration
 
-inspector-tests:
-	vendor/bin/phpunit --testsuite=inspector
+interop-tests:
+	npm ci --prefix tests/Interop --no-audit --no-fund
+	vendor/bin/phpunit --testsuite=interop
 
 conformance-tests: conformance-server conformance-client
 

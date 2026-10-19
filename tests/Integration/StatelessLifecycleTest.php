@@ -36,7 +36,9 @@ class StatelessLifecycleTest extends TestCase
     {
         $this->port = 8600 + (getmypid() % 300);
 
-        $this->server = new Process(['php', '-S', \sprintf('127.0.0.1:%d', $this->port), self::SERVER]);
+        // Buffer output as php.ini-production and php.ini-development do,
+        // whatever php.ini is loaded here, so an unflushed stream shows up.
+        $this->server = new Process(['php', '-d', 'output_buffering=4096', '-S', \sprintf('127.0.0.1:%d', $this->port), self::SERVER]);
         $this->server->start();
 
         $deadline = microtime(true) + 5;
@@ -184,6 +186,37 @@ class StatelessLifecycleTest extends TestCase
 
         $this->assertNotContains('notifications/message', $methods);
         $this->assertContains('notifications/progress', $methods);
+    }
+
+    #[TestDox('a listen stream is acknowledged at once, not when it closes')]
+    public function testListenIsAcknowledgedAtOnce(): void
+    {
+        $context = stream_context_create(['http' => [
+            'method' => 'POST',
+            'header' => implode("\r\n", $this->headers('subscriptions/listen', null, null)),
+            'content' => $this->body('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]], null),
+            'ignore_errors' => true,
+            // Well inside the example's 20 s lifetime: a frame held back in an
+            // output buffer would only arrive when the stream closes.
+            'timeout' => 5,
+        ]]);
+
+        $handle = fopen($this->url(), 'r', false, $context);
+        $this->assertIsResource($handle);
+
+        $first = null;
+        while (false !== $line = fgets($handle)) {
+            $line = trim($line);
+
+            if (str_starts_with($line, 'data: ')) {
+                $first = json_decode(substr($line, 6), true, flags: \JSON_THROW_ON_ERROR);
+                break;
+            }
+        }
+
+        fclose($handle);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $first['method'] ?? null);
     }
 
     /**

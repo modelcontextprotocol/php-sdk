@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\ServerCapabilities;
 
 /**
  * Interface for client state management.
@@ -48,7 +49,7 @@ interface ClientStateInterface
     /**
      * Get all pending requests.
      *
-     * @return array<int|string, array{request_id: int|string, timestamp: int, timeout: int}>
+     * @return array<int|string, array{request_id: int|string, timestamp: float, timeout: int}>
      */
     public function getPendingRequests(): array;
 
@@ -80,7 +81,7 @@ interface ClientStateInterface
     /**
      * Store the protocol version negotiated during initialization.
      */
-    public function setProtocolVersion(ProtocolVersion $protocolVersion): void;
+    public function setProtocolVersion(?ProtocolVersion $protocolVersion): void;
 
     /**
      * Get the protocol version negotiated during initialization.
@@ -92,7 +93,7 @@ interface ClientStateInterface
     /**
      * Store the server info from initialization.
      */
-    public function setServerInfo(Implementation $serverInfo): void;
+    public function setServerInfo(?Implementation $serverInfo): void;
 
     /**
      * Get the server info from initialization.
@@ -108,6 +109,16 @@ interface ClientStateInterface
      * Get the server instructions from initialization.
      */
     public function getInstructions(): ?string;
+
+    /**
+     * Set the capabilities the server declared.
+     */
+    public function setServerCapabilities(?ServerCapabilities $capabilities): void;
+
+    /**
+     * Get the capabilities the server declared, null until it declared them.
+     */
+    public function getServerCapabilities(): ?ServerCapabilities;
 
     /**
      * Store progress data received from a notification.

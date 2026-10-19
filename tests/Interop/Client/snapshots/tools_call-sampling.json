@@ -1,0 +1,29 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "LLM sampling result: \n{\n  \"model\": \"interop-model\",\n  \"stopReason\": \"endTurn\",\n  \"role\": \"assistant\",\n  \"content\": {\n    \"type\": \"text\",\n    \"text\": \"A sampled answer.\"\n  }\n}"
+            }
+        ]
+    },
+    "serverRequests": [
+        {
+            "method": "sampling/createMessage",
+            "params": {
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": "Resource trigger-sampling-request context: Say hello"
+                        }
+                    }
+                ],
+                "systemPrompt": "You are a helpful test server.",
+                "maxTokens": 20,
+                "temperature": 0.7
+            }
+        }
+    ]
+}

@@ -1,0 +1,11 @@
+{
+    "result": {
+        "content": [
+            {
+                "type": "text",
+                "text": "MCP error -32602: Tool does-not-exist not found"
+            }
+        ],
+        "isError": true
+    }
+}

@@ -12,26 +12,81 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\JsonRpc\MessageFactory;
+use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\Notification\CancelledNotification;
+use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
 use Mcp\Server\Transport\Stdio\RunnerState;
+use Mcp\Server\Wire\InboundClassifier;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
+ * Serves one client over the standard streams, in whichever protocol era it
+ * opens with.
+ *
+ * The client's first request decides, once, for the life of the process: a
+ * request carrying the 2026-07-28 per-request `_meta` envelope opens a modern
+ * connection, anything else — the `initialize` handshake above all — a
+ * handshake-era one. A later request from the other era is refused rather than
+ * served, so a client that probed with `server/discover`, timed out and fell
+ * back to the handshake learns the connection is already modern.
+ *
+ * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/versioning#backward-compatibility-with-initialization-based-versions
+ *
  * @extends BaseTransport<int>
+ *
+ * @phpstan-import-type McpFiber from TransportInterface
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-class StdioTransport extends BaseTransport
+class StdioTransport extends BaseTransport implements StatelessAwareTransportInterface
 {
     /**
      * Default cap on the bytes read for a single input line.
      */
     public const DEFAULT_MAX_LINE_BYTES = 4 * 1024 * 1024;
 
+    private const CANCELLED_NOTIFICATION = 'notifications/cancelled';
+
     /** Whether the current over-length line is still being drained and discarded. */
     private bool $discardingLine = false;
+
+    /** @var positive-int */
+    private readonly int $maxLineBytes;
+
+    private ?StatelessProtocol $stateless = null;
+
+    /** @var non-empty-list<ProtocolVersion>|null null names every handshake revision */
+    private ?array $handshakeVersions = null;
+
+    private readonly InboundClassifier $classifier;
+
+    /** Null until the client's first request settles the era. */
+    private ?bool $modern = null;
+
+    /**
+     * Modern-era answers still being written, by the id of the request they
+     * answer: a `subscriptions/listen` for as long as it lasts, and a request
+     * whose handler streams notifications until its result is in.
+     *
+     * Keyed by {@see self::streamKey()}, since PHP would fold the ids `"5"`
+     * and `5` into one key, and JSON-RPC tells them apart.
+     *
+     * @var array<string, \Generator<mixed>>
+     */
+    private array $streams = [];
+
+    /**
+     * Handshake-era handlers suspended on the client, by object id: the
+     * client pipelines its requests, so several can be in flight at once.
+     *
+     * @var array<int, McpFiber>
+     */
+    private array $fibers = [];
 
     /**
      * @param resource $input
@@ -46,13 +101,27 @@ class StdioTransport extends BaseTransport
         private $output = \STDOUT,
         ?LoggerInterface $logger = null,
         private readonly RunnerControlInterface $runnerControl = new RunnerControl(),
-        private readonly int $maxLineBytes = self::DEFAULT_MAX_LINE_BYTES,
+        int $maxLineBytes = self::DEFAULT_MAX_LINE_BYTES,
     ) {
         parent::__construct($logger);
+
+        $this->classifier = new InboundClassifier();
 
         if ($maxLineBytes < 1) {
             throw new InvalidArgumentException(\sprintf('The maximum line size must be a positive number of bytes, got %d.', $maxLineBytes));
         }
+
+        $this->maxLineBytes = $maxLineBytes;
+    }
+
+    public function connectStateless(StatelessProtocol $protocol): void
+    {
+        $this->stateless = $protocol;
+    }
+
+    public function setHandshakeVersions(array $versions): void
+    {
+        $this->handshakeVersions = $versions;
     }
 
     public function send(string $data, array $context): void
@@ -64,6 +133,12 @@ class StdioTransport extends BaseTransport
         $this->writeLine($data);
     }
 
+    public function attachFiberToSession(\Fiber $fiber, Uuid $sessionId): void
+    {
+        $this->fibers[spl_object_id($fiber)] = $fiber;
+        $this->sessionId = $sessionId;
+    }
+
     public function listen(): int
     {
         $this->logger->info('StdioTransport is listening for messages on STDIN...');
@@ -71,7 +146,8 @@ class StdioTransport extends BaseTransport
 
         while (!feof($this->input) && RunnerState::RUNNING === $this->runnerControl->getState()) {
             $this->processInput();
-            $this->processFiber();
+            $this->processFibers();
+            $this->processStreams();
             $this->flushOutgoingMessages();
         }
 
@@ -88,7 +164,7 @@ class StdioTransport extends BaseTransport
     {
         $line = fgets($this->input, $this->maxLineBytes);
         if (false === $line) {
-            usleep(50000); // 50ms
+            $this->waitForInput();
 
             return;
         }
@@ -118,62 +194,239 @@ class StdioTransport extends BaseTransport
 
         $trimmedLine = trim($line);
         if (!empty($trimmedLine)) {
-            $this->handleMessage($trimmedLine, $this->sessionId);
+            $this->route($trimmedLine);
         }
     }
 
-    private function processFiber(): void
+    /**
+     * Idles until input arrives, for at most 50ms, so the run loop still gets
+     * to suspended fibers, open streams and queued messages in between.
+     */
+    private function waitForInput(): void
     {
-        if (null === $this->sessionFiber) {
+        $read = [$this->input];
+        $write = $except = null;
+
+        // Streams that cannot be selected, like php://memory, fall back to sleeping.
+        if (false === @stream_select($read, $write, $except, 0, 50000)) {
+            usleep(50000);
+        }
+    }
+
+    /**
+     * Hands one message to the era it belongs to, settling the connection's
+     * era on the first request.
+     */
+    private function route(string $message): void
+    {
+        $classification = $this->classifier->classify('POST', $message);
+
+        if ($classification->isRejected()) {
+            \assert(null !== $classification->error);
+            $this->writeError($classification->error);
+
             return;
         }
 
-        if ($this->sessionFiber->isTerminated()) {
-            $this->handleFiberTermination();
+        $decoded = json_decode($message, true);
+        // Only a request with a usable id may settle the era; anything else is left to the dispatcher.
+        $request = \is_array($decoded) && !array_is_list($decoded) && \is_string($decoded['method'] ?? null)
+            && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
+
+        // Only the handshake era sends requests to the client, so elsewhere a response answers nothing.
+        if (false !== $this->modern && \is_array($decoded) && !array_is_list($decoded) && !isset($decoded['method'])
+            && (\array_key_exists('result', $decoded) || \array_key_exists('error', $decoded))) {
+            $this->logger->warning('StdioTransport ignored a response outside the handshake era.', [
+                'id' => $decoded['id'] ?? null,
+            ]);
 
             return;
         }
 
-        if (!$this->sessionFiber->isSuspended()) {
+        if (null === $this->modern && null !== $request) {
+            if ($classification->modern && null === $this->stateless) {
+                // Handshake only: name its revisions, like the HTTP entry, and leave the era open.
+                $this->writeError(Error::forUnsupportedProtocolVersion((string) $classification->claimedVersion, $this->handshakeVersions ?? ProtocolVersion::handshakeVersions(), $request['id']));
+
+                return;
+            }
+
+            if ($classification->modern && !\in_array(ProtocolVersion::tryFrom((string) $classification->claimedVersion), $this->stateless->supportedVersions(), true)) {
+                // Refused by the modern leg; the era stays open for a fallback to the handshake.
+                $this->routeModern($message, $decoded, $request);
+
+                return;
+            }
+
+            $this->modern = $classification->modern;
+
+            $this->logger->info('StdioTransport settled the connection era.', [
+                'era' => $this->modern ? 'modern' : 'handshake',
+                'opened_with' => $request['method'],
+            ]);
+        }
+
+        if (true === $this->modern || (null === $this->modern && $classification->modern && null !== $this->stateless)) {
+            $this->routeModern($message, $decoded, $request);
+
             return;
         }
 
-        $pendingRequests = $this->getPendingRequests($this->sessionId);
+        if (false === $this->modern && $classification->modern && null !== $request) {
+            $this->writeError(Error::forInvalidRequest('This connection opened with the "initialize" handshake; a request carrying a per-request protocol version cannot follow it.', $request['id']));
+
+            return;
+        }
+
+        $this->handleMessage($message, $this->sessionId);
+    }
+
+    /**
+     * @param mixed                     $decoded the message, decoded
+     * @param array<string, mixed>|null $request the message when it is a request
+     */
+    private function routeModern(string $message, mixed $decoded, ?array $request): void
+    {
+        \assert(null !== $this->stateless);
+
+        // stdio has no stream to close, so this is how a client ends a subscriptions/listen.
+        if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
+            [$cancellation] = MessageFactory::make()->create($message);
+
+            if (!$cancellation instanceof CancelledNotification) {
+                $this->logger->debug('StdioTransport ignored a malformed cancellation.');
+
+                return;
+            }
+
+            $requestId = $cancellation->requestId;
+
+            if (isset($this->streams[$key = self::streamKey($requestId)])) {
+                unset($this->streams[$key]);
+                $this->logger->debug('StdioTransport dropped a cancelled request.', ['request_id' => $requestId]);
+            }
+
+            return;
+        }
+
+        $result = $this->stateless->handleInline($message);
+
+        if ($result->isEmpty()) {
+            return;
+        }
+
+        if ($result->isStream()) {
+            \assert(null !== $result->frames && null !== $request);
+            $this->streams[self::streamKey($request['id'])] = ($result->frames)();
+
+            return;
+        }
+
+        $this->writeLine($result->toJson());
+    }
+
+    /**
+     * Writes what each open stream has ready: every frame up to its next idle
+     * poll, so a listen stream polls once per tick and a handler's
+     * notifications go out as it emits them.
+     */
+    private function processStreams(): void
+    {
+        foreach ($this->streams as $id => $frames) {
+            try {
+                while ($frames->valid()) {
+                    $frame = $frames->current();
+
+                    // Written before resuming: resuming runs the handler on to its next frame.
+                    if (null !== $frame) {
+                        $this->writeLine(json_encode($frame, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
+                    }
+
+                    $frames->next();
+
+                    if (null === $frame) {
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->logger->error('StdioTransport ended a stream that failed.', ['stream' => $id, 'exception' => $e]);
+                unset($this->streams[$id]);
+
+                continue;
+            }
+
+            if (!$frames->valid()) {
+                unset($this->streams[$id]);
+            }
+        }
+    }
+
+    private static function streamKey(string|int $id): string
+    {
+        return (\is_int($id) ? 'i:' : 's:').$id;
+    }
+
+    private function writeError(Error $error): void
+    {
+        $this->writeLine(json_encode($error, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * Resumes every suspended handler that can go on: one that sent a
+     * notification right away, one that sent a request once its answer is in
+     * or it timed out.
+     */
+    private function processFibers(): void
+    {
+        foreach ($this->fibers as $key => $fiber) {
+            if ($fiber->isSuspended()) {
+                $this->resumeFiber($fiber);
+            }
+
+            if ($fiber->isTerminated()) {
+                unset($this->fibers[$key]);
+                $this->handleFiberTermination($fiber);
+            }
+        }
+    }
+
+    /**
+     * @param McpFiber $fiber
+     */
+    private function resumeFiber(\Fiber $fiber): void
+    {
+        $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
         if (empty($pendingRequests)) {
-            $yielded = $this->sessionFiber->resume();
-            $this->handleFiberYield($yielded, $this->sessionId);
+            $yielded = $fiber->resume();
+            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
             return;
         }
 
         foreach ($pendingRequests as $pending) {
-            $requestId = $pending['request_id'];
-            $timestamp = $pending['timestamp'];
-            $timeout = $pending['timeout'] ?? 120;
+            $requestId = Uuid::fromString($pending['request_id']);
 
             $response = $this->checkForResponse($requestId, $this->sessionId);
 
             if (null !== $response) {
-                $yielded = $this->sessionFiber->resume($response);
-                $this->handleFiberYield($yielded, $this->sessionId);
-
-                return;
-            }
-
-            if (time() - $timestamp >= $timeout) {
-                $error = Error::forInternalError('Request timed out', $requestId);
-                $yielded = $this->sessionFiber->resume($error);
-                $this->handleFiberYield($yielded, $this->sessionId);
+                $yielded = $fiber->resume($response);
+                $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
                 return;
             }
         }
     }
 
-    private function handleFiberTermination(): void
+    /**
+     * @param McpFiber $fiber
+     */
+    private function handleFiberTermination(\Fiber $fiber): void
     {
-        $finalResult = $this->sessionFiber->getReturn();
+        $finalResult = $fiber->getReturn();
+
+        // A client may stop reading once it has its answer, so what the call sent goes out first.
+        $this->flushOutgoingMessages();
 
         if (null !== $finalResult) {
             try {
@@ -183,8 +436,6 @@ class StdioTransport extends BaseTransport
                 $this->logger->error('STDIO: Failed to encode final Fiber result.', ['exception' => $e]);
             }
         }
-
-        $this->sessionFiber = null;
     }
 
     private function flushOutgoingMessages(): void

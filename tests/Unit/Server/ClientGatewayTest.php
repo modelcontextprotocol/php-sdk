@@ -18,16 +18,23 @@ use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ElicitAction;
 use Mcp\Schema\Enum\ElicitationMode;
+use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Extension\Apps\McpApps;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Notification\LoggingMessageNotification;
+use Mcp\Schema\Notification\ProgressNotification;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Request\PingRequest;
 use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Server\ClientGateway;
+use Mcp\Server\Protocol;
 use Mcp\Server\Session\SessionInterface;
+use Mcp\Server\Suspension\NotificationSuspension;
+use Mcp\Server\Suspension\RequestSuspension;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Uid\Uuid;
 
@@ -188,6 +195,136 @@ final class ClientGatewayTest extends TestCase
         $this->runInFiber(static fn (): ListRootsResult => $gateway->listRoots(), $error);
     }
 
+    public function testLogDropsMessagesBelowTheClientSetLevel(): void
+    {
+        $this->assertNull($this->logInFiber('error', LoggingLevel::Warning));
+    }
+
+    public function testLogSendsMessagesAtOrAboveTheClientSetLevel(): void
+    {
+        $notification = $this->logInFiber('error', LoggingLevel::Error);
+
+        $this->assertInstanceOf(LoggingMessageNotification::class, $notification);
+        $this->assertSame(LoggingLevel::Error, $notification->level);
+        $this->assertSame('message', $notification->data);
+    }
+
+    public function testLogDefaultsToWarningWhenTheClientSetNoLevel(): void
+    {
+        $this->assertNull($this->logInFiber(null, LoggingLevel::Info));
+        $this->assertInstanceOf(LoggingMessageNotification::class, $this->logInFiber(null, LoggingLevel::Warning));
+    }
+
+    public function testProgressUsesTheTokenOfItsOwnRequest(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        // The session holds the meta of whichever call of the session came last.
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $gateway = new ClientGateway($session, (new PingRequest())->withId(1)->withMeta(['progressToken' => 'token-a']));
+
+        $this->assertSame('token-a', $this->progressInFiber($gateway)?->progressToken);
+    }
+
+    public function testProgressIsDroppedWhenItsRequestAskedForNone(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $gateway = new ClientGateway($session, (new PingRequest())->withId(1));
+
+        $this->assertNull($this->progressInFiber($gateway));
+    }
+
+    public function testProgressFallsBackToTheSessionWithoutARequest(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_ACTIVE_REQUEST_META === $key ? ['progressToken' => 'token-b'] : $default,
+        );
+
+        $this->assertSame('token-b', $this->progressInFiber(new ClientGateway($session))?->progressToken);
+    }
+
+    /**
+     * Reports progress inside a Fiber and returns the notification the gateway suspended with, if any.
+     */
+    private function progressInFiber(ClientGateway $gateway): ?ProgressNotification
+    {
+        $fiber = new \Fiber(static fn () => $gateway->progress(1, 2));
+        $suspend = $fiber->start();
+
+        if (null === $suspend) {
+            return null;
+        }
+
+        $this->assertInstanceOf(NotificationSuspension::class, $suspend);
+        $this->assertInstanceOf(ProgressNotification::class, $suspend->notification);
+
+        return $suspend->notification;
+    }
+
+    /**
+     * Logs inside a Fiber and returns the notification the gateway suspended with, if any.
+     */
+    private function logInFiber(?string $minimumLevel, LoggingLevel $level): ?LoggingMessageNotification
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $session->method('get')->willReturnCallback(
+            static fn (string $key, mixed $default = null): mixed => Protocol::SESSION_LOGGING_LEVEL === $key ? ($minimumLevel ?? $default) : $default,
+        );
+
+        $gateway = new ClientGateway($session);
+        $fiber = new \Fiber(static fn () => $gateway->log($level, 'message'));
+        $suspend = @$fiber->start();
+
+        if (null === $suspend) {
+            return null;
+        }
+
+        $this->assertInstanceOf(NotificationSuspension::class, $suspend);
+        $this->assertInstanceOf(LoggingMessageNotification::class, $suspend->notification);
+
+        return $suspend->notification;
+    }
+
+    public function testNotifyReturnsWhenResumedWithNothing(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $gateway = new ClientGateway($session);
+
+        $fiber = new \Fiber(static fn () => $gateway->notify(new ProgressNotification('p', 0.5)));
+        $this->assertInstanceOf(NotificationSuspension::class, $fiber->start());
+
+        $fiber->resume();
+
+        $this->assertTrue($fiber->isTerminated());
+    }
+
+    public function testNotifyThrowsClientExceptionWhenTheNotificationCouldNotBeQueued(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+        $gateway = new ClientGateway($session);
+
+        $fiber = new \Fiber(static fn () => $gateway->notify(new ProgressNotification('p', 0.5)));
+        $fiber->start();
+
+        $this->expectException(ClientException::class);
+        $this->expectExceptionMessage('could not be queued');
+
+        $fiber->resume(Error::forInternalError('The notification could not be queued.'));
+    }
+
     /**
      * @param array<string, mixed> $capabilities the client capabilities the session reports
      */
@@ -217,11 +354,10 @@ final class ClientGatewayTest extends TestCase
         $fiber = new \Fiber($call);
         $suspend = $fiber->start();
 
-        $this->assertIsArray($suspend);
-        $this->assertSame('request', $suspend['type']);
-        $this->assertInstanceOf($expectedRequest, $suspend['request']);
+        $this->assertInstanceOf(RequestSuspension::class, $suspend);
+        $this->assertInstanceOf($expectedRequest, $suspend->request);
 
-        $request = $suspend['request'];
+        $request = $suspend->request;
 
         $fiber->resume($response);
 

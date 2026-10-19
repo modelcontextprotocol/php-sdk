@@ -51,10 +51,14 @@ final class InitializeHandler implements RequestHandlerInterface
         $negotiated = $this->negotiate($request->protocolVersion);
         $session->set('protocol_version', $negotiated->value);
 
+        // List changes reach clients only through `subscriptions/listen`, which
+        // the handshake era does not have.
+        $capabilities = ($this->configuration->capabilities ?? new ServerCapabilities())->withoutListChanged();
+
         return new Response(
             $request->getId(),
             new InitializeResult(
-                $this->configuration->capabilities ?? new ServerCapabilities(),
+                $capabilities,
                 $this->configuration->serverInfo ?? new Implementation(),
                 $this->configuration?->instructions,
                 null,
@@ -84,23 +88,10 @@ final class InitializeHandler implements RequestHandlerInterface
     }
 
     /**
-     * Versions this server is willing to negotiate over `initialize`.
-     *
-     * A version configured on the server pins the handshake to exactly that
-     * revision. Modern revisions are never offered here: they have no
-     * `initialize` at all, so a client that reached this handler cannot speak
-     * one, and answering with it would leave the connection unusable.
-     *
      * @return non-empty-list<ProtocolVersion>
      */
     private function supportedVersions(): array
     {
-        $configured = $this->configuration?->protocolVersion;
-
-        if (null !== $configured && !$configured->isModern()) {
-            return [$configured];
-        }
-
-        return ProtocolVersion::handshakeVersions();
+        return $this->configuration?->handshakeVersions() ?? ProtocolVersion::handshakeVersions();
     }
 }
