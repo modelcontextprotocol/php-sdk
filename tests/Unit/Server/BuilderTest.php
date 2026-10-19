@@ -97,6 +97,7 @@ final class BuilderTest extends TestCase
     #[TestDox('build() fails when file-based discovery is configured without Symfony Finder')]
     public function testBuildFailsWhenDiscoveryDependencyIsMissing(): void
     {
+        // Load every class the failing path needs before the Composer autoloaders are unregistered.
         Server::builder()->setServerInfo(self::TEST_SERVER_NAME, self::TEST_SERVER_VERSION)->build();
         Server::builder()
             ->setServerInfo(self::TEST_SERVER_NAME, self::TEST_SERVER_VERSION)
