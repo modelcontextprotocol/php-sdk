@@ -74,7 +74,7 @@ That's a complete MCP server. It exposes one **tool**, `add`, and one **resource
 `config://calculator/settings`.
 
 Attribute discovery needs `symfony/finder` (`composer require symfony/finder`). Without
-it the server still starts, but discovers nothing and only logs a warning.
+it, `build()` throws a `RuntimeException` instead of starting a server with no tools.
 
 Look at what you did *not* write: no JSON Schema — `int $a, int $b` *is* the schema —
 no request parsing, no serialization, no protocol handling. You wrote a PHP class with
