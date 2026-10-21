@@ -555,7 +555,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                 $allowsNull = true;
             } elseif ($hasDefault && null === $defaultValue) {
                 $allowsNull = true;
-            } elseif (str_contains($typeString, 'null') || 'mixed' === strtolower($typeString)) {
+            } elseif (self::hasNullBranch($typeString) || 'mixed' === strtolower($typeString)) {
                 $allowsNull = true;
             }
 
@@ -608,7 +608,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Otherwise, use the DocBlock type if it was valid and non-generic
         if (null !== $docBlockType && !$isDocBlockTypeGeneric) {
             // Consider if DocBlock adds nullability missing from reflection
-            if (false !== stripos($docBlockType, 'null') && $reflectionTypeString && false === stripos($reflectionTypeString, 'null') && !str_ends_with($reflectionTypeString, '|null')) {
+            if (self::hasNullBranch($docBlockType) && $reflectionTypeString && false === stripos($reflectionTypeString, 'null') && !str_ends_with($reflectionTypeString, '|null')) {
                 // If reflection didn't capture null, but docblock did, append |null (if not already mixed)
                 if ('mixed' !== $reflectionTypeString) {
                     return $reflectionTypeString.'|null';
@@ -730,6 +730,17 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         $branches[] = trim($current);
 
         return array_values(array_filter($branches, static fn (string $branch): bool => '' !== $branch));
+    }
+
+    /**
+     * Whether `null` is one of the top-level alternatives of a type, as in
+     * `string|null`. A `null` inside a generic or a shape, as in
+     * `array{name: string|null}`, belongs to that inner type and does not
+     * make the whole type nullable.
+     */
+    private static function hasNullBranch(string $type): bool
+    {
+        return \in_array('null', array_map(strtolower(...), self::splitUnion($type)), true);
     }
 
     /**
@@ -935,9 +946,16 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                     ],
                 ];
             }
-            // Simple type
+            // Simple type, or a union of them such as `string|null` or `?string`
             else {
-                $properties[$propName] = ['type' => $this->mapSimpleTypeToJsonSchema($propType)];
+                if (str_starts_with($propType, '?')) {
+                    $propType = 'null|'.substr($propType, 1);
+                }
+                $types = array_values(array_unique(array_map(
+                    fn (string $branch): string => 'null' === strtolower($branch) ? 'null' : $this->mapSimpleTypeToJsonSchema($branch),
+                    self::splitUnion($propType),
+                )));
+                $properties[$propName] = ['type' => 1 === \count($types) ? $types[0] : $types];
             }
         }
     }
