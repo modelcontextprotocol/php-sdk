@@ -293,6 +293,39 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEqualsCanonicalizing(['nullableStrings'], $schema['required']);
     }
 
+    public function testKeepsNullableAndUnionKeysOfArrayShapesInsideTheShape(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'arrayShapesWithUnionMembers');
+        $schema = $this->schemaGenerator->generate($method);
+        // The `null` of a key must neither make the parameter nullable nor turn it back into a plain array.
+        $this->assertEquals([
+            'type' => 'object',
+            'description' => 'Shape with a nullable key',
+            'properties' => ['name' => ['type' => 'string'], 'nickname' => ['type' => ['string', 'null']]],
+            'required' => ['name', 'nickname'],
+        ], $schema['properties']['nullUnionMember']);
+        $this->assertEquals([
+            'type' => 'object',
+            'description' => 'Shape with a nullable key',
+            'properties' => ['name' => ['type' => 'string'], 'nickname' => ['type' => ['null', 'string']]],
+            'required' => ['name', 'nickname'],
+        ], $schema['properties']['nullableMember']);
+        $this->assertEquals([
+            'type' => 'object',
+            'description' => 'Shape with a union key',
+            'properties' => ['id' => ['type' => ['integer', 'string']]],
+            'required' => ['id'],
+        ], $schema['properties']['unionMember']);
+        // A top-level `|null` still makes the shape nullable.
+        $this->assertEquals([
+            'type' => ['object', 'null'],
+            'description' => 'Nullable shape',
+            'properties' => ['id' => ['type' => 'integer']],
+            'required' => ['id'],
+        ], $schema['properties']['nullableShape']);
+        $this->assertEqualsCanonicalizing(['nullUnionMember', 'nullableMember', 'unionMember', 'nullableShape'], $schema['required']);
+    }
+
     public function testHandlesNullableTypeHintsAndOptionalParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableAndOptional');

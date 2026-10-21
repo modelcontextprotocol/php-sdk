@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Fix tools with an array shape parameter whose keys are nullable or unions (e.g. `array{name: string, nickname: string|null}`) rejecting valid arguments with `-32602`: a `null` inside the shape no longer turns the parameter into `array|null`, and such keys get their own types instead of `object`.
+
 0.9.0
 -----
 

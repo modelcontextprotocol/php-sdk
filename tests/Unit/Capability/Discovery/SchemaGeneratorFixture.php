@@ -319,6 +319,22 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * A `null` or `|` inside an array shape belongs to one of its keys.
+     *
+     * @param array{name: string, nickname: string|null} $nullUnionMember Shape with a nullable key
+     * @param array{name: string, nickname: ?string}     $nullableMember  Shape with a nullable key
+     * @param array{id: int|string}                      $unionMember     Shape with a union key
+     * @param array{id: int}|null                        $nullableShape   Nullable shape
+     */
+    public function arrayShapesWithUnionMembers(
+        array $nullUnionMember,
+        array $nullableMember,
+        array $unionMember,
+        $nullableShape,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**
