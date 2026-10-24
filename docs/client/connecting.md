@@ -214,6 +214,8 @@ speaks revision `2026-07-28`, the connection is ready. If it doesn't, the client
 `initialize` handshake and offers `2025-11-25`, or the revision set with
 `setFallbackProtocolVersion()`. A server process that exits fails the connection instead.
 
+Calling `connect()` again on the same client closes its current transport before opening the new one.
+
 With `setFallbackProtocolVersion(null)`, `connect()` fails instead. See
 [How the client settles on an era](../protocol-versions.md#how-the-client-settles-on-an-era).
 

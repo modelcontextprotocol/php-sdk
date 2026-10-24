@@ -21,6 +21,29 @@ use PHPUnit\Framework\TestCase;
 
 final class ClientTest extends TestCase
 {
+    public function testReconnectClosesPreviousTransport(): void
+    {
+        $client = Client::builder()->build();
+        $firstTransport = $this->createMock(TransportInterface::class);
+        $firstTransport->expects($this->once())->method('close');
+        $firstTransport->method('setState')->willReturnCallback(static function (ClientStateInterface $state): void {
+            $state->setInitialized(true);
+        });
+
+        $secondTransport = $this->createMock(TransportInterface::class);
+        $secondTransport->expects($this->once())->method('close');
+        $secondTransport->method('setState')->willReturnCallback(static function (ClientStateInterface $state): void {
+            $state->setInitialized(true);
+        });
+
+        $client->connect($firstTransport);
+        $client->connect($secondTransport);
+
+        $this->assertTrue($client->isConnected());
+
+        $client->disconnect();
+    }
+
     public function testSendRootsListChangedSendsNotificationWhenCapabilityDeclared(): void
     {
         $sent = [];
