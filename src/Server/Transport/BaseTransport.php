@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\HandlerFibers;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
@@ -141,7 +142,7 @@ abstract class BaseTransport implements TransportInterface
                 return;
             }
 
-            $yielded = $fiber->resume(Error::forInternalError(self::YIELD_FAILED_MESSAGE));
+            $yielded = HandlerFibers::resume($fiber, Error::forInternalError(self::YIELD_FAILED_MESSAGE));
         }
     }
 
