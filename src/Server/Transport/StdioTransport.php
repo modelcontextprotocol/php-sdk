@@ -16,6 +16,7 @@ use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\CancelledNotification;
+use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
@@ -398,7 +399,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
         $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
         if (empty($pendingRequests)) {
-            $yielded = $fiber->resume();
+            $yielded = HandlerFibers::resume($fiber);
             $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
             return;
@@ -410,7 +411,7 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             $response = $this->checkForResponse($requestId, $this->sessionId);
 
             if (null !== $response) {
-                $yielded = $fiber->resume($response);
+                $yielded = HandlerFibers::resume($fiber, $response);
                 $this->handleFiberYield($yielded, $this->sessionId, $fiber);
 
                 return;
