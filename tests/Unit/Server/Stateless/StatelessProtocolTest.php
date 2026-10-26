@@ -1208,6 +1208,89 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(['toolsListChanged' => true], (array) $first['params']['notifications']);
     }
 
+    /**
+     * @return iterable<string, array{ServerCapabilities, array<string, mixed>}>
+     */
+    public static function listensThatCarryNothing(): iterable
+    {
+        yield 'requested type not announced' => [new ServerCapabilities(toolsListChanged: false), ['notifications' => ['toolsListChanged' => true]]];
+        yield 'resource updates without resource subscribe' => [new ServerCapabilities(resourcesSubscribe: false), ['notifications' => ['resourceSubscriptions' => ['file:///watched']]]];
+        yield 'nothing requested' => [new ServerCapabilities(toolsListChanged: true), ['notifications' => []]];
+        yield 'no notifications member' => [new ServerCapabilities(toolsListChanged: true), []];
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('listensThatCarryNothing')]
+    #[TestDox('a listen stream that can carry nothing ends right after the acknowledgment')]
+    public function testListenWithAnEmptyAgreedFilterEndsAtOnce(ServerCapabilities $capabilities, array $params): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities($capabilities)
+            ->setSubscriptionLifetime(60)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $params['_meta'] = [
+            RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+            RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+        ];
+
+        $result = $protocol->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 7,
+            'method' => 'subscriptions/listen',
+            'params' => $params,
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'subscriptions/listen',
+        ]);
+
+        $this->assertTrue($result->isStream());
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $started = microtime(true);
+        $frames = iterator_to_array($stream(), false);
+
+        // No poll tick (null frame) means the loop was never entered, so no
+        // sleep, and the 60 second lifetime is not waited out.
+        $this->assertCount(2, $frames);
+        $this->assertLessThan(0.2, microtime(true) - $started);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames[0]['method']);
+        $this->assertEquals(new \stdClass(), $frames[0]['params']['notifications']);
+        $this->assertSame(7, $frames[0]['params']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
+
+        $this->assertSame(7, $frames[1]['id']);
+        $this->assertSame('complete', $frames[1]['result']['resultType']);
+        $this->assertSame(7, $frames[1]['result']['_meta'][RequestMeta::SUBSCRIPTION_ID]);
+    }
+
+    #[TestDox('an inline listen stream that can carry nothing ends too, instead of waiting for its consumer')]
+    public function testInlineListenWithAnEmptyAgreedFilterEndsAtOnce(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: false))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('subscriptions/listen', ['notifications' => ['toolsListChanged' => true]]));
+
+        $stream = $result->frames;
+        $this->assertNotNull($stream);
+
+        $frames = iterator_to_array($stream(), false);
+
+        $this->assertCount(2, $frames);
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames[0]['method']);
+        $this->assertSame(9, $frames[1]['id']);
+        $this->assertSame('complete', $frames[1]['result']['resultType']);
+    }
+
     #[TestDox('an extension method is served by the extension that claims it')]
     public function testExtensionMethodIsServed(): void
     {
