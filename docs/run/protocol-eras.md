@@ -109,6 +109,58 @@ Both legs come from **one** builder configuration — one registry, one set of h
 instances, one session manager. A tool registered once is reachable from both, and a change
 made through one is visible to the other.
 
+## Customizing `server/discover`
+
+`server/discover` is answered by `DiscoverHandler`, a request handler like the one answering
+`initialize`. It reports the modern revisions the dispatcher serves, the builder's capabilities
+and the instructions set with `setInstructions()`, which `initialize` reports too. A server that
+needs a different answer per era, say instructions that leave out tools a stateless client
+cannot use, replaces it: a handler added with `addRequestHandler()` runs before the defaults, so
+one supporting `DiscoverRequest` answers instead.
+
+```php
+use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\DiscoverRequest;
+use Mcp\Schema\Result\DiscoverResult;
+use Mcp\Schema\ServerCapabilities;
+use Mcp\Server;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Session\SessionInterface;
+
+final class ModernDiscoverHandler implements RequestHandlerInterface
+{
+    public function supports(Request $request): bool
+    {
+        return $request instanceof DiscoverRequest;
+    }
+
+    public function handle(Request $request, SessionInterface $session): Response
+    {
+        return new Response($request->getId(), new DiscoverResult(
+            [ProtocolVersion::V2026_07_28],
+            new ServerCapabilities(),
+            'Call search_products to look up products.',
+        ));
+    }
+}
+
+$server = Server::builder()
+    ->setInstructions('Enable the catalog toolset, then call search_products.')
+    ->addRequestHandler(new ModernDiscoverHandler())
+    ->build();
+```
+
+To change one member of the default answer rather than build all of it, listen for the
+`ResponseEvent` of a `DiscoverRequest` and replace its result: `server/discover` dispatches the
+same `RequestEvent`, `ResponseEvent` and `ErrorEvent` as every other request.
+
+Either way the answer stays a plain JSON response, even to a client that accepts
+`text/event-stream`, and the wire members `resultType`, the caching hints and `serverInfo` are
+still added to it. The handshake era has no `server/discover`, so neither handler is reachable
+from it.
+
 ## Over stdio
 
 `StdioTransport` serves both eras too, but stdio carries one client per process, so the era is

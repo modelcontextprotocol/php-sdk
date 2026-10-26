@@ -143,6 +143,10 @@ with the body they travel with. `build()` uses the same dispatcher for its moder
 `setHeaderValidator(false)` turns that check off, which is needed only when the dispatcher is served by a transport
 that has no header layer to check.
 
+The modern leg answers `server/discover` with a request handler, which a handler added through `addRequestHandler()`
+replaces, for example to give stateless clients different instructions. See
+[Customizing `server/discover`](protocol-eras.md#customizing-serverdiscover).
+
 ## Discovery Configuration
 
 **Required when using MCP attributes.** If you're using PHP attributes (`#[McpTool]`, `#[McpResource]`, `#[McpResourceTemplate]`, `#[McpPrompt]`) to define your MCP elements, you **MUST** configure discovery to tell the server where to look for these attributes.
