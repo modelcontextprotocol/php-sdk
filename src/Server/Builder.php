@@ -141,7 +141,8 @@ final class Builder
     /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
     private array $extensionMessages = [];
 
-    private ?string $requestStateKey = null;
+    /** @var string|list<string>|null */
+    private string|array|null $requestStateKey = null;
 
     private int $requestStateTtl = 600;
 
@@ -374,10 +375,14 @@ final class Builder
      * The same key must reach every instance that might serve the retry, so a
      * per-process random value only works for a single-process deployment.
      *
-     * @param string $key at least 32 bytes
-     * @param int    $ttl how long a minted state stays valid, in seconds
+     * A list of keys is a key ring: the first key signs, every key verifies.
+     * To rotate, put the new key first and keep the old one behind it until
+     * the states it signed have expired, one TTL later.
+     *
+     * @param string|list<string> $key the signing key or key ring, each key at least 32 bytes
+     * @param int                 $ttl how long a minted state stays valid, in seconds
      */
-    public function setRequestState(string $key, int $ttl = 600): self
+    public function setRequestState(string|array $key, int $ttl = 600): self
     {
         $this->requestStateKey = $key;
         $this->requestStateTtl = $ttl;
