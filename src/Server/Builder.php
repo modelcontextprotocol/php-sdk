@@ -58,6 +58,7 @@ use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Stateless\RequestStateBinderInterface;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
@@ -144,6 +145,8 @@ final class Builder
     private ?string $requestStateKey = null;
 
     private int $requestStateTtl = 600;
+
+    private ?RequestStateBinderInterface $requestStateBinder = null;
 
     /**
      * @var array<int, RequestHandlerInterface<mixed>>
@@ -381,6 +384,24 @@ final class Builder
     {
         $this->requestStateKey = $key;
         $this->requestStateTtl = $ttl;
+
+        return $this;
+    }
+
+    /**
+     * Binds every `requestState` the modern era mints to the request it was
+     * minted for, e.g. with {@see Stateless\OriginatingRequestBinder}
+     * to the principal, method and arguments: a state echoed on a request that
+     * binds to another value fails verification like a forged one. Has no
+     * effect without {@see self::setRequestState()}.
+     *
+     * States minted before a binder was configured no longer verify, so
+     * turning one on fails the multi round-trip calls in flight for at most
+     * the configured TTL.
+     */
+    public function setRequestStateBinder(RequestStateBinderInterface $binder): self
+    {
+        $this->requestStateBinder = $binder;
 
         return $this;
     }
@@ -1018,6 +1039,7 @@ final class Builder
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
             eventDispatcher: $parts['eventDispatcher'],
+            requestStateBinder: $this->requestStateBinder,
         );
     }
 

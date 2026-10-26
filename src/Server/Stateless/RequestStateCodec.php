@@ -23,6 +23,11 @@ use Mcp\Exception\RequestStateException;
  * {@see self::verify()} refuses anything whose MAC or expiry does not hold.
  * Signed, not encrypted: nothing secret belongs in the payload.
  *
+ * A codec {@see self::withBinding() bound} to a value also covers that value
+ * with the MAC, without putting it on the wire: a state minted under one
+ * binding fails verification under any other, and so does a state minted
+ * without one. The wire format is the same either way.
+ *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class RequestStateCodec
@@ -35,6 +40,7 @@ final class RequestStateCodec
     public function __construct(
         private readonly string $key,
         private readonly int $ttlSeconds = 600,
+        private readonly ?string $binding = null,
     ) {
         if (\strlen($this->key) < self::MINIMUM_KEY_BYTES) {
             throw new InvalidArgumentException(\sprintf('The requestState signing key must be at least %d bytes, got %d.', self::MINIMUM_KEY_BYTES, \strlen($this->key)));
@@ -43,6 +49,16 @@ final class RequestStateCodec
         if ($this->ttlSeconds < 1) {
             throw new InvalidArgumentException(\sprintf('The requestState TTL must be at least one second, got %d.', $this->ttlSeconds));
         }
+    }
+
+    /**
+     * A codec with the same key and TTL whose states only verify under the
+     * same binding, e.g. the value a {@see RequestStateBinderInterface}
+     * computed for the request at hand.
+     */
+    public function withBinding(string $binding): self
+    {
+        return new self($this->key, $this->ttlSeconds, $binding);
     }
 
     /**
@@ -61,7 +77,8 @@ final class RequestStateCodec
     /**
      * @return array<string, mixed> the payload that was sealed
      *
-     * @throws RequestStateException when the value is malformed, unsigned by this key, or expired
+     * @throws RequestStateException when the value is malformed, unsigned by this key, bound to
+     *                               something else than this codec, or expired
      */
     public function verify(string $state, ?int $now = null): array
     {
@@ -108,7 +125,11 @@ final class RequestStateCodec
 
     private function sign(string $body): string
     {
-        return hash_hmac(self::ALGORITHM, $body, $this->key, true);
+        // The body is base64url, so it never contains the '.' separating it
+        // from the binding: a bound and an unbound input can never collide.
+        $input = null === $this->binding ? $body : $body.'.'.$this->binding;
+
+        return hash_hmac(self::ALGORITHM, $input, $this->key, true);
     }
 
     private static function encode(string $raw): string

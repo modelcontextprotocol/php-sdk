@@ -23,6 +23,7 @@ use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
@@ -33,8 +34,11 @@ use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
+use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Stateless\OriginatingRequestBinder;
 use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Stateless\RequestStateBinderInterface;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
@@ -577,7 +581,7 @@ class StatelessProtocolTest extends TestCase
      * A handler asking twice: the second round has to remember the first
      * round's answer, which is what the `requestState` is for.
      */
-    private static function twoAskProtocol(bool $signed = true): StatelessProtocol
+    private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null): StatelessProtocol
     {
         $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
@@ -602,6 +606,10 @@ class StatelessProtocolTest extends TestCase
 
         if ($signed) {
             $builder->setRequestState(str_repeat('k', 32));
+        }
+
+        if (null !== $binder) {
+            $builder->setRequestStateBinder($binder);
         }
 
         return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
@@ -648,6 +656,156 @@ class StatelessProtocolTest extends TestCase
         ]);
         $this->assertSame(200, $third['status']);
         $this->assertSame('morning/aisle', $third['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * A {@see self::book()} that can carry other arguments and an access token.
+     *
+     * @param array<string, mixed> $params
+     * @param array<string, mixed> $arguments
+     *
+     * @return array<string, mixed>
+     */
+    private static function bookAs(StatelessProtocol $protocol, ?AccessToken $token, array $params = [], array $arguments = []): array
+    {
+        $result = $protocol->handle(json_encode([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'tools/call',
+            'params' => [
+                'name' => 'books_flight',
+                'arguments' => (object) $arguments,
+                '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                    RequestMeta::CLIENT_CAPABILITIES => ['elicitation' => new \stdClass()],
+                ],
+                ...$params,
+            ],
+        ], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'tools/call',
+            'Mcp-Name' => 'books_flight',
+        ], $token);
+
+        return [
+            'status' => $result->httpStatus,
+            'body' => json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR),
+        ];
+    }
+
+    private static function alice(string $subject = 'alice'): AccessToken
+    {
+        return new AccessToken(['flights'], ['iss' => 'https://auth.example.com', 'client_id' => 'app', 'sub' => $subject]);
+    }
+
+    /**
+     * The second round of a {@see self::twoAskProtocol()} call, which mints
+     * the state carrying the first answer.
+     */
+    private function mintedState(StatelessProtocol $protocol, ?AccessToken $token, array $arguments = []): string
+    {
+        $round = self::bookAs($protocol, $token, [
+            'inputResponses' => ['when' => ['action' => 'accept', 'content' => ['v' => 'morning']]],
+        ], $arguments);
+
+        $this->assertIsString($round['body']['result']['requestState'] ?? null);
+
+        return $round['body']['result']['requestState'];
+    }
+
+    #[TestDox('a bound state verifies on a retry of the same call by the same principal')]
+    public function testBoundStateVerifiesOnTheSameCall(): void
+    {
+        $protocol = self::twoAskProtocol(binder: new OriginatingRequestBinder());
+        $state = $this->mintedState($protocol, self::alice(), ['to' => 'BER']);
+
+        $answer = self::bookAs($protocol, self::alice(), [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $state,
+        ], ['to' => 'BER']);
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('morning/aisle', $answer['body']['result']['content'][0]['text']);
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>, ?AccessToken}>
+     */
+    public static function otherCalls(): iterable
+    {
+        yield 'other arguments' => [['to' => 'CDG'], self::alice()];
+        yield 'other principal' => [['to' => 'BER'], self::alice('mallory')];
+        yield 'no principal' => [['to' => 'BER'], null];
+    }
+
+    /**
+     * @param array<string, mixed> $arguments
+     */
+    #[DataProvider('otherCalls')]
+    #[TestDox('a bound state echoed on another call is refused like a forged one: $_dataName')]
+    public function testBoundStateRefusedOnAnotherCall(array $arguments, ?AccessToken $token): void
+    {
+        $protocol = self::twoAskProtocol(binder: new OriginatingRequestBinder());
+        $state = $this->mintedState($protocol, self::alice(), ['to' => 'BER']);
+
+        $answer = self::bookAs($protocol, $token, [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $state,
+        ], $arguments);
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
+        $this->assertSame('The supplied requestState failed verification.', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('the binder sees the request as sent and its access token')]
+    public function testBinderSeesTheRequestAndToken(): void
+    {
+        $binder = new class implements RequestStateBinderInterface {
+            /** @var list<array{string, array<string, mixed>, ?string}> */
+            public array $calls = [];
+
+            public function bind(Request $request, ?AccessToken $accessToken): string
+            {
+                \assert($request instanceof CallToolRequest);
+                $this->calls[] = [$request->name, $request->arguments, $accessToken?->getSubject()];
+
+                return 'fixed';
+            }
+        };
+
+        $this->mintedState(self::twoAskProtocol(binder: $binder), self::alice(), ['to' => 'BER']);
+
+        $this->assertSame([['books_flight', ['to' => 'BER'], 'alice']], $binder->calls);
+    }
+
+    #[TestDox('a state minted before a binder was configured is refused once one is')]
+    public function testUnboundStateRefusedByABindingServer(): void
+    {
+        $state = $this->mintedState(self::twoAskProtocol(), self::alice());
+
+        $answer = self::bookAs(self::twoAskProtocol(binder: new OriginatingRequestBinder()), self::alice(), [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $state,
+        ]);
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('without a binder, a state verifies on any call, as before')]
+    public function testUnboundStateIsNotTiedToTheCall(): void
+    {
+        $protocol = self::twoAskProtocol();
+        $state = $this->mintedState($protocol, self::alice(), ['to' => 'BER']);
+
+        $answer = self::bookAs($protocol, self::alice('mallory'), [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $state,
+        ], ['to' => 'CDG']);
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('morning/aisle', $answer['body']['result']['content'][0]['text']);
     }
 
     #[TestDox('carrying an answer to the next round without a signing key fails loudly')]

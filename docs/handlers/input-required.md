@@ -98,6 +98,31 @@ The **same key must reach every process that might serve the retry**. A per-proc
 value works only for a single-process deployment. Nothing secret belongs in the payload —
 it is signed, not encrypted.
 
+### Binding the state to the request
+
+A valid state verifies on any request of the TTL, so a client can echo it on another call,
+another tool, or under another user's token. The specification recommends binding it to the
+authenticated principal and the originating request. `Builder::setRequestStateBinder()` does
+that for the modern era: the binder's value is covered by the MAC of every state the request
+mints, and a retry that binds to another value is refused like a forged state. The value
+itself never goes on the wire.
+
+```php
+use Mcp\Server\Stateless\OriginatingRequestBinder;
+
+->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
+->setRequestStateBinder(new OriginatingRequestBinder())
+```
+
+`OriginatingRequestBinder` binds the method, the tool or prompt name and a digest of its
+arguments (or the resource URI), and the token's issuer, client and subject. For anything
+else, implement `RequestStateBinderInterface`, which receives the request as the client sent
+it and its `AccessToken`. Bind only what stays the same across the rounds of one call;
+`_meta` does not.
+
+States minted before the binder was configured no longer verify, so turning it on fails the
+calls in flight for at most one TTL.
+
 ## Capabilities
 
 A server must not ask for input the client cannot provide. The SDK checks each ask against

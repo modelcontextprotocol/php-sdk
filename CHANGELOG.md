@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Add `Builder::setRequestStateBinder()` binding the modern era's `requestState` to the request it was minted for, as the 2026-07-28 specification recommends: the binder's value is covered by the state's MAC, and a state echoed on a request that binds to another value is refused like a forged one. `OriginatingRequestBinder` binds the authenticated principal, the method, the tool, prompt or resource, and a digest of the arguments; `RequestStateBinderInterface` takes custom bindings. Without a binder, nothing changes.
+
 0.9.0
 -----
 
