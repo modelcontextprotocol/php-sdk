@@ -112,6 +112,53 @@ class RequestStateCodecTest extends TestCase
         }
     }
 
+    #[TestDox('a bound state verifies under the same binding')]
+    public function testBoundRoundTrip(): void
+    {
+        $codec = (new RequestStateCodec(self::KEY))->withBinding('tools/call|book');
+
+        $this->assertSame(['round' => 1], $codec->withBinding('tools/call|book')->verify($codec->mint(['round' => 1])));
+    }
+
+    #[TestDox('a bound state is refused under another binding, like a forged one')]
+    public function testBoundStateRefusedUnderAnotherBinding(): void
+    {
+        $codec = new RequestStateCodec(self::KEY);
+        $state = $codec->withBinding('tools/call|book')->mint(['round' => 1]);
+
+        $this->expectExceptionObject(new RequestStateException('mac'));
+        $codec->withBinding('tools/call|cancel')->verify($state);
+    }
+
+    #[TestDox('an unbound state is refused by a bound codec, and a bound one by an unbound codec')]
+    public function testBindingIsNeitherAddedNorStripped(): void
+    {
+        $unbound = new RequestStateCodec(self::KEY);
+        $bound = $unbound->withBinding('');
+
+        foreach ([[$unbound, $bound], [$bound, $unbound]] as [$minter, $verifier]) {
+            try {
+                $verifier->verify($minter->mint(['round' => 1]));
+                $this->fail('Expected rejection.');
+            } catch (RequestStateException $e) {
+                $this->assertSame('mac', $e->getMessage());
+            }
+        }
+    }
+
+    #[TestDox('the binding stays off the wire, which keeps its shape')]
+    public function testBindingStaysOffTheWire(): void
+    {
+        $state = (new RequestStateCodec(self::KEY))->withBinding('alice@example.com')->mint(['round' => 1], now: 1_000);
+        [$body] = explode('.', $state);
+
+        $this->assertCount(2, explode('.', $state));
+        $this->assertSame(
+            ['exp' => 1_600, 'data' => ['round' => 1]],
+            json_decode(base64_decode(strtr($body, '-_', '+/')), true),
+        );
+    }
+
     #[TestDox('a key too short to be safe is refused at construction')]
     public function testShortKeyRefused(): void
     {
