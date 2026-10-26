@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Fix a `subscriptions/listen` stream that can carry nothing (the server announces none of the requested types, or the client asks for none) being held open for the full subscription lifetime: it is acknowledged with an empty `notifications` filter and closed gracefully right away, instead of pinning a PHP-FPM worker. Adds `NotificationFilter::isEmpty()`.
+
 0.9.0
 -----
 
