@@ -145,7 +145,8 @@ final class Builder
     /** @var list<class-string<\Mcp\Schema\JsonRpc\Request>|class-string<\Mcp\Schema\JsonRpc\Notification>> */
     private array $extensionMessages = [];
 
-    private ?string $requestStateKey = null;
+    /** @var string|list<string>|null */
+    private string|array|null $requestStateKey = null;
 
     private int $requestStateTtl = 600;
 
@@ -381,6 +382,10 @@ final class Builder
      * The same key must reach every instance that might serve the retry, so a
      * per-process random value only works for a single-process deployment.
      *
+     * A list of keys is a key ring: the first key signs, every key verifies.
+     * To rotate, put the new key first and keep the old one behind it until
+     * the states it signed have expired, one TTL later.
+     *
      * A binder ties every state the modern era mints to the request it was
      * minted for, e.g. {@see Stateless\OriginatingRequestBinder} to the
      * principal, method and arguments: a state echoed on a request that binds
@@ -388,11 +393,11 @@ final class Builder
      * before a binder was configured no longer verify, so adding one fails the
      * multi round-trip calls in flight for at most the TTL.
      *
-     * @param string                           $key    at least 32 bytes
+     * @param string|list<string>              $key    the signing key or key ring, each key at least 32 bytes
      * @param int                              $ttl    how long a minted state stays valid, in seconds
      * @param RequestStateBinderInterface|null $binder binds each state to its originating request
      */
-    public function setRequestState(string $key, int $ttl = 600, ?RequestStateBinderInterface $binder = null): self
+    public function setRequestState(string|array $key, int $ttl = 600, ?RequestStateBinderInterface $binder = null): self
     {
         $this->requestStateKey = $key;
         $this->requestStateTtl = $ttl;
