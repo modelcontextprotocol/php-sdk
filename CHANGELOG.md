@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Answer `server/discover` with a request handler, `DiscoverHandler`, instead of hard-coding it in `StatelessProtocol`, so a server can replace the answer through `Builder::addRequestHandler()` (for example with instructions for stateless clients only), and `server/discover` dispatches `RequestEvent`, `ResponseEvent` and `ErrorEvent` like every other request. The default answer is unchanged, stays a plain JSON response even to a client that accepts `text/event-stream`, and is still not reachable from the handshake era.
+
 0.9.0
 -----
 

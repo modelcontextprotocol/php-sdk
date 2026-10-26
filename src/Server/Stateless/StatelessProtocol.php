@@ -28,7 +28,6 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Notification\LoggingMessageNotification;
 use Mcp\Schema\Request\ElicitRequest;
-use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
@@ -250,11 +249,7 @@ final class StatelessProtocol
             return StatelessResult::error(Error::forHeaderMismatch($headerError, $id), 400);
         }
 
-        if (self::DISCOVER_METHOD === $method || self::LISTEN_METHOD === $method) {
-            if (self::DISCOVER_METHOD === $method) {
-                return $this->encode($method, $id, $this->discover());
-            }
-
+        if (self::LISTEN_METHOD === $method) {
             return $this->listen($params, $id, paced: $headerLayer);
         }
 
@@ -265,7 +260,11 @@ final class StatelessProtocol
             );
         }
 
-        return $this->dispatch($method, $decoded, $meta, $id, !$headerLayer || self::acceptsEventStream($headers), $accessToken);
+        // `server/discover` reports what the server is, so it is answered with a
+        // plain result even to a client that would read a stream.
+        $wantsStream = self::DISCOVER_METHOD !== $method && (!$headerLayer || self::acceptsEventStream($headers));
+
+        return $this->dispatch($method, $decoded, $meta, $id, $wantsStream, $accessToken);
     }
 
     /**
@@ -431,15 +430,6 @@ final class StatelessProtocol
         $frame['params'] = $params;
 
         return $frame;
-    }
-
-    private function discover(): DiscoverResult
-    {
-        return new DiscoverResult(
-            $this->supportedVersions,
-            $this->configuration->capabilities,
-            $this->configuration->instructions,
-        );
     }
 
     /**
