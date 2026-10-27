@@ -39,6 +39,6 @@ final class ElementMetadataResolver
      */
     public static function resolveDescription(\ReflectionMethod $method, ?string $description, DocBlockParser $docBlockParser): ?string
     {
-        return $description ?? $docBlockParser->getDescription($docBlockParser->parseDocBlock($method->getDocComment() ?? null));
+        return $description ?? $docBlockParser->getDescription($docBlockParser->parseDocBlock($method->getDocComment()));
     }
 }

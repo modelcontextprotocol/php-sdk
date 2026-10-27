@@ -261,7 +261,7 @@ final class Discoverer implements DiscovererInterface
 
                 ++$discoveredCount['resources'];
             } elseif ($instance instanceof McpPrompt) {
-                $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment() ?? null);
+                $docBlock = $this->docBlockParser->parseDocBlock($method->getDocComment());
                 $name = ElementMetadataResolver::resolveName($method, $instance->name);
                 $description = ElementMetadataResolver::resolveDescription($method, $instance->description, $this->docBlockParser);
                 $arguments = [];

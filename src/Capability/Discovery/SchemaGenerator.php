@@ -514,8 +514,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      */
     private function parseParametersInfo(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
-        $docComment = $reflection->getDocComment() ?: null;
-        $docBlock = $this->docBlockParser->parseDocBlock($docComment);
+        $docBlock = $this->docBlockParser->parseDocBlock($reflection->getDocComment());
         $paramTags = $this->docBlockParser->getParamTags($docBlock);
         $parametersInfo = [];
 
@@ -556,7 +555,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
                 $allowsNull = true;
             } elseif ($hasDefault && null === $defaultValue) {
                 $allowsNull = true;
-            } elseif (str_contains($typeString, 'null') || 'mixed' === strtolower($typeString)) {
+            } elseif (self::hasNullBranch($typeString) || 'mixed' === strtolower($typeString)) {
                 $allowsNull = true;
             }
 
@@ -609,7 +608,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Otherwise, use the DocBlock type if it was valid and non-generic
         if (null !== $docBlockType && !$isDocBlockTypeGeneric) {
             // Consider if DocBlock adds nullability missing from reflection
-            if (false !== stripos($docBlockType, 'null') && $reflectionTypeString && false === stripos($reflectionTypeString, 'null') && !str_ends_with($reflectionTypeString, '|null')) {
+            if (self::hasNullBranch($docBlockType) && $reflectionTypeString && false === stripos($reflectionTypeString, 'null') && !str_ends_with($reflectionTypeString, '|null')) {
                 // If reflection didn't capture null, but docblock did, append |null (if not already mixed)
                 if ('mixed' !== $reflectionTypeString) {
                     return $reflectionTypeString.'|null';
@@ -734,6 +733,17 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     }
 
     /**
+     * Whether `null` is one of the top-level alternatives of a type, as in
+     * `string|null`. A `null` inside a generic or a shape, as in
+     * `array{name: string|null}`, belongs to that inner type and does not
+     * make the whole type nullable.
+     */
+    private static function hasNullBranch(string $type): bool
+    {
+        return \in_array('null', array_map(strtolower(...), self::splitUnion($type)), true);
+    }
+
+    /**
      * Maps a PHP type string (potentially a union) to an array of JSON Schema type names.
      *
      * @return string[]
@@ -820,25 +830,21 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         // Case 2: Generic array<T> syntax (e.g., array<string>, array<int>, etc.)
-        if (preg_match('/^(\\??)array\s*<\s*([\w\\\\|]+)\s*>$/i', $normalizedType, $matches)) {
-            $itemType = strtolower($matches[2]);
+        if (preg_match('/^(\\??)array\s*<\s*([\w\\\\|?]+)\s*>$/i', $normalizedType, $matches)) {
+            $itemSchema = $this->mapTypeToSchema(strtolower($matches[2]));
 
-            return $this->mapSimpleTypeToJsonSchema($itemType);
+            return \is_string($itemSchema['type']) && 1 === \count($itemSchema) ? $itemSchema['type'] : $itemSchema;
         }
 
         // Case 3: Nested array<array<T>> syntax or T[][] syntax
         if (
-            preg_match('/^(\\??)array\s*<\s*array\s*<\s*([\w\\\\|]+)\s*>\s*>$/i', $normalizedType, $matches)
+            preg_match('/^(\\??)array\s*<\s*array\s*<\s*([\w\\\\|?]+)\s*>\s*>$/i', $normalizedType, $matches)
             || preg_match('/^(\\??)([\w\\\\]+)\s*\[\]\[\]$/i', $normalizedType, $matches)
         ) {
-            $innerType = $this->mapSimpleTypeToJsonSchema(isset($matches[2]) ? strtolower($matches[2]) : 'any'); /* @phpstan-ignore isset.offset */
-
             // Return a schema for array with items being arrays
             return [
                 'type' => 'array',
-                'items' => [
-                    'type' => $innerType,
-                ],
+                'items' => $this->mapTypeToSchema(strtolower($matches[2])),
             ];
         }
 
@@ -918,29 +924,49 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             // Add to required properties
             $required[] = $propName;
 
-            // Check for nested array{} syntax
-            if (preg_match('/^array\s*\{(.+)\}$/is', $propType, $nestedMatches)) {
-                $nestedSchema = $this->parseObjectLikeArray($nestedMatches[1]);
-                $properties[$propName] = $nestedSchema;
-            }
-            // Check for array<T> or T[] syntax
-            elseif (
-                preg_match('/^array\s*<\s*([\w\\\\|]+)\s*>$/i', $propType, $arrayMatches)
-                || preg_match('/^([\w\\\\]+)\s*\[\]$/i', $propType, $arrayMatches)
-            ) {
-                $itemType = $arrayMatches[1] ?? 'any'; /* @phpstan-ignore nullCoalesce.offset */
-                $properties[$propName] = [
-                    'type' => 'array',
-                    'items' => [
-                        'type' => $this->mapSimpleTypeToJsonSchema($itemType),
-                    ],
-                ];
-            }
-            // Simple type
-            else {
-                $properties[$propName] = ['type' => $this->mapSimpleTypeToJsonSchema($propType)];
-            }
+            $properties[$propName] = $this->mapTypeToSchema($propType);
         }
+    }
+
+    /**
+     * Maps a type inside a shape or generic, e.g. `string`, `int[]|null` or `array{x: int}`, to a JSON Schema.
+     *
+     * @return array<string, mixed>
+     */
+    private function mapTypeToSchema(string $type): array
+    {
+        if (str_starts_with($type, '?')) {
+            $type = 'null|'.substr($type, 1);
+        }
+
+        $branches = self::splitUnion($type);
+        if (\count($branches) > 1) {
+            $nonNull = array_values(array_filter($branches, static fn (string $branch): bool => 'null' !== strtolower($branch)));
+            $schemas = array_map($this->mapTypeToSchema(...), $nonNull);
+            $types = array_values(array_unique(array_merge(...array_map(static fn (array $schema): array => (array) $schema['type'], $schemas))));
+            if (\count($nonNull) < \count($branches)) {
+                $types[] = 'null';
+            }
+
+            // Constraints of several branches could reject what another accepts, so only a lone non-null branch keeps them.
+            $schema = 1 === \count($schemas) ? $schemas[0] : [];
+            $schema['type'] = 1 === \count($types) ? $types[0] : $types;
+
+            return $schema;
+        }
+
+        if (preg_match('/^array\s*\{(.+)\}$/is', $type, $matches)) {
+            return $this->parseObjectLikeArray($matches[1]);
+        }
+
+        if (
+            preg_match('/^array\s*<\s*([\w\\\\|?]+)\s*>$/i', $type, $matches)
+            || preg_match('/^([\w\\\\]+)\s*\[\]$/i', $type, $matches)
+        ) {
+            return ['type' => 'array', 'items' => $this->mapTypeToSchema($matches[1])];
+        }
+
+        return ['type' => 'null' === strtolower($type) ? 'null' : $this->mapSimpleTypeToJsonSchema($type)];
     }
 
     /**
