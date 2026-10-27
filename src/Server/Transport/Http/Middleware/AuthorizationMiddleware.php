@@ -35,6 +35,8 @@ use Psr\Http\Server\RequestHandlerInterface;
  * - Returns 403 insufficient_scope when the token lacks a scope the {@see ScopePolicy} requires
  * - Hands the validated {@see AccessToken} to the transport as request attribute,
  *   from where handlers read it via {@see \Mcp\Server\RequestContext::getAccessToken()}
+ * - Identifies the principal by the token's issuer, subject and client, so that a session
+ *   only serves the principal that opened it, see {@see StreamableHttpTransport::PRINCIPAL_ATTRIBUTE}
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization
  *
@@ -113,7 +115,15 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             $token = new AccessToken($granted, $token->getClaims());
         }
 
-        return $handler->handle($request->withAttribute(AccessToken::class, $token));
+        $request = $request->withAttribute(AccessToken::class, $token);
+
+        if (null !== $subject = $token->getSubject()) {
+            // Kept across token refreshes, unlike the token itself or its scopes.
+            $principal = json_encode([$token->getClaim('iss'), $subject, $token->getClientId()], \JSON_THROW_ON_ERROR);
+            $request = $request->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, $principal);
+        }
+
+        return $handler->handle($request);
     }
 
     private function buildErrorResponse(AuthorizationResult $result): ResponseInterface
