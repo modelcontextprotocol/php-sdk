@@ -1,0 +1,15 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"database\": \"up\",\n    \"cache\": \"up\",\n    \"search\": \"up\"\n}"
+    }
+  ],
+  "structuredContent": {
+    "database": "up",
+    "cache": "up",
+    "search": "up"
+  },
+  "isError": false
+}
+

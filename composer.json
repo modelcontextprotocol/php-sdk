@@ -43,6 +43,8 @@
   },
   "require-dev": {
     "ext-openssl": "*",
+    "amphp/amp": "^3.0",
+    "amphp/http-server": "^3.3",
     "composer/semver": "^3.0",
     "firebase/php-jwt": "^6.10 || ^7.0",
     "laminas/laminas-httphandlerrunner": "^2.12",
@@ -55,6 +57,7 @@
     "phpunit/phpunit": "^10.5",
     "psr/cache": "^1.0 || ^2.0 || ^3.0",
     "psr/simple-cache": "^2.0 || ^3.0",
+    "revolt/event-loop": "^1.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/finder": "^5.4 || ^6.4 || ^7.3 || ^8.0",
@@ -88,6 +91,7 @@
       "Mcp\\Example\\Server\\McpApps\\": "examples/server/mcp-apps/",
       "Mcp\\Example\\Server\\OAuthKeycloak\\": "examples/server/oauth-keycloak/",
       "Mcp\\Example\\Server\\OAuthMicrosoft\\": "examples/server/oauth-microsoft/",
+      "Mcp\\Example\\Server\\Revolt\\": "examples/server/revolt/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
       "Mcp\\Tests\\": "tests/"
     },

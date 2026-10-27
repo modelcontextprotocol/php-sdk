@@ -49,6 +49,19 @@ curl -sS http://127.0.0.1:8000/ \
 `tests/Integration/StatelessLifecycleTest.php` drives this example end to end — discovery, a tool call,
 the multi round-trip flow, and the response stream carrying progress and log notifications.
 
+## Event loop
+
+`revolt/server.php` runs the server on the Revolt event loop with `amphp/http-server`. It is a
+long-running process, so you start it directly instead of with `php -S`:
+
+```bash
+php examples/server/revolt/server.php 127.0.0.1:8000
+```
+
+Its tools wait on the loop with `Amp\delay()`, and other requests are served in the meantime. The
+`RevoltFiberScheduler` set with `Builder::setFiberScheduler()` makes this work, see
+[Fiber Scheduler](../../docs/run/server-builder.md#fiber-scheduler).
+
 ## Debugging
 
 You can enable debug output by setting the `DEBUG` environment variable to `1`, and additionally log to a file by
