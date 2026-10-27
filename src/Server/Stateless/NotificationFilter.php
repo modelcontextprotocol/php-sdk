@@ -71,6 +71,18 @@ final class NotificationFilter
     }
 
     /**
+     * Whether this filter admits no notification at all, so a stream bound
+     * to it could never deliver anything.
+     */
+    public function isEmpty(): bool
+    {
+        return !$this->toolsListChanged
+            && !$this->promptsListChanged
+            && !$this->resourcesListChanged
+            && [] === $this->resourceSubscriptions;
+    }
+
+    /**
      * Whether this filter admits $notification onto the stream.
      *
      * An allow-list decision, so an unrecognized notification is declined: the

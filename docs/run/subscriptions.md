@@ -59,5 +59,8 @@ $bus->publish(new ResourceUpdatedNotification('file:///project/config.json'));
 closes it gracefully. The real ceiling is the runtime's: under PHP-FPM a stream cannot
 outlive `max_execution_time`. Pass `0` for "until the client or the runtime ends it".
 
+A stream that can carry nothing, because the server announces none of the types the client
+asked for, or the client asked for none, is acknowledged and closed right away.
+
 Over stdio the lifetime does not apply: a stream stays open until the client sends
 `notifications/cancelled` for it, see [Over stdio](protocol-eras.md#over-stdio).
