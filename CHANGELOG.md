@@ -10,6 +10,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
 * Fix tools with an array shape parameter whose keys are nullable or unions (e.g. `array{name: string, nickname: string|null}`) rejecting valid arguments with `-32602`: a `null` inside the shape no longer turns the parameter into `array|null`, and such keys get their own types instead of `object`, including lists and nested shapes (`string[]|null`, `array{x: int}|null`).
 * Fix `array<string|null>` and other generics with a union element getting `items` of type `object`. A `null` inside a generic no longer makes the parameter nullable, and neither does a DocBlock class whose name contains `null`.
+* Event loops
+  * Add `Builder::setFiberScheduler()` and `Mcp\Server\Fiber\FiberSchedulerInterface`: under an event loop — Revolt (AMPHP), ReactPHP's async — a request handler awaiting I/O suspends its fiber for the loop, and the server now waits through the scheduler until the handler suspends for the server again or returns. The guide shows a Revolt scheduler in ten lines.
+  * Fix the server resuming a request handler's fiber that the runtime had suspended: the handler's await returned early or threw (`Must call resume() or throw() before calling suspend() again`), and the runtime later resumed a fiber that had moved on — under Revolt, terminating the event loop. Without a scheduler, such a handler now fails the request with a `LogicException` naming `Builder::setFiberScheduler()`. `Protocol::__construct()` and `StatelessProtocol::__construct()` take the scheduler as optional last argument.
+  * What a handler throws while the runtime drives its fiber reaches the server, as it does when the server drives it, never the runtime.
 
 ### Client
 

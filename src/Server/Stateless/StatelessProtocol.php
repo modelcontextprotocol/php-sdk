@@ -32,6 +32,8 @@ use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
+use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -114,6 +116,7 @@ final class StatelessProtocol
         private readonly ?NotificationBusInterface $notificationBus = null,
         private readonly array $extensionMethods = [],
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?FiberSchedulerInterface $fiberScheduler = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -672,11 +675,11 @@ final class StatelessProtocol
      */
     private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
     {
-        $fiber = new \Fiber(static fn (): mixed => $handler->handle($request, $session));
+        $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler);
         $input = $session->get(InputContext::class);
         $replay = new ElicitationReplay($input instanceof InputContext ? $input : null, $this->requestStateCodec);
 
-        $suspended = $fiber->start();
+        $suspended = HandlerFibers::start($fiber);
 
         while (!$fiber->isTerminated()) {
             if (null !== $elicitation = self::readElicitation($suspended)) {
@@ -693,7 +696,7 @@ final class StatelessProtocol
                     }
                 }
 
-                $suspended = $fiber->resume(new Response($request->getId(), $answer));
+                $suspended = HandlerFibers::resume($fiber, new Response($request->getId(), $answer));
 
                 continue;
             }
@@ -704,7 +707,7 @@ final class StatelessProtocol
                 yield $notification;
             }
 
-            $suspended = $fiber->resume(null);
+            $suspended = HandlerFibers::resume($fiber);
         }
 
         /** @var Response<ResultInterface>|Error $return */

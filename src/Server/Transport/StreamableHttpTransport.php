@@ -16,6 +16,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Http\Middleware\CorsMiddleware;
 use Mcp\Server\Transport\Http\Middleware\DnsRebindingProtectionMiddleware;
@@ -313,7 +314,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
                     if (empty($pendingRequests)) {
-                        $yielded = $fiber->resume();
+                        $yielded = HandlerFibers::resume($fiber);
                         $this->handleFiberYield($yielded, $this->sessionId, $fiber);
                         continue;
                     }
@@ -325,7 +326,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                         $response = $this->checkForResponse($requestId, $this->sessionId);
 
                         if (null !== $response) {
-                            $yielded = $fiber->resume($response);
+                            $yielded = HandlerFibers::resume($fiber, $response);
                             $this->handleFiberYield($yielded, $this->sessionId, $fiber);
                             $resumed = true;
                             break;

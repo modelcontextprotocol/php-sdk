@@ -265,6 +265,38 @@ $server = Server::builder()
     ->setEventDispatcher($eventDispatcher);
 ```
 
+### Fiber Scheduler
+
+The server runs every request handler in a fiber, so that the handler can wait on the client — for an
+elicitation, a sampling request, or to send a notification — through the
+[`ClientGateway`](../handlers/client-communication.md). Under an event loop (Revolt, which AMPHP builds on, or
+ReactPHP's async), the handler's own I/O suspends that same fiber, for the loop. Tell the server how to wait on
+your runtime, and it leaves the fiber to the loop until the handler suspends for the server again or returns:
+
+```php
+use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Fiber\FiberSettlement;
+use Revolt\EventLoop;
+
+final class RevoltFiberScheduler implements FiberSchedulerInterface
+{
+    public function wait(FiberSettlement $settlement): void
+    {
+        $suspension = EventLoop::getSuspension();
+        $settlement->then($suspension->resume(...));
+        $suspension->suspend();
+    }
+}
+
+$server = Server::builder()
+    ->setFiberScheduler(new RevoltFiberScheduler());
+```
+
+Without a scheduler, a handler whose fiber is suspended by anything but the server fails the request with a
+`LogicException`, rather than being resumed with nothing. Under an event loop, wait on the client through the
+gateway: a suspension payload a handler hands to `\Fiber::suspend()` itself, after the loop resumed it, reaches
+the loop, not the server.
+
 ## Complete Example
 
 Here's a comprehensive example showing all major configuration options:
@@ -344,6 +376,7 @@ $server = Server::builder()
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
+| `setFiberScheduler()` | scheduler | Wait on an event loop (Revolt, ReactPHP) while a handler awaits I/O, see [Fiber Scheduler](#fiber-scheduler) |
 | `setSchemaGenerator()` | schemaGenerator | Replace the generator that builds input schemas from PHP types, see [Schema generation](../servers/schemas.md) |
 | `setSchemaValidator()` | schemaValidator | Replace the validator for tool arguments and structured output, see [Schema generation](../servers/schemas.md) |
 | `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |

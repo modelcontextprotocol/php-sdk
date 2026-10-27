@@ -44,6 +44,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server;
+use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Handler\ElementHandlerInterface;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\PromptHandlerInterface;
@@ -134,6 +135,8 @@ final class Builder
     private ?NotificationBusInterface $notificationBus = null;
 
     private float $subscriptionLifetime = 30.0;
+
+    private ?FiberSchedulerInterface $fiberScheduler = null;
 
     /** @var array<string, string> RPC method to the extension identifier defining it */
     private array $extensionMethods = [];
@@ -340,6 +343,21 @@ final class Builder
     public function setSubscriptionLifetime(float $seconds): self
     {
         $this->subscriptionLifetime = max(0.0, $seconds);
+
+        return $this;
+    }
+
+    /**
+     * Sets the runtime that may suspend a request handler's fiber besides the server: an event loop.
+     *
+     * The server runs every request handler in a fiber, to let it wait on the client. Under an event
+     * loop — Revolt (AMPHP), ReactPHP's async — a handler awaiting I/O suspends that fiber for the loop:
+     * the server then waits through this scheduler until the handler suspends for the server again or
+     * returns, instead of resuming the fiber itself. Without one, such a handler fails the request.
+     */
+    public function setFiberScheduler(FiberSchedulerInterface $scheduler): self
+    {
+        $this->fiberScheduler = $scheduler;
 
         return $this;
     }
@@ -979,6 +997,7 @@ final class Builder
                 : null,
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
+            fiberScheduler: $this->fiberScheduler,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -1018,6 +1037,7 @@ final class Builder
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
             eventDispatcher: $parts['eventDispatcher'],
+            fiberScheduler: $this->fiberScheduler,
         );
     }
 

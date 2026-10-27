@@ -31,6 +31,14 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
 
     abstract protected function getServerScript(): string;
 
+    /**
+     * @return list<string>
+     */
+    protected function getServerCommand(string $address): array
+    {
+        return ['php', '-S', $address, $this->getServerScript()];
+    }
+
     protected function getServerConnectionArgs(): array
     {
         return [\sprintf('http://127.0.0.1:%d', $this->serverPort)];
@@ -45,12 +53,7 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
     {
         $this->serverPort = 8000 + (getmypid() % 1000);
 
-        $this->serverProcess = new Process([
-            'php',
-            '-S',
-            \sprintf('127.0.0.1:%d', $this->serverPort),
-            $this->getServerScript(),
-        ]);
+        $this->serverProcess = new Process($this->getServerCommand(\sprintf('127.0.0.1:%d', $this->serverPort)));
 
         $this->serverProcess->start();
 

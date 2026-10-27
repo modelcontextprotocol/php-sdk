@@ -1,0 +1,10 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "Waited 0.2 seconds on the event loop."
+    }
+  ],
+  "isError": false
+}
+
