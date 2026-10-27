@@ -38,6 +38,7 @@ use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
+use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
@@ -999,6 +1000,11 @@ final class Builder
      * both together; this is the modern era by itself, for an endpoint that
      * serves nothing else.
      *
+     * `server/discover` exists in this era only, so its message class and its
+     * default handler are added here rather than to the parts both eras share.
+     * The default handler comes last, after the custom ones, so a handler
+     * registered for {@see DiscoverRequest} answers instead.
+     *
      * @param list<ProtocolVersion> $supportedVersions revisions this dispatcher will answer for
      */
     public function buildStateless(array $supportedVersions = [ProtocolVersion::V2026_07_28]): StatelessProtocol
@@ -1006,8 +1012,11 @@ final class Builder
         $parts = $this->assemble();
 
         return new StatelessProtocol(
-            requestHandlers: $parts['requestHandlers'],
-            messageFactory: $parts['messageFactory'],
+            requestHandlers: [
+                ...$parts['requestHandlers'],
+                new Handler\Request\DiscoverHandler($parts['configuration'], $supportedVersions),
+            ],
+            messageFactory: MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]),
             configuration: $parts['configuration'],
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],

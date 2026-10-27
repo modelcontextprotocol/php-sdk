@@ -23,21 +23,28 @@ use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\PromptListChangedNotification;
 use Mcp\Schema\Notification\ResourceUpdatedNotification;
 use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Schema\Request\CallToolRequest;
+use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Request\ListRootsRequest;
+use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
+use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Wire\CachePolicy;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
@@ -1488,5 +1495,136 @@ class StatelessProtocolTest extends TestCase
         $this->assertCount(2, $events);
         $this->assertInstanceOf(RequestEvent::class, $events[0]);
         $this->assertInstanceOf(ResponseEvent::class, $events[1]);
+    }
+
+    #[TestDox('server/discover is answered by the default handler exactly as before it was one')]
+    public function testDiscoverDefaultAnswer(): void
+    {
+        $answer = self::call(self::discoverProtocol(), 'server/discover');
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame([
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'result' => [
+                'supportedVersions' => [ProtocolVersion::V2026_07_28->value],
+                'capabilities' => ['logging' => [], 'completions' => [], 'tools' => []],
+                'instructions' => 'Call plain_tool first.',
+                'resultType' => 'complete',
+                'ttlMs' => 0,
+                'cacheScope' => 'private',
+                '_meta' => [RequestMeta::SERVER_INFO => ['name' => 'test-server', 'version' => '1.0.0']],
+            ],
+        ], $answer['body']);
+    }
+
+    #[TestDox('server/discover is answered with plain JSON to a client that accepts a stream')]
+    public function testDiscoverIsNeverStreamed(): void
+    {
+        $result = self::discoverProtocol(self::discoverHandler('Streams are for tools.', notify: true))->handle(
+            json_encode(['jsonrpc' => '2.0', 'id' => 1, 'method' => 'server/discover', 'params' => ['_meta' => [
+                RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value,
+                RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+            ]]], \JSON_THROW_ON_ERROR),
+            [
+                'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+                'Mcp-Method' => 'server/discover',
+                'Accept' => 'application/json, text/event-stream',
+            ],
+        );
+
+        $this->assertFalse($result->isStream());
+        $this->assertSame(200, $result->httpStatus);
+        $this->assertSame('Streams are for tools.', json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR)['result']['instructions']);
+    }
+
+    #[TestDox('a server/discover handler added to the builder answers instead of the default')]
+    public function testCustomDiscoverHandlerReplacesTheDefault(): void
+    {
+        $answer = self::call(self::discoverProtocol(self::discoverHandler('Stateless clients: use plain_tool only.')), 'server/discover');
+
+        $this->assertSame(200, $answer['status']);
+        $this->assertSame('Stateless clients: use plain_tool only.', $answer['body']['result']['instructions']);
+        // The codec still stamps the wire vocabulary onto a custom result.
+        $this->assertSame('complete', $answer['body']['result']['resultType']);
+        $this->assertSame('test-server', $answer['body']['result']['_meta'][RequestMeta::SERVER_INFO]['name']);
+    }
+
+    #[TestDox('server/discover dispatches request and response events, and a listener can change the answer')]
+    public function testDiscoverDispatchesEvents(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof ResponseEvent && $event->getRequest() instanceof DiscoverRequest) {
+                $result = $event->getResponse()->result;
+                \assert($result instanceof DiscoverResult);
+                $event->setResponse(new Response($event->getResponse()->getId(), new DiscoverResult($result->supportedVersions, $result->capabilities, 'Changed by a listener.')));
+            }
+        };
+
+        $answer = self::call(self::discoverProtocol(eventDispatcher: $this->eventDispatcher($events, $listener)), 'server/discover');
+
+        $this->assertCount(2, $events);
+        $this->assertInstanceOf(RequestEvent::class, $events[0]);
+        $this->assertSame('server/discover', $events[0]->getMethod());
+        $this->assertInstanceOf(ResponseEvent::class, $events[1]);
+        $this->assertSame('Changed by a listener.', $answer['body']['result']['instructions']);
+    }
+
+    /**
+     * @param RequestHandlerInterface<DiscoverResult>|null $discoverHandler
+     */
+    private static function discoverProtocol(?RequestHandlerInterface $discoverHandler = null, ?EventDispatcherInterface $eventDispatcher = null): StatelessProtocol
+    {
+        $builder = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setInstructions('Call plain_tool first.')
+            ->addTool(static fn (): string => 'ok', name: 'plain_tool', description: 'Returns a fixed string');
+
+        if (null !== $discoverHandler) {
+            $builder->addRequestHandler($discoverHandler);
+        }
+
+        if (null !== $eventDispatcher) {
+            $builder->setEventDispatcher($eventDispatcher);
+        }
+
+        return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
+    }
+
+    /**
+     * @return RequestHandlerInterface<DiscoverResult>
+     */
+    private static function discoverHandler(string $instructions, bool $notify = false): RequestHandlerInterface
+    {
+        return new class($instructions, $notify) implements RequestHandlerInterface {
+            public function __construct(
+                private readonly string $instructions,
+                private readonly bool $notify,
+            ) {
+            }
+
+            public function supports(Request $request): bool
+            {
+                return $request instanceof DiscoverRequest;
+            }
+
+            /**
+             * @return Response<DiscoverResult>
+             */
+            public function handle(Request $request, SessionInterface $session): Response
+            {
+                if ($this->notify) {
+                    // Would open a stream for any other method.
+                    \Fiber::suspend(new NotificationSuspension(new ToolListChangedNotification(), $session->getId()->toRfc4122()));
+                }
+
+                return new Response($request->getId(), new DiscoverResult(
+                    [ProtocolVersion::V2026_07_28],
+                    new ServerCapabilities(),
+                    $this->instructions,
+                ));
+            }
+        };
     }
 }
