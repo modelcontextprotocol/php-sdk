@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Mcp\Client\Auth\AccessToken;
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
@@ -184,6 +185,35 @@ final class OAuthAuthenticatorTest extends TestCase
 
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
         $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
+    #[TestDox('a stored token is reused even though offline_access was not granted with it')]
+    public function testReusesAStoredTokenWithoutOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refreshTokens: true, refuseOfflineAccess: true);
+        $storage = new InMemoryCredentialStorage();
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+        $requestsAfterFirstFlow = \count($server->requested);
+
+        $second = $this->authenticator($server, storage: $storage);
+        $second->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('Bearer access-token-1', $second->authenticate($this->request())->getHeaderLine('Authorization'));
+        $this->assertSame($requestsAfterFirstFlow + 2, \count($server->requested));
+    }
+
+    #[TestDox('an expired token is refreshed even though offline_access was not granted with it')]
+    public function testRefreshesATokenWithoutOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired-token', 'Bearer', time() - 60, 'refresh-token', ['mcp:read']));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame([], $server->authorization);
     }
 
     #[TestDox('metadata naming an unrelated resource aborts the flow before any token is asked for')]
