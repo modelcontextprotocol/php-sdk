@@ -37,9 +37,9 @@ class DocBlockParser
     /**
      * Safely parses a DocComment string into a DocBlock object.
      */
-    public function parseDocBlock(string|false|null $docComment): ?DocBlock
+    public function parseDocBlock(string|false $docComment): ?DocBlock
     {
-        if (false === $docComment || null === $docComment || empty($docComment)) {
+        if (false === $docComment || '' === $docComment) {
             return null;
         }
         try {

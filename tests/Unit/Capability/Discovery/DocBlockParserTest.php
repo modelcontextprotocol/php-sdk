@@ -32,13 +32,13 @@ class DocBlockParserTest extends TestCase
     public function testGetDescriptionReturnsCorrectDescription(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryAndDescription');
-        $docComment = $method->getDocComment() ?: null;
+        $docComment = $method->getDocComment();
         $docBlock = $this->parser->parseDocBlock($docComment);
         $expectedDesc = "Summary line here.\n\nThis is a longer description spanning\nmultiple lines.\nIt might contain *markdown* or `code`.";
         $this->assertEquals($expectedDesc, $this->parser->getDescription($docBlock));
 
         $method2 = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithSummaryOnly');
-        $docComment2 = $method2->getDocComment() ?: null;
+        $docComment2 = $method2->getDocComment();
         $docBlock2 = $this->parser->parseDocBlock($docComment2);
         $this->assertEquals('Simple summary line.', $this->parser->getDescription($docBlock2));
     }
@@ -46,7 +46,7 @@ class DocBlockParserTest extends TestCase
     public function testGetParamTagsReturnsStructuredParamInfo(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithParams');
-        $docComment = $method->getDocComment() ?: null;
+        $docComment = $method->getDocComment();
         $docBlock = $this->parser->parseDocBlock($docComment);
         $params = $this->parser->getParamTags($docBlock);
 
@@ -97,7 +97,7 @@ class DocBlockParserTest extends TestCase
     public function testGetTagsByNameReturnsSpecificTags(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithMultipleTags');
-        $docComment = $method->getDocComment() ?: null;
+        $docComment = $method->getDocComment();
         $docBlock = $this->parser->parseDocBlock($docComment);
 
         $this->assertInstanceOf(DocBlock::class, $docBlock);
@@ -121,7 +121,7 @@ class DocBlockParserTest extends TestCase
     public function testHandlesMethodWithNoDocblockGracefully(): void
     {
         $method = new \ReflectionMethod(DocBlockTestFixture::class, 'methodWithNoDocBlock');
-        $docComment = $method->getDocComment() ?: null;
+        $docComment = $method->getDocComment();
         $docBlock = $this->parser->parseDocBlock($docComment);
 
         $this->assertNull($docBlock);

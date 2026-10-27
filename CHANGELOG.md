@@ -2,6 +2,13 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.10.0
+------
+
+### Server
+
+* [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
+
 0.9.0
 -----
 
