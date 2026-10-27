@@ -164,7 +164,10 @@ final class OAuth
     }
 
     /**
-     * Ask for exactly these scopes, rather than whatever the server asks for.
+     * Ask for these scopes, rather than whatever the server asks for.
+     *
+     * A step-up challenge still adds the scopes it names, since the server already
+     * refused a token that has only these.
      */
     public function setScopes(string ...$scopes): self
     {

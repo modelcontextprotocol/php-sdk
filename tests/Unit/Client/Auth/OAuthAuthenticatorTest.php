@@ -126,6 +126,22 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('a step-up challenge adds its scope to the configured ones instead of refreshing the token')]
+    public function testStepUpExtendsTheConfiguredScopes(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('mcp:read'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:admin']));
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertSame('authorization_code', $server->token['grant_type'] ?? null);
+    }
+
     #[TestDox('offline_access is requested only where the authorization server offers it')]
     public function testRequestsOfflineAccessWhenSupported(): void
     {
@@ -431,18 +447,23 @@ final class FakeOAuthServer implements ClientInterface
         private readonly array $serverScopes = [],
         private readonly bool $insecureEndpoints = false,
         private readonly string $authorizationServer = 'https://auth.example.com',
+        private readonly bool $refreshTokens = false,
     ) {
     }
 
     /**
      * @param string[] $scopes
      */
-    public function challenge(array $scopes = [], int $status = 401): ResponseInterface
+    public function challenge(array $scopes = [], int $status = 401, ?string $error = null): ResponseInterface
     {
         $parameters = 'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"';
 
         if ([] !== $scopes) {
             $parameters = \sprintf('scope="%s", ', implode(' ', $scopes)).$parameters;
+        }
+
+        if (null !== $error) {
+            $parameters = \sprintf('error="%s", ', $error).$parameters;
         }
 
         return new Response($status, ['WWW-Authenticate' => 'Bearer '.$parameters]);
@@ -503,8 +524,13 @@ final class FakeOAuthServer implements ClientInterface
     private function issueToken(array $form): ResponseInterface
     {
         $this->token = array_map(strval(...), $form);
+        $scope = $this->authorization['scope'] ?? '';
 
-        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
+        if (!$this->refreshTokens) {
+            return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
+        }
+
+        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600, 'refresh_token' => 'refresh-token-'.$this->issued, 'scope' => $scope]);
     }
 
     /**

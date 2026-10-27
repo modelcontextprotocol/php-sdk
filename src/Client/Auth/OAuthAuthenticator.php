@@ -229,6 +229,9 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      * is unioned with what was previously granted, so a step-up challenge naming only
      * the missing scope does not quietly drop the ones already held.
      *
+     * Configured scopes replace that choice. An insufficient_scope challenge still adds
+     * the scopes it names, or the new token would be refused again.
+     *
      * @param ?string[] $scopesSupported
      *
      * @return string[]
@@ -239,6 +242,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         if ([] === $scopes) {
             $scopes = $challenge->getScopes() ?: ($scopesSupported ?? []);
+        } elseif ('insufficient_scope' === $challenge->getError()) {
+            $scopes = [...$scopes, ...$challenge->getScopes()];
         }
 
         $scopes = array_values(array_unique([...$this->requestedScopes, ...$scopes]));
