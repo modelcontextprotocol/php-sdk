@@ -130,7 +130,7 @@ final class TokenEndpoint
             // exception reaches.
             throw new AuthorizationException(\sprintf('The authorization server answered the token request with %d%s.', $response->getStatusCode(), match (true) {
                 200 === $response->getStatusCode() => ', and a body this client could not read as JSON', \is_array($decoded) => ': '.self::describeError($decoded), default => '',
-            }));
+            }), $response->getStatusCode());
         }
 
         return $decoded;

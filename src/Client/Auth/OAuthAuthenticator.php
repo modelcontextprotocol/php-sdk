@@ -53,6 +53,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     /** @var string[] The scopes the last authorization asked for, which a step-up challenge adds to. */
     private array $requestedScopes = [];
 
+    private bool $offlineAccessRefused = false;
+
     public function __construct(
         private readonly OAuthConfiguration $configuration,
         private readonly CredentialStorageInterface $storage,
@@ -96,6 +98,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $this->logger->info('Authorization server changed', ['from' => $this->issuer, 'to' => $metadata->issuer]);
             $this->token = null;
             $this->requestedScopes = [];
+            $this->offlineAccessRefused = false;
         }
 
         $this->issuer = $metadata->issuer;
@@ -251,6 +254,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         // A refresh token is only worth asking for where the authorization server says
         // it understands the request; sending an unknown scope is an error, not a hint.
         if ($this->configuration->offlineAccess
+            && !$this->offlineAccessRefused
             && $metadata->supportsScope('offline_access')
             && $metadata->supportsGrant(Grant::RefreshToken->value)
             && !\in_array('offline_access', $scopes, true)
@@ -320,6 +324,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      * answered here. Everything else the client asked for was named by the resource or
      * by the challenge, so there is nothing else to concede.
      *
+     * The refusal comes from the authorization endpoint, as invalid_scope, or from the
+     * token endpoint when the code is exchanged. Keycloak does the latter, with
+     * not_allowed, for a user who may not have offline tokens.
+     *
      * @param string[] $scopes
      *
      * @return array{AccessToken, string[]}
@@ -331,11 +339,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         } catch (AuthorizationException $e) {
             $reduced = array_values(array_diff($scopes, ['offline_access']));
 
-            if ($reduced === $scopes || !str_contains($e->getMessage(), 'invalid_scope')) {
+            if ($reduced === $scopes || (400 !== $e->getCode() && !str_contains($e->getMessage(), 'invalid_scope'))) {
                 throw $e;
             }
 
             $this->logger->info('The authorization server refused the offline_access scope; retrying without it, at the cost of a refresh token.', ['exception' => $e]);
+            $this->offlineAccessRefused = true;
 
             return [$this->grant($metadata, $client, $reduced, $resource), $reduced];
         }

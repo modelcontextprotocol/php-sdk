@@ -160,6 +160,32 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('offline_access refused when the code is exchanged is given up, as when the authorization endpoint refuses it')]
+    public function testGivesUpOfflineAccessRefusedAtTheTokenEndpoint(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server);
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('offline_access refused once is not asked for again on step-up')]
+    public function testDoesNotAskAgainForARefusedOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'mcp:write', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
     #[TestDox('metadata naming an unrelated resource aborts the flow before any token is asked for')]
     public function testRejectsAResourceMismatch(): void
     {
@@ -448,6 +474,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly bool $insecureEndpoints = false,
         private readonly string $authorizationServer = 'https://auth.example.com',
         private readonly bool $refreshTokens = false,
+        private readonly bool $refuseOfflineAccess = false,
     ) {
     }
 
@@ -525,6 +552,12 @@ final class FakeOAuthServer implements ClientInterface
     {
         $this->token = array_map(strval(...), $form);
         $scope = $this->authorization['scope'] ?? '';
+
+        // Keycloak accepts offline_access at the authorization endpoint, and only refuses it
+        // here, for a user who may not have offline tokens.
+        if ($this->refuseOfflineAccess && 'authorization_code' === $form['grant_type'] && \in_array('offline_access', explode(' ', $scope), true)) {
+            return self::json(['error' => 'not_allowed', 'error_description' => 'Offline tokens not allowed for the user or client'], 400);
+        }
 
         if (!$this->refreshTokens) {
             return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
