@@ -514,8 +514,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      */
     private function parseParametersInfo(\ReflectionMethod|\ReflectionFunction $reflection): array
     {
-        $docComment = $reflection->getDocComment() ?: null;
-        $docBlock = $this->docBlockParser->parseDocBlock($docComment);
+        $docBlock = $this->docBlockParser->parseDocBlock($reflection->getDocComment());
         $paramTags = $this->docBlockParser->getParamTags($docBlock);
         $parametersInfo = [];
 
