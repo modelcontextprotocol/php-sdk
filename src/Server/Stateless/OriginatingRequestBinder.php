@@ -32,7 +32,7 @@ use Mcp\Server\Authorization\AccessToken;
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow
  *
- * @author Björn Meyer <bjoern@brocksi.net>
+ * @author Björn Meyer <b.meyer@shopware.com>
  */
 final class OriginatingRequestBinder implements RequestStateBinderInterface
 {
