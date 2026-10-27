@@ -228,7 +228,7 @@ final class ReflectedElementLoader implements LoaderInterface
 
                 $arguments = [];
                 $paramTags = $reflection instanceof \ReflectionMethod ? $docBlockParser->getParamTags(
-                    $docBlockParser->parseDocBlock($reflection->getDocComment() ?? null),
+                    $docBlockParser->parseDocBlock($reflection->getDocComment()),
                 ) : [];
                 foreach ($reflection->getParameters() as $param) {
                     $reflectionType = $param->getType();
