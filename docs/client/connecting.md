@@ -248,6 +248,8 @@ try {
 }
 ```
 
+Calling `connect()` again on the same client closes its current transport before opening the new one.
+
 ## Server Information
 
 After successful connection, retrieve server metadata:

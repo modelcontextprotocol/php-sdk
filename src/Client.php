@@ -92,6 +92,8 @@ class Client
      */
     public function connect(TransportInterface $transport): void
     {
+        $this->disconnect();
+
         $this->transport = $transport;
         $this->protocol->connect($transport, $this->config);
 
