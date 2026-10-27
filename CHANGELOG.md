@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Rotate the `requestState` signing key without failing the calls in flight: `Builder::setRequestState()` and `RequestStateCodec` take a list of keys, the first signing and every key verifying. The wire format is unchanged, and a single key works as before.
+
 0.9.0
 -----
 
