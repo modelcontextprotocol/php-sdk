@@ -307,7 +307,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals([
             'type' => 'object',
             'description' => 'Shape with a nullable key',
-            'properties' => ['name' => ['type' => 'string'], 'nickname' => ['type' => ['null', 'string']]],
+            'properties' => ['name' => ['type' => 'string'], 'nickname' => ['type' => ['string', 'null']]],
             'required' => ['name', 'nickname'],
         ], $schema['properties']['nullableMember']);
         $this->assertEquals([
