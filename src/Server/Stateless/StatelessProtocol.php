@@ -114,6 +114,7 @@ final class StatelessProtocol
         private readonly ?NotificationBusInterface $notificationBus = null,
         private readonly array $extensionMethods = [],
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
+        private readonly ?RequestStateBinderInterface $requestStateBinder = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -501,8 +502,16 @@ final class StatelessProtocol
             $session->set(Protocol::SESSION_LOGGING_LEVEL, $meta->logLevel->value);
         }
 
+        // Bound to the request as it arrived, before a RequestEvent listener
+        // could change it: the retry has to bind to the same value.
+        $requestStateCodec = $this->requestStateCodec;
+
+        if (null !== $requestStateCodec && null !== $this->requestStateBinder) {
+            $requestStateCodec = $requestStateCodec->withBinding($this->requestStateBinder->bind($request, $accessToken));
+        }
+
         try {
-            $input = $this->liftInputContext($decoded['params'] ?? null);
+            $input = $this->liftInputContext($decoded['params'] ?? null, $requestStateCodec);
         } catch (RequestStateException $e) {
             // Invalid params, not an authorization failure: the client only
             // echoes what it was given, and the reason stays out of the answer.
@@ -515,8 +524,8 @@ final class StatelessProtocol
             $session->set(InputContext::class, $input);
         }
 
-        if (null !== $this->requestStateCodec) {
-            $session->set(RequestStateCodec::class, $this->requestStateCodec);
+        if (null !== $requestStateCodec) {
+            $session->set(RequestStateCodec::class, $requestStateCodec);
         }
 
         // What ClientGateway::progress() reads to find the progress token, and
@@ -674,7 +683,9 @@ final class StatelessProtocol
     {
         $fiber = new \Fiber(static fn (): mixed => $handler->handle($request, $session));
         $input = $session->get(InputContext::class);
-        $replay = new ElicitationReplay($input instanceof InputContext ? $input : null, $this->requestStateCodec);
+        // The codec bound to this request, which dispatch() put on the session.
+        $codec = $session->get(RequestStateCodec::class);
+        $replay = new ElicitationReplay($input instanceof InputContext ? $input : null, $codec instanceof RequestStateCodec ? $codec : null);
 
         $suspended = $fiber->start();
 
@@ -897,7 +908,7 @@ final class StatelessProtocol
      *
      * @throws RequestStateException when a state is present but does not verify
      */
-    private function liftInputContext(?array $params): ?InputContext
+    private function liftInputContext(?array $params, ?RequestStateCodec $requestStateCodec): ?InputContext
     {
         $responses = \is_array($params['inputResponses'] ?? null) ? $params['inputResponses'] : null;
         $state = \is_string($params['requestState'] ?? null) ? $params['requestState'] : null;
@@ -917,11 +928,11 @@ final class StatelessProtocol
         if (null !== $state) {
             // A server with no codec never minted a state, so this one cannot
             // have come from here.
-            if (null === $this->requestStateCodec) {
+            if (null === $requestStateCodec) {
                 throw new RequestStateException('mac');
             }
 
-            $payload = $this->requestStateCodec->verify($state);
+            $payload = $requestStateCodec->verify($state);
         }
 
         return new InputContext($responses ?? [], $payload);

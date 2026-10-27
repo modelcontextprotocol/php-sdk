@@ -58,6 +58,7 @@ use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManager;
 use Mcp\Server\Session\SessionManagerInterface;
 use Mcp\Server\Session\SessionStoreInterface;
+use Mcp\Server\Stateless\RequestStateBinderInterface;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Stateless\StandardHeaderValidator;
 use Mcp\Server\Stateless\StatelessProtocol;
@@ -144,6 +145,8 @@ final class Builder
     private ?string $requestStateKey = null;
 
     private int $requestStateTtl = 600;
+
+    private ?RequestStateBinderInterface $requestStateBinder = null;
 
     /**
      * @var array<int, RequestHandlerInterface<mixed>>
@@ -374,13 +377,22 @@ final class Builder
      * The same key must reach every instance that might serve the retry, so a
      * per-process random value only works for a single-process deployment.
      *
-     * @param string $key at least 32 bytes
-     * @param int    $ttl how long a minted state stays valid, in seconds
+     * A binder ties every state the modern era mints to the request it was
+     * minted for, e.g. {@see Stateless\OriginatingRequestBinder} to the
+     * principal, method and arguments: a state echoed on a request that binds
+     * to another value fails verification like a forged one. States minted
+     * before a binder was configured no longer verify, so adding one fails the
+     * multi round-trip calls in flight for at most the TTL.
+     *
+     * @param string                           $key    at least 32 bytes
+     * @param int                              $ttl    how long a minted state stays valid, in seconds
+     * @param RequestStateBinderInterface|null $binder binds each state to its originating request
      */
-    public function setRequestState(string $key, int $ttl = 600): self
+    public function setRequestState(string $key, int $ttl = 600, ?RequestStateBinderInterface $binder = null): self
     {
         $this->requestStateKey = $key;
         $this->requestStateTtl = $ttl;
+        $this->requestStateBinder = $binder;
 
         return $this;
     }
@@ -1018,6 +1030,7 @@ final class Builder
             notificationBus: $this->notificationBus,
             extensionMethods: $this->extensionMethods,
             eventDispatcher: $parts['eventDispatcher'],
+            requestStateBinder: $this->requestStateBinder,
         );
     }
 

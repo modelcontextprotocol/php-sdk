@@ -109,6 +109,7 @@ required to serve either one. Each knob is covered in depth elsewhere:
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server;
+use Mcp\Server\Stateless\OriginatingRequestBinder;
 use Mcp\Server\Subscription\Psr16NotificationBus;
 use Mcp\Server\Wire\CachePolicy;
 
@@ -117,7 +118,9 @@ $server = Server::builder()
     // The same key must reach every process that might serve the retry.
     // The key needs at least 32 bytes, otherwise build() throws. TTL in seconds, default 600.
     // Without a key, the server refuses every state the client sends back.
-    ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
+    // The optional binder ties each state to the principal and the call it was
+    // minted for, so a client cannot echo it on another call or under another token.
+    ->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600, binder: new OriginatingRequestBinder())
 
     // Bounds the input-required shim, which fulfils an `InputRequiredResult`
     // over a handshake-era connection. `withoutInputRequiredShim()` turns it off.
@@ -329,7 +332,7 @@ $server = Server::builder()
 | `setProtocolVersion()` | protocolVersion | Pin the handshake to one protocol revision |
 | `setModernVersions()` | versions | Narrow the revisions the modern (2026-07-28) leg answers for |
 | `withoutModernEra()` | - | Serve the handshake era only |
-| `setRequestState()` | key, ttl? | Signing key and lifetime for multi round-trip request state |
+| `setRequestState()` | key, ttl?, binder? | Signing key, lifetime and optional binding to the originating request for multi round-trip request state |
 | `setInputRequiredLimits()` | maxRounds, roundTimeout | Bound the input-required shim on handshake-era connections |
 | `withoutInputRequiredShim()` | - | Do not fulfil an `InputRequiredResult` over a handshake-era connection |
 | `setCachePolicy()` | policy | Set the `ttlMs`/`cacheScope` hints on cacheable results |
