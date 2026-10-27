@@ -83,7 +83,7 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      * seconds, rejecting tokens without retrying. Keys are refetched, rate limited, when a
      * token names an unknown key id, so key rotation does not lock clients out until
      * the cache expires. Issuer and JWKS URI must use https, unless they point to a
-     * loopback host.
+     * loopback host (`localhost`, `*.localhost`, `127.0.0.0/8` or `::1`).
      *
      * @param string|list<string> $audience
      * @param list<string>        $algorithms

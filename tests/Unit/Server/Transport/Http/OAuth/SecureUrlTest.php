@@ -30,6 +30,12 @@ final class SecureUrlTest extends TestCase
         yield 'http on IPv6 loopback' => ['http://[::1]:8000/mcp'];
         yield 'http on uppercase localhost' => ['http://LOCALHOST'];
         yield 'uppercase http on localhost' => ['HTTP://localhost'];
+        yield 'http on localhost without port' => ['http://localhost'];
+        yield 'http on localhost with trailing dot' => ['http://LOCALHOST.'];
+        yield 'http on localhost subdomain' => ['http://shop.localhost:8080'];
+        yield 'http on nested localhost subdomain' => ['http://a.b.localhost'];
+        yield 'http on uppercase localhost subdomain with trailing dot' => ['http://Shop.LocalHost.:8080/mcp'];
+        yield 'http on other IPv4 loopback address' => ['http://127.1.2.3'];
     }
 
     #[DataProvider('provideAcceptedUrls')]
@@ -45,7 +51,13 @@ final class SecureUrlTest extends TestCase
     {
         yield 'http' => ['http://auth.example.com'];
         yield 'http on loopback lookalike' => ['http://localhost.example.com'];
-        yield 'http on other loopback address' => ['http://127.0.0.2'];
+        yield 'http on localhost subdomain lookalike' => ['http://shop.localhost.example.com'];
+        yield 'http on host ending in localhost' => ['http://notlocalhost'];
+        yield 'http on host starting with localhost' => ['http://localhostx'];
+        yield 'http on empty localhost label' => ['http://.localhost'];
+        yield 'http on private IPv4 address' => ['http://10.0.0.1'];
+        yield 'http on IPv4 lookalike' => ['http://127.0.0.1.example.com'];
+        yield 'http on IPv4-mapped IPv6 address' => ['http://[::ffff:127.0.0.1]'];
         yield 'other scheme' => ['ftp://auth.example.com'];
         yield 'other scheme on localhost' => ['ftp://localhost/jwks.json'];
         yield 'file scheme on localhost' => ['file://localhost/etc/passwd'];

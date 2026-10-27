@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.9.1
+-----
+
+* Fix `SecureUrl` rejecting plain http on hosts under the reserved `.localhost` TLD (RFC 6761) and on IPv4 loopback addresses other than `127.0.0.1`, so `ProtectedResourceMetadata`, `OidcDiscovery` and `JwtTokenValidator::fromIssuer()` failed for local development setups like `http://shop.localhost:8080`. Plain http is now accepted for `localhost`, any `*.localhost`, `127.0.0.0/8` and `::1`; every other host still requires https.
+
 0.9.0
 -----
 
