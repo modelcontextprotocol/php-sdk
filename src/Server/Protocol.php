@@ -74,6 +74,9 @@ class Protocol
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
 
+    /** Session key for the fingerprint of the principal that opened the session */
+    private const SESSION_PRINCIPAL = '_mcp.principal';
+
     /**
      * Deliberately generic: unexpected throwables carry internal details such as file paths, class
      * names and argument types, which must not be handed to the peer. The full exception is logged.
@@ -147,7 +150,7 @@ class Protocol
     {
         $transport->onMessage($this->processInput(...));
 
-        $transport->onSessionEnd($this->destroySession(...));
+        $transport->onSessionEnd($this->endSession(...));
 
         // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
         $transportRef = \WeakReference::create($transport);
@@ -175,13 +178,14 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      * @param AccessToken|null          $accessToken the token the input was authorized with, if the transport authorizes
+     * @param string|null               $principal   who the input was authenticated as, if the transport authenticates
      */
-    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
+    public function processInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken = null, ?string $principal = null): void
     {
         // Last line of defense: a malformed message must never escape as a PHP error and take the
         // server process down.
         try {
-            $this->doProcessInput($transport, $input, $sessionId, $accessToken);
+            $this->doProcessInput($transport, $input, $sessionId, $accessToken, $principal);
         } catch (\Throwable $e) {
             $this->logger->error(\sprintf('Uncaught exception while processing input: %s', $e->getMessage()), ['exception' => $e]);
 
@@ -226,7 +230,7 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken): void
+    private function doProcessInput(TransportInterface $transport, string $input, ?Uuid $sessionId, ?AccessToken $accessToken, ?string $principal): void
     {
         $this->logger->info('Received message to process.');
         $this->logger->debug('Received message payload.', ['message' => $input]);
@@ -268,7 +272,7 @@ class Protocol
         }
 
         try {
-            $this->handleMessage($transport, $sessionId, $message, $accessToken);
+            $this->handleMessage($transport, $sessionId, $message, $accessToken, $principal);
         } finally {
             if ($takesLock) {
                 $this->releaseSessionLock($sessionId);
@@ -279,9 +283,9 @@ class Protocol
     /**
      * @param TransportInterface<mixed> $transport
      */
-    private function handleMessage(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?AccessToken $accessToken): void
+    private function handleMessage(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?AccessToken $accessToken, ?string $principal): void
     {
-        $session = $this->resolveSession($transport, $sessionId, $message);
+        $session = $this->resolveSession($transport, $sessionId, $message, $principal);
         if (null === $session) {
             return;
         }
@@ -1107,8 +1111,9 @@ class Protocol
      *
      * @param TransportInterface<mixed> $transport
      * @param Uuid|null                 $sessionId The session ID from the transport
+     * @param string|null               $principal Who the messages were authenticated as
      */
-    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message): ?SessionInterface
+    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?string $principal): ?SessionInterface
     {
         if ($message instanceof InitializeRequest) {
             // Spec: An initialize request must not have a session ID.
@@ -1120,6 +1125,10 @@ class Protocol
             }
 
             $session = $this->sessionManager->create();
+            if (null !== $principal) {
+                $session->set(self::SESSION_PRINCIPAL, self::fingerprint($principal));
+            }
+
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
             ]);
@@ -1158,7 +1167,36 @@ class Protocol
             return null;
         }
 
-        return $this->sessionManager->createWithId($sessionId);
+        $session = $this->sessionManager->createWithId($sessionId);
+
+        if (!$this->servesPrincipal($session, $principal)) {
+            $this->logger->warning('Refused a request of another principal than the one that opened the session.', [
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            // Answered like an unknown session, so that another principal cannot tell the session exists.
+            $error = Error::forInvalidRequest('Session not found or has expired.');
+            $this->sendResponse($transport, $error, null, ['status_code' => 404]);
+
+            return null;
+        }
+
+        return $session;
+    }
+
+    /**
+     * Whether the session serves the principal: the one that opened it, or no principal for a session opened without one.
+     */
+    private function servesPrincipal(SessionInterface $session, ?string $principal): bool
+    {
+        $fingerprint = $session->get(self::SESSION_PRINCIPAL);
+
+        return (\is_string($fingerprint) ? $fingerprint : null) === self::fingerprint($principal);
+    }
+
+    private static function fingerprint(?string $principal): ?string
+    {
+        return null === $principal ? null : hash('sha256', $principal);
     }
 
     /**
@@ -1171,6 +1209,24 @@ class Protocol
             $message instanceof InvalidInputMessageException => $message->getRequestId(),
             default => null,
         };
+    }
+
+    /**
+     * Ends a session at the request of a client, which must be the principal that opened it.
+     *
+     * @return bool false when the session does not exist, or is another principal's
+     */
+    private function endSession(Uuid $sessionId, ?string $principal = null): bool
+    {
+        if ($this->sessionManager->exists($sessionId) && !$this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal)) {
+            $this->logger->warning('Refused to end a session for another principal than the one that opened it.', [
+                'session_id' => $sessionId->toRfc4122(),
+            ]);
+
+            return false;
+        }
+
+        return $this->destroySession($sessionId);
     }
 
     /**
