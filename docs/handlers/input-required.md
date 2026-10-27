@@ -101,11 +101,16 @@ it is signed, not encrypted.
 ### Binding the state to the request
 
 A valid state verifies on any request of the TTL, so a client can echo it on another call,
-another tool, or under another user's token. The specification recommends binding it to the
-authenticated principal and the originating request. The `binder` argument of
-`Builder::setRequestState()` does that for the modern era: the binder's value is covered by the MAC of every state the request
-mints, and a retry that binds to another value is refused like a forged state. The value
-itself never goes on the wire.
+another tool, or under another user's token. The
+[specification](https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow)
+recommends binding it to the authenticated principal and the originating request.
+
+A handler that mints its own state can put that identity into the payload and compare it on
+the retry. It cannot do so for the state the SDK mints when it carries answers to the next
+round, as for a handler that calls `elicit()` twice. The `binder` argument of
+`Builder::setRequestState()` binds both on the modern era: the binder's value is covered by
+the MAC of every state the request mints, and a retry that binds to another value is refused
+like a forged state. The value itself never goes on the wire.
 
 ```php
 use Mcp\Server\Stateless\OriginatingRequestBinder;
