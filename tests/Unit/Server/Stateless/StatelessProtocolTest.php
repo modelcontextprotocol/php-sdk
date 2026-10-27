@@ -605,11 +605,7 @@ class StatelessProtocolTest extends TestCase
             );
 
         if ($signed) {
-            $builder->setRequestState(str_repeat('k', 32));
-        }
-
-        if (null !== $binder) {
-            $builder->setRequestStateBinder($binder);
+            $builder->setRequestState(str_repeat('k', 32), binder: $binder);
         }
 
         return $builder->buildStateless([ProtocolVersion::V2026_07_28]);

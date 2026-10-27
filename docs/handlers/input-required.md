@@ -102,16 +102,15 @@ it is signed, not encrypted.
 
 A valid state verifies on any request of the TTL, so a client can echo it on another call,
 another tool, or under another user's token. The specification recommends binding it to the
-authenticated principal and the originating request. `Builder::setRequestStateBinder()` does
-that for the modern era: the binder's value is covered by the MAC of every state the request
+authenticated principal and the originating request. The `binder` argument of
+`Builder::setRequestState()` does that for the modern era: the binder's value is covered by the MAC of every state the request
 mints, and a retry that binds to another value is refused like a forged state. The value
 itself never goes on the wire.
 
 ```php
 use Mcp\Server\Stateless\OriginatingRequestBinder;
 
-->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600)
-->setRequestStateBinder(new OriginatingRequestBinder())
+->setRequestState($_ENV['MCP_REQUEST_STATE_KEY'], ttl: 600, binder: new OriginatingRequestBinder())
 ```
 
 `OriginatingRequestBinder` binds the method, the tool or prompt name and a digest of its
