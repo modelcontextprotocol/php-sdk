@@ -28,10 +28,10 @@ use Symfony\Component\Uid\Uuid;
  * */
 trait ManagesTransportCallbacks
 {
-    /** @var callable(TransportInterface<mixed>, string, ?Uuid, ?AccessToken): void */
+    /** @var callable(TransportInterface<mixed>, string, ?Uuid, ?AccessToken, ?string): void */
     protected $messageListener;
 
-    /** @var callable(Uuid): void */
+    /** @var callable(Uuid, ?string): void */
     protected $sessionEndListener;
 
     /** @var callable(Uuid): array<int, array{message: string, context: array<string, mixed>}> */

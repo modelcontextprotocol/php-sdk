@@ -145,17 +145,17 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
-    protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
+    protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null, ?string $principal = null): void
     {
         if (\is_callable($this->messageListener)) {
-            ($this->messageListener)($this, $payload, $sessionId, $accessToken);
+            ($this->messageListener)($this, $payload, $sessionId, $accessToken, $principal);
         }
     }
 
-    protected function handleSessionEnd(?Uuid $sessionId): void
+    protected function handleSessionEnd(?Uuid $sessionId, ?string $principal = null): void
     {
         if ($sessionId && \is_callable($this->sessionEndListener)) {
-            ($this->sessionEndListener)($sessionId);
+            ($this->sessionEndListener)($sessionId, $principal);
         }
     }
 }

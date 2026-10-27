@@ -2,6 +2,11 @@
 
 All notable changes to `mcp/sdk` will be documented in this file.
 
+0.10.0
+------
+
+* [BC Break] Bind handshake-era sessions to the principal that opened them, as the security best practices recommend. A request of another principal with the session's id is answered with `404`, like an unknown session, and its `DELETE` does not end the session. `AuthorizationMiddleware` identifies the principal by the token's issuer, subject and client; an application that authenticates requests itself sets the `StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` request attribute. `Protocol::processInput()`, `BaseTransport::handleMessage()`, `BaseTransport::handleSessionEnd()`, `StreamableHttpTransport::handlePostRequest()` and `StreamableHttpTransport::handleDeleteRequest()` take a `?string $principal` parameter, as do the `TransportInterface::onMessage()` and `onSessionEnd()` listeners as last argument.
+
 0.9.0
 -----
 

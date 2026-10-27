@@ -65,10 +65,10 @@ final class AccessTokenFlowTest extends TestCase
         $headers = ['Mcp-Session-Id' => $session, 'MCP-Protocol-Version' => ProtocolVersion::V2025_11_25->value];
 
         $this->assertSame('alice', $this->text($this->serve($server, $this->request($call(2), 'alice', $headers))));
-        $this->assertSame('bob', $this->text($this->serve($server, $this->request($call(3), 'bob', $headers))));
+        $this->assertSame('alice write', $this->text($this->serve($server, $this->request($call(3), 'alice.write', $headers))));
 
-        // Without the authorization middleware, nothing of the earlier requests is left in the session.
-        $this->assertSame('anonymous', $this->text($this->serve($server, $this->request($call(4), null, $headers), [])));
+        // Nothing of the earlier requests is left in the session.
+        $this->assertSame('alice', $this->text($this->serve($server, $this->request($call(4), 'alice', $headers))));
     }
 
     public function testModernEraHandlerSeesTheToken(): void
@@ -102,7 +102,9 @@ final class AccessTokenFlowTest extends TestCase
 
     public static function whoami(RequestContext $context): string
     {
-        return $context->getAccessToken()?->getSubject() ?? 'anonymous';
+        $token = $context->getAccessToken();
+
+        return null === $token ? 'anonymous' : implode(' ', [$token->getSubject(), ...$token->getScopes()]);
     }
 
     private function server(): Server
@@ -126,7 +128,9 @@ final class AccessTokenFlowTest extends TestCase
         $validator = new class implements AuthorizationTokenValidatorInterface {
             public function validate(string $accessToken): AuthorizationResult
             {
-                return AuthorizationResult::allow(new AccessToken([], ['sub' => $accessToken]));
+                [$subject, $scope] = explode('.', $accessToken, 2) + [1 => null];
+
+                return AuthorizationResult::allow(new AccessToken(null === $scope ? [] : [$scope], ['sub' => $subject]));
             }
         };
 

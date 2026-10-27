@@ -73,8 +73,9 @@ interface TransportInterface
      * The transport calls this whenever ANY message arrives, regardless of source.
      *
      * The access token is the one the message was authorized with, if the transport authorizes requests.
+     * The principal identifies who the message was authenticated as, if the transport authenticates requests.
      *
-     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId, ?AccessToken $accessToken): void $listener
+     * @param callable(TransportInterface<TResult> $transport, string $message, ?Uuid $sessionId, ?AccessToken $accessToken, ?string $principal): void $listener
      */
     public function onMessage(callable $listener): void;
 
@@ -82,8 +83,9 @@ interface TransportInterface
      * Register a listener for when a session is terminated.
      *
      * The transport calls this when a client disconnects or explicitly ends their session.
+     * The principal identifies who ended it, if the transport authenticates requests.
      *
-     * @param callable(Uuid $sessionId): void $listener The callback function to execute when destroying a session
+     * @param callable(Uuid $sessionId, ?string $principal): void $listener The callback function to execute when destroying a session
      */
     public function onSessionEnd(callable $listener): void;
 

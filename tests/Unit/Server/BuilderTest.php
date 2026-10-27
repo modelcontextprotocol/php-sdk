@@ -222,7 +222,7 @@ final class BuilderTest extends TestCase
             '{"jsonrpc":"2.0","id":2,"method":"ping"}',
         ]));
 
-        $this->assertCount(11, $log, implode(', ', $log));
+        $this->assertCount(12, $log, implode(', ', $log));
         $sessionId = substr($log[0], \strlen('read '));
         $this->assertSame([
             // initialize: the session is new, nobody else can know it yet
@@ -235,7 +235,8 @@ final class BuilderTest extends TestCase
             "read $sessionId",
             "write $sessionId",
             "release $sessionId",
-            // the transport ends the session when it is done
+            // the transport ends the session when it is done, which checks who opened it first
+            "read $sessionId",
             "acquire $sessionId",
             "destroy $sessionId",
             "release $sessionId",

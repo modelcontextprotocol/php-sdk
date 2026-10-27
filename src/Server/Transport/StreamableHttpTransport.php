@@ -60,6 +60,14 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     public const PROTOCOL_VERSION_HEADER = 'Mcp-Protocol-Version';
 
     /**
+     * PSR-7 request attribute holding a string that identifies the authenticated principal.
+     *
+     * A session only serves the principal that opened it. {@see Http\Middleware\AuthorizationMiddleware}
+     * sets it; an application authenticating requests itself sets it instead.
+     */
+    public const PRINCIPAL_ATTRIBUTE = 'mcp.principal';
+
+    /**
      * Upper bound on the request body read for a POST, guarding against memory
      * exhaustion from an oversized (or unbounded chunked) payload.
      */
@@ -207,10 +215,11 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     /**
      * @param string           $body        the request body, already read and bounded by {@see self::handleRequest()}
      * @param AccessToken|null $accessToken the token the request was authorized with, see {@see self::accessToken()}
+     * @param string|null      $principal   the principal the request was authenticated as, see {@see self::PRINCIPAL_ATTRIBUTE}
      */
-    protected function handlePostRequest(string $body, ?AccessToken $accessToken = null): ResponseInterface
+    protected function handlePostRequest(string $body, ?AccessToken $accessToken = null, ?string $principal = null): ResponseInterface
     {
-        $this->handleMessage($body, $this->sessionId, $accessToken);
+        $this->handleMessage($body, $this->sessionId, $accessToken, $principal);
 
         // Consume the immediate response exactly once, so a transport instance
         // reused for a later POST does not replay it.
@@ -236,13 +245,16 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
         return $this->createJsonResponse();
     }
 
-    protected function handleDeleteRequest(): ResponseInterface
+    /**
+     * @param string|null $principal the principal the request was authenticated as, see {@see self::PRINCIPAL_ATTRIBUTE}
+     */
+    protected function handleDeleteRequest(?string $principal = null): ResponseInterface
     {
         if (!$this->sessionId) {
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header is required.'), 400);
         }
 
-        $this->handleSessionEnd($this->sessionId);
+        $this->handleSessionEnd($this->sessionId, $principal);
 
         return $this->responseFactory->createResponse(200);
     }
@@ -512,9 +524,12 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must be a valid UUID.'), 400);
         }
 
+        $principal = $request->getAttribute(self::PRINCIPAL_ATTRIBUTE);
+        $principal = \is_string($principal) && '' !== $principal ? $principal : null;
+
         return match ($request->getMethod()) {
-            'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request)),
-            'DELETE' => $this->handleDeleteRequest(),
+            'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request), $principal),
+            'DELETE' => $this->handleDeleteRequest($principal),
             default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
         };
     }

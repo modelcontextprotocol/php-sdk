@@ -17,6 +17,7 @@ use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\Http\OAuth\ScopePolicy;
+use Mcp\Server\Transport\StreamableHttpTransport;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -116,6 +117,23 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame($token, $handler->request?->getAttribute(AccessToken::class));
+    }
+
+    public function testPrincipalIsTheIssuerSubjectAndClientOfTheToken(): void
+    {
+        $principal = $this->principal(['iss' => 'https://auth.example.com', 'sub' => 'user-1', 'azp' => 'ide', 'jti' => '1'], ['mcp:read']);
+
+        $this->assertIsString($principal);
+        $this->assertSame($principal, $this->principal(['iss' => 'https://auth.example.com', 'sub' => 'user-1', 'azp' => 'ide', 'jti' => '2'], ['mcp:read', 'mcp:write']));
+        $this->assertSame($principal, $this->principal(['iss' => 'https://auth.example.com', 'sub' => 'user-1', 'client_id' => 'ide'], ['mcp:read']));
+        $this->assertNotSame($principal, $this->principal(['iss' => 'https://auth.example.com', 'sub' => 'user-2', 'azp' => 'ide'], ['mcp:read']));
+        $this->assertNotSame($principal, $this->principal(['iss' => 'https://auth.example.com', 'sub' => 'user-1', 'azp' => 'cli'], ['mcp:read']));
+        $this->assertNotSame($principal, $this->principal(['iss' => 'https://other.example.com', 'sub' => 'user-1', 'azp' => 'ide'], ['mcp:read']));
+    }
+
+    public function testTokenWithoutSubjectSetsNoPrincipal(): void
+    {
+        $this->assertNull($this->principal(['iss' => 'https://auth.example.com', 'azp' => 'ide'], ['mcp:read']));
     }
 
     public function testDefaultScopesAreEnforcedWithoutReadingTheBody(): void
@@ -237,6 +255,18 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
             ->withBody($this->factory->createStream($body));
 
         return null === $authorization ? $request : $request->withHeader('Authorization', $authorization);
+    }
+
+    /**
+     * @param array<string, mixed> $claims
+     * @param list<string>         $scopes
+     */
+    private function principal(array $claims, array $scopes): mixed
+    {
+        $handler = $this->capturingHandler();
+        $this->middleware($this->validator(AuthorizationResult::allow(new AccessToken($scopes, $claims))))->process($this->request('Bearer token'), $handler);
+
+        return $handler->request?->getAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE);
     }
 
     private function toolCall(string $name): string

@@ -313,16 +313,31 @@ challenge a client steps up from. Use `$token->hasScope()` for decisions that de
 arguments beyond the tool name. With a `ScopePolicy`, the token's scopes include those implied by
 its hierarchy.
 
+## Sessions and the Principal
+
+A handshake-era session only serves the principal that opened it, as the
+[security best practices](https://modelcontextprotocol.io/specification/2025-11-25/basic/security_best_practices#session-hijacking)
+recommend. `AuthorizationMiddleware` identifies the principal by the issuer, subject and client of
+the token. They stay the same when the client refreshes its token, so the session survives the refresh.
+
+When another principal sends the session's `Mcp-Session-Id`, the server answers 404, as for an
+unknown session, and a `DELETE` does not end the session. A token without a `sub` claim identifies
+no principal. A session opened with such a token only serves requests without a principal.
+
 ## Authenticating Outside the SDK
 
 If your application or framework already authenticates the request, skip `AuthorizationMiddleware`
 and hand the result to the transport as the PSR-7 request attribute `AccessToken::class`. Both HTTP
-transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual:
+transports read it from there, so handlers get it through `RequestContext::getAccessToken()` as usual.
+Also set the `StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` attribute to a string that identifies
+the user, so that a session only serves the user that opened it:
 
 ```php
 use Mcp\Server\Authorization\AccessToken;
 
-$request = $request->withAttribute(AccessToken::class, new AccessToken($scopes, $claims));
+$request = $request
+    ->withAttribute(AccessToken::class, new AccessToken($scopes, $claims))
+    ->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, $userId);
 $transport = new StreamableHttpTransport($request);
 ```
 
