@@ -68,7 +68,14 @@ class Session implements SessionInterface
         }
 
         if (null !== $this->changes) {
-            $data = $this->load();
+            // Writing the changed keys alone onto a session that exists but could not be read would wipe its other keys.
+            if (null === $data = $this->load()) {
+                if ($this->stored || $this->store->exists($this->id)) {
+                    return false;
+                }
+                $data = [];
+            }
+
             foreach (array_keys($this->changes) as $key) {
                 $this->apply($data, (string) $key);
             }
@@ -194,18 +201,18 @@ class Session implements SessionInterface
      */
     private function readData(): array
     {
-        return $this->data ??= $this->load();
+        return $this->data ??= $this->load() ?? [];
     }
 
     /**
-     * @return array<string, mixed>
+     * @return array<string, mixed>|null null when the store returned nothing
      */
-    private function load(): array
+    private function load(): ?array
     {
         $rawData = $this->store->read($this->id);
 
         if (false === $rawData) {
-            return [];
+            return null;
         }
 
         $this->stored = true;

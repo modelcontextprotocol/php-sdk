@@ -21,6 +21,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Uid\UuidV4;
 
 class SessionTest extends TestCase
@@ -507,6 +508,40 @@ class SessionTest extends TestCase
         $session->save();
 
         $this->assertSame(['fresh' => true], (new Session($this->store, $id))->all());
+    }
+
+    /**
+     * @return iterable<string, array{bool}>
+     */
+    public static function provideUnreadableSessions(): iterable
+    {
+        yield 'unreadable since it was read' => [false];
+        yield 'never readable' => [true];
+    }
+
+    #[DataProvider('provideUnreadableSessions')]
+    public function testSaveDoesNotWipeASessionItCannotRead(bool $neverReadable): void
+    {
+        $store = new class extends InMemorySessionStore {
+            public bool $failReads = false;
+
+            public function read(Uuid $id): string|false
+            {
+                return $this->failReads ? false : parent::read($id);
+            }
+        };
+        $id = new UuidV4();
+        $store->write($id, json_encode(['initialized' => true, 'protocol_version' => '2025-06-18'], \JSON_THROW_ON_ERROR));
+        $store->failReads = $neverReadable;
+
+        $session = new Session($store, $id);
+        $session->set('log_level', 'debug');
+        $store->failReads = true;
+
+        $this->assertFalse($session->save());
+
+        $store->failReads = false;
+        $this->assertSame(['initialized' => true, 'protocol_version' => '2025-06-18'], (new Session($store, $id))->all());
     }
 
     public function testSaveAfterHydrateReplacesStoredData(): void
