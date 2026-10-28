@@ -30,7 +30,9 @@ class InMemorySessionStore implements SessionStoreInterface
 
     public function exists(Uuid $id): bool
     {
-        return isset($this->store[$id->toRfc4122()]);
+        $session = $this->store[$id->toRfc4122()] ?? null;
+
+        return null !== $session && $this->clock->now()->getTimestamp() - $session['timestamp'] <= $this->ttl;
     }
 
     public function read(Uuid $id): string|false

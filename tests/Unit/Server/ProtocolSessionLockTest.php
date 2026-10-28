@@ -416,8 +416,7 @@ final class ProtocolSessionLockTest extends TestCase
         $protocol = $this->protocol($lock);
         $sessionId = $this->existingSession();
 
-        $protocol->destroySession($sessionId);
-
+        $this->assertTrue($protocol->destroySession($sessionId));
         $this->assertSame(["acquire $sessionId", "destroy $sessionId", "release $sessionId"], $this->log);
         $this->assertFalse($this->store->exists($sessionId));
     }
@@ -442,8 +441,7 @@ final class ProtocolSessionLockTest extends TestCase
         $protocol = $this->protocol($lock);
         $sessionId = Uuid::v4();
 
-        $protocol->destroySession($sessionId);
-
+        $this->assertFalse($protocol->destroySession($sessionId));
         $this->assertSame(["destroy $sessionId"], $this->log);
     }
 

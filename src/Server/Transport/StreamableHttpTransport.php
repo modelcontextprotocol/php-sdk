@@ -242,7 +242,9 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header is required.'), 400);
         }
 
-        $this->handleSessionEnd($this->sessionId);
+        if (!$this->handleSessionEnd($this->sessionId)) {
+            return $this->createErrorResponse(Error::forInvalidRequest('Session not found or has expired.'), 404);
+        }
 
         return $this->responseFactory->createResponse(200);
     }

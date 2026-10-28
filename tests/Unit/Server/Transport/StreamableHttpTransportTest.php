@@ -19,6 +19,7 @@ use Mcp\Schema\Request\PingRequest;
 use Mcp\Server;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionLock;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -34,6 +35,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Clock\ClockInterface;
 use Psr\Http\Message\ResponseFactoryInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
@@ -147,6 +149,40 @@ final class StreamableHttpTransportTest extends TestCase
 
         $this->assertSame(400, $response->getStatusCode());
         $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
+    }
+
+    #[TestDox('a DELETE of an unknown or already ended session is answered 404')]
+    public function testDeleteOfAnEndedSessionIsNotFound(): void
+    {
+        $server = Server::builder()->setServerInfo('test', '1.0')->build();
+        $sessionId = $this->initialize($server);
+
+        $this->assertSame(200, $this->delete($server, $sessionId)->getStatusCode());
+
+        $response = $this->delete($server, $sessionId);
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Session not found', (string) $response->getBody());
+    }
+
+    #[TestDox('a DELETE of an expired session is answered 404')]
+    public function testDeleteOfAnExpiredSessionIsNotFound(): void
+    {
+        $clock = new class implements ClockInterface {
+            public \DateTimeImmutable $now;
+
+            public function now(): \DateTimeImmutable
+            {
+                return $this->now;
+            }
+        };
+        $clock->now = new \DateTimeImmutable('2026-10-28 12:00:00');
+        $server = Server::builder()->setServerInfo('test', '1.0')->setSession(new InMemorySessionStore(60, $clock))->build();
+        $sessionId = $this->initialize($server);
+
+        $clock->now = $clock->now->modify('+61 seconds');
+
+        $this->assertSame(404, $this->delete($server, $sessionId)->getStatusCode());
     }
 
     #[TestDox('pass-through middleware disables defaults without a warning log')]
@@ -839,6 +875,31 @@ final class StreamableHttpTransportTest extends TestCase
         }
 
         return $builder->build()->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
+    }
+
+    /**
+     * Opens a session on $server and returns its id.
+     */
+    private function initialize(Server $server): string
+    {
+        $request = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'));
+
+        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory))->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+    }
+
+    private function delete(Server $server, string $sessionId): ResponseInterface
+    {
+        $request = $this->factory
+            ->createServerRequest('DELETE', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, $sessionId);
+
+        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
     }
 
     /**

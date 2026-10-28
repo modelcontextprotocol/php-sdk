@@ -152,10 +152,15 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
-    protected function handleSessionEnd(?Uuid $sessionId): void
+    /**
+     * @return bool false when the listener reported that the session does not exist
+     */
+    protected function handleSessionEnd(?Uuid $sessionId): bool
     {
         if ($sessionId && \is_callable($this->sessionEndListener)) {
-            ($this->sessionEndListener)($sessionId);
+            return false !== ($this->sessionEndListener)($sessionId);
         }
+
+        return true;
     }
 }
