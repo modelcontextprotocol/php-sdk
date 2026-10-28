@@ -27,7 +27,7 @@ Which extras you need depends on what you build:
 | emit the response from a standalone HTTP entry point | `laminas/laminas-httphandlerrunner` |
 | [connect a client over HTTP](../client/transports.md) | any PSR-18 client, e.g. `symfony/http-client` |
 | [validate JWT access tokens](../run/authorization.md) | `firebase/php-jwt` |
-| store sessions, cache discovery or share notifications through a PSR-16 cache | `psr/simple-cache` implementation, e.g. `symfony/cache` |
+| store sessions, cache discovery or share notifications through a PSR-6 or PSR-16 cache | `psr/cache` or `psr/simple-cache` implementation, e.g. `symfony/cache` |
 | [fetch JWT keys from an issuer](../run/authorization.md) with `JwtTokenValidator::fromIssuer()` | `psr/cache` (PSR-6) implementation, e.g. `symfony/cache` |
 
 PSR-17 and PSR-18 implementations are found through

@@ -19,12 +19,14 @@ open are often not the same one:
 ```php
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Subscription\Psr6NotificationBus;
 
 // stdio, or a persistent runtime where the whole server is one process
 ->setNotificationBus(new InMemoryNotificationBus())
 
 // PHP-FPM: the publisher and the stream are different workers
-->setNotificationBus(new Psr16NotificationBus($cache))
+->setNotificationBus(new Psr6NotificationBus($cachePool))   // a PSR-6 pool
+->setNotificationBus(new Psr16NotificationBus($cache))      // or a PSR-16 cache
 ```
 
 Registry changes (`registerTool()`, `unregisterPrompt()`, …) are published automatically, with or

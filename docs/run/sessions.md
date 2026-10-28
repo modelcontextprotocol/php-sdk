@@ -12,6 +12,7 @@ use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
+use Mcp\Server\Session\Psr6SessionStore;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
@@ -25,20 +26,26 @@ $server = Server::builder()
     ->setSession(new InMemorySessionStore(3600))
     ->build();
 
-// Override with PSR-16 cache-based storage
-// Requires psr/simple-cache and symfony/cache (or any other PSR-16 implementation)
-// composer require psr/simple-cache symfony/cache
+// Override with PSR-6 cache-based storage
+// Requires symfony/cache (or any other PSR-6 implementation)
+// composer require symfony/cache
 $redisAdapter = new RedisAdapter(
     RedisAdapter::createConnection('redis://localhost:6379'),
     'mcp_sessions'
 );
 
 $server = Server::builder()
-    ->setSession(new Psr16SessionStore(
-        cache: new Psr16Cache($redisAdapter),
+    ->setSession(new Psr6SessionStore(
+        cache: $redisAdapter,
         prefix: 'mcp-',
         ttl: 3600
     ))
+    ->build();
+
+// Override with PSR-16 cache-based storage, which takes the same arguments
+// Requires psr/simple-cache and a PSR-16 implementation
+$server = Server::builder()
+    ->setSession(new Psr16SessionStore(new Psr16Cache($redisAdapter)))
     ->build();
 ```
 
@@ -47,12 +54,12 @@ $server = Server::builder()
 With HTTP, PHP often serves each request in a different process (e.g. PHP-FPM workers).
 `InMemorySessionStore` keeps sessions in the memory of one process, so the next request
 doesn't find them. Use a store that all processes share, like `FileSessionStore` on a shared
-directory or `Psr16SessionStore` with a shared cache such as Redis.
+directory or `Psr6SessionStore` (or `Psr16SessionStore`) with a shared cache such as Redis.
 
 `FileSessionStore` suits a single host. Once requests are spread over several hosts, or sessions number in the
-tens of thousands, use `Psr16SessionStore` with Redis or a similar shared cache: it is shared across hosts,
-expires sessions on its own and needs no garbage collection (see below). A network-mounted directory adds latency and
-makes session availability depend on the shared filesystem.
+tens of thousands, use `Psr6SessionStore` or `Psr16SessionStore` with Redis or a similar shared cache: it is shared
+across hosts, expires sessions on its own and needs no garbage collection (see below). A network-mounted directory adds
+latency and makes session availability depend on the shared filesystem.
 
 ## Garbage Collection Configuration
 
@@ -113,7 +120,8 @@ $server = Server::builder()
     ->build();
 ```
 
-`Psr16SessionStore` doesn't scan anything: it stores each session with the TTL, and its `gc()` does nothing.
+`Psr6SessionStore` and `Psr16SessionStore` don't scan anything. They store each session with the TTL, and their `gc()`
+does nothing.
 With a cache like Redis, the cache expires the keys itself.
 
 **Parameters:**
@@ -153,17 +161,16 @@ For a store shared across machines, use `SymfonyLockSessionLock` with any
 [symfony/lock](https://symfony.com/doc/current/components/lock.html) store (`composer require symfony/lock`):
 
 ```php
-use Mcp\Server\Session\Psr16SessionStore;
+use Mcp\Server\Session\Psr6SessionStore;
 use Mcp\Server\Session\SymfonyLockSessionLock;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
-use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\RedisStore;
 
 $redis = RedisAdapter::createConnection('redis://localhost:6379');
 
 $server = Server::builder()
-    ->setSession(new Psr16SessionStore(new Psr16Cache(new RedisAdapter($redis, 'mcp_sessions'))))
+    ->setSession(new Psr6SessionStore(new RedisAdapter($redis, 'mcp_sessions')))
     ->setSessionLock(new SymfonyLockSessionLock(new LockFactory(new RedisStore($redis))))
     ->build();
 ```
@@ -200,6 +207,7 @@ right now and returns `false` otherwise; `release()` gives it back.
 
 - `InMemorySessionStore`: Fast in-memory storage (default)
 - `FileSessionStore`: Persistent file-based storage
+- `Psr6SessionStore`: PSR-6 compliant cache-based storage
 - `Psr16SessionStore`: PSR-16 compliant cache-based storage
 
 **Custom Session Stores:**

@@ -11,6 +11,7 @@
 
 namespace Mcp\Capability\Discovery;
 
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Log\LoggerInterface;
 use Psr\SimpleCache\CacheInterface;
 
@@ -30,7 +31,7 @@ final class CachedDiscoverer implements DiscovererInterface
 
     public function __construct(
         private readonly DiscovererInterface $discoverer,
-        private readonly CacheInterface $cache,
+        private readonly CacheInterface|CacheItemPoolInterface $cache,
         private readonly LoggerInterface $logger,
     ) {
     }
@@ -47,7 +48,13 @@ final class CachedDiscoverer implements DiscovererInterface
     {
         $cacheKey = $this->generateCacheKey($basePath, $directories, $excludeDirs);
 
-        $cachedResult = $this->cache->get($cacheKey);
+        if ($this->cache instanceof CacheItemPoolInterface) {
+            $item = $this->cache->getItem($cacheKey);
+            $cachedResult = $item->get();
+        } else {
+            $cachedResult = $this->cache->get($cacheKey);
+        }
+
         if (null !== $cachedResult) {
             $this->logger->debug('Using cached discovery results', [
                 'cache_key' => $cacheKey,
@@ -66,7 +73,11 @@ final class CachedDiscoverer implements DiscovererInterface
 
         $discoveryState = $this->discoverer->discover($basePath, $directories, $excludeDirs, $namePatterns);
 
-        $this->cache->set($cacheKey, $discoveryState);
+        if ($this->cache instanceof CacheItemPoolInterface) {
+            $this->cache->save($item->set($discoveryState));
+        } else {
+            $this->cache->set($cacheKey, $discoveryState);
+        }
 
         return $discoveryState;
     }

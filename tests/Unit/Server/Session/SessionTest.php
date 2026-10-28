@@ -14,11 +14,13 @@ namespace Mcp\Tests\Unit\Server\Session;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
+use Mcp\Server\Session\Psr6SessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionStoreInterface;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 use Symfony\Component\Uid\UuidV4;
 
 class SessionTest extends TestCase
@@ -221,6 +223,7 @@ class SessionTest extends TestCase
         yield 'in-memory' => [static fn () => new InMemorySessionStore()];
         yield 'file' => [static fn () => new FileSessionStore(sys_get_temp_dir().'/mcp-sessions-'.bin2hex(random_bytes(6)))];
         yield 'psr-16' => [static fn () => new Psr16SessionStore(self::arrayCache())];
+        yield 'psr-6' => [static fn () => new Psr6SessionStore(new ArrayAdapter())];
     }
 
     /**
