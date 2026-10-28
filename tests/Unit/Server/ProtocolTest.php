@@ -535,7 +535,9 @@ final class ProtocolTest extends TestCase
         $store->throws = $throws;
         $sessionManager = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
-        $sessionManager->createWithId($sessionId)->save();
+        $session = $sessionManager->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
+        $session->save();
         $store->failWrites = true;
 
         // Resumed, the fiber would wait for a client response to a request the session never stored.
@@ -598,7 +600,9 @@ final class ProtocolTest extends TestCase
         $store->throws = $throws;
         $sessionManager = new SessionManager($store, gcProbability: 0);
         $sessionId = Uuid::v4();
-        $sessionManager->createWithId($sessionId)->save();
+        $session = $sessionManager->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
+        $session->save();
         $store->failingWrites = 1;
 
         $protocol = new Protocol(
@@ -637,6 +641,7 @@ final class ProtocolTest extends TestCase
         $sessionManager = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
         $sessionId = Uuid::v4();
         $session = $sessionManager->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
         $session->set('dropped', true);
         $session->save();
 
@@ -692,7 +697,11 @@ final class ProtocolTest extends TestCase
 
         $queue = [];
         $session->method('get')->willReturnCallback(static function ($key, $default = null) use (&$queue) {
-            return '_mcp.outgoing_queue' === $key ? $queue : $default;
+            return match ($key) {
+                '_mcp.outgoing_queue' => $queue,
+                '_mcp.principal' => null,
+                default => $default,
+            };
         });
         $session->method('set')->willReturnCallback(static function ($key, $value) use (&$queue) {
             if ('_mcp.outgoing_queue' === $key) {
@@ -934,6 +943,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $sessionId = $session->getId();
         $protocol->processInput(
@@ -1057,6 +1067,7 @@ final class ProtocolTest extends TestCase
         $store = new InterleavingSessionStore();
         $sessionManager = new SessionManager($store, gcProbability: 0);
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $sessionId = $session->getId();
 
@@ -1101,6 +1112,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $sessionId = $session->getId();
 
@@ -1143,6 +1155,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $sessionId = $session->getId();
 
@@ -1236,7 +1249,9 @@ final class ProtocolTest extends TestCase
 
         $sessions = new SessionManager(new InMemorySessionStore(), gcProbability: 0);
         $sessionId = Uuid::v4();
-        $sessions->createWithId($sessionId)->save();
+        $session = $sessions->createWithId($sessionId);
+        $session->set('_mcp.principal', null);
+        $session->save();
 
         $transport = new RecordingTransport();
 
@@ -1355,7 +1370,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1424,7 +1438,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1460,7 +1473,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1504,7 +1516,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1561,7 +1572,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1611,7 +1621,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1663,7 +1672,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1714,7 +1722,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
 
         $this->sessionManager->method('createWithId')->willReturn($session);
         $this->sessionManager->method('exists')->willReturn(true);
@@ -1761,7 +1768,6 @@ final class ProtocolTest extends TestCase
 
         $session = $this->createMock(SessionInterface::class);
         $session->method('getId')->willReturn(Uuid::v4());
-        $session->method('get')->willReturn([]);
         $session->expects($this->once())->method('save');
         $session->expects($this->atLeastOnce())->method('set');
 
@@ -2123,6 +2129,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->set('_mcp.pending_requests', ['00000000-0000-4000-8000-000000001000' => ['request_id' => '00000000-0000-4000-8000-000000001000', 'timeout' => 5, 'timestamp' => time() - 10]]);
         $session->save();
 
@@ -2250,6 +2257,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $sessionId = $session->getId();
 
@@ -2336,6 +2344,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 2, "method": "ping"}', $session->getId());
@@ -2384,6 +2393,7 @@ final class ProtocolTest extends TestCase
         };
 
         $session = (new SessionManager($store))->create();
+        $session->set('_mcp.principal', null);
         $session->save();
 
         $fibers = [];
@@ -2455,6 +2465,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
 
@@ -2507,6 +2518,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
 
@@ -2556,6 +2568,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": 1, "method": "ping"}', $session->getId());
 
@@ -2590,6 +2603,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->save();
         $protocol->processInput($this->transport, '{"jsonrpc": "2.0", "id": null, "error": {"code": -32700, "message": "Parse error"}}', $session->getId());
     }
@@ -2792,6 +2806,7 @@ final class ProtocolTest extends TestCase
         );
 
         $session = $sessionManager->create();
+        $session->set('_mcp.principal', null);
         $session->set('_mcp.pending_requests', $pending);
         $session->save();
 
@@ -2809,9 +2824,11 @@ final class ProtocolTest extends TestCase
         }
 
         $session = $this->createMock(SessionInterface::class);
-        $session->method('get')->willReturnCallback(
-            static fn (string $key, mixed $default = null): mixed => '_mcp.pending_requests' === $key ? $pending : $default
-        );
+        $session->method('get')->willReturnCallback(static fn (string $key, mixed $default = null): mixed => match ($key) {
+            '_mcp.pending_requests' => $pending,
+            '_mcp.principal' => null,
+            default => $default,
+        });
 
         return $session;
     }

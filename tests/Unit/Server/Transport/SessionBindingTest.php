@@ -15,6 +15,7 @@ use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
@@ -35,13 +36,16 @@ use Symfony\Component\Uid\Uuid;
 final class SessionBindingTest extends TestCase
 {
     private Psr17Factory $factory;
+    private UnreadableSessionStore $store;
     private Server $server;
 
     protected function setUp(): void
     {
         $this->factory = new Psr17Factory();
+        $this->store = new UnreadableSessionStore();
         $this->server = Server::builder()
             ->setServerInfo('test', '1.0.0')
+            ->setSession($this->store)
             ->addTool(self::whoami(...), name: 'whoami')
             ->build();
     }
@@ -89,12 +93,28 @@ final class SessionBindingTest extends TestCase
     public function testDeleteOfAnotherPrincipalKeepsTheSession(): void
     {
         $session = $this->initialize('alice.ide.1');
+        $unknown = $this->serve($this->request('DELETE', '', 'carol.ide.1', Uuid::v4()->toRfc4122()));
 
-        $this->serve($this->request('DELETE', '', 'carol.ide.1', $session));
+        $response = $this->serve($this->request('DELETE', '', 'carol.ide.1', $session));
+        $this->assertSame($unknown->getStatusCode(), $response->getStatusCode());
+        $this->assertSame((string) $unknown->getBody(), (string) $response->getBody());
         $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
 
         $this->serve($this->request('DELETE', '', 'alice.ide.1', $session));
         $this->assertSame(404, $this->call($session, 'alice.ide.1')->getStatusCode());
+    }
+
+    public function testSessionThatCannotBeReadServesNoRequestWithoutPrincipal(): void
+    {
+        $session = $this->initialize('alice.ide.1');
+        $passthrough = [new PassthroughMiddleware()];
+
+        $this->store->unreadable = true;
+        $this->assertSame(404, $this->call($session, null, $passthrough)->getStatusCode());
+        $this->serve($this->request('DELETE', '', null, $session), $passthrough);
+        $this->store->unreadable = false;
+
+        $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
     }
 
     public function testPrincipalSetByTheApplicationBindsTheSession(): void
@@ -223,5 +243,18 @@ final class SessionBindingTest extends TestCase
         $body = json_decode((string) $response->getBody(), true, flags: \JSON_THROW_ON_ERROR);
 
         return $body['result']['content'][0]['text'] ?? 'no result: '.$response->getBody();
+    }
+}
+
+/**
+ * Finds sessions but fails to read them while $unreadable is set, like a cache that is reachable but fails on get().
+ */
+final class UnreadableSessionStore extends InMemorySessionStore
+{
+    public bool $unreadable = false;
+
+    public function read(Uuid $id): string|false
+    {
+        return $this->unreadable ? false : parent::read($id);
     }
 }
