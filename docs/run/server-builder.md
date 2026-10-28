@@ -168,7 +168,7 @@ See [First server](../get-started/first-server.md) for the install command.
 - `$basePath` (string): Base directory for discovery (typically `__DIR__`)
 - `$scanDirs` (array): Directories to recursively scan for `#[McpTool]`, `#[McpResource]`, etc. All subdirectories are included. (default: `['.', 'src']`)
 - `$excludeDirs` (array): Directory names to exclude **within** the scanned directories during recursive scanning
-- `$cache` (CacheInterface|null): Optional PSR-16 cache to store discovered elements for performance
+- `$cache` (CacheInterface|CacheItemPoolInterface|null): Optional PSR-16 cache or PSR-6 pool to store discovered elements for performance
 - `$namePatterns` (array): Optional list of patterns (regexp, glob, or string) for file names (default: `['*.php']`)
 
 **Basic Discovery (scans current directory and `src/`):**
@@ -187,10 +187,9 @@ $server = Server::builder()
 ```php
 use Mcp\Server;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Symfony\Component\Cache\Psr16Cache;
 
 // Cache discovered elements to avoid filesystem scanning on every server start
-$cache = new Psr16Cache(new FilesystemAdapter('mcp-discovery'));
+$cache = new FilesystemAdapter('mcp-discovery');
 
 $server = Server::builder()
     ->setDiscovery(
@@ -274,7 +273,6 @@ use Mcp\Server;
 use Mcp\Server\Session\FileSessionStore;
 use Mcp\Capability\Registry\Container;
 use Symfony\Component\Cache\Adapter\FilesystemAdapter;
-use Symfony\Component\Cache\Psr16Cache;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
 
@@ -282,7 +280,7 @@ use Monolog\Handler\StreamHandler;
 $logger = new Logger('mcp-server');
 $logger->pushHandler(new StreamHandler('mcp.log', Logger::INFO));
 
-$cache = new Psr16Cache(new FilesystemAdapter('mcp-discovery'));
+$cache = new FilesystemAdapter('mcp-discovery');
 $sessionStore = new FileSessionStore(__DIR__ . '/sessions');
 
 // Setup container with dependencies

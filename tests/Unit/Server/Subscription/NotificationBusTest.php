@@ -19,11 +19,13 @@ use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Subscription\Psr6NotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 class NotificationBusTest extends TestCase
 {
@@ -34,6 +36,34 @@ class NotificationBusTest extends TestCase
     {
         yield 'in memory' => [new InMemoryNotificationBus()];
         yield 'psr-16' => [new Psr16NotificationBus(self::arrayCache())];
+        yield 'psr-6' => [new Psr6NotificationBus(new ArrayAdapter())];
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(int): NotificationBusInterface}>
+     */
+    public static function boundedBuses(): iterable
+    {
+        yield 'in memory' => [static fn (int $backlog) => new InMemoryNotificationBus(backlog: $backlog)];
+        yield 'psr-16' => [static fn (int $backlog) => new Psr16NotificationBus(self::arrayCache(), backlog: $backlog)];
+        yield 'psr-6' => [static fn (int $backlog) => new Psr6NotificationBus(new ArrayAdapter(), backlog: $backlog)];
+    }
+
+    /**
+     * @return iterable<string, array{\Closure(int): array{NotificationBusInterface, \Closure(): bool}}>
+     */
+    public static function cacheBuses(): iterable
+    {
+        yield 'psr-16' => [static function (int $ttl): array {
+            $cache = self::arrayCache();
+
+            return [new Psr16NotificationBus($cache, ttl: $ttl), $cache->clear(...)];
+        }];
+        yield 'psr-6' => [static function (int $ttl): array {
+            $pool = new ArrayAdapter();
+
+            return [new Psr6NotificationBus($pool, ttl: $ttl), $pool->clear(...)];
+        }];
     }
 
     #[DataProvider('buses')]
@@ -82,10 +112,14 @@ class NotificationBusTest extends TestCase
         $this->assertCount(1, $bus->since($late)[0]);
     }
 
+    /**
+     * @param \Closure(int): NotificationBusInterface $createBus
+     */
+    #[DataProvider('boundedBuses')]
     #[TestDox('the backlog is bounded, so a stream that went away cannot grow it forever')]
-    public function testBacklogIsBounded(): void
+    public function testBacklogIsBounded(\Closure $createBus): void
     {
-        $bus = new InMemoryNotificationBus(backlog: 3);
+        $bus = $createBus(3);
 
         $cursor = $bus->cursor();
         for ($i = 0; $i < 10; ++$i) {
@@ -95,12 +129,54 @@ class NotificationBusTest extends TestCase
         $this->assertCount(3, $bus->since($cursor)[0]);
     }
 
+    /**
+     * @param \Closure(int): NotificationBusInterface $createBus
+     */
+    #[DataProvider('boundedBuses')]
     #[TestDox('a backlog below one entry is refused')]
-    public function testZeroBacklogIsRefused(): void
+    public function testZeroBacklogIsRefused(\Closure $createBus): void
     {
         $this->expectException(InvalidArgumentException::class);
 
-        new InMemoryNotificationBus(backlog: 0);
+        $createBus(0);
+    }
+
+    /**
+     * @param \Closure(int): array{NotificationBusInterface, \Closure(): bool} $createBus
+     */
+    #[DataProvider('cacheBuses')]
+    #[TestDox('the sequence outlives its entries, so a bus that went quiet does not start over')]
+    public function testSequenceOutlivesItsEntries(\Closure $createBus): void
+    {
+        [$bus] = $createBus(0);
+
+        $bus->publish(new ToolListChangedNotification());
+        $bus->publish(new ToolListChangedNotification());
+
+        $this->assertSame(2, $bus->cursor());
+    }
+
+    /**
+     * @param \Closure(int): array{NotificationBusInterface, \Closure(): bool} $createBus
+     */
+    #[DataProvider('cacheBuses')]
+    #[TestDox('a subscriber ahead of a sequence that started over reads what comes next')]
+    public function testSubscriberAheadOfALostSequence(\Closure $createBus): void
+    {
+        [$bus, $clear] = $createBus(120);
+
+        $bus->publish(new ToolListChangedNotification());
+        $bus->publish(new ToolListChangedNotification());
+        $cursor = $bus->cursor();
+
+        $clear();
+        $bus->publish(new PromptListChangedNotification());
+
+        [$found, $next] = $bus->since($cursor);
+
+        $this->assertCount(1, $found);
+        $this->assertInstanceOf(PromptListChangedNotification::class, $found[0]);
+        $this->assertSame(1, $next);
     }
 
     #[TestDox('a registry change event becomes a notification on the bus')]
@@ -164,6 +240,10 @@ class NotificationBusTest extends TestCase
 
             public function set(string $key, mixed $value, int|\DateInterval|null $ttl = null): bool
             {
+                if (\is_int($ttl) && $ttl <= 0) {
+                    return $this->delete($key);
+                }
+
                 $this->values[$key] = $value;
 
                 return true;

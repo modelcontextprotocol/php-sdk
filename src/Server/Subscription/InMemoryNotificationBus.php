@@ -21,7 +21,8 @@ use Mcp\Schema\JsonRpc\Notification;
  * one process (Swoole, FrankenPHP worker mode, ReactPHP). Under PHP-FPM it is
  * not: the worker that publishes and the worker holding the stream open are
  * different processes, and a notification published in one is invisible to the
- * other. {@see Psr16NotificationBus} is the answer there.
+ * other. {@see Psr6NotificationBus} or {@see Psr16NotificationBus} is the
+ * answer there.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

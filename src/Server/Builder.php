@@ -64,8 +64,10 @@ use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Subscription\NotificationBusInterface;
 use Mcp\Server\Subscription\Psr16NotificationBus;
+use Mcp\Server\Subscription\Psr6NotificationBus;
 use Mcp\Server\Subscription\PublishingEventDispatcher;
 use Mcp\Server\Wire\CachePolicy;
+use Psr\Cache\CacheItemPoolInterface;
 use Psr\Container\ContainerInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -99,7 +101,7 @@ final class Builder
 
     private ?LoggerInterface $logger = null;
 
-    private ?CacheInterface $discoveryCache = null;
+    private CacheInterface|CacheItemPoolInterface|null $discoveryCache = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
 
@@ -311,7 +313,8 @@ final class Builder
      * the publisher and the stream share a process.
      * {@see InMemoryNotificationBus} is correct for stdio and persistent
      * runtimes; under PHP-FPM, where they are different workers, use
-     * {@see Psr16NotificationBus} or an implementation over your own broker.
+     * {@see Psr6NotificationBus}, {@see Psr16NotificationBus} or an
+     * implementation over your own broker.
      *
      * With the built-in registry, registry changes are published automatically,
      * with or without an event dispatcher, and `listChanged` is announced. A
@@ -669,7 +672,7 @@ final class Builder
         string $basePath,
         array $scanDirs = ['.', 'src'],
         array $excludeDirs = [],
-        ?CacheInterface $cache = null,
+        CacheInterface|CacheItemPoolInterface|null $cache = null,
         array $namePatterns = DiscovererInterface::DEFAULT_NAME_PATERNS,
     ): self {
         $this->discoveryBasePath = $basePath;

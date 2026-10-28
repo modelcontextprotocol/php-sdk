@@ -10,6 +10,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
 * Fix tools with an array shape parameter whose keys are nullable or unions (e.g. `array{name: string, nickname: string|null}`) rejecting valid arguments with `-32602`: a `null` inside the shape no longer turns the parameter into `array|null`, and such keys get their own types instead of `object`, including lists and nested shapes (`string[]|null`, `array{x: int}|null`).
 * Fix `array<string|null>` and other generics with a union element getting `items` of type `object`. A `null` inside a generic no longer makes the parameter nullable, and neither does a DocBlock class whose name contains `null`.
+* Fix `Psr16NotificationBus` subscribers missing the notifications published after the bus stayed quiet for longer than its TTL: the sequence counter no longer expires, and a subscriber whose cursor is ahead of a lost counter reads what the bus holds.
+* Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
 
 ### Client
 

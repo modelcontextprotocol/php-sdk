@@ -63,7 +63,8 @@ final class Psr16NotificationBus implements NotificationBusInterface
         $sequence = $this->cursor();
 
         $this->cache->set($this->key((string) $sequence), json_encode($notification, \JSON_THROW_ON_ERROR), $this->ttl);
-        $this->cache->set($this->key(self::CURSOR_KEY), $sequence + 1, $this->ttl);
+        // No TTL, so that the cursors of subscribers stay valid when the bus goes quiet
+        $this->cache->set($this->key(self::CURSOR_KEY), $sequence + 1);
     }
 
     public function cursor(): int
@@ -77,14 +78,30 @@ final class Psr16NotificationBus implements NotificationBusInterface
     {
         $head = $this->cursor();
 
+        if ($cursor > $head) {
+            // The counter was lost, evicted or cleared: whatever is there is new to this reader
+            $cursor = 0;
+        }
+
         // A reader that fell far behind reads what is still there, not
         // everything it missed.
         $from = max($cursor, $head - $this->backlog);
 
+        $keys = [];
+        for ($sequence = $from; $sequence < $head; ++$sequence) {
+            $keys[$sequence] = $this->key((string) $sequence);
+        }
+
+        // getMultiple() may not yield in the order of the keys
+        $raws = [];
+        foreach ($this->cache->getMultiple($keys) as $key => $raw) {
+            $raws[$key] = $raw;
+        }
+
         $found = [];
 
-        for ($sequence = $from; $sequence < $head; ++$sequence) {
-            $raw = $this->cache->get($this->key((string) $sequence));
+        foreach ($keys as $sequence => $key) {
+            $raw = $raws[$key] ?? null;
 
             if (!\is_string($raw)) {
                 // Expired, or lost to a concurrent publisher taking the same

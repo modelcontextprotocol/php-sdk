@@ -13,10 +13,12 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Discovery\CachedDiscoverer;
 use Mcp\Capability\Discovery\Discoverer;
+use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Discovery\DiscoveryState;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
+use Symfony\Component\Cache\Adapter\ArrayAdapter;
 
 class CachedDiscovererTest extends TestCase
 {
@@ -90,5 +92,22 @@ class CachedDiscovererTest extends TestCase
         $result2 = $cachedDiscoverer->discover('/path2', ['.'], []);
         $this->assertInstanceOf(DiscoveryState::class, $result1);
         $this->assertInstanceOf(DiscoveryState::class, $result2);
+    }
+
+    public function testCachedDiscovererAcceptsAPsr6Pool(): void
+    {
+        $discoverer = $this->createMock(DiscovererInterface::class);
+        $discoverer->expects($this->once())
+            ->method('discover')
+            ->willReturn(new DiscoveryState());
+
+        $pool = new ArrayAdapter();
+        $cachedDiscoverer = new CachedDiscoverer($discoverer, $pool, new NullLogger());
+
+        $this->assertEquals(new DiscoveryState(), $cachedDiscoverer->discover('/test/path', ['.'], []));
+        $this->assertEquals(new DiscoveryState(), $cachedDiscoverer->discover('/test/path', ['.'], []));
+
+        $cachedDiscoverer->clearCache();
+        $this->assertSame([], $pool->getValues());
     }
 }

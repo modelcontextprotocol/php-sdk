@@ -92,8 +92,8 @@ $server = Server::builder()
 
     // Carries change notifications to open `subscriptions/listen` streams.
     // In-memory suits `php -S` and worker runtimes; under PHP-FPM use
-    // Psr16NotificationBus, since the publisher and the stream are different
-    // processes there.
+    // Psr6NotificationBus or Psr16NotificationBus, since the publisher and the
+    // stream are different processes there.
     ->setNotificationBus($bus)
     ->setSubscriptionLifetime(20.0)
 
