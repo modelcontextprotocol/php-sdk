@@ -13,6 +13,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `array<string|null>` and other generics with a union element getting `items` of type `object`. A `null` inside a generic no longer makes the parameter nullable, and neither does a DocBlock class whose name contains `null`.
 * Fix `InMemorySessionStore::exists()` reporting a session past its TTL as existing, while `read()` already treated it as gone.
 * Fix `Psr16NotificationBus` subscribers missing the notifications published after the bus stayed quiet for longer than its TTL: the sequence counter no longer expires, and a subscriber whose cursor is ahead of a lost counter reads what the bus holds.
+* Fix `Session::save()` wiping the other keys of a session that the store failed to read, e.g. when `Psr16SessionStore` hits a cache error: it now returns `false` instead of writing the changed keys alone.
 * Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
 
 ### Client
