@@ -31,7 +31,7 @@ trait ManagesTransportCallbacks
     /** @var callable(TransportInterface<mixed>, string, ?Uuid, ?AccessToken): void */
     protected $messageListener;
 
-    /** @var callable(Uuid): void */
+    /** @var callable(Uuid): bool */
     protected $sessionEndListener;
 
     /** @var callable(Uuid): array<int, array{message: string, context: array<string, mixed>}> */

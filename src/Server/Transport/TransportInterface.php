@@ -83,7 +83,7 @@ interface TransportInterface
      *
      * The transport calls this when a client disconnects or explicitly ends their session.
      *
-     * @param callable(Uuid $sessionId): void $listener The callback function to execute when destroying a session
+     * @param callable(Uuid $sessionId): bool $listener The callback function to execute when destroying a session, returning false when the session does not exist
      */
     public function onSessionEnd(callable $listener): void;
 

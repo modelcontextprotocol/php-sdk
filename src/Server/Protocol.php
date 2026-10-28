@@ -1191,14 +1191,23 @@ class Protocol
 
     /**
      * Destroy a specific session.
+     *
+     * @return bool false when the session does not exist
      */
-    public function destroySession(Uuid $sessionId): void
+    public function destroySession(Uuid $sessionId): bool
     {
+        try {
+            $exists = $this->sessionManager->exists($sessionId);
+        } catch (SessionStoreException) {
+            // The session may well exist, so it is not reported as unknown.
+            $exists = true;
+        }
+
         // Destroyed even when a request of the session holds the lock past the timeout, or the
         // lock is unavailable: the client ended the session, and Session::save() does not write
         // back a session that was destroyed since it was read. An unknown session id has nothing to lock.
         try {
-            $locked = null !== $this->sessionLock && $this->sessionManager->exists($sessionId) && $this->acquireSessionLock($sessionId);
+            $locked = null !== $this->sessionLock && $exists && $this->acquireSessionLock($sessionId);
         } catch (SessionLockException) {
             $locked = false;
         }
@@ -1212,6 +1221,8 @@ class Protocol
         }
 
         $this->logger->info('Session destroyed.', ['session_id' => $sessionId->toRfc4122()]);
+
+        return $exists;
     }
 
     /**

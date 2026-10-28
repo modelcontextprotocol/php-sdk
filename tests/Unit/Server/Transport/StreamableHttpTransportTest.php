@@ -149,6 +149,31 @@ final class StreamableHttpTransportTest extends TestCase
         $this->assertStringContainsString('must not be repeated', (string) $response->getBody());
     }
 
+    #[TestDox('a DELETE of an unknown or already ended session is answered 404')]
+    public function testDeleteOfAnEndedSessionIsNotFound(): void
+    {
+        $server = Server::builder()->setServerInfo('test', '1.0')->build();
+        $initialize = $this->factory
+            ->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream('{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}'));
+        $sessionId = $server->run(new StreamableHttpTransport($initialize, $this->factory, $this->factory))->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
+
+        $delete = $this->factory
+            ->createServerRequest('DELETE', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader(StreamableHttpTransport::SESSION_HEADER, $sessionId);
+
+        $this->assertSame(200, $server->run(new StreamableHttpTransport($delete, $this->factory, $this->factory))->getStatusCode());
+
+        $response = $server->run(new StreamableHttpTransport($delete, $this->factory, $this->factory));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertStringContainsString('Session not found', (string) $response->getBody());
+    }
+
     #[TestDox('pass-through middleware disables defaults without a warning log')]
     public function testPassthroughMiddlewareDisablesDefaultsWithoutWarning(): void
     {
