@@ -31,6 +31,7 @@ use Mcp\Tests\Unit\Fixtures\RecordingTransport;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\LoggerInterface;
@@ -43,6 +44,8 @@ use Symfony\Component\Uid\Uuid;
  */
 final class ProtocolSessionLockTest extends TestCase
 {
+    private const INITIALIZE = '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}';
+
     /** @var list<string> */
     private array $log = [];
 
@@ -53,7 +56,7 @@ final class ProtocolSessionLockTest extends TestCase
         $this->store = new RecordingSessionStore($this->log);
     }
 
-    #[TestDox('a request holds the lock from before the session is read until after it is saved')]
+    #[TestDox('a request holds the lock from before the session is read for handling until after it is saved')]
     public function testRequestHoldsTheLockAroundReadAndSave(): void
     {
         $lock = new RecordingSessionLock($this->log);
@@ -64,6 +67,8 @@ final class ProtocolSessionLockTest extends TestCase
         $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
 
         $this->assertSame([
+            // only to check who opened the session
+            "read $sessionId",
             "acquire $sessionId",
             "read $sessionId",
             // save() reads again to write back only the keys this request changed
@@ -122,7 +127,8 @@ final class ProtocolSessionLockTest extends TestCase
         $lock = new RecordingSessionLock($this->log);
         $sessionManager = $this->createMock(SessionManagerInterface::class);
         $sessionManager->method('exists')->willReturnOnConsecutiveCalls(true, false);
-        $sessionManager->expects($this->never())->method('createWithId');
+        // Read before the lock to check who opened the session, and not again once it ended.
+        $sessionManager->expects($this->once())->method('createWithId');
         $protocol = new Protocol([new PingHandler()], [], MessageFactory::make(), $sessionManager, sessionLock: $lock);
         $sessionId = Uuid::v4();
         $transport = new RecordingTransport();
@@ -148,8 +154,8 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame(400, $transport->sent[0]['context']['status_code']);
     }
 
-    #[TestDox('a request whose session is locked by another request is refused before the session is read')]
-    public function testBusySessionIsRefusedWithoutReadingIt(): void
+    #[TestDox('a request whose session is locked by another request is refused after reading only who opened the session')]
+    public function testBusySessionIsRefusedReadingOnlyWhoOpenedIt(): void
     {
         $lock = new RecordingSessionLock($this->log, acquirable: false);
         $protocol = $this->protocol($lock);
@@ -158,7 +164,7 @@ final class ProtocolSessionLockTest extends TestCase
 
         $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
 
-        $this->assertSame([], $this->log);
+        $this->assertSame(["read $sessionId"], $this->log);
         $this->assertCount(1, $transport->sent);
         $this->assertSame(503, $transport->sent[0]['context']['status_code']);
 
@@ -166,6 +172,34 @@ final class ProtocolSessionLockTest extends TestCase
         $this->assertSame(1, $error['id']);
         $this->assertSame(Error::SERVER_ERROR, $error['error']['code']);
         $this->assertSame('Another request of this session is still being processed.', $error['error']['message']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideInputsOfAnotherPrincipal(): iterable
+    {
+        yield 'a request' => ['{"jsonrpc":"2.0","id":1,"method":"ping"}'];
+        yield 'an initialize request' => [self::INITIALIZE];
+    }
+
+    #[DataProvider('provideInputsOfAnotherPrincipal')]
+    #[TestDox('another principal is answered as for an unknown session without waiting for the lock, so it cannot tell the session is busy')]
+    public function testAnotherPrincipalIsRefusedWithoutWaitingForTheLock(string $input): void
+    {
+        $lock = new RecordingSessionLock($this->log);
+        $protocol = $this->protocol($lock);
+        $opening = new RecordingTransport();
+        $protocol->processInput($opening, self::INITIALIZE, null, null, 'alice');
+        $sessionId = $opening->sent[0]['context']['session_id'];
+        $lock->acquirable = false;
+
+        $unknown = new RecordingTransport();
+        $protocol->processInput($unknown, $input, Uuid::v4(), null, 'carol');
+        $transport = new RecordingTransport();
+        $protocol->processInput($transport, $input, $sessionId, null, 'carol');
+
+        $this->assertSame($unknown->sent, $transport->sent);
     }
 
     #[TestDox('a busy session is logged as a warning, not as an error')]
@@ -191,7 +225,7 @@ final class ProtocolSessionLockTest extends TestCase
 
         $protocol->processInput($transport, '{"jsonrpc":"2.0","id":1,"method":"ping"}', $sessionId);
 
-        $this->assertSame([], $this->log);
+        $this->assertSame(["read $sessionId"], $this->log);
         $this->assertCount(1, $transport->sent);
         $this->assertSame(503, $transport->sent[0]['context']['status_code']);
 
@@ -616,6 +650,8 @@ final class ProtocolSessionLockTest extends TestCase
     private function existingSession(array $data = []): Uuid
     {
         $session = new Session($this->store, Uuid::v4());
+        // Opened without a principal
+        $session->set('_mcp.principal', null);
         foreach ($data as $key => $value) {
             $session->set($key, $value);
         }

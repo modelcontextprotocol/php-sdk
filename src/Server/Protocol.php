@@ -70,7 +70,7 @@ class Protocol
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
 
-    /** Session key for the fingerprint of the principal that opened the session */
+    /** Session key for the fingerprint of the principal that opened the session, null when it was opened without one */
     private const SESSION_PRINCIPAL = '_mcp.principal';
 
     /**
@@ -252,13 +252,21 @@ class Protocol
         }
 
         // Taken before the session is read and held until it is saved, so no other request of
-        // the session reads a state this one is about to replace. A session created here for
-        // an `initialize` is not known to anyone else yet and needs no lock, and an unknown
-        // session id is refused by resolveSession() without one; the session is looked up
-        // again under the lock, as it may have ended while this request waited.
-        $takesLock = null !== $sessionId && null !== $this->sessionLock && $this->sessionManager->exists($sessionId);
+        // the session reads a state this one is about to replace. An `initialize` never reads an
+        // existing session and an unknown session id is refused by resolveSession(), so neither
+        // needs the lock. The session is looked up again under the lock, as it may have ended
+        // while this request waited.
+        $takesLock = null !== $sessionId && null !== $this->sessionLock && !$this->hasInitializeRequest($messages) && $this->sessionManager->exists($sessionId);
 
         if ($takesLock) {
+            // Who opened the session is checked before waiting for the lock too, so that another
+            // principal can neither tell the session is busy nor keep it busy.
+            if (!$this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal)) {
+                $this->refuseOtherPrincipal($transport, $sessionId);
+
+                return;
+            }
+
             try {
                 $refusal = $this->acquireSessionLock($sessionId) ? null : Error::forServerError(self::SESSION_BUSY_MESSAGE, self::findResponseId($input));
             } catch (SessionLockException) {
@@ -1138,9 +1146,7 @@ class Protocol
             }
 
             $session = $this->sessionManager->create();
-            if (null !== $principal) {
-                $session->set(self::SESSION_PRINCIPAL, self::fingerprint($principal));
-            }
+            $session->set(self::SESSION_PRINCIPAL, self::fingerprint($principal));
 
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
@@ -1183,13 +1189,7 @@ class Protocol
         $session = $this->sessionManager->createWithId($sessionId);
 
         if (!$this->servesPrincipal($session, $principal)) {
-            $this->logger->warning('Refused a request of another principal than the one that opened the session.', [
-                'session_id' => $sessionId->toRfc4122(),
-            ]);
-
-            // Answered like an unknown session, so that another principal cannot tell the session exists.
-            $error = Error::forInvalidRequest('Session not found or has expired.');
-            $this->sendResponse($transport, $error, null, ['status_code' => 404]);
+            $this->refuseOtherPrincipal($transport, $sessionId);
 
             return null;
         }
@@ -1199,12 +1199,26 @@ class Protocol
 
     /**
      * Whether the session serves the principal: the one that opened it, or no principal for a session opened without one.
+     *
+     * A session that does not record who opened it, for example because the store failed to read it, serves no one.
      */
     private function servesPrincipal(SessionInterface $session, ?string $principal): bool
     {
-        $fingerprint = $session->get(self::SESSION_PRINCIPAL);
+        return $session->get(self::SESSION_PRINCIPAL, false) === self::fingerprint($principal);
+    }
 
-        return (\is_string($fingerprint) ? $fingerprint : null) === self::fingerprint($principal);
+    /**
+     * @param TransportInterface<mixed> $transport
+     */
+    private function refuseOtherPrincipal(TransportInterface $transport, Uuid $sessionId): void
+    {
+        $this->logger->warning('Refused a request of another principal than the one that opened the session.', [
+            'session_id' => $sessionId->toRfc4122(),
+        ]);
+
+        // Answered like an unknown session, so that another principal cannot tell the session exists.
+        $error = Error::forInvalidRequest('Session not found or has expired.');
+        $this->sendResponse($transport, $error, null, ['status_code' => 404]);
     }
 
     private static function fingerprint(?string $principal): ?string
