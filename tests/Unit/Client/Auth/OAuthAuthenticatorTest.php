@@ -187,6 +187,37 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
     }
 
+    #[TestDox('offline_access refused once is not asked for again, even when configured')]
+    public function testDoesNotAskAgainForARefusedOfflineAccessThatIsConfigured(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read', 'mcp:write', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('mcp:read', 'offline_access'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
+    #[TestDox('a code refused for another reason than offline_access fails the flow instead of starting another one')]
+    public function testKeepsOfflineAccessWhenTheCodeIsRefusedForAnotherReason(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], codeError: 'invalid_grant');
+        $authenticator = $this->authenticator($server);
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The refused code should have failed the flow.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('invalid_grant', $e->getMessage());
+        }
+
+        $this->assertSame('mcp:read offline_access', $server->authorization['scope'] ?? null);
+        $this->assertCount(1, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
     #[TestDox('a stored token is reused even though offline_access was not granted with it')]
     public function testReusesAStoredTokenWithoutOfflineAccess(): void
     {
@@ -505,6 +536,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly string $authorizationServer = 'https://auth.example.com',
         private readonly bool $refreshTokens = false,
         private readonly bool $refuseOfflineAccess = false,
+        private readonly ?string $codeError = null,
     ) {
     }
 
@@ -587,6 +619,10 @@ final class FakeOAuthServer implements ClientInterface
         // here, for a user who may not have offline tokens.
         if ($this->refuseOfflineAccess && 'authorization_code' === $form['grant_type'] && \in_array('offline_access', explode(' ', $scope), true)) {
             return self::json(['error' => 'not_allowed', 'error_description' => 'Offline tokens not allowed for the user or client'], 400);
+        }
+
+        if (null !== $this->codeError && 'authorization_code' === $form['grant_type']) {
+            return self::json(['error' => $this->codeError], 400);
         }
 
         if (!$this->refreshTokens) {

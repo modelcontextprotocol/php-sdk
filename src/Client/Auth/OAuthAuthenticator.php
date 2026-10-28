@@ -253,10 +253,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $scopes = array_values(array_unique([...$this->requestedScopes, ...$scopes]));
 
+        if ($this->offlineAccessRefused) {
+            return array_values(array_diff($scopes, ['offline_access']));
+        }
+
         // A refresh token is only worth asking for where the authorization server says
         // it understands the request; sending an unknown scope is an error, not a hint.
         if ($this->configuration->offlineAccess
-            && !$this->offlineAccessRefused
             && $metadata->supportsScope('offline_access')
             && $metadata->supportsGrant(Grant::RefreshToken->value)
             && !\in_array('offline_access', $scopes, true)
@@ -341,7 +344,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         } catch (AuthorizationException $e) {
             $reduced = array_values(array_diff($scopes, ['offline_access']));
 
-            if ($reduced === $scopes || (400 !== $e->getCode() && !str_contains($e->getMessage(), 'invalid_scope'))) {
+            if ($reduced === $scopes || (!str_contains($e->getMessage(), 'invalid_scope') && !str_contains($e->getMessage(), 'not_allowed'))) {
                 throw $e;
             }
 

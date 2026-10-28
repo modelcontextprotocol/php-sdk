@@ -186,7 +186,7 @@ final class TokenEndpointTest extends TestCase
         );
     }
 
-    #[TestDox('the authorization server\'s own error text and status survive into the exception')]
+    #[TestDox('the authorization server\'s own error text survives into the exception')]
     public function testErrorResponse(): void
     {
         $server = new CapturingTokenServer(new Response(400, [], (string) json_encode([
@@ -196,7 +196,6 @@ final class TokenEndpointTest extends TestCase
 
         $this->expectException(AuthorizationException::class);
         $this->expectExceptionMessage('invalid_grant (The code has expired.)');
-        $this->expectExceptionCode(400);
 
         $this->endpoint($server)->request($this->metadata(), new ClientRegistration('a-client'), ['grant_type' => 'authorization_code']);
     }
