@@ -30,9 +30,9 @@ final class NameValidatorTest extends TestCase
             ['MyTool123'],
             ['my.tool'],
             ['my-tool'],
-            ['my/tool'],
             ['my_tool-01.02'],
             ['my_long_toolname_that_is_exactly_sixty_four_characters_long_1234'],
+            [str_repeat('a', 128)],
         ];
     }
 
@@ -50,7 +50,9 @@ final class NameValidatorTest extends TestCase
             ['my@tool'],
             ['my!tool'],
             ['my_tool#1'],
-            ['this_tool_name_is_way_too_long_because_it_exceeds_the_sixty_four_character_limit_set_by_the_validator'],
+            ['my/tool'],
+            ["my_tool\n"],
+            [str_repeat('a', 129)],
         ];
     }
 }
