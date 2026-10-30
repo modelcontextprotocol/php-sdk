@@ -136,6 +136,25 @@ final class ReferenceHandlerTest extends TestCase
         $this->assertInstanceOf(ClientGateway::class, $handler->receivedGateway);
     }
 
+    public function testHandlePassesAnExplicitNullToANullableParameterWithADefault(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $session->method('getId')->willReturn(Uuid::v4());
+
+        $handler = new class {
+            public function search(?string $category = 'books'): string
+            {
+                return var_export($category, true);
+            }
+        };
+
+        $reference = new ElementReference([$handler, 'search']);
+        $context = ['_session' => $session, '_request' => new PingRequest()];
+
+        $this->assertSame('NULL', (new ReferenceHandler())->handle($reference, $context + ['category' => null]));
+        $this->assertSame("'books'", (new ReferenceHandler())->handle($reference, $context));
+    }
+
     public function testHandleResolvesAClassStringAndMethodPairToAnInstance(): void
     {
         $session = $this->createMock(SessionInterface::class);
