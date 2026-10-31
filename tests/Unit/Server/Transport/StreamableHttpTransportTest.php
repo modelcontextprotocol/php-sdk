@@ -154,7 +154,7 @@ final class StreamableHttpTransportTest extends TestCase
     #[TestDox('a DELETE of an unknown or already ended session is answered 404')]
     public function testDeleteOfAnEndedSessionIsNotFound(): void
     {
-        $server = Server::builder()->setServerInfo('test', '1.0')->build();
+        $server = Server::builder()->setServerInfo('test', '1.0')->setSession(new InMemorySessionStore())->build();
         $sessionId = $this->initialize($server);
 
         $this->assertSame(200, $this->delete($server, $sessionId)->getStatusCode());

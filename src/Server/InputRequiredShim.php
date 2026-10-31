@@ -19,6 +19,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\InputRequestCapabilities;
@@ -96,6 +97,14 @@ final class InputRequiredShim
         $round = 0;
 
         while (($ask = self::askOf($result)) instanceof InputRequiredResult) {
+            if ($session instanceof EphemeralSessionInterface) {
+                $this->logger->warning('A handler asked for input on a server without sessions, which cannot ask the client; the call was failed instead.', [
+                    'method' => $request::getMethod(),
+                ]);
+
+                return Error::forInternalError('Asking the client for input needs a session, and this server runs without sessions.', $request->getId());
+            }
+
             if (++$round > $this->maxRounds) {
                 $this->logger->warning('A handler kept asking for input past the round limit; the call was failed instead.', [
                     'method' => $request::getMethod(),
