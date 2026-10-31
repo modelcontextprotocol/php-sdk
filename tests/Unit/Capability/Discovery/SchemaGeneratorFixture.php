@@ -335,6 +335,30 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * PHPStan/Psalm pseudo-types and literal types map to their base type.
+     *
+     * @param non-empty-string                                                                      $name     Name
+     * @param class-string                                                                          $class    Class
+     * @param positive-int                                                                          $count    Count
+     * @param array-key                                                                             $key      Key
+     * @param 'asc'|'desc'                                                                          $order    Order
+     * @param 1|2                                                                                   $level    Level
+     * @param non-empty-list<non-empty-string>                                                      $tags     Tags
+     * @param array{tags: list<string>, ids: array<int, int>, meta: array<string, int>, any: mixed} $settings Settings
+     */
+    public function pseudoTypes(
+        string $name,
+        string $class,
+        int $count,
+        int|string $key,
+        string $order,
+        int $level,
+        array $tags,
+        array $settings,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**
