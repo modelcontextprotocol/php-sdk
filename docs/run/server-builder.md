@@ -339,6 +339,7 @@ $server = Server::builder()
 | `setDiscoverer()` | discoverer | Replace the class that scans for attributes (the discovery `cache` is then not used) |
 | `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management, see [Sessions](sessions.md) |
 | `setSessionLock()` | sessionLock | Serialize the concurrent requests of one session, see [Sessions](sessions.md#concurrent-requests) |
+| `withoutSessions()` | - | Serve handshake-era clients over HTTP without sessions, see [Sessions](sessions.md#serving-without-sessions) |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |

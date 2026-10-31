@@ -14,6 +14,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix `InMemorySessionStore::exists()` reporting a session past its TTL as existing, while `read()` already treated it as gone.
 * Fix `Psr16NotificationBus` subscribers missing the notifications published after the bus stayed quiet for longer than its TTL: the sequence counter no longer expires, and a subscriber whose cursor is ahead of a lost counter reads what the bus holds.
 * Fix `Session::save()` wiping the other keys of a session that the store failed to read, e.g. when `Psr16SessionStore` hits a cache error: it now returns `false` instead of writing the changed keys alone.
+* Add `Builder::withoutSessions()` to serve handshake-era clients over Streamable HTTP without sessions: `initialize` is answered without `Mcp-Session-Id`, every later request is served on its own, and `GET` and `DELETE` are answered with `405`, so a horizontally scaled server needs no shared session store or lock for them. Requests to the client (elicitation, sampling, roots) fail right away in this mode. Off by default; stdio and the `2026-07-28` era are not affected.
 * Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
 
 ### Client

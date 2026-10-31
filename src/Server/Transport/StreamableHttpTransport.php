@@ -75,6 +75,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     /** @var non-empty-list<ProtocolVersion>|null null names every handshake revision */
     private ?array $handshakeVersions = null;
 
+    private bool $sessionless = false;
+
     private ?string $immediateResponse = null;
     private ?int $immediateStatusCode = null;
 
@@ -174,6 +176,17 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     public function setHandshakeVersions(array $versions): void
     {
         $this->handshakeVersions = $versions;
+    }
+
+    /**
+     * Serves the handshake era without sessions: no `Mcp-Session-Id` is read or
+     * sent, and `DELETE`, like `GET`, is answered with `405`.
+     *
+     * @internal called by {@see \Mcp\Server\Protocol::connect()} for a server built with {@see \Mcp\Server\Builder::withoutSessions()}
+     */
+    public function setSessionless(bool $sessionless): void
+    {
+        $this->sessionless = $sessionless;
     }
 
     public function send(string $data, array $context): void
@@ -277,7 +290,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                 ->withBody($this->streamFactory->createStream(implode('', $events)));
         }
 
-        if ($this->sessionId) {
+        if ($this->sessionId && !$this->sessionless) {
             $response = $response->withHeader(self::SESSION_HEADER, $this->sessionId->toRfc4122());
         }
 
@@ -371,7 +384,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             ->withHeader('X-Accel-Buffering', 'no')
             ->withBody($stream);
 
-        if ($this->sessionId) {
+        if ($this->sessionId && !$this->sessionless) {
             $response = $response->withHeader(self::SESSION_HEADER, $this->sessionId->toRfc4122());
         }
 
@@ -425,7 +438,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             ->withBody($this->streamFactory->createStream($payload));
 
         if (405 === $statusCode) {
-            $response = $response->withHeader('Allow', 'POST, DELETE, OPTIONS');
+            $response = $response->withHeader('Allow', $this->sessionless ? 'POST, OPTIONS' : 'POST, DELETE, OPTIONS');
         }
 
         return $response;
@@ -500,6 +513,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
     private function handleHandshakeRequest(ServerRequestInterface $request, ?string $body): ResponseInterface
     {
+        if ($this->sessionless) {
+            return match ($request->getMethod()) {
+                'POST' => $this->handlePostRequest($body ?? '', self::accessToken($request)),
+                default => $this->createErrorResponse(Error::forInvalidRequest('Method Not Allowed'), 405),
+            };
+        }
+
         $sessionIdHeaders = $request->getHeader(self::SESSION_HEADER);
         if (\count($sessionIdHeaders) > 1) {
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header must not be repeated.'), 400);
