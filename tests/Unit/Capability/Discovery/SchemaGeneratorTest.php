@@ -252,6 +252,29 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => 'integer', 'description' => 'Bounded value'], $schema['properties']['bounded']);
     }
 
+    public function testMapsPhpStanAndPsalmPseudoTypesToTheirBaseType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'pseudoTypes');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals(['type' => 'string', 'description' => 'Name'], $schema['properties']['name']);
+        $this->assertEquals(['type' => 'string', 'description' => 'Class'], $schema['properties']['class']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Count'], $schema['properties']['count']);
+        $this->assertEquals(['type' => ['integer', 'string'], 'description' => 'Key'], $schema['properties']['key']);
+        $this->assertEquals(['type' => 'string', 'description' => 'Order'], $schema['properties']['order']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Level'], $schema['properties']['level']);
+        $this->assertEquals(['type' => 'array', 'description' => 'Tags', 'items' => ['type' => 'string']], $schema['properties']['tags']);
+
+        $settings = $schema['properties']['settings'];
+        $this->assertSame('object', $settings['type']);
+        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string']], $settings['properties']['tags']);
+        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'integer']], $settings['properties']['ids']);
+        $this->assertEquals(['type' => 'object', 'additionalProperties' => ['type' => 'integer']], $settings['properties']['meta']);
+        // `mixed` accepts any value, serialized as the empty schema `{}`
+        $this->assertSame('{}', json_encode($settings['properties']['any']));
+        $this->assertEqualsCanonicalizing(['tags', 'ids', 'meta', 'any'], $settings['required']);
+    }
+
     public function testGeneratesCorrectSchemaForEnumParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');
