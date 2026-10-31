@@ -13,6 +13,7 @@ namespace Mcp\Server;
 
 use Mcp\Exception\ClientException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
@@ -40,6 +41,7 @@ use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolChoice;
 use Mcp\Server\Fiber\HandlerFibers;
+use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -162,6 +164,7 @@ class ClientGateway
      * @return CreateSamplingMessageResult The sampling response
      *
      * @throws ClientException if the client request results in an error message
+     * @throws LogicException  if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Integrate with an LLM provider's API directly instead.
@@ -233,6 +236,7 @@ class ClientGateway
      * @return ElicitResult The elicitation response containing the user's action and any provided content
      *
      * @throws ClientException if the client request results in an error message
+     * @throws LogicException  if the server runs without sessions
      */
     public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120, ?string $key = null): ElicitResult
     {
@@ -253,9 +257,12 @@ class ClientGateway
      *
      * @throws ClientException          if the client request results in an error message
      * @throws InvalidArgumentException if the client did not declare url-mode elicitation
+     * @throws LogicException           if the server runs without sessions
      */
     public function elicitUrl(string $message, string $url, int $timeout = 120, ?string $key = null): ElicitResult
     {
+        $this->assertClientCanBeAsked();
+
         // URL mode only exists from 2025-11-25 on, and only for clients declaring it
         if (!$this->supportsElicitationUrl()) {
             throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
@@ -276,6 +283,7 @@ class ClientGateway
      * @return ListRootsResult The roots exposed by the client
      *
      * @throws ClientException if the client request results in an error message
+     * @throws LogicException  if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Pass directories or files through tool arguments, resource URIs or server
@@ -304,10 +312,12 @@ class ClientGateway
      * capabilities to determine if roots/list requests are supported.
      *
      * @return bool True if the client supports roots, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsRoots(): bool
     {
-        $capabilities = (array) $this->session->get('client_capabilities', []);
+        $capabilities = $this->clientCapabilities();
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('roots', $capabilities);
@@ -321,10 +331,12 @@ class ClientGateway
      * to determine if elicitation/create requests are supported.
      *
      * @return bool True if the client supports elicitation, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsElicitation(): bool
     {
-        $capabilities = (array) $this->session->get('client_capabilities', []);
+        $capabilities = $this->clientCapabilities();
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('elicitation', $capabilities);
@@ -338,10 +350,12 @@ class ClientGateway
      * sampling/createMessage requests are supported.
      *
      * @return bool True if the client supports sampling, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsSampling(): bool
     {
-        $capabilities = (array) $this->session->get('client_capabilities', []);
+        $capabilities = $this->clientCapabilities();
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('sampling', $capabilities);
@@ -356,6 +370,8 @@ class ClientGateway
      * {@see self::sample()}.
      *
      * @return bool True if the client supports tool-enabled sampling, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsSamplingTools(): bool
     {
@@ -369,6 +385,8 @@ class ClientGateway
      * only be sent when the client advertised `sampling.context`.
      *
      * @return bool True if the client supports sampling context, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsSamplingContext(): bool
     {
@@ -382,6 +400,8 @@ class ClientGateway
      * that existed before URL elicitation — so url mode has to be named explicitly.
      *
      * @return bool True if the client supports url-mode elicitation, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsElicitationUrl(): bool
     {
@@ -397,6 +417,8 @@ class ClientGateway
      * to a text-only result otherwise.
      *
      * @return bool True if the client advertised the extension, false otherwise
+     *
+     * @throws LogicException if the server runs without sessions
      */
     public function supportsExtension(ExtensionIdentifier|string $id): bool
     {
@@ -411,7 +433,7 @@ class ClientGateway
      */
     private function hasSubCapability(string $capability, string $name): bool
     {
-        $capabilities = (array) $this->session->get('client_capabilities', []);
+        $capabilities = $this->clientCapabilities();
         $declared = $capabilities[$capability] ?? null;
 
         if (\is_array($declared)) {
@@ -451,6 +473,7 @@ class ClientGateway
      * @return Response<array<string, mixed>>|Error The client's response message
      *
      * @throws RuntimeException If Fiber support is not available
+     * @throws LogicException   if the server runs without sessions
      *
      * @internal
      */
@@ -471,6 +494,8 @@ class ClientGateway
      */
     private function suspend(Request $request, int $timeout, ?string $key = null): Response|Error
     {
+        $this->assertClientCanBeAsked();
+
         $response = HandlerFibers::suspend(new RequestSuspension($request, $this->session->getId()->toRfc4122(), $timeout, $key));
 
         if (!$response instanceof Response && !$response instanceof Error) {
@@ -478,5 +503,33 @@ class ClientGateway
         }
 
         return $response;
+    }
+
+    /**
+     * The capabilities the client declared on `initialize`, which only a session keeps for later requests.
+     *
+     * @return array<string, mixed>
+     *
+     * @throws LogicException if the server runs without sessions
+     */
+    private function clientCapabilities(): array
+    {
+        if ($this->session instanceof EphemeralSessionInterface) {
+            throw new LogicException('The client capabilities need a session; configure one with Builder::setSession().');
+        }
+
+        return (array) $this->session->get('client_capabilities', []);
+    }
+
+    /**
+     * The client answers in a POST of its own, which a server without sessions cannot match to the request waiting for it.
+     *
+     * @throws LogicException if the server runs without sessions
+     */
+    private function assertClientCanBeAsked(): void
+    {
+        if ($this->session instanceof EphemeralSessionInterface) {
+            throw new LogicException('Requests to the client need a session; configure one with Builder::setSession().');
+        }
     }
 }

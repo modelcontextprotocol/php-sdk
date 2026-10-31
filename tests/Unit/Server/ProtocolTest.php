@@ -17,6 +17,7 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
+use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
@@ -32,6 +33,7 @@ use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\EphemeralSession;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Psr16SessionStore;
 use Mcp\Server\Session\Session;
@@ -100,6 +102,79 @@ final class ProtocolTest extends TestCase
             '{"jsonrpc": "2.0", "method": "notifications/initialized"}',
             $sessionId
         );
+    }
+
+    #[TestDox('Without sessions, a transport other than Streamable HTTP still gets a session on initialize')]
+    public function testSessionlessKeepsTheSessionOfOtherTransportsOnInitialize(): void
+    {
+        $this->transport->expects($this->once())->method('setSessionId');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}',
+            null,
+        );
+    }
+
+    #[TestDox('Without sessions, a transport other than Streamable HTTP still requires a session id after initialize')]
+    public function testSessionlessKeepsRequiringASessionIdOnOtherTransports(): void
+    {
+        $transport = new RecordingTransport();
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":2,"method":"tools/list"}', null);
+
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(400, $transport->sent[0]['context']['status_code']);
+    }
+
+    #[TestDox('A notification cannot be queued on the session of a server without sessions, which no stream would deliver')]
+    public function testNotificationCannotBeQueuedWithoutASession(): void
+    {
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Messages sent outside a request need a session; configure one with Builder::setSession().');
+
+        $protocol->sendNotification(new ProgressNotification('p', 0.5), new EphemeralSession());
+    }
+
+    #[TestDox('A request cannot be queued on the session of a server without sessions, whose answer could not be matched')]
+    public function testRequestCannotBeQueuedWithoutASession(): void
+    {
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $this->expectException(LogicException::class);
+        $this->expectExceptionMessage('Messages sent outside a request need a session; configure one with Builder::setSession().');
+
+        $protocol->sendRequest(new PingRequest(), 10, new EphemeralSession());
     }
 
     #[TestDox('An id-less error response from the client is logged and ignored, not stored under a collapsed session key')]

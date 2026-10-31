@@ -5,7 +5,9 @@
 > [The 2026-07-28 lifecycle](../protocol-versions.md). One server serves both, so the configuration below still
 > applies to the handshake-era clients it answers.
 
-Configure session storage and lifecycle. By default, the SDK uses `InMemorySessionStore`:
+Over Streamable HTTP, a server has sessions only once you configure them with `setSession()`; without it, it
+serves handshake-era clients [without sessions](#serving-without-sessions). Over stdio, the connection holds the
+one session in memory, with or without `setSession()`. Configure session storage and lifecycle:
 
 ```php
 use Mcp\Server;
@@ -16,17 +18,17 @@ use Mcp\Server\Session\Psr6SessionStore;
 use Symfony\Component\Cache\Psr16Cache;
 use Symfony\Component\Cache\Adapter\RedisAdapter;
 
-// Override with file-based storage
+// File-based storage
 $server = Server::builder()
     ->setSession(new FileSessionStore(__DIR__ . '/sessions'))
     ->build();
 
-// Override with in-memory storage and custom TTL
+// In-memory storage with a custom TTL, for a single long-running process
 $server = Server::builder()
     ->setSession(new InMemorySessionStore(3600))
     ->build();
 
-// Override with PSR-6 cache-based storage
+// PSR-6 cache-based storage
 // Requires symfony/cache (or any other PSR-6 implementation)
 // composer require symfony/cache
 $redisAdapter = new RedisAdapter(
@@ -42,7 +44,7 @@ $server = Server::builder()
     ))
     ->build();
 
-// Override with PSR-16 cache-based storage, which takes the same arguments
+// PSR-16 cache-based storage, which takes the same arguments
 // Requires psr/simple-cache and a PSR-16 implementation
 $server = Server::builder()
     ->setSession(new Psr16SessionStore(new Psr16Cache($redisAdapter)))
@@ -60,6 +62,41 @@ directory or `Psr6SessionStore` (or `Psr16SessionStore`) with a shared cache suc
 tens of thousands, use `Psr6SessionStore` or `Psr16SessionStore` with Redis or a similar shared cache: it is shared
 across hosts, expires sessions on its own and needs no garbage collection (see below). A network-mounted directory adds
 latency and makes session availability depend on the shared filesystem.
+
+## Serving Without Sessions
+
+A session is optional in the handshake era: the specification says a server "MAY assign a session ID at
+initialization time". A server built without `setSession()` assigns none, so the servers behind a load balancer
+need no shared session store or lock to answer handshake-era clients.
+
+Over Streamable HTTP, `initialize` is then answered without an `Mcp-Session-Id` header, and every later request is
+served on a session of its own that is dropped once the request is answered; it implements
+`EphemeralSessionInterface`, which a handler can check for. A `Mcp-Session-Id` the client sends anyway is ignored.
+`GET` and `DELETE` are answered with HTTP `405`, as there is no stream to open and no session to end.
+
+What a session carries from one request to the next is gone, and what needs it fails loud instead of silently
+doing nothing:
+
+- Requests to the client: `elicit()`, `elicitUrl()`, `sample()` and `listRoots()` of the `ClientGateway` throw a
+  `LogicException` right away. The client answers them in a POST of its own, which cannot be matched to the request
+  that waits for the answer. A handler returning an `InputRequiredResult` is answered with an error for the same
+  reason.
+- `resources/subscribe`, `resources/unsubscribe` and `logging/setLevel` are answered with a `-32603` error, and
+  `initialize` does not offer resource subscriptions.
+- `Protocol::sendRequest()` and `Protocol::sendNotification()` throw a `LogicException`, as there is no stream to
+  deliver a message sent outside a request.
+- The capabilities the client declared on `initialize` are not known to later requests, so `supportsElicitation()`
+  and the other checks of the `ClientGateway` throw a `LogicException`.
+- What a handler sets on the session is gone on the next request, and `SessionInterface::save()` throws a
+  `LogicException`.
+
+`RequestContext::getProtocolVersion()` returns the revision the `MCP-Protocol-Version` header names, or
+`2025-03-26` when the header is absent, as the specification asks. Notifications sent while a request runs, like
+progress and log messages, still reach the client on that request's stream. Servers that need the rest call
+`setSession()`.
+
+The modern (`2026-07-28`) era has no sessions to begin with and is not affected, and neither is stdio, where the
+connection holds the one session.
 
 ## Garbage Collection Configuration
 
@@ -205,7 +242,7 @@ right now and returns `false` otherwise; `release()` gives it back.
 
 **Available Session Stores:**
 
-- `InMemorySessionStore`: Fast in-memory storage (default)
+- `InMemorySessionStore`: Fast in-memory storage for a single long-running process
 - `FileSessionStore`: Persistent file-based storage
 - `Psr6SessionStore`: PSR-6 compliant cache-based storage
 - `Psr16SessionStore`: PSR-16 compliant cache-based storage

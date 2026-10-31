@@ -22,6 +22,7 @@ use Mcp\Server\Builder;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionLock;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Tests\Unit\Fixtures\RecordingFiberContext;
@@ -391,6 +392,7 @@ final class RealEventLoopTest extends TestCase
     {
         return Server::builder()
             ->setServerInfo('event-loop-server', '1.0.0')
+            ->setSession(new InMemorySessionStore())
             ->setFiberScheduler($scheduler);
     }
 

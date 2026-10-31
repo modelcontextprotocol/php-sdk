@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server;
+use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -217,6 +218,7 @@ final class DualEraRoutingTest extends TestCase
     {
         $builder = Server::builder()
             ->setServerInfo('dual-era-server', '1.0.0')
+            ->setSession(new InMemorySessionStore())
             ->addTool(static fn (string $text = ''): string => 'echo:'.$text, name: 'echo_tool', description: 'Echoes its argument');
 
         if (!$modern) {
