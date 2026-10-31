@@ -61,6 +61,37 @@ tens of thousands, use `Psr6SessionStore` or `Psr16SessionStore` with Redis or a
 across hosts, expires sessions on its own and needs no garbage collection (see below). A network-mounted directory adds
 latency and makes session availability depend on the shared filesystem.
 
+## Serving Without Sessions
+
+A session is optional in the handshake era: the specification says a server "MAY assign a session ID at
+initialization time". `withoutSessions()` makes the server assign none, so the servers behind a load balancer
+need no shared session store or lock to answer handshake-era clients:
+
+```php
+$server = Server::builder()
+    ->withoutSessions()
+    ->build();
+```
+
+Over Streamable HTTP, `initialize` is then answered without an `Mcp-Session-Id` header, and every later request
+is served on a session of its own that is dropped once the request is answered. A `Mcp-Session-Id` the client
+sends anyway is ignored. `GET` and `DELETE` are answered with HTTP `405`, as there is no stream to open and no
+session to end.
+
+What a session carries from one request to the next is gone:
+
+- the client's capabilities and the log level it set with `logging/setLevel`;
+- `resources/subscribe` subscriptions and other messages the server sends outside a request, like list changes;
+- requests to the client: elicitation, sampling and `roots/list`. The client answers them in a POST of its own,
+  which cannot be matched to the request that waits for the answer, so the `ClientGateway` method gets an error
+  right away instead of waiting for its timeout.
+
+Notifications sent while a request runs, like progress, still reach the client on that request's stream.
+Servers that need the rest keep using sessions.
+
+The modern (`2026-07-28`) era has no sessions to begin with and is not affected, and neither is stdio, where the
+connection holds the one session.
+
 ## Garbage Collection Configuration
 
 The SDK periodically runs garbage collection to clean up expired sessions, similar to PHP's native

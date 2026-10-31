@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-// Server for HttpNegotiationTest under `php -S`, era picked by MCP_INTEGRATION_HANDSHAKE_ONLY / MCP_INTEGRATION_MODERN_ONLY.
+// Server for HttpNegotiationTest and SessionlessHttpTest under `php -S`, era picked by MCP_INTEGRATION_HANDSHAKE_ONLY / MCP_INTEGRATION_MODERN_ONLY, sessions turned off by MCP_INTEGRATION_SESSIONLESS.
 
 use Http\Discovery\Psr17Factory;
 use Laminas\HttpHandlerRunner\Emitter\SapiEmitter;
@@ -29,6 +29,10 @@ $builder = Server::builder()
 
 if ('' !== (string) getenv('MCP_INTEGRATION_HANDSHAKE_ONLY')) {
     $builder->withoutModernEra();
+}
+
+if ('' !== (string) getenv('MCP_INTEGRATION_SESSIONLESS')) {
+    $builder->withoutSessions();
 }
 
 $request = (new Psr17Factory())->createServerRequestFromGlobals();

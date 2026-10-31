@@ -102,6 +102,45 @@ final class ProtocolTest extends TestCase
         );
     }
 
+    #[TestDox('Without sessions, a transport other than Streamable HTTP still gets a session on initialize')]
+    public function testSessionlessKeepsTheSessionOfOtherTransportsOnInitialize(): void
+    {
+        $this->transport->expects($this->once())->method('setSessionId');
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $protocol->processInput(
+            $this->transport,
+            '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-11-25","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}',
+            null,
+        );
+    }
+
+    #[TestDox('Without sessions, a transport other than Streamable HTTP still requires a session id after initialize')]
+    public function testSessionlessKeepsRequiringASessionIdOnOtherTransports(): void
+    {
+        $transport = new RecordingTransport();
+
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: new SessionManager(new InMemorySessionStore()),
+            sessionless: true,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc":"2.0","id":2,"method":"tools/list"}', null);
+
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(400, $transport->sent[0]['context']['status_code']);
+    }
+
     #[TestDox('An id-less error response from the client is logged and ignored, not stored under a collapsed session key')]
     public function testIdLessErrorResponseIsIgnored(): void
     {

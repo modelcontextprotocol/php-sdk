@@ -39,6 +39,7 @@ use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -69,6 +70,15 @@ class Protocol
     public const SESSION_ACTIVE_REQUEST_META = '_mcp.active_request_meta';
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
+
+    /** Session key marking a session made for one HTTP request of a server without sessions */
+    private const SESSION_EPHEMERAL = '_mcp.ephemeral';
+
+    /**
+     * The client answers a request in a POST of its own, which a server without sessions
+     * cannot match to the request that is waiting for the answer.
+     */
+    private const SESSIONLESS_CLIENT_REQUEST_MESSAGE = 'Requests to the client need a session, and this server runs without sessions.';
 
     /**
      * Deliberately generic: unexpected throwables carry internal details such as file paths, class
@@ -112,6 +122,8 @@ class Protocol
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
+     * @param bool                                                                      $sessionless          serve each handshake-era request over Streamable HTTP
+     *                                                                                                        on a session of its own, without a `Mcp-Session-Id`
      */
     public function __construct(
         private readonly array $requestHandlers,
@@ -123,6 +135,7 @@ class Protocol
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
         private readonly ?SessionLockInterface $sessionLock = null,
+        private readonly bool $sessionless = false,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
@@ -138,6 +151,10 @@ class Protocol
     public function connect(TransportInterface $transport): void
     {
         $transport->onMessage($this->processInput(...));
+
+        if ($this->sessionless && $transport instanceof StreamableHttpTransport) {
+            $transport->setSessionless(true);
+        }
 
         $transport->onSessionEnd($this->destroySession(...));
 
@@ -311,6 +328,11 @@ class Protocol
             }
         }
 
+        // Stored only while one of its handlers is suspended, which ends it when it completes.
+        if ($this->isEphemeral($session)) {
+            return;
+        }
+
         try {
             $session->save();
         } catch (\Throwable $e) {
@@ -430,6 +452,12 @@ class Protocol
                 });
 
                 $result = $fiber->start();
+
+                // Answered right away instead of waiting out the timeout for an answer that cannot be matched.
+                while ($result instanceof RequestSuspension && $this->isEphemeral($session)) {
+                    $this->logger->warning('Refused a request to the client on a server without sessions.', ['method' => $result->request::getMethod()]);
+                    $result = $fiber->resume(Error::forInternalError(self::SESSIONLESS_CLIENT_REQUEST_MESSAGE));
+                }
 
                 if ($fiber->isSuspended()) {
                     $beforeSuspension = $session->all();
@@ -941,6 +969,10 @@ class Protocol
             $session = $this->sessionManager->createWithId($sessionId);
 
             try {
+                if ($yieldedValue instanceof RequestSuspension && $this->isEphemeral($session)) {
+                    throw new RuntimeException(self::SESSIONLESS_CLIENT_REQUEST_MESSAGE);
+                }
+
                 if ($yieldedValue instanceof RequestSuspension) {
                     $requestId = $this->registerRequest($yieldedValue->request, $yieldedValue->timeout, $session);
                     $outgoing = $yieldedValue->request->withId($requestId->toRfc4122());
@@ -1048,6 +1080,17 @@ class Protocol
      */
     private function saveResumedSession(SessionInterface $session): void
     {
+        // An ephemeral session ends with the request it was made for.
+        if ($this->isEphemeral($session)) {
+            try {
+                $this->sessionManager->destroy($session->getId());
+            } catch (\Throwable $e) {
+                $this->logger->error(\sprintf('Failed to destroy the session of a resumed request: %s', $e->getMessage()), ['exception' => $e]);
+            }
+
+            return;
+        }
+
         $sessionId = $session->getId();
         $locked = false;
 
@@ -1115,6 +1158,9 @@ class Protocol
      */
     private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, array $messages): ?SessionInterface
     {
+        // Without sessions, every request is served on its own: the transport ignores and emits no session id.
+        $sessionless = $this->sessionless && $transport instanceof StreamableHttpTransport;
+
         if ($this->hasInitializeRequest($messages)) {
             // Spec: An initialize request must not be part of a batch.
             if (\count($messages) > 1) {
@@ -1132,6 +1178,10 @@ class Protocol
                 return null;
             }
 
+            if ($sessionless) {
+                return $this->createEphemeralSession();
+            }
+
             $session = $this->sessionManager->create();
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
@@ -1140,6 +1190,10 @@ class Protocol
             $transport->setSessionId($session->getId());
 
             return $session;
+        }
+
+        if ($sessionless) {
+            return $this->createEphemeralSession();
         }
 
         if (!$sessionId) {
@@ -1172,6 +1226,22 @@ class Protocol
         }
 
         return $this->sessionManager->createWithId($sessionId);
+    }
+
+    /**
+     * A session for one request, never saved unless one of its handlers suspends.
+     */
+    private function createEphemeralSession(): SessionInterface
+    {
+        $session = $this->sessionManager->create();
+        $session->set(self::SESSION_EPHEMERAL, true);
+
+        return $session;
+    }
+
+    private function isEphemeral(SessionInterface $session): bool
+    {
+        return $this->sessionless && true === $session->get(self::SESSION_EPHEMERAL);
     }
 
     /**

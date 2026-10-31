@@ -278,6 +278,8 @@ final class Builder
 
     private int $inputRequiredTimeout = InputRequiredShim::DEFAULT_ROUND_TIMEOUT;
 
+    private bool $sessionless = false;
+
     /**
      * @see self::assemble() for why this is memoized
      *
@@ -664,6 +666,26 @@ final class Builder
     }
 
     /**
+     * Serve handshake-era clients over Streamable HTTP without sessions. Off by default.
+     *
+     * `initialize` is answered without an `Mcp-Session-Id`, every later request is served on
+     * a session of its own, and `GET` and `DELETE` are answered with `405`. No session store or
+     * lock has to be shared between the servers behind a load balancer for these clients.
+     *
+     * What a session carries from one request to the next is gone: the client's capabilities,
+     * the log level it set, its resource subscriptions, and the queue of messages the server
+     * sends outside a request. Requests to the client (elicitation, sampling, roots) fail right
+     * away, as its answer arrives in a POST of its own. Notifications sent during a request,
+     * such as progress, still reach the client. The modern era and stdio are not affected.
+     */
+    public function withoutSessions(): self
+    {
+        $this->sessionless = true;
+
+        return $this;
+    }
+
+    /**
      * @param string[] $scanDirs
      * @param string[] $excludeDirs
      * @param string[] $namePatterns
@@ -982,6 +1004,7 @@ final class Builder
                 : null,
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
+            sessionless: $this->sessionless,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
