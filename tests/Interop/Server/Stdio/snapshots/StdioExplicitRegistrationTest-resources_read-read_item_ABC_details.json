@@ -3,7 +3,7 @@
     {
       "uri": "item://ABC/details",
       "mimeType": "application/json",
-      "text": "{\n    \"id\": \"ABC\",\n    \"name\": \"Item ABC\",\n    \"description\": \"Details for item ABC from manual template.\"\n}"
+      "text": "{\"id\":\"ABC\",\"name\":\"Item ABC\",\"description\":\"Details for item ABC from manual template.\"}"
     }
   ]
 }

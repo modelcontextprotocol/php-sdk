@@ -155,7 +155,7 @@ final class ResourceResultFormatter
             if ($mimeType && (str_contains(strtolower($mimeType), 'json')
                 || 'application/json' === $mimeType)) {
                 try {
-                    $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
+                    $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR);
 
                     return [new TextResourceContents($uri, $mimeType, $jsonString, $meta)];
                 } catch (\JsonException $e) {
@@ -164,7 +164,7 @@ final class ResourceResultFormatter
             }
 
             try {
-                $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR | \JSON_PRETTY_PRINT);
+                $jsonString = json_encode($readResult, \JSON_THROW_ON_ERROR);
                 $mimeType = $mimeType ?? 'application/json';
 
                 return [new TextResourceContents($uri, $mimeType, $jsonString, $meta)];

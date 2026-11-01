@@ -15,11 +15,7 @@ Calling 'run_dataset_quality_checks'...
 [LOG info] Dataset "customer_orders_2024" passed automated checks.
 
 Result:
-{
-    "dataset": "customer_orders_2024",
-    "status": "passed",
-    "notes": "No significant integrity issues detected during automated checks."
-}
+{"dataset":"customer_orders_2024","status":"passed","notes":"No significant integrity issues detected during automated checks."}
 
 Calling 'coordinate_incident_response'...
 
@@ -31,8 +27,4 @@ Calling 'coordinate_incident_response'...
 [LOG info] Incident triage completed for Database connection pool exhausted
 
 Result:
-{
-    "incident": "Database connection pool exhausted",
-    "recommended_actions": "Based on the incident analysis, I recommend: 1) Activate the on-call team, 2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.",
-    "model": "mock-gpt-4"
-}
+{"incident":"Database connection pool exhausted","recommended_actions":"Based on the incident analysis, I recommend: 1) Activate the on-call team, 2) Isolate affected systems, 3) Begin root cause analysis, 4) Prepare stakeholder communication.","model":"mock-gpt-4"}

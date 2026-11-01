@@ -173,7 +173,7 @@ final class PromptResultFormatter
             return new TextContent($stringContent);
         }
 
-        $jsonContent = json_encode($content, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
+        $jsonContent = json_encode($content, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR);
 
         return new TextContent($jsonContent);
     }

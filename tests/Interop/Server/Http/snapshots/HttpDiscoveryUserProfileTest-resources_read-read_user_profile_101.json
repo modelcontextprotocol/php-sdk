@@ -3,7 +3,7 @@
     {
       "uri": "user://101/profile",
       "mimeType": "application/json",
-      "text": "{\n    \"name\": \"Alice\",\n    \"email\": \"alice@example.com\",\n    \"role\": \"admin\"\n}"
+      "text": "{\"name\":\"Alice\",\"email\":\"alice@example.com\",\"role\":\"admin\"}"
     }
   ]
 }

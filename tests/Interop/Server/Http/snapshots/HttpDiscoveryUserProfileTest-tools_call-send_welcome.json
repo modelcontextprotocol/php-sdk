@@ -2,7 +2,7 @@
   "content": [
     {
       "type": "text",
-      "text": "{\n    \"success\": true,\n    \"message_sent\": \"Welcome, Alice! Welcome to our platform!\"\n}"
+      "text": "{\"success\":true,\"message_sent\":\"Welcome, Alice! Welcome to our platform!\"}"
     }
   ],
   "structuredContent": {
