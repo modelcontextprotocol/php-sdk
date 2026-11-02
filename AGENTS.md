@@ -65,7 +65,7 @@ by issuing real `elicitation/create`/`sampling/createMessage` requests and re-ru
   fiber with the client's answer. Request ids to the client are UUIDs, matched per fiber, so concurrent requests of one
   session don't cross.
 - `Server\Session\*`: session stores (in-memory, file, PSR-16) and optional per-session locks.
-- `Server\Authorization\*`: resource-server-only OAuth (ADR 0001/0002 in `adr/`) — token validation, scope policy,
+- `Server\Transport\Http\OAuth\*`: resource-server-only OAuth (ADR 0001/0002 in `adr/`) — token validation, scope policy,
   protected resource metadata. Being an authorization server or proxying the OAuth flow is out of scope.
 - `Server\Transport\Http\*`: PSR-15 middleware (CORS, DNS rebinding, authorization) in front of the HTTP transport.
 
