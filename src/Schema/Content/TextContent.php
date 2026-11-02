@@ -40,7 +40,7 @@ class TextContent extends Content
         public readonly ?Annotations $annotations = null,
     ) {
         $this->text = (\is_array($text) || \is_object($text))
-            ? json_encode($text, \JSON_PRETTY_PRINT) : (string) $text;
+            ? json_encode($text) : (string) $text;
 
         parent::__construct('text');
     }

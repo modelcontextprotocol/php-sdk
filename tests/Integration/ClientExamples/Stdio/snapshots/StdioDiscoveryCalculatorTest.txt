@@ -19,7 +19,10 @@ Available resources:
   - config://calculator/settings: calculator_config
 
 Reading resource 'config://calculator/settings'...
-  Content: {"precision":2,"allow_negative":true}
+  Content: {
+    "precision": 2,
+    "allow_negative": true
+}
   Mimetype: application/json
 Disconnecting...
 Done.

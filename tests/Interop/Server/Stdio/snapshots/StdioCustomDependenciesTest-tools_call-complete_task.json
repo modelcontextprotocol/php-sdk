@@ -2,7 +2,7 @@
   "content": [
     {
       "type": "text",
-      "text": "{\"success\":true,\"message\":\"Task 1 completed.\"}"
+      "text": "{\n    \"success\": true,\n    \"message\": \"Task 1 completed.\"\n}"
     }
   ],
   "structuredContent": {

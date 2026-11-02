@@ -52,7 +52,7 @@ class ToolResultFormatterTest extends TestCase
         $result = (new ToolResultFormatter())->format(['key' => 'value']);
         $this->assertCount(1, $result);
         $this->assertInstanceOf(TextContent::class, $result[0]);
-        $this->assertStringContainsString('value', $result[0]->text);
+        $this->assertSame('{"key":"value"}', $result[0]->text);
     }
 
     public function testFormatNullResult(): void

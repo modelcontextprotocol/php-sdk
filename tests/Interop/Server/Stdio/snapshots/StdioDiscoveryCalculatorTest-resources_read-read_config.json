@@ -3,7 +3,7 @@
     {
       "uri": "config://calculator/settings",
       "mimeType": "application/json",
-      "text": "{\"precision\":2,\"allow_negative\":true}"
+      "text": "{\n    \"precision\": 2,\n    \"allow_negative\": true\n}"
     }
   ]
 }

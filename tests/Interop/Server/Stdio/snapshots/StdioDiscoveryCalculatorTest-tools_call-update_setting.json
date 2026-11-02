@@ -2,7 +2,7 @@
   "content": [
     {
       "type": "text",
-      "text": "{\"success\":true,\"message\":\"Precision updated to 3.\"}"
+      "text": "{\n    \"success\": true,\n    \"message\": \"Precision updated to 3.\"\n}"
     }
   ],
   "structuredContent": {

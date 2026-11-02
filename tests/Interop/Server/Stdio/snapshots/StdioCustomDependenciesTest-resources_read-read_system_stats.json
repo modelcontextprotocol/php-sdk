@@ -3,7 +3,7 @@
     {
       "uri": "stats://system/overview",
       "mimeType": "application/json",
-      "text": "{\"total_tasks\":3,\"completed_tasks\":0,\"pending_tasks\":3,\"server_uptime_seconds\":12345}"
+      "text": "{\n    \"total_tasks\": 3,\n    \"completed_tasks\": 0,\n    \"pending_tasks\": 3,\n    \"server_uptime_seconds\": 12345\n}"
     }
   ]
 }
