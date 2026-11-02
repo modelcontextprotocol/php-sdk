@@ -387,6 +387,30 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * @param ?non-empty-string                 $nullableString
+     * @param ?positive-int                     $nullableInt
+     * @param ?array-key                        $nullableArrayKey
+     * @param ?list<string>                     $nullableList
+     * @param non-empty-array<string, int>      $stringKeyMap
+     * @param non-empty-array<string, int>|null $nullableStringKeyMap
+     * @param non-empty-array<int, int>         $intKeyMap
+     * @param non-empty-array<array-key, int>   $arrayKeyMap
+     * @param non-empty-array<int>              $singleArgument
+     */
+    public function nullableAndNonEmptyPseudoTypes(
+        ?string $nullableString,
+        ?int $nullableInt,
+        int|string|null $nullableArrayKey,
+        ?array $nullableList,
+        array $stringKeyMap,
+        ?array $nullableStringKeyMap,
+        array $intKeyMap,
+        array $arrayKeyMap,
+        array $singleArgument,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**

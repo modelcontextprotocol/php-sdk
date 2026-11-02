@@ -338,6 +338,44 @@ final class SchemaGeneratorTest extends TestCase
         ];
     }
 
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON arguments that must pass validation
+     * @param list<string>         $invalid  JSON arguments that must fail validation
+     */
+    #[DataProvider('provideNullableAndNonEmptyPseudoTypes')]
+    public function testMapsNullableAndNonEmptyPseudoTypes(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableAndNonEmptyPseudoTypes');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $argument) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+        foreach ($invalid as $argument) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideNullableAndNonEmptyPseudoTypes(): iterable
+    {
+        yield '?non-empty-string' => ['nullableString', ['type' => ['null', 'string']], ['"a"', 'null'], ['1']];
+        yield '?positive-int' => ['nullableInt', ['type' => ['null', 'integer']], ['1', 'null'], ['"a"']];
+        yield '?array-key' => ['nullableArrayKey', ['type' => ['null', 'integer', 'string']], ['1', '"a"', 'null'], ['true']];
+        yield '?list<string>' => ['nullableList', ['type' => ['array', 'null'], 'items' => ['type' => 'string']], ['["a"]', 'null'], ['[1]', '"a"']];
+        yield 'non-empty-array<string, int>' => ['stringKeyMap', ['type' => 'object'], ['{"a":1}'], ['["a"]', '"a"']];
+        yield 'non-empty-array<string, int>|null' => ['nullableStringKeyMap', ['type' => ['null', 'object']], ['{"a":1}', 'null'], ['["a"]']];
+        yield 'non-empty-array<int, int>' => ['intKeyMap', ['type' => 'array', 'items' => new \stdClass()], ['[1]'], ['{"a":1}']];
+        yield 'non-empty-array<array-key, int>' => ['arrayKeyMap', ['type' => ['array', 'object'], 'items' => new \stdClass()], ['{"a":1}', '[1]'], ['"a"']];
+        yield 'non-empty-array<int>' => ['singleArgument', ['type' => 'array', 'items' => ['type' => 'integer']], ['[1]'], ['["a"]', '{"a":1}']];
+    }
+
     public function testGeneratesCorrectSchemaForEnumParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');

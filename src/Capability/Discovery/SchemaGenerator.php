@@ -752,6 +752,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
     {
         $normalizedType = strtolower(trim($phpTypeString));
 
+        if (str_starts_with($normalizedType, '?')) {
+            $normalizedType = 'null|'.substr($normalizedType, 1);
+        }
+
         // PRIORITY 1: Handle unions before anything else. A `|` at the top
         // level joins alternatives; one inside `<>` or `{}` belongs to a
         // generic (`array<int|string>`) and is not a union of the whole type.
@@ -773,10 +777,15 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return ['object'];
         }
 
+        // A non-empty map with string keys is a JSON object; it cannot be the `[]` that an empty `{}` decodes to.
+        if (preg_match('/^non-empty-array\s*</', $normalizedType)) {
+            return (array) $this->mapTypeToSchema($normalizedType)['type'];
+        }
+
         // PRIORITY 3: Check for array syntax (T[] or generics)
         if (
             str_contains($normalizedType, '[]')
-            || preg_match('/^(array|list|non-empty-array|non-empty-list|iterable|collection)</i', $normalizedType)
+            || preg_match('/^(array|list|non-empty-list|iterable|collection)</i', $normalizedType)
             || \in_array($normalizedType, ['list', 'non-empty-array', 'non-empty-list'], true)
         ) {
             return ['array'];
@@ -791,17 +800,11 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // PRIORITY 5: Handle simple built-in types
         return match ($normalizedType) {
             'string', 'scalar' => ['string'],
-            '?string' => ['null', 'string'],
             'int', 'integer' => ['integer'],
-            '?int', '?integer' => ['null', 'integer'],
             'float', 'double', 'number' => ['number'],
-            '?float', '?double', '?number' => ['null', 'number'],
             'bool', 'boolean' => ['boolean'],
-            '?bool', '?boolean' => ['null', 'boolean'],
             'array' => ['array'],
-            '?array' => ['null', 'array'],
             'object', 'stdclass' => ['object'],
-            '?object', '?stdclass' => ['null', 'object'],
             'null' => ['null'],
             'resource', 'callable' => ['object'],
             'mixed' => [],
