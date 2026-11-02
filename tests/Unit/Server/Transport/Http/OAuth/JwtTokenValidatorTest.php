@@ -69,6 +69,13 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertSame(['a', 'b'], $result->getAccessToken()?->getScopes());
     }
 
+    public function testScopesFromMixedArrayClaimKeepOrderAndDuplicates(): void
+    {
+        $result = $this->validator(scopeClaim: 'scp')->validate($this->token(['scp' => ['first', '', 3, 'second', null, 'first']]));
+
+        $this->assertSame(['first', 'second', 'first'], $result->getAccessToken()?->getScopes());
+    }
+
     public function testRejectsWrongAudience(): void
     {
         $result = $this->validator()->validate($this->token(['aud' => 'https://graph.example.com']));
