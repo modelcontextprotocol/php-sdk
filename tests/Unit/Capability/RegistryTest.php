@@ -38,6 +38,28 @@ use Psr\Log\LoggerInterface;
 
 class RegistryTest extends TestCase
 {
+    public function testPaginatedListsKeepRegistrationOrderAndCursor(): void
+    {
+        for ($i = 0; $i < 3; ++$i) {
+            $this->registry->registerTool($this->createValidTool('tool'.$i), static fn () => null);
+            $this->registry->registerResource($this->createValidResource('test://resource'.$i), static fn () => null);
+            $this->registry->registerResourceTemplate($this->createValidResourceTemplate('test://resource/{id}/'.$i), static fn () => null);
+            $this->registry->registerPrompt($this->createValidPrompt('prompt'.$i), static fn () => null);
+        }
+
+        foreach (['getTools', 'getResources', 'getResourceTemplates', 'getPrompts'] as $method) {
+            $all = array_values($this->registry->{$method}()->references);
+            $first = $this->registry->{$method}(1);
+            $second = $this->registry->{$method}(1, $first->nextCursor);
+            $third = $this->registry->{$method}(1, $second->nextCursor);
+
+            $this->assertSame([$all[0]], $first->references);
+            $this->assertSame([$all[1]], $second->references);
+            $this->assertSame([$all[2]], $third->references);
+            $this->assertNull($third->nextCursor);
+        }
+    }
+
     private Registry $registry;
     private LoggerInterface&MockObject $logger;
 
