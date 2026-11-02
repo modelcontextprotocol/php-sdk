@@ -24,6 +24,25 @@ use PHPUnit\Framework\TestCase;
 
 class PromptResultFormatterTest extends TestCase
 {
+    public function testMixedMessagesPreserveNestedKeysAndOrder(): void
+    {
+        $first = new PromptMessage(Role::User, new TextContent('first'));
+        $second = new PromptMessage(Role::Assistant, new TextContent('second'));
+        $third = new PromptMessage(Role::User, new TextContent('third'));
+
+        $result = (new PromptResultFormatter())->format([
+            $first,
+            ['named' => $second, 8 => $first],
+            ['named' => $third, 5 => $second],
+        ]);
+
+        $this->assertSame([0, 'named', 1, 2], array_keys($result));
+        $this->assertSame($first, $result[0]);
+        $this->assertSame($third, $result['named']);
+        $this->assertSame($first, $result[1]);
+        $this->assertSame($second, $result[2]);
+    }
+
     public function testFormatPromptMessage(): void
     {
         $message = new PromptMessage(Role::User, new TextContent('hello'));
