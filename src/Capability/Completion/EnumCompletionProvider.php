@@ -44,9 +44,13 @@ class EnumCompletionProvider implements ProviderInterface
             return $this->values;
         }
 
-        return array_values(array_filter(
-            $this->values,
-            static fn (string $value) => str_starts_with($value, $currentValue)
-        ));
+        $completions = [];
+        foreach ($this->values as $value) {
+            if (str_starts_with($value, $currentValue)) {
+                $completions[] = $value;
+            }
+        }
+
+        return $completions;
     }
 }
