@@ -258,24 +258,21 @@ final class Registry implements RegistryInterface
     {
         $this->load();
 
+        if (null !== $limit) {
+            $tools = [];
+            foreach ($this->paginateResults($this->tools, $limit, $cursor) as $toolReference) {
+                $tools[] = $toolReference->tool;
+            }
+
+            return new Page($tools, $this->calculateNextCursor(\count($this->tools), $cursor, $limit));
+        }
+
         $tools = [];
         foreach ($this->tools as $toolReference) {
             $tools[$toolReference->tool->name] = $toolReference->tool;
         }
 
-        if (null === $limit) {
-            return new Page($tools, null);
-        }
-
-        $paginatedTools = $this->paginateResults($tools, $limit, $cursor);
-
-        $nextCursor = $this->calculateNextCursor(
-            \count($tools),
-            $cursor,
-            $limit
-        );
-
-        return new Page($paginatedTools, $nextCursor);
+        return new Page($tools, null);
     }
 
     public function getTool(string $name): ToolReference
@@ -299,24 +296,21 @@ final class Registry implements RegistryInterface
     {
         $this->load();
 
+        if (null !== $limit) {
+            $resources = [];
+            foreach ($this->paginateResults($this->resources, $limit, $cursor) as $resourceReference) {
+                $resources[] = $resourceReference->resource;
+            }
+
+            return new Page($resources, $this->calculateNextCursor(\count($this->resources), $cursor, $limit));
+        }
+
         $resources = [];
         foreach ($this->resources as $resourceReference) {
             $resources[$resourceReference->resource->uri] = $resourceReference->resource;
         }
 
-        if (null === $limit) {
-            return new Page($resources, null);
-        }
-
-        $paginatedResources = $this->paginateResults($resources, $limit, $cursor);
-
-        $nextCursor = $this->calculateNextCursor(
-            \count($resources),
-            $cursor,
-            $limit
-        );
-
-        return new Page($paginatedResources, $nextCursor);
+        return new Page($resources, null);
     }
 
     public function getResource(
@@ -357,24 +351,21 @@ final class Registry implements RegistryInterface
     {
         $this->load();
 
+        if (null !== $limit) {
+            $templates = [];
+            foreach ($this->paginateResults($this->resourceTemplates, $limit, $cursor) as $templateReference) {
+                $templates[] = $templateReference->resourceTemplate;
+            }
+
+            return new Page($templates, $this->calculateNextCursor(\count($this->resourceTemplates), $cursor, $limit));
+        }
+
         $templates = [];
         foreach ($this->resourceTemplates as $templateReference) {
             $templates[$templateReference->resourceTemplate->uriTemplate] = $templateReference->resourceTemplate;
         }
 
-        if (null === $limit) {
-            return new Page($templates, null);
-        }
-
-        $paginatedTemplates = $this->paginateResults($templates, $limit, $cursor);
-
-        $nextCursor = $this->calculateNextCursor(
-            \count($templates),
-            $cursor,
-            $limit
-        );
-
-        return new Page($paginatedTemplates, $nextCursor);
+        return new Page($templates, null);
     }
 
     public function getResourceTemplate(string $uriTemplate): ResourceTemplateReference
@@ -398,24 +389,21 @@ final class Registry implements RegistryInterface
     {
         $this->load();
 
+        if (null !== $limit) {
+            $prompts = [];
+            foreach ($this->paginateResults($this->prompts, $limit, $cursor) as $promptReference) {
+                $prompts[] = $promptReference->prompt;
+            }
+
+            return new Page($prompts, $this->calculateNextCursor(\count($this->prompts), $cursor, $limit));
+        }
+
         $prompts = [];
         foreach ($this->prompts as $promptReference) {
             $prompts[$promptReference->prompt->name] = $promptReference->prompt;
         }
 
-        if (null === $limit) {
-            return new Page($prompts, null);
-        }
-
-        $paginatedPrompts = $this->paginateResults($prompts, $limit, $cursor);
-
-        $nextCursor = $this->calculateNextCursor(
-            \count($prompts),
-            $cursor,
-            $limit
-        );
-
-        return new Page($paginatedPrompts, $nextCursor);
+        return new Page($prompts, null);
     }
 
     public function getPrompt(string $name): PromptReference
