@@ -13,6 +13,7 @@ namespace Mcp\Tests\Interop\Server;
 
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Tests\Interop\NodeTool;
+use Mcp\Tests\Support\PrettyJson;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -116,20 +117,17 @@ abstract class InspectorSnapshotTestCase extends TestCase
         return $output;
     }
 
-    // Keeps JSON inside `text` readable in snapshots; formatter tests pin the compact wire format.
     private function prettyPrintTextFields(string $output): string
     {
-        return preg_replace_callback('/"text": ("(?:[^"\\\\]++|\\\\.)*+")/', static function (array $match): string {
-            $decoded = json_decode((string) json_decode($match[1]));
+        $result = json_decode($output);
 
-            if (!\is_array($decoded) && !\is_object($decoded)) {
-                return $match[0];
+        foreach ([...$result->content ?? [], ...$result->contents ?? []] as $item) {
+            if (isset($item->text)) {
+                $item->text = PrettyJson::format($item->text);
             }
+        }
 
-            $pretty = json_encode($decoded, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
-
-            return '"text": '.json_encode($pretty, \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
-        }, $output) ?? $output;
+        return json_encode($result, \JSON_THROW_ON_ERROR);
     }
 
     public static function provideMethods(): array

@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Integration\ClientExamples;
 
+use Mcp\Tests\Support\PrettyJson;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -82,14 +83,13 @@ abstract class ClientExampleTestCase extends TestCase
         return $output;
     }
 
-    // Keeps JSON results readable in snapshots; formatter tests pin the compact wire format.
     private function prettyPrintJson(string $output): string
     {
-        return preg_replace_callback('/^(\s*(?:Content: )?)(\{.*\})$/m', static function (array $match): string {
-            $decoded = json_decode($match[2]);
-
-            return null === $decoded ? $match[0] : $match[1].json_encode($decoded, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
-        }, $output) ?? $output;
+        return preg_replace_callback(
+            '/^(\s*(?:Content: )?)(\{.*\})$/m',
+            static fn (array $match): string => $match[1].PrettyJson::format($match[2]),
+            $output,
+        ) ?? $output;
     }
 
     private function assertMatchesSnapshot(string $output): void
