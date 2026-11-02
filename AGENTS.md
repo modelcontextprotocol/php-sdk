@@ -46,8 +46,9 @@ The central design constraint (see `docs/protocol-versions.md`):
 
 Both share the **request handlers**, not control flow. `StreamableHttpTransport` and `StdioTransport` serve both eras
 (`StatelessAwareTransportInterface`); `Server\Wire\InboundClassifier` decides the era once per inbound request.
-`Server\Wire\Rev2025Codec`/`Rev2026Codec` translate the revision-neutral result model into each era's wire shape, so
-modern-only fields (`resultType`, caching hints, …) are stamped at the edge, not modelled on `Schema\Result\*`.
+`Server\Wire\Rev2025Codec`/`Rev2026Codec` adapt results to each era's wire shape. The modern codec supplies default
+`resultType` and caching hints where applicable; `InputRequiredResult` declares its own type, and
+`ReadResourceResult` can carry explicit caching hints.
 `InputRequiredShim` lets a modern-style handler that returns an input-required result run on a handshake connection
 by issuing real `elicitation/create`/`sampling/createMessage` requests and re-running the handler.
 `ProtocolVersion::isModern()` / `FIRST_MODERN_VERSION` mark the boundary.
