@@ -359,6 +359,34 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * The key type of a map inside an array shape decides between a JSON array and a JSON object.
+     *
+     * @param array{map: array<string, int>}                  $stringKey
+     * @param array{map: array<lowercase-string, int>}        $pseudoStringKey
+     * @param array{map: array<class-string<\stdClass>, int>} $genericStringKey
+     * @param array{map: array<int, int>}                     $intKey
+     * @param array{map: array<int<0, max>, int>}             $rangeKey
+     * @param array{map: array<array-key, int>}               $arrayKey
+     * @param array{map: array<int|string, int>}              $unionKey
+     * @param array{map: array<array-key, mixed>}             $arrayKeyMixedValue
+     * @param array{map: array<array-key, int>|null}          $nullableArrayKey
+     * @param array{map: array<array{a: int, b: int}>}        $shapeValue
+     */
+    public function arrayShapeMapKeys(
+        array $stringKey,
+        array $pseudoStringKey,
+        array $genericStringKey,
+        array $intKey,
+        array $rangeKey,
+        array $arrayKey,
+        array $unionKey,
+        array $arrayKeyMixedValue,
+        array $nullableArrayKey,
+        array $shapeValue,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**

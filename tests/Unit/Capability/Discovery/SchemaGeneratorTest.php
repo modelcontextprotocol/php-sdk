@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -273,6 +274,68 @@ final class SchemaGeneratorTest extends TestCase
         // `mixed` accepts any value, serialized as the empty schema `{}`
         $this->assertSame('{}', json_encode($settings['properties']['any']));
         $this->assertEqualsCanonicalizing(['tags', 'ids', 'meta', 'any'], $settings['required']);
+    }
+
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON values of the `map` key that must pass validation
+     * @param list<string>         $invalid  JSON values of the `map` key that must fail validation
+     */
+    #[DataProvider('provideArrayShapeMapKeys')]
+    public function testMapsTheKeyTypeOfAMapInsideAnArrayShape(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'arrayShapeMapKeys');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema['properties']['map']);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $map) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(['map' => json_decode($map, true)], $schema), $map);
+        }
+        foreach ($invalid as $map) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(['map' => json_decode($map, true)], $schema), $map);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideArrayShapeMapKeys(): iterable
+    {
+        $object = ['type' => 'object', 'additionalProperties' => ['type' => 'integer']];
+        $list = ['type' => 'array', 'items' => ['type' => 'integer']];
+        $either = ['type' => ['array', 'object'], 'items' => ['type' => 'integer'], 'additionalProperties' => ['type' => 'integer']];
+
+        yield 'string' => ['stringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
+        yield 'string pseudo-type' => ['pseudoStringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
+        yield 'generic string pseudo-type' => ['genericStringKey', $object, ['{"stdClass":1}'], ['{"stdClass":"y"}', '"x"']];
+        yield 'int' => ['intKey', $list, ['[1]', '[]'], ['["y"]', '{"x":1}']];
+        yield 'int range' => ['rangeKey', $list, ['[1]', '[]'], ['["y"]', '{"x":1}']];
+        yield 'array-key' => ['arrayKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
+        yield 'int|string' => ['unionKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
+        yield 'array-key with mixed value' => [
+            'arrayKeyMixedValue',
+            ['type' => ['array', 'object'], 'items' => new \stdClass(), 'additionalProperties' => true],
+            ['{"x":1}', '{"x":"y"}', '[1,"y"]', '{}'],
+            ['"x"', 'null'],
+        ];
+        yield 'nullable array-key' => [
+            'nullableArrayKey',
+            ['type' => ['array', 'object', 'null']] + $either,
+            ['{"x":1}', '[1]', 'null'],
+            ['{"x":"y"}', '["y"]', '"x"'],
+        ];
+        yield 'single argument with a shape value' => [
+            'shapeValue',
+            ['type' => 'array', 'items' => [
+                'type' => 'object',
+                'properties' => ['a' => ['type' => 'integer'], 'b' => ['type' => 'integer']],
+                'required' => ['a', 'b'],
+            ]],
+            ['[{"a":1,"b":2}]', '[]'],
+            ['[{"a":1}]', '{"x":{"a":1,"b":2}}'],
+        ];
     }
 
     public function testGeneratesCorrectSchemaForEnumParameters(): void

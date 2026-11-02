@@ -1014,14 +1014,23 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return $this->parseObjectLikeArray($matches[1]);
         }
 
-        // A map with string keys, `array<string, V>`, is a JSON object
-        if (preg_match('/^(?:non-empty-)?array\s*<\s*(?:string|non-empty-string|class-string)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
-            return ['type' => 'object', 'additionalProperties' => $this->mapTypeToSchema($matches[1]) ?: true];
+        // `array<K, V>`: the key type decides between a JSON array, a JSON object or either
+        if (preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*((?:[^<>{},]|<[^<>]*>)+?)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
+            $keyTypes = $this->mapPhpTypeToJsonSchemaType($matches[1]);
+            $valueSchema = $this->mapTypeToSchema($matches[2]);
+            $items = ['items' => $valueSchema ?: new \stdClass()];
+            $additionalProperties = ['additionalProperties' => $valueSchema ?: true];
+
+            return match ($keyTypes) {
+                ['integer'] => ['type' => 'array'] + $items,
+                ['string'] => ['type' => 'object'] + $additionalProperties,
+                default => ['type' => ['array', 'object']] + $items + $additionalProperties,
+            };
         }
 
-        // `array<T>`, `array<int, V>`, `list<T>`, `non-empty-list<T>`, `non-empty-array<T>` and `T[]`
+        // `array<T>`, `list<T>`, `non-empty-list<T>`, `non-empty-array<T>` and `T[]`
         if (
-            preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*(?:[\w-]+\s*,\s*)?(.+?)\s*>$/is', $type, $matches)
+            preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*(.+?)\s*>$/is', $type, $matches)
             || preg_match('/^([\w\\\\]+)\s*\[\]$/i', $type, $matches)
         ) {
             return ['type' => 'array', 'items' => $this->mapTypeToSchema($matches[1]) ?: new \stdClass()];
