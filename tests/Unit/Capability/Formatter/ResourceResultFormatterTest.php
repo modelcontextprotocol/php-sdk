@@ -17,6 +17,25 @@ use PHPUnit\Framework\TestCase;
 
 class ResourceResultFormatterTest extends TestCase
 {
+    public function testMixedResourcesPreserveNestedKeysAndOrder(): void
+    {
+        $first = new TextResourceContents('file://test', 'text/plain', 'first');
+        $second = new TextResourceContents('file://test', 'text/plain', 'second');
+        $third = new TextResourceContents('file://test', 'text/plain', 'third');
+
+        $result = (new ResourceResultFormatter())->format([
+            $first,
+            ['named' => $second, 8 => $first],
+            ['named' => $third, 5 => $second],
+        ], 'file://test');
+
+        $this->assertSame([0, 'named', 1, 2], array_keys($result));
+        $this->assertSame($first, $result[0]);
+        $this->assertSame($third, $result['named']);
+        $this->assertSame($first, $result[1]);
+        $this->assertSame($second, $result[2]);
+    }
+
     public function testFormatStringResult(): void
     {
         $result = (new ResourceResultFormatter())->format('content', 'file://test');
