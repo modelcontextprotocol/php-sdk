@@ -55,4 +55,12 @@ final class ListCompletionProviderTest extends TestCase
 
         $this->assertSame(['a', 'b'], $provider->getCompletions(''));
     }
+
+    public function testPrefixMatchesPreserveOrderAndDuplicates(): void
+    {
+        $provider = new ListCompletionProvider(['beta', 'alpine', 'alpha', 'alpine']);
+
+        $this->assertSame(['alpine', 'alpha', 'alpine'], $provider->getCompletions('al'));
+        $this->assertSame([], $provider->getCompletions('missing'));
+    }
 }
