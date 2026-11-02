@@ -130,7 +130,7 @@ class CallToolResult implements ResultInterface
 
     /**
      * @return array{
-     *     content: array<mixed>,
+     *     content: list<mixed>,
      *     isError: bool,
      *     structuredContent?: mixed,
      *     _meta?: array<string, mixed>,
@@ -139,7 +139,7 @@ class CallToolResult implements ResultInterface
     public function jsonSerialize(): array
     {
         $result = [
-            'content' => $this->content,
+            'content' => array_values($this->content),
             'isError' => $this->isError,
         ];
 

@@ -97,12 +97,8 @@ final class ResourceResultFormatter
                     } elseif ($item instanceof EmbeddedResource) {
                         $result[] = $item->resource;
                     } else {
-                        foreach ($this->format($item, $uri, $mimeType, $meta) as $key => $content) {
-                            if (\is_int($key)) {
-                                $result[] = $content;
-                            } else {
-                                $result[$key] = $content;
-                            }
+                        foreach ($this->format($item, $uri, $mimeType, $meta) as $content) {
+                            $result[] = $content;
                         }
                     }
                 }

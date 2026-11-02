@@ -69,14 +69,14 @@ class GetPromptResult implements ResultInterface
 
     /**
      * @return array{
-     *     messages: array<PromptMessage>,
+     *     messages: list<PromptMessage>,
      *     description?: string,
      * }
      */
     public function jsonSerialize(): array
     {
         $result = [
-            'messages' => $this->messages,
+            'messages' => array_values($this->messages),
         ];
 
         if (null !== $this->description) {

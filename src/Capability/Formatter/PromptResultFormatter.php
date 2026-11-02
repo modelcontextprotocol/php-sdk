@@ -74,12 +74,8 @@ final class PromptResultFormatter
                     if ($item instanceof PromptMessage) {
                         $result[] = $item;
                     } else {
-                        foreach ($this->format($item) as $key => $message) {
-                            if (\is_int($key)) {
-                                $result[] = $message;
-                            } else {
-                                $result[$key] = $message;
-                            }
+                        foreach ($this->format($item) as $message) {
+                            $result[] = $message;
                         }
                     }
                 }
