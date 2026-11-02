@@ -123,6 +123,13 @@ class PromptResultFormatterTest extends TestCase
         $this->assertSame(Role::User, $result[0]->role);
     }
 
+    public function testFormatArrayContentAsCompactJson(): void
+    {
+        $result = (new PromptResultFormatter())->format(['role' => 'user', 'content' => ['key' => ['nested' => 1]]]);
+        $this->assertInstanceOf(TextContent::class, $result[0]->content);
+        $this->assertSame('{"key":{"nested":1}}', $result[0]->content->text);
+    }
+
     public function testFormatTypedTextContentPreservesAnnotations(): void
     {
         $result = (new PromptResultFormatter())->format([

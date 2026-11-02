@@ -46,6 +46,17 @@ class ResourceResultFormatterTest extends TestCase
         $this->assertSame([$contents], $result);
     }
 
+    public function testFormatArrayResultAsCompactJson(): void
+    {
+        $result = (new ResourceResultFormatter())->format(['key' => ['nested' => 1]], 'test://uri', 'application/json');
+        $this->assertInstanceOf(TextResourceContents::class, $result[0]);
+        $this->assertSame('{"key":{"nested":1}}', $result[0]->text);
+
+        $result = (new ResourceResultFormatter())->format(['key' => ['nested' => 1]], 'test://uri');
+        $this->assertInstanceOf(TextResourceContents::class, $result[0]);
+        $this->assertSame('{"key":{"nested":1}}', $result[0]->text);
+    }
+
     public function testFormatWithMimeType(): void
     {
         $result = (new ResourceResultFormatter())->format('content', 'file://test', 'text/html');

@@ -13,6 +13,7 @@ namespace Mcp\Tests\Interop\Server;
 
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Tests\Interop\NodeTool;
+use Mcp\Tests\Support\PrettyJson;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -97,7 +98,7 @@ abstract class InspectorSnapshotTestCase extends TestCase
 
         $snapshotFile = $this->getSnapshotFilePath($method, $testName);
 
-        $normalizedOutput = $this->normalizeTestOutput($output, $testName);
+        $normalizedOutput = $this->normalizeTestOutput($this->prettyPrintTextFields($output), $testName);
 
         if (!file_exists($snapshotFile)) {
             file_put_contents($snapshotFile, $normalizedOutput.\PHP_EOL);
@@ -114,6 +115,19 @@ abstract class InspectorSnapshotTestCase extends TestCase
     protected function normalizeTestOutput(string $output, ?string $testName = null): string
     {
         return $output;
+    }
+
+    private function prettyPrintTextFields(string $output): string
+    {
+        $result = json_decode($output);
+
+        foreach ([...$result->content ?? [], ...$result->contents ?? []] as $item) {
+            if (isset($item->text)) {
+                $item->text = PrettyJson::format($item->text);
+            }
+        }
+
+        return json_encode($result, \JSON_THROW_ON_ERROR);
     }
 
     public static function provideMethods(): array

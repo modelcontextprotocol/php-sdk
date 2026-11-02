@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Integration\ClientExamples;
 
+use Mcp\Tests\Support\PrettyJson;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -66,7 +67,7 @@ abstract class ClientExampleTestCase extends TestCase
             $process->getErrorOutput(),
         ));
 
-        $this->assertMatchesSnapshot($this->normalizeOutput($process->getOutput()));
+        $this->assertMatchesSnapshot($this->normalizeOutput($this->prettyPrintJson($process->getOutput())));
     }
 
     /**
@@ -80,6 +81,15 @@ abstract class ClientExampleTestCase extends TestCase
     protected function normalizeOutput(string $output): string
     {
         return $output;
+    }
+
+    private function prettyPrintJson(string $output): string
+    {
+        return preg_replace_callback(
+            '/^(\s*(?:Content: )?)(\{.*\})$/m',
+            static fn (array $match): string => $match[1].PrettyJson::format($match[2]),
+            $output,
+        ) ?? $output;
     }
 
     private function assertMatchesSnapshot(string $output): void
