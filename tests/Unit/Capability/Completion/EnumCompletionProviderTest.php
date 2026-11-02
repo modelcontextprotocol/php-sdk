@@ -32,10 +32,17 @@ final class EnumCompletionProviderTest extends TestCase
         $this->assertSame([], $provider->getCompletions('missing'));
     }
 
-    public function testZeroPrefixOffersAllCases(): void
+    public function testEmptyPrefixOffersAllCases(): void
     {
         $provider = new EnumCompletionProvider(CompletionFixture::class);
 
-        $this->assertSame(['alpha', 'alpine', 'algebra', '0'], $provider->getCompletions('0'));
+        $this->assertSame(['alpha', 'alpine', 'algebra', '0'], $provider->getCompletions(''));
+    }
+
+    public function testZeroIsMatchedAsPrefix(): void
+    {
+        $provider = new EnumCompletionProvider(CompletionFixture::class);
+
+        $this->assertSame(['0'], $provider->getCompletions('0'));
     }
 }

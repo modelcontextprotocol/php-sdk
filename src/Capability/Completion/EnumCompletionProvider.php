@@ -40,7 +40,7 @@ class EnumCompletionProvider implements ProviderInterface
 
     public function getCompletions(string $currentValue): array
     {
-        if (empty($currentValue)) {
+        if ('' === $currentValue) {
             return $this->values;
         }
 

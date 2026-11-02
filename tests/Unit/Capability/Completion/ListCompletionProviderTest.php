@@ -42,6 +42,13 @@ final class ListCompletionProviderTest extends TestCase
         $this->assertSame(['101', '102.5'], $provider->getCompletions('10'));
     }
 
+    public function testZeroIsMatchedAsPrefix(): void
+    {
+        $provider = new ListCompletionProvider(['zero', '0', '01']);
+
+        $this->assertSame(['0', '01'], $provider->getCompletions('0'));
+    }
+
     public function testKeysAreDiscarded(): void
     {
         $provider = new ListCompletionProvider([5 => 'a', 9 => 'b']);
