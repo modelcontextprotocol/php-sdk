@@ -66,7 +66,7 @@ abstract class ClientExampleTestCase extends TestCase
             $process->getErrorOutput(),
         ));
 
-        $this->assertMatchesSnapshot($this->normalizeOutput($process->getOutput()));
+        $this->assertMatchesSnapshot($this->normalizeOutput($this->prettyPrintJson($process->getOutput())));
     }
 
     /**
@@ -80,6 +80,16 @@ abstract class ClientExampleTestCase extends TestCase
     protected function normalizeOutput(string $output): string
     {
         return $output;
+    }
+
+    // Keeps JSON results readable in snapshots; formatter tests pin the compact wire format.
+    private function prettyPrintJson(string $output): string
+    {
+        return preg_replace_callback('/^(\s*(?:Content: )?)(\{.*\})$/m', static function (array $match): string {
+            $decoded = json_decode($match[2]);
+
+            return null === $decoded ? $match[0] : $match[1].json_encode($decoded, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE);
+        }, $output) ?? $output;
     }
 
     private function assertMatchesSnapshot(string $output): void
