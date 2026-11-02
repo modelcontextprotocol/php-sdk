@@ -18,10 +18,26 @@ use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Result\CallToolResult;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 
 final class CallToolResultTest extends TestCase
 {
+    /**
+     * @param array{int|string, int|string} $keys
+     */
+    #[TestWith([['first', 'second']])]
+    #[TestWith([[1, 3]])]
+    public function testContentSerializesAsListForNonListKeys(array $keys): void
+    {
+        $first = new TextContent('first');
+        $second = new TextContent('second');
+
+        $result = new CallToolResult([$keys[0] => $first, $keys[1] => $second]);
+
+        $this->assertSame([$first, $second], $result->jsonSerialize()['content']);
+    }
+
     public function testFromArrayDeserializesResourceLinkContent(): void
     {
         $result = CallToolResult::fromArray([

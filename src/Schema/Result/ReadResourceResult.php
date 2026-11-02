@@ -79,14 +79,14 @@ class ReadResourceResult implements ResultInterface
 
     /**
      * @return array{
-     *     contents: array<BlobResourceContents|TextResourceContents>,
+     *     contents: list<ResourceContents>,
      *     ttlMs?: int,
      *     cacheScope?: string,
      * }
      */
     public function jsonSerialize(): array
     {
-        $data = ['contents' => $this->contents];
+        $data = ['contents' => array_values($this->contents)];
 
         // Only what this result actually decided; the wire codec fills the rest
         // from policy, and an absent member is the signal for it to do so.

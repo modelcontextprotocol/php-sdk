@@ -17,6 +17,21 @@ use PHPUnit\Framework\TestCase;
 
 class ToolResultFormatterTest extends TestCase
 {
+    public function testMixedContentIsFlattenedInOrder(): void
+    {
+        $first = new TextContent('first');
+        $second = new TextContent('second');
+        $third = new TextContent('third');
+
+        $result = (new ToolResultFormatter())->format([
+            $first,
+            ['named' => $second, 8 => $first],
+            ['named' => $third, 5 => $second],
+        ]);
+
+        $this->assertSame([$first, $second, $first, $third, $second], $result);
+    }
+
     public function testFormatStringResult(): void
     {
         $result = (new ToolResultFormatter())->format('hello');

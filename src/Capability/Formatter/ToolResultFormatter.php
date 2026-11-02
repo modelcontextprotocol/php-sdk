@@ -73,7 +73,9 @@ final class ToolResultFormatter
                     if ($item instanceof Content) {
                         $result[] = $item;
                     } else {
-                        $result = array_merge($result, $this->format($item));
+                        foreach ($this->format($item) as $content) {
+                            $result[] = $content;
+                        }
                     }
                 }
 
