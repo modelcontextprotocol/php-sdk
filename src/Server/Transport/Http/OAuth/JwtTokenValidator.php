@@ -238,6 +238,13 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
             return [];
         }
 
-        return array_values(array_filter($value, static fn (mixed $scope): bool => \is_string($scope) && '' !== $scope));
+        $scopes = [];
+        foreach ($value as $scope) {
+            if (\is_string($scope) && '' !== $scope) {
+                $scopes[] = $scope;
+            }
+        }
+
+        return $scopes;
     }
 }
