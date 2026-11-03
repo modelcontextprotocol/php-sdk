@@ -17,6 +17,7 @@ use Mcp\Client\Transport\HttpTransport;
 use Mcp\Exception\ConnectionException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Tests\Support\ServerProcess;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -45,7 +46,7 @@ final class HttpNegotiationTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->server?->stop();
+        ServerProcess::stop($this->server);
 
         foreach (glob($this->sessions.'/*') ?: [] as $file) {
             @unlink($file);

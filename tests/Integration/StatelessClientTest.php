@@ -23,6 +23,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\ElicitResult;
+use Mcp\Tests\Support\ServerProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -64,7 +65,7 @@ class StatelessClientTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->server->stop();
+        ServerProcess::stop($this->server);
     }
 
     #[TestDox('connects without a handshake and learns who it is talking to')]
