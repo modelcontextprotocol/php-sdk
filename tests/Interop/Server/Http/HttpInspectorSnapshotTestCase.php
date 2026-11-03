@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Interop\Server\Http;
 
 use Mcp\Tests\Interop\Server\InspectorSnapshotTestCase;
+use Mcp\Tests\Support\ServerProcess;
 use Symfony\Component\Process\Process;
 
 abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
@@ -70,7 +71,7 @@ abstract class HttpInspectorSnapshotTestCase extends InspectorSnapshotTestCase
     private function stopServer(): void
     {
         if (isset($this->serverProcess)) {
-            $this->serverProcess->stop(1, \SIGTERM);
+            ServerProcess::stop($this->serverProcess);
         }
     }
 

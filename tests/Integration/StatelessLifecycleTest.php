@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Integration;
 
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Tests\Support\ServerProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -55,7 +56,7 @@ class StatelessLifecycleTest extends TestCase
 
     protected function tearDown(): void
     {
-        $this->server->stop();
+        ServerProcess::stop($this->server);
     }
 
     #[TestDox('server/discover reports the versions, capabilities, identity and caching hints')]
