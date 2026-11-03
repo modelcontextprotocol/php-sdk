@@ -335,6 +335,112 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * PHPStan/Psalm pseudo-types and literal types map to their base type.
+     *
+     * @param non-empty-string                                                                      $name     Name
+     * @param class-string                                                                          $class    Class
+     * @param positive-int                                                                          $count    Count
+     * @param array-key                                                                             $key      Key
+     * @param 'asc'|'desc'                                                                          $order    Order
+     * @param 1|2                                                                                   $level    Level
+     * @param non-empty-list<non-empty-string>                                                      $tags     Tags
+     * @param array{tags: list<string>, ids: array<int, int>, meta: array<string, int>, any: mixed} $settings Settings
+     */
+    public function pseudoTypes(
+        string $name,
+        string $class,
+        int $count,
+        int|string $key,
+        string $order,
+        int $level,
+        array $tags,
+        array $settings,
+    ): void {
+    }
+
+    /**
+     * The key type of a map inside an array shape decides between a JSON array and a JSON object.
+     *
+     * @param array{map: array<string, int>}                  $stringKey
+     * @param array{map: array<lowercase-string, int>}        $pseudoStringKey
+     * @param array{map: array<class-string<\stdClass>, int>} $genericStringKey
+     * @param array{map: array<int, int>}                     $intKey
+     * @param array{map: array<int<0, max>, int>}             $rangeKey
+     * @param array{map: array<array-key, int>}               $arrayKey
+     * @param array{map: array<int|string, int>}              $unionKey
+     * @param array{map: array<array-key, mixed>}             $arrayKeyMixedValue
+     * @param array{map: array<array-key, int>|null}          $nullableArrayKey
+     * @param array{map: array<array{a: int, b: int}>}        $shapeValue
+     */
+    public function arrayShapeMapKeys(
+        array $stringKey,
+        array $pseudoStringKey,
+        array $genericStringKey,
+        array $intKey,
+        array $rangeKey,
+        array $arrayKey,
+        array $unionKey,
+        array $arrayKeyMixedValue,
+        array $nullableArrayKey,
+        array $shapeValue,
+    ): void {
+    }
+
+    /**
+     * @param ?non-empty-string                 $nullableString
+     * @param ?positive-int                     $nullableInt
+     * @param ?array-key                        $nullableArrayKey
+     * @param ?list<string>                     $nullableList
+     * @param non-empty-array<string, int>      $stringKeyMap
+     * @param non-empty-array<string, int>|null $nullableStringKeyMap
+     * @param non-empty-array<int, int>         $intKeyMap
+     * @param non-empty-array<array-key, int>   $arrayKeyMap
+     * @param non-empty-array<int>              $singleArgument
+     */
+    public function nullableAndNonEmptyPseudoTypes(
+        ?string $nullableString,
+        ?int $nullableInt,
+        int|string|null $nullableArrayKey,
+        ?array $nullableList,
+        array $stringKeyMap,
+        ?array $nullableStringKeyMap,
+        array $intKeyMap,
+        array $arrayKeyMap,
+        array $singleArgument,
+    ): void {
+    }
+
+    /**
+     * @param 'a|b'|'c'                        $pipeLiteral
+     * @param "a|b"                            $doubleQuotedPipeLiteral
+     * @param 'a[]'                            $bracketLiteral
+     * @param 'it\'s'                          $escapedLiteral
+     * @param array{operator: '<', limit: int} $lessThanLiteral
+     * @param array{operator: '>', limit: int} $greaterThanLiteral
+     * @param array{label: 'a,b', limit: int}  $commaLiteral
+     * @param array{label: '{', limit: int}    $braceLiteral
+     * @param list<'a,b'>                      $commaLiteralList
+     * @param array<array<mixed>>              $nestedMixed
+     * @param array<array<int|mixed>>          $nestedMixedUnion
+     * @param mixed[][]                        $nestedMixedBrackets
+     */
+    public function quotedLiteralsAndNestedMixed(
+        string $pipeLiteral,
+        string $doubleQuotedPipeLiteral,
+        string $bracketLiteral,
+        string $escapedLiteral,
+        array $lessThanLiteral,
+        array $greaterThanLiteral,
+        array $commaLiteral,
+        array $braceLiteral,
+        array $commaLiteralList,
+        array $nestedMixed,
+        array $nestedMixedUnion,
+        array $nestedMixedBrackets,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**

@@ -67,6 +67,10 @@ class SchemaGeneratorUnionTest extends TestCase
 
         yield 'a generic union is still one array' => ['array<int|string>', ['array']];
         yield 'a shape is still one object' => ['array{a: int|string}', ['object']];
+
+        yield 'a literal stays a string' => ["'a[]'", ['string']];
+        yield 'an array of literals stays an array' => ["'asc'[]", ['array']];
+        yield 'an array of bracket literals stays an array' => ['"a[]"[]', ['array']];
     }
 
     /**

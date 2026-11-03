@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Capability\Discovery;
 
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
+use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Exception\InvalidArgumentException;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -250,6 +251,176 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertEquals(['type' => 'integer', 'description' => 'Positive offset', 'minimum' => 0], $schema['properties']['offset']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Negative value'], $schema['properties']['negative']);
         $this->assertEquals(['type' => 'integer', 'description' => 'Bounded value'], $schema['properties']['bounded']);
+    }
+
+    public function testMapsPhpStanAndPsalmPseudoTypesToTheirBaseType(): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'pseudoTypes');
+        $schema = $this->schemaGenerator->generate($method);
+
+        $this->assertEquals(['type' => 'string', 'description' => 'Name'], $schema['properties']['name']);
+        $this->assertEquals(['type' => 'string', 'description' => 'Class'], $schema['properties']['class']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Count'], $schema['properties']['count']);
+        $this->assertEquals(['type' => ['integer', 'string'], 'description' => 'Key'], $schema['properties']['key']);
+        $this->assertEquals(['type' => 'string', 'description' => 'Order'], $schema['properties']['order']);
+        $this->assertEquals(['type' => 'integer', 'description' => 'Level'], $schema['properties']['level']);
+        $this->assertEquals(['type' => 'array', 'description' => 'Tags', 'items' => ['type' => 'string']], $schema['properties']['tags']);
+
+        $settings = $schema['properties']['settings'];
+        $this->assertSame('object', $settings['type']);
+        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string']], $settings['properties']['tags']);
+        $this->assertEquals(['type' => ['array', 'object'], 'items' => ['type' => 'integer'], 'additionalProperties' => ['type' => 'integer']], $settings['properties']['ids']);
+        $this->assertEquals(['type' => 'object', 'additionalProperties' => ['type' => 'integer']], $settings['properties']['meta']);
+        // `mixed` accepts any value, serialized as the empty schema `{}`
+        $this->assertSame('{}', json_encode($settings['properties']['any']));
+        $this->assertEqualsCanonicalizing(['tags', 'ids', 'meta', 'any'], $settings['required']);
+    }
+
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON values of the `map` key that must pass validation
+     * @param list<string>         $invalid  JSON values of the `map` key that must fail validation
+     */
+    #[DataProvider('provideArrayShapeMapKeys')]
+    public function testMapsTheKeyTypeOfAMapInsideAnArrayShape(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'arrayShapeMapKeys');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema['properties']['map']);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $map) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(['map' => json_decode($map, true)], $schema), $map);
+        }
+        foreach ($invalid as $map) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(['map' => json_decode($map, true)], $schema), $map);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideArrayShapeMapKeys(): iterable
+    {
+        $object = ['type' => 'object', 'additionalProperties' => ['type' => 'integer']];
+        $either = ['type' => ['array', 'object'], 'items' => ['type' => 'integer'], 'additionalProperties' => ['type' => 'integer']];
+
+        yield 'string' => ['stringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
+        yield 'string pseudo-type' => ['pseudoStringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
+        yield 'generic string pseudo-type' => ['genericStringKey', $object, ['{"stdClass":1}'], ['{"stdClass":"y"}', '"x"']];
+        yield 'int' => ['intKey', $either, ['[1]', '[]', '{"5":1}'], ['["y"]', '{"5":"y"}', '"x"']];
+        yield 'int range' => ['rangeKey', $either, ['[1]', '[]', '{"5":1}'], ['["y"]', '{"5":"y"}', '"x"']];
+        yield 'array-key' => ['arrayKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
+        yield 'int|string' => ['unionKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
+        yield 'array-key with mixed value' => [
+            'arrayKeyMixedValue',
+            ['type' => ['array', 'object'], 'items' => new \stdClass(), 'additionalProperties' => true],
+            ['{"x":1}', '{"x":"y"}', '[1,"y"]', '{}'],
+            ['"x"', 'null'],
+        ];
+        yield 'nullable array-key' => [
+            'nullableArrayKey',
+            ['type' => ['array', 'object', 'null']] + $either,
+            ['{"x":1}', '[1]', 'null'],
+            ['{"x":"y"}', '["y"]', '"x"'],
+        ];
+        yield 'single argument with a shape value' => [
+            'shapeValue',
+            ['type' => 'array', 'items' => [
+                'type' => 'object',
+                'properties' => ['a' => ['type' => 'integer'], 'b' => ['type' => 'integer']],
+                'required' => ['a', 'b'],
+            ]],
+            ['[{"a":1,"b":2}]', '[]'],
+            ['[{"a":1}]', '{"x":{"a":1,"b":2}}'],
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON arguments that must pass validation
+     * @param list<string>         $invalid  JSON arguments that must fail validation
+     */
+    #[DataProvider('provideNullableAndNonEmptyPseudoTypes')]
+    public function testMapsNullableAndNonEmptyPseudoTypes(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'nullableAndNonEmptyPseudoTypes');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $argument) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+        foreach ($invalid as $argument) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideNullableAndNonEmptyPseudoTypes(): iterable
+    {
+        yield '?non-empty-string' => ['nullableString', ['type' => ['null', 'string']], ['"a"', 'null'], ['1']];
+        yield '?positive-int' => ['nullableInt', ['type' => ['null', 'integer']], ['1', 'null'], ['"a"']];
+        yield '?array-key' => ['nullableArrayKey', ['type' => ['null', 'integer', 'string']], ['1', '"a"', 'null'], ['true']];
+        yield '?list<string>' => ['nullableList', ['type' => ['array', 'null'], 'items' => ['type' => 'string']], ['["a"]', 'null'], ['[1]', '"a"']];
+        yield 'non-empty-array<string, int>' => ['stringKeyMap', ['type' => 'object'], ['{"a":1}'], ['["a"]', '"a"']];
+        yield 'non-empty-array<string, int>|null' => ['nullableStringKeyMap', ['type' => ['null', 'object']], ['{"a":1}', 'null'], ['["a"]']];
+        yield 'non-empty-array<int, int>' => ['intKeyMap', ['type' => ['array', 'object'], 'items' => new \stdClass()], ['[1]', '{"5":1}'], ['"a"']];
+        yield 'non-empty-array<array-key, int>' => ['arrayKeyMap', ['type' => ['array', 'object'], 'items' => new \stdClass()], ['{"a":1}', '[1]'], ['"a"']];
+        yield 'non-empty-array<int>' => ['singleArgument', ['type' => 'array', 'items' => ['type' => 'integer']], ['[1]'], ['["a"]', '{"a":1}']];
+    }
+
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON arguments that must pass validation
+     * @param list<string>         $invalid  JSON arguments that must fail validation
+     */
+    #[DataProvider('provideQuotedLiteralsAndNestedMixed')]
+    public function testMapsQuotedLiteralsAndNestedMixed(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'quotedLiteralsAndNestedMixed');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $argument) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+        foreach ($invalid as $argument) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideQuotedLiteralsAndNestedMixed(): iterable
+    {
+        $shape = static fn (string $key): array => [
+            'type' => 'object',
+            'properties' => [$key => ['type' => 'string'], 'limit' => ['type' => 'integer']],
+            'required' => [$key, 'limit'],
+        ];
+        $nested = ['type' => 'array', 'items' => ['type' => 'array', 'items' => new \stdClass()]];
+
+        yield 'pipe in a literal' => ['pipeLiteral', ['type' => 'string'], ['"a|b"', '"c"'], ['1']];
+        yield 'pipe in a double quoted literal' => ['doubleQuotedPipeLiteral', ['type' => 'string'], ['"a|b"'], ['1']];
+        yield 'brackets in a literal' => ['bracketLiteral', ['type' => 'string'], ['"a[]"'], ['["a"]']];
+        yield 'escaped quote in a literal' => ['escapedLiteral', ['type' => 'string'], ['"it\'s"'], ['1']];
+        yield 'less than in a shape literal' => ['lessThanLiteral', $shape('operator'), ['{"operator":"<","limit":1}'], ['{"operator":"<"}', '{"operator":1,"limit":1}']];
+        yield 'greater than in a shape literal' => ['greaterThanLiteral', $shape('operator'), ['{"operator":">","limit":1}'], ['{"operator":">"}']];
+        yield 'comma in a shape literal' => ['commaLiteral', $shape('label'), ['{"label":"a,b","limit":1}'], ['{"label":"a,b"}']];
+        yield 'brace in a shape literal' => ['braceLiteral', $shape('label'), ['{"label":"{","limit":1}'], ['{"label":"{"}']];
+        yield 'comma in a list literal' => ['commaLiteralList', ['type' => 'array', 'items' => ['type' => 'string']], ['["a,b"]'], ['[1]']];
+        yield 'nested mixed' => ['nestedMixed', $nested, ['[[1,"x"]]', '[]'], ['[1]', '"x"']];
+        yield 'nested mixed union' => ['nestedMixedUnion', $nested, ['[[1,"x"]]'], ['[1]']];
+        yield 'nested mixed brackets' => ['nestedMixedBrackets', $nested, ['[[1,"x"]]'], ['[1]']];
     }
 
     public function testGeneratesCorrectSchemaForEnumParameters(): void
