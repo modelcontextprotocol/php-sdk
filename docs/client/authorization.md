@@ -231,11 +231,14 @@ that advertises the scope but will not grant it to this client is not a failure 
 client notices and retries without it. Turn it off with `setOfflineAccess(false)` if you
 would rather not hold a refresh token.
 
-To pin the request to an exact set:
+To ask for your own set instead:
 
 ```php
 OAuth::forApplication('My App')->setScopes('mcp:read', 'mcp:write');
 ```
+
+A step-up challenge (`insufficient_scope`) still adds the scopes it names to this set, since
+the server already refused a token that has only these.
 
 ## Authenticating something other than MCP
 

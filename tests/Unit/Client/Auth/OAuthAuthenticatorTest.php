@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Mcp\Client\Auth\AccessToken;
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
@@ -126,6 +127,22 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('a step-up challenge adds its scope to the configured ones instead of refreshing the token')]
+    public function testStepUpExtendsTheConfiguredScopes(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('mcp:read'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:admin']));
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertSame('authorization_code', $server->token['grant_type'] ?? null);
+    }
+
     #[TestDox('offline_access is requested only where the authorization server offers it')]
     public function testRequestsOfflineAccessWhenSupported(): void
     {
@@ -142,6 +159,92 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->authenticator($server)->handleChallenge($this->request(), $server->challenge());
 
         $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('offline_access refused when the code is exchanged is given up, as when the authorization endpoint refuses it')]
+    public function testGivesUpOfflineAccessRefusedAtTheTokenEndpoint(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server);
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+
+        $this->assertSame('mcp:read', $server->authorization['scope'] ?? null);
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('offline_access refused once is not asked for again on step-up')]
+    public function testDoesNotAskAgainForARefusedOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'mcp:write', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
+    #[TestDox('offline_access refused once is not asked for again, even when configured')]
+    public function testDoesNotAskAgainForARefusedOfflineAccessThatIsConfigured(): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read', 'mcp:write', 'offline_access'], refuseOfflineAccess: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setScopes('mcp:read', 'offline_access'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
+
+        $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
+        $this->assertCount(3, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
+    #[TestDox('a code refused for another reason than offline_access fails the flow instead of starting another one')]
+    public function testKeepsOfflineAccessWhenTheCodeIsRefusedForAnotherReason(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], codeError: 'invalid_grant');
+        $authenticator = $this->authenticator($server);
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The refused code should have failed the flow.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('invalid_grant', $e->getMessage());
+        }
+
+        $this->assertSame('mcp:read offline_access', $server->authorization['scope'] ?? null);
+        $this->assertCount(1, array_keys($server->requested, 'https://auth.example.com/token', true));
+    }
+
+    #[TestDox('a stored token is reused even though offline_access was not granted with it')]
+    public function testReusesAStoredTokenWithoutOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refreshTokens: true, refuseOfflineAccess: true);
+        $storage = new InMemoryCredentialStorage();
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+        $requestsAfterFirstFlow = \count($server->requested);
+
+        $second = $this->authenticator($server, storage: $storage);
+        $second->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('Bearer access-token-1', $second->authenticate($this->request())->getHeaderLine('Authorization'));
+        $this->assertSame($requestsAfterFirstFlow + 2, \count($server->requested));
+    }
+
+    #[TestDox('an expired token is refreshed even though offline_access was not granted with it')]
+    public function testRefreshesATokenWithoutOfflineAccess(): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired-token', 'Bearer', time() - 60, 'refresh-token', ['mcp:read']));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame([], $server->authorization);
     }
 
     #[TestDox('metadata naming an unrelated resource aborts the flow before any token is asked for')]
@@ -431,18 +534,25 @@ final class FakeOAuthServer implements ClientInterface
         private readonly array $serverScopes = [],
         private readonly bool $insecureEndpoints = false,
         private readonly string $authorizationServer = 'https://auth.example.com',
+        private readonly bool $refreshTokens = false,
+        private readonly bool $refuseOfflineAccess = false,
+        private readonly ?string $codeError = null,
     ) {
     }
 
     /**
      * @param string[] $scopes
      */
-    public function challenge(array $scopes = [], int $status = 401): ResponseInterface
+    public function challenge(array $scopes = [], int $status = 401, ?string $error = null): ResponseInterface
     {
         $parameters = 'resource_metadata="https://mcp.example.com/.well-known/oauth-protected-resource/mcp"';
 
         if ([] !== $scopes) {
             $parameters = \sprintf('scope="%s", ', implode(' ', $scopes)).$parameters;
+        }
+
+        if (null !== $error) {
+            $parameters = \sprintf('error="%s", ', $error).$parameters;
         }
 
         return new Response($status, ['WWW-Authenticate' => 'Bearer '.$parameters]);
@@ -503,8 +613,23 @@ final class FakeOAuthServer implements ClientInterface
     private function issueToken(array $form): ResponseInterface
     {
         $this->token = array_map(strval(...), $form);
+        $scope = $this->authorization['scope'] ?? '';
 
-        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
+        // Keycloak accepts offline_access at the authorization endpoint, and only refuses it
+        // here, for a user who may not have offline tokens.
+        if ($this->refuseOfflineAccess && 'authorization_code' === $form['grant_type'] && \in_array('offline_access', explode(' ', $scope), true)) {
+            return self::json(['error' => 'not_allowed', 'error_description' => 'Offline tokens not allowed for the user or client'], 400);
+        }
+
+        if (null !== $this->codeError && 'authorization_code' === $form['grant_type']) {
+            return self::json(['error' => $this->codeError], 400);
+        }
+
+        if (!$this->refreshTokens) {
+            return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600]);
+        }
+
+        return self::json(['access_token' => 'access-token-'.++$this->issued, 'token_type' => 'Bearer', 'expires_in' => 3600, 'refresh_token' => 'refresh-token-'.$this->issued, 'scope' => $scope]);
     }
 
     /**
