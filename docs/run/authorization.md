@@ -173,7 +173,7 @@ path (RFC 9728, Section 3.1) — `/.well-known/oauth-protected-resource/mcp` in 
 ```
 
 Resource and authorization server URLs must use https; plain http is only accepted for loopback
-hosts (`localhost`, `127.0.0.1`, `::1`) during development.
+hosts (`localhost` and its subdomains such as `shop.localhost`, `127.0.0.0/8`, `::1`) during development.
 
 ### Serving the metadata from a framework
 
