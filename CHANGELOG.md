@@ -7,6 +7,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* [BC Break] Require `phpdocumentor/reflection-docblock` `^6.0`, and with it `phpdocumentor/type-resolver` `^2.0` and `phpstan/phpdoc-parser` `^2.0`. Older versions cannot parse types like `non-empty-array<T>`, and the SDK silently ignores such a `@param`.
+* Require `psr/container` `^1.1`, as `Container` is not compatible with `1.0`.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
 * [BC Break] Fix a `DELETE` of an unknown or ended session being answered `200` instead of the `404` the spec requires: `Protocol::destroySession()` and `BaseTransport::handleSessionEnd()` return `false` for such a session, as does the listener of `TransportInterface::onSessionEnd()`. A listener that returns nothing keeps the `200`.
 * Fix tools with an array shape parameter whose keys are nullable or unions (e.g. `array{name: string, nickname: string|null}`) rejecting valid arguments with `-32602`: a `null` inside the shape no longer turns the parameter into `array|null`, and such keys get their own types instead of `object`, including lists and nested shapes (`string[]|null`, `array{x: int}|null`).
