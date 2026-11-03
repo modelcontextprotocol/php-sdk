@@ -21,6 +21,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix tools, prompts and resources sending `content`, `messages` and `contents` as a JSON object instead of an array when the handler returned a non-list array, e.g. the result of `array_filter()`. Named keys in nested results of mixed arrays no longer overwrite each other.
 * Fix `SecureUrl` rejecting plain http on hosts under the reserved `.localhost` TLD (RFC 6761) and on IPv4 loopback addresses other than `127.0.0.1`, so `ProtectedResourceMetadata`, `OidcDiscovery` and `JwtTokenValidator::fromIssuer()` failed for local development setups like `http://shop.localhost:8080`. Plain http is now accepted for `localhost`, any `*.localhost`, `127.0.0.0/8` and `::1`; every other host still requires https.
 * Tool, prompt and resource results and `TextContent` encode arrays and objects as compact JSON instead of pretty-printed JSON.
+* Fix tool name validation not following the spec's rule (1 to 128 characters of `A-Z`, `a-z`, `0-9`, `_`, `-` and `.`): names of 65 to 128 characters no longer log a warning, while names with a `/` or a trailing newline now do.
 * Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
 
 ### Client

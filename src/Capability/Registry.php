@@ -119,7 +119,7 @@ final class Registry implements RegistryInterface
     {
         if (!$this->nameValidator->isValid($tool->name)) {
             $this->logger->warning(
-                \sprintf('Tool name "%s" is invalid. Tool names should only contain letters (a-z, A-Z), numbers, dots, hyphens, underscores, and forward slashes.', $tool->name),
+                \sprintf('Tool name "%s" is invalid. Tool names should be 1 to 128 characters long and only contain letters (a-z, A-Z), numbers, dots, hyphens and underscores.', $tool->name),
             );
         }
 
