@@ -376,6 +376,54 @@ final class SchemaGeneratorTest extends TestCase
         yield 'non-empty-array<int>' => ['singleArgument', ['type' => 'array', 'items' => ['type' => 'integer']], ['[1]'], ['["a"]', '{"a":1}']];
     }
 
+    /**
+     * @param array<string, mixed> $expected
+     * @param list<string>         $valid    JSON arguments that must pass validation
+     * @param list<string>         $invalid  JSON arguments that must fail validation
+     */
+    #[DataProvider('provideQuotedLiteralsAndNestedMixed')]
+    public function testMapsQuotedLiteralsAndNestedMixed(string $parameter, array $expected, array $valid, array $invalid): void
+    {
+        $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'quotedLiteralsAndNestedMixed');
+        $schema = $this->schemaGenerator->generate($method)['properties'][$parameter];
+
+        $this->assertEquals($expected, $schema);
+
+        $validator = new SchemaValidator();
+        foreach ($valid as $argument) {
+            $this->assertSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+        foreach ($invalid as $argument) {
+            $this->assertNotSame([], $validator->validateAgainstJsonSchema(json_decode($argument, true), $schema), $argument);
+        }
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>, list<string>, list<string>}>
+     */
+    public static function provideQuotedLiteralsAndNestedMixed(): iterable
+    {
+        $shape = static fn (string $key): array => [
+            'type' => 'object',
+            'properties' => [$key => ['type' => 'string'], 'limit' => ['type' => 'integer']],
+            'required' => [$key, 'limit'],
+        ];
+        $nested = ['type' => 'array', 'items' => ['type' => 'array', 'items' => new \stdClass()]];
+
+        yield 'pipe in a literal' => ['pipeLiteral', ['type' => 'string'], ['"a|b"', '"c"'], ['1']];
+        yield 'pipe in a double quoted literal' => ['doubleQuotedPipeLiteral', ['type' => 'string'], ['"a|b"'], ['1']];
+        yield 'brackets in a literal' => ['bracketLiteral', ['type' => 'string'], ['"a[]"'], ['["a"]']];
+        yield 'escaped quote in a literal' => ['escapedLiteral', ['type' => 'string'], ['"it\'s"'], ['1']];
+        yield 'less than in a shape literal' => ['lessThanLiteral', $shape('operator'), ['{"operator":"<","limit":1}'], ['{"operator":"<"}', '{"operator":1,"limit":1}']];
+        yield 'greater than in a shape literal' => ['greaterThanLiteral', $shape('operator'), ['{"operator":">","limit":1}'], ['{"operator":">"}']];
+        yield 'comma in a shape literal' => ['commaLiteral', $shape('label'), ['{"label":"a,b","limit":1}'], ['{"label":"a,b"}']];
+        yield 'brace in a shape literal' => ['braceLiteral', $shape('label'), ['{"label":"{","limit":1}'], ['{"label":"{"}']];
+        yield 'comma in a list literal' => ['commaLiteralList', ['type' => 'array', 'items' => ['type' => 'string']], ['["a,b"]'], ['[1]']];
+        yield 'nested mixed' => ['nestedMixed', $nested, ['[[1,"x"]]', '[]'], ['[1]', '"x"']];
+        yield 'nested mixed union' => ['nestedMixedUnion', $nested, ['[[1,"x"]]'], ['[1]']];
+        yield 'nested mixed brackets' => ['nestedMixedBrackets', $nested, ['[[1,"x"]]'], ['[1]']];
+    }
+
     public function testGeneratesCorrectSchemaForEnumParameters(): void
     {
         $method = new \ReflectionMethod(SchemaGeneratorFixture::class, 'enumParameters');

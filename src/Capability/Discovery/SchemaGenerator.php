@@ -708,17 +708,39 @@ final class SchemaGenerator implements SchemaGeneratorInterface
      */
     public static function splitUnion(string $type): array
     {
-        $branches = [];
+        return self::splitTopLevel($type, '|');
+    }
+
+    /**
+     * Splits a type string on a separator outside of generics, shapes, parentheses and quoted literals.
+     *
+     * @return list<string>
+     */
+    private static function splitTopLevel(string $type, string $separator): array
+    {
+        $parts = [];
         $depth = 0;
         $current = '';
+        $quote = null;
+        $escaped = false;
 
         foreach (str_split($type) as $character) {
-            if (\in_array($character, ['<', '{', '('], true)) {
+            if (null !== $quote) {
+                if ($escaped) {
+                    $escaped = false;
+                } elseif ('\\' === $character) {
+                    $escaped = true;
+                } elseif ($quote === $character) {
+                    $quote = null;
+                }
+            } elseif ('\'' === $character || '"' === $character) {
+                $quote = $character;
+            } elseif (\in_array($character, ['<', '{', '('], true)) {
                 ++$depth;
             } elseif (\in_array($character, ['>', '}', ')'], true)) {
                 $depth = max(0, $depth - 1);
-            } elseif ('|' === $character && 0 === $depth) {
-                $branches[] = trim($current);
+            } elseif ($separator === $character && 0 === $depth) {
+                $parts[] = trim($current);
                 $current = '';
 
                 continue;
@@ -727,9 +749,9 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             $current .= $character;
         }
 
-        $branches[] = trim($current);
+        $parts[] = trim($current);
 
-        return array_values(array_filter($branches, static fn (string $branch): bool => '' !== $branch));
+        return array_values(array_filter($parts, static fn (string $part): bool => '' !== $part));
     }
 
     /**
@@ -775,6 +797,11 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // PRIORITY 2: Check for array{} syntax which should be treated as object
         if (preg_match('/^array\s*{/i', $normalizedType)) {
             return ['object'];
+        }
+
+        // A literal can contain anything, e.g. `'a[]'`
+        if ('\'' === ($normalizedType[0] ?? '') || '"' === ($normalizedType[0] ?? '')) {
+            return ['string'];
         }
 
         // A non-empty map with string keys is a JSON object; it cannot be the `[]` that an empty `{}` decodes to.
@@ -833,7 +860,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         // Literal types: 'foo', "foo", 42, -1.5
-        if (preg_match('/^(\'[^\']*\'|"[^"]*")$/', $type)) {
+        if (preg_match('/^(\'(?:[^\'\\\\]|\\\\.)*\'|"(?:[^"\\\\]|\\\\.)*")$/s', $type)) {
             return ['string'];
         }
         if (preg_match('/^-?\d+$/', $type)) {
@@ -878,7 +905,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         // Case 2: Generic array<T> syntax (e.g., array<string>, array<int>, etc.)
-        if (preg_match('/^(\\??)(?:array|list|non-empty-array|non-empty-list)\s*<\s*([\w\\\\|?\'"-]+)\s*>$/i', $normalizedType, $matches)) {
+        if (preg_match('/^(\\??)(?:array|list|non-empty-array|non-empty-list)\s*<\s*((?:[\w\\\\|?-]|\'[^\']*\'|"[^"]*")+)\s*>$/i', $normalizedType, $matches)) {
             $itemSchema = $this->mapTypeToSchema(strtolower($matches[2]));
             if (!isset($itemSchema['type'])) {
                 return 'any';
@@ -895,7 +922,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             // Return a schema for array with items being arrays
             return [
                 'type' => 'array',
-                'items' => $this->mapTypeToSchema(strtolower($matches[2])),
+                'items' => $this->mapTypeToSchema(strtolower($matches[2])) ?: new \stdClass(),
             ];
         }
 
@@ -921,34 +948,8 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         $properties = [];
         $required = [];
 
-        // Parse properties from the string, handling nested structures
-        $depth = 0;
-        $buffer = '';
-
-        for ($i = 0; $i < \strlen($propertiesStr); ++$i) {
-            $char = $propertiesStr[$i];
-
-            // Track nested braces and generics, so the comma of `array<int, string>` stays in its key
-            if ('{' === $char || '<' === $char) {
-                ++$depth;
-                $buffer .= $char;
-            } elseif ('}' === $char || '>' === $char) {
-                --$depth;
-                $buffer .= $char;
-            }
-            // Property separator (comma)
-            elseif (',' === $char && 0 === $depth) {
-                // Process the completed property
-                $this->parsePropertyDefinition(trim($buffer), $properties, $required);
-                $buffer = '';
-            } else {
-                $buffer .= $char;
-            }
-        }
-
-        // Process the last property
-        if (!empty($buffer)) {
-            $this->parsePropertyDefinition(trim($buffer), $properties, $required);
+        foreach (self::splitTopLevel($propertiesStr, ',') as $propDefinition) {
+            $this->parsePropertyDefinition($propDefinition, $properties, $required);
         }
 
         if (!empty($properties)) {
@@ -1018,7 +1019,7 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         }
 
         // `array<K, V>`: the key type decides between a JSON array, a JSON object or either
-        if (preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*((?:[^<>{},]|<[^<>]*>)+?)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
+        if (preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*((?:\'[^\']*\'|"[^"]*"|[^<>{},\'"]|<[^<>]*>)+?)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
             $keyTypes = $this->mapPhpTypeToJsonSchemaType($matches[1]);
             $valueSchema = $this->mapTypeToSchema($matches[2]);
             $items = ['items' => $valueSchema ?: new \stdClass()];

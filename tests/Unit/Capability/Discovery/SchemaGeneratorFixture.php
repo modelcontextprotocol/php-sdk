@@ -411,6 +411,36 @@ class SchemaGeneratorFixture
     ): void {
     }
 
+    /**
+     * @param 'a|b'|'c'                        $pipeLiteral
+     * @param "a|b"                            $doubleQuotedPipeLiteral
+     * @param 'a[]'                            $bracketLiteral
+     * @param 'it\'s'                          $escapedLiteral
+     * @param array{operator: '<', limit: int} $lessThanLiteral
+     * @param array{operator: '>', limit: int} $greaterThanLiteral
+     * @param array{label: 'a,b', limit: int}  $commaLiteral
+     * @param array{label: '{', limit: int}    $braceLiteral
+     * @param list<'a,b'>                      $commaLiteralList
+     * @param array<array<mixed>>              $nestedMixed
+     * @param array<array<int|mixed>>          $nestedMixedUnion
+     * @param mixed[][]                        $nestedMixedBrackets
+     */
+    public function quotedLiteralsAndNestedMixed(
+        string $pipeLiteral,
+        string $doubleQuotedPipeLiteral,
+        string $bracketLiteral,
+        string $escapedLiteral,
+        array $lessThanLiteral,
+        array $greaterThanLiteral,
+        array $commaLiteral,
+        array $braceLiteral,
+        array $commaLiteralList,
+        array $nestedMixed,
+        array $nestedMixedUnion,
+        array $nestedMixedBrackets,
+    ): void {
+    }
+
     // ===== NULLABLE AND OPTIONAL SCENARIOS =====
 
     /**
