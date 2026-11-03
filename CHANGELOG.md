@@ -23,6 +23,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Tool, prompt and resource results and `TextContent` encode arrays and objects as compact JSON instead of pretty-printed JSON.
 * Fix tool name validation not following the spec's rule (1 to 128 characters of `A-Z`, `a-z`, `0-9`, `_`, `-` and `.`): names of 65 to 128 characters no longer log a warning, while names with a `/` or a trailing newline now do.
 * Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
+* Fix a nullable tool parameter with a default (e.g. `?string $category = 'books'`) receiving the default when the client explicitly sends `null`: `ReferenceHandler` now passes the `null` through.
 
 ### Client
 

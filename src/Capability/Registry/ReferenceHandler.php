@@ -142,7 +142,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 }
             }
 
-            if (isset($arguments[$paramName])) {
+            if (isset($arguments[$paramName]) || (\array_key_exists($paramName, $arguments) && $parameter->allowsNull())) {
                 $argument = $arguments[$paramName];
                 try {
                     $finalArgs[$paramPosition] = $this->castArgumentType($argument, $parameter);
