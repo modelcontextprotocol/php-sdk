@@ -269,7 +269,7 @@ final class SchemaGeneratorTest extends TestCase
         $settings = $schema['properties']['settings'];
         $this->assertSame('object', $settings['type']);
         $this->assertEquals(['type' => 'array', 'items' => ['type' => 'string']], $settings['properties']['tags']);
-        $this->assertEquals(['type' => 'array', 'items' => ['type' => 'integer']], $settings['properties']['ids']);
+        $this->assertEquals(['type' => ['array', 'object'], 'items' => ['type' => 'integer'], 'additionalProperties' => ['type' => 'integer']], $settings['properties']['ids']);
         $this->assertEquals(['type' => 'object', 'additionalProperties' => ['type' => 'integer']], $settings['properties']['meta']);
         // `mixed` accepts any value, serialized as the empty schema `{}`
         $this->assertSame('{}', json_encode($settings['properties']['any']));
@@ -304,14 +304,13 @@ final class SchemaGeneratorTest extends TestCase
     public static function provideArrayShapeMapKeys(): iterable
     {
         $object = ['type' => 'object', 'additionalProperties' => ['type' => 'integer']];
-        $list = ['type' => 'array', 'items' => ['type' => 'integer']];
         $either = ['type' => ['array', 'object'], 'items' => ['type' => 'integer'], 'additionalProperties' => ['type' => 'integer']];
 
         yield 'string' => ['stringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
         yield 'string pseudo-type' => ['pseudoStringKey', $object, ['{"x":1}'], ['{"x":"y"}', '"x"']];
         yield 'generic string pseudo-type' => ['genericStringKey', $object, ['{"stdClass":1}'], ['{"stdClass":"y"}', '"x"']];
-        yield 'int' => ['intKey', $list, ['[1]', '[]'], ['["y"]', '{"x":1}']];
-        yield 'int range' => ['rangeKey', $list, ['[1]', '[]'], ['["y"]', '{"x":1}']];
+        yield 'int' => ['intKey', $either, ['[1]', '[]', '{"5":1}'], ['["y"]', '{"5":"y"}', '"x"']];
+        yield 'int range' => ['rangeKey', $either, ['[1]', '[]', '{"5":1}'], ['["y"]', '{"5":"y"}', '"x"']];
         yield 'array-key' => ['arrayKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
         yield 'int|string' => ['unionKey', $either, ['{"x":1}', '[1]', '{}', '{"0":1}'], ['{"x":"y"}', '["y"]', '"x"', 'null']];
         yield 'array-key with mixed value' => [
@@ -371,7 +370,7 @@ final class SchemaGeneratorTest extends TestCase
         yield '?list<string>' => ['nullableList', ['type' => ['array', 'null'], 'items' => ['type' => 'string']], ['["a"]', 'null'], ['[1]', '"a"']];
         yield 'non-empty-array<string, int>' => ['stringKeyMap', ['type' => 'object'], ['{"a":1}'], ['["a"]', '"a"']];
         yield 'non-empty-array<string, int>|null' => ['nullableStringKeyMap', ['type' => ['null', 'object']], ['{"a":1}', 'null'], ['["a"]']];
-        yield 'non-empty-array<int, int>' => ['intKeyMap', ['type' => 'array', 'items' => new \stdClass()], ['[1]'], ['{"a":1}']];
+        yield 'non-empty-array<int, int>' => ['intKeyMap', ['type' => ['array', 'object'], 'items' => new \stdClass()], ['[1]', '{"5":1}'], ['"a"']];
         yield 'non-empty-array<array-key, int>' => ['arrayKeyMap', ['type' => ['array', 'object'], 'items' => new \stdClass()], ['{"a":1}', '[1]'], ['"a"']];
         yield 'non-empty-array<int>' => ['singleArgument', ['type' => 'array', 'items' => ['type' => 'integer']], ['[1]'], ['["a"]', '{"a":1}']];
     }

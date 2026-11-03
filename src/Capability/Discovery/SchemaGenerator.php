@@ -799,9 +799,10 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return ['object'];
         }
 
-        // A literal can contain anything, e.g. `'a[]'`
-        if ('\'' === ($normalizedType[0] ?? '') || '"' === ($normalizedType[0] ?? '')) {
-            return ['string'];
+        // PRIORITY 3: Treat PHPStan/Psalm integer ranges and other pseudo-types
+        // (`non-empty-string`, `positive-int`, literals, ...) as their base type
+        if (null !== $pseudoTypes = self::mapPseudoTypeToJsonSchemaTypes($normalizedType)) {
+            return $pseudoTypes;
         }
 
         // A non-empty map with string keys is a JSON object; it cannot be the `[]` that an empty `{}` decodes to.
@@ -809,19 +810,13 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return (array) $this->mapTypeToSchema($normalizedType)['type'];
         }
 
-        // PRIORITY 3: Check for array syntax (T[] or generics)
+        // PRIORITY 4: Check for array syntax (T[] or generics)
         if (
             str_contains($normalizedType, '[]')
             || preg_match('/^(array|list|non-empty-list|iterable|collection)</i', $normalizedType)
             || \in_array($normalizedType, ['list', 'non-empty-array', 'non-empty-list'], true)
         ) {
             return ['array'];
-        }
-
-        // PRIORITY 4: Treat PHPStan/Psalm integer ranges and other pseudo-types
-        // (`non-empty-string`, `positive-int`, literals, ...) as their base type
-        if (null !== $pseudoTypes = self::mapPseudoTypeToJsonSchemaTypes($normalizedType)) {
-            return $pseudoTypes;
         }
 
         // PRIORITY 5: Handle simple built-in types
@@ -1018,18 +1013,16 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return $this->parseObjectLikeArray($matches[1]);
         }
 
-        // `array<K, V>`: the key type decides between a JSON array, a JSON object or either
-        if (preg_match('/^(?:array|list|non-empty-array|non-empty-list)\s*<\s*((?:\'[^\']*\'|"[^"]*"|[^<>{},\'"]|<[^<>]*>)+?)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
+        // `array<K, V>`: only string keys rule out a JSON array; sparse int keys arrive as a JSON object
+        if (preg_match('/^(?:non-empty-)?array\s*<\s*((?:\'[^\']*\'|"[^"]*"|[^<>{},\'"]|<[^<>]*>)+?)\s*,\s*(.+?)\s*>$/is', $type, $matches)) {
             $keyTypes = $this->mapPhpTypeToJsonSchemaType($matches[1]);
             $valueSchema = $this->mapTypeToSchema($matches[2]);
             $items = ['items' => $valueSchema ?: new \stdClass()];
             $additionalProperties = ['additionalProperties' => $valueSchema ?: true];
 
-            return match ($keyTypes) {
-                ['integer'] => ['type' => 'array'] + $items,
-                ['string'] => ['type' => 'object'] + $additionalProperties,
-                default => ['type' => ['array', 'object']] + $items + $additionalProperties,
-            };
+            return ['string'] === $keyTypes
+                ? ['type' => 'object'] + $additionalProperties
+                : ['type' => ['array', 'object']] + $items + $additionalProperties;
         }
 
         // `array<T>`, `list<T>`, `non-empty-list<T>`, `non-empty-array<T>` and `T[]`
