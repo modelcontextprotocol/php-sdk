@@ -105,7 +105,7 @@ Requests on protocol version `2026-07-28` dispatch the same request, response an
 - `ResponseEvent` fires on every `InputRequiredResult` round, not only on the final result. Listeners that only care about completed calls need to check the result type.
 - `getSession()` returns a new in-memory session for each request. Anything a listener stores there is gone by the next request.
 - `NotificationEvent` is not dispatched, since this protocol version runs no notification handlers. This includes `notifications/cancelled` on stdio.
-- `server/discover` and `subscriptions/listen` dispatch no events.
+- `subscriptions/listen` dispatches no events. `server/discover` dispatches `RequestEvent`, `ResponseEvent` and `ErrorEvent` like every other request.
 - `ServerRequestEvent` and `ClientResponseEvent` are not dispatched: the server asks for input with an `InputRequiredResult`, which `ResponseEvent` carries, and the client answers with `inputResponses` on the retried request.
 - Requests the SDK rejects before a handler runs dispatch no events. Examples are parse errors, a missing `_meta`, a protocol version mismatch, a removed method or a `requestState` that fails verification.
 
