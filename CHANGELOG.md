@@ -74,7 +74,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] `HttpTransport` turns off redirects on a discovered `symfony/http-client` client and treats every `3xx` answer as an error that names the status and target. An endpoint that is reached through a redirect stops working, so configure its final URL. A client you pass must not follow redirects to another origin.
 * Fix `HttpTransport` taking an `Mcp-Session-Id` from any response: it replaced the session mid-way and, on `2026-07-28`, made `getSessionId()` return a value and `close()` send a `DELETE`. Only the answer to `initialize` sets it.
 * Add the `auth` parameter of `HttpTransport` and `AuthenticatorInterface`, to authenticate every request and retry the ones the server refuses. `BearerToken` sends a token you already have, and `AuthenticatingHttpClient` offers the same behavior as a PSR-18 decorator.
-* [BC Break] A `401` or `403` answer to a request fails with an `AuthorizationException` that contains the `WWW-Authenticate` header, instead of a `RequestException`. `Client::connect()` wraps it in a `ConnectionException`, without a retry.
+* [BC Break] A `401` or `403` answer to a request, a notification or the resumption of an event stream fails with an `AuthorizationException` that contains the `WWW-Authenticate` header, instead of a `RequestException`. `Client::connect()` wraps it in a `ConnectionException`, without a retry.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
 
 ### JSON-RPC

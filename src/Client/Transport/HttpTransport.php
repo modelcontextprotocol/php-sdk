@@ -301,6 +301,10 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             $this->logger->debug('Received session ID', ['session_id' => $this->sessionId]);
         }
 
+        if (\in_array($response->getStatusCode(), [401, 403], true)) {
+            throw $this->authorizationFailure($response);
+        }
+
         // A notification carries no id, so nobody is waiting for this body: it is
         // discarded rather than read as the answer to some other request.
         if (self::isNotification($data)) {
@@ -310,16 +314,6 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
-
-        if (\in_array($response->getStatusCode(), [401, 403], true)) {
-            // The authenticator, if there is one, already had its turn inside the HTTP
-            // client and could not satisfy the server. Naming the challenge beats a
-            // generic JSON-RPC error the caller cannot act on.
-            $challenge = $response->getHeaderLine('WWW-Authenticate');
-            $response->getBody()->close();
-
-            throw new AuthorizationException(\sprintf('The server at "%s" rejected the request with %d %s. %s', $this->endpoint, $response->getStatusCode(), $response->getReasonPhrase(), '' !== $challenge ? $challenge : 'No challenge was provided.'));
-        }
 
         if ($response->getStatusCode() >= 400) {
             $truncated = false;
@@ -941,6 +935,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationException $e) {
+            $this->handleError($e);
+            $this->failSseResumption($e);
+
+            return;
         } catch (\Throwable $e) {
             $this->handleError($e);
             $this->scheduleSseReconnect();
@@ -949,6 +948,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $status = $response->getStatusCode();
+
+        if (\in_array($status, [401, 403], true)) {
+            $this->failSseResumption($this->authorizationFailure($response));
+
+            return;
+        }
 
         if (404 === $status && $request->hasHeader('Mcp-Session-Id')) {
             $response->getBody()->close();
@@ -989,6 +994,29 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         $this->activeStream = $this->responseStream($response->getBody());
         $this->sseParser->reset();
+    }
+
+    /**
+     * Fails the waiting request with the exception itself, as a JSON-RPC error would lose its type.
+     */
+    private function failSseResumption(AuthorizationException $failure): void
+    {
+        if (null === $this->activeFiber || !$this->activeFiber->isSuspended()) {
+            $this->failSseStream($failure->getMessage());
+
+            return;
+        }
+
+        $this->activeSuspend = $this->activeFiber->throw($failure);
+        $this->processSends();
+    }
+
+    private function authorizationFailure(ResponseInterface $response): AuthorizationException
+    {
+        $challenge = $response->getHeaderLine('WWW-Authenticate');
+        $response->getBody()->close();
+
+        return new AuthorizationException(\sprintf('The server at "%s" rejected the request with %d %s. %s', $this->endpoint, $response->getStatusCode(), $response->getReasonPhrase(), '' !== $challenge ? $challenge : 'No challenge was provided.'));
     }
 
     /**
