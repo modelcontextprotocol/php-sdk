@@ -1255,8 +1255,7 @@ class StatelessProtocolTest extends TestCase
         $started = microtime(true);
         $frames = iterator_to_array($stream(), false);
 
-        // No poll tick (null frame) means the loop was never entered, so no
-        // sleep, and the 60 second lifetime is not waited out.
+        // No poll tick, so the 60 second lifetime is not waited out.
         $this->assertCount(2, $frames);
         $this->assertLessThan(0.2, microtime(true) - $started);
 

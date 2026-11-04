@@ -363,9 +363,7 @@ final class StatelessProtocol
                 ],
             ];
 
-            // Nothing was agreed, so nothing can ever be delivered: end the
-            // subscription right away instead of holding the worker (an FPM
-            // one, on HTTP) for the full lifetime just to poll.
+            // Nothing agreed, nothing to deliver: end now instead of polling out the lifetime.
             if ($agreed->isEmpty()) {
                 yield self::listenComplete($codec, $id);
 
@@ -412,8 +410,7 @@ final class StatelessProtocol
     }
 
     /**
-     * Graceful closure (SHOULD) of a listen stream, so the client can tell the
-     * server ending it from a dropped transport.
+     * Graceful closure (SHOULD), so the client can tell it from a dropped transport.
      *
      * @return array<string, mixed>
      */

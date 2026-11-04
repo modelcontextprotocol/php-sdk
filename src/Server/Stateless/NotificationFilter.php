@@ -71,8 +71,7 @@ final class NotificationFilter
     }
 
     /**
-     * Whether this filter admits no notification at all, so a stream bound
-     * to it could never deliver anything.
+     * Whether this filter admits no notification at all.
      */
     public function isEmpty(): bool
     {
