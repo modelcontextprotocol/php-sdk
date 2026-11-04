@@ -7,7 +7,7 @@ permissions:
 
 env:
   # Pinned exact version; conformance-weekly.yaml tracks upstream releases.
-  CONFORMANCE_PKG: "@modelcontextprotocol/conformance@0.2.0-alpha.11"
+  CONFORMANCE_PKG: "@modelcontextprotocol/conformance@0.2.0-alpha.12"
 
 jobs:
   unit:
