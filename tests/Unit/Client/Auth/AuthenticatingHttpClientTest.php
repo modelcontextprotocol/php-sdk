@@ -159,6 +159,31 @@ final class AuthenticatingHttpClientTest extends TestCase
         $this->assertSame(['{"jsonrpc":"2.0"}', '{"jsonrpc":"2.0"}'], $inner->bodies);
     }
 
+    #[TestDox('a retry sends the body from the position the first attempt started at')]
+    public function testRestoresTheBodyPosition(): void
+    {
+        $factory = new Psr17Factory();
+        $inner = new class implements ClientInterface {
+            /** @var string[] */
+            public array $bodies = [];
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                $this->bodies[] = $request->getBody()->getContents();
+
+                return new Response(1 === \count($this->bodies) ? 401 : 200);
+            }
+        };
+
+        $body = $factory->createStream('skipped{"jsonrpc":"2.0"}');
+        $body->seek(7);
+
+        (new AuthenticatingHttpClient($inner, new CountingAuthenticator()))
+            ->sendRequest($factory->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
+
+        $this->assertSame(['{"jsonrpc":"2.0"}', '{"jsonrpc":"2.0"}'], $inner->bodies);
+    }
+
     #[TestDox('the challenge handler sees the credentials the rejected request carried')]
     public function testChallengeSeesTheSentRequest(): void
     {
