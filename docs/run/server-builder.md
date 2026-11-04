@@ -160,7 +160,8 @@ $server = Server::builder()
     );
 ```
 
-Discovery needs the `symfony/finder` package. Without it, the server skips discovery and logs a warning.
+Discovery needs the `symfony/finder` package. Without it, `build()` and `buildStateless()` throw a `RuntimeException`.
+You don't need the package if you set your own discoverer with `setDiscoverer()`.
 See [First server](../get-started/first-server.md) for the install command.
 
 **Parameters:**

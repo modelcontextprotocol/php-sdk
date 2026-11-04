@@ -11,6 +11,8 @@
 
 namespace Mcp\Tests\Unit\Server;
 
+use Composer\Autoload\ClassLoader;
+use Mcp\Capability\Discovery\DiscovererInterface;
 use Mcp\Capability\Registry;
 use Mcp\Capability\Registry\ElementReference;
 use Mcp\Capability\Registry\Loader\LoaderInterface;
@@ -18,6 +20,7 @@ use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\LogicException;
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Extension\Apps\McpApps;
@@ -41,9 +44,11 @@ use Mcp\Tests\Unit\Server\Extension\ThingListHandler;
 use Mcp\Tests\Unit\Server\Extension\ThingListRequest;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionStore;
+use PHPUnit\Framework\Attributes\RunInSeparateProcess;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\EventDispatcher\EventDispatcherInterface;
+use Symfony\Component\Finder\Finder;
 
 final class BuilderTest extends TestCase
 {
@@ -79,6 +84,28 @@ final class BuilderTest extends TestCase
             ->build();
 
         $this->assertInstanceOf(Server::class, $server);
+    }
+
+    #[RunInSeparateProcess]
+    #[TestDox('build() fails when file-based discovery is configured without Symfony Finder')]
+    public function testBuildFailsWhenDiscoveryDependencyIsMissing(): void
+    {
+        foreach (ClassLoader::getRegisteredLoaders() as $loader) {
+            $loader->setPsr4('Symfony\\Component\\Finder\\', []);
+        }
+        $this->assertFalse(class_exists(Finder::class));
+
+        $this->assertInstanceOf(Server::class, Server::builder()->setServerInfo('test', '1.0.0')->build());
+        $this->assertInstanceOf(Server::class, Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setDiscovery(__DIR__)
+            ->setDiscoverer($this->createStub(DiscovererInterface::class))
+            ->build());
+
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('File-based discovery requires symfony/finder. Run: composer require symfony/finder');
+
+        Server::builder()->setServerInfo('test', '1.0.0')->setDiscovery(__DIR__)->build();
     }
 
     #[TestDox('Custom ReferenceHandler is used when calling a tool')]
