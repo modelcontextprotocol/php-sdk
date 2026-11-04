@@ -158,7 +158,8 @@ To rotate without failing the calls in flight:
    A single-process deployment can skip this step.
 2. Move the new key to the front, `[$new, $current]`. States are signed with the new key from
    now on, and the ones the old key signed still verify.
-3. After one TTL, every state the old key signed has expired. Remove it, `[$new]`.
+3. Wait one TTL after the **last** process switched to `[$new, $current]`: only then has every
+   state the old key signed expired. Remove it, `[$new]`.
 
 Each key needs at least 32 bytes.
 

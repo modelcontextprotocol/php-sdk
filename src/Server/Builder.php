@@ -383,8 +383,11 @@ final class Builder
      * per-process random value only works for a single-process deployment.
      *
      * A list of keys is a key ring: the first key signs, every key verifies.
-     * To rotate, put the new key first and keep the old one behind it until
-     * the states it signed have expired, one TTL later.
+     * To rotate across several instances, first add the new key behind the
+     * current one everywhere, `[$current, $new]`, so every instance accepts it
+     * before any signs with it. Then move it to the front, `[$new, $current]`,
+     * and remove the old key one TTL after the last instance stopped signing
+     * with it. See docs/handlers/input-required.md, "Rotating the key".
      *
      * A binder ties every state the modern era mints to the request it was
      * minted for, e.g. {@see Stateless\OriginatingRequestBinder} to the
