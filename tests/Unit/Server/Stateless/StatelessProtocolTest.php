@@ -589,7 +589,7 @@ class StatelessProtocolTest extends TestCase
      *
      * @param string|list<string>|null $key the signing key or key ring, a fixed test key by default
      */
-    private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null, string|array|null $key = null): StatelessProtocol
+    private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null, string|array|null $key = null, ?EventDispatcherInterface $eventDispatcher = null): StatelessProtocol
     {
         $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
@@ -614,6 +614,10 @@ class StatelessProtocolTest extends TestCase
 
         if ($signed) {
             $builder->setRequestState($key ?? str_repeat('k', 32), binder: $binder);
+        }
+
+        if (null !== $eventDispatcher) {
+            $builder->setEventDispatcher($eventDispatcher);
         }
 
         return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
@@ -781,6 +785,28 @@ class StatelessProtocolTest extends TestCase
         $this->mintedState(self::twoAskProtocol(binder: $binder), self::alice(), ['to' => 'BER']);
 
         $this->assertSame([['books_flight', ['to' => 'BER'], 'alice']], $binder->calls);
+    }
+
+    #[TestDox('a state binds to the request as sent, whatever a RequestEvent listener turns it into')]
+    public function testBindingIgnoresARequestEventListener(): void
+    {
+        $events = [];
+        $listener = static function (object $event): void {
+            if ($event instanceof RequestEvent && $event->getRequest() instanceof CallToolRequest) {
+                $request = $event->getRequest();
+                $event->setRequest((new CallToolRequest('books_flight', ['to' => 'rewritten']))->withId($request->getId())->withMeta($request->getMeta()));
+            }
+        };
+
+        $protocol = self::twoAskProtocol(binder: new OriginatingRequestBinder(), eventDispatcher: $this->eventDispatcher($events, $listener));
+        $state = $this->mintedState($protocol, self::alice(), ['to' => 'BER']);
+        $input = [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $state,
+        ];
+
+        $this->assertSame(400, self::bookAs($protocol, self::alice(), $input, ['to' => 'CDG'])['status']);
+        $this->assertSame('morning/aisle', self::bookAs($protocol, self::alice(), $input, ['to' => 'BER'])['body']['result']['content'][0]['text']);
     }
 
     #[TestDox('a binder that throws fails the request with an internal error instead of escaping to the transport')]
