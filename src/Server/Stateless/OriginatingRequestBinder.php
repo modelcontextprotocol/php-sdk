@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Stateless;
 
+use Mcp\Exception\RuntimeException;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\GetPromptRequest;
@@ -60,12 +61,12 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
             default => [null, []],
         };
 
-        return json_encode([
+        return self::encode([
             'method' => $request::getMethod(),
             'target' => $target,
-            'arguments' => hash('sha256', json_encode(self::canonical($arguments), \JSON_THROW_ON_ERROR)),
+            'arguments' => hash('sha256', self::encode(self::canonical($arguments))),
             'principal' => null === $accessToken ? null : $this->principal($accessToken),
-        ], \JSON_THROW_ON_ERROR);
+        ]);
     }
 
     /**
@@ -92,11 +93,20 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
 
         $issuer = $accessToken->getClaim('iss');
 
-        return json_encode([
+        return self::encode([
             'iss' => \is_string($issuer) ? $issuer : null,
             'client' => $accessToken->getClientId(),
             'sub' => $subject,
-        ], \JSON_THROW_ON_ERROR);
+        ]);
+    }
+
+    private static function encode(mixed $value): string
+    {
+        try {
+            return json_encode($value, \JSON_THROW_ON_ERROR);
+        } catch (\JsonException $e) {
+            throw new RuntimeException(\sprintf('Failed to encode the requestState binding as JSON: %s', $e->getMessage()), previous: $e);
+        }
     }
 
     /**
