@@ -22,7 +22,8 @@ use Mcp\Server\Authorization\AccessToken;
  * covered by the MAC of every state minted while answering the request, and
  * recomputed to verify the state the client echoes on the retry. A state
  * presented on a request that binds to another value fails verification like
- * a forged one. The value never goes on the wire.
+ * a forged one. The value never goes on the wire. A binder that throws fails
+ * the request with an internal error.
  *
  * Bind only what stays the same across the rounds of one call: the request
  * object carries neither `requestState` nor `inputResponses`, but `_meta`

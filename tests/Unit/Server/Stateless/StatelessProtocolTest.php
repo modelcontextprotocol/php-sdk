@@ -781,6 +781,23 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame([['books_flight', ['to' => 'BER'], 'alice']], $binder->calls);
     }
 
+    #[TestDox('a binder that throws fails the request with an internal error instead of escaping to the transport')]
+    public function testThrowingBinderFailsTheRequest(): void
+    {
+        $binder = new class implements RequestStateBinderInterface {
+            public function bind(Request $request, ?AccessToken $accessToken): string
+            {
+                throw new \RuntimeException('No principal claim on the token.');
+            }
+        };
+
+        $answer = self::bookAs(self::twoAskProtocol(binder: $binder), self::alice(), arguments: ['to' => 'BER']);
+
+        $this->assertSame(500, $answer['status']);
+        $this->assertSame(Error::INTERNAL_ERROR, $answer['body']['error']['code']);
+        $this->assertStringNotContainsString('principal', $answer['body']['error']['message']);
+    }
+
     #[TestDox('a state minted before a binder was configured is refused once one is')]
     public function testUnboundStateRefusedByABindingServer(): void
     {

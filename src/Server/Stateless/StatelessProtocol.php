@@ -512,7 +512,14 @@ final class StatelessProtocol
         $requestStateCodec = $this->requestStateCodec;
 
         if (null !== $requestStateCodec && null !== $this->requestStateBinder) {
-            $requestStateCodec = $requestStateCodec->withBinding($this->requestStateBinder->bind($request, $accessToken));
+            try {
+                $requestStateCodec = $requestStateCodec->withBinding($this->requestStateBinder->bind($request, $accessToken));
+            } catch (\Throwable $e) {
+                // Fails closed: an unbound codec would mint and accept states the binder is there to refuse.
+                $this->logger->error('The requestState binder failed on a modern-era request.', ['method' => $method, 'exception' => $e]);
+
+                return StatelessResult::error(Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $id), 500);
+            }
         }
 
         try {
