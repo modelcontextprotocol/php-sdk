@@ -118,7 +118,8 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
      * numeric keys out of order, e.g. `{"1": "B", "0": "A"}`, must not sort
      * into the list `["A", "B"]`. The arguments are decoded into PHP arrays,
      * so a numeric-key object whose members arrive in list order is a list
-     * to the whole SDK and binds as one.
+     * to the whole SDK and binds as one. Numbers bind by value: `1` and `1.0`
+     * encode alike, so a client re-encoding a number does not break its retry.
      */
     private static function canonical(mixed $value): mixed
     {

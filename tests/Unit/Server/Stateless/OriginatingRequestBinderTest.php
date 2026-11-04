@@ -87,11 +87,12 @@ class OriginatingRequestBinderTest extends TestCase
         yield 'nested member order' => ['{"trip": {"to": "BER", "from": "HAM"}}', '{"trip": {"from": "HAM", "to": "BER"}}'];
         yield 'numeric-key map member order' => ['{"items": {"2": "C", "0": "A", "1": "B"}}', '{"items": {"1": "B", "2": "C", "0": "A"}}'];
         yield 'list inside a map' => ['{"b": [1, 2], "a": {"x": [3]}}', '{"a": {"x": [3]}, "b": [1, 2]}'];
+        yield 'integral float' => ['{"seats": 1}', '{"seats": 1.0}'];
     }
 
     #[DataProvider('sameArguments')]
-    #[TestDox('arguments that differ only in member order bind to the same value: $_dataName')]
-    public function testArgumentsInAnotherMemberOrderBindToTheSameValue(string $first, string $retry): void
+    #[TestDox('arguments that differ only in encoding bind to the same value: $_dataName')]
+    public function testArgumentsInAnotherEncodingBindToTheSameValue(string $first, string $retry): void
     {
         $binder = new OriginatingRequestBinder();
 
