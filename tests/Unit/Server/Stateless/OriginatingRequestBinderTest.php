@@ -154,6 +154,27 @@ class OriginatingRequestBinderTest extends TestCase
         $this->assertNotSame($binder->bind(self::call(), self::token()), $binder->bind(self::call(), self::token()));
     }
 
+    #[TestDox('deeply nested arguments still bind, and their deepest leaf counts')]
+    public function testDeeplyNestedArgumentsBind(): void
+    {
+        $nested = static function (string $leaf): array {
+            $value = $leaf;
+
+            for ($depth = 0; $depth < 300; ++$depth) {
+                $value = ['k' => $value];
+            }
+
+            return $value;
+        };
+
+        $binder = new OriginatingRequestBinder();
+
+        $this->assertNotSame(
+            $binder->bind(self::call(arguments: $nested('preview')), self::token()),
+            $binder->bind(self::call(arguments: $nested('execute')), self::token()),
+        );
+    }
+
     #[TestDox('a resource read binds to its URI')]
     public function testResourceReadBindsToItsUri(): void
     {

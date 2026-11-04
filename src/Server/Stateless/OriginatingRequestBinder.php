@@ -42,6 +42,9 @@ use Mcp\Server\Authorization\AccessToken;
  */
 final class OriginatingRequestBinder implements RequestStateBinderInterface
 {
+    // A canonical map nests three levels deep, and requests decode up to json_decode()'s default of 512.
+    private const ENCODE_DEPTH = 3 * 512;
+
     /**
      * @param (\Closure(AccessToken): ?string)|null $principal identifies the user and client a token was issued
      *                                                         for, stable across a token refresh; null when the token
@@ -103,7 +106,7 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
     private static function encode(mixed $value): string
     {
         try {
-            return json_encode($value, \JSON_THROW_ON_ERROR);
+            return json_encode($value, \JSON_THROW_ON_ERROR, self::ENCODE_DEPTH);
         } catch (\JsonException $e) {
             throw new RuntimeException(\sprintf('Failed to encode the requestState binding as JSON: %s', $e->getMessage()), previous: $e);
         }
