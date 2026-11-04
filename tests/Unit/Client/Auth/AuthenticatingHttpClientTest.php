@@ -145,7 +145,7 @@ final class AuthenticatingHttpClientTest extends TestCase
 
             public function sendRequest(RequestInterface $request): ResponseInterface
             {
-                $this->bodies[] = (string) $request->getBody();
+                $this->bodies[] = $request->getBody()->getContents();
 
                 return new Response(1 === \count($this->bodies) ? 401 : 200);
             }
