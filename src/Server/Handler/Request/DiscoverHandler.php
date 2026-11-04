@@ -21,6 +21,8 @@ use Mcp\Server\Session\SessionInterface;
 
 /**
  * @implements RequestHandlerInterface<DiscoverResult>
+ *
+ * @author Björn Meyer <b.meyer@shopware.com>
  */
 final class DiscoverHandler implements RequestHandlerInterface
 {
