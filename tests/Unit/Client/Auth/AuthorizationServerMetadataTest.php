@@ -52,6 +52,60 @@ final class AuthorizationServerMetadataTest extends TestCase
         ]);
     }
 
+    #[TestDox('the authorization endpoint may be absent when no supported grant uses it')]
+    public function testAuthorizationEndpointIsOptionalWithoutARedirectGrant(): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'token_endpoint' => 'https://auth.example.com/token',
+            'grant_types_supported' => ['client_credentials'],
+        ]);
+
+        $this->assertNull($metadata->authorizationEndpoint);
+        $this->assertTrue($metadata->supportsGrant('client_credentials'));
+    }
+
+    /**
+     * @return iterable<string, array{array<string, mixed>}>
+     */
+    public static function authorizationEndpointRequiredProvider(): iterable
+    {
+        yield 'no grant list' => [[]];
+        yield 'an empty grant list' => [['grant_types_supported' => []]];
+        yield 'the authorization code grant' => [['grant_types_supported' => ['client_credentials', 'authorization_code']]];
+        yield 'the implicit grant' => [['grant_types_supported' => ['implicit']]];
+    }
+
+    /**
+     * @param array<string, mixed> $document
+     */
+    #[DataProvider('authorizationEndpointRequiredProvider')]
+    #[TestDox('the authorization endpoint is required for: $_dataName')]
+    public function testAuthorizationEndpointIsRequiredForARedirectGrant(array $document): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('authorization_endpoint');
+
+        AuthorizationServerMetadata::fromArray($document + [
+            'issuer' => 'https://auth.example.com',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
+    }
+
+    #[TestDox('an insecure authorization endpoint is refused even when no grant uses it')]
+    public function testRejectsAnInsecureUnusedAuthorizationEndpoint(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('neither an HTTPS URL nor a loopback address');
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'http://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+            'grant_types_supported' => ['client_credentials'],
+        ]);
+    }
+
     #[TestDox('an unstated grant list means the authorization code grant, and nothing else')]
     public function testDefaultGrantTypes(): void
     {
@@ -65,8 +119,6 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertFalse($metadata->supportsGrant('refresh_token'));
     }
 
-    // These URLs come out of a document whose location a hostile MCP server chose, and
-    // one of them is opened in the user's browser.
     #[TestDox('endpoints that are not HTTPS are refused')]
     public function testRejectsInsecureEndpoints(): void
     {

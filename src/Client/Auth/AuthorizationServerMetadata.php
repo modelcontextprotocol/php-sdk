@@ -25,7 +25,7 @@ final class AuthorizationServerMetadata
 {
     /**
      * @param string   $issuer                            the issuer identifier, which must match how the document was found
-     * @param string   $authorizationEndpoint             where the user is sent to approve the request
+     * @param ?string  $authorizationEndpoint             where the user is sent to approve the request, when a supported grant uses it
      * @param string   $tokenEndpoint                     where codes and refresh tokens are exchanged
      * @param ?string  $registrationEndpoint              where a client can register itself, when the server allows it
      * @param string[] $scopesSupported                   scopes the server knows about
@@ -37,7 +37,7 @@ final class AuthorizationServerMetadata
      */
     public function __construct(
         public readonly string $issuer,
-        public readonly string $authorizationEndpoint,
+        public readonly ?string $authorizationEndpoint,
         public readonly string $tokenEndpoint,
         public readonly ?string $registrationEndpoint = null,
         public readonly array $scopesSupported = [],
@@ -57,7 +57,15 @@ final class AuthorizationServerMetadata
      */
     public static function fromArray(array $data): self
     {
-        foreach (['issuer', 'authorization_endpoint', 'token_endpoint'] as $required) {
+        $grantTypes = self::strings($data['grant_types_supported'] ?? null);
+        $requiredFields = ['issuer', 'token_endpoint'];
+
+        // RFC 8414 section 2 requires this endpoint only when a supported grant uses it.
+        if ([] === $grantTypes || [] !== array_intersect($grantTypes, ['authorization_code', 'implicit'])) {
+            $requiredFields[] = 'authorization_endpoint';
+        }
+
+        foreach ($requiredFields as $required) {
             if (!isset($data[$required]) || !\is_string($data[$required])) {
                 throw new InvalidArgumentException(\sprintf('The authorization server metadata is missing a string "%s".', $required));
             }
@@ -69,14 +77,14 @@ final class AuthorizationServerMetadata
             }
         }
 
-        /* @var array{issuer: string, authorization_endpoint: string, token_endpoint: string} $data */
+        /* @var array{issuer: string, token_endpoint: string} $data */
         return new self(
             $data['issuer'],
-            $data['authorization_endpoint'],
+            \is_string($data['authorization_endpoint'] ?? null) ? $data['authorization_endpoint'] : null,
             $data['token_endpoint'],
             \is_string($data['registration_endpoint'] ?? null) ? $data['registration_endpoint'] : null,
             self::strings($data['scopes_supported'] ?? null),
-            self::strings($data['grant_types_supported'] ?? null),
+            $grantTypes,
             self::strings($data['token_endpoint_auth_methods_supported'] ?? null),
             self::strings($data['code_challenge_methods_supported'] ?? null),
             true === ($data['client_id_metadata_document_supported'] ?? null),

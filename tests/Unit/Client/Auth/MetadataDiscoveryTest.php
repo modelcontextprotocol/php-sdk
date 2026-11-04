@@ -159,6 +159,52 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertNull($this->discovery($client)->discoverAuthorizationServer('https://auth.example.com'));
     }
 
+    #[TestDox('an issuer that is neither https nor loopback is not even requested')]
+    public function testRefusesAnInsecureIssuer(): void
+    {
+        $client = new RecordingClient([
+            'http://auth.example.com/.well-known/oauth-authorization-server' => self::json([
+                'issuer' => 'http://auth.example.com',
+                'authorization_endpoint' => 'https://attacker.example.com/authorize',
+                'token_endpoint' => 'https://attacker.example.com/token',
+            ]),
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverAuthorizationServer('http://auth.example.com'));
+        $this->assertSame([], $client->requested);
+    }
+
+    #[TestDox('a loopback issuer may use plain http')]
+    public function testAllowsALoopbackIssuer(): void
+    {
+        $client = new RecordingClient([
+            'http://localhost:8080/.well-known/oauth-authorization-server' => self::json([
+                'issuer' => 'http://localhost:8080',
+                'authorization_endpoint' => 'http://localhost:8080/authorize',
+                'token_endpoint' => 'http://localhost:8080/token',
+            ]),
+        ]);
+
+        $this->assertNotNull($this->discovery($client)->discoverAuthorizationServer('http://localhost:8080'));
+    }
+
+    #[TestDox('metadata without an authorization endpoint is usable when no grant needs it')]
+    public function testAcceptsMetadataWithoutAnAuthorizationEndpoint(): void
+    {
+        $client = new RecordingClient([
+            'https://auth.example.com/.well-known/oauth-authorization-server' => self::json([
+                'issuer' => 'https://auth.example.com',
+                'token_endpoint' => 'https://auth.example.com/token',
+                'grant_types_supported' => ['client_credentials'],
+            ]),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverAuthorizationServer('https://auth.example.com');
+
+        $this->assertNotNull($metadata);
+        $this->assertNull($metadata->authorizationEndpoint);
+    }
+
     #[TestDox('a metadata URL named by the challenge is used instead of guessing')]
     public function testHonoursTheChallengeMetadataUrl(): void
     {

@@ -66,6 +66,12 @@ final class MetadataDiscovery
      */
     public function discoverAuthorizationServer(string $issuer): ?AuthorizationServerMetadata
     {
+        if (!AuthorizationServerMetadata::isTransportSecure($issuer)) {
+            $this->logger->error('Refusing authorization server discovery: the issuer is neither an HTTPS URL nor a loopback address.', ['issuer' => $issuer]);
+
+            return null;
+        }
+
         foreach (self::authorizationServerCandidates($issuer) as $candidate) {
             $document = $this->fetch($candidate);
 
