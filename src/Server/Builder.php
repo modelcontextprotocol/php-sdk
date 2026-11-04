@@ -83,6 +83,7 @@ use Psr\SimpleCache\CacheInterface;
  *     eventDispatcher: ?EventDispatcherInterface,
  *     configuration: Configuration,
  *     messageFactory: MessageFactory,
+ *     modernMessageFactory: MessageFactory,
  *     sessionManager: SessionManagerInterface,
  *     registry: RegistryInterface,
  *     requestHandlers: list<RequestHandlerInterface<mixed>>,
@@ -1002,11 +1003,6 @@ final class Builder
      * both together; this is the modern era by itself, for an endpoint that
      * serves nothing else.
      *
-     * `server/discover` exists in this era only, so its message class and its
-     * default handler are added here rather than to the parts both eras share.
-     * The default handler comes last, after the custom ones, so a handler
-     * registered for {@see DiscoverRequest} answers instead.
-     *
      * @param list<ProtocolVersion> $supportedVersions revisions this dispatcher will answer for
      */
     public function buildStateless(array $supportedVersions = [ProtocolVersion::V2026_07_28]): StatelessProtocol
@@ -1016,9 +1012,10 @@ final class Builder
         return new StatelessProtocol(
             requestHandlers: [
                 ...$parts['requestHandlers'],
+                // Last, so a custom handler supporting DiscoverRequest answers instead.
                 new Handler\Request\DiscoverHandler($parts['configuration'], $supportedVersions),
             ],
-            messageFactory: MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]),
+            messageFactory: $parts['modernMessageFactory'],
             configuration: $parts['configuration'],
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],
@@ -1106,6 +1103,8 @@ final class Builder
         }
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
+        // `server/discover` exists in the modern era only.
+        $modernMessageFactory = MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]);
 
         $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
@@ -1152,6 +1151,7 @@ final class Builder
             'registry' => $registry,
             'configuration' => $configuration,
             'messageFactory' => $messageFactory,
+            'modernMessageFactory' => $modernMessageFactory,
             'sessionManager' => $sessionManager,
             'requestHandlers' => $requestHandlers,
             'notificationHandlers' => $notificationHandlers,

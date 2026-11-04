@@ -20,16 +20,6 @@ use Mcp\Server\Configuration;
 use Mcp\Server\Session\SessionInterface;
 
 /**
- * Answers `server/discover` with the modern revisions this server serves, its
- * capabilities and its instructions.
- *
- * Registered by {@see \Mcp\Server\Builder::buildStateless()} after every other
- * handler, so a handler added through
- * {@see \Mcp\Server\Builder::addRequestHandler()} that supports
- * {@see DiscoverRequest} answers instead. The handshake era never parses a
- * `server/discover` request, so neither this handler nor a replacement is
- * reachable there.
- *
  * @implements RequestHandlerInterface<DiscoverResult>
  */
 final class DiscoverHandler implements RequestHandlerInterface
