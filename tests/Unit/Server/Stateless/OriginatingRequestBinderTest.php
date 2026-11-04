@@ -133,8 +133,8 @@ class OriginatingRequestBinderTest extends TestCase
         $this->assertNotSame($binder->bind(self::call(), $token), $binder->bind(self::call(), $token));
     }
 
-    #[TestDox('a principal resolver identifies users by another claim')]
-    public function testPrincipalResolverIdentifiesUsersByAnotherClaim(): void
+    #[TestDox('a subject resolver identifies users by another claim')]
+    public function testSubjectResolverIdentifiesUsersByAnotherClaim(): void
     {
         $binder = new OriginatingRequestBinder(
             static fn (AccessToken $token): ?string => \is_string($oid = $token->getClaim('oid')) ? $oid : null,
@@ -146,8 +146,20 @@ class OriginatingRequestBinderTest extends TestCase
         $this->assertNotSame($binder->bind(self::call(), $token('alice', 'a')), $binder->bind(self::call(), null));
     }
 
-    #[TestDox('a principal resolver that identifies nobody fails closed')]
-    public function testPrincipalResolverReturningNullFailsClosed(): void
+    #[TestDox('a subject resolver keeps the issuer and client in the principal')]
+    public function testSubjectResolverKeepsIssuerAndClient(): void
+    {
+        $binder = new OriginatingRequestBinder(
+            static fn (AccessToken $token): ?string => \is_string($oid = $token->getClaim('oid')) ? $oid : null,
+        );
+        $token = static fn (string $issuer, string $clientId): AccessToken => new AccessToken(['read'], ['iss' => $issuer, 'client_id' => $clientId, 'oid' => 'alice']);
+
+        $this->assertNotSame($binder->bind(self::call(), $token('https://auth.example.com', 'app')), $binder->bind(self::call(), $token('https://auth.example.com', 'other-app')));
+        $this->assertNotSame($binder->bind(self::call(), $token('https://auth.example.com', 'app')), $binder->bind(self::call(), $token('https://other.example.com', 'app')));
+    }
+
+    #[TestDox('a subject resolver that identifies nobody fails closed')]
+    public function testSubjectResolverReturningNullFailsClosed(): void
     {
         $binder = new OriginatingRequestBinder(static fn (AccessToken $token): ?string => null);
 

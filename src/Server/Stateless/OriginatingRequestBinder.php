@@ -33,8 +33,9 @@ use Mcp\Server\Authorization\AccessToken;
  *
  * A token without a subject identifies no user: tokens of different users of
  * one client would share a principal. Such a request binds to a value of its
- * own, so the states it mints never verify. Pass a `$principal` resolver when
- * the authorization server identifies users by another claim.
+ * own, so the states it mints never verify. Pass a `$subject` resolver when
+ * the authorization server identifies users by another claim; the issuer
+ * and client stay part of the principal either way.
  *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow
  *
@@ -46,12 +47,12 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
     private const ENCODE_DEPTH = 3 * 512;
 
     /**
-     * @param (\Closure(AccessToken): ?string)|null $principal identifies the user and client a token was issued
-     *                                                         for, stable across a token refresh; null when the token
-     *                                                         identifies nobody. Defaults to issuer, client and subject.
+     * @param (\Closure(AccessToken): ?string)|null $subject identifies the user a token was issued for, stable
+     *                                                       across a token refresh; null when the token identifies
+     *                                                       nobody. Defaults to the `sub` claim.
      */
     public function __construct(
-        private readonly ?\Closure $principal = null,
+        private readonly ?\Closure $subject = null,
     ) {
     }
 
@@ -73,34 +74,24 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
     }
 
     /**
-     * @return array{identified: string}|array{unidentified: string}
+     * @return array{identified: array{iss: ?string, client: ?string, sub: string}}|array{unidentified: string}
      */
     private function principal(AccessToken $accessToken): array
     {
-        $principal = null === $this->principal ? self::defaultPrincipal($accessToken) : ($this->principal)($accessToken);
-
-        if (null === $principal) {
-            return ['unidentified' => bin2hex(random_bytes(16))];
-        }
-
-        return ['identified' => $principal];
-    }
-
-    private static function defaultPrincipal(AccessToken $accessToken): ?string
-    {
-        $subject = $accessToken->getSubject();
+        $subject = null === $this->subject ? $accessToken->getSubject() : ($this->subject)($accessToken);
 
         if (null === $subject) {
-            return null;
+            return ['unidentified' => bin2hex(random_bytes(16))];
         }
 
         $issuer = $accessToken->getClaim('iss');
 
-        return self::encode([
+        // Not up to the resolver: a state stays with the issuer and client it was minted for.
+        return ['identified' => [
             'iss' => \is_string($issuer) ? $issuer : null,
             'client' => $accessToken->getClientId(),
             'sub' => $subject,
-        ]);
+        ]];
     }
 
     private static function encode(mixed $value): string
