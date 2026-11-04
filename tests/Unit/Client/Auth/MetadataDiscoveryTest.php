@@ -109,6 +109,32 @@ final class MetadataDiscoveryTest extends TestCase
         ];
 
         // RFC 8414 inserts the path into the well-known segment, OpenID Connect appends it.
+        yield 'a terminating slash on an issuer without a path' => [
+            'https://auth.example.com/',
+            [
+                'https://auth.example.com/.well-known/oauth-authorization-server',
+                'https://auth.example.com/.well-known/openid-configuration',
+            ],
+        ];
+
+        yield 'a terminating slash on an issuer path' => [
+            'https://auth.example.com/tenant1/',
+            [
+                'https://auth.example.com/.well-known/oauth-authorization-server/tenant1',
+                'https://auth.example.com/.well-known/openid-configuration/tenant1',
+                'https://auth.example.com/tenant1/.well-known/openid-configuration',
+            ],
+        ];
+
+        yield 'an empty leading segment in an issuer path' => [
+            'https://auth.example.com//tenant1',
+            [
+                'https://auth.example.com/.well-known/oauth-authorization-server//tenant1',
+                'https://auth.example.com/.well-known/openid-configuration//tenant1',
+                'https://auth.example.com//tenant1/.well-known/openid-configuration',
+            ],
+        ];
+
         yield 'an issuer with a path' => [
             'https://auth.example.com/tenant1',
             [
@@ -157,6 +183,65 @@ final class MetadataDiscoveryTest extends TestCase
         ]);
 
         $this->assertNull($this->discovery($client)->discoverAuthorizationServer('https://auth.example.com'));
+    }
+
+    /**
+     * @return iterable<string, array{string, string, string}>
+     */
+    public static function issuerMismatchFallbackProvider(): iterable
+    {
+        yield 'an issuer without a path' => [
+            'https://auth.example.com',
+            'https://auth.example.com/.well-known/oauth-authorization-server',
+            'https://auth.example.com/.well-known/openid-configuration',
+        ];
+
+        yield 'an issuer with a path' => [
+            'https://auth.example.com/tenant1',
+            'https://auth.example.com/.well-known/oauth-authorization-server/tenant1',
+            'https://auth.example.com/.well-known/openid-configuration/tenant1',
+        ];
+    }
+
+    #[DataProvider('issuerMismatchFallbackProvider')]
+    #[TestDox('a document naming another issuer does not stop a later location: $_dataName')]
+    public function testContinuesAfterAnIssuerMismatch(string $issuer, string $mismatched, string $matching): void
+    {
+        $client = new RecordingClient([
+            $mismatched => self::json([
+                'issuer' => 'https://attacker.example.com',
+                'authorization_endpoint' => 'https://attacker.example.com/authorize',
+                'token_endpoint' => 'https://attacker.example.com/token',
+            ]),
+            $matching => self::json([
+                'issuer' => $issuer,
+                'authorization_endpoint' => 'https://auth.example.com/authorize',
+                'token_endpoint' => 'https://auth.example.com/token',
+            ]),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverAuthorizationServer($issuer);
+
+        $this->assertNotNull($metadata);
+        $this->assertSame('https://auth.example.com/token', $metadata->tokenEndpoint);
+        $this->assertSame([$mismatched, $matching], $client->requested);
+    }
+
+    #[TestDox('every location is tried before giving up on a mismatching issuer')]
+    public function testTriesEveryLocationOnIssuerMismatch(): void
+    {
+        $attacker = self::json([
+            'issuer' => 'https://attacker.example.com',
+            'authorization_endpoint' => 'https://attacker.example.com/authorize',
+            'token_endpoint' => 'https://attacker.example.com/token',
+        ]);
+        $client = new RecordingClient([
+            'https://auth.example.com/.well-known/oauth-authorization-server' => $attacker,
+            'https://auth.example.com/.well-known/openid-configuration' => $attacker,
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverAuthorizationServer('https://auth.example.com'));
+        $this->assertCount(2, $client->requested);
     }
 
     #[TestDox('an issuer that is neither https nor loopback is not even requested')]
