@@ -62,28 +62,20 @@ final class AuthenticatingHttpClient implements ClientInterface
                 return $response;
             }
 
-            $sent = $this->authenticator->authenticate($this->rewind($request));
+            $body = $request->getBody();
+
+            // A consumed body that cannot be replayed would go out empty or truncated.
+            if (!$body->isSeekable()) {
+                return $response;
+            }
+
+            $body->rewind();
+            $response->getBody()->close();
+
+            $sent = $this->authenticator->authenticate($request);
             $response = $this->client->sendRequest($sent);
         }
 
         return $response;
-    }
-
-    /**
-     * Hand the body back to the client from the start.
-     *
-     * The first attempt consumed it; a non-seekable body cannot be replayed, in which
-     * case the retry goes out with whatever the stream has left rather than failing --
-     * MCP request bodies are built from strings and are always seekable.
-     */
-    private function rewind(RequestInterface $request): RequestInterface
-    {
-        $body = $request->getBody();
-
-        if ($body->isSeekable()) {
-            $body->rewind();
-        }
-
-        return $request;
     }
 }

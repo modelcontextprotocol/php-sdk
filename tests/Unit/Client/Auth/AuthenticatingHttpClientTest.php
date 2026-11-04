@@ -22,6 +22,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
+use Psr\Http\Message\StreamInterface;
 
 final class AuthenticatingHttpClientTest extends TestCase
 {
@@ -70,6 +71,7 @@ final class AuthenticatingHttpClientTest extends TestCase
         $this->assertSame(403, $response->getStatusCode());
         $this->assertSame(3, $authenticator->challenges);
         $this->assertSame(4, $inner->calls);
+        $this->assertTrue($response->getBody()->isReadable());
     }
 
     #[TestDox('an authenticator that cannot make progress ends the exchange immediately')]
@@ -82,6 +84,55 @@ final class AuthenticatingHttpClientTest extends TestCase
 
         $this->assertSame(401, $response->getStatusCode());
         $this->assertSame(1, $inner->calls);
+        $this->assertTrue($response->getBody()->isReadable());
+    }
+
+    #[TestDox('a rejected response stays readable for the challenge and is closed before the retry')]
+    public function testClosesTheRejectedResponseBeforeTheRetry(): void
+    {
+        $inner = new class implements ClientInterface {
+            /** @var ResponseInterface[] */
+            public array $responses = [];
+
+            /** @var bool[] */
+            public array $previousStillReadable = [];
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                if ([] !== $this->responses) {
+                    $this->previousStillReadable[] = $this->responses[0]->getBody()->isReadable();
+                }
+
+                return $this->responses[] = new Response([] === $this->responses ? 401 : 200, [], 'body');
+            }
+        };
+        $authenticator = new CountingAuthenticator();
+
+        $response = (new AuthenticatingHttpClient($inner, $authenticator))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
+
+        $this->assertSame([true], $authenticator->readableBodies);
+        $this->assertSame([false], $inner->previousStillReadable);
+        $this->assertTrue($response->getBody()->isReadable());
+    }
+
+    #[TestDox('a body that cannot be replayed ends the exchange after the challenge')]
+    public function testDoesNotRetryANonSeekableBody(): void
+    {
+        $body = $this->createMock(StreamInterface::class);
+        $body->method('isSeekable')->willReturn(false);
+        $body->expects($this->never())->method('rewind');
+
+        $inner = new RejectingClient(1);
+        $authenticator = new CountingAuthenticator();
+
+        $response = (new AuthenticatingHttpClient($inner, $authenticator))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertTrue($response->getBody()->isReadable());
+        $this->assertSame(1, $inner->calls);
+        $this->assertSame(1, $authenticator->challenges);
     }
 
     #[TestDox('the request body is replayed rather than sent empty on the retry')]
@@ -160,6 +211,9 @@ final class CountingAuthenticator implements AuthenticatorInterface
     /** @var string[] The credentials each rejected request went out with. */
     public array $challenged = [];
 
+    /** @var bool[] Whether each rejecting response could still be read during its challenge. */
+    public array $readableBodies = [];
+
     public function authenticate(RequestInterface $request): RequestInterface
     {
         return $request->withHeader('Authorization', 'Bearer token-'.$this->challenges);
@@ -168,6 +222,7 @@ final class CountingAuthenticator implements AuthenticatorInterface
     public function handleChallenge(RequestInterface $request, ResponseInterface $response): bool
     {
         $this->challenged[] = $request->getHeaderLine('Authorization');
+        $this->readableBodies[] = $response->getBody()->isReadable();
         ++$this->challenges;
 
         return true;

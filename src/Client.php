@@ -377,8 +377,9 @@ class Client
      *
      * The server should react by requesting an updated list via roots/list.
      *
-     * @throws RuntimeException    if the client did not advertise the `roots.listChanged` capability
-     * @throws ConnectionException if the client is not connected
+     * @throws RuntimeException       if the client did not advertise the `roots.listChanged` capability
+     * @throws ConnectionException    if the client is not connected
+     * @throws AuthorizationException if the server answers with HTTP 401 or 403
      */
     public function sendRootsListChanged(): void
     {
