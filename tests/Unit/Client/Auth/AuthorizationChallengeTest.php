@@ -13,6 +13,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 
 use Mcp\Client\Auth\AuthorizationChallenge;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -78,5 +79,79 @@ final class AuthorizationChallengeTest extends TestCase
             ->withAddedHeader('WWW-Authenticate', 'Bearer scope="mcp:read"');
 
         $this->assertSame(['mcp:read'], AuthorizationChallenge::fromResponse($response)->getScopes());
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, string>}>
+     */
+    public static function combinedHeaderProvider(): iterable
+    {
+        yield 'Bearer after another scheme' => ['Basic realm="internal", Bearer resource_metadata="https://good"', ['resource_metadata' => 'https://good']];
+        yield 'Bearer after a token68 scheme' => ['Negotiate abc==, Bearer scope="a"', ['scope' => 'a']];
+        yield 'Bearer after a bare scheme' => ['Negotiate, Bearer scope="a"', ['scope' => 'a']];
+        yield 'Bearer before a token68 scheme' => ['Bearer scope="a", Negotiate abc==', ['scope' => 'a']];
+        yield 'parameters of a later scheme do not override' => ['Bearer resource_metadata="https://good", scope="a", Digest realm="x", scope="evil", resource_metadata="https://evil"', ['resource_metadata' => 'https://good', 'scope' => 'a']];
+        yield 'parameters of an earlier scheme are not picked up' => ['Basic realm="simple", Newauth realm="apps", type=1, title="Login to \\"apps\\"", Bearer scope="a"', ['scope' => 'a']];
+        yield 'a scheme inside a quoted value is no scheme' => ['Basic realm="a, Bearer scope=\\"evil\\""', []];
+        yield 'a comma inside a quoted value does not split' => ['Bearer error="use Basic realm=x, scope=evil", scope="a"', ['error' => 'use Basic realm=x, scope=evil', 'scope' => 'a']];
+        yield 'an empty list member is skipped' => ['Bearer scope="a",, error="b"', ['scope' => 'a', 'error' => 'b']];
+        yield 'the scheme is case-insensitive' => ['bEARER scope="a"', ['scope' => 'a']];
+        yield 'a scheme merely starting with Bearer' => ['Bearer-x scope="a"', []];
+    }
+
+    /**
+     * @param array<string, string> $expected
+     */
+    #[DataProvider('combinedHeaderProvider')]
+    #[TestDox('the Bearer challenge is isolated for: $_dataName')]
+    public function testIsolatesTheBearerChallenge(string $header, array $expected): void
+    {
+        $challenge = AuthorizationChallenge::fromResponse(new Response(401, ['WWW-Authenticate' => $header]));
+
+        $this->assertSame($expected, $challenge->parameters);
+    }
+
+    /**
+     * @return iterable<string, array{string, string[]}>
+     */
+    public static function scopeProvider(): iterable
+    {
+        yield 'zero among others' => ['Bearer scope="0 mcp:read"', ['0', 'mcp:read']];
+        yield 'bare zero' => ['Bearer scope=0', ['0']];
+        yield 'surrounding and repeated whitespace' => ['Bearer scope="  a   0  b "', ['a', '0', 'b']];
+        yield 'empty' => ['Bearer scope=""', []];
+        yield 'only whitespace' => ['Bearer scope="   "', []];
+    }
+
+    /**
+     * @param string[] $expected
+     */
+    #[DataProvider('scopeProvider')]
+    #[TestDox('the scopes are split for: $_dataName')]
+    public function testSplitsScopes(string $header, array $expected): void
+    {
+        $challenge = AuthorizationChallenge::fromResponse(new Response(401, ['WWW-Authenticate' => $header]));
+
+        $this->assertSame($expected, $challenge->getScopes());
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function quotedPairProvider(): iterable
+    {
+        yield 'an escaped zero is a zero' => ['"a\\0b"', 'a0b'];
+        yield 'an escaped backslash stays one backslash' => ['"a\\\\0b"', 'a\\0b'];
+        yield 'an escaped quote' => ['"a\\"b"', 'a"b'];
+        yield 'a bare value is left alone' => ['a\\0b', 'a\\0b'];
+    }
+
+    #[DataProvider('quotedPairProvider')]
+    #[TestDox('the value is decoded for: $_dataName')]
+    public function testDecodesQuotedPairs(string $value, string $expected): void
+    {
+        $challenge = AuthorizationChallenge::fromResponse(new Response(401, ['WWW-Authenticate' => 'Bearer error='.$value]));
+
+        $this->assertSame($expected, $challenge->getError());
     }
 }
