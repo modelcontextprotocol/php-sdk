@@ -95,6 +95,9 @@ final class AuthorizationChallengeTest extends TestCase
         yield 'a scheme inside a quoted value is no scheme' => ['Basic realm="a, Bearer scope=\\"evil\\""', []];
         yield 'a comma inside a quoted value does not split' => ['Bearer error="use Basic realm=x, scope=evil", scope="a"', ['error' => 'use Basic realm=x, scope=evil', 'scope' => 'a']];
         yield 'an empty list member is skipped' => ['Bearer scope="a",, error="b"', ['scope' => 'a', 'error' => 'b']];
+        yield 'several spaces before the equals sign' => ['Bearer scope="read", error  ="invalid_token", resource_metadata="https://good"', ['scope' => 'read', 'error' => 'invalid_token', 'resource_metadata' => 'https://good']];
+        yield 'several tabs before the equals sign' => ["Bearer scope=\"read\", error\t\t=\"t\"", ['scope' => 'read', 'error' => 't']];
+        yield 'several spaces around the equals sign' => ['Bearer scope="read", error  =  "t"', ['scope' => 'read', 'error' => 't']];
         yield 'the scheme is case-insensitive' => ['bEARER scope="a"', ['scope' => 'a']];
         yield 'a scheme merely starting with Bearer' => ['Bearer-x scope="a"', []];
     }

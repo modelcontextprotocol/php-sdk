@@ -79,7 +79,7 @@ final class AuthorizationChallenge
         $parameters = null;
 
         foreach ($members[0] as $member) {
-            if (preg_match('/^\s*([^\s=,"]+)(?:\s+(?!=)|\s*$)(.*)$/s', $member, $scheme)) {
+            if (preg_match('/^\s*([^\s=,"]+)(?:\s++(?!=)|\s*$)(.*)$/s', $member, $scheme)) {
                 if (null !== $parameters) {
                     break;
                 }
