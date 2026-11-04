@@ -113,53 +113,49 @@ made through one is visible to the other.
 
 `server/discover` is answered by `DiscoverHandler`, a request handler like the one answering
 `initialize`. It reports the modern revisions the dispatcher serves, the builder's capabilities
-and the instructions set with `setInstructions()`, which `initialize` reports too. A server that
-needs a different answer per era, say instructions that leave out tools a stateless client
-cannot use, replaces it: a handler added with `addRequestHandler()` runs before the defaults, so
-one supporting `DiscoverRequest` answers instead.
+and the instructions set with `setInstructions()`, which `initialize` reports too.
+
+A server that needs a different answer per era, say instructions that leave out tools a
+stateless client cannot use, listens for the `ResponseEvent` of a `DiscoverRequest` and replaces
+the member it wants to change. `server/discover` dispatches the same `RequestEvent`,
+`ResponseEvent` and `ErrorEvent` as every other request:
 
 ```php
-use Mcp\Schema\Enum\ProtocolVersion;
-use Mcp\Schema\JsonRpc\Request;
+use Mcp\Event\ResponseEvent;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\Result\DiscoverResult;
-use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
-use Mcp\Server\Handler\Request\RequestHandlerInterface;
-use Mcp\Server\Session\SessionInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
-final class ModernDiscoverHandler implements RequestHandlerInterface
-{
-    public function supports(Request $request): bool
-    {
-        return $request instanceof DiscoverRequest;
+$dispatcher = new EventDispatcher();
+$dispatcher->addListener(ResponseEvent::class, function (ResponseEvent $event) {
+    $result = $event->getResponse()->result;
+
+    if (!$event->getRequest() instanceof DiscoverRequest || !$result instanceof DiscoverResult) {
+        return;
     }
 
-    public function handle(Request $request, SessionInterface $session): Response
-    {
-        return new Response($request->getId(), new DiscoverResult(
-            [ProtocolVersion::V2026_07_28],
-            new ServerCapabilities(),
-            'Call search_products to look up products.',
-        ));
-    }
-}
+    $event->setResponse(new Response($event->getResponse()->getId(), new DiscoverResult(
+        $result->supportedVersions,
+        $result->capabilities,
+        'Call search_products to look up products.',
+    )));
+});
 
 $server = Server::builder()
     ->setInstructions('Enable the catalog toolset, then call search_products.')
-    ->addRequestHandler(new ModernDiscoverHandler())
+    ->setEventDispatcher($dispatcher)
     ->build();
 ```
 
-To change one member of the default answer rather than build all of it, listen for the
-`ResponseEvent` of a `DiscoverRequest` and replace its result: `server/discover` dispatches the
-same `RequestEvent`, `ResponseEvent` and `ErrorEvent` as every other request.
+The versions and capabilities stay the ones the server computed. To build the whole answer
+yourself instead, add a handler supporting `DiscoverRequest` with `addRequestHandler()`: custom
+handlers run before the defaults, so it answers instead of `DiscoverHandler`.
 
 Either way the answer stays a plain JSON response, even to a client that accepts
 `text/event-stream`, and the wire members `resultType`, the caching hints and `serverInfo` are
-still added to it. The handshake era has no `server/discover`, so neither handler is reachable
-from it.
+still added to it. The handshake era has no `server/discover`, so neither is reachable from it.
 
 ## Over stdio
 
