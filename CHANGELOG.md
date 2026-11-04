@@ -29,6 +29,8 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Client
 
+* Add the `auth` parameter of `HttpTransport` and `AuthenticatorInterface`, to authenticate every request and retry the ones the server refuses. `BearerToken` sends a token you already have, and `AuthenticatingHttpClient` offers the same behavior as a PSR-18 decorator.
+* [BC Break] A `401` or `403` answer to a request fails with an `AuthorizationException` that contains the `WWW-Authenticate` header, instead of a `RequestException`. `Client::connect()` wraps it in a `ConnectionException`, without a retry.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
 
 0.9.0

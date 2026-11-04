@@ -13,7 +13,10 @@ namespace Mcp\Client\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
+use Mcp\Client\Auth\AuthenticatingHttpClient;
+use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\MonotonicClock;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -113,6 +116,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * @param ReconnectPolicy|null         $reconnectPolicy   How an SSE stream that closed before its response
      *                                                        arrived is resumed (default: 5 attempts, 1-10 s backoff)
      * @param ClockInterface|null          $clock             Clock for scheduling reconnects (default: a monotonic clock)
+     * @param AuthenticatorInterface|null  $auth              Credentials for a server that requires authorization,
+     *                                                        e.g. {@see \Mcp\Client\Auth\BearerToken} for a token
+     *                                                        that is already at hand. Every request the transport
+     *                                                        makes is authenticated, and one the server challenges
+     *                                                        is retried once credentials are obtained.
      */
     public function __construct(
         private readonly string $endpoint,
@@ -125,6 +133,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         private readonly bool $listen = false,
         ?ReconnectPolicy $reconnectPolicy = null,
         ?ClockInterface $clock = null,
+        ?AuthenticatorInterface $auth = null,
     ) {
         parent::__construct($logger);
 
@@ -132,7 +141,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->listenParser = new SseParser($maxSseBufferBytes);
         $this->reconnectPolicy = $reconnectPolicy ?? new ReconnectPolicy();
         $this->clock = $clock ?? new MonotonicClock();
-        $this->httpClient = $httpClient ?? Psr18ClientDiscovery::find();
+        $client = $httpClient ?? Psr18ClientDiscovery::find();
+        $this->httpClient = null === $auth ? $client : new AuthenticatingHttpClient($client, $auth);
         $this->requestFactory = $requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $this->streamFactory = $streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
     }
@@ -224,6 +234,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         try {
             $response = $this->httpClient->sendRequest($request);
+        } catch (AuthorizationException $e) {
+            // Not a connection problem, and not one a second attempt would solve: the
+            // authenticator already did everything it could.
+            $this->handleError($e);
+            throw $e;
         } catch (\Throwable $e) {
             $this->handleError($e);
             throw new ConnectionException('HTTP request failed: '.$e->getMessage(), 0, $e);
@@ -252,6 +267,16 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
+
+        if (\in_array($response->getStatusCode(), [401, 403], true)) {
+            // The authenticator, if there is one, already had its turn inside the HTTP
+            // client and could not satisfy the server. Naming the challenge beats a
+            // generic JSON-RPC error the caller cannot act on.
+            $challenge = $response->getHeaderLine('WWW-Authenticate');
+            $response->getBody()->close();
+
+            throw new AuthorizationException(\sprintf('The server at "%s" rejected the request with %d %s. %s', $this->endpoint, $response->getStatusCode(), $response->getReasonPhrase(), '' !== $challenge ? $challenge : 'No challenge was provided.'));
+        }
 
         if ($response->getStatusCode() >= 400) {
             try {
