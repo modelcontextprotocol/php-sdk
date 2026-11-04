@@ -6,7 +6,8 @@ all client errors in one place. All classes below live in the `Mcp\Exception` na
 | Exception | Thrown when |
 | --- | --- |
 | `ConnectionException` | `connect()` fails on every attempt, an HTTP request fails on the network level, or you call a method before `connect()` |
-| `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status, or the STDIO server process exits while you wait for an answer |
+| `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status other than `401` or `403`, or the STDIO server process exits while you wait for an answer |
+| `AuthorizationException` | the server answers a request, a notification or the resumption of an event stream with the HTTP status `401` or `403` |
 | `TimeoutException` | the `timeoutSeconds` deadline of a `callTool()` call expires |
 | `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
 | `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, the builder gets an invalid timeout, retry count or fallback revision, the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments), or the server returns a malformed result (also from `connect()`) |
@@ -26,6 +27,22 @@ try {
     echo "Failed to connect: {$e->getMessage()}\n";
 }
 ```
+
+## AuthorizationException
+
+The message contains the `WWW-Authenticate` header of the response, if the server sends one:
+
+```php
+use Mcp\Exception\AuthorizationException;
+
+try {
+    $result = $client->callTool('get_weather', ['city' => 'Paris']);
+} catch (AuthorizationException $e) {
+    echo "Not authorized: {$e->getMessage()}\n";
+}
+```
+
+During `connect()`, the client doesn't retry the request. It throws a `ConnectionException`, and `$e->getPrevious()` returns the `AuthorizationException`.
 
 ## RequestException
 
