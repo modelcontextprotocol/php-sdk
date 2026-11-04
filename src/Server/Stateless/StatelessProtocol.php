@@ -363,6 +363,13 @@ final class StatelessProtocol
                 ],
             ];
 
+            // Nothing agreed, nothing to deliver: end now instead of polling out the lifetime.
+            if ($agreed->isEmpty()) {
+                yield self::listenComplete($codec, $id);
+
+                return;
+            }
+
             // From now, not from the beginning: a subscriber wants what happens
             // next, not a replay of the server's history.
             $cursor = $bus?->cursor() ?? 0;
@@ -398,17 +405,25 @@ final class StatelessProtocol
                 usleep(250_000);
             }
 
-            // Graceful closure (SHOULD), so the client can tell this from a
-            // dropped transport.
-            yield [
-                'jsonrpc' => '2.0',
-                'id' => $id,
-                'result' => $codec->encodeResult(self::LISTEN_METHOD, [
-                    'resultType' => 'complete',
-                    '_meta' => [RequestMeta::SUBSCRIPTION_ID => $id],
-                ], false),
-            ];
+            yield self::listenComplete($codec, $id);
         });
+    }
+
+    /**
+     * Graceful closure (SHOULD), so the client can tell it from a dropped transport.
+     *
+     * @return array<string, mixed>
+     */
+    private static function listenComplete(WireCodecInterface $codec, string|int $id): array
+    {
+        return [
+            'jsonrpc' => '2.0',
+            'id' => $id,
+            'result' => $codec->encodeResult(self::LISTEN_METHOD, [
+                'resultType' => 'complete',
+                '_meta' => [RequestMeta::SUBSCRIPTION_ID => $id],
+            ], false),
+        ];
     }
 
     /**

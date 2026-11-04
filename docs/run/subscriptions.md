@@ -63,3 +63,7 @@ outlive `max_execution_time`. Pass `0` for "until the client or the runtime ends
 
 Over stdio the lifetime does not apply: a stream stays open until the client sends
 `notifications/cancelled` for it, see [Over stdio](protocol-eras.md#over-stdio).
+
+On both transports, a stream that can carry nothing, because the server announces none of
+the types the client asked for, or the client asked for none, is acknowledged and closed
+right away.
