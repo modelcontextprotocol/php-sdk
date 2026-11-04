@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Mcp\Exception\AuthorizationException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
@@ -31,6 +32,8 @@ interface AuthenticatorInterface
      *
      * Implementations return the request unchanged when they hold none: the resource
      * server answering with a challenge is what starts the flow.
+     *
+     * @throws AuthorizationException when the credentials cannot be attached
      */
     public function authenticate(RequestInterface $request): RequestInterface;
 
@@ -42,6 +45,8 @@ interface AuthenticatorInterface
      *
      * @return bool true when credentials were obtained and the request should be retried,
      *              false when the authenticator cannot make progress
+     *
+     * @throws AuthorizationException when obtaining credentials fails
      */
     public function handleChallenge(RequestInterface $request, ResponseInterface $response): bool;
 }

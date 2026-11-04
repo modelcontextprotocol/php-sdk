@@ -117,11 +117,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      * @param ReconnectPolicy|null         $reconnectPolicy   How an SSE stream that closed before its response
      *                                                        arrived is resumed (default: 5 attempts, 1-10 s backoff)
      * @param ClockInterface|null          $clock             Clock for scheduling reconnects (default: a monotonic clock)
-     * @param AuthenticatorInterface|null  $auth              Credentials for a server that requires authorization,
-     *                                                        e.g. {@see \Mcp\Client\Auth\BearerToken} for a token
-     *                                                        that is already at hand. Every request the transport
-     *                                                        makes is authenticated, and one the server challenges
-     *                                                        is retried once credentials are obtained.
+     * @param AuthenticatorInterface|null  $auth              Credentials for a server that requires authorization.
+     *                                                        Pass {@see \Mcp\Client\Auth\OAuth} to negotiate them
+     *                                                        on demand, or {@see \Mcp\Client\Auth\BearerToken}
+     *                                                        when the token is already at hand. Every request the
+     *                                                        transport makes is authenticated, and one the server
+     *                                                        challenges is retried once credentials are obtained.
      */
     public function __construct(
         private readonly string $endpoint,

@@ -12,6 +12,9 @@
 require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 use Mcp\Client;
+use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Auth\HeadlessAuthorizationHandler;
+use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Schema\ClientCapabilities;
@@ -36,7 +39,12 @@ if (!$url || !$scenario) {
 $version = ProtocolVersion::tryFrom(getenv('MCP_CONFORMANCE_PROTOCOL_VERSION') ?: '')
     ?? ProtocolVersion::V2025_11_25;
 
-// Scenario-specific data (tool arguments, credentials) the runner passes in.
+// Scenario-specific data the runner passes in as JSON. Which keys are present depends
+// on the scenario:
+//
+//   toolCalls           http-custom-headers: the exact calls to make
+//   client_id           auth/pre-registration: credentials an administrator would
+//   client_secret       have configured out of band
 $context = json_decode(getenv('MCP_CONFORMANCE_CONTEXT') ?: '[]', true);
 $context = is_array($context) ? $context : [];
 
@@ -86,8 +94,44 @@ if (in_array($scenario, ['elicitation-sep1034-client-defaults', 'sep-2322-client
     $builder->addRequestHandler($acceptElicitation);
 }
 
+/**
+ * Wires up OAuth for the scenarios that need it.
+ *
+ * The authorization endpoint of the harness grants without asking a human, so the
+ * headless handler stands in for the browser. Everything else -- discovery, PKCE,
+ * registration, scope selection -- is the SDK doing what it would do in production.
+ */
+function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInterface $logger): ?AuthenticatorInterface
+{
+    if (!str_starts_with($scenario, 'auth/')) {
+        return null;
+    }
+
+    $handler = new HeadlessAuthorizationHandler(logger: $logger);
+
+    $oauth = OAuth::forApplication('mcp-conformance-test-client')
+        ->setRedirectUri('http://localhost:3000/callback')
+        ->setAuthorizationHandler($handler)
+        ->setLogger($logger);
+
+    // Pre-registration: the server does not offer dynamic registration, so the runner
+    // passes the credentials an administrator would have configured.
+    if (isset($context['client_id'])) {
+        $oauth->setClientCredentials($context['client_id'], $context['client_secret'] ?? null);
+    }
+
+    // These two scenarios are 2025-03-26 servers: no protected resource metadata, and
+    // the authorization endpoints either at the server's root well-known location or at
+    // the fixed paths that revision named. Opt in, since the SDK does not by default.
+    if (str_starts_with($scenario, 'auth/2025-03-26-')) {
+        $oauth->setLegacyDiscovery(true);
+    }
+
+    return $oauth->build();
+}
+
 $client = $builder->build();
-$transport = new HttpTransport($url, logger: $logger);
+$transport = new HttpTransport($url, logger: $logger, auth: buildAuthenticator($scenario, $context, $logger));
 
 try {
     $client->connect($transport);
@@ -188,6 +232,14 @@ try {
             break;
 
         default:
+            if (str_starts_with($scenario, 'auth/')) {
+                // Every auth scenario serves the same tool; calling it is what proves the
+                // token survived past the handshake, and drives the step-up challenge.
+                $client->callTool($toolsResult->tools[0]->name ?? 'test-tool', []);
+                $logger->info('Called the protected tool');
+                break;
+            }
+
             $logger->warning(sprintf('Unknown scenario: %s', $scenario));
             break;
     }
