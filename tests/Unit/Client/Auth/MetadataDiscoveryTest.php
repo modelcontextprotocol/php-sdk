@@ -42,6 +42,43 @@ final class MetadataDiscoveryTest extends TestCase
             ['https://mcp.example.com/.well-known/oauth-protected-resource'],
         ];
 
+        yield 'no path has only one location' => [
+            'https://mcp.example.com',
+            ['https://mcp.example.com/.well-known/oauth-protected-resource'],
+        ];
+
+        yield 'a trailing slash is kept' => [
+            'https://mcp.example.com/mcp/',
+            [
+                'https://mcp.example.com/.well-known/oauth-protected-resource/mcp/',
+                'https://mcp.example.com/.well-known/oauth-protected-resource',
+            ],
+        ];
+
+        yield 'a query is kept' => [
+            'https://mcp.example.com/mcp?x=1',
+            [
+                'https://mcp.example.com/.well-known/oauth-protected-resource/mcp?x=1',
+                'https://mcp.example.com/.well-known/oauth-protected-resource',
+            ],
+        ];
+
+        yield 'a trailing slash and a query are kept' => [
+            'https://mcp.example.com/mcp/?tenant=a',
+            [
+                'https://mcp.example.com/.well-known/oauth-protected-resource/mcp/?tenant=a',
+                'https://mcp.example.com/.well-known/oauth-protected-resource',
+            ],
+        ];
+
+        yield 'a query on the root endpoint' => [
+            'https://mcp.example.com/?x=1',
+            [
+                'https://mcp.example.com/.well-known/oauth-protected-resource?x=1',
+                'https://mcp.example.com/.well-known/oauth-protected-resource',
+            ],
+        ];
+
         yield 'the port is part of the origin' => [
             'http://localhost:8000/api/mcp',
             [
