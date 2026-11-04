@@ -32,6 +32,32 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'a different host' => ['https://evil.example.com/mcp', 'https://mcp.example.com/mcp', false];
         yield 'a different scheme' => ['http://mcp.example.com/mcp', 'https://mcp.example.com/mcp', false];
         yield 'a different port' => ['http://localhost:9000/mcp', 'http://localhost:8000/mcp', false];
+
+        yield 'the same query' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp?tenant=a', true];
+        yield 'the same query below the resource' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp/sub?tenant=a', true];
+        yield 'an endpoint query on a resource without one' => ['https://mcp.example.com/mcp', 'https://mcp.example.com/mcp?tenant=a', true];
+        yield 'a different query' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp?tenant=b', false];
+        yield 'a missing query' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp', false];
+
+        yield 'a dot segment leaving the resource' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/../other', false];
+        yield 'a nested dot segment leaving the resource' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/x/../../other', false];
+        yield 'an encoded dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/%2e%2e/other', false];
+        yield 'a half encoded dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/.%2e/other', false];
+        yield 'a dot segment with an encoded slash' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..%2fother', false];
+        yield 'a single dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/./mcp', false];
+        yield 'a dot segment in the resource' => ['https://mcp.example.com/api/..', 'https://mcp.example.com/api/../mcp', false];
+        yield 'dots that are no dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/a..b/...', true];
+        yield 'dots in the query' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/x?y=/../z', true];
+
+        yield 'an explicit default https port on the endpoint' => ['https://mcp.example.com/api', 'https://mcp.example.com:443/api', true];
+        yield 'an explicit default https port on the resource' => ['https://mcp.example.com:443/api', 'https://mcp.example.com/api', true];
+        yield 'an explicit default http port' => ['http://localhost/api', 'http://localhost:80/api', true];
+        yield 'an uppercase host' => ['https://mcp.example.com/api', 'https://MCP.example.com/api', true];
+        yield 'an uppercase scheme' => ['https://mcp.example.com/api', 'HTTPS://mcp.example.com/api', true];
+        yield 'the https port with the http scheme' => ['https://mcp.example.com/api', 'http://mcp.example.com:443/api', false];
+        yield 'the http port with the https scheme' => ['https://mcp.example.com/api', 'https://mcp.example.com:80/api', false];
+        yield 'a non-default port' => ['https://mcp.example.com/api', 'https://mcp.example.com:8443/api', false];
+        yield 'a path differing in case' => ['https://mcp.example.com/api', 'https://mcp.example.com/API', false];
     }
 
     #[DataProvider('coverageProvider')]

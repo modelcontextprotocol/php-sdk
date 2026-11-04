@@ -75,17 +75,47 @@ final class ProtectedResourceMetadata
             return false;
         }
 
-        foreach (['scheme', 'host', 'port'] as $part) {
-            if (($resource[$part] ?? null) !== ($target[$part] ?? null)) {
-                return false;
-            }
+        if (self::origin($resource) !== self::origin($target)) {
+            return false;
+        }
+
+        if (isset($resource['query']) && ($target['query'] ?? null) !== $resource['query']) {
+            return false;
         }
 
         $resourcePath = rtrim($resource['path'] ?? '', '/');
         $targetPath = $target['path'] ?? '';
 
+        if (self::hasDotSegment($resourcePath) || self::hasDotSegment($targetPath)) {
+            return false;
+        }
+
         return '' === $resourcePath
             || $targetPath === $resourcePath
             || str_starts_with($targetPath, $resourcePath.'/');
+    }
+
+    /**
+     * @param array{scheme?: string, host?: string, port?: int} $parts
+     *
+     * @return array{string, string, ?int}
+     */
+    private static function origin(array $parts): array
+    {
+        $scheme = strtolower($parts['scheme'] ?? '');
+
+        return [$scheme, strtolower($parts['host'] ?? ''), $parts['port'] ?? ['https' => 443, 'http' => 80][$scheme] ?? null];
+    }
+
+    private static function hasDotSegment(string $path): bool
+    {
+        // Rejected rather than resolved, since the server may resolve them differently than we would.
+        foreach (explode('/', rawurldecode($path)) as $segment) {
+            if ('.' === $segment || '..' === $segment) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

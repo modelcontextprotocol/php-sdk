@@ -108,11 +108,11 @@ final class MetadataDiscovery
             return [];
         }
 
-        $origin = self::origin($parts);
-        $path = trim($parts['path'] ?? '', '/');
-        $root = $origin.'/.well-known/oauth-protected-resource';
+        $root = self::origin($parts).'/.well-known/oauth-protected-resource';
+        $path = $parts['path'] ?? '';
+        $suffix = ('/' === $path ? '' : $path).(isset($parts['query']) ? '?'.$parts['query'] : '');
 
-        return '' === $path ? [$root] : [$root.'/'.$path, $root];
+        return '' === $suffix ? [$root] : [$root.$suffix, $root];
     }
 
     /**
