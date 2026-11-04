@@ -79,6 +79,79 @@ class OriginatingRequestBinderTest extends TestCase
         $this->assertNotSame($binder->bind(self::call(), self::token()), $binder->bind($request, $token));
     }
 
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function sameArguments(): iterable
+    {
+        yield 'nested member order' => ['{"trip": {"to": "BER", "from": "HAM"}}', '{"trip": {"from": "HAM", "to": "BER"}}'];
+        yield 'numeric-key map member order' => ['{"items": {"2": "C", "0": "A", "1": "B"}}', '{"items": {"1": "B", "2": "C", "0": "A"}}'];
+        yield 'list inside a map' => ['{"b": [1, 2], "a": {"x": [3]}}', '{"a": {"x": [3]}, "b": [1, 2]}'];
+    }
+
+    #[DataProvider('sameArguments')]
+    #[TestDox('arguments that differ only in member order bind to the same value: $_dataName')]
+    public function testArgumentsInAnotherMemberOrderBindToTheSameValue(string $first, string $retry): void
+    {
+        $binder = new OriginatingRequestBinder();
+
+        $this->assertSame(
+            $binder->bind(self::call(arguments: json_decode($first, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
+            $binder->bind(self::call(arguments: json_decode($retry, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
+        );
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function otherArguments(): iterable
+    {
+        yield 'numeric-key map and list' => ['{"items": {"1": "B", "0": "A"}}', '{"items": ["A", "B"]}'];
+        yield 'list order' => ['{"items": ["A", "B"]}', '{"items": ["B", "A"]}'];
+    }
+
+    #[DataProvider('otherArguments')]
+    #[TestDox('arguments the handler sees differently bind to other values: $_dataName')]
+    public function testArgumentsTheHandlerSeesDifferentlyBindElsewhere(string $first, string $retry): void
+    {
+        $binder = new OriginatingRequestBinder();
+
+        $this->assertNotSame(
+            $binder->bind(self::call(arguments: json_decode($first, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
+            $binder->bind(self::call(arguments: json_decode($retry, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
+        );
+    }
+
+    #[TestDox('a token without a subject fails closed: no two requests bind to the same value')]
+    public function testTokenWithoutSubjectBindsToAValueOfItsOwn(): void
+    {
+        $binder = new OriginatingRequestBinder();
+        $token = new AccessToken(['read'], ['iss' => 'https://auth.example.com', 'client_id' => 'app', 'email' => 'alice@example.com']);
+
+        $this->assertNotSame($binder->bind(self::call(), $token), $binder->bind(self::call(), $token));
+    }
+
+    #[TestDox('a principal resolver identifies users by another claim')]
+    public function testPrincipalResolverIdentifiesUsersByAnotherClaim(): void
+    {
+        $binder = new OriginatingRequestBinder(
+            static fn (AccessToken $token): ?string => \is_string($oid = $token->getClaim('oid')) ? $oid : null,
+        );
+        $token = static fn (string $oid, string $jti): AccessToken => new AccessToken(['read'], ['client_id' => 'app', 'oid' => $oid, 'jti' => $jti]);
+
+        $this->assertSame($binder->bind(self::call(), $token('alice', 'a')), $binder->bind(self::call(), $token('alice', 'b')));
+        $this->assertNotSame($binder->bind(self::call(), $token('alice', 'a')), $binder->bind(self::call(), $token('bob', 'a')));
+        $this->assertNotSame($binder->bind(self::call(), $token('alice', 'a')), $binder->bind(self::call(), null));
+    }
+
+    #[TestDox('a principal resolver that identifies nobody fails closed')]
+    public function testPrincipalResolverReturningNullFailsClosed(): void
+    {
+        $binder = new OriginatingRequestBinder(static fn (AccessToken $token): ?string => null);
+
+        $this->assertNotSame($binder->bind(self::call(), self::token()), $binder->bind(self::call(), self::token()));
+    }
+
     #[TestDox('a resource read binds to its URI')]
     public function testResourceReadBindsToItsUri(): void
     {

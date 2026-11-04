@@ -30,12 +30,27 @@ use Mcp\Server\Authorization\AccessToken;
  * binds to no principal, so its state does not verify on an authorized one,
  * nor the other way round.
  *
+ * A token without a subject identifies no user: tokens of different users of
+ * one client would share a principal. Such a request binds to a value of its
+ * own, so the states it mints never verify. Pass a `$principal` resolver when
+ * the authorization server identifies users by another claim.
+ *
  * @see https://modelcontextprotocol.io/specification/2026-07-28/basic/patterns/mrtr#server-requirements-basic-workflow
  *
  * @author Björn Meyer <b.meyer@shopware.com>
  */
 final class OriginatingRequestBinder implements RequestStateBinderInterface
 {
+    /**
+     * @param (\Closure(AccessToken): ?string)|null $principal identifies the user and client a token was issued
+     *                                                         for, stable across a token refresh; null when the token
+     *                                                         identifies nobody. Defaults to issuer, client and subject.
+     */
+    public function __construct(
+        private readonly ?\Closure $principal = null,
+    ) {
+    }
+
     public function bind(Request $request, ?AccessToken $accessToken): string
     {
         [$target, $arguments] = match (true) {
@@ -49,17 +64,51 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
             'method' => $request::getMethod(),
             'target' => $target,
             'arguments' => hash('sha256', json_encode(self::canonical($arguments), \JSON_THROW_ON_ERROR)),
-            'principal' => null === $accessToken ? null : [
-                'iss' => \is_string($issuer = $accessToken->getClaim('iss')) ? $issuer : null,
-                'client' => $accessToken->getClientId(),
-                'sub' => $accessToken->getSubject(),
-            ],
+            'principal' => null === $accessToken ? null : $this->principal($accessToken),
+        ], \JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * @return array{identified: string}|array{unidentified: string}
+     */
+    private function principal(AccessToken $accessToken): array
+    {
+        $principal = null === $this->principal ? self::defaultPrincipal($accessToken) : ($this->principal)($accessToken);
+
+        if (null === $principal) {
+            return ['unidentified' => bin2hex(random_bytes(16))];
+        }
+
+        return ['identified' => $principal];
+    }
+
+    private static function defaultPrincipal(AccessToken $accessToken): ?string
+    {
+        $subject = $accessToken->getSubject();
+
+        if (null === $subject) {
+            return null;
+        }
+
+        $issuer = $accessToken->getClaim('iss');
+
+        return json_encode([
+            'iss' => \is_string($issuer) ? $issuer : null,
+            'client' => $accessToken->getClientId(),
+            'sub' => $subject,
         ], \JSON_THROW_ON_ERROR);
     }
 
     /**
      * Sorts object members recursively, so a client re-encoding the same
      * arguments in another member order still binds to the same digest.
+     *
+     * A list stays a JSON array and any other array becomes a JSON object,
+     * the same split schema validation and the handler see: a map with
+     * numeric keys out of order, e.g. `{"1": "B", "0": "A"}`, must not sort
+     * into the list `["A", "B"]`. The arguments are decoded into PHP arrays,
+     * so a numeric-key object whose members arrive in list order is a list
+     * to the whole SDK and binds as one.
      */
     private static function canonical(mixed $value): mixed
     {
@@ -67,10 +116,12 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
             return $value;
         }
 
-        if (!array_is_list($value)) {
-            ksort($value, \SORT_STRING);
+        if (array_is_list($value)) {
+            return array_map(self::canonical(...), $value);
         }
 
-        return array_map(self::canonical(...), $value);
+        ksort($value, \SORT_STRING);
+
+        return (object) array_map(self::canonical(...), $value);
     }
 }

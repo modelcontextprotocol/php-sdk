@@ -119,8 +119,23 @@ use Mcp\Server\Stateless\OriginatingRequestBinder;
 ```
 
 `OriginatingRequestBinder` binds the method, the tool or prompt name and a digest of its
-arguments (or the resource URI), and the token's issuer, client and subject. For anything
-else, implement `RequestStateBinderInterface`, which receives the request as the client sent
+arguments (or the resource URI), and the token's issuer, client and subject.
+
+A token without a subject (`sub`) identifies no user, so the binder cannot tell two users of
+one client apart. It fails closed: such a request binds to a value of its own, and a state it
+mints is refused on the retry. If your authorization server identifies users by another claim,
+pass a resolver that returns a value stable across a token refresh, or `null` for a token that
+identifies nobody:
+
+```php
+use Mcp\Server\Authorization\AccessToken;
+
+new OriginatingRequestBinder(
+    principal: static fn (AccessToken $token): ?string => \is_string($oid = $token->getClaim('oid')) ? $oid : null,
+)
+```
+
+For anything else, implement `RequestStateBinderInterface`, which receives the request as the client sent
 it and its `AccessToken`. Bind only what stays the same across the rounds of one call;
 `_meta` does not.
 
