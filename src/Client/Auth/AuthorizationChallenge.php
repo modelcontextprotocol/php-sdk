@@ -31,15 +31,7 @@ final class AuthorizationChallenge
 
     public static function fromResponse(ResponseInterface $response): self
     {
-        foreach ($response->getHeader('WWW-Authenticate') as $header) {
-            $parameters = self::parseBearerParameters($header);
-
-            if (null !== $parameters) {
-                return new self($parameters);
-            }
-        }
-
-        return new self([]);
+        return new self(self::parseBearerParameters($response->getHeaderLine('WWW-Authenticate')));
     }
 
     /**
@@ -68,12 +60,12 @@ final class AuthorizationChallenge
     /**
      * Read the Bearer challenge out of a field value that may list several challenges.
      *
-     * @return array<string, string>|null null when the field value holds no Bearer challenge
+     * @return array<string, string>
      */
-    private static function parseBearerParameters(string $header): ?array
+    private static function parseBearerParameters(string $header): array
     {
         if (!preg_match_all('/(?:[^",]|"(?:[^"\\\\]|\\\\.)*")+/s', $header, $members)) {
-            return null;
+            return [];
         }
 
         $parameters = null;
@@ -102,6 +94,6 @@ final class AuthorizationChallenge
             }
         }
 
-        return $parameters;
+        return $parameters ?? [];
     }
 }

@@ -82,6 +82,30 @@ final class AuthorizationChallengeTest extends TestCase
     }
 
     /**
+     * @return iterable<string, array{string[], array<string, string>}>
+     */
+    public static function splitHeaderProvider(): iterable
+    {
+        yield 'one challenge across two lines' => [['Bearer scope="read"', 'resource_metadata="https://good"'], ['scope' => 'read', 'resource_metadata' => 'https://good']];
+        yield 'a bare scheme on its own line' => [['Negotiate', 'Bearer scope="a"'], ['scope' => 'a']];
+        yield 'a later line with another scheme' => [['Bearer scope="a"', 'Digest scope="evil"'], ['scope' => 'a']];
+        yield 'an unterminated quote swallows the next line' => [['Basic realm="x', 'Bearer scope="a"'], []];
+    }
+
+    /**
+     * @param string[]              $lines
+     * @param array<string, string> $expected
+     */
+    #[DataProvider('splitHeaderProvider')]
+    #[TestDox('field lines read as one comma-joined value for: $_dataName')]
+    public function testCombinesFieldLines(array $lines, array $expected): void
+    {
+        $challenge = AuthorizationChallenge::fromResponse(new Response(401, ['WWW-Authenticate' => $lines]));
+
+        $this->assertSame($expected, $challenge->parameters);
+    }
+
+    /**
      * @return iterable<string, array{string, array<string, string>}>
      */
     public static function combinedHeaderProvider(): iterable
