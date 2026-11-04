@@ -113,10 +113,12 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
      * Sorts object members recursively, so a client re-encoding the same
      * arguments in another member order still binds to the same digest.
      *
-     * A list stays a JSON array and any other array becomes a JSON object,
-     * the same split schema validation and the handler see: a map with
-     * numeric keys out of order, e.g. `{"1": "B", "0": "A"}`, must not sort
-     * into the list `["A", "B"]`. The arguments are decoded into PHP arrays,
+     * A list stays a JSON array and any other array becomes sorted pairs
+     * under `{"map": [[key, value], ...]}`, the same split schema validation
+     * and the handler see: a map with numeric keys out of order, e.g.
+     * `{"1": "B", "0": "A"}`, must not sort into the list `["A", "B"]`. Not
+     * cast to an object, as `json_encode()` drops object members whose name
+     * starts with NUL. The arguments are decoded into PHP arrays,
      * so a numeric-key object whose members arrive in list order is a list
      * to the whole SDK and binds as one. Numbers bind by value: `1` and `1.0`
      * encode alike, so a client re-encoding a number does not break its retry.
@@ -133,6 +135,12 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
 
         ksort($value, \SORT_STRING);
 
-        return (object) array_map(self::canonical(...), $value);
+        $members = [];
+
+        foreach ($value as $key => $member) {
+            $members[] = [(string) $key, self::canonical($member)];
+        }
+
+        return ['map' => $members];
     }
 }

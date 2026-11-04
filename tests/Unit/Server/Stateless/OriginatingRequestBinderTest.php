@@ -109,6 +109,7 @@ class OriginatingRequestBinderTest extends TestCase
     {
         yield 'numeric-key map and list' => ['{"items": {"1": "B", "0": "A"}}', '{"items": ["A", "B"]}'];
         yield 'list order' => ['{"items": ["A", "B"]}', '{"items": ["B", "A"]}'];
+        yield 'member named with a leading NUL' => ['{"options": {"visible": true, "\\u0000mode": "preview"}}', '{"options": {"visible": true, "\\u0000mode": "execute"}}'];
     }
 
     #[DataProvider('otherArguments')]
