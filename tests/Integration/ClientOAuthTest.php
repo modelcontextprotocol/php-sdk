@@ -16,8 +16,10 @@ use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
@@ -192,6 +194,47 @@ final class ClientOAuthTest extends TestCase
         $this->expectExceptionMessage('interactive authorization handler is required');
 
         (new HeadlessAuthorizationHandler())->authorize($this->authorizationServerUrl.'/nothing-here', 'http://127.0.0.1:8765/callback');
+    }
+
+    public function testCompletesRedirectAuthorizationInAnotherProcess(): void
+    {
+        $path = $this->workingDirectory.'/credentials.json';
+        $auth = OAuth::forApplication('Integration Test Client')
+            ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+            ->setCredentialStorage(new FileCredentialStorage($path))
+            ->build();
+        $client = Client::builder()->setClientInfo('integration-client', '1.0.0')->setInitTimeout(5)->build();
+
+        try {
+            $client->connect(new HttpTransport($this->resourceServerUrl.'/mcp', auth: $auth));
+            $this->fail('Expected authorization to pause for a redirect.');
+        } catch (AuthorizationPendingException $e) {
+            $callback = (new HeadlessAuthorizationHandler())->authorize($e->authorizationUrl, 'http://127.0.0.1:8765/callback');
+        }
+
+        unset($client, $auth);
+        $command = [\PHP_BINARY, __DIR__.'/Fixture/oauth/finish-authorization.php', $path, json_encode($callback)];
+        $process = new Process($command);
+        $competitor = new Process($command);
+        $process->start();
+        $competitor->start();
+        $process->wait();
+        $competitor->wait();
+        $this->assertNotSame($process->isSuccessful(), $competitor->isSuccessful());
+        $winner = $process->isSuccessful() ? $process : $competitor;
+        $loser = $process->isSuccessful() ? $competitor : $process;
+        $this->assertSame('authorized', $winner->getOutput());
+        $this->assertStringContainsString('does not match a pending authorization', $loser->getErrorOutput().$loser->getOutput());
+
+        $client = $this->connect(new FileCredentialStorage($path));
+        $this->assertStringContainsString('the token was accepted', json_encode($client->callTool('whoami', [])->content));
+        $client->disconnect();
+        $this->assertSame([], json_decode(file_get_contents($path), true)['pending']);
+
+        $replay = new Process($command);
+        $replay->run();
+        $this->assertFalse($replay->isSuccessful());
+        $this->assertStringContainsString('does not match a pending authorization', $replay->getErrorOutput().$replay->getOutput());
     }
 
     private function connect(?FileCredentialStorage $storage = null): Client

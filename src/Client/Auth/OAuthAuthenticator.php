@@ -12,6 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -129,6 +130,57 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->storage->saveToken($metadata->issuer, $resource, $this->token);
 
         return true;
+    }
+
+    /**
+     * @param array<string, string> $callback
+     */
+    public function finishAuthorization(array $callback): void
+    {
+        foreach (['state', 'iss', 'code', 'error', 'error_description'] as $key) {
+            if (\array_key_exists($key, $callback) && !\is_string($callback[$key])) {
+                throw new AuthorizationException(\sprintf('The authorization response parameter "%s" must be a string.', $key));
+            }
+        }
+
+        $state = $callback['state'] ?? '';
+
+        if ('' === $state || !($this->storage instanceof PendingAuthorizationStorageInterface)) {
+            throw new AuthorizationException('No pending authorization is available for this callback.');
+        }
+
+        $pending = $this->storage->consumePendingAuthorization($state);
+
+        if (null === $pending || $pending->expiresAt <= time()) {
+            throw new AuthorizationException('The authorization response does not match a pending authorization.');
+        }
+
+        $this->verifyCallbackOrigin($callback, $pending->state, $pending->metadata);
+        $this->token = null;
+        $this->requestedScopes = [];
+        $this->issuer = $pending->metadata->issuer;
+        $this->resource = $pending->resource;
+        $this->audience = $pending->audience;
+        $this->offlineAccessRefused = $pending->offlineAccessRefused;
+        $scopes = $pending->scopes;
+
+        try {
+            $this->verifyCallback($callback, $pending->state, $pending->metadata);
+            $token = $this->tokenEndpoint->request($pending->metadata, $pending->client, array_filter([
+                'grant_type' => Grant::AuthorizationCode->value,
+                'code' => $callback['code'],
+                'redirect_uri' => $pending->redirectUri,
+                'code_verifier' => $pending->codeVerifier,
+                'resource' => $pending->resource,
+            ]), $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+        } catch (AuthorizationException $e) {
+            $scopes = $this->reduceScopes($scopes, $e);
+            $token = $this->grant($pending->metadata, $pending->client, $scopes, $pending->resource);
+        }
+
+        $this->requestedScopes = $scopes;
+        $this->token = $token->withGrantedScopes($scopes);
+        $this->storage->saveToken($pending->metadata->issuer, $pending->resource, $this->token);
     }
 
     /**
@@ -342,17 +394,29 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         try {
             return [$this->grant($metadata, $client, $scopes, $resource), $scopes];
         } catch (AuthorizationException $e) {
-            $reduced = array_values(array_diff($scopes, ['offline_access']));
-
-            if ($reduced === $scopes || (!str_contains($e->getMessage(), 'invalid_scope') && !str_contains($e->getMessage(), 'not_allowed'))) {
-                throw $e;
-            }
-
-            $this->logger->info('The authorization server refused the offline_access scope; retrying without it, at the cost of a refresh token.', ['exception' => $e]);
-            $this->offlineAccessRefused = true;
+            $reduced = $this->reduceScopes($scopes, $e);
 
             return [$this->grant($metadata, $client, $reduced, $resource), $reduced];
         }
+    }
+
+    /**
+     * @param string[] $scopes
+     *
+     * @return string[]
+     */
+    private function reduceScopes(array $scopes, AuthorizationException $e): array
+    {
+        $reduced = array_values(array_diff($scopes, ['offline_access']));
+
+        if ($e instanceof AuthorizationPendingException || $reduced === $scopes || (!str_contains($e->getMessage(), 'invalid_scope') && !str_contains($e->getMessage(), 'not_allowed'))) {
+            throw $e;
+        }
+
+        $this->logger->info('The authorization server refused the offline_access scope; retrying without it, at the cost of a refresh token.', ['exception' => $e]);
+        $this->offlineAccessRefused = true;
+
+        return $reduced;
     }
 
     /**
@@ -397,7 +461,28 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->logger->info('Starting the authorization code flow', ['authorization_endpoint' => $metadata->authorizationEndpoint, 'scope' => $parameters['scope'] ?? null]);
 
-        $callback = $this->authorizationHandler->authorize($url, $this->configuration->redirectUri);
+        try {
+            $callback = $this->authorizationHandler->authorize($url, $this->configuration->redirectUri);
+        } catch (AuthorizationPendingException $e) {
+            if (!$this->storage instanceof PendingAuthorizationStorageInterface) {
+                throw new AuthorizationException('A pending authorization requires PendingAuthorizationStorageInterface.');
+            }
+
+            $this->storage->savePendingAuthorization(new PendingAuthorization(
+                $state,
+                $pkce->verifier,
+                $this->configuration->redirectUri,
+                $resource,
+                $this->audience ?? $resource,
+                $scopes,
+                $metadata,
+                $client,
+                time() + 600,
+                $this->offlineAccessRefused,
+            ));
+
+            throw $e;
+        }
 
         $this->verifyCallback($callback, $state, $metadata);
 
@@ -462,6 +547,18 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
         }
 
+        $this->verifyCallbackOrigin($callback, $state, $metadata);
+
+        if (!isset($callback['code']) || '' === $callback['code']) {
+            throw new AuthorizationException('The authorization response carried no authorization code.');
+        }
+    }
+
+    /**
+     * @param array<string, string> $callback
+     */
+    private function verifyCallbackOrigin(array $callback, string $state, AuthorizationServerMetadata $metadata): void
+    {
         // A response that did not carry back the state this client sent did not come from
         // the request this client made (RFC 6749 section 10.12). Required, not merely
         // checked when present: the loopback listener accepts a connection from any local
@@ -480,10 +577,6 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             }
         } elseif ($metadata->issuerParameterSupported) {
             throw new AuthorizationException(\sprintf('The authorization server "%s" advertises the iss parameter, but its response did not carry one.', $metadata->issuer));
-        }
-
-        if (!isset($callback['code']) || '' === $callback['code']) {
-            throw new AuthorizationException('The authorization response carried no authorization code.');
         }
     }
 

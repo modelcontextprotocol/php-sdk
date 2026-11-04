@@ -5,6 +5,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
+* Add `RedirectAuthorizationHandler` and `OAuthAuthenticator::finishAuthorization()` to complete an authorization code flow in a later request. `PendingAuthorizationStorageInterface` supports expiring, single-use authorization state without changing existing credential storage implementations.
 * Add client-side authorization: pass `auth:` to `HttpTransport` and the client answers a `401` by discovering the resource's authorization server and getting a token, then retries. `Mcp\Client\Auth\OAuth` builds it — `forApplication()` for a user with a browser, `forServiceAccount()` for a daemon — and `BearerToken` sends a token you already have.
   * Discovery: protected resource metadata (RFC 9728) and authorization server metadata (RFC 8414), including the OpenID Connect spellings and the pre-2025-06-18 fallback for servers that publish neither. Metadata naming a different resource or a different issuer than it was fetched for is refused.
   * Grants: authorization code with PKCE (RFC 7636), refresh token, client credentials, and cross-app access via token exchange plus a JWT assertion (RFC 8693, RFC 7523). Client authentication covers `none`, `client_secret_basic`, `client_secret_post` and `private_key_jwt` — the last through `firebase/php-jwt`, suggested rather than required since no other path needs it.
