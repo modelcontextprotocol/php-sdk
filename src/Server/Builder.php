@@ -38,6 +38,7 @@ use Mcp\Schema\Extension\ExtensionInterface;
 use Mcp\Schema\Icon;
 use Mcp\Schema\Implementation;
 use Mcp\Schema\Prompt;
+use Mcp\Schema\Request\DiscoverRequest;
 use Mcp\Schema\ResourceDefinition;
 use Mcp\Schema\ResourceTemplate;
 use Mcp\Schema\ServerCapabilities;
@@ -82,6 +83,7 @@ use Psr\SimpleCache\CacheInterface;
  *     eventDispatcher: ?EventDispatcherInterface,
  *     configuration: Configuration,
  *     messageFactory: MessageFactory,
+ *     modernMessageFactory: MessageFactory,
  *     sessionManager: SessionManagerInterface,
  *     registry: RegistryInterface,
  *     requestHandlers: list<RequestHandlerInterface<mixed>>,
@@ -1008,8 +1010,12 @@ final class Builder
         $parts = $this->assemble();
 
         return new StatelessProtocol(
-            requestHandlers: $parts['requestHandlers'],
-            messageFactory: $parts['messageFactory'],
+            requestHandlers: [
+                ...$parts['requestHandlers'],
+                // Last, so a custom handler supporting DiscoverRequest answers instead.
+                new Handler\Request\DiscoverHandler($parts['configuration'], $supportedVersions),
+            ],
+            messageFactory: $parts['modernMessageFactory'],
             configuration: $parts['configuration'],
             supportedVersions: $supportedVersions,
             logger: $parts['logger'],
@@ -1097,6 +1103,8 @@ final class Builder
         }
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
+        // `server/discover` exists in the modern era only.
+        $modernMessageFactory = MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]);
 
         $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
 
@@ -1143,6 +1151,7 @@ final class Builder
             'registry' => $registry,
             'configuration' => $configuration,
             'messageFactory' => $messageFactory,
+            'modernMessageFactory' => $modernMessageFactory,
             'sessionManager' => $sessionManager,
             'requestHandlers' => $requestHandlers,
             'notificationHandlers' => $notificationHandlers,

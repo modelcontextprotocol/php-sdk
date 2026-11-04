@@ -13,11 +13,17 @@ namespace Mcp\Tests\Unit\Server\Transport;
 
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\DiscoverRequest;
+use Mcp\Schema\Result\DiscoverResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Builder;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\StdioTransport;
@@ -159,6 +165,29 @@ final class StdioDualEraTest extends TestCase
         ]);
 
         $this->assertSame(Error::INVALID_REQUEST, $answers[1]['error']['code']);
+    }
+
+    #[TestDox('a server/discover handler added to the builder answers a modern stdio client')]
+    public function testCustomDiscoverHandlerOverStdio(): void
+    {
+        $answers = $this->serve(self::builder()->addRequestHandler(self::discoverHandler()), [
+            self::modern(1, 'server/discover'),
+        ]);
+
+        $this->assertSame('custom', $answers[1]['result']['instructions']);
+    }
+
+    #[TestDox('a server/discover handler is not reachable on a handshake-era connection')]
+    public function testCustomDiscoverHandlerIsNotReachedOverTheHandshake(): void
+    {
+        $answers = $this->serve(self::builder()->addRequestHandler(self::discoverHandler()), [
+            self::initialize(1),
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'server/discover'],
+        ]);
+
+        $this->assertSame(Error::INVALID_REQUEST, $answers[2]['error']['code']);
+        $this->assertArrayNotHasKey('result', $answers[2]);
     }
 
     #[TestDox('a response is not a request, so one arriving first leaves the era open')]
@@ -343,6 +372,27 @@ final class StdioDualEraTest extends TestCase
         (new \ReflectionMethod($transport, 'processStreams'))->invoke($transport);
 
         $this->assertTrue($writtenBeforeResuming);
+    }
+
+    /**
+     * @return RequestHandlerInterface<DiscoverResult>
+     */
+    private static function discoverHandler(): RequestHandlerInterface
+    {
+        return new class implements RequestHandlerInterface {
+            public function supports(Request $request): bool
+            {
+                return $request instanceof DiscoverRequest;
+            }
+
+            /**
+             * @return Response<DiscoverResult>
+             */
+            public function handle(Request $request, SessionInterface $session): Response
+            {
+                return new Response($request->getId(), new DiscoverResult([ProtocolVersion::V2026_07_28], new ServerCapabilities(), 'custom'));
+            }
+        };
     }
 
     private static function builder(): Builder

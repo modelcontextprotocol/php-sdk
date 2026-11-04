@@ -101,7 +101,9 @@ on this protocol version.
 
 There are two exceptions. The SDK rejects the methods this revision removed (`initialize`, `ping`,
 `logging/setLevel`, `resources/subscribe` and `resources/unsubscribe`) before any handler runs. And the SDK answers
-`server/discover` and `subscriptions/listen` itself, so your handlers never see them.
+`subscriptions/listen` itself, so your handlers never see it. `server/discover` is answered by the SDK's
+`DiscoverHandler`, which a handler of your own can replace, see
+[Customizing `server/discover`](../run/protocol-eras.md#customizing-serverdiscover).
 
 ## Key Differences
 

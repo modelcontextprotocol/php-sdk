@@ -109,6 +109,54 @@ Both legs come from **one** builder configuration — one registry, one set of h
 instances, one session manager. A tool registered once is reachable from both, and a change
 made through one is visible to the other.
 
+## Customizing `server/discover`
+
+`server/discover` is answered by `DiscoverHandler`, a request handler like the one answering
+`initialize`. It reports the modern revisions the dispatcher serves, the builder's capabilities
+and the instructions set with `setInstructions()`, which `initialize` reports too.
+
+A server that needs a different answer per era, say instructions that leave out tools a
+stateless client cannot use, listens for the `ResponseEvent` of a `DiscoverRequest` and replaces
+the member it wants to change. `server/discover` dispatches the same `RequestEvent`,
+`ResponseEvent` and `ErrorEvent` as every other request:
+
+```php
+use Mcp\Event\ResponseEvent;
+use Mcp\Schema\JsonRpc\Response;
+use Mcp\Schema\Request\DiscoverRequest;
+use Mcp\Schema\Result\DiscoverResult;
+use Mcp\Server;
+use Symfony\Component\EventDispatcher\EventDispatcher;
+
+$dispatcher = new EventDispatcher();
+$dispatcher->addListener(ResponseEvent::class, function (ResponseEvent $event) {
+    $result = $event->getResponse()->result;
+
+    if (!$event->getRequest() instanceof DiscoverRequest || !$result instanceof DiscoverResult) {
+        return;
+    }
+
+    $event->setResponse(new Response($event->getResponse()->getId(), new DiscoverResult(
+        $result->supportedVersions,
+        $result->capabilities,
+        'Call search_products to look up products.',
+    )));
+});
+
+$server = Server::builder()
+    ->setInstructions('Enable the catalog toolset, then call search_products.')
+    ->setEventDispatcher($dispatcher)
+    ->build();
+```
+
+The versions and capabilities stay the ones the server computed. To build the whole answer
+yourself instead, add a handler supporting `DiscoverRequest` with `addRequestHandler()`: custom
+handlers run before the defaults, so it answers instead of `DiscoverHandler`.
+
+Either way the answer stays a plain JSON response, even to a client that accepts
+`text/event-stream`, and the wire members `resultType`, the caching hints and `serverInfo` are
+still added to it. The handshake era has no `server/discover`, so neither is reachable from it.
+
 ## Over stdio
 
 `StdioTransport` serves both eras too, but stdio carries one client per process, so the era is

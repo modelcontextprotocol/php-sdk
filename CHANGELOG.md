@@ -26,6 +26,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Add `Psr6SessionStore` and `Psr6NotificationBus`, which work like `Psr16SessionStore` and `Psr16NotificationBus` over a PSR-6 cache pool. `Builder::setDiscovery()` also accepts a PSR-6 pool as `$cache`.
 * Fix a nullable tool parameter with a default (e.g. `?string $category = 'books'`) receiving the default when the client explicitly sends `null`: `ReferenceHandler` now passes the `null` through.
 * Fix a `subscriptions/listen` stream that can carry nothing (the server announces none of the requested types, or the client asks for none) being held open for the full subscription lifetime: it is acknowledged with an empty `notifications` filter and closed gracefully right away, instead of pinning a PHP-FPM worker. Adds `NotificationFilter::isEmpty()`.
+* [BC Break] Answer `server/discover` with `DiscoverHandler`, which a handler added through `Builder::addRequestHandler()` can replace, and dispatch `RequestEvent`, `ResponseEvent` and `ErrorEvent` for it. A `StatelessProtocol` built without the `Builder` needs `DiscoverHandler` and a `MessageFactory` with `DiscoverRequest` to answer it.
 
 ### Client
 
