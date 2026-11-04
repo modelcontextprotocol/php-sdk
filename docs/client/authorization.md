@@ -88,6 +88,40 @@ final class QueueTheUserForApproval implements AuthorizationHandlerInterface
 
 `state` and `iss` are verified by the SDK, so return them if you have them.
 
+### Web application callbacks
+
+For a callback that arrives in a later HTTP request, use `RedirectAuthorizationHandler`
+with persistent storage scoped to the browser session that starts the flow:
+
+```php
+use Mcp\Client\Auth\FileCredentialStorage;
+use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
+use Mcp\Exception\AuthorizationPendingException;
+
+$auth = OAuth::forApplication('My Web App')
+    ->setRedirectUri('https://app.example.com/oauth/callback')
+    ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+    ->setCredentialStorage(new FileCredentialStorage($sessionCredentialPath))
+    ->build();
+```
+
+Catch `AuthorizationPendingException` around the MCP operation and redirect the browser
+to `$e->authorizationUrl`. The SDK saves the state, PKCE verifier and authorization
+context before the exception reaches your application. In the callback route, rebuild
+the authenticator with the same configuration and session storage and call
+`$auth->finishAuthorization($callbackParameters)`, then retry the MCP operation.
+The callback may also throw `AuthorizationPendingException` if the server refuses
+`offline_access` and authorization needs to restart without that scope.
+
+Pending flows expire after ten minutes and are consumed once, before issuer/code
+validation and token exchange; restart authorization if completion fails. Custom
+storage must implement `PendingAuthorizationStorageInterface` with atomic consumption.
+`InMemoryCredentialStorage` cannot persist state across independent PHP requests.
+Resolve the storage from the current browser session, never from callback parameters,
+and do not share it between users. In long-running workers, create an authenticator
+per user request; tokens are also held in the authenticator's memory.
+
 ### The redirect URI
 
 The default is `http://127.0.0.1:8765/callback`. Change it with `setRedirectUri()` when

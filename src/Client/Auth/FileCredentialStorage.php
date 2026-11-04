@@ -24,11 +24,8 @@ use Mcp\Exception\RuntimeException;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class FileCredentialStorage implements CredentialStorageInterface
+final class FileCredentialStorage implements PendingAuthorizationStorageInterface
 {
-    /** @var array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>}|null */
-    private ?array $data = null;
-
     public function __construct(private readonly string $path)
     {
     }
@@ -51,10 +48,9 @@ final class FileCredentialStorage implements CredentialStorageInterface
 
     public function saveClientRegistration(string $issuer, ClientRegistration $registration): void
     {
-        $data = $this->read();
-        $data['registrations'][$issuer] = $registration->jsonSerialize();
-
-        $this->write($data);
+        $this->update(static function (array &$data) use ($issuer, $registration): void {
+            $data['registrations'][$issuer] = $registration->jsonSerialize();
+        });
     }
 
     public function getToken(string $issuer, string $resource): ?AccessToken
@@ -74,37 +70,69 @@ final class FileCredentialStorage implements CredentialStorageInterface
 
     public function saveToken(string $issuer, string $resource, AccessToken $token): void
     {
-        $data = $this->read();
-        $data['tokens'][$issuer][$resource] = $token->jsonSerialize();
+        $this->update(static function (array &$data) use ($issuer, $resource, $token): void {
+            $data['tokens'][$issuer][$resource] = $token->jsonSerialize();
+        });
+    }
 
-        $this->write($data);
+    public function savePendingAuthorization(PendingAuthorization $authorization): void
+    {
+        $this->update(static function (array &$data) use ($authorization): void {
+            foreach ($data['pending'] as $state => $pending) {
+                if (($pending['expires_at'] ?? 0) <= time()) {
+                    unset($data['pending'][$state]);
+                }
+            }
+
+            $data['pending'][$authorization->state] = $authorization->jsonSerialize();
+        });
+    }
+
+    public function consumePendingAuthorization(string $state): ?PendingAuthorization
+    {
+        $pending = null;
+        $this->update(static function (array &$data) use ($state, &$pending): void {
+            $pending = $data['pending'][$state] ?? null;
+            unset($data['pending'][$state]);
+        });
+
+        if (!\is_array($pending)) {
+            return null;
+        }
+
+        try {
+            return PendingAuthorization::fromArray($pending);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
     }
 
     public function forget(?string $issuer = null): void
     {
-        if (null === $issuer) {
-            $this->write(['registrations' => [], 'tokens' => []]);
+        $this->update(static function (array &$data) use ($issuer): void {
+            if (null === $issuer) {
+                $data = ['registrations' => [], 'tokens' => [], 'pending' => []];
 
-            return;
-        }
+                return;
+            }
 
-        $data = $this->read();
-        unset($data['registrations'][$issuer], $data['tokens'][$issuer]);
+            unset($data['registrations'][$issuer], $data['tokens'][$issuer]);
 
-        $this->write($data);
+            foreach ($data['pending'] as $state => $pending) {
+                if (($pending['metadata']['issuer'] ?? null) === $issuer) {
+                    unset($data['pending'][$state]);
+                }
+            }
+        });
     }
 
     /**
-     * @return array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>}
+     * @return array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>}
      */
     private function read(): array
     {
-        if (null !== $this->data) {
-            return $this->data;
-        }
-
         if (!is_file($this->path)) {
-            return $this->data = ['registrations' => [], 'tokens' => []];
+            return ['registrations' => [], 'tokens' => [], 'pending' => []];
         }
 
         $contents = file_get_contents($this->path);
@@ -113,27 +141,53 @@ final class FileCredentialStorage implements CredentialStorageInterface
         if (!\is_array($decoded)) {
             // A truncated or hand-edited file is not worth failing a connection over:
             // the worst case is one more trip through the authorization flow.
-            return $this->data = ['registrations' => [], 'tokens' => []];
+            return ['registrations' => [], 'tokens' => [], 'pending' => []];
         }
 
-        return $this->data = [
+        return [
             'registrations' => \is_array($decoded['registrations'] ?? null) ? $decoded['registrations'] : [],
             'tokens' => \is_array($decoded['tokens'] ?? null) ? $decoded['tokens'] : [],
+            'pending' => \is_array($decoded['pending'] ?? null) ? $decoded['pending'] : [],
         ];
     }
 
     /**
-     * @param array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>} $data
+     * @param \Closure(array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>}&): void $mutate
      */
-    private function write(array $data): void
+    private function update(\Closure $mutate): void
     {
-        $this->data = $data;
         $directory = \dirname($this->path);
 
         if (!is_dir($directory) && !@mkdir($directory, 0700, true) && !is_dir($directory)) {
             throw new RuntimeException(\sprintf('Could not create the credential directory "%s".', $directory));
         }
 
+        $lock = @fopen($this->path.'.lock', 'c');
+
+        if (false === $lock) {
+            throw new RuntimeException('Could not open the credential storage lock.');
+        }
+
+        try {
+            if (!flock($lock, \LOCK_EX)) {
+                throw new RuntimeException('Could not lock the credential storage.');
+            }
+
+            $data = $this->read();
+            $mutate($data);
+            $this->write($data);
+        } finally {
+            flock($lock, \LOCK_UN);
+            fclose($lock);
+        }
+    }
+
+    /**
+     * @param array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>} $data
+     */
+    private function write(array $data): void
+    {
+        $directory = \dirname($this->path);
         $encoded = json_encode($data, \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES);
 
         if (false === $encoded) {

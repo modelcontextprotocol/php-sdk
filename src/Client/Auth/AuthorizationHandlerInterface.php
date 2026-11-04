@@ -34,7 +34,8 @@ interface AuthorizationHandlerInterface
      *
      * @return array<string, string> the callback's query parameters
      *
-     * @throws \Mcp\Exception\AuthorizationException when the user could not be sent, or did not come back
+     * @throws \Mcp\Exception\AuthorizationException        when the user could not be sent, or did not come back
+     * @throws \Mcp\Exception\AuthorizationPendingException to persist the flow and redirect from a web application
      */
     public function authorize(string $authorizationUrl, string $redirectUri): array;
 }
