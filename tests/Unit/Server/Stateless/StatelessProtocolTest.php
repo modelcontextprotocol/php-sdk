@@ -586,8 +586,7 @@ class StatelessProtocolTest extends TestCase
     /**
      * A handler asking twice: the second round has to remember the first
      * round's answer, which is what the `requestState` is for.
-     */
-    /**
+     *
      * @param string|list<string>|null $key the signing key or key ring, a fixed test key by default
      */
     private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null, string|array|null $key = null): StatelessProtocol

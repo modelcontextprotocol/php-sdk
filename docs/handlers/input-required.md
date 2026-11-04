@@ -150,6 +150,9 @@ Pass a list of keys instead of one, and the first key signs while every key veri
 ->setRequestState([$_ENV['MCP_REQUEST_STATE_KEY'], $_ENV['MCP_REQUEST_STATE_KEY_PREVIOUS']], ttl: 600)
 ```
 
+Every entry must be a key: once the rotation is done, go back to a single key instead of
+leaving an unset variable in the list.
+
 A state names no key, so the wire format does not change and a single key is a ring of one.
 To rotate without failing the calls in flight:
 
