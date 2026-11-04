@@ -164,10 +164,13 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
     protected function processInput(): void
     {
+        // fgets() on an idle Windows pipe blocks even in non-blocking mode, then reports a false EOF.
+        if (!$this->waitForInput()) {
+            return;
+        }
+
         $line = fgets($this->input, $this->maxLineBytes);
         if (false === $line) {
-            $this->waitForInput();
-
             return;
         }
 
@@ -204,14 +207,16 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
      * Idles until input arrives, for at most 50ms, so the run loop still gets
      * to suspended fibers, open streams and queued messages in between.
      */
-    private function waitForInput(): void
+    private function waitForInput(): bool
     {
         $read = [$this->input];
         $write = $except = null;
 
-        // Streams that cannot be selected, like php://memory, fall back to sleeping.
-        if (false === @stream_select($read, $write, $except, 0, 50000)) {
-            usleep(50000);
+        // A stream that cannot be selected, like php://memory, warns and throws, so it is just read.
+        try {
+            return 0 !== @stream_select($read, $write, $except, 0, 50000);
+        } catch (\ValueError) {
+            return true;
         }
     }
 
