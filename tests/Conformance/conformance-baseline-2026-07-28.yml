@@ -5,6 +5,7 @@ client:
   - auth/metadata-var2
   - auth/metadata-var3
   - auth/metadata-issuer-mismatch
+  - auth/resource-mismatch
   - auth/basic-cimd
   - auth/pre-registration
   - auth/scope-from-www-authenticate

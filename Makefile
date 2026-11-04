@@ -3,7 +3,7 @@
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
 # .github/workflows/pipeline.yaml), so a local pass means a green pipeline.
-CONFORMANCE_VERSION ?= 0.2.0-alpha.11
+CONFORMANCE_VERSION ?= 0.2.0-alpha.12
 CONFORMANCE = npx --yes @modelcontextprotocol/conformance@$(CONFORMANCE_VERSION)
 
 # The documentation toolchain is Python (Zensical, see requirements-docs.txt),
