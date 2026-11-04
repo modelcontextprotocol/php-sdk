@@ -48,6 +48,9 @@ final class AuthenticatingHttpClient implements ClientInterface
 
     public function sendRequest(RequestInterface $request): ResponseInterface
     {
+        $body = $request->getBody();
+        $position = $body->isSeekable() ? $body->tell() : null;
+
         $sent = $this->authenticator->authenticate($request);
         $response = $this->client->sendRequest($sent);
 
@@ -62,14 +65,12 @@ final class AuthenticatingHttpClient implements ClientInterface
                 return $response;
             }
 
-            $body = $request->getBody();
-
             // A consumed body that cannot be replayed would go out empty or truncated.
-            if (!$body->isSeekable()) {
+            if (null === $position) {
                 return $response;
             }
 
-            $body->rewind();
+            $body->seek($position);
             $response->getBody()->close();
 
             $sent = $this->authenticator->authenticate($request);
