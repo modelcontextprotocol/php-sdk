@@ -9,7 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
 * [BC Break] Fix a `DELETE` of an unknown or ended session being answered `200` instead of the `404` the spec requires: `Protocol::destroySession()` and `BaseTransport::handleSessionEnd()` return `false` for such a session, as does the listener of `TransportInterface::onSessionEnd()`. A listener that returns nothing keeps the `200`.
-* [BC Break] `Builder::build()` throws a `RuntimeException` when `setDiscovery()` is used without `symfony/finder` and without a custom discoverer, instead of logging a warning and discovering nothing
+* [BC Break] `Builder::build()` and `Builder::buildStateless()` throw a `RuntimeException` when `setDiscovery()` is used without `symfony/finder` and without a custom discoverer, instead of logging a warning and discovering nothing
 * Fix tools with an array shape parameter whose keys are nullable or unions (e.g. `array{name: string, nickname: string|null}`) rejecting valid arguments with `-32602`: a `null` inside the shape no longer turns the parameter into `array|null`, and such keys get their own types instead of `object`, including lists and nested shapes (`string[]|null`, `array{x: int}|null`).
 * Fix `array<string|null>` and other generics with a union element getting `items` of type `object`. A `null` inside a generic no longer makes the parameter nullable, and neither does a DocBlock class whose name contains `null`.
 * Fix `InMemorySessionStore::exists()` reporting a session past its TTL as existing, while `read()` already treated it as gone.
