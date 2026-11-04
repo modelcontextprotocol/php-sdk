@@ -88,13 +88,13 @@ final class MetadataDiscovery
             }
 
             if ($metadata->issuer !== $issuer) {
-                $this->logger->error('Discarding authorization server metadata: the document\'s issuer does not match the issuer it was requested for.', [
+                $this->logger->warning('Discarding authorization server metadata: the document\'s issuer does not match the issuer it was requested for.', [
                     'expected_issuer' => $issuer,
                     'metadata_issuer' => $metadata->issuer,
                     'url' => $candidate,
                 ]);
 
-                return null;
+                continue;
             }
 
             return $metadata;
@@ -133,7 +133,7 @@ final class MetadataDiscovery
         }
 
         $origin = self::origin($parts);
-        $path = trim($parts['path'] ?? '', '/');
+        $path = substr(rtrim($parts['path'] ?? '', '/'), 1);
 
         if ('' === $path) {
             return [
