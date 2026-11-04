@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\AuthenticatingHttpClient;
 use Mcp\Client\Auth\AuthenticatorInterface;
 use Mcp\Client\Auth\BearerToken;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
@@ -114,6 +115,51 @@ final class AuthenticatingHttpClientTest extends TestCase
         $this->assertSame([true], $authenticator->readableBodies);
         $this->assertSame([false], $inner->previousStillReadable);
         $this->assertTrue($response->getBody()->isReadable());
+    }
+
+    #[TestDox('a challenge handler that throws leaves no rejected response open')]
+    public function testClosesTheRejectedResponseWhenTheChallengeThrows(): void
+    {
+        $rejected = new Response(401, [], 'body');
+        $inner = $this->createStub(ClientInterface::class);
+        $inner->method('sendRequest')->willReturn($rejected);
+
+        $authenticator = $this->createStub(AuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willReturnArgument(0);
+        $authenticator->method('handleChallenge')->willThrowException(new AuthorizationException('Sign-in failed.'));
+
+        try {
+            (new AuthenticatingHttpClient($inner, $authenticator))
+                ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
+            $this->fail('The challenge failure should have reached the caller.');
+        } catch (AuthorizationException $e) {
+            $this->assertSame('Sign-in failed.', $e->getMessage());
+        }
+
+        $this->assertFalse($rejected->getBody()->isReadable());
+    }
+
+    #[TestDox('a body that fails to seek leaves no rejected response open')]
+    public function testClosesTheRejectedResponseWhenTheBodyCannotSeek(): void
+    {
+        $rejected = new Response(401, [], 'body');
+        $inner = $this->createStub(ClientInterface::class);
+        $inner->method('sendRequest')->willReturn($rejected);
+
+        $body = $this->createStub(StreamInterface::class);
+        $body->method('isSeekable')->willReturn(true);
+        $body->method('tell')->willReturn(0);
+        $body->method('seek')->willThrowException(new \RuntimeException('Unable to seek.'));
+
+        try {
+            (new AuthenticatingHttpClient($inner, new CountingAuthenticator()))
+                ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp')->withBody($body));
+            $this->fail('The seek failure should have reached the caller.');
+        } catch (\RuntimeException $e) {
+            $this->assertSame('Unable to seek.', $e->getMessage());
+        }
+
+        $this->assertFalse($rejected->getBody()->isReadable());
     }
 
     #[TestDox('a body that cannot be replayed ends the exchange after the challenge')]
