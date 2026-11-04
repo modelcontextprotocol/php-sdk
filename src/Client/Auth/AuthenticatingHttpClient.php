@@ -61,7 +61,15 @@ final class AuthenticatingHttpClient implements ClientInterface
 
             // The request as it actually went out, credentials and all: the
             // authenticator needs to see which of them the server just rejected.
-            if (!$this->authenticator->handleChallenge($sent, $response)) {
+            try {
+                $retry = $this->authenticator->handleChallenge($sent, $response);
+            } catch (\Throwable $e) {
+                $response->getBody()->close();
+
+                throw $e;
+            }
+
+            if (!$retry) {
                 return $response;
             }
 
@@ -70,8 +78,8 @@ final class AuthenticatingHttpClient implements ClientInterface
                 return $response;
             }
 
-            $body->seek($position);
             $response->getBody()->close();
+            $body->seek($position);
 
             $sent = $this->authenticator->authenticate($request);
             $response = $this->client->sendRequest($sent);
