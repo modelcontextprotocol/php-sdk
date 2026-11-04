@@ -122,6 +122,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.9.0
 -----
 
+* Add `RedirectAuthorizationHandler` and `OAuthAuthenticator::finishAuthorization()` to complete an authorization code flow in a later request. `PendingAuthorizationStorageInterface` supports expiring, single-use authorization state without changing existing credential storage implementations.
 ### TL;DR
 
 * Concurrent requests of one session keep their own answers, session changes and fibers

@@ -17,14 +17,18 @@ use Mcp\Client\Auth\ClientRegistrar;
 use Mcp\Client\Auth\ClientRegistration;
 use Mcp\Client\Auth\CredentialStorageInterface;
 use Mcp\Client\Auth\CrossAppAccess;
+use Mcp\Client\Auth\FileCredentialStorage;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
+use Mcp\Client\Auth\PendingAuthorization;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
 use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\OAuthErrorException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
@@ -546,6 +550,196 @@ final class OAuthAuthenticatorTest extends TestCase
 
         $this->assertNotContains('https://auth.example.com/register', $server->requested);
         $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
+    }
+
+    public function testFinishesAuthorizationInAnotherRequest(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'mcp-pending-');
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read']);
+        $authenticator = $this->authenticator($server, new RedirectAuthorizationHandler(), new FileCredentialStorage($path));
+
+        try {
+            try {
+                $authenticator->handleChallenge($this->request(), $server->challenge());
+                $this->fail('Expected a redirect.');
+            } catch (AuthorizationPendingException $e) {
+                $server->recordAuthorization($e->authorizationUrl);
+            }
+
+            unset($authenticator);
+            $saved = json_decode(file_get_contents($path), true);
+            $this->assertCount(1, $saved['pending']);
+            $resumed = $this->authenticator($server, storage: new FileCredentialStorage($path));
+            $resumed->finishAuthorization([
+                'state' => $server->authorization['state'],
+                'iss' => 'https://auth.example.com',
+                'code' => 'test-authorization-code',
+            ]);
+
+            $this->assertSame('Bearer access-token-1', $resumed->authenticate($this->request())->getHeaderLine('Authorization'));
+            $this->assertSame($server->authorization['code_challenge'], rtrim(strtr(base64_encode(hash('sha256', $server->token['code_verifier'], true)), '+/', '-_'), '='));
+            $this->assertSame($server->authorization['redirect_uri'], $server->token['redirect_uri']);
+            $this->assertSame($server->authorization['resource'], $server->token['resource']);
+            $stored = (new FileCredentialStorage($path))->getToken('https://auth.example.com', self::ENDPOINT);
+            $this->assertSame(['mcp:read'], $stored?->scopes);
+            $this->assertSame([], json_decode(file_get_contents($path), true)['pending']);
+        } finally {
+            unlink($path);
+            @unlink($path.'.lock');
+        }
+    }
+
+    #[DataProvider('invalidDeferredCallbacks')]
+    public function testRejectsInvalidDeferredCallbacks(array $replacement): void
+    {
+        $server = new FakeOAuthServer(serverScopes: ['mcp:read', 'offline_access']);
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $resumed = $this->authenticator($server, storage: $storage);
+
+        try {
+            $resumed->finishAuthorization(array_filter(array_replace($callback, $replacement), static fn ($value) => null !== $value));
+            $this->fail('Expected an invalid callback to be rejected.');
+        } catch (AuthorizationException $e) {
+            $this->assertNotInstanceOf(AuthorizationPendingException::class, $e);
+            $this->assertNotContains('https://auth.example.com/token', $server->requested);
+            $this->assertNull($storage->getToken('https://auth.example.com', self::ENDPOINT));
+        }
+    }
+
+    public static function invalidDeferredCallbacks(): iterable
+    {
+        yield 'unknown state' => [['state' => 'unknown']];
+        yield 'empty state' => [['state' => '']];
+        yield 'missing state' => [['state' => null]];
+        yield 'array state' => [['state' => ['attacker']]];
+        yield 'wrong issuer' => [['iss' => 'https://attacker.example.com']];
+        yield 'missing issuer' => [['iss' => null]];
+        yield 'array issuer' => [['iss' => ['attacker']]];
+        yield 'empty code' => [['code' => '']];
+        yield 'missing code' => [['code' => null]];
+        yield 'array code' => [['code' => ['attacker']]];
+        yield 'denied' => [['error' => 'access_denied']];
+        yield 'untrusted scope error' => [['iss' => 'https://attacker.example.com', 'error' => 'invalid_scope']];
+        yield 'scope error in issuer' => [['iss' => 'https://invalid_scope.example.com']];
+    }
+
+    public function testDeferredCallbackCanOnlyBeConsumedOnce(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('does not match a pending authorization');
+        $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+    }
+
+    public function testDeferredAuthorizationExpires(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+        $pending = $storage->consumePendingAuthorization($callback['state']);
+        $data = $pending->jsonSerialize();
+        $data['expires_at'] = time() - 1;
+        $storage->savePendingAuthorization(PendingAuthorization::fromArray($data));
+
+        $this->expectException(AuthorizationException::class);
+        $this->authenticator($server, storage: $storage)->finishAuthorization($callback);
+    }
+
+    public function testCallbackCannotBeCompletedWithAnotherUsersStorage(): void
+    {
+        $server = new FakeOAuthServer();
+        $callback = $this->startPending($server, new InMemoryCredentialStorage());
+
+        $this->expectException(AuthorizationException::class);
+        $this->authenticator($server, storage: new InMemoryCredentialStorage())->finishAuthorization($callback);
+    }
+
+    #[DataProvider('offlineAccessRefusals')]
+    public function testDeferredOfflineAccessFallback(bool $atCallback): void
+    {
+        $server = new FakeOAuthServer(resourceScopes: ['mcp:read'], serverScopes: ['mcp:read', 'offline_access'], refuseOfflineAccess: !$atCallback);
+        $storage = new InMemoryCredentialStorage();
+        $callback = $this->startPending($server, $storage);
+
+        if ($atCallback) {
+            $callback['error'] = 'invalid_scope';
+            unset($callback['code']);
+        }
+
+        try {
+            $this->authenticator($server, new RedirectAuthorizationHandler(), $storage)->finishAuthorization($callback);
+            $this->fail('Expected a new redirect without offline_access.');
+        } catch (AuthorizationPendingException $e) {
+            $server->recordAuthorization($e->authorizationUrl);
+        }
+
+        $this->assertSame('mcp:read', $server->authorization['scope']);
+        $this->assertNotSame($callback['state'], $server->authorization['state']);
+        $resumed = $this->authenticator($server, storage: $storage);
+        $resumed->finishAuthorization(['code' => 'new-code', 'state' => $server->authorization['state'], 'iss' => 'https://auth.example.com']);
+        $this->assertSame('Bearer access-token-1', $resumed->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    public static function offlineAccessRefusals(): iterable
+    {
+        yield 'authorization endpoint' => [true];
+        yield 'token endpoint' => [false];
+    }
+
+    public function testSynchronousAuthorizationPreservesErrorResponses(): void
+    {
+        $server = new FakeOAuthServer();
+        $handler = $this->createStub(AuthorizationHandlerInterface::class);
+        $handler->method('authorize')->willReturnCallback(static function (string $url): array {
+            parse_str((string) parse_url($url, \PHP_URL_QUERY), $query);
+
+            return ['error' => 'access_denied', 'state' => $query['state'], 'iss' => 'https://auth.example.com'];
+        });
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('The authorization server denied the request: access_denied');
+        $this->authenticator($server, $handler)->handleChallenge($this->request(), $server->challenge());
+    }
+
+    public function testSynchronousAuthorizationSupportsExistingCredentialStorage(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = $this->createMock(CredentialStorageInterface::class);
+        $storage->expects($this->once())->method('saveToken')->with('https://auth.example.com', self::ENDPOINT, $this->isInstanceOf(AccessToken::class));
+
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    public function testDeferredAuthorizationRequiresPendingStorage(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, new RedirectAuthorizationHandler(), $this->createStub(CredentialStorageInterface::class));
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('requires PendingAuthorizationStorageInterface');
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function startPending(FakeOAuthServer $server, CredentialStorageInterface $storage, ?OAuth $configuration = null): array
+    {
+        try {
+            $this->authenticator($server, new RedirectAuthorizationHandler(), $storage, $configuration)->handleChallenge($this->request(), $server->challenge());
+            $this->fail('Expected an authorization redirect.');
+        } catch (AuthorizationPendingException $e) {
+            $server->recordAuthorization($e->authorizationUrl);
+        }
+
+        return ['code' => 'test-code', 'state' => $server->authorization['state'], 'iss' => 'https://auth.example.com'];
     }
 
     /**

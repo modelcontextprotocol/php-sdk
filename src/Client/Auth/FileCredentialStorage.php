@@ -19,7 +19,7 @@ use Mcp\Exception\RuntimeException;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class FileCredentialStorage implements CredentialStorageInterface
+final class FileCredentialStorage implements PendingAuthorizationStorageInterface
 {
     public function __construct(private readonly string $path)
     {
@@ -74,14 +74,56 @@ final class FileCredentialStorage implements CredentialStorageInterface
         });
     }
 
+    public function savePendingAuthorization(PendingAuthorization $authorization): void
+    {
+        $this->update(static function (array $data) use ($authorization): array {
+            foreach ($data['pending'] as $state => $pending) {
+                if (($pending['expires_at'] ?? 0) <= time()) {
+                    unset($data['pending'][$state]);
+                }
+            }
+
+            $data['pending'][$authorization->state] = $authorization->jsonSerialize();
+
+            return $data;
+        });
+    }
+
+    public function consumePendingAuthorization(string $state): ?PendingAuthorization
+    {
+        $pending = null;
+        $this->update(static function (array $data) use ($state, &$pending): array {
+            $pending = $data['pending'][$state] ?? null;
+            unset($data['pending'][$state]);
+
+            return $data;
+        });
+
+        if (!\is_array($pending)) {
+            return null;
+        }
+
+        try {
+            return PendingAuthorization::fromArray($pending);
+        } catch (InvalidArgumentException) {
+            return null;
+        }
+    }
+
     public function forget(?string $issuer = null): void
     {
         $this->update(static function (array $data) use ($issuer): array {
             if (null === $issuer) {
-                return ['registrations' => [], 'tokens' => []];
+                return ['registrations' => [], 'tokens' => [], 'pending' => []];
             }
 
             unset($data['registrations'][$issuer], $data['tokens'][$issuer]);
+
+            foreach ($data['pending'] as $state => $pending) {
+                if (($pending['metadata']['issuer'] ?? null) === $issuer) {
+                    unset($data['pending'][$state]);
+                }
+            }
 
             return $data;
         });
@@ -94,12 +136,12 @@ final class FileCredentialStorage implements CredentialStorageInterface
     }
 
     /**
-     * @return array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>}
+     * @return array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>}
      */
     private function read(): array
     {
         if (!is_file($this->path)) {
-            return ['registrations' => [], 'tokens' => []];
+            return ['registrations' => [], 'tokens' => [], 'pending' => []];
         }
 
         $contents = file_get_contents($this->path);
@@ -107,19 +149,20 @@ final class FileCredentialStorage implements CredentialStorageInterface
 
         if (!\is_array($decoded)) {
             // Not worth failing a connection over: the worst case is one more authorization.
-            return ['registrations' => [], 'tokens' => []];
+            return ['registrations' => [], 'tokens' => [], 'pending' => []];
         }
 
         return [
             'registrations' => \is_array($decoded['registrations'] ?? null) ? $decoded['registrations'] : [],
             'tokens' => \is_array($decoded['tokens'] ?? null) ? array_filter($decoded['tokens'], 'is_array') : [],
+            'pending' => \is_array($decoded['pending'] ?? null) ? array_filter($decoded['pending'], 'is_array') : [],
         ];
     }
 
     /**
      * Applies a change under an exclusive lock, so another process can't overwrite it.
      *
-     * @param callable(array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>}): array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>} $change
+     * @param callable(array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>}): array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>} $change
      */
     private function update(callable $change): void
     {
@@ -164,7 +207,7 @@ final class FileCredentialStorage implements CredentialStorageInterface
     }
 
     /**
-     * @param array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>} $data
+     * @param array{registrations: array<string, array<string, mixed>>, tokens: array<string, array<string, array<string, mixed>>>, pending: array<string, array<string, mixed>>} $data
      */
     private function write(array $data): void
     {

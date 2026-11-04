@@ -17,6 +17,7 @@ use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\AuthorizationPendingException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\InvalidArgumentException;
@@ -113,6 +114,11 @@ class Client
                 $this->protocol->getState()->setInitialized(false);
 
                 $transport->close();
+
+                // The application has to send the user to the authorization server first.
+                if ($e instanceof AuthorizationPendingException) {
+                    throw $e;
+                }
 
                 // Anything else, like a malformed initialize result, is not
                 // transient and would fail every retry the same way.

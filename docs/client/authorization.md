@@ -72,6 +72,42 @@ final class AcmeAuthorizationHandler implements AuthorizationHandlerInterface
 
 The default redirect URI is `http://127.0.0.1:8765/callback`. Change it with `setRedirectUri()` if the port is in use or if the authorization server expects another one. The URI must use `https` or a loopback host (e.g. `127.0.0.1`), and must not have a fragment or userinfo. Otherwise, `build()` throws an `InvalidArgumentException`. The loopback handler listens on the host and port of this URI, so it only works with `http` on a loopback host. For an `https` URI, implement your own handler.
 
+### Web application callbacks
+
+For a callback that arrives in a later HTTP request, use `RedirectAuthorizationHandler`
+with persistent storage scoped to the browser session that starts the flow:
+
+```php
+use Mcp\Client\Auth\FileCredentialStorage;
+use Mcp\Client\Auth\OAuth;
+use Mcp\Client\Auth\RedirectAuthorizationHandler;
+use Mcp\Exception\AuthorizationPendingException;
+
+$auth = OAuth::forApplication('My Web App')
+    ->setRedirectUri('https://app.example.com/oauth/callback')
+    ->setAuthorizationHandler(new RedirectAuthorizationHandler())
+    ->setCredentialStorage(new FileCredentialStorage($sessionCredentialPath))
+    ->build();
+```
+
+Catch `AuthorizationPendingException` around the MCP operation and redirect the browser
+to `$e->authorizationUrl`. The SDK saves the state, PKCE verifier and authorization
+context before the exception reaches your application. In the callback route, rebuild
+the authenticator with the same configuration and session storage and call
+`$auth->finishAuthorization($callbackParameters)`, then retry the MCP operation.
+The callback may also throw `AuthorizationPendingException` if the server refuses
+`offline_access` and authorization needs to restart without that scope.
+
+Pending flows expire after ten minutes and are consumed once, before issuer/code
+validation and token exchange; restart authorization if completion fails. Custom
+storage must implement `PendingAuthorizationStorageInterface` with atomic consumption.
+`InMemoryCredentialStorage` cannot persist state across independent PHP requests.
+Resolve the storage from the current browser session, never from callback parameters,
+and do not share it between users. In long-running workers, create an authenticator
+per user request; tokens are also held in the authenticator's memory.
+
+### The redirect URI
+
 ## Storing Credentials
 
 By default, the client keeps its tokens in memory. A command line application then sends the user to the browser on every run. Use `FileCredentialStorage` to keep them between runs:
