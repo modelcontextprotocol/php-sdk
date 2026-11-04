@@ -16,6 +16,7 @@ use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
 use Mcp\Client\Auth\TokenEndpointAuthMethod;
 use Mcp\Exception\InvalidArgumentException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 
@@ -31,6 +32,26 @@ final class OAuthTest extends TestCase
         $this->assertSame('native', $configuration->clientMetadata->applicationType);
         $this->assertTrue($configuration->offlineAccess);
         $this->assertNull($configuration->clientId);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidClientMetadataUrlProvider(): iterable
+    {
+        yield 'plain http' => ['http://app.example.com/client.json'];
+        yield 'no path' => ['https://app.example.com'];
+        yield 'the root path' => ['https://app.example.com/'];
+        yield 'not a URL' => ['client.json'];
+    }
+
+    #[DataProvider('invalidClientMetadataUrlProvider')]
+    #[TestDox('a client metadata URL needs https and a path: $_dataName')]
+    public function testRejectsAnInvalidClientMetadataUrl(string $url): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        OAuth::forApplication('My App')->setClientMetadataUrl($url);
     }
 
     #[TestDox('the redirect URI the handler listens on is the one registered')]

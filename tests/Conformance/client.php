@@ -127,6 +127,12 @@ function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInte
         $oauth->setLegacyDiscovery(true);
     }
 
+    // The client metadata document only needs to be a stable URL the authorization
+    // server recognises; the harness never dereferences it.
+    if ('auth/basic-cimd' === $scenario) {
+        $oauth->setClientMetadataUrl('https://conformance-test.local/client-metadata.json');
+    }
+
     return $oauth->build();
 }
 

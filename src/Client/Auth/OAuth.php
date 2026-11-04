@@ -47,6 +47,7 @@ final class OAuth
     private string $redirectUri = self::DEFAULT_REDIRECT_URI;
     private ?string $clientId = null;
     private ?string $clientSecret = null;
+    private ?string $clientMetadataUrl = null;
     private string $applicationType = 'native';
     private ?string $clientUri = null;
     private ?string $softwareId = null;
@@ -104,6 +105,29 @@ final class OAuth
     {
         $this->clientId = $clientId;
         $this->clientSecret = $clientSecret;
+
+        return $this;
+    }
+
+    /**
+     * Publish the client's identity at a URL and use that URL as the client id.
+     *
+     * Servers that support client id metadata documents read the client's metadata from
+     * this URL, so one identity works everywhere instead of one registration per server.
+     * The document must be reachable by the authorization server. A client id set with
+     * {@see self::setClientCredentials()} takes precedence.
+     *
+     * @param string $url an https URL with a path, as client id metadata documents require
+     */
+    public function setClientMetadataUrl(string $url): self
+    {
+        $parts = parse_url($url);
+
+        if (!\is_array($parts) || 'https' !== strtolower($parts['scheme'] ?? '') || !isset($parts['host']) || '' === trim($parts['path'] ?? '', '/')) {
+            throw new InvalidArgumentException(\sprintf('The client metadata URL must be an https URL with a path, got "%s".', $url));
+        }
+
+        $this->clientMetadataUrl = $url;
 
         return $this;
     }
@@ -248,6 +272,7 @@ final class OAuth
             $this->redirectUri,
             $this->clientId,
             $this->clientSecret,
+            $this->clientMetadataUrl,
             $this->scopes,
             $this->offlineAccess,
             $this->legacyDiscovery,

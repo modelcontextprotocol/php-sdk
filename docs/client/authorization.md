@@ -47,9 +47,10 @@ $auth = OAuth::forApplication('My App')
     ->build();
 ```
 
-The SDK contains two handlers:
+The SDK contains three handlers:
 
 - `LoopbackAuthorizationHandler` is the default. It opens the system browser and listens on the port of the redirect URI until the browser returns. Use it for desktop and command line applications.
+- `ConsoleAuthorizationHandler` prints the authorization URL and reads the URL of the redirect from the standard input. Use it in a remote shell or a container without a browser. The user must paste the whole URL, because the SDK checks its `state` and `iss`.
 - `HeadlessAuthorizationHandler` requests the authorization URL itself and reads the code from the redirect. It only works if the authorization server grants access without asking the user (e.g. a test server).
 
 For anything else, implement `AuthorizationHandlerInterface`. It has one method:
@@ -98,6 +99,16 @@ OAuth::forApplication('My App')->setClientCredentials('my-client-id', 'my-client
 ```
 
 The client reads from the metadata of the authorization server how to send the secret.
+
+## Using a URL as the Client ID
+
+If you publish a client ID metadata document, the authorization server can read your client's metadata from its URL. You then don't need a registration per server. The URL must use `https` and have a path:
+
+```php
+OAuth::forApplication('My App')->setClientMetadataUrl('https://app.example.com/client-metadata.json');
+```
+
+The client only uses this URL if the authorization server supports these documents. Otherwise, it registers. A client ID that you pass with `setClientCredentials()` takes precedence.
 
 ## Choosing Scopes
 

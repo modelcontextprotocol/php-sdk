@@ -460,6 +460,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             );
         }
 
+        // A client that can publish its metadata at a URL does not need to register at
+        // all: the URL is the client id, and every server it meets reads the same
+        // document instead of minting another identity for it.
+        if ($metadata->clientIdMetadataDocumentSupported && null !== $configuration->clientMetadataUrl) {
+            $this->logger->debug('Using the client metadata document URL as the client id', ['client_id' => $configuration->clientMetadataUrl]);
+
+            return new ClientRegistration($configuration->clientMetadataUrl, null, TokenEndpointAuthMethod::negotiate($metadata->tokenEndpointAuthMethodsSupported, false));
+        }
+
         $stored = $this->storage->getClientRegistration($metadata->issuer);
 
         if (null !== $stored && !$stored->isExpired()) {

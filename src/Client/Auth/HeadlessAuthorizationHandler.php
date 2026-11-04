@@ -23,7 +23,7 @@ use Psr\Log\NullLogger;
  * That only works against an authorization server that grants without an interactive
  * prompt -- a conformance harness, a test double, or an enterprise IdP that has already
  * consented on the user's behalf. Anywhere a human is supposed to approve something,
- * use {@see LoopbackAuthorizationHandler}.
+ * use {@see LoopbackAuthorizationHandler} or {@see ConsoleAuthorizationHandler}.
  *
  * The request is made over a plain socket rather than the PSR-18 client on purpose:
  * PSR-18 leaves redirect following to the implementation, and this handler's whole job

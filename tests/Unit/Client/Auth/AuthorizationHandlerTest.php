@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Mcp\Client\Auth\ConsoleAuthorizationHandler;
 use Mcp\Client\Auth\LoopbackAuthorizationHandler;
 use Mcp\Exception\AuthorizationException;
 use PHPUnit\Framework\Attributes\TestDox;
@@ -87,8 +88,74 @@ final class AuthorizationHandlerTest extends TestCase
             ->authorize('https://auth.example.com/authorize', \sprintf('http://127.0.0.1:%d/callback', self::freePort()));
     }
 
+    #[TestDox('the console handler accepts a pasted redirect URL, parameters and all')]
+    public function testConsoleHandlerParsesAPastedUrl(): void
+    {
+        $this->assertSame(
+            ['code' => 'abc', 'state' => 'xyz'],
+            $this->console("http://127.0.0.1:8765/callback?code=abc&state=xyz\n"),
+        );
+    }
+
     // A bare code carries neither state nor iss, so accepting one would silently skip
     // both of the checks that tie the response to this request.
+    #[TestDox('the console handler refuses a bare code, which would skip the response checks')]
+    public function testConsoleHandlerRefusesABareCode(): void
+    {
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Paste the whole URL');
+
+        $this->console("abc\n");
+    }
+
+    #[TestDox('the console handler shows the URL it wants opened')]
+    public function testConsoleHandlerPrintsTheUrl(): void
+    {
+        $output = fopen('php://memory', 'r+');
+        $this->assertIsResource($output);
+
+        $this->console("http://127.0.0.1:8765/callback?code=abc\n", $output);
+        rewind($output);
+
+        $this->assertStringContainsString('https://auth.example.com/authorize', (string) stream_get_contents($output));
+        fclose($output);
+    }
+
+    #[TestDox('the console handler gives up when nothing is pasted')]
+    public function testConsoleHandlerRequiresAnAnswer(): void
+    {
+        $this->expectException(AuthorizationException::class);
+
+        $this->console("\n");
+    }
+
+    /**
+     * @param resource|null $output
+     *
+     * @return array<string, string>
+     */
+    private function console(string $answer, mixed $output = null): array
+    {
+        $input = fopen('php://memory', 'r+');
+        $this->assertIsResource($input);
+        fwrite($input, $answer);
+        rewind($input);
+
+        $sink = $output ?? fopen('php://memory', 'r+');
+        $this->assertIsResource($sink);
+
+        try {
+            return (new ConsoleAuthorizationHandler($input, $sink))
+                ->authorize('https://auth.example.com/authorize', 'http://127.0.0.1:8765/callback');
+        } finally {
+            fclose($input);
+
+            if (null === $output) {
+                fclose($sink);
+            }
+        }
+    }
+
     private static function freePort(): int
     {
         $socket = stream_socket_server('tcp://127.0.0.1:0');
