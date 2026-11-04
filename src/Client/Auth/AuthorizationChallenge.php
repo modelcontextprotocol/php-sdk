@@ -32,8 +32,10 @@ final class AuthorizationChallenge
     public static function fromResponse(ResponseInterface $response): self
     {
         foreach ($response->getHeader('WWW-Authenticate') as $header) {
-            if (preg_match('/^\s*Bearer\b\s*(.*)$/is', $header, $matches)) {
-                return new self(self::parseParameters($matches[1]));
+            $parameters = self::parseBearerParameters($header);
+
+            if (null !== $parameters) {
+                return new self($parameters);
             }
         }
 
@@ -55,9 +57,7 @@ final class AuthorizationChallenge
      */
     public function getScopes(): array
     {
-        $scope = $this->parameters['scope'] ?? '';
-
-        return array_values(array_filter(preg_split('/\s+/', trim($scope)) ?: []));
+        return preg_split('/\s+/', $this->parameters['scope'] ?? '', -1, \PREG_SPLIT_NO_EMPTY) ?: [];
     }
 
     public function getError(): ?string
@@ -66,26 +66,42 @@ final class AuthorizationChallenge
     }
 
     /**
-     * Parse a comma-separated auth-param list, tolerating both quoted and bare values.
+     * Read the Bearer challenge out of a field value that may list several challenges.
      *
-     * @return array<string, string>
+     * @return array<string, string>|null null when the field value holds no Bearer challenge
      */
-    private static function parseParameters(string $parameters): array
+    private static function parseBearerParameters(string $header): ?array
     {
-        if (!preg_match_all('/([A-Za-z0-9_-]+)\s*=\s*(?:"((?:[^"\\\\]|\\\\.)*)"|([^,\s]*))/', $parameters, $matches, \PREG_SET_ORDER)) {
-            return [];
+        if (!preg_match_all('/(?:[^",]|"(?:[^"\\\\]|\\\\.)*")+/s', $header, $members)) {
+            return null;
         }
 
-        $parsed = [];
+        $parameters = null;
 
-        foreach ($matches as $match) {
-            $quoted = $match[2] ?? '';
-            $value = '' !== $quoted ? $quoted : ($match[3] ?? '');
-            // RFC 9110 quoted-string escaping is one backslash before one character; a
-            // C-style unescape would turn a literal "\n" in the header into a newline.
-            $parsed[strtolower($match[1])] = stripslashes($value);
+        foreach ($members[0] as $member) {
+            if (preg_match('/^\s*([^\s=,"]+)(?:\s+(?!=)|\s*$)(.*)$/s', $member, $scheme)) {
+                if (null !== $parameters) {
+                    break;
+                }
+
+                if (0 !== strcasecmp($scheme[1], 'Bearer')) {
+                    continue;
+                }
+
+                $parameters = [];
+                $member = $scheme[2];
+            }
+
+            if (null === $parameters) {
+                continue;
+            }
+
+            if (preg_match('/^\s*([^\s=,"]+)\s*=\s*(?:"((?:[^"\\\\]|\\\\.)*)"|((?!=)[^,\s]*))\s*$/s', $member, $parameter)) {
+                // RFC 9110 quoted-pair: only the backslash goes, unlike stripslashes() which maps \0 to NUL.
+                $parameters[strtolower($parameter[1])] = $parameter[3] ?? (preg_replace('/\\\\(.)/s', '$1', $parameter[2] ?? '') ?? '');
+            }
         }
 
-        return $parsed;
+        return $parameters;
     }
 }
