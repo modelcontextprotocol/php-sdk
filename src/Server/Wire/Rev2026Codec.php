@@ -58,7 +58,7 @@ final class Rev2026Codec implements WireCodecInterface
         $stamped = $this->stampResultType($method, $result);
 
         return $this->stampServerInfo(
-            $cacheable ? $this->fillCacheHints($method, $stamped) : $stamped,
+            $this->fillCacheHints($method, $stamped, $cacheable),
         );
     }
 
@@ -94,7 +94,7 @@ final class Rev2026Codec implements WireCodecInterface
      *
      * @return array<string, mixed>
      */
-    private function fillCacheHints(string $method, array $result): array
+    private function fillCacheHints(string $method, array $result, bool $cacheable): array
     {
         if (ResultType::Complete->value !== ($result['resultType'] ?? null)) {
             return $result;
@@ -102,6 +102,10 @@ final class Rev2026Codec implements WireCodecInterface
 
         if (!\in_array($method, self::CACHEABLE_METHODS, true)) {
             return $result;
+        }
+
+        if (!$cacheable) {
+            return [...$result, 'ttlMs' => 0, 'cacheScope' => CacheScope::Private->value];
         }
 
         $ttl = $result['ttlMs'] ?? null;

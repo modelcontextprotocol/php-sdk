@@ -24,5 +24,6 @@ conservative default stands until you change it.
 
 A `ReadResourceResult` may set its own `ttlMs`/`cacheScope`, which win over the policy.
 
-Results produced by an [MRTR retry](../handlers/input-required.md) are never given hints: their inputs
-are not part of any cache key.
+Results produced by an [MRTR retry](../handlers/input-required.md) always carry `ttlMs: 0` and
+`cacheScope: "private"`, whatever the policy or the result says: their inputs are not part of any cache
+key, so they must not be cached.

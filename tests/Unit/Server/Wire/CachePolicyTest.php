@@ -110,4 +110,17 @@ class CachePolicyTest extends TestCase
         $this->assertArrayNotHasKey('ttlMs', $encoded);
         $this->assertArrayNotHasKey('cacheScope', $encoded);
     }
+
+    #[TestDox('the result of a retry forbids caching, whatever the policy or the result say')]
+    public function testRetryResultForbidsCachingWhateverThePolicyOrItsHandlerSay(): void
+    {
+        $codec = new Rev2026Codec(null, CachePolicy::default(60_000, CacheScope::Public));
+
+        foreach ([['contents' => []], ['contents' => [], 'ttlMs' => 500, 'cacheScope' => 'public']] as $result) {
+            $encoded = $codec->encodeResult('resources/read', $result, cacheable: false);
+
+            $this->assertSame(0, $encoded['ttlMs']);
+            $this->assertSame('private', $encoded['cacheScope']);
+        }
+    }
 }
