@@ -45,6 +45,7 @@ nav:
       - client/index.md
       - Connecting to a server: client/connecting.md
       - Transports: client/transports.md
+      - Authorization: client/authorization.md
       - "Tools, resources & prompts": client/capabilities.md
       - Server-initiated requests: client/server-requests.md
       - Error handling: client/errors.md
