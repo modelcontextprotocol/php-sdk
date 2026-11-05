@@ -107,6 +107,7 @@ final class Builder
     private CacheInterface|CacheItemPoolInterface|null $discoveryCache = null;
 
     private ?EventDispatcherInterface $eventDispatcher = null;
+    private ?FiberFactoryInterface $fiberFactory = null;
 
     private ?ContainerInterface $container = null;
 
@@ -618,6 +619,13 @@ final class Builder
         return $this;
     }
 
+    public function setFiberFactory(FiberFactoryInterface $fiberFactory): self
+    {
+        $this->fiberFactory = $fiberFactory;
+
+        return $this;
+    }
+
     /**
      * Provides a PSR-11 DI container, primarily for resolving user-defined handler classes.
      * Defaults to a basic internal container.
@@ -1022,6 +1030,7 @@ final class Builder
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
             fiberScheduler: $this->fiberScheduler,
+            fiberFactory: $this->fiberFactory,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
@@ -1067,6 +1076,7 @@ final class Builder
             eventDispatcher: $parts['eventDispatcher'],
             requestStateBinder: $this->requestStateBinder,
             fiberScheduler: $this->fiberScheduler,
+            fiberFactory: $this->fiberFactory,
         );
     }
 

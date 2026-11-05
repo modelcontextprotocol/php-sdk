@@ -13,6 +13,7 @@ namespace Mcp\Server\Fiber;
 
 use Mcp\Exception\LogicException;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Server\FiberFactoryInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 use Psr\Log\LoggerInterface;
@@ -48,10 +49,10 @@ final class HandlerFibers
      *
      * @return \Fiber<mixed, mixed, TReturn, mixed>
      */
-    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null, ?\Closure $errorForFailure = null, LoggerInterface $logger = new NullLogger()): \Fiber
+    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null, ?\Closure $errorForFailure = null, LoggerInterface $logger = new NullLogger(), ?FiberFactoryInterface $factory = null): \Fiber
     {
         $state = new HandlerFiberState($scheduler, $errorForFailure, $logger);
-        $fiber = new \Fiber(static function () use ($handler, $state): mixed {
+        $body = static function () use ($handler, $state): mixed {
             try {
                 $result = $handler();
                 $state->returned();
@@ -65,7 +66,8 @@ final class HandlerFibers
             } finally {
                 $state->ended();
             }
-        });
+        };
+        $fiber = $factory?->create($body) ?? new \Fiber($body);
         self::states()[$fiber] = $state;
 
         return $fiber;

@@ -135,6 +135,7 @@ class Protocol
         private readonly ?RequestStateCodec $requestStateCodec = null,
         ?SessionLockInterface $sessionLock = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
+        private readonly ?FiberFactoryInterface $fiberFactory = null,
     ) {
         $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
@@ -456,7 +457,7 @@ class Protocol
                     }
 
                     return $result;
-                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session), $this->logger);
+                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session), $this->logger, $this->fiberFactory);
 
                 $result = HandlerFibers::start($fiber);
 

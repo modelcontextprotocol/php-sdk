@@ -33,6 +33,7 @@ use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Configuration;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
+use Mcp\Server\FiberFactoryInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Protocol;
 use Mcp\Server\Session\InMemorySessionStore;
@@ -117,6 +118,7 @@ final class StatelessProtocol
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?RequestStateBinderInterface $requestStateBinder = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
+        private readonly ?FiberFactoryInterface $fiberFactory = null,
     ) {
         $this->codec = $codec ?? new Rev2026Codec($configuration->serverInfo, $cachePolicy);
 
@@ -689,7 +691,7 @@ final class StatelessProtocol
      */
     private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
     {
-        $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler, logger: $this->logger);
+        $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler, logger: $this->logger, factory: $this->fiberFactory);
         $input = $session->get(InputContext::class);
         // The codec bound to this request, which dispatch() put on the session.
         $codec = $session->get(RequestStateCodec::class);
