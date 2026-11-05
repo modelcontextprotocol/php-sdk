@@ -274,6 +274,45 @@ $server = Server::builder()
     ->setEventDispatcher($eventDispatcher);
 ```
 
+### Handler Fiber Context
+
+Handlers run in fibers, which do not automatically inherit context from the caller.
+Use `setFiberFactory()` to propagate context such as the active OpenTelemetry span:
+
+```php
+use Mcp\Server;
+use Mcp\Server\FiberFactoryInterface;
+use OpenTelemetry\Context\Context;
+
+$server = Server::builder()
+    ->setFiberFactory(new class implements FiberFactoryInterface {
+        public function create(\Closure $callback): \Fiber
+        {
+            $context = Context::getCurrent();
+
+            return new \Fiber(static function () use ($context, $callback) {
+                $scope = $context->activate();
+                try {
+                    return $callback();
+                } finally {
+                    $scope->detach();
+                }
+            });
+        }
+    })
+    ->build();
+```
+
+The factory runs in the parent context and must return an **unstarted** fiber that invokes the
+callback once, preserving its return value, exceptions and suspensions. Attach context inside
+the fiber and release it in `finally`, including when a suspended fiber is discarded.
+The SDK continues to start and resume the fiber.
+
+This example uses OpenTelemetry's default fiber-bound context storage, which keeps contexts
+isolated across suspensions and resumptions. It requires the application's `open-telemetry/context`
+package; the SDK does not depend on OpenTelemetry. The factory applies to both protocol eras,
+including `buildStateless()`. Without a factory, the SDK creates ordinary PHP fibers as before.
+
 ## Complete Example
 
 Here's a comprehensive example showing all major configuration options:
@@ -352,6 +391,7 @@ $server = Server::builder()
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |
 | `setEventDispatcher()` | eventDispatcher | Set PSR-14 event dispatcher, see [Events](../advanced/events.md) |
+| `setFiberFactory()` | fiberFactory | Propagate execution context into handler fibers |
 | `setSchemaGenerator()` | schemaGenerator | Replace the generator that builds input schemas from PHP types, see [Schema generation](../servers/schemas.md) |
 | `setSchemaValidator()` | schemaValidator | Replace the validator for tool arguments and structured output, see [Schema generation](../servers/schemas.md) |
 | `setReferenceHandler()` | referenceHandler | Replace the class that calls the handlers of tools, resources and prompts |

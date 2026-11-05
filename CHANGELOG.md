@@ -7,6 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* Add `Builder::setFiberFactory()` to let integrations propagate execution context into handler fibers in both protocol eras.
 * [BC Break] Require `phpdocumentor/reflection-docblock` `^6.0`, and with it `phpdocumentor/type-resolver` `^2.0` and `phpstan/phpdoc-parser` `^2.0`. Older versions cannot parse types like `non-empty-array<T>`, and the SDK silently ignores such a `@param`.
 * Require `psr/container` `^1.1`, as `Container` is not compatible with `1.0`.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
