@@ -94,9 +94,15 @@ final class AuthorizationServerMetadata
 
     /**
      * The fixed endpoints a 2025-03-26 era server without metadata is assumed to expose.
+     *
+     * @throws InvalidArgumentException when the issuer is neither https nor loopback
      */
     public static function forLegacyServer(string $issuer): self
     {
+        if (!self::isTransportSecure($issuer)) {
+            throw new InvalidArgumentException(\sprintf('The legacy authorization server "%s" is neither an HTTPS URL nor a loopback address.', $issuer));
+        }
+
         $base = rtrim($issuer, '/');
 
         return new self($issuer, $base.'/authorize', $base.'/token', $base.'/register');
