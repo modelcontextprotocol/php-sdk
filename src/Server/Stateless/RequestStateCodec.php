@@ -23,6 +23,10 @@ use Mcp\Exception\RequestStateException;
  * {@see self::verify()} refuses anything whose MAC or expiry does not hold.
  * Signed, not encrypted: nothing secret belongs in the payload.
  *
+ * Takes one key or a key ring to rotate without failing the calls in flight:
+ * the first key signs, every key verifies. The value names no key, so the
+ * wire format does not change.
+ *
  * A codec {@see self::withBinding() bound} to a value also covers that value
  * with the MAC, without putting it on the wire: a state minted under one
  * binding fails verification under any other, and so does a state minted
@@ -37,14 +41,36 @@ final class RequestStateCodec
 
     private const ALGORITHM = 'sha256';
 
+    /** @var non-empty-list<string> */
+    private readonly array $keys;
+
+    /**
+     * @param string|list<string> $key the signing key, or a key ring whose first key signs and whose every key verifies
+     */
     public function __construct(
-        private readonly string $key,
+        string|array $key,
         private readonly int $ttlSeconds = 600,
         private readonly ?string $binding = null,
     ) {
-        if (\strlen($this->key) < self::MINIMUM_KEY_BYTES) {
-            throw new InvalidArgumentException(\sprintf('The requestState signing key must be at least %d bytes, got %d.', self::MINIMUM_KEY_BYTES, \strlen($this->key)));
+        $keys = \is_string($key) ? [$key] : $key;
+
+        if ([] === $keys || !array_is_list($keys)) {
+            throw new InvalidArgumentException('The requestState key ring must be a non-empty list of keys.');
         }
+
+        foreach ($keys as $i => $candidate) {
+            $name = \is_string($key) ? 'The requestState signing key' : \sprintf('The requestState signing key at index %d', $i);
+
+            if (!\is_string($candidate)) {
+                throw new InvalidArgumentException(\sprintf('%s must be a string, got %s.', $name, get_debug_type($candidate)));
+            }
+
+            if (\strlen($candidate) < self::MINIMUM_KEY_BYTES) {
+                throw new InvalidArgumentException(\sprintf('%s must be at least %d bytes, got %d.', $name, self::MINIMUM_KEY_BYTES, \strlen($candidate)));
+            }
+        }
+
+        $this->keys = $keys;
 
         if ($this->ttlSeconds < 1) {
             throw new InvalidArgumentException(\sprintf('The requestState TTL must be at least one second, got %d.', $this->ttlSeconds));
@@ -52,13 +78,13 @@ final class RequestStateCodec
     }
 
     /**
-     * A codec with the same key and TTL whose states only verify under the
+     * A codec with the same keys and TTL whose states only verify under the
      * same binding, e.g. the value a {@see RequestStateBinderInterface}
      * computed for the request at hand.
      */
     public function withBinding(string $binding): self
     {
-        return new self($this->key, $this->ttlSeconds, $binding);
+        return new self($this->keys, $this->ttlSeconds, $binding);
     }
 
     /**
@@ -71,14 +97,14 @@ final class RequestStateCodec
             'data' => $payload,
         ], \JSON_THROW_ON_ERROR));
 
-        return $body.'.'.self::encode($this->sign($body));
+        return $body.'.'.self::encode($this->sign($body, $this->keys[0]));
     }
 
     /**
      * @return array<string, mixed> the payload that was sealed
      *
-     * @throws RequestStateException when the value is malformed, unsigned by this key, bound to
-     *                               something else than this codec, or expired
+     * @throws RequestStateException when the value is malformed, signed by none of the keys,
+     *                               bound to something else than this codec, or expired
      */
     public function verify(string $state, ?int $now = null): array
     {
@@ -90,11 +116,23 @@ final class RequestStateCodec
 
         [$body, $mac] = $parts;
 
-        $expected = $this->sign($body);
         $actual = self::decode($mac);
 
-        // Constant-time: a short-circuiting compare is a byte-at-a-time oracle.
-        if (null === $actual || !hash_equals($expected, $actual)) {
+        if (null === $actual) {
+            throw new RequestStateException('mac');
+        }
+
+        // Every key, no early exit: which key signed is nobody's business. A
+        // ring holds a handful of keys, so trying each costs next to nothing
+        // and spares the wire format a key id.
+        $verified = false;
+
+        foreach ($this->keys as $key) {
+            // Constant-time: a short-circuiting compare is a byte-at-a-time oracle.
+            $verified = hash_equals($this->sign($body, $key), $actual) || $verified;
+        }
+
+        if (!$verified) {
             throw new RequestStateException('mac');
         }
 
@@ -123,13 +161,13 @@ final class RequestStateCodec
         return $claims['data'];
     }
 
-    private function sign(string $body): string
+    private function sign(string $body, string $key): string
     {
         // The body is base64url, so it never contains the '.' separating it
         // from the binding: a bound and an unbound input can never collide.
         $input = null === $this->binding ? $body : $body.'.'.$this->binding;
 
-        return hash_hmac(self::ALGORITHM, $input, $this->key, true);
+        return hash_hmac(self::ALGORITHM, $input, $key, true);
     }
 
     private static function encode(string $raw): string

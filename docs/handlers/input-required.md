@@ -142,6 +142,30 @@ it and its `AccessToken`. Bind only what stays the same across the rounds of one
 States minted before the binder was configured no longer verify, so turning it on fails the
 calls in flight for at most one TTL.
 
+### Rotating the key
+
+Pass a list of keys instead of one, and the first key signs while every key verifies:
+
+```php
+->setRequestState([$_ENV['MCP_REQUEST_STATE_KEY'], $_ENV['MCP_REQUEST_STATE_KEY_PREVIOUS']], ttl: 600)
+```
+
+Every entry must be a key: once the rotation is done, go back to a single key instead of
+leaving an unset variable in the list.
+
+A state names no key, so the wire format does not change and a single key is a ring of one.
+To rotate without failing the calls in flight:
+
+1. Add the new key **behind** the current one, `[$current, $new]`, and deploy it to every
+   process. They still sign with the current key but already accept the new one.
+   A single-process deployment can skip this step.
+2. Move the new key to the front, `[$new, $current]`. States are signed with the new key from
+   now on, and the ones the old key signed still verify.
+3. Wait one TTL after the **last** process switched to `[$new, $current]`: only then has every
+   state the old key signed expired. Remove it, `[$new]`.
+
+Each key needs at least 32 bytes.
+
 ## Capabilities
 
 A server must not ask for input the client cannot provide. The SDK checks each ask against

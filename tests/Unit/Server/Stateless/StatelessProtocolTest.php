@@ -586,8 +586,10 @@ class StatelessProtocolTest extends TestCase
     /**
      * A handler asking twice: the second round has to remember the first
      * round's answer, which is what the `requestState` is for.
+     *
+     * @param string|list<string>|null $key the signing key or key ring, a fixed test key by default
      */
-    private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null): StatelessProtocol
+    private static function twoAskProtocol(bool $signed = true, ?RequestStateBinderInterface $binder = null, string|array|null $key = null): StatelessProtocol
     {
         $builder = Server::builder()
             ->setServerInfo('test-server', '1.0.0')
@@ -611,7 +613,7 @@ class StatelessProtocolTest extends TestCase
             );
 
         if ($signed) {
-            $builder->setRequestState(str_repeat('k', 32), binder: $binder);
+            $builder->setRequestState($key ?? str_repeat('k', 32), binder: $binder);
         }
 
         return $builder->buildStateless([ProtocolVersion::V2026_07_28]);
@@ -825,6 +827,29 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(200, $answer['status']);
         $this->assertSame('morning/aisle', $answer['body']['result']['content'][0]['text']);
+    }
+
+    #[TestDox('a server rotating its key still serves the retry of a call the old key signed')]
+    public function testRetryServedAcrossAKeyRotation(): void
+    {
+        $oldKey = str_repeat('o', 32);
+        $newKey = str_repeat('n', 32);
+
+        $second = self::book(self::twoAskProtocol(key: $oldKey), [
+            'inputResponses' => ['when' => ['action' => 'accept', 'content' => ['v' => 'morning']]],
+        ]);
+        $retry = [
+            'inputResponses' => ['seat' => ['action' => 'accept', 'content' => ['v' => 'aisle']]],
+            'requestState' => $second['body']['result']['requestState'],
+        ];
+
+        $rotated = self::book(self::twoAskProtocol(key: [$newKey, $oldKey]), $retry);
+        $this->assertSame(200, $rotated['status']);
+        $this->assertSame('morning/aisle', $rotated['body']['result']['content'][0]['text']);
+
+        $retired = self::book(self::twoAskProtocol(key: [$newKey]), $retry);
+        $this->assertSame(400, $retired['status']);
+        $this->assertSame('The supplied requestState failed verification.', $retired['body']['error']['message']);
     }
 
     #[TestDox('carrying an answer to the next round without a signing key fails loudly')]
