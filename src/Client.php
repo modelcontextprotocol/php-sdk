@@ -16,6 +16,7 @@ use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
 use Mcp\Client\Protocol;
 use Mcp\Client\Transport\TransportInterface;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\ExceptionInterface;
 use Mcp\Exception\InvalidArgumentException;
@@ -227,9 +228,9 @@ class Client
      * @param CancellationTokenInterface|null                                         $cancellation   Non-blocking cancellation signal
      * @param float|null                                                              $timeoutSeconds Finite positive timeout replacing the default for this call
      *
-     * @throws RequestCancelledException                                                      When cancellation is observed
-     * @throws Exception\TimeoutException                                                     When the request timeout is observed to have expired
-     * @throws RequestException|ConnectionException|InvalidArgumentException|RuntimeException
+     * @throws RequestCancelledException                                                                             When cancellation is observed
+     * @throws Exception\TimeoutException                                                                            When the request timeout is observed to have expired
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException|RuntimeException
      */
     public function callTool(string $name, array $arguments = [], ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): CallToolResult
     {
@@ -288,7 +289,7 @@ class Client
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *                                                                                            Optional callback for progress updates
      *
-     * @throws RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
     public function readResource(string $uri, ?callable $onProgress = null): ReadResourceResult
     {
@@ -323,7 +324,7 @@ class Client
      * @param (callable(float $progress, ?float $total, ?string $message): void)|null $onProgress
      *                                                                                            Optional callback for progress updates
      *
-     * @throws RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
     public function getPrompt(string $name, array $arguments = [], ?callable $onProgress = null): GetPromptResult
     {
@@ -340,7 +341,7 @@ class Client
      * @param PromptReference|ResourceReference  $ref      The prompt or resource reference
      * @param array{name: string, value: string} $argument The argument to complete
      *
-     * @throws RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
     public function complete(PromptReference|ResourceReference $ref, array $argument): CompletionCompleteResult
     {
@@ -376,8 +377,9 @@ class Client
      *
      * The server should react by requesting an updated list via roots/list.
      *
-     * @throws RuntimeException    if the client did not advertise the `roots.listChanged` capability
-     * @throws ConnectionException if the client is not connected
+     * @throws RuntimeException       if the client did not advertise the `roots.listChanged` capability
+     * @throws ConnectionException    if the client is not connected
+     * @throws AuthorizationException if the server answers with HTTP 401 or 403
      */
     public function sendRootsListChanged(): void
     {
@@ -405,7 +407,7 @@ class Client
      *
      * @return Response<mixed>
      *
-     * @throws RequestException|ConnectionException|InvalidArgumentException
+     * @throws AuthorizationException|RequestException|ConnectionException|InvalidArgumentException
      */
     private function sendRequest(Request $request, ?callable $onProgress = null, ?CancellationTokenInterface $cancellation = null, ?float $timeoutSeconds = null): Response
     {
