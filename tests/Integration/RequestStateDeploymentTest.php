@@ -47,12 +47,13 @@ final class RequestStateDeploymentTest extends RequestStateTestCase
     public function testExpiredStateOfTheOlderKeyIsRefused(): void
     {
         $call = self::tool('refund', ['order' => 1]);
-        $pending = $this->pendingState($this->startServer(self::OLD_KEY, binder: true, ttl: 1), 'alice', $call);
+        $old = $this->startServer(self::OLD_KEY, binder: true, ttl: 2);
         $rotated = $this->startServer([self::NEW_KEY, self::OLD_KEY], binder: true, ttl: 600);
+        $pending = $this->pendingState($old, 'alice', $call);
 
         $this->assertCompleted($this->finish($rotated, 'alice', $call, $pending), 'alice refunded order 1');
 
-        sleep(2);
+        sleep(3);
 
         $this->assertRefused($this->finish($rotated, 'alice', $call, $pending));
     }

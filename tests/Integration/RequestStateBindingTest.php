@@ -176,21 +176,24 @@ final class RequestStateBindingTest extends RequestStateTestCase
     }
 
     /**
-     * @return iterable<string, array{Call, Call}>
+     * @return iterable<string, array{Call, Call, string}>
      */
     public static function provideEncodings(): iterable
     {
         yield 'a map with numeric keys in another member order' => [
             self::tool('inspect', ['options' => ['2' => 'C', '0' => 'A', '1' => 'B']]),
             self::tool('inspect', ['options' => ['1' => 'B', '2' => 'C', '0' => 'A']]),
+            '{"1":"B","2":"C","0":"A"}, approved by alice',
         ];
         yield 'a nested map in another member order' => [
             self::tool('inspect', ['options' => ['trip' => ['to' => 'BER', 'from' => 'HAM']]]),
             self::tool('inspect', ['options' => ['trip' => ['from' => 'HAM', 'to' => 'BER']]]),
+            '{"trip":{"from":"HAM","to":"BER"}}, approved by alice',
         ];
         yield 'a member named with a leading NUL' => [
             self::tool('raw', ['options' => ['visible' => true, "\0mode" => 'preview']]),
             self::tool('raw', ['options' => ["\0mode" => 'preview', 'visible' => true]]),
+            '{"\u0000mode":"preview","visible":true}',
         ];
     }
 
@@ -200,14 +203,11 @@ final class RequestStateBindingTest extends RequestStateTestCase
      */
     #[DataProvider('provideEncodings')]
     #[TestDox('with a binder, a retry completes with $_dataName')]
-    public function testRetryCompletesInAnotherEncoding(array $minted, array $retried): void
+    public function testRetryCompletesInAnotherEncoding(array $minted, array $retried, string $outcome): void
     {
         $url = $this->startServer(self::NEW_KEY, binder: true);
 
-        $answer = $this->finish($url, 'alice', $retried, $this->pendingState($url, 'alice', $minted));
-
-        $this->assertSame(200, $answer['status'], $answer['raw']);
-        $this->assertArrayHasKey('content', $answer['body']['result'] ?? [], $answer['raw']);
+        $this->assertCompleted($this->finish($url, 'alice', $retried, $this->pendingState($url, 'alice', $minted)), $outcome);
     }
 
     #[TestDox('with a binder, arguments nested as deep as a request may be complete, and bind by their innermost value')]
@@ -229,10 +229,7 @@ final class RequestStateBindingTest extends RequestStateTestCase
 
         $this->assertRefused($this->finish($url, 'alice', self::tool('inspect', ['options' => $nested('execute')]), $pending));
 
-        $answer = $this->finish($url, 'alice', $call, $pending);
-
-        $this->assertSame(200, $answer['status'], $answer['raw']);
-        $this->assertArrayHasKey('content', $answer['body']['result'] ?? [], $answer['raw']);
+        $this->assertCompleted($this->finish($url, 'alice', $call, $pending), json_encode($nested('preview'), depth: 1024).', approved by alice');
     }
 
     #[TestDox('with a binder, the rounds of a call answering as a stream complete, for the call they were minted for only')]
