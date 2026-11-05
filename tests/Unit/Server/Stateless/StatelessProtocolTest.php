@@ -1166,7 +1166,7 @@ class StatelessProtocolTest extends TestCase
         $this->assertArrayHasKey('cacheScope', $answer['body']['result']);
     }
 
-    #[TestDox('a result produced by a multi round-trip retry carries no caching hints')]
+    #[TestDox('a result produced by a multi round-trip retry carries hints that forbid caching it')]
     public function testMrtrRetryResultIsNotCacheable(): void
     {
         $answer = self::call(
@@ -1181,10 +1181,8 @@ class StatelessProtocolTest extends TestCase
         );
 
         $this->assertSame('complete', $answer['body']['result']['resultType']);
-        // The inputs are not part of any cache key, so the answer must not be
-        // presented as reusable.
-        $this->assertArrayNotHasKey('ttlMs', $answer['body']['result']);
-        $this->assertArrayNotHasKey('cacheScope', $answer['body']['result']);
+        $this->assertSame(0, $answer['body']['result']['ttlMs']);
+        $this->assertSame('private', $answer['body']['result']['cacheScope']);
     }
 
     #[TestDox('a listen stream acknowledges, then carries what the client asked for')]

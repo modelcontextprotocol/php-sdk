@@ -31,9 +31,8 @@ interface WireCodecInterface
      *
      * @param string               $method    the request method the result answers
      * @param array<string, mixed> $result    the neutral result body
-     * @param bool                 $cacheable whether this answer may carry caching hints at all — false for one
-     *                                        produced by a multi round-trip retry, whose inputs are not part of
-     *                                        any cache key
+     * @param bool                 $cacheable whether this answer may be cached — false for one produced by a
+     *                                        multi round-trip retry, whose inputs are not part of any cache key
      *
      * @return array<string, mixed>
      */
