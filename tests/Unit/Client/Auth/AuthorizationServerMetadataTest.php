@@ -179,6 +179,23 @@ final class AuthorizationServerMetadataTest extends TestCase
         ]);
     }
 
+    #[TestDox('legacy endpoints are not built on an insecure issuer')]
+    public function testRefusesAnInsecureLegacyIssuer(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('neither an HTTPS URL nor a loopback address');
+
+        AuthorizationServerMetadata::forLegacyServer('http://mcp.example.com');
+    }
+
+    #[TestDox('legacy endpoints may use plain HTTP on a loopback address')]
+    public function testAllowsALoopbackLegacyIssuer(): void
+    {
+        $metadata = AuthorizationServerMetadata::forLegacyServer('http://localhost:8080');
+
+        $this->assertSame('http://localhost:8080/token', $metadata->tokenEndpoint);
+    }
+
     #[TestDox('a server that publishes nothing gets the endpoint names its era prescribed')]
     public function testLegacyEndpoints(): void
     {
