@@ -36,7 +36,7 @@
     "symfony/uid": "^5.4 || ^6.4 || ^7.3 || ^8.0"
   },
   "suggest": {
-    "firebase/php-jwt": "Required for the JwtTokenValidator.",
+    "firebase/php-jwt": "Required for the JwtTokenValidator, and for private_key_jwt client authentication in the OAuth client.",
     "psr/cache-implementation": "Required for JwtTokenValidator::fromIssuer() to cache metadata and keys.",
     "symfony/finder": "Required for file-based discovery.",
     "symfony/lock": "Required for the SymfonyLockSessionLock."

@@ -311,7 +311,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 'grant_type' => Grant::RefreshToken->value,
                 'refresh_token' => $stored->refreshToken,
                 'resource' => $this->resource,
-            ]));
+            ]), $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
         } catch (AuthorizationException $e) {
             $this->logger->info('Refreshing the access token failed; falling back to a new authorization.', ['exception' => $e]);
 
@@ -365,6 +365,23 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function grant(AuthorizationServerMetadata $metadata, ClientRegistration $client, array $scopes, string $resource): AccessToken
     {
+        if (Grant::JwtBearer === $this->configuration->grant) {
+            return $this->tokenEndpoint->request($metadata, $client, array_filter([
+                'grant_type' => Grant::JwtBearer->value,
+                'assertion' => $this->requestAuthorizationGrant($metadata, $resource),
+                'scope' => implode(' ', $scopes),
+                'resource' => $resource,
+            ]), $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+        }
+
+        if (Grant::ClientCredentials === $this->configuration->grant) {
+            return $this->tokenEndpoint->request($metadata, $client, array_filter([
+                'grant_type' => Grant::ClientCredentials->value,
+                'scope' => implode(' ', $scopes),
+                'resource' => $resource,
+            ]), $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+        }
+
         $pkce = Pkce::generate();
         $state = rtrim(strtr(base64_encode(random_bytes(24)), '+/', '-_'), '=');
 
@@ -399,7 +416,41 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             'redirect_uri' => $this->configuration->redirectUri,
             'code_verifier' => $pkce->verifier,
             'resource' => $resource,
+        ]), $this->configuration->privateKeyPem, $this->configuration->signingAlgorithm);
+    }
+
+    /**
+     * Trades the identity token for a grant for this resource and authorization server.
+     */
+    private function requestAuthorizationGrant(AuthorizationServerMetadata $metadata, string $resource): string
+    {
+        $crossAppAccess = $this->configuration->crossAppAccess;
+
+        if (null === $crossAppAccess) {
+            throw new AuthorizationException('No cross-app access identity is configured.');
+        }
+
+        $this->logger->info('Exchanging the enterprise identity for an authorization grant', [
+            'identity_provider' => $crossAppAccess->tokenEndpoint,
+            'audience' => $metadata->issuer,
+            'resource' => $resource,
+        ]);
+
+        $response = $this->tokenEndpoint->post($crossAppAccess->tokenEndpoint, array_filter([
+            'grant_type' => Grant::TokenExchange->value,
+            'subject_token' => $crossAppAccess->identityToken,
+            'subject_token_type' => $crossAppAccess->identityTokenType,
+            'requested_token_type' => CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE,
+            'audience' => $metadata->issuer,
+            'resource' => $resource,
+            'client_id' => $crossAppAccess->clientId,
         ]));
+
+        if (!\is_string($response['access_token'] ?? null)) {
+            throw new AuthorizationException(\sprintf('The identity provider at "%s" returned no authorization grant.', $crossAppAccess->tokenEndpoint));
+        }
+
+        return $response['access_token'];
     }
 
     /**
@@ -456,6 +507,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 TokenEndpointAuthMethod::negotiate(
                     $metadata->tokenEndpointAuthMethodsSupported,
                     null !== $configuration->clientSecret,
+                    null !== $configuration->privateKeyPem,
                 ),
             );
         }

@@ -110,6 +110,52 @@ OAuth::forApplication('My App')->setClientMetadataUrl('https://app.example.com/c
 
 The client only uses this URL if the authorization server supports these documents. Otherwise, it registers. A client ID that you pass with `setClientCredentials()` takes precedence.
 
+## Running Without a User
+
+A background job has no user who can approve a request. Use `forServiceAccount()` with a client ID and a secret that an administrator created for you:
+
+```php
+use Mcp\Client\Auth\OAuth;
+
+$auth = OAuth::forServiceAccount('Acme Report Job', 'my-client-id', 'my-client-secret')->build();
+```
+
+The client then authenticates as itself with the client credentials grant. It doesn't open a browser and doesn't register. If you pass no secret, you must call `setPrivateKeyJwt()`.
+
+## Authenticating With a Private Key
+
+An authorization server can accept a signed assertion in place of a shared secret. This needs the `firebase/php-jwt` package:
+
+```bash
+composer require firebase/php-jwt
+```
+
+Pass your key with `setPrivateKeyJwt()`:
+
+```php
+// the default algorithm is RS256
+OAuth::forServiceAccount('Acme Report Job', 'my-client-id')
+    ->setPrivateKeyJwt(file_get_contents('/etc/acme/private-key.pem'), 'ES256');
+```
+
+The algorithm can be `RS256`, `RS384`, `RS512`, `PS256`, `ES256`, `ES256K`, `ES384` or `EdDSA`. Use one that the authorization server lists in `token_endpoint_auth_signing_alg_values_supported`. `PS256` also needs `phpseclib/phpseclib` and `EdDSA` needs the `sodium` extension. You can also use a key for a user-facing client, together with `setClientCredentials()`.
+
+## Using an Enterprise Identity
+
+If your users already signed in at a company identity provider, they don't need to approve each MCP server. With cross-app access, the client exchanges their identity token for a grant for one MCP server. It then gets the access token with this grant:
+
+```php
+use Mcp\Client\Auth\CrossAppAccess;
+use Mcp\Client\Auth\OAuth;
+
+$auth = OAuth::forApplication('My App')
+    ->setClientCredentials('my-client-id', 'my-client-secret')
+    ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', $identityToken))
+    ->build();
+```
+
+Your application gets `$identityToken` from its own sign-in. The token endpoint of the identity provider must use `https`, unless it runs on a loopback address. If the client has another ID at the identity provider, pass it as the `clientId` argument of `CrossAppAccess`.
+
 ## Choosing Scopes
 
 By default, the client requests the scopes of the challenge. If there are none, it requests all scopes in `scopes_supported` of the resource. If there are none either, it sends no `scope` parameter. Use `setScopes()` to request your own:

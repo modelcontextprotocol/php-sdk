@@ -11,6 +11,7 @@
 
 namespace Mcp\Client\Auth;
 
+use Firebase\JWT\JWT;
 use Mcp\Exception\AuthorizationException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
@@ -32,6 +33,9 @@ use Psr\Log\NullLogger;
  */
 final class TokenEndpoint
 {
+    /** The asymmetric algorithms of RFC 7518, since the authorization server holds the public key. */
+    private const ASSERTION_ALGORITHMS = ['RS256', 'RS384', 'RS512', 'PS256', 'ES256', 'ES256K', 'ES384', 'EdDSA'];
+
     public function __construct(
         private readonly ClientInterface $httpClient,
         private readonly RequestFactoryInterface $requestFactory,
@@ -47,6 +51,8 @@ final class TokenEndpoint
         AuthorizationServerMetadata $metadata,
         ClientRegistration $client,
         array $parameters,
+        ?string $privateKeyPem = null,
+        string $signingAlgorithm = 'RS256',
     ): AccessToken {
         $parameters['client_id'] = $client->clientId;
         $authorization = null;
@@ -60,6 +66,15 @@ final class TokenEndpoint
 
             case TokenEndpointAuthMethod::ClientSecretPost:
                 $parameters['client_secret'] = (string) $client->clientSecret;
+                break;
+
+            case TokenEndpointAuthMethod::PrivateKeyJwt:
+                if (null === $privateKeyPem) {
+                    throw new AuthorizationException('The client registration uses private_key_jwt client authentication, but no private key was configured. Call OAuth::setPrivateKeyJwt().');
+                }
+
+                $parameters['client_assertion_type'] = 'urn:ietf:params:oauth:client-assertion-type:jwt-bearer';
+                $parameters['client_assertion'] = $this->createClientAssertion($client->clientId, $metadata->issuer, $privateKeyPem, $signingAlgorithm);
                 break;
 
             case TokenEndpointAuthMethod::None:
@@ -76,11 +91,13 @@ final class TokenEndpoint
     }
 
     /**
+     * Post a form-encoded grant request, for an exchange that doesn't return an access token.
+     *
      * @param array<string, string> $parameters
      *
      * @return array<string, mixed>
      */
-    private function post(string $endpoint, array $parameters, ?string $authorization = null): array
+    public function post(string $endpoint, array $parameters, ?string $authorization = null): array
     {
         $request = $this->requestFactory->createRequest('POST', $endpoint)
             ->withHeader('Content-Type', 'application/x-www-form-urlencoded')
@@ -111,6 +128,35 @@ final class TokenEndpoint
         }
 
         return $decoded;
+    }
+
+    /**
+     * Builds the JWT a client signs to authenticate itself (RFC 7523 section 2.2).
+     */
+    private function createClientAssertion(string $clientId, string $audience, string $privateKeyPem, string $algorithm): string
+    {
+        if (!class_exists(JWT::class)) {
+            throw new AuthorizationException('For using private_key_jwt client authentication, the firebase/php-jwt package is required. Try running "composer require firebase/php-jwt".');
+        }
+
+        if (!\in_array($algorithm, self::ASSERTION_ALGORITHMS, true)) {
+            throw new AuthorizationException(\sprintf('Unsupported client assertion algorithm "%s". Use one of %s.', $algorithm, implode(', ', self::ASSERTION_ALGORITHMS)));
+        }
+
+        $now = time();
+
+        try {
+            return JWT::encode([
+                'iss' => $clientId,
+                'sub' => $clientId,
+                'aud' => $audience,
+                'jti' => bin2hex(random_bytes(16)),
+                'iat' => $now,
+                'exp' => $now + 300,
+            ], $privateKeyPem, $algorithm);
+        } catch (\DomainException|\InvalidArgumentException|\UnexpectedValueException $e) {
+            throw new AuthorizationException(\sprintf('Signing the client assertion with %s failed: %s', $algorithm, $e->getMessage()), 0, $e);
+        }
     }
 
     /**

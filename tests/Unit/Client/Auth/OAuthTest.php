@@ -11,6 +11,8 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Mcp\Client\Auth\CrossAppAccess;
+use Mcp\Client\Auth\Grant;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Auth\OAuthAuthenticator;
 use Mcp\Client\Auth\OAuthConfiguration;
@@ -27,6 +29,7 @@ final class OAuthTest extends TestCase
     {
         $configuration = $this->configurationOf(OAuth::forApplication('My App'));
         $this->assertSame(OAuth::DEFAULT_REDIRECT_URI, $configuration->redirectUri);
+        $this->assertSame(Grant::AuthorizationCode, $configuration->grant);
         $this->assertSame('My App', $configuration->clientMetadata->clientName);
         $this->assertSame(['http://127.0.0.1:8765/callback'], $configuration->clientMetadata->redirectUris);
         $this->assertSame('native', $configuration->clientMetadata->applicationType);
@@ -100,6 +103,69 @@ final class OAuthTest extends TestCase
         $this->assertSame('https://my-app.example.com', $body['client_uri']);
         $this->assertSame('my-app', $body['software_id']);
         $this->assertSame('2.1.0', $body['software_version']);
+    }
+
+    #[TestDox('a service account authenticates as itself, with no user and no refresh token')]
+    public function testServiceAccountDefaults(): void
+    {
+        $configuration = $this->configurationOf(OAuth::forServiceAccount('My Job', 'job-client', 'job-secret'));
+
+        $this->assertSame(Grant::ClientCredentials, $configuration->grant);
+        $this->assertSame('job-client', $configuration->clientId);
+        $this->assertSame('job-secret', $configuration->clientSecret);
+        $this->assertFalse($configuration->offlineAccess);
+        $this->assertSame(['client_credentials'], $configuration->clientMetadata->grantTypes);
+    }
+
+    #[TestDox('cross-app access switches to the assertion grant')]
+    public function testCrossAppAccessSwitchesGrant(): void
+    {
+        $configuration = $this->configurationOf(OAuth::forApplication('My App')
+            ->setClientCredentials('client', 'secret')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token')));
+
+        $crossAppAccess = $configuration->crossAppAccess;
+
+        $this->assertSame(Grant::JwtBearer, $configuration->grant);
+        $this->assertNotNull($crossAppAccess);
+        $this->assertSame('https://idp.example.com/token', $crossAppAccess->tokenEndpoint);
+        $this->assertSame(CrossAppAccess::ID_TOKEN_TYPE, $crossAppAccess->identityTokenType);
+    }
+
+    #[TestDox('cross-app access without a client id is refused: the grant is bound to one')]
+    public function testCrossAppAccessNeedsAClientId(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        OAuth::forApplication('My App')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token'))
+            ->build();
+    }
+
+    #[TestDox('a service account needs a client secret or a private key')]
+    public function testServiceAccountNeedsACredential(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('client secret or a private key');
+
+        OAuth::forServiceAccount('My Job', 'job-client')->build();
+    }
+
+    #[TestDox('a service account can authenticate with only a private key')]
+    public function testServiceAccountWithAPrivateKey(): void
+    {
+        $configuration = $this->configurationOf(OAuth::forServiceAccount('My Job', 'job-client')->setPrivateKeyJwt('a-pem', 'ES256'));
+
+        $this->assertSame('a-pem', $configuration->privateKeyPem);
+        $this->assertSame('ES256', $configuration->signingAlgorithm);
+    }
+
+    #[TestDox('the identity token is not sent to an insecure identity provider')]
+    public function testCrossAppAccessRefusesAnInsecureIdentityProvider(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        new CrossAppAccess('http://idp.example.com/token', 'an-id-token');
     }
 
     private function configurationOf(OAuth $oauth): OAuthConfiguration

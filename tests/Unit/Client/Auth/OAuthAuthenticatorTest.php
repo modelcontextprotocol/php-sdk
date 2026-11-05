@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\AccessToken;
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
+use Mcp\Client\Auth\CrossAppAccess;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
@@ -24,6 +25,7 @@ use Mcp\Client\Auth\TokenEndpoint;
 use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
@@ -527,6 +529,76 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
     }
 
+    #[TestDox('a service account gets a token without registering or a browser')]
+    public function testClientCredentialsGrant(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forServiceAccount('job', 'job-client', 'job-secret'));
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read'])));
+
+        $this->assertSame('client_credentials', $server->token['grant_type'] ?? null);
+        $this->assertSame('mcp:read', $server->token['scope'] ?? null);
+        $this->assertSame(self::ENDPOINT, $server->token['resource'] ?? null);
+        $this->assertSame([], $server->authorization);
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+    }
+
+    #[TestDox('cross-app access exchanges the identity token and presents the grant as an assertion')]
+    public function testCrossAppAccessGrant(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: $this->crossAppAccess());
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+
+        $this->assertSame('urn:ietf:params:oauth:grant-type:token-exchange', $server->exchange['grant_type'] ?? null);
+        $this->assertSame('an-id-token', $server->exchange['subject_token'] ?? null);
+        $this->assertSame(CrossAppAccess::AUTHORIZATION_GRANT_TOKEN_TYPE, $server->exchange['requested_token_type'] ?? null);
+        $this->assertSame('https://auth.example.com', $server->exchange['audience'] ?? null);
+        $this->assertSame(self::ENDPOINT, $server->exchange['resource'] ?? null);
+        $this->assertSame('urn:ietf:params:oauth:grant-type:jwt-bearer', $server->token['grant_type'] ?? null);
+        $this->assertSame('an-authorization-grant', $server->token['assertion'] ?? null);
+        $this->assertSame([], $server->authorization);
+    }
+
+    #[TestDox('an identity provider that returns no grant ends the flow')]
+    public function testCrossAppAccessWithoutAGrant(): void
+    {
+        $server = new FakeOAuthServer(identityProviderGrants: false);
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('returned no authorization grant');
+
+        $this->authenticator($server, configuration: $this->crossAppAccess())->handleChallenge($this->request(), $server->challenge());
+    }
+
+    #[TestDox('a configured private key signs the code exchange')]
+    #[RequiresPhpExtension('openssl')]
+    public function testPrivateKeySignsTheCodeExchange(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $pem);
+
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setPrivateKeyJwt($pem, 'ES256'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('urn:ietf:params:oauth:client-assertion-type:jwt-bearer', $server->token['client_assertion_type'] ?? null);
+        $this->assertNotEmpty($server->token['client_assertion'] ?? null);
+    }
+
+    private function crossAppAccess(): OAuth
+    {
+        return OAuth::forApplication('test')
+            ->setClientCredentials('known-client', 'known-secret')
+            ->setCrossAppAccess(new CrossAppAccess('https://idp.example.com/token', 'an-id-token'));
+    }
+
     private function request(): RequestInterface
     {
         return (new Psr17Factory())->createRequest('POST', self::ENDPOINT);
@@ -608,6 +680,9 @@ final class FakeOAuthServer implements ClientInterface
     /** @var array<string, string> */
     public array $token = [];
 
+    /** @var array<string, string> */
+    public array $exchange = [];
+
     private int $issued = 0;
 
     /**
@@ -625,6 +700,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly ?string $codeError = null,
         private readonly bool $hasAuthorizationEndpoint = true,
         private readonly bool $clientMetadataDocuments = false,
+        private readonly bool $identityProviderGrants = true,
     ) {
     }
 
@@ -681,6 +757,7 @@ final class FakeOAuthServer implements ClientInterface
 
             'https://auth.example.com/register' => $this->register((string) $request->getBody()),
             'https://auth.example.com/token' => $this->issueToken($form),
+            'https://idp.example.com/token' => $this->exchangeToken($form),
 
             default => new Response(404),
         };
@@ -712,6 +789,16 @@ final class FakeOAuthServer implements ClientInterface
 
     /**
      * @param array<string, mixed> $form
+     */
+    private function exchangeToken(array $form): ResponseInterface
+    {
+        $this->exchange = $form;
+
+        return self::json($this->identityProviderGrants ? ['access_token' => 'an-authorization-grant'] : []);
+    }
+
+    /**
+     * @param array<string, string> $form
      */
     private function issueToken(array $form): ResponseInterface
     {

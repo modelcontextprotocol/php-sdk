@@ -29,8 +29,8 @@ use Psr\Log\NullLogger;
  *
  *     $transport = new HttpTransport($url, auth: OAuth::forApplication('My App')->build());
  *
- * Everything else is a deviation from that: a pre-registered client id, credentials
- * that should outlive the process.
+ * Everything else is a deviation from that: a pre-registered client id, a machine
+ * account with no user, credentials that should outlive the process.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -47,7 +47,11 @@ final class OAuth
     private string $redirectUri = self::DEFAULT_REDIRECT_URI;
     private ?string $clientId = null;
     private ?string $clientSecret = null;
+    private Grant $grant = Grant::AuthorizationCode;
     private ?string $clientMetadataUrl = null;
+    private ?string $privateKeyPem = null;
+    private string $signingAlgorithm = 'RS256';
+    private ?CrossAppAccess $crossAppAccess = null;
     private string $applicationType = 'native';
     private ?string $clientUri = null;
     private ?string $softwareId = null;
@@ -83,6 +87,23 @@ final class OAuth
     public static function forApplication(string $clientName): self
     {
         return new self($clientName);
+    }
+
+    /**
+     * A client acting as itself, with no user and no browser (RFC 6749 section 4.4).
+     *
+     * The credentials have to be issued out of band: there is nobody to consent to a
+     * dynamic registration.
+     */
+    public static function forServiceAccount(string $clientName, string $clientId, ?string $clientSecret = null): self
+    {
+        $oauth = new self($clientName);
+        $oauth->grant = Grant::ClientCredentials;
+        $oauth->clientId = $clientId;
+        $oauth->clientSecret = $clientSecret;
+        $oauth->offlineAccess = false;
+
+        return $oauth;
     }
 
     /**
@@ -128,6 +149,22 @@ final class OAuth
         }
 
         $this->clientMetadataUrl = $url;
+
+        return $this;
+    }
+
+    /**
+     * Authenticate at the token endpoint with a signed assertion instead of a secret.
+     *
+     * Needs the firebase/php-jwt package.
+     *
+     * @param string $privateKeyPem a PEM-encoded private key
+     * @param string $algorithm     one of RS256, RS384, RS512, PS256, ES256, ES256K, ES384 or EdDSA
+     */
+    public function setPrivateKeyJwt(string $privateKeyPem, string $algorithm = 'RS256'): self
+    {
+        $this->privateKeyPem = $privateKeyPem;
+        $this->signingAlgorithm = $algorithm;
 
         return $this;
     }
@@ -180,6 +217,22 @@ final class OAuth
     public function setResource(string $resource): self
     {
         $this->resource = $resource;
+
+        return $this;
+    }
+
+    /**
+     * Reach the server through an identity the user already holds at their identity
+     * provider, rather than sending them to a consent screen.
+     *
+     * Requires the client id and secret the authorization server knows this client by,
+     * set with {@see self::setClientCredentials()}.
+     */
+    public function setCrossAppAccess(CrossAppAccess $crossAppAccess): self
+    {
+        $this->crossAppAccess = $crossAppAccess;
+        $this->grant = Grant::JwtBearer;
+        $this->offlineAccess = false;
 
         return $this;
     }
@@ -255,9 +308,11 @@ final class OAuth
         $requestFactory = $this->requestFactory ?? Psr17FactoryDiscovery::findRequestFactory();
         $streamFactory = $this->streamFactory ?? Psr17FactoryDiscovery::findStreamFactory();
 
-        $grantTypes = $this->offlineAccess
-            ? [Grant::AuthorizationCode->value, Grant::RefreshToken->value]
-            : [Grant::AuthorizationCode->value];
+        $grantTypes = match (true) {
+            Grant::AuthorizationCode !== $this->grant => [$this->grant->value],
+            $this->offlineAccess => [Grant::AuthorizationCode->value, Grant::RefreshToken->value],
+            default => [Grant::AuthorizationCode->value],
+        };
 
         $configuration = new OAuthConfiguration(
             new ClientMetadata(
@@ -270,13 +325,17 @@ final class OAuth
                 $this->softwareVersion,
             ),
             $this->redirectUri,
+            $this->grant,
             $this->clientId,
             $this->clientSecret,
             $this->clientMetadataUrl,
+            $this->privateKeyPem,
+            $this->signingAlgorithm,
             $this->scopes,
             $this->offlineAccess,
             $this->legacyDiscovery,
             $this->resource,
+            $this->crossAppAccess,
         );
 
         return new OAuthAuthenticator(

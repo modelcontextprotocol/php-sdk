@@ -27,6 +27,9 @@ enum TokenEndpointAuthMethod: string
     /** Client id and secret in the request body. */
     case ClientSecretPost = 'client_secret_post';
 
+    /** A JWT assertion signed with the client's private key (RFC 7523). */
+    case PrivateKeyJwt = 'private_key_jwt';
+
     /**
      * Pick the method to use against a server advertising the given list.
      *
@@ -36,11 +39,13 @@ enum TokenEndpointAuthMethod: string
      *
      * @param string[] $supported the server's token_endpoint_auth_methods_supported
      */
-    public static function negotiate(array $supported, bool $hasSecret): self
+    public static function negotiate(array $supported, bool $hasSecret, bool $hasPrivateKey = false): self
     {
-        $candidates = $hasSecret
-            ? [self::ClientSecretBasic, self::ClientSecretPost, self::None]
-            : [self::None];
+        $candidates = [
+            ...($hasPrivateKey ? [self::PrivateKeyJwt] : []),
+            ...($hasSecret ? [self::ClientSecretBasic, self::ClientSecretPost] : []),
+            self::None,
+        ];
 
         if ([] === $supported) {
             return $candidates[0];

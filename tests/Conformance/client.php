@@ -13,6 +13,7 @@ require_once dirname(__DIR__, 2).'/vendor/autoload.php';
 
 use Mcp\Client;
 use Mcp\Client\Auth\AuthenticatorInterface;
+use Mcp\Client\Auth\CrossAppAccess;
 use Mcp\Client\Auth\HeadlessAuthorizationHandler;
 use Mcp\Client\Auth\OAuth;
 use Mcp\Client\Handler\Request\RequestHandlerInterface;
@@ -43,8 +44,14 @@ $version = ProtocolVersion::tryFrom(getenv('MCP_CONFORMANCE_PROTOCOL_VERSION') ?
 // on the scenario:
 //
 //   toolCalls           http-custom-headers: the exact calls to make
-//   client_id           auth/pre-registration: credentials an administrator would
-//   client_secret       have configured out of band
+//   client_id           auth/pre-registration, auth/client-credentials-*,
+//   client_secret       auth/enterprise-managed-authorization: credentials an
+//                       administrator would have configured out of band
+//   private_key_pem     auth/client-credentials-jwt: the key to sign the client
+//   signing_algorithm   assertion with, and the algorithm to sign it with
+//   idp_token_endpoint  auth/enterprise-managed-authorization: the identity provider
+//   idp_id_token        the user is already signed in to, the token proving it, and
+//   idp_client_id       this client's identifier there
 $context = json_decode(getenv('MCP_CONFORMANCE_CONTEXT') ?: '[]', true);
 $context = is_array($context) ? $context : [];
 
@@ -108,6 +115,36 @@ function buildAuthenticator(string $scenario, array $context, Psr\Log\LoggerInte
     }
 
     $handler = new HeadlessAuthorizationHandler(logger: $logger);
+
+    // A client authenticating as itself: the harness hands over the credentials the
+    // authorization server already knows about, since nobody can consent to a registration.
+    if (str_starts_with($scenario, 'auth/client-credentials')) {
+        $oauth = OAuth::forServiceAccount(
+            'mcp-conformance-test-client',
+            $context['client_id'] ?? 'conformance-test-client',
+            $context['client_secret'] ?? null,
+        );
+
+        if (isset($context['private_key_pem'])) {
+            $oauth->setPrivateKeyJwt($context['private_key_pem'], $context['signing_algorithm'] ?? 'ES256');
+        }
+
+        return $oauth->setLogger($logger)->build();
+    }
+
+    // Enterprise-managed authorization: the user already signed in at the company
+    // identity provider, so the runner hands over that token instead of a browser.
+    if ('auth/enterprise-managed-authorization' === $scenario) {
+        return OAuth::forApplication('mcp-conformance-test-client')
+            ->setClientCredentials($context['client_id'], $context['client_secret'])
+            ->setCrossAppAccess(new CrossAppAccess(
+                $context['idp_token_endpoint'],
+                $context['idp_id_token'],
+                clientId: $context['idp_client_id'] ?? null,
+            ))
+            ->setLogger($logger)
+            ->build();
+    }
 
     $oauth = OAuth::forApplication('mcp-conformance-test-client')
         ->setRedirectUri('http://localhost:3000/callback')

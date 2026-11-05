@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Client\Auth;
 
+use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 use Mcp\Client\Auth\AuthorizationServerMetadata;
 use Mcp\Client\Auth\ClientRegistration;
@@ -20,6 +21,7 @@ use Mcp\Exception\AuthorizationException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
@@ -119,6 +121,107 @@ final class TokenEndpointTest extends TestCase
             $this->assertStringNotContainsString('super-secret-token', $e->getMessage());
             $this->assertStringContainsString('could not read as JSON', $e->getMessage());
         }
+    }
+
+    #[RequiresPhpExtension('openssl')]
+    #[TestDox('a private key assertion verifies against the public key, and names the client')]
+    public function testPrivateKeyJwtAssertion(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $privateKey);
+
+        $server = new CapturingTokenServer();
+        $this->endpoint($server)->request(
+            $this->metadata(),
+            new ClientRegistration('a-client', null, TokenEndpointAuthMethod::PrivateKeyJwt),
+            ['grant_type' => 'client_credentials'],
+            $privateKey,
+            'ES256',
+        );
+
+        $this->assertSame('urn:ietf:params:oauth:client-assertion-type:jwt-bearer', $server->form['client_assertion_type'] ?? null);
+
+        $details = openssl_pkey_get_details($key);
+        $this->assertIsArray($details);
+
+        $claims = JWT::decode($server->form['client_assertion'], new Key($details['key'], 'ES256'));
+
+        $this->assertSame('a-client', $claims->iss);
+        $this->assertSame('a-client', $claims->sub);
+        $this->assertSame('https://auth.example.com', $claims->aud);
+        $this->assertGreaterThan(time(), $claims->exp);
+    }
+
+    #[RequiresPhpExtension('openssl')]
+    #[TestDox('an RSA assertion verifies against its public key too')]
+    public function testPrivateKeyJwtWithRsa(): void
+    {
+        $key = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_RSA, 'private_key_bits' => 2048]);
+        $this->assertNotFalse($key);
+        openssl_pkey_export($key, $privateKey);
+
+        $server = new CapturingTokenServer();
+        $this->endpoint($server)->request(
+            $this->metadata(),
+            new ClientRegistration('a-client', null, TokenEndpointAuthMethod::PrivateKeyJwt),
+            ['grant_type' => 'client_credentials'],
+            $privateKey,
+            'RS256',
+        );
+
+        $details = openssl_pkey_get_details($key);
+        $this->assertIsArray($details);
+
+        $claims = JWT::decode($server->form['client_assertion'], new Key($details['key'], 'RS256'));
+
+        $this->assertSame('a-client', $claims->iss);
+        $this->assertSame('https://auth.example.com', $claims->aud);
+    }
+
+    // Signing with the HMAC family would use the private key as a shared secret, which
+    // is `client_secret_jwt` wearing the wrong name -- a downgrade, not a signature.
+    #[TestDox('a symmetric algorithm is refused rather than used on the private key')]
+    public function testRefusesASymmetricAlgorithm(): void
+    {
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Unsupported client assertion algorithm "HS256"');
+
+        $this->endpoint(new CapturingTokenServer())->request(
+            $this->metadata(),
+            new ClientRegistration('a-client', null, TokenEndpointAuthMethod::PrivateKeyJwt),
+            ['grant_type' => 'client_credentials'],
+            '-----BEGIN PRIVATE KEY-----not-a-real-key-----END PRIVATE KEY-----',
+            'HS256',
+        );
+    }
+
+    #[TestDox('an unreadable key is reported rather than producing a broken assertion')]
+    public function testReportsAnUnusableKey(): void
+    {
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Signing the client assertion with ES256 failed');
+
+        $this->endpoint(new CapturingTokenServer())->request(
+            $this->metadata(),
+            new ClientRegistration('a-client', null, TokenEndpointAuthMethod::PrivateKeyJwt),
+            ['grant_type' => 'client_credentials'],
+            'not a key at all',
+            'ES256',
+        );
+    }
+
+    #[TestDox('an assertion is refused rather than skipped when no key was configured')]
+    public function testPrivateKeyJwtNeedsAKey(): void
+    {
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('no private key was configured');
+
+        $this->endpoint(new CapturingTokenServer())->request(
+            $this->metadata(),
+            new ClientRegistration('a-client', null, TokenEndpointAuthMethod::PrivateKeyJwt),
+            ['grant_type' => 'client_credentials'],
+        );
     }
 
     private function endpoint(ClientInterface $client): TokenEndpoint

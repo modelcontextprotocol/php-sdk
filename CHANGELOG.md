@@ -33,6 +33,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Client
 
 * Add OAuth authorization: pass `OAuth::forApplication('My App')->build()` as `auth` and the client answers a `401` with discovery, dynamic or pre-registered client identity, the authorization code flow with PKCE and a retry. It refreshes tokens, handles step-up challenges and treats the server's metadata as untrusted input. See [Authorization](docs/client/authorization.md).
+* Add `OAuth::forServiceAccount()` for the client credentials grant, `OAuth::setPrivateKeyJwt()` for `private_key_jwt` client authentication and `OAuth::setCrossAppAccess()` to reach a server through an enterprise identity.
 * Add `OAuth::setClientMetadataUrl()`, to use a client ID metadata document where the authorization server supports it, and `ConsoleAuthorizationHandler` for a shell without a browser.
 * Add `LoopbackAuthorizationHandler` and `HeadlessAuthorizationHandler` behind `AuthorizationHandlerInterface`, and `InMemoryCredentialStorage` and `FileCredentialStorage` behind `CredentialStorageInterface`.
 * Add the `auth` parameter of `HttpTransport` and `AuthenticatorInterface`, to authenticate every request and retry the ones the server refuses. `BearerToken` sends a token you already have, and `AuthenticatingHttpClient` offers the same behavior as a PSR-18 decorator.
