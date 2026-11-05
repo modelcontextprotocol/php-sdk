@@ -33,6 +33,9 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'a different scheme' => ['http://mcp.example.com/mcp', 'https://mcp.example.com/mcp', false];
         yield 'a different port' => ['http://localhost:9000/mcp', 'http://localhost:8000/mcp', false];
 
+        yield 'plain http on a public host' => ['http://mcp.example.com/mcp', 'http://mcp.example.com/mcp', false];
+        yield 'plain http on a loopback host' => ['http://localhost:8000/mcp', 'http://localhost:8000/mcp', true];
+
         yield 'the same query' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp?tenant=a', true];
         yield 'the same query below the resource' => ['https://mcp.example.com/mcp?tenant=a', 'https://mcp.example.com/mcp/sub?tenant=a', true];
         yield 'an endpoint query on a resource without one' => ['https://mcp.example.com/mcp', 'https://mcp.example.com/mcp?tenant=a', true];
