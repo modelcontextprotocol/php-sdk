@@ -123,6 +123,7 @@ class Protocol
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
         private readonly ?SessionLockInterface $sessionLock = null,
+        private readonly ?FiberFactoryInterface $fiberFactory = null,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
@@ -411,8 +412,7 @@ class Protocol
                 // One fiber for the whole exchange: with the shim, the handler
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
-                /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
+                $callback = static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
@@ -427,7 +427,9 @@ class Protocol
                     }
 
                     return $result;
-                });
+                };
+                /** @var McpFiber $fiber */
+                $fiber = $this->fiberFactory?->create($callback) ?? new \Fiber($callback);
 
                 $result = $fiber->start();
 
