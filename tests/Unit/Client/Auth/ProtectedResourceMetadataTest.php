@@ -49,6 +49,15 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'dots that are no dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/a..b/...', true];
         yield 'dots in the query' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/x?y=/../z', true];
 
+        yield 'a terminating slash on the root resource' => ['https://mcp.example.com/', 'https://mcp.example.com/mcp', true];
+        yield 'a terminating slash on the resource, endpoint without it' => ['https://mcp.example.com/api/', 'https://mcp.example.com/api', true];
+        yield 'a terminating slash on the resource, endpoint below it' => ['https://mcp.example.com/api/', 'https://mcp.example.com/api/x', true];
+        yield 'a terminating slash on the resource, sharing a prefix' => ['https://mcp.example.com/api/', 'https://mcp.example.com/api-v2', false];
+        yield 'an empty last segment, endpoint below it' => ['https://mcp.example.com/api//', 'https://mcp.example.com/api//x', true];
+        yield 'an empty last segment does not cover the parent' => ['https://mcp.example.com/api//', 'https://mcp.example.com/api', false];
+        yield 'an empty last segment does not cover a sibling' => ['https://mcp.example.com/api//', 'https://mcp.example.com/api/x', false];
+        yield 'only slashes is not the root' => ['https://mcp.example.com//', 'https://mcp.example.com/mcp', false];
+
         yield 'an explicit default https port on the endpoint' => ['https://mcp.example.com/api', 'https://mcp.example.com:443/api', true];
         yield 'an explicit default https port on the resource' => ['https://mcp.example.com:443/api', 'https://mcp.example.com/api', true];
         yield 'an explicit default http port' => ['http://localhost/api', 'http://localhost:80/api', true];
