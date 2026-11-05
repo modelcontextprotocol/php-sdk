@@ -319,6 +319,19 @@ class SchemaValidatorTest extends TestCase
         $this->assertSame('type', $errors[0]['keyword']);
     }
 
+    public function testNestedEmptyArrayIsCastToObjectWhenSchemaRequiresObject(): void
+    {
+        $data = ['parameters' => []];
+        $schema = [
+            'type' => 'object',
+            'properties' => [
+                'parameters' => ['type' => 'object'],
+            ],
+        ];
+
+        $this->assertSame([], $this->validator->validateAgainstJsonSchema($data, $schema));
+    }
+
     public function testEmptyStdClassValidatesAgainstObjectSchema(): void
     {
         $this->assertSame([], $this->validator->validateAgainstJsonSchema(new \stdClass(), ['type' => 'object']));

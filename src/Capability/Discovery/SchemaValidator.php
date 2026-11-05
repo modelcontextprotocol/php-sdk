@@ -58,7 +58,7 @@ class SchemaValidator
 
             // --- Data Preparation ---
             // Opis Validator generally prefers objects for object validation
-            $dataToValidate = $this->convertDataForValidator($data);
+            $dataToValidate = $this->convertDataForValidator($data, $schemaObject, true);
         } catch (\JsonException $e) {
             $this->logger->error('MCP SDK: Invalid schema structure provided for validation (JSON conversion failed).', ['exception' => $e]);
 
@@ -120,27 +120,37 @@ class SchemaValidator
 
     /**
      * Recursively converts associative arrays to stdClass objects for validator compatibility.
+     *
+     * Empty arrays are ambiguous after JSON decoding: both `[]` and `{}` become empty PHP arrays.
+     * When the surrounding schema says the value is an object, cast it to stdClass rather than
+     * leaving it as a list.
      */
-    private function convertDataForValidator(mixed $data): mixed
+    private function convertDataForValidator(mixed $data, mixed $schema = null, bool $isRoot = false): mixed
     {
+        if (!$isRoot && $this->expectsObjectType($schema) && \is_array($data) && [] === $data) {
+            return new \stdClass();
+        }
+
         if (\is_array($data)) {
             // Check if it's an associative array (keys are not sequential numbers 0..N-1)
             if (!array_is_list($data)) {
                 $obj = new \stdClass();
                 foreach ($data as $key => $value) {
-                    $obj->{$key} = $this->convertDataForValidator($value);
+                    $obj->{$key} = $this->convertDataForValidator($value, $this->propertySchema($schema, $key));
                 }
 
                 return $obj;
             }
 
             // It's a list (sequential array), convert items recursively
-            return array_map([$this, 'convertDataForValidator'], $data);
-        } elseif (\is_object($data) && $data instanceof \stdClass) {
+            return array_map(fn (mixed $item): mixed => $this->convertDataForValidator($item, $this->itemSchema($schema)), $data);
+        }
+
+        if (\is_object($data) && $data instanceof \stdClass) {
             // Deep copy/convert stdClass objects as well
             $obj = new \stdClass();
             foreach (get_object_vars($data) as $key => $value) {
-                $obj->{$key} = $this->convertDataForValidator($value);
+                $obj->{$key} = $this->convertDataForValidator($value, $this->propertySchema($schema, $key));
             }
 
             return $obj;
@@ -148,6 +158,49 @@ class SchemaValidator
 
         // Leave other objects and scalar types as they are
         return $data;
+    }
+
+    private function expectsObjectType(mixed $schema): bool
+    {
+        if (\is_array($schema)) {
+            return isset($schema['type']) && 'object' === $schema['type'];
+        }
+
+        if (\is_object($schema)) {
+            return isset($schema->type) && 'object' === $schema->type;
+        }
+
+        return false;
+    }
+
+    private function propertySchema(mixed $schema, string $property): mixed
+    {
+        if (\is_array($schema)) {
+            if (isset($schema['properties']) && \is_array($schema['properties']) && \array_key_exists($property, $schema['properties'])) {
+                return $schema['properties'][$property];
+            }
+
+            return $schema['items'] ?? null;
+        }
+
+        if (\is_object($schema) && isset($schema->properties) && \is_object($schema->properties)) {
+            return $schema->properties->{$property} ?? ($schema->items ?? null);
+        }
+
+        return null;
+    }
+
+    private function itemSchema(mixed $schema): mixed
+    {
+        if (\is_array($schema)) {
+            return $schema['items'] ?? null;
+        }
+
+        if (\is_object($schema)) {
+            return $schema->items ?? null;
+        }
+
+        return null;
     }
 
     /**
