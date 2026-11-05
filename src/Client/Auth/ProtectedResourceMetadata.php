@@ -83,7 +83,12 @@ final class ProtectedResourceMetadata
             return false;
         }
 
-        $resourcePath = rtrim($resource['path'] ?? '', '/');
+        $resourcePath = $resource['path'] ?? '';
+
+        if (str_ends_with($resourcePath, '/')) {
+            $resourcePath = substr($resourcePath, 0, -1);
+        }
+
         $targetPath = $target['path'] ?? '';
 
         if (self::hasDotSegment($resourcePath) || self::hasDotSegment($targetPath)) {
