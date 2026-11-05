@@ -68,6 +68,11 @@ final class ProtectedResourceMetadata
      */
     public static function isWithin(string $url, string $resource): bool
     {
+        // RFC 6750 section 5.3: bearer tokens require TLS, whatever the resource identifier says.
+        if (!AuthorizationServerMetadata::isTransportSecure($url)) {
+            return false;
+        }
+
         $resource = parse_url($resource);
         $target = parse_url($url);
 
