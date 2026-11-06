@@ -34,8 +34,8 @@ The rest of this section:
   discovery, dependency injection, logging, pagination.
 * **[Framework integration](framework-integration.md)** — mounting the HTTP transport in
   a Symfony, Laravel, or Slim application, or running it standalone.
-* **[Sessions](sessions.md)** — where per-client state lives, which matters as soon as
-  you serve HTTP from more than one process.
+* **[Sessions](sessions.md)** — off over HTTP until you configure a store; what needs
+  them, and where per-client state lives once you serve HTTP from more than one process.
 * **[Serving both eras](protocol-eras.md)** — the same endpoint also answers protocol
   revision `2026-07-28`, which has no handshake and no sessions; what a modern request
   carries, and how each one is routed.

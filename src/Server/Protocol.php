@@ -18,6 +18,7 @@ use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
 use Mcp\Exception\SessionLockTimeoutException;
@@ -29,9 +30,14 @@ use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
+use Mcp\Schema\Request\ResourceSubscribeRequest;
+use Mcp\Schema\Request\ResourceUnsubscribeRequest;
+use Mcp\Schema\Request\SetLogLevelRequest;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
+use Mcp\Server\Session\EphemeralSession;
+use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Session\SessionLockInterface;
 use Mcp\Server\Session\SessionManagerInterface;
@@ -39,6 +45,7 @@ use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Mcp\Server\Transport\StreamableHttpTransport;
 use Mcp\Server\Transport\TransportInterface;
 use Psr\EventDispatcher\EventDispatcherInterface;
 use Psr\Log\LoggerInterface;
@@ -69,6 +76,13 @@ class Protocol
     public const SESSION_ACTIVE_REQUEST_META = '_mcp.active_request_meta';
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
+
+    /** Requests whose effect has to outlast them, which a server without sessions cannot keep. */
+    private const SESSION_SCOPED_REQUESTS = [
+        ResourceSubscribeRequest::class,
+        ResourceUnsubscribeRequest::class,
+        SetLogLevelRequest::class,
+    ];
 
     /**
      * Deliberately generic: unexpected throwables carry internal details such as file paths, class
@@ -112,6 +126,8 @@ class Protocol
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
+     * @param bool                                                                      $sessionless          serve each handshake-era request over Streamable HTTP
+     *                                                                                                        on a session of its own, without a `Mcp-Session-Id`
      */
     public function __construct(
         private readonly array $requestHandlers,
@@ -123,6 +139,7 @@ class Protocol
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
         private readonly ?SessionLockInterface $sessionLock = null,
+        private readonly bool $sessionless = false,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
@@ -139,6 +156,10 @@ class Protocol
     {
         $transport->onMessage($this->processInput(...));
 
+        if ($this->isSessionless($transport)) {
+            $transport->setSessionless(true);
+        }
+
         $transport->onSessionEnd($this->destroySession(...));
 
         // The transport keeps these callbacks, so they reference it weakly to not keep it alive.
@@ -146,7 +167,7 @@ class Protocol
 
         $transport->setOutgoingMessagesProvider(fn (Uuid $sessionId): array => [
             ...$this->takeFiberOutgoingMessages($transportRef->get()),
-            ...$this->consumeOutgoingMessages($sessionId),
+            ...($this->isSessionless($transportRef->get()) ? [] : $this->consumeOutgoingMessages($sessionId)),
         ]);
 
         $transport->setPendingRequestsProvider(fn (Uuid $sessionId, \Fiber $fiber): array => $this->getAwaitedPendingRequests($fiber, $sessionId));
@@ -311,6 +332,10 @@ class Protocol
             }
         }
 
+        if ($session instanceof EphemeralSessionInterface) {
+            return;
+        }
+
         try {
             $session->save();
         } catch (\Throwable $e) {
@@ -390,6 +415,13 @@ class Protocol
         $event = $this->dispatchEvent(new RequestEvent($request, $session));
         $request = $event->getRequest();
 
+        if ($session instanceof EphemeralSessionInterface && \in_array($request::class, self::SESSION_SCOPED_REQUESTS, true)) {
+            $error = Error::forInternalError(\sprintf('"%s" needs a session, and this server runs without sessions.', $request::getMethod()), $request->getId());
+            $this->sendResponse($transport, $this->dispatchEvent(new ErrorEvent($error, $request, $session, null))->getError(), $session);
+
+            return;
+        }
+
         $handlerFound = false;
 
         foreach ($this->requestHandlers as $handler) {
@@ -446,18 +478,20 @@ class Protocol
                     // The transport resumes the fiber from what the session holds: it must
                     // not get the fiber if the request the fiber awaits was not stored. A
                     // later save must not store that request either, nobody would resume it.
-                    try {
-                        $saved = $session->save();
-                    } catch (\Throwable $e) {
-                        $session->hydrate($beforeSuspension);
+                    if (!$session instanceof EphemeralSessionInterface) {
+                        try {
+                            $saved = $session->save();
+                        } catch (\Throwable $e) {
+                            $session->hydrate($beforeSuspension);
 
-                        throw $e;
-                    }
+                            throw $e;
+                        }
 
-                    if (!$saved) {
-                        $session->hydrate($beforeSuspension);
+                        if (!$saved) {
+                            $session->hydrate($beforeSuspension);
 
-                        throw new RuntimeException('Failed to save the session of a suspended request.');
+                            throw new RuntimeException('Failed to save the session of a suspended request.');
+                        }
                     }
 
                     $suspended = true;
@@ -547,6 +581,8 @@ class Protocol
      */
     public function sendRequest(Request $request, int $timeout, SessionInterface $session): Uuid
     {
+        self::assertQueueable($session);
+
         $requestId = $this->registerRequest($request, $timeout, $session);
 
         $this->queueOutgoing($request->withId($requestId->toRfc4122()), ['type' => 'request'], $session);
@@ -589,11 +625,23 @@ class Protocol
      */
     public function sendNotification(Notification $notification, SessionInterface $session): void
     {
+        self::assertQueueable($session);
+
         $this->logger->info('Queueing server notification to client', [
             'method' => $notification::getMethod(),
         ]);
 
         $this->queueOutgoing($notification, ['type' => 'notification'], $session);
+    }
+
+    /**
+     * @throws LogicException for the session of a server without sessions, which has no stream to deliver queued messages on
+     */
+    private static function assertQueueable(SessionInterface $session): void
+    {
+        if ($session instanceof EphemeralSessionInterface) {
+            throw new LogicException('Messages sent outside a request need a session; configure one with Builder::setSession().');
+        }
     }
 
     /**
@@ -922,6 +970,17 @@ class Protocol
             ]);
         }
 
+        // The fiber holds the only copy of its session, which is never stored.
+        if ($this->isSessionless($transport)) {
+            if ($yieldedValue instanceof RequestSuspension) {
+                throw new LogicException('Requests to the client need a session; configure one with Builder::setSession().');
+            }
+
+            $this->queueFiberOutgoing($transport, $yieldedValue->notification);
+
+            return null;
+        }
+
         // The message the fiber suspended on must be stored, so this waits for the lock; when it
         // cannot be had, the exception makes the transport resume the fiber with an error.
         $this->sessionLock?->acquire($sessionId);
@@ -1048,6 +1107,10 @@ class Protocol
      */
     private function saveResumedSession(SessionInterface $session): void
     {
+        if ($session instanceof EphemeralSessionInterface) {
+            return;
+        }
+
         $sessionId = $session->getId();
         $locked = false;
 
@@ -1132,6 +1195,10 @@ class Protocol
                 return null;
             }
 
+            if ($this->isSessionless($transport)) {
+                return $this->createEphemeralSession($transport);
+            }
+
             $session = $this->sessionManager->create();
             $this->logger->debug('Created new session for initialize', [
                 'session_id' => $session->getId()->toRfc4122(),
@@ -1140,6 +1207,10 @@ class Protocol
             $transport->setSessionId($session->getId());
 
             return $session;
+        }
+
+        if ($this->isSessionless($transport)) {
+            return $this->createEphemeralSession($transport);
         }
 
         if (!$sessionId) {
@@ -1172,6 +1243,27 @@ class Protocol
         }
 
         return $this->sessionManager->createWithId($sessionId);
+    }
+
+    /**
+     * Without sessions, every handshake-era request over Streamable HTTP is served on a session of its own.
+     *
+     * @param TransportInterface<mixed>|null $transport
+     *
+     * @phpstan-assert-if-true StreamableHttpTransport $transport
+     */
+    private function isSessionless(?TransportInterface $transport): bool
+    {
+        return $this->sessionless && $transport instanceof StreamableHttpTransport;
+    }
+
+    private function createEphemeralSession(StreamableHttpTransport $transport): EphemeralSession
+    {
+        $session = new EphemeralSession();
+        // The revision the client negotiated on its `initialize`, as no session kept it.
+        $session->set('protocol_version', $transport->getHeaderProtocolVersion()->value);
+
+        return $session;
     }
 
     /**

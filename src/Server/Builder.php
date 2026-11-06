@@ -283,6 +283,8 @@ final class Builder
 
     private int $inputRequiredTimeout = InputRequiredShim::DEFAULT_ROUND_TIMEOUT;
 
+    private bool $sessions = false;
+
     /**
      * @see self::assemble() for why this is memoized
      *
@@ -647,7 +649,12 @@ final class Builder
     }
 
     /**
-     * Configures the session layer.
+     * Turns on sessions for handshake-era clients over Streamable HTTP and configures them.
+     *
+     * Without it, these clients are served without sessions: `initialize` gets no `Mcp-Session-Id`,
+     * every later request runs on an {@see Session\EphemeralSession}, `GET` and `DELETE` get `405`,
+     * and what needs a session fails loud (see `docs/run/sessions.md`). Stdio keeps its one session
+     * in memory either way.
      *
      * @param int $gcProbability The numerator of the GC probability fraction (like PHP's session.gc_probability). Set to 0 to disable GC.
      * @param int $gcDivisor     The denominator of the GC probability fraction (like PHP's session.gc_divisor). Probability = gcProbability/gcDivisor.
@@ -658,6 +665,7 @@ final class Builder
         int $gcProbability = 1,
         int $gcDivisor = 100,
     ): self {
+        $this->sessions = true;
         $this->sessionStore = $sessionStore;
         $this->sessionManager = $sessionManager;
         $this->gcProbability = $gcProbability;
@@ -1003,6 +1011,7 @@ final class Builder
                 : null,
             requestStateCodec: $this->requestStateCodec(),
             sessionLock: $this->sessionLock,
+            sessionless: !$this->sessions,
         );
 
         $modernVersions = $this->modernVersions ?? ProtocolVersion::modernVersions();
