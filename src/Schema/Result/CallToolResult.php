@@ -12,39 +12,33 @@
 namespace Mcp\Schema\Result;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Schema\Content\AudioContent;
-use Mcp\Schema\Content\Content;
-use Mcp\Schema\Content\EmbeddedResource;
-use Mcp\Schema\Content\ImageContent;
-use Mcp\Schema\Content\ResourceLink;
-use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Concern\CallToolResultFactories;
+use Mcp\Schema\Content\ContentBlock;
+use Mcp\Schema\Content\ContentBlockFactory;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
- * The server's response to a tool call.
+ * The result returned by the server for a `tools/call` request.
  *
- * Any errors that originate from the tool SHOULD be reported inside the result
- * object, with `isError` set to true, _not_ as an MCP protocol-level error
- * response. Otherwise, the LLM would not be able to see that an error occurred
- * and self-correct.
+ * @phpstan-import-type ContentBlockData from ContentBlock
  *
- * However, any errors in _finding_ the tool, an error indicating that the
- * server does not support tool calls, or any other exceptional conditions,
- * should be reported as an MCP error response.
+ * @phpstan-type CallToolResultData array{
+ *     content: list<ContentBlockData>,
+ *     isError?: bool,
+ *     structuredContent?: mixed,
+ *     _meta?: array<string, mixed>,
+ * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class CallToolResult implements ResultInterface
+final class CallToolResult implements ResultInterface
 {
+    use CallToolResultFactories;
+
     /**
-     * Create a new CallToolResult.
-     *
-     * @param Content[]                 $content           The content of the tool result
-     * @param bool                      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
-     * @param mixed                     $structuredContent Structured result of the call. Any JSON value — object, array,
-     *                                                     string, number, boolean or null — conforming to the tool's
-     *                                                     outputSchema when one is declared.
-     * @param array<string, mixed>|null $meta              Optional metadata
+     * @param array<ContentBlock>       $content
+     * @param mixed                     $structuredContent since protocol revision 2025-06-18
+     * @param array<string, mixed>|null $meta
      */
     public function __construct(
         public readonly array $content,
@@ -53,104 +47,76 @@ class CallToolResult implements ResultInterface
         public readonly ?array $meta = null,
     ) {
         foreach ($this->content as $item) {
-            if (!$item instanceof Content) {
-                throw new InvalidArgumentException('Content must be an array of Content objects.');
+            if (!$item instanceof ContentBlock) {
+                throw new InvalidArgumentException('Invalid "content" item in CallToolResult.');
             }
+        }
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('CallToolResult "_meta" must be a map, not a list.');
         }
     }
 
     /**
-     * Create a new CallToolResult with success status.
-     *
-     * @param Content[]                 $content The content of the tool result
-     * @param array<string, mixed>|null $meta    Optional metadata
-     */
-    public static function success(array $content, ?array $meta = null): self
-    {
-        return new self($content, false, null, $meta);
-    }
-
-    /**
-     * Create a new CallToolResult with error status.
-     *
-     * @param Content[]                 $content The content of the tool result
-     * @param array<string, mixed>|null $meta    Optional metadata
-     */
-    public static function error(array $content, ?array $meta = null): self
-    {
-        return new self($content, true, null, $meta);
-    }
-
-    /**
-     * @param array{
-     *     content: array<mixed>,
-     *     isError?: bool,
-     *     _meta?: array<string, mixed>,
-     *     structuredContent?: mixed
-     * }|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['content']) || !\is_array($data['content'])) {
-            throw new InvalidArgumentException('Missing or invalid "content" array in CallToolResult data.');
+        if (!isset($data['content'])) {
+            throw new InvalidArgumentException('Missing "content" in CallToolResult data.');
         }
-
-        $contents = [];
-
+        if (!\is_array($data['content']) || !array_is_list($data['content'])) {
+            throw new InvalidArgumentException('Invalid "content" in CallToolResult data.');
+        }
+        $content = [];
         foreach ($data['content'] as $item) {
-            $type = \is_array($item) ? $item['type'] ?? null : null;
-            if (!\is_string($type)) {
-                throw new InvalidArgumentException('Missing or invalid content "type" in CallToolResult data.');
+            if (!\is_array($item)) {
+                throw new InvalidArgumentException('Invalid "content" in CallToolResult data.');
             }
-
-            $contents[] = match ($type) {
-                'text' => TextContent::fromArray($item),
-                'image' => ImageContent::fromArray($item),
-                'audio' => AudioContent::fromArray($item),
-                'resource' => EmbeddedResource::fromArray($item),
-                'resource_link' => ResourceLink::fromArray($item),
-                default => throw new InvalidArgumentException(\sprintf('Invalid content type in CallToolResult data: "%s".', $type)),
-            };
+            $value = ContentBlockFactory::fromArray($item);
+            $content[] = $value;
         }
-
-        if (isset($data['isError']) && !\is_bool($data['isError'])) {
-            throw new InvalidArgumentException('Invalid "isError" in CallToolResult data.');
+        $isError = false;
+        if (isset($data['isError'])) {
+            if (!\is_bool($data['isError'])) {
+                throw new InvalidArgumentException('Invalid "isError" in CallToolResult data.');
+            }
+            $isError = $data['isError'];
         }
-        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
-            throw new InvalidArgumentException('Invalid "_meta" in CallToolResult data.');
+        $structuredContent = $data['structuredContent'] ?? null;
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in CallToolResult data.');
+            }
+            $meta = $data['_meta'];
         }
 
         return new self(
-            $contents,
-            $data['isError'] ?? false,
-            $data['structuredContent'] ?? null,
-            $data['_meta'] ?? null
+            content: $content,
+            isError: $isError,
+            structuredContent: $structuredContent,
+            meta: $meta,
         );
     }
 
     /**
-     * @return array{
-     *     content: list<mixed>,
-     *     isError: bool,
-     *     structuredContent?: mixed,
-     *     _meta?: array<string, mixed>,
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $result = [
+        $data = [
             'content' => array_values($this->content),
             'isError' => $this->isError,
         ];
 
         if (null !== $this->structuredContent) {
-            $result['structuredContent'] = $this->structuredContent;
+            $data['structuredContent'] = $this->structuredContent;
         }
 
-        if ($this->meta) {
-            $result['_meta'] = $this->meta;
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
         }
 
-        return $result;
+        return $data;
     }
 }

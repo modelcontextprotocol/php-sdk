@@ -12,18 +12,11 @@
 namespace Mcp\Schema\Enum;
 
 /**
- * Whether a tool can be called as a task (task-augmented execution).
- *
- * @see https://modelcontextprotocol.io/specification/2025-11-25/basic/utilities/tasks
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
 enum TaskSupport: string
 {
-    /** The tool cannot be called as a task. The default. */
     case Forbidden = 'forbidden';
-
-    /** The tool may be called either way. */
     case Optional = 'optional';
-
-    /** The tool must be called as a task. */
     case Required = 'required';
 }

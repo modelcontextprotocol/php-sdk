@@ -17,81 +17,59 @@ use Mcp\Schema\Enum\Role;
 /**
  * Describes a message returned as part of a prompt.
  *
- * @phpstan-import-type TextContentData from TextContent
- * @phpstan-import-type ImageContentData from ImageContent
- * @phpstan-import-type AudioContentData from AudioContent
- * @phpstan-import-type ResourceLinkData from ResourceLink
- * @phpstan-import-type EmbeddedResourceData from EmbeddedResource
+ * @phpstan-import-type ContentBlockData from ContentBlock
  *
  * @phpstan-type PromptMessageData array{
- *     role: string,
- *     content: TextContentData|ImageContentData|AudioContentData|ResourceLinkData|EmbeddedResourceData,
+ *     role: 'assistant'|'user',
+ *     content: ContentBlockData,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class PromptMessage extends Content
+final class PromptMessage implements \JsonSerializable
 {
-    /**
-     * Create a new PromptMessage instance.
-     *
-     * @param Role                                                                $role    The role of the message
-     * @param TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource $content The content of the message
-     */
     public function __construct(
         public readonly Role $role,
-        public readonly TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource $content,
+        public readonly ContentBlock $content,
     ) {
-        parent::__construct('prompt');
     }
 
     /**
-     * @param PromptMessageData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['role']) || !\is_string($data['role'])) {
-            throw new InvalidArgumentException('Missing or invalid "role" in PromptMessage data.');
+        if (!isset($data['role'])) {
+            throw new InvalidArgumentException('Missing "role" in PromptMessage data.');
         }
-        if (!isset($data['content']) || !\is_array($data['content'])) {
-            throw new InvalidArgumentException('Missing or invalid "content" in PromptMessage data.');
+        $role = \is_string($data['role']) ? Role::tryFrom($data['role']) : null;
+        if (null === $role) {
+            throw new InvalidArgumentException('Invalid "role" in PromptMessage data.');
         }
-
-        $contentData = $data['content'];
-        $contentType = $contentData['type'] ?? null;
-        if (!\is_string($contentType)) {
-            throw new InvalidArgumentException('Missing or invalid content "type" for PromptMessage.');
+        if (!isset($data['content'])) {
+            throw new InvalidArgumentException('Missing "content" in PromptMessage data.');
         }
-
-        $content = match ($contentType) {
-            'text' => TextContent::fromArray($contentData),
-            'image' => ImageContent::fromArray($contentData),
-            'audio' => AudioContent::fromArray($contentData),
-            'resource' => EmbeddedResource::fromArray($contentData),
-            'resource_link' => ResourceLink::fromArray($contentData),
-            default => throw new InvalidArgumentException(\sprintf('Invalid content type "%s" for PromptMessage.', $contentType)),
-        };
-
-        if (null === $role = Role::tryFrom($data['role'])) {
-            throw new InvalidArgumentException(\sprintf('Invalid "role" value "%s" in PromptMessage data.', $data['role']));
+        if (!\is_array($data['content'])) {
+            throw new InvalidArgumentException('Invalid "content" in PromptMessage data.');
         }
+        $content = ContentBlockFactory::fromArray($data['content']);
 
-        return new self($role, $content);
+        return new self(
+            role: $role,
+            content: $content,
+        );
     }
 
     /**
-     * Convert the message to an array.
-     *
-     * @return array{
-     *     role: string,
-     *     content: TextContent|ImageContent|AudioContent|ResourceLink|EmbeddedResource
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        return [
+        $data = [
             'role' => $this->role->value,
             'content' => $this->content,
         ];
+
+        return $data;
     }
 }

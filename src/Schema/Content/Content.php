@@ -12,14 +12,12 @@
 namespace Mcp\Schema\Content;
 
 /**
- * Base class for all content types in MCP.
+ * Any content block of a message, a prompt or a tool result.
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * @property string $type
+ *
+ * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-abstract class Content implements \JsonSerializable
+interface Content extends \JsonSerializable
 {
-    public function __construct(
-        public readonly string $type,
-    ) {
-    }
 }

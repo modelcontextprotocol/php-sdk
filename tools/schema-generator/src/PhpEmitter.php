@@ -23,6 +23,8 @@ use Mcp\Tools\SchemaGenerator\Model\TypeRef;
  */
 final class PhpEmitter
 {
+    public const MARKER = 'Generated from the MCP specification by tools/schema-generator, do not edit.';
+
     private const HEADER = <<<'PHP'
         <?php
 
@@ -41,19 +43,26 @@ final class PhpEmitter
     /** @var array<string, string> FQCN => alias, for the file being rendered */
     private array $uses = [];
 
+    /** @var array<string, string> phpstan type alias => class it is imported from, for the file being rendered */
+    private array $typeImports = [];
+
     private string $currentNamespace = '';
+
+    private string $currentSpecName = '';
 
     /** @var array<string, list<string>> object spec name => unions it belongs to */
     private array $unionsOf = [];
 
     /**
-     * @param array<string, TypeDefinition> $types     keyed by spec name
-     * @param list<string>                  $revisions all supported revisions, oldest first
+     * @param array<string, TypeDefinition> $types                   keyed by spec name
+     * @param list<string>                  $revisions               all supported revisions, oldest first
+     * @param bool                          $discriminatorProperties expose constant discriminators as readonly properties too
      */
     public function __construct(
         private readonly array $types,
         private readonly string $namespace,
         private readonly array $revisions,
+        private readonly bool $discriminatorProperties = false,
     ) {
         foreach ($types as $type) {
             foreach ($type->members as $member) {
@@ -91,12 +100,14 @@ final class PhpEmitter
     private function render(TypeDefinition $type, \Closure $body): string
     {
         $this->uses = [];
+        $this->typeImports = [];
+        $this->currentSpecName = $type->specName;
         $this->currentNamespace = rtrim($this->namespace.'\\'.$type->namespaceSuffix(), '\\');
         $code = $body();
 
         $uses = array_keys($this->uses);
         sort($uses);
-        $imports = '' === implode('', $uses) ? '' : implode("\n", array_map(static fn (string $use): string => 'use '.$use.';', $uses))."\n\n";
+        $imports = [] === $uses ? '' : implode("\n", array_map(static fn (string $use): string => 'use '.$use.';', $uses))."\n\n";
 
         return self::HEADER."\n\nnamespace {$this->currentNamespace};\n\n{$imports}{$code}";
     }
@@ -112,7 +123,7 @@ final class PhpEmitter
                 $cases .= \sprintf("    case %s = %s;\n", $this->caseName($value), var_export($value, true));
             }
 
-            return $this->classDoc($type)."enum {$type->shortName()}: string\n{\n{$cases}}\n";
+            return $this->classDoc($type, [])."enum {$type->shortName()}: string\n{\n{$cases}}\n";
         };
     }
 
@@ -121,7 +132,16 @@ final class PhpEmitter
      */
     private function interfaceBody(TypeDefinition $type): \Closure
     {
-        return fn (): string => $this->classDoc($type)."interface {$type->shortName()} extends \\JsonSerializable\n{\n}\n";
+        return function () use ($type): string {
+            $extends = ['\\JsonSerializable', ...array_map(fn (string $interface): string => $this->importClass($interface), $type->implements)];
+            if ([] !== $type->implements) {
+                array_shift($extends);
+            }
+            $data = implode('|', array_map(fn (string $member): string => $this->dataAlias($member), $type->members));
+            $docs = ["@phpstan-type {$type->shortName()}Data {$data}"];
+
+            return $this->classDoc($type, $docs)."interface {$type->shortName()} extends ".implode(', ', $extends)."\n{\n}\n";
+        };
     }
 
     /**
@@ -138,7 +158,7 @@ final class PhpEmitter
                 /**
                  * Decodes {$interface} data into the matching implementation.
                  *
-                 * Generated from the MCP specification by tools/schema-generator, do not edit.
+                 * {$this->marker()}
                  */
                 final class {$union->shortName()}Factory
                 {
@@ -161,7 +181,10 @@ final class PhpEmitter
     private function classBody(TypeDefinition $type): \Closure
     {
         return function () use ($type): string {
-            $implements = array_map(fn (string $union): string => $this->import($union), $this->unionsOf[$type->specName] ?? []);
+            $implements = [
+                ...array_map(fn (string $union): string => $this->import($union), $this->unionsOf[$type->specName] ?? []),
+                ...array_map(fn (string $interface): string => $this->importClass($interface), $type->implements),
+            ];
             $implements = [] === $implements ? '\\JsonSerializable' : implode(', ', $implements);
 
             $members = [];
@@ -180,27 +203,38 @@ final class PhpEmitter
             $parameters = [];
             $paramDocs = [];
             $declarations = [];
-            $assignments = [];
+            $body = [];
             foreach ($type->properties as $index => $property) {
                 if (TypeRef::CONST === $property->type->kind) {
-                    $constants[] = \sprintf('    public const %s = %s;', $this->constantName($property), var_export($property->type->const, true));
+                    $constant = $this->constantName($property);
+                    $constants[] = \sprintf('    public const %s = %s;', $constant, var_export($property->type->const, true));
+                    if ($this->discriminatorProperties) {
+                        $declarations[] = \sprintf('    public readonly %s $%s;', get_debug_type($property->type->const), $property->phpName);
+                        $body[] = "\$this->{$property->phpName} = self::{$constant};";
+                    }
                     continue;
                 }
+
                 $parameters[] = $this->parameter($property, $index > $lastRequired);
                 if (null !== $property->transform) {
-                    $native = $this->nativeType($property->type);
-                    $docType = $this->docType($property->type);
-                    $declaration = $property->required ? "public readonly {$native} \${$property->phpName};" : "public readonly {$this->nullable($native)} \${$property->phpName};";
-                    $declarations[] = ($docType !== $native ? "    /** @var {$docType}".($property->required ? '' : '|null')." */\n" : '').'    '.$declaration;
+                    $native = $this->propertyNativeType($property);
+                    $docType = $this->docType($property->type).($this->isNullable($property) ? '|null' : '');
+                    $declarations[] = ($docType !== $native ? "    /** @var {$docType} */\n" : '')."    public readonly {$native} \${$property->phpName};";
                     $call = "self::{$property->transform}(\${$property->phpName})";
-                    $assignments[] = $property->required
-                        ? "        \$this->{$property->phpName} = {$call};"
-                        : "        \$this->{$property->phpName} = null === \${$property->phpName} ? null : {$call};";
+                    $body[] = $this->isNullable($property)
+                        ? "\$this->{$property->phpName} = null === \${$property->phpName} ? null : {$call};"
+                        : "\$this->{$property->phpName} = {$call};";
+                } else {
+                    $body = [...$body, ...$this->validation($property, $type)];
                 }
+
                 $doc = $this->paramDoc($property, $type);
                 if (null !== $doc) {
                     $paramDocs[] = $doc;
                 }
+            }
+            foreach ($type->validators as $validator) {
+                $body[] = "\$this->{$validator}();";
             }
 
             if ([] !== $constants) {
@@ -209,26 +243,48 @@ final class PhpEmitter
             if ([] !== $declarations) {
                 $members[] = implode("\n\n", $declarations);
             }
-            $body = [] === $assignments ? '' : implode("\n", $assignments)."\n";
 
             $constructorDoc = [] === $paramDocs ? '' : "    /**\n".implode('', array_map(static fn (string $doc): string => "     * {$doc}\n", $paramDocs))."     */\n";
-            $members[] = $constructorDoc."    public function __construct(\n".implode('', array_map(static fn (string $p): string => "        {$p},\n", $parameters))."    ) {\n{$body}    }";
+            $constructorBody = [] === $body ? '' : $this->indent(implode("\n", $body), 2)."\n";
+            $members[] = $constructorDoc."    public function __construct(\n".implode('', array_map(static fn (string $p): string => "        {$p},\n", $parameters))."    ) {\n{$constructorBody}    }";
             $members[] = $this->fromArrayMethod($type);
             $members[] = $this->jsonSerializeMethod($type);
 
-            return $this->classDoc($type)."final class {$type->shortName()} implements {$implements}\n{\n".implode("\n\n", $members)."\n}\n";
+            $docs = [];
+            foreach ($type->phpstanTypes as $alias => $definition) {
+                $docs[] = "@phpstan-type {$alias} {$definition}";
+            }
+            $docs[] = $this->dataShape($type);
+
+            return $this->classDoc($type, $docs)."final class {$type->shortName()} implements {$implements}\n{\n".implode("\n\n", $members)."\n}\n";
         };
     }
 
-    private function parameter(PropertyDefinition $property, bool $withDefault): string
+    private function parameter(PropertyDefinition $property, bool $isTrailing): string
     {
-        $native = $this->nativeType($property->type);
         $modifiers = null === $property->transform ? 'public readonly ' : '';
-        if ($property->required) {
-            return "{$modifiers}{$native} \${$property->phpName}";
+        $native = $property->transformParamType ?? $this->propertyNativeType($property);
+
+        $default = '';
+        if ($property->hasDefault) {
+            $default = ' = '.var_export($property->default, true);
+        } elseif (!$property->required && $isTrailing) {
+            $default = ' = null';
         }
 
-        return \sprintf('%s%s $%s%s', $modifiers, $this->nullable($native), $property->phpName, $withDefault ? ' = null' : '');
+        return "{$modifiers}{$native} \${$property->phpName}{$default}";
+    }
+
+    private function isNullable(PropertyDefinition $property): bool
+    {
+        return !$property->required && !$property->hasDefault;
+    }
+
+    private function propertyNativeType(PropertyDefinition $property): string
+    {
+        $native = $this->nativeType($property->type);
+
+        return $this->isNullable($property) ? $this->nullable($native) : $native;
     }
 
     private function paramDoc(PropertyDefinition $property, TypeDefinition $owner): ?string
@@ -241,17 +297,78 @@ final class PhpEmitter
             $notes[] = 'deprecated: '.$this->deprecationText($property->deprecated);
         }
 
-        $needsType = \in_array($property->type->kind, [TypeRef::MAP, TypeRef::LIST, TypeRef::STRING_ENUM], true);
+        $docType = $this->docType($property->type);
+        $needsType = $docType !== $this->nativeType($property->type);
         if (!$needsType && [] === $notes) {
             return null;
         }
 
-        $docType = $this->docType($property->type);
-        if (!$property->required && 'mixed' !== $docType) {
+        if ($this->isNullable($property) && 'mixed' !== $docType) {
             $docType .= '|null';
+        }
+        if (null !== $property->transformParamType) {
+            $docType = $property->transformParamType;
         }
 
         return rtrim(\sprintf('@param %s $%s %s', $docType, $property->phpName, implode('; ', $notes)));
+    }
+
+    /**
+     * Constructor checks for what the native type cannot express: the items of lists, and maps given as lists.
+     *
+     * @return list<string>
+     */
+    private function validation(PropertyDefinition $property, TypeDefinition $owner): array
+    {
+        $type = $property->type;
+        $value = '$this->'.$property->phpName;
+        if (TypeRef::MAP === $type->kind) {
+            $exception = $this->importClass(self::EXCEPTION);
+            $guard = $this->isNullable($property) ? "null !== {$value} && " : '';
+
+            return [
+                "if ({$guard}[] !== {$value} && array_is_list({$value})) {",
+                "    throw new {$exception}('{$owner->shortName()} \"{$property->wireName}\" must be a map, not a list.');",
+                '}',
+            ];
+        }
+        $items = match ($type->kind) {
+            TypeRef::LIST, TypeRef::UNION => $type->items,
+            default => null,
+        };
+        $condition = null === $items ? null : $this->instanceCheck($items, '$item');
+        if (null === $condition) {
+            return [];
+        }
+
+        $exception = $this->importClass(self::EXCEPTION);
+        $lines = [
+            "foreach ({$value} as \$item) {",
+            "    if (!({$condition})) {",
+            "        throw new {$exception}('Invalid \"{$property->wireName}\" item in {$owner->shortName()}.');",
+            '    }',
+            '}',
+        ];
+
+        if (TypeRef::UNION === $type->kind) {
+            return ["if (\\is_array({$value})) {", ...$this->indentLines($lines), '}'];
+        }
+        if ($this->isNullable($property)) {
+            return ["if (null !== {$value}) {", ...$this->indentLines($lines), '}'];
+        }
+
+        return $lines;
+    }
+
+    private function instanceCheck(TypeRef $type, string $variable): ?string
+    {
+        return match ($type->kind) {
+            TypeRef::STRING, TypeRef::INT, TypeRef::BOOL => "\\is_{$type->kind}({$variable})",
+            TypeRef::FLOAT => "\\is_float({$variable}) || \\is_int({$variable})",
+            TypeRef::REF => "{$variable} instanceof {$this->import((string) $type->name)}",
+            TypeRef::UNION => implode(' || ', array_map(fn (string $member): string => "{$variable} instanceof {$this->import($member)}", $type->members)),
+            default => null,
+        };
     }
 
     private function fromArrayMethod(TypeDefinition $type): string
@@ -275,11 +392,12 @@ final class PhpEmitter
 
             $variable = '$'.('data' === $property->phpName ? 'dataValue' : $property->phpName);
             $arguments[] = "{$property->phpName}: {$variable},";
+            $fallback = $property->hasDefault ? var_export($property->default, true) : 'null';
 
             if (TypeRef::MIXED === $property->type->kind) {
                 $lines[] = $property->required
                     ? "{$variable} = \\array_key_exists({$key}, \$data) ? {$source} : throw new {$exception}('Missing \"{$property->wireName}\" in {$owner} data.');"
-                    : "{$variable} = {$source} ?? null;";
+                    : "{$variable} = {$source} ?? {$fallback};";
                 continue;
             }
 
@@ -290,17 +408,17 @@ final class PhpEmitter
                 $lines[] = "if (!isset({$source})) {";
                 $lines[] = "    throw new {$exception}('Missing \"{$property->wireName}\" in {$owner} data.');";
                 $lines[] = '}';
-                array_push($lines, ...$decode);
+                $lines = [...$lines, ...$decode];
             } else {
-                $lines[] = "{$variable} = null;";
+                $lines[] = "{$variable} = {$fallback};";
                 $lines[] = "if (isset({$source})) {";
-                array_push($lines, ...array_map(static fn (string $line): string => '    '.$line, $decode));
+                $lines = [...$lines, ...$this->indentLines($decode)];
                 $lines[] = '}';
             }
         }
 
         $lines[] = '';
-        $lines[] = [] === $arguments ? 'return new self();' : "return new self(\n".implode("\n", array_map(static fn (string $a): string => '    '.$a, $arguments))."\n);";
+        $lines[] = [] === $arguments ? 'return new self();' : "return new self(\n".implode("\n", $this->indentLines($arguments))."\n);";
 
         return <<<PHP
                 /**
@@ -350,16 +468,24 @@ final class PhpEmitter
                     '}',
                     "{$target} = [];",
                     "foreach ({$source} as {$item}) {",
-                    ...array_map(static fn (string $line): string => '    '.$line, $inner),
+                    ...$this->indentLines($inner),
                     "    {$target}[] = {$value};",
                     '}',
                 ];
             case TypeRef::UNION:
+                $dispatch = explode("\n", $this->dispatch($type->members, $source, "{$target} = %s;", $fail));
+                $lines = ["if (!\\is_array({$source})) {", "    {$fail}", '}'];
+                if (null === $type->items) {
+                    return [...$lines, ...$dispatch];
+                }
+
                 return [
-                    "if (!\\is_array({$source})) {",
-                    "    {$fail}",
+                    ...$lines,
+                    "if (array_is_list({$source})) {",
+                    ...$this->indentLines(\array_slice($this->decode(TypeRef::listOf($type->items), $source, $target, $fail, $depth), 3)),
+                    '} else {',
+                    ...$this->indentLines($dispatch),
                     '}',
-                    ...explode("\n", $this->dispatch($type->members, $source, "{$target} = %s;", $fail)),
                 ];
             case TypeRef::REF:
                 $definition = $this->types[(string) $type->name];
@@ -471,31 +597,50 @@ final class PhpEmitter
 
     private function jsonSerializeMethod(TypeDefinition $type): string
     {
-        $required = [];
-        $optional = [];
-        foreach ($type->properties as $property) {
+        // Discriminators first, then constructor order: the key order of the existing wire output.
+        $properties = [
+            ...array_filter($type->properties, static fn (PropertyDefinition $p): bool => TypeRef::CONST === $p->type->kind),
+            ...array_filter($type->properties, static fn (PropertyDefinition $p): bool => TypeRef::CONST !== $p->type->kind),
+        ];
+
+        $literal = [];
+        $statements = [];
+        foreach ($properties as $property) {
             $key = var_export($property->wireName, true);
-            if (TypeRef::CONST === $property->type->kind) {
-                $required[] = "    {$key} => self::{$this->constantName($property)},";
+            $value = TypeRef::CONST === $property->type->kind
+                ? 'self::'.$this->constantName($property)
+                : $this->encode($property->type, '$this->'.$property->phpName);
+            $isAlwaysSent = TypeRef::CONST === $property->type->kind || $property->required || $property->alwaysEmit;
+
+            if ($isAlwaysSent && [] === $statements) {
+                $literal[] = "    {$key} => {$value},";
                 continue;
             }
-            $value = $this->encode($property->type, '$this->'.$property->phpName);
-            if ($property->required) {
-                $required[] = "    {$key} => {$value},";
+
+            $assignment = "\$data[{$key}] = {$value};";
+            if ($isAlwaysSent) {
+                $statements[] = $assignment;
+            } elseif ($property->hasDefault) {
+                $statements[] = 'if ('.var_export($property->default, true)." !== \$this->{$property->phpName}) {\n    {$assignment}\n}";
             } else {
-                $optional[] = "if (null !== \$this->{$property->phpName}) {\n    \$data[{$key}] = {$value};\n}";
+                $statements[] = "if (null !== \$this->{$property->phpName}) {\n    {$assignment}\n}";
             }
         }
 
-        $body = [] === $required ? '$data = [];' : "\$data = [\n".implode("\n", $required)."\n];";
-        $body .= [] === $optional ? '' : "\n\n".implode("\n\n", $optional);
-        $body .= "\n\nreturn \$data;";
+        $body = [] === $literal ? '$data = [];' : "\$data = [\n".implode("\n", $literal)."\n];";
+        $body .= [] === $statements ? '' : "\n\n".implode("\n\n", $statements);
+
+        // An object without any property set must still encode as `{}`.
+        $canBeEmpty = [] === $literal;
+        $body .= $canBeEmpty ? "\n\nreturn [] === \$data ? new \\stdClass() : \$data;" : "\n\nreturn \$data;";
+        $returnType = $canBeEmpty ? 'array|\\stdClass' : 'array';
+        $returnDoc = $canBeEmpty ? 'array<string, mixed>|\\stdClass' : 'array<string, mixed>';
 
         return <<<PHP
                 /**
-                 * @return array<string, mixed>
+                 * @return {$returnDoc}
                  */
-                public function jsonSerialize(): array
+                public function jsonSerialize(): {$returnType}
                 {
             {$this->indent($body, 2)}
                 }
@@ -514,7 +659,14 @@ final class PhpEmitter
             && TypeDefinition::ENUM === $this->types[(string) $type->items->name]->kind) {
             $class = $this->import((string) $type->items->name);
 
-            return "array_map(static fn ({$class} \$item): string => \$item->value, {$value})";
+            return "array_map(static fn ({$class} \$item): string => \$item->value, array_values({$value}))";
+        }
+        // Keyed arrays would serialize as JSON objects.
+        if (TypeRef::LIST === $type->kind) {
+            return "array_values({$value})";
+        }
+        if (TypeRef::UNION === $type->kind && null !== $type->items) {
+            return "\\is_array({$value}) ? array_values({$value}) : {$value}";
         }
 
         return $value;
@@ -530,7 +682,10 @@ final class PhpEmitter
             TypeRef::SCALARS => implode('|', $type->scalars),
             TypeRef::MAP, TypeRef::LIST => 'array',
             TypeRef::REF => $this->import((string) $type->name),
-            TypeRef::UNION => implode('|', array_map(fn (string $member): string => $this->import($member), $type->members)),
+            TypeRef::UNION => implode('|', [
+                ...array_map(fn (string $member): string => $this->import($member), $type->members),
+                ...(null === $type->items ? [] : ['array']),
+            ]),
             default => 'mixed',
         };
     }
@@ -539,10 +694,64 @@ final class PhpEmitter
     {
         return match ($type->kind) {
             TypeRef::MAP => 'array<string, mixed>',
-            TypeRef::LIST => 'list<'.$this->docType($type->items ?? TypeRef::mixed()).'>',
+            // Keys are dropped on serialization, so any array is accepted.
+            TypeRef::LIST => 'array<'.$this->docType($type->items ?? TypeRef::mixed()).'>',
             TypeRef::STRING_ENUM => implode('|', array_map(static fn (string $v): string => var_export($v, true), $type->values)),
+            TypeRef::UNION => implode('|', [
+                ...array_map(fn (string $member): string => $this->import($member), $type->members),
+                ...(null === $type->items ? [] : ['array<'.$this->docType($type->items).'>']),
+            ]),
             default => $this->nativeType($type),
         };
+    }
+
+    /**
+     * The wire shape `fromArray()` accepts and `jsonSerialize()` produces, as `@phpstan-type <Name>Data`.
+     */
+    private function dataShape(TypeDefinition $type): string
+    {
+        $entries = [];
+        foreach ($type->properties as $property) {
+            $key = preg_match('/^[a-zA-Z_]\w*$/', $property->wireName) ? $property->wireName : var_export($property->wireName, true);
+            $optional = $property->required || TypeRef::CONST === $property->type->kind ? '' : '?';
+            $entries[] = " *     {$key}{$optional}: {$this->dataType($property->type)},";
+        }
+
+        return "@phpstan-type {$type->shortName()}Data array{\n".implode("\n", $entries)."\n * }";
+    }
+
+    private function dataType(TypeRef $type): string
+    {
+        return match ($type->kind) {
+            TypeRef::STRING => 'string',
+            TypeRef::INT => 'int',
+            TypeRef::FLOAT => 'float|int',
+            TypeRef::BOOL => 'bool',
+            TypeRef::SCALARS => implode('|', $type->scalars),
+            TypeRef::MAP => 'array<string, mixed>',
+            TypeRef::LIST => 'list<'.$this->dataType($type->items ?? TypeRef::mixed()).'>',
+            TypeRef::CONST => var_export($type->const, true),
+            TypeRef::STRING_ENUM => implode('|', array_map(static fn (string $v): string => var_export($v, true), $type->values)),
+            TypeRef::REF => TypeDefinition::ENUM === $this->types[(string) $type->name]->kind
+                ? implode('|', array_map(static fn (string $v): string => var_export($v, true), $this->types[(string) $type->name]->values))
+                : $this->dataAlias((string) $type->name),
+            TypeRef::UNION => implode('|', [
+                ...array_map(fn (string $member): string => $this->dataAlias($member), $type->members),
+                ...(null === $type->items ? [] : ['list<'.$this->dataType($type->items).'>']),
+            ]),
+            default => 'mixed',
+        };
+    }
+
+    private function dataAlias(string $specName): string
+    {
+        $definition = $this->types[$specName];
+        $alias = $definition->shortName().'Data';
+        if ($specName !== $this->currentSpecName) {
+            $this->typeImports[$alias] = $this->import($specName);
+        }
+
+        return $alias;
     }
 
     private function nullable(string $native): string
@@ -554,7 +763,10 @@ final class PhpEmitter
         return str_contains($native, '|') ? $native.'|null' : '?'.$native;
     }
 
-    private function classDoc(TypeDefinition $type): string
+    /**
+     * @param list<string> $docs tags rendered after the description; may span lines prefixed with " * "
+     */
+    private function classDoc(TypeDefinition $type, array $docs): string
     {
         $lines = [];
         if ('' !== $type->description) {
@@ -569,9 +781,28 @@ final class PhpEmitter
             $lines[] = '@deprecated '.$this->deprecationText($type->deprecated);
             $lines[] = '';
         }
-        $lines[] = 'Generated from the MCP specification by tools/schema-generator, do not edit.';
 
-        return "/**\n".implode("\n", array_map(static fn (string $line): string => rtrim(' * '.$line), $lines))."\n */\n";
+        ksort($this->typeImports);
+        foreach ($this->typeImports as $alias => $class) {
+            $lines[] = "@phpstan-import-type {$alias} from {$class}";
+        }
+        if ([] !== $this->typeImports) {
+            $lines[] = '';
+        }
+        foreach ($docs as $doc) {
+            $lines[] = $doc;
+        }
+        if ([] !== $docs) {
+            $lines[] = '';
+        }
+        $lines[] = $this->marker();
+
+        return "/**\n".implode("\n", array_map(static fn (string $line): string => str_starts_with($line, ' *') ? $line : rtrim(' * '.$line), $lines))."\n */\n";
+    }
+
+    private function marker(): string
+    {
+        return self::MARKER;
     }
 
     /**
@@ -641,6 +872,16 @@ final class PhpEmitter
         $name = str_replace(' ', '', ucwords((string) preg_replace('/[^A-Za-z0-9]+|(?<=[a-z0-9])(?=[A-Z])/', ' ', $value)));
 
         return preg_match('/^\d/', $name) ? 'V'.$name : $name;
+    }
+
+    /**
+     * @param list<string> $lines
+     *
+     * @return list<string>
+     */
+    private function indentLines(array $lines): array
+    {
+        return array_map(static fn (string $line): string => '' === $line ? '' : '    '.$line, $lines);
     }
 
     private function indent(string $code, int $levels): string

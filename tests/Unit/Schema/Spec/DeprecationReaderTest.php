@@ -9,7 +9,7 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Schema\Generated;
+namespace Mcp\Tests\Unit\Schema\Spec;
 
 use Mcp\Tools\SchemaGenerator\DeprecationReader;
 use PHPUnit\Framework\TestCase;

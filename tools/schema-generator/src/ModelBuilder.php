@@ -32,7 +32,13 @@ use Mcp\Tools\SchemaGenerator\Model\TypeRef;
  *     omit: list<string>,
  *     order: array<string, list<string>>,
  *     traits: array<string, list<class-string>>,
- *     transforms: array<string, string>,
+ *     transforms: array<string, string|array{string, string}>,
+ *     implements: array<string, list<class-string>>,
+ *     validators: array<string, list<string>>,
+ *     phpstan_types: array<string, array<string, string>>,
+ *     defaults: array<string, string|int|float|bool>,
+ *     always_emit: list<string>,
+ *     discriminator_property: bool,
  * }
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -133,6 +139,9 @@ final class ModelBuilder
             values: $values,
             members: $members,
             traits: $this->config['traits'][$specName] ?? [],
+            implements: $this->config['implements'][$specName] ?? [],
+            validators: $this->config['validators'][$specName] ?? [],
+            phpstanTypes: $this->config['phpstan_types'][$specName] ?? [],
         );
     }
 
@@ -170,6 +179,7 @@ final class ModelBuilder
             }
 
             $known = array_keys($fragments);
+            $transform = $this->config['transforms'][$path] ?? null;
             $properties[] = new PropertyDefinition(
                 wireName: $wireName,
                 phpName: $this->phpName($wireName, $path),
@@ -177,7 +187,11 @@ final class ModelBuilder
                 required: $required,
                 deprecated: $this->deprecations[$path] ?? null,
                 revisions: $known === $revisions ? [] : $known,
-                transform: $this->config['transforms'][$path] ?? null,
+                transform: \is_array($transform) ? $transform[0] : $transform,
+                transformParamType: \is_array($transform) ? $transform[1] : null,
+                hasDefault: \array_key_exists($path, $this->config['defaults']),
+                default: $this->config['defaults'][$path] ?? null,
+                alwaysEmit: \in_array($path, $this->config['always_emit'], true),
             );
         }
 
@@ -243,9 +257,21 @@ final class ModelBuilder
         }
 
         if (isset($fragment['anyOf'])) {
-            $members = $this->refNames($fragment['anyOf'], $path, false);
+            $listOf = null;
+            $anyOf = [];
+            foreach ($fragment['anyOf'] as $alternative) {
+                if (null === $listOf && 'array' === ($alternative['type'] ?? null) && isset($alternative['items']['$ref'])) {
+                    $listOf = $this->typeRef([$alternative['items']], $path.'[]');
+                    continue;
+                }
+                $anyOf[] = $alternative;
+            }
+            $members = $this->refNames($anyOf, $path, false);
             if (null === $members) {
                 return TypeRef::mixed();
+            }
+            if (null !== $listOf) {
+                return TypeRef::union($members, $listOf);
             }
             foreach ($members as $member) {
                 if (\in_array($member, $this->config['any'], true)) {

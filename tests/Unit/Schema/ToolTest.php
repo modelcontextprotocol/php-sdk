@@ -385,7 +385,6 @@ class ToolTest extends TestCase
     {
         $this->expectException(InvalidArgumentException::class);
 
-        /* @phpstan-ignore argument.type */
         ToolExecution::fromArray(['taskSupport' => 'sometimes']);
     }
 }

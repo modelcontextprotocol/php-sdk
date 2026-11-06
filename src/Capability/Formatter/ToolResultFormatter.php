@@ -11,7 +11,7 @@
 
 namespace Mcp\Capability\Formatter;
 
-use Mcp\Schema\Content\Content;
+use Mcp\Schema\Content\ContentBlock;
 use Mcp\Schema\Content\TextContent;
 
 /**
@@ -37,13 +37,13 @@ final class ToolResultFormatter
      *
      * @param mixed $toolExecutionResult the raw value returned by the tool's PHP method
      *
-     * @return Content[] the content items for CallToolResult
+     * @return ContentBlock[] the content items for CallToolResult
      *
      * @throws \JsonException if JSON encoding fails for non-Content array/object results
      */
     public function format(mixed $toolExecutionResult): array
     {
-        if ($toolExecutionResult instanceof Content) {
+        if ($toolExecutionResult instanceof ContentBlock) {
             return [$toolExecutionResult];
         }
 
@@ -56,7 +56,7 @@ final class ToolResultFormatter
             $hasContent = false;
 
             foreach ($toolExecutionResult as $item) {
-                if ($item instanceof Content) {
+                if ($item instanceof ContentBlock) {
                     $hasContent = true;
                 } else {
                     $allAreContent = false;
@@ -70,7 +70,7 @@ final class ToolResultFormatter
             if ($hasContent) {
                 $result = [];
                 foreach ($toolExecutionResult as $item) {
-                    if ($item instanceof Content) {
+                    if ($item instanceof ContentBlock) {
                         $result[] = $item;
                     } else {
                         foreach ($this->format($item) as $content) {

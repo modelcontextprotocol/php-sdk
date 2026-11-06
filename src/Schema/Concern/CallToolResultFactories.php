@@ -11,7 +11,7 @@
 
 namespace Mcp\Schema\Concern;
 
-use Mcp\Schema\Generated\Content\ContentBlock;
+use Mcp\Schema\Content\ContentBlock;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
@@ -19,7 +19,7 @@ use Mcp\Schema\Generated\Content\ContentBlock;
 trait CallToolResultFactories
 {
     /**
-     * @param list<ContentBlock>        $content
+     * @param array<ContentBlock>       $content
      * @param array<string, mixed>|null $meta
      */
     public static function success(array $content, ?array $meta = null): self
@@ -28,7 +28,7 @@ trait CallToolResultFactories
     }
 
     /**
-     * @param list<ContentBlock>        $content
+     * @param array<ContentBlock>       $content
      * @param array<string, mixed>|null $meta
      */
     public static function error(array $content, ?array $meta = null): self

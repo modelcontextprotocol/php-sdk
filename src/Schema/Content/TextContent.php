@@ -13,84 +13,102 @@ namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Concern\TextContentFactories;
 
 /**
- * Represents text content in MCP.
+ * Text provided to or from an LLM.
  *
  * @phpstan-import-type AnnotationsData from Annotations
  *
  * @phpstan-type TextContentData array{
- *     type: 'text',
  *     text: string,
+ *     type: 'text',
  *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class TextContent extends Content
+final class TextContent implements ContentBlock, SamplingMessageContentBlock
 {
+    use TextContentFactories;
+
+    public const TYPE = 'text';
+
+    public readonly string $text;
+
+    public readonly string $type;
+
     /**
-     * Create a new TextContent instance from any value.
-     *
-     * @param mixed        $text        The value to convert to text
-     * @param ?Annotations $annotations Optional annotations describing the content
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
      */
     public function __construct(
-        public mixed $text,
+        mixed $text,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
-        $this->text = (\is_array($text) || \is_object($text))
-            ? json_encode($text) : (string) $text;
-
-        parent::__construct('text');
+        $this->text = self::stringifyText($text);
+        $this->type = self::TYPE;
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('TextContent "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param TextContentData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['text']) || !\is_string($data['text'])) {
-            throw new InvalidArgumentException('Missing or invalid "text" in TextContent data.');
+        if (!isset($data['text'])) {
+            throw new InvalidArgumentException('Missing "text" in TextContent data.');
+        }
+        if (!\is_string($data['text'])) {
+            throw new InvalidArgumentException('Invalid "text" in TextContent data.');
+        }
+        $text = $data['text'];
+        if (isset($data['type']) && self::TYPE !== $data['type']) {
+            throw new InvalidArgumentException('Invalid "type" in TextContent data.');
+        }
+        $annotations = null;
+        if (isset($data['annotations'])) {
+            if (!\is_array($data['annotations'])) {
+                throw new InvalidArgumentException('Invalid "annotations" in TextContent data.');
+            }
+            $annotations = Annotations::fromArray($data['annotations']);
+        }
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in TextContent data.');
+            }
+            $meta = $data['_meta'];
         }
 
         return new self(
-            $data['text'],
-            Annotations::tryFromArray($data['annotations'] ?? null, 'TextContent')
+            text: $text,
+            annotations: $annotations,
+            meta: $meta,
         );
     }
 
     /**
-     * Create a new TextContent with markdown formatted code.
-     *
-     * @param string $code     The code to format
-     * @param string $language The language for syntax highlighting
-     */
-    public static function code(string $code, string $language = '', ?Annotations $annotations = null): self
-    {
-        return new self("```{$language}\n{$code}\n```", $annotations);
-    }
-
-    /**
-     * Convert the content to an array.
-     *
-     * @return array{
-     *     type: 'text',
-     *     text: string,
-     *     annotations?: Annotations,
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $result = [
-            'type' => 'text',
+        $data = [
+            'type' => self::TYPE,
             'text' => $this->text,
         ];
 
         if (null !== $this->annotations) {
-            $result['annotations'] = $this->annotations;
+            $data['annotations'] = $this->annotations;
         }
 
-        return $result;
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
+
+        return $data;
     }
 }

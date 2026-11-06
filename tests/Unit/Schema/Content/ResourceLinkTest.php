@@ -195,7 +195,7 @@ final class ResourceLinkTest extends TestCase
     public function testFromArrayRejectsWrongType(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Invalid type for ResourceLink.');
+        $this->expectExceptionMessage('Invalid "type" in ResourceLink data.');
 
         ResourceLink::fromArray([
             'type' => 'resource',
@@ -217,11 +217,11 @@ final class ResourceLinkTest extends TestCase
     {
         yield 'missing uri' => [
             ['type' => 'resource_link', 'name' => 'main.rs'],
-            'Invalid or missing "uri" in ResourceLink data.',
+            'Missing "uri" in ResourceLink data.',
         ];
         yield 'missing name' => [
             ['type' => 'resource_link', 'uri' => self::VALID_URI],
-            'Invalid or missing "name" in ResourceLink data.',
+            'Missing "name" in ResourceLink data.',
         ];
         yield 'invalid _meta' => [
             ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', '_meta' => 'not-an-array'],
@@ -237,15 +237,15 @@ final class ResourceLinkTest extends TestCase
         ];
         yield 'invalid size' => [
             ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'size' => 'not-an-int'],
-            'Invalid "size" in ResourceLink data; expected an integer.',
+            'Invalid "size" in ResourceLink data.',
         ];
         yield 'invalid annotations' => [
             ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'annotations' => 'not-an-array'],
-            'Invalid "annotations" in ResourceLink data; expected an array.',
+            'Invalid "annotations" in ResourceLink data.',
         ];
         yield 'invalid icons entry' => [
             ['type' => 'resource_link', 'uri' => self::VALID_URI, 'name' => 'main.rs', 'icons' => ['not-an-array']],
-            'Each entry in "icons" of ResourceLink data must be an array.',
+            'Invalid "icons" in ResourceLink data.',
         ];
     }
 }

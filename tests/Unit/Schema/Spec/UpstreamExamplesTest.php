@@ -9,11 +9,11 @@
  * file that was distributed with this source code.
  */
 
-namespace Mcp\Tests\Unit\Schema\Generated;
+namespace Mcp\Tests\Unit\Schema\Spec;
 
-use Mcp\Schema\Generated\Content\BlobResourceContents;
-use Mcp\Schema\Generated\Content\ContentBlockFactory;
-use Mcp\Schema\Generated\Content\TextResourceContents;
+use Mcp\Schema\Content\BlobResourceContents;
+use Mcp\Schema\Content\ContentBlockFactory;
+use Mcp\Schema\Content\TextResourceContents;
 use Opis\JsonSchema\Errors\ErrorFormatter;
 use Opis\JsonSchema\Validator;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -67,6 +67,13 @@ final class UpstreamExamplesTest extends TestCase
         $expected = $this->withoutOmitted($type, $example);
 
         $actual = json_decode(json_encode($this->decode($type, $example), \JSON_THROW_ON_ERROR), false, flags: \JSON_THROW_ON_ERROR);
+        // A default the class always sends is not a difference when the example leaves it out.
+        foreach (self::config()['defaults'] as $path => $default) {
+            [$owner, $field] = explode('.', $path, 2);
+            if ($owner === $type && !isset($example->{$field}) && ($actual->{$field} ?? null) === $default) {
+                unset($actual->{$field});
+            }
+        }
 
         $this->assertEquals($expected, $actual);
     }
@@ -167,7 +174,7 @@ final class UpstreamExamplesTest extends TestCase
     }
 
     /**
-     * @return array{revisions: list<string>, namespace: string, types: array<string, string>, omit: list<string>}
+     * @return array{revisions: list<string>, namespace: string, types: array<string, string>, omit: list<string>, defaults: array<string, scalar>}
      */
     private static function config(): array
     {

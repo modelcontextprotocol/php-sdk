@@ -12,44 +12,14 @@
 namespace Mcp\Schema\Content;
 
 /**
- * The contents of a specific resource or sub-resource.
+ * The contents of a resource, as text or as binary blob.
  *
- * @phpstan-type ResourceContentsData = array{
- *     uri: string,
- *     mimeType?: string|null,
- *     _meta?: array<string, mixed>
- * }
+ * @property string                    $uri
+ * @property string|null               $mimeType
+ * @property array<string, mixed>|null $meta
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-abstract class ResourceContents implements \JsonSerializable
+interface ResourceContents extends \JsonSerializable
 {
-    /**
-     * @param string                $uri      the URI of the resource or sub-resource
-     * @param string|null           $mimeType the MIME type of the resource or sub-resource
-     * @param ?array<string, mixed> $meta     Optional metadata
-     */
-    public function __construct(
-        public readonly string $uri,
-        public readonly ?string $mimeType = null,
-        public readonly ?array $meta = null,
-    ) {
-    }
-
-    /**
-     * @return ResourceContentsData
-     */
-    public function jsonSerialize(): array
-    {
-        $data = ['uri' => $this->uri];
-        if (null !== $this->mimeType) {
-            $data['mimeType'] = $this->mimeType;
-        }
-
-        if (null !== $this->meta) {
-            $data['_meta'] = $this->meta;
-        }
-
-        return $data;
-    }
 }

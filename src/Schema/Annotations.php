@@ -12,107 +12,102 @@
 namespace Mcp\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Concern\AnnotationsFactories;
 use Mcp\Schema\Enum\Role;
 
 /**
- * Optional annotations for the client. The client can use annotations
- * to inform how objects are used or displayed.
+ * Optional annotations for the client. The client can use annotations to inform how objects are used or displayed.
  *
  * @phpstan-type AnnotationsData array{
- *     audience?: string[],
- *     priority?: float
+ *     audience?: list<'assistant'|'user'>,
+ *     priority?: float|int,
+ *     lastModified?: string,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class Annotations implements \JsonSerializable
+final class Annotations implements \JsonSerializable
 {
+    use AnnotationsFactories;
+
     /**
-     * @param Role[]|null $audience Describes who the intended customer of this object or data is.
-     *
-     *  It can include multiple entries to indicate content useful for multiple audiences (e.g., `[Role::User, Role::Assistant]`).
-     * @param float|null $priority Describes how important this data is for operating the server.
-     *
-     * A value of 1 means "most important," and indicates that the data is
-     * effectively required, while 0 means "least important," and indicates that
-     * the data is entirely optional.
+     * @param array<Role>|null $audience
+     * @param string|null      $lastModified since protocol revision 2025-06-18
      */
     public function __construct(
         public readonly ?array $audience = null,
         public readonly ?float $priority = null,
+        public readonly ?string $lastModified = null,
     ) {
-        if (null !== $this->priority && ($this->priority < 0 || $this->priority > 1)) {
-            throw new InvalidArgumentException('Annotation priority must be between 0 and 1.');
-        }
         if (null !== $this->audience) {
-            foreach ($this->audience as $role) {
-                if (!$role instanceof Role) {
-                    throw new InvalidArgumentException('All audience members must be instances of Role enum.');
+            foreach ($this->audience as $item) {
+                if (!$item instanceof Role) {
+                    throw new InvalidArgumentException('Invalid "audience" item in Annotations.');
                 }
             }
         }
     }
 
     /**
-     * @param AnnotationsData $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
         $audience = null;
-        if (isset($data['audience']) && \is_array($data['audience'])) {
-            $audience = array_map(
-                static function (mixed $role): Role {
-                    if (!\is_string($role) || null === $case = Role::tryFrom($role)) {
-                        throw new InvalidArgumentException('Each entry in "audience" must be a valid role.');
-                    }
-
-                    return $case;
-                },
-                $data['audience'],
-            );
+        if (isset($data['audience'])) {
+            if (!\is_array($data['audience']) || !array_is_list($data['audience'])) {
+                throw new InvalidArgumentException('Invalid "audience" in Annotations data.');
+            }
+            $audience = [];
+            foreach ($data['audience'] as $item) {
+                $value = \is_string($item) ? Role::tryFrom($item) : null;
+                if (null === $value) {
+                    throw new InvalidArgumentException('Invalid "audience" in Annotations data.');
+                }
+                $audience[] = $value;
+            }
         }
-
-        if (isset($data['priority']) && !\is_float($data['priority']) && !\is_int($data['priority'])) {
-            throw new InvalidArgumentException('Invalid "priority" in Annotations data; expected a number.');
+        $priority = null;
+        if (isset($data['priority'])) {
+            if (!\is_int($data['priority']) && !\is_float($data['priority'])) {
+                throw new InvalidArgumentException('Invalid "priority" in Annotations data.');
+            }
+            $priority = (float) $data['priority'];
+        }
+        $lastModified = null;
+        if (isset($data['lastModified'])) {
+            if (!\is_string($data['lastModified'])) {
+                throw new InvalidArgumentException('Invalid "lastModified" in Annotations data.');
+            }
+            $lastModified = $data['lastModified'];
         }
 
         return new self(
-            $audience,
-            isset($data['priority']) ? (float) $data['priority'] : null
+            audience: $audience,
+            priority: $priority,
+            lastModified: $lastModified,
         );
     }
 
     /**
-     * Hydrates an optional "annotations" field, rejecting a value that is present but not an object.
-     *
-     * @param string $context the surrounding schema type, used for the error message
+     * @return array<string, mixed>|\stdClass
      */
-    public static function tryFromArray(mixed $data, string $context): ?self
-    {
-        if (null === $data) {
-            return null;
-        }
-
-        if (!\is_array($data)) {
-            throw new InvalidArgumentException(\sprintf('Invalid "annotations" in %s data; expected an array.', $context));
-        }
-
-        return self::fromArray($data);
-    }
-
-    /**
-     * @return AnnotationsData
-     */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): array|\stdClass
     {
         $data = [];
+
         if (null !== $this->audience) {
-            $data['audience'] = array_map(static fn (Role $r) => $r->value, $this->audience);
+            $data['audience'] = array_map(static fn (Role $item): string => $item->value, array_values($this->audience));
         }
+
         if (null !== $this->priority) {
             $data['priority'] = $this->priority;
         }
 
-        return $data;
+        if (null !== $this->lastModified) {
+            $data['lastModified'] = $this->lastModified;
+        }
+
+        return [] === $data ? new \stdClass() : $data;
     }
 }

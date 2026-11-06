@@ -52,23 +52,18 @@ final class Generator
 
         $types = (new ModelBuilder($this->config, $definitions, $deprecations))->build();
 
-        return (new PhpEmitter($types, $this->config['namespace'], $this->config['revisions']))->emit();
+        return (new PhpEmitter($types, $this->config['namespace'], $this->config['revisions'], $this->config['discriminator_property']))->emit();
     }
 
     /**
-     * Replaces every PHP file in $directory with the generated ones.
+     * Replaces the previously generated files in $directory with $files, leaving hand-written ones alone.
      *
      * @param array<string, string> $files
      */
     public function write(string $directory, array $files): void
     {
-        if (is_dir($directory)) {
-            $existing = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS));
-            foreach ($existing as $file) {
-                if ($file instanceof \SplFileInfo && 'php' === $file->getExtension()) {
-                    unlink($file->getPathname());
-                }
-            }
+        foreach ($this->generatedFiles($directory) as $path) {
+            unlink($directory.'/'.$path);
         }
 
         foreach ($files as $path => $code) {
@@ -78,6 +73,28 @@ final class Generator
             }
             file_put_contents($target, $code);
         }
+    }
+
+    /**
+     * @return list<string> paths, relative to $directory, of files carrying the generated marker
+     */
+    public function generatedFiles(string $directory): array
+    {
+        if (!is_dir($directory)) {
+            return [];
+        }
+
+        $paths = [];
+        $files = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS));
+        foreach ($files as $file) {
+            if ($file instanceof \SplFileInfo && 'php' === $file->getExtension()
+                && str_contains((string) file_get_contents($file->getPathname()), PhpEmitter::MARKER)) {
+                $paths[] = substr($file->getPathname(), \strlen($directory) + 1);
+            }
+        }
+        sort($paths);
+
+        return $paths;
     }
 
     public function outputDirectory(): string

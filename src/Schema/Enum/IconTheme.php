@@ -12,14 +12,10 @@
 namespace Mcp\Schema\Enum;
 
 /**
- * The background an icon is designed to be displayed against.
- *
- * When absent, the icon is assumed to work against any background.
- *
- * @author Christopher Hertel <mail@christopher-hertel.de>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
 enum IconTheme: string
 {
-    case Light = 'light';
     case Dark = 'dark';
+    case Light = 'light';
 }

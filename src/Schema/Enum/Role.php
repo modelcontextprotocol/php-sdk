@@ -14,10 +14,10 @@ namespace Mcp\Schema\Enum;
 /**
  * The sender or recipient of messages and data in a conversation.
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
 enum Role: string
 {
-    case User = 'user';
     case Assistant = 'assistant';
+    case User = 'user';
 }

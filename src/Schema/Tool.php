@@ -12,316 +12,203 @@
 namespace Mcp\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Schema\Wire\McpHeader;
+use Mcp\Schema\Concern\ToolSchemaNormalization;
 
 /**
  * Definition for a tool the client can call.
  *
- * @phpstan-import-type ToolAnnotationsData from ToolAnnotations
  * @phpstan-import-type IconData from Icon
+ * @phpstan-import-type ToolAnnotationsData from ToolAnnotations
  * @phpstan-import-type ToolExecutionData from ToolExecution
  *
- * @phpstan-type ToolInputSchema array{
- *     type: 'object',
- *     properties?: array<mixed>|\stdClass,
- *     required?: array<mixed>|null
- * }
- * @phpstan-type ToolOutputSchema array<string, mixed>
+ * @phpstan-type ToolInputSchema array{type: 'object', properties?: array<mixed>|\stdClass, required?: array<mixed>|null}
  * @phpstan-type ToolData array{
  *     name: string,
  *     title?: string,
- *     inputSchema: ToolInputSchema,
- *     description?: string|null,
+ *     inputSchema: array<string, mixed>,
+ *     description?: string,
  *     annotations?: ToolAnnotationsData,
- *     icons?: IconData[],
+ *     icons?: list<IconData>,
  *     _meta?: array<string, mixed>,
- *     outputSchema?: ToolOutputSchema,
- *     execution?: ToolExecutionData
+ *     outputSchema?: array<string, mixed>,
+ *     execution?: ToolExecutionData,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class Tool implements \JsonSerializable
+final class Tool implements \JsonSerializable
 {
-    /**
-     * JSON Schema keywords whose value is a single sub-schema.
-     */
-    private const SUB_SCHEMA_KEYWORDS = [
-        'additionalItems',
-        'additionalProperties',
-        'contains',
-        'else',
-        'if',
-        'not',
-        'propertyNames',
-        'then',
-        'unevaluatedItems',
-        'unevaluatedProperties',
-    ];
+    use ToolSchemaNormalization;
 
-    /**
-     * JSON Schema keywords whose value maps names to sub-schemas.
-     */
-    private const SUB_SCHEMA_MAP_KEYWORDS = [
-        '$defs',
-        'definitions',
-        'dependentSchemas',
-        'patternProperties',
-        'properties',
-    ];
-
-    /**
-     * JSON Schema keywords whose value is a list of sub-schemas.
-     */
-    private const SUB_SCHEMA_LIST_KEYWORDS = [
-        'allOf',
-        'anyOf',
-        'oneOf',
-        'prefixItems',
-    ];
-
-    /**
-     * @var ToolInputSchema
-     */
+    /** @var array<string, mixed> */
     public readonly array $inputSchema;
 
-    /**
-     * @var ToolOutputSchema|null
-     */
+    /** @var array<string, mixed>|null */
     public readonly ?array $outputSchema;
 
     /**
-     * @param string                    $name         the name of the tool
-     * @param ?string                   $title        Optional human-readable title for display in UI
-     * @param array<string, mixed>      $inputSchema  a JSON Schema object (as a PHP array) defining the expected 'arguments' for the tool
-     * @param ?string                   $description  A human-readable description of the tool.
-     *                                                This can be used by clients to improve the LLM's understanding of
-     *                                                available tools. It can be thought of like a "hint" to the model.
-     * @param ?ToolAnnotations          $annotations  optional additional tool information
-     * @param ?Icon[]                   $icons        optional icons representing the tool
-     * @param ?array<string, mixed>     $meta         Optional metadata
-     * @param array<string, mixed>|null $outputSchema Optional JSON Schema (as a PHP array) describing the tool's
-     *                                                structuredContent. Unlike $inputSchema its root is unconstrained —
-     *                                                it may describe an array, a primitive, or a composition.
-     * @param ?ToolExecution            $execution    optional execution-related properties, such as whether the
-     *                                                tool can be called as a task
+     * @param string|null               $title        since protocol revision 2025-06-18
+     * @param array<string, mixed>      $inputSchema
+     * @param ToolAnnotations|null      $annotations  since protocol revision 2025-03-26
+     * @param array<Icon>|null          $icons        since protocol revision 2025-11-25
+     * @param array<string, mixed>|null $meta         since protocol revision 2025-06-18
+     * @param array<string, mixed>|null $outputSchema since protocol revision 2025-06-18
+     * @param ToolExecution|null        $execution    only on protocol revision 2025-11-25
      */
     public function __construct(
         public readonly string $name,
         public readonly ?string $title,
         array $inputSchema,
-        public readonly ?string $description,
-        public readonly ?ToolAnnotations $annotations,
+        public readonly ?string $description = null,
+        public readonly ?ToolAnnotations $annotations = null,
         public readonly ?array $icons = null,
         public readonly ?array $meta = null,
         ?array $outputSchema = null,
         public readonly ?ToolExecution $execution = null,
     ) {
-        // Always normalize here so every construction path emits `{}` for empty
-        // sub-schemas — not only SchemaGenerator / fromArray.
         $this->inputSchema = self::normalizeInputSchema($inputSchema);
-        $this->outputSchema = null !== $outputSchema ? self::normalizeSchema($outputSchema) : null;
-
-        // An out-of-bounds `x-mcp-header` reachable through `properties` makes
-        // the whole tool definition invalid, so it is refused where the tool
-        // is defined rather than discovered when a header comparison
-        // mysteriously fails.
-        if (null !== $reason = McpHeader::checkAnnotations($this->inputSchema)) {
-            throw new InvalidArgumentException(\sprintf('Tool "%s" has an invalid "x-mcp-header" annotation: %s', $this->name, $reason));
+        if (null !== $this->icons) {
+            foreach ($this->icons as $item) {
+                if (!$item instanceof Icon) {
+                    throw new InvalidArgumentException('Invalid "icons" item in Tool.');
+                }
+            }
         }
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('Tool "_meta" must be a map, not a list.');
+        }
+        $this->outputSchema = null === $outputSchema ? null : self::normalizeSchema($outputSchema);
+        $this->validateMcpHeaderAnnotations();
     }
 
     /**
-     * @param ToolData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data['name']) || !\is_string($data['name'])) {
-            throw new InvalidArgumentException('Invalid or missing "name" in Tool data.');
+        if (!isset($data['name'])) {
+            throw new InvalidArgumentException('Missing "name" in Tool data.');
         }
-        if (!isset($data['inputSchema']) || !\is_array($data['inputSchema'])) {
-            throw new InvalidArgumentException('Invalid or missing "inputSchema" in Tool data.');
+        if (!\is_string($data['name'])) {
+            throw new InvalidArgumentException('Invalid "name" in Tool data.');
         }
-        if (!isset($data['inputSchema']['type']) || 'object' !== $data['inputSchema']['type']) {
-            throw new InvalidArgumentException('Tool inputSchema must be of type "object".');
+        $name = $data['name'];
+        $title = null;
+        if (isset($data['title'])) {
+            if (!\is_string($data['title'])) {
+                throw new InvalidArgumentException('Invalid "title" in Tool data.');
+            }
+            $title = $data['title'];
         }
-
+        if (!isset($data['inputSchema'])) {
+            throw new InvalidArgumentException('Missing "inputSchema" in Tool data.');
+        }
+        if (!\is_array($data['inputSchema'])) {
+            throw new InvalidArgumentException('Invalid "inputSchema" in Tool data.');
+        }
+        $inputSchema = $data['inputSchema'];
+        $description = null;
+        if (isset($data['description'])) {
+            if (!\is_string($data['description'])) {
+                throw new InvalidArgumentException('Invalid "description" in Tool data.');
+            }
+            $description = $data['description'];
+        }
+        $annotations = null;
+        if (isset($data['annotations'])) {
+            if (!\is_array($data['annotations'])) {
+                throw new InvalidArgumentException('Invalid "annotations" in Tool data.');
+            }
+            $annotations = ToolAnnotations::fromArray($data['annotations']);
+        }
+        $icons = null;
+        if (isset($data['icons'])) {
+            if (!\is_array($data['icons']) || !array_is_list($data['icons'])) {
+                throw new InvalidArgumentException('Invalid "icons" in Tool data.');
+            }
+            $icons = [];
+            foreach ($data['icons'] as $item) {
+                if (!\is_array($item)) {
+                    throw new InvalidArgumentException('Invalid "icons" in Tool data.');
+                }
+                $value = Icon::fromArray($item);
+                $icons[] = $value;
+            }
+        }
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in Tool data.');
+            }
+            $meta = $data['_meta'];
+        }
         $outputSchema = null;
-        if (isset($data['outputSchema']) && \is_array($data['outputSchema'])) {
+        if (isset($data['outputSchema'])) {
+            if (!\is_array($data['outputSchema'])) {
+                throw new InvalidArgumentException('Invalid "outputSchema" in Tool data.');
+            }
             $outputSchema = $data['outputSchema'];
+        }
+        $execution = null;
+        if (isset($data['execution'])) {
+            if (!\is_array($data['execution'])) {
+                throw new InvalidArgumentException('Invalid "execution" in Tool data.');
+            }
+            $execution = ToolExecution::fromArray($data['execution']);
         }
 
         return new self(
-            name: $data['name'],
-            title: isset($data['title']) && \is_string($data['title']) ? $data['title'] : null,
-            inputSchema: $data['inputSchema'],
-            description: isset($data['description']) && \is_string($data['description']) ? $data['description'] : null,
-            annotations: isset($data['annotations']) && \is_array($data['annotations']) ? ToolAnnotations::fromArray($data['annotations']) : null,
-            icons: isset($data['icons']) && \is_array($data['icons']) ? Icon::listFromArray($data['icons'], 'Tool') : null,
-            meta: isset($data['_meta']) && \is_array($data['_meta']) ? $data['_meta'] : null,
+            name: $name,
+            title: $title,
+            inputSchema: $inputSchema,
+            description: $description,
+            annotations: $annotations,
+            icons: $icons,
+            meta: $meta,
             outputSchema: $outputSchema,
-            execution: isset($data['execution']) && \is_array($data['execution']) ? ToolExecution::fromArray($data['execution']) : null,
+            execution: $execution,
         );
     }
 
     /**
-     * @return array{
-     *     name: string,
-     *     title?: string,
-     *     inputSchema: ToolInputSchema,
-     *     description?: string,
-     *     annotations?: ToolAnnotations,
-     *     icons?: Icon[],
-     *     _meta?: array<string, mixed>,
-     *     outputSchema?: ToolOutputSchema|\stdClass,
-     *     execution?: ToolExecution
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $data = ['name' => $this->name];
+        $data = [
+            'name' => $this->name,
+        ];
+
         if (null !== $this->title) {
             $data['title'] = $this->title;
         }
-        $data['inputSchema'] = $this->inputSchema;
+
+        $data['inputSchema'] = [] === $this->inputSchema ? new \stdClass() : $this->inputSchema;
+
         if (null !== $this->description) {
             $data['description'] = $this->description;
         }
+
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
         }
+
         if (null !== $this->icons) {
-            $data['icons'] = $this->icons;
+            $data['icons'] = array_values($this->icons);
         }
+
         if (null !== $this->meta) {
-            $data['_meta'] = $this->meta;
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
         }
+
         if (null !== $this->outputSchema) {
             $data['outputSchema'] = [] === $this->outputSchema ? new \stdClass() : $this->outputSchema;
         }
+
         if (null !== $this->execution) {
             $data['execution'] = $this->execution;
         }
 
         return $data;
-    }
-
-    /**
-     * Normalize an input schema and refuse members that are not what they claim.
-     *
-     * `fromArray()` feeds this untrusted wire data, so a member of the wrong
-     * type is rejected rather than replaced: quietly turning `properties: "x"`
-     * into `{}` would publish a tool contract nobody declared.
-     *
-     * @param array<string, mixed> $schema
-     *
-     * @return ToolInputSchema
-     */
-    private static function normalizeInputSchema(array $schema): array
-    {
-        $normalized = self::normalizeSchema($schema);
-
-        if (!isset($normalized['type']) || 'object' !== $normalized['type']) {
-            throw new InvalidArgumentException('Tool inputSchema must be a JSON Schema of type "object".');
-        }
-
-        if (\array_key_exists('properties', $normalized)
-            && !\is_array($normalized['properties'])
-            && !$normalized['properties'] instanceof \stdClass
-        ) {
-            throw new InvalidArgumentException('Tool inputSchema "properties" must be an object.');
-        }
-
-        if (\array_key_exists('required', $normalized)
-            && null !== $normalized['required']
-            && !\is_array($normalized['required'])
-        ) {
-            throw new InvalidArgumentException('Tool inputSchema "required" must be a list of property names.');
-        }
-
-        return $normalized;
-    }
-
-    /**
-     * Normalize a JSON Schema so that empty sub-schemas JSON-encode as `{}` rather than `[]`.
-     *
-     * Once JSON is decoded into associative arrays, PHP cannot tell the empty object `{}`
-     * from the empty array `[]` — both are `[]`. Re-encoding then produces `[]`, which is
-     * invalid wherever a schema is expected (`properties`, `items`, `additionalProperties`,
-     * …), and strict clients reject it. Every empty sub-schema is therefore replaced with a
-     * `\stdClass` before serialization.
-     *
-     * The walk is recursive and covers the schema keywords of draft-07 through 2020-12, so
-     * nested object parameters, `$defs`, combinators, and `outputSchema` are all covered —
-     * not only the top-level `properties` map.
-     *
-     * @param array<string, mixed> $schema
-     *
-     * @return array<string, mixed>
-     */
-    private static function normalizeSchema(array $schema): array
-    {
-        foreach (self::SUB_SCHEMA_KEYWORDS as $keyword) {
-            if (isset($schema[$keyword]) && \is_array($schema[$keyword])) {
-                $schema[$keyword] = self::normalizeSubSchema($schema[$keyword]);
-            }
-        }
-
-        foreach (self::SUB_SCHEMA_MAP_KEYWORDS as $keyword) {
-            if (!isset($schema[$keyword]) || !\is_array($schema[$keyword])) {
-                continue;
-            }
-
-            if ([] === $schema[$keyword]) {
-                $schema[$keyword] = new \stdClass();
-                continue;
-            }
-
-            foreach ($schema[$keyword] as $name => $subSchema) {
-                if (\is_array($subSchema)) {
-                    $schema[$keyword][$name] = self::normalizeSubSchema($subSchema);
-                }
-            }
-        }
-
-        foreach (self::SUB_SCHEMA_LIST_KEYWORDS as $keyword) {
-            if (!isset($schema[$keyword]) || !\is_array($schema[$keyword])) {
-                continue;
-            }
-
-            // An empty list stays a list — `allOf: []` is already valid JSON.
-            foreach ($schema[$keyword] as $index => $subSchema) {
-                if (\is_array($subSchema)) {
-                    $schema[$keyword][$index] = self::normalizeSubSchema($subSchema);
-                }
-            }
-        }
-
-        if (isset($schema['items']) && \is_array($schema['items'])) {
-            // `items` is a single sub-schema, or a list of them in draft-07 tuple form.
-            // An empty array is read as the empty schema `{}` — what an `items: {}` from
-            // SchemaGenerator decodes to — rather than as an empty tuple.
-            if ([] !== $schema['items'] && array_is_list($schema['items'])) {
-                foreach ($schema['items'] as $index => $itemSchema) {
-                    if (\is_array($itemSchema)) {
-                        $schema['items'][$index] = self::normalizeSubSchema($itemSchema);
-                    }
-                }
-            } else {
-                $schema['items'] = self::normalizeSubSchema($schema['items']);
-            }
-        }
-
-        return $schema;
-    }
-
-    /**
-     * @param array<string, mixed> $schema
-     *
-     * @return array<string, mixed>|\stdClass
-     */
-    private static function normalizeSubSchema(array $schema): array|\stdClass
-    {
-        return [] === $schema ? new \stdClass() : self::normalizeSchema($schema);
     }
 }

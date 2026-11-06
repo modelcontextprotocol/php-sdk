@@ -35,6 +35,20 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
 
+### Schema
+
+* Generate the content blocks, `CallToolResult`, `Tool`, `ToolAnnotations`, `ToolExecution`, `Annotations`, `Icon`, `PromptMessage`, `SamplingMessage` and the `Role`, `IconTheme` and `TaskSupport` enums from the specification's schemas with `tools/schema-generator` (`make schema-generate`). One class covers every supported protocol revision; properties only some revisions know are documented as such. The upstream examples are round-tripped through the classes and validated against the schema.
+* [BC Break] The generated classes are `final`; their convenience factories (`fromFile()`, `fromString()`, `code()`, `success()`, …) are unchanged.
+* [BC Break] `Content` and `ResourceContents` are interfaces instead of abstract classes. Content blocks implement `ContentBlock` and/or `SamplingMessageContentBlock`, both extending `Content`; decode them with `ContentBlockFactory::fromArray()` and `SamplingMessageContentBlockFactory::fromArray()`.
+* [BC Break] `PromptMessage` and `SamplingMessage` no longer extend `Content`, and have no `$type` property.
+* [BC Break] `TextContent::$text` is a readonly `string`; the constructor still accepts any value and JSON-encodes arrays and objects.
+* [BC Break] `ToolResultContent::$structuredContent` is `mixed`, as the 2026-07-28 revision allows any JSON value.
+* [BC Break] `Annotations::jsonSerialize()`, `ToolAnnotations::jsonSerialize()` and `ToolExecution::jsonSerialize()` return a `\stdClass` when no property is set, so they encode as `{}`.
+* [BC Break] `fromArray()` of the generated classes reports invalid data with uniform messages, e.g. `Missing "uri" in ResourceLink data.` and `Invalid "size" in ResourceLink data.`
+* Add `$meta` to `TextContent`, `ImageContent`, `AudioContent` and `EmbeddedResource`, and `$lastModified` to `Annotations`.
+* `Tool::__construct()` defaults `$description` and `$annotations` to `null`.
+* Tool results only pass `ContentBlock`s through as content; other values, including `ToolUseContent` and `ToolResultContent`, are encoded as text.
+
 0.9.0
 -----
 

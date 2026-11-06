@@ -61,6 +61,7 @@ class ResourceResultFormatterTest extends TestCase
     {
         $result = (new ResourceResultFormatter())->format('content', 'file://test', 'text/html');
         $this->assertCount(1, $result);
+        $this->assertInstanceOf(TextResourceContents::class, $result[0]);
         $this->assertSame('text/html', $result[0]->mimeType);
     }
 }

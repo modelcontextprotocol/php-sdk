@@ -89,7 +89,10 @@ and reconnect policy).
 
 `Schema\*` holds the MCP types (requests, results, notifications, content, enums) as immutable value objects
 serialized via `jsonSerialize()`; requests and notifications extend `Schema\JsonRpc\Request`/`Notification` and
-implement `getMethod()`, `fromParams()` and `getParams()`. `JsonRpc\*` parses and builds raw messages. `Schema\Extension\*` is the generic seam
+implement `getMethod()`, `fromParams()` and `getParams()`.
+Files whose docblock says "Generated from the MCP specification" come from `tools/schema-generator` (see its
+README): never edit them, change `tools/schema-generator/config.php` or a trait in `Schema\Concern` and run
+`make schema-generate`; CI fails on `make schema-check` otherwise. `JsonRpc\*` parses and builds raw messages. `Schema\Extension\*` is the generic seam
 for protocol extensions (`ExtensionInterface`, e.g. `Apps`); core handlers, `RequestContext` and `Client` must not
 reference concrete extension types.
 

@@ -15,7 +15,6 @@ use Mcp\Exception\InvalidArgumentException;
 
 /**
  * Additional properties describing a Tool to clients.
- * NOTE: all properties in ToolAnnotations are hints.
  *
  * @phpstan-type ToolAnnotationsData array{
  *     title?: string,
@@ -25,17 +24,10 @@ use Mcp\Exception\InvalidArgumentException;
  *     openWorldHint?: bool,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class ToolAnnotations implements \JsonSerializable
+final class ToolAnnotations implements \JsonSerializable
 {
-    /**
-     * @param ?string $title           a human-readable title for the tool — deprecated for display in favor of `Mcp\Schema\Tool::$title` per MCP spec revision 2025-06-18; retained for backward compatibility
-     * @param ?bool   $readOnlyHint    if true, the tool does not modify its environment
-     * @param ?bool   $destructiveHint If true, the tool may perform destructive updates to its environment. If false, the tool performs only additive updates.
-     * @param ?bool   $idempotentHint  If true, calling the tool repeatedly with the same arguments will have no additional effect on the its environment. (This property is meaningful only when `readOnlyHint == false`)
-     * @param ?bool   $openWorldHint   If true, this tool may interact with an "open world" of external entities. If false, the tool's domain of interaction is closed. For example, the world of a web search tool is open, whereas that of a memory tool is not.
-     */
     public function __construct(
         public readonly ?string $title = null,
         public readonly ?bool $readOnlyHint = null,
@@ -46,51 +38,82 @@ class ToolAnnotations implements \JsonSerializable
     }
 
     /**
-     * @param ToolAnnotationsData $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (isset($data['title']) && !\is_string($data['title'])) {
-            throw new InvalidArgumentException('Invalid "title" in ToolAnnotations data.');
-        }
-
-        foreach (['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'] as $hint) {
-            if (isset($data[$hint]) && !\is_bool($data[$hint])) {
-                throw new InvalidArgumentException(\sprintf('Invalid "%s" in ToolAnnotations data; expected a boolean.', $hint));
+        $title = null;
+        if (isset($data['title'])) {
+            if (!\is_string($data['title'])) {
+                throw new InvalidArgumentException('Invalid "title" in ToolAnnotations data.');
             }
+            $title = $data['title'];
+        }
+        $readOnlyHint = null;
+        if (isset($data['readOnlyHint'])) {
+            if (!\is_bool($data['readOnlyHint'])) {
+                throw new InvalidArgumentException('Invalid "readOnlyHint" in ToolAnnotations data.');
+            }
+            $readOnlyHint = $data['readOnlyHint'];
+        }
+        $destructiveHint = null;
+        if (isset($data['destructiveHint'])) {
+            if (!\is_bool($data['destructiveHint'])) {
+                throw new InvalidArgumentException('Invalid "destructiveHint" in ToolAnnotations data.');
+            }
+            $destructiveHint = $data['destructiveHint'];
+        }
+        $idempotentHint = null;
+        if (isset($data['idempotentHint'])) {
+            if (!\is_bool($data['idempotentHint'])) {
+                throw new InvalidArgumentException('Invalid "idempotentHint" in ToolAnnotations data.');
+            }
+            $idempotentHint = $data['idempotentHint'];
+        }
+        $openWorldHint = null;
+        if (isset($data['openWorldHint'])) {
+            if (!\is_bool($data['openWorldHint'])) {
+                throw new InvalidArgumentException('Invalid "openWorldHint" in ToolAnnotations data.');
+            }
+            $openWorldHint = $data['openWorldHint'];
         }
 
         return new self(
-            $data['title'] ?? null,
-            $data['readOnlyHint'] ?? null,
-            $data['destructiveHint'] ?? null,
-            $data['idempotentHint'] ?? null,
-            $data['openWorldHint'] ?? null
+            title: $title,
+            readOnlyHint: $readOnlyHint,
+            destructiveHint: $destructiveHint,
+            idempotentHint: $idempotentHint,
+            openWorldHint: $openWorldHint,
         );
     }
 
     /**
-     * @return ToolAnnotationsData
+     * @return array<string, mixed>|\stdClass
      */
-    public function jsonSerialize(): array
+    public function jsonSerialize(): array|\stdClass
     {
         $data = [];
+
         if (null !== $this->title) {
             $data['title'] = $this->title;
         }
+
         if (null !== $this->readOnlyHint) {
             $data['readOnlyHint'] = $this->readOnlyHint;
         }
+
         if (null !== $this->destructiveHint) {
             $data['destructiveHint'] = $this->destructiveHint;
         }
+
         if (null !== $this->idempotentHint) {
             $data['idempotentHint'] = $this->idempotentHint;
         }
+
         if (null !== $this->openWorldHint) {
             $data['openWorldHint'] = $this->openWorldHint;
         }
 
-        return $data;
+        return [] === $data ? new \stdClass() : $data;
     }
 }

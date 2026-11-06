@@ -17,7 +17,8 @@ namespace Mcp\Tools\SchemaGenerator\Model;
 final class PropertyDefinition
 {
     /**
-     * @param list<string> $revisions revisions that know this property, empty if all revisions of its type do
+     * @param list<string> $revisions          revisions that know this property, empty if all revisions of its type do
+     * @param ?string      $transformParamType native constructor parameter type when it differs from the property's
      */
     public function __construct(
         public readonly string $wireName,
@@ -27,6 +28,10 @@ final class PropertyDefinition
         public readonly ?string $deprecated = null,
         public readonly array $revisions = [],
         public readonly ?string $transform = null,
+        public readonly ?string $transformParamType = null,
+        public readonly bool $hasDefault = false,
+        public readonly string|int|float|bool|null $default = null,
+        public readonly bool $alwaysEmit = false,
     ) {
     }
 }

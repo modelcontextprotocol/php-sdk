@@ -23,11 +23,14 @@ final class TypeDefinition
     public const UNION = 'union';
 
     /**
-     * @param list<string>             $revisions  revisions that define this type, empty if all do
-     * @param list<PropertyDefinition> $properties for OBJECT
-     * @param list<string>             $values     for ENUM
-     * @param list<string>             $members    spec type names, for UNION
-     * @param list<class-string>       $traits     for OBJECT
+     * @param list<string>             $revisions    revisions that define this type, empty if all do
+     * @param list<PropertyDefinition> $properties   for OBJECT
+     * @param list<string>             $values       for ENUM
+     * @param list<string>             $members      spec type names, for UNION
+     * @param list<class-string>       $traits       for OBJECT
+     * @param list<class-string>       $implements   extra interfaces implemented (OBJECT) or extended (UNION)
+     * @param list<string>             $validators   instance methods the constructor calls last, for OBJECT
+     * @param array<string, string>    $phpstanTypes extra `@phpstan-type` aliases, name => type
      */
     public function __construct(
         public readonly string $specName,
@@ -40,6 +43,9 @@ final class TypeDefinition
         public readonly array $values = [],
         public readonly array $members = [],
         public readonly array $traits = [],
+        public readonly array $implements = [],
+        public readonly array $validators = [],
+        public readonly array $phpstanTypes = [],
     ) {
     }
 

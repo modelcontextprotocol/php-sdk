@@ -13,108 +13,110 @@ namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Concern\ImageContentFactories;
 
 /**
+ * An image provided to or from an LLM.
+ *
  * @phpstan-import-type AnnotationsData from Annotations
  *
  * @phpstan-type ImageContentData array{
- *     type: 'image',
  *     data: string,
  *     mimeType: string,
+ *     type: 'image',
  *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class ImageContent extends Content
+final class ImageContent implements ContentBlock, SamplingMessageContentBlock
 {
+    use ImageContentFactories;
+
+    public const TYPE = 'image';
+
+    public readonly string $type;
+
     /**
-     * Create a new ImageContent instance.
-     *
-     * @param string       $data        Base64-encoded image data
-     * @param string       $mimeType    The MIME type of the image
-     * @param ?Annotations $annotations Optional annotations describing the content
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
      */
     public function __construct(
         public readonly string $data,
         public readonly string $mimeType,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
-        parent::__construct('image');
+        $this->type = self::TYPE;
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('ImageContent "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param ImageContentData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['data']) || !\is_string($data['data'])) {
-            throw new InvalidArgumentException('Missing or invalid "data" in ImageContent data.');
+        if (!isset($data['data'])) {
+            throw new InvalidArgumentException('Missing "data" in ImageContent data.');
         }
-        if (!isset($data['mimeType']) || !\is_string($data['mimeType'])) {
-            throw new InvalidArgumentException('Missing or invalid "mimeType" in ImageContent data.');
+        if (!\is_string($data['data'])) {
+            throw new InvalidArgumentException('Invalid "data" in ImageContent data.');
+        }
+        $dataValue = $data['data'];
+        if (!isset($data['mimeType'])) {
+            throw new InvalidArgumentException('Missing "mimeType" in ImageContent data.');
+        }
+        if (!\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in ImageContent data.');
+        }
+        $mimeType = $data['mimeType'];
+        if (isset($data['type']) && self::TYPE !== $data['type']) {
+            throw new InvalidArgumentException('Invalid "type" in ImageContent data.');
+        }
+        $annotations = null;
+        if (isset($data['annotations'])) {
+            if (!\is_array($data['annotations'])) {
+                throw new InvalidArgumentException('Invalid "annotations" in ImageContent data.');
+            }
+            $annotations = Annotations::fromArray($data['annotations']);
+        }
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in ImageContent data.');
+            }
+            $meta = $data['_meta'];
         }
 
         return new self(
-            $data['data'],
-            $data['mimeType'],
-            isset($data['annotations']) ? Annotations::fromArray($data['annotations']) : null
+            data: $dataValue,
+            mimeType: $mimeType,
+            annotations: $annotations,
+            meta: $meta,
         );
     }
 
     /**
-     * Create a new ImageContent from a file path.
-     *
-     * @param string       $path        Path to the image file
-     * @param string|null  $mimeType    Optional MIME type override
-     * @param ?Annotations $annotations Optional annotations describing the content
-     *
-     * @throws InvalidArgumentException If the file doesn't exist
-     */
-    public static function fromFile(string $path, ?string $mimeType = null, ?Annotations $annotations = null): self
-    {
-        if (!file_exists($path)) {
-            throw new InvalidArgumentException(\sprintf('Image file not found: "%s".', $path));
-        }
-
-        $contents = file_get_contents($path);
-        if (false === $contents) {
-            throw new InvalidArgumentException(\sprintf('Could not read image file: "%s".', $path));
-        }
-
-        $data = base64_encode($contents);
-        $detectedMime = $mimeType ?? mime_content_type($path) ?: 'image/png';
-
-        return new self($data, $detectedMime, $annotations);
-    }
-
-    public static function fromString(string $data, string $mimeType, ?Annotations $annotations = null): self
-    {
-        return new self(base64_encode($data), $mimeType, $annotations);
-    }
-
-    /**
-     * Convert the content to an array.
-     *
-     * @return array{
-     *     type: 'image',
-     *     data: string,
-     *     mimeType: string,
-     *     annotations?: Annotations,
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $result = [
-            'type' => 'image',
+        $data = [
+            'type' => self::TYPE,
             'data' => $this->data,
             'mimeType' => $this->mimeType,
         ];
 
         if (null !== $this->annotations) {
-            $result['annotations'] = $this->annotations;
+            $data['annotations'] = $this->annotations;
         }
 
-        return $result;
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
+
+        return $data;
     }
 }

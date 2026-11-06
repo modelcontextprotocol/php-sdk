@@ -81,7 +81,7 @@ final class ToolUseContentTest extends TestCase
     public function testRejectsListInput(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('ToolUseContent "input" must be a map of argument names, not a list.');
+        $this->expectExceptionMessage('ToolUseContent "input" must be a map, not a list.');
 
         /* @phpstan-ignore argument.type (deliberately list-shaped) */
         new ToolUseContent('call-1', 'get_weather', ['Berlin']);

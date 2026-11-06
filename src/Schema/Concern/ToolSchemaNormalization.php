@@ -12,12 +12,23 @@
 namespace Mcp\Schema\Concern;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Wire\McpHeader;
 
 /**
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 trait ToolSchemaNormalization
 {
+    /**
+     * An out-of-bounds `x-mcp-header` reachable through `properties` makes the whole tool definition invalid.
+     */
+    private function validateMcpHeaderAnnotations(): void
+    {
+        if (null !== $reason = McpHeader::checkAnnotations($this->inputSchema)) {
+            throw new InvalidArgumentException(\sprintf('Tool "%s" has an invalid "x-mcp-header" annotation: %s', $this->name, $reason));
+        }
+    }
+
     /**
      * JSON Schema keywords holding one sub-schema, a map of them, or a list of them.
      *

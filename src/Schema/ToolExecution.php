@@ -15,24 +15,25 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Schema\Enum\TaskSupport;
 
 /**
- * Execution-related properties of a Tool.
+ * Execution-related properties for a tool.
+ *
+ * Only on protocol revision 2025-11-25.
  *
  * @phpstan-type ToolExecutionData array{
  *     taskSupport?: 'forbidden'|'optional'|'required',
  * }
+ *
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class ToolExecution implements \JsonSerializable
+final class ToolExecution implements \JsonSerializable
 {
-    /**
-     * @param ?TaskSupport $taskSupport whether the tool can be called as a task; absent means {@see TaskSupport::Forbidden}
-     */
     public function __construct(
         public readonly ?TaskSupport $taskSupport = null,
     ) {
     }
 
     /**
-     * @param ToolExecutionData $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
@@ -40,22 +41,26 @@ class ToolExecution implements \JsonSerializable
         if (isset($data['taskSupport'])) {
             $taskSupport = \is_string($data['taskSupport']) ? TaskSupport::tryFrom($data['taskSupport']) : null;
             if (null === $taskSupport) {
-                throw new InvalidArgumentException('Invalid "taskSupport" in ToolExecution data; expected "forbidden", "optional" or "required".');
+                throw new InvalidArgumentException('Invalid "taskSupport" in ToolExecution data.');
             }
         }
 
-        return new self($taskSupport);
+        return new self(
+            taskSupport: $taskSupport,
+        );
     }
 
     /**
-     * @return ToolExecutionData|\stdClass an empty execution encodes as `{}`, not `[]`
+     * @return array<string, mixed>|\stdClass
      */
     public function jsonSerialize(): array|\stdClass
     {
-        if (null === $this->taskSupport) {
-            return new \stdClass();
+        $data = [];
+
+        if (null !== $this->taskSupport) {
+            $data['taskSupport'] = $this->taskSupport->value;
         }
 
-        return ['taskSupport' => $this->taskSupport->value];
+        return [] === $data ? new \stdClass() : $data;
     }
 }

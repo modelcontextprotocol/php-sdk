@@ -12,30 +12,27 @@
 namespace Mcp\Schema;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Concern\IconFactories;
 use Mcp\Schema\Enum\IconTheme;
 
 /**
- * A url pointing to an icon URL or a base64-encoded data URI.
+ * An optionally-sized icon that can be displayed in a user interface.
  *
  * @phpstan-type IconData array{
  *     src: string,
  *     mimeType?: string,
- *     sizes?: string[],
- *     theme?: string,
+ *     sizes?: list<string>,
+ *     theme?: 'dark'|'light',
  * }
  *
- * @author Christopher Hertel <mail@christopher-hertel.de>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class Icon implements \JsonSerializable
+final class Icon implements \JsonSerializable
 {
+    use IconFactories;
+
     /**
-     * @param string     $src      a standard URI pointing to an icon resource
-     * @param ?string    $mimeType optional override if the server's MIME type is missing or generic
-     * @param ?string[]  $sizes    optional array of strings that specify sizes at which the icon can be used.
-     *                             Each string should be in WxH format (e.g., `"48x48"`, `"96x96"`) or `"any"` for
-     *                             scalable formats like SVG.
-     * @param ?IconTheme $theme    Optional background this icon is designed for. When omitted, the icon is
-     *                             assumed to work against any background.
+     * @param array<string>|null $sizes
      */
     public function __construct(
         public readonly string $src,
@@ -43,74 +40,67 @@ class Icon implements \JsonSerializable
         public readonly ?array $sizes = null,
         public readonly ?IconTheme $theme = null,
     ) {
-        if (empty($src)) {
-            throw new InvalidArgumentException('Icon "src" must be a non-empty string.');
-        }
-        if (!preg_match('#^(https?://|data:)#', $src)) {
-            throw new InvalidArgumentException('Icon "src" must be a valid URL or data URI.');
-        }
-
-        if (null !== $sizes) {
-            foreach ($sizes as $size) {
-                if (!\is_string($size)) {
-                    throw new InvalidArgumentException('Each size in "sizes" must be a string.');
-                }
-                if (!preg_match('/^(any|\d+x\d+)$/', $size)) {
-                    throw new InvalidArgumentException(\sprintf('Invalid size format "%s" in "sizes". Expected "WxH" or "any".', $size));
+        if (null !== $this->sizes) {
+            foreach ($this->sizes as $item) {
+                if (!\is_string($item)) {
+                    throw new InvalidArgumentException('Invalid "sizes" item in Icon.');
                 }
             }
         }
+        $this->validateIcon();
     }
 
     /**
-     * @param IconData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (empty($data['src']) || !\is_string($data['src'])) {
-            throw new InvalidArgumentException('Invalid or missing "src" in Icon data.');
+        if (!isset($data['src'])) {
+            throw new InvalidArgumentException('Missing "src" in Icon data.');
         }
-        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
-            throw new InvalidArgumentException('Invalid "mimeType" in Icon data.');
+        if (!\is_string($data['src'])) {
+            throw new InvalidArgumentException('Invalid "src" in Icon data.');
         }
-        if (isset($data['sizes']) && !\is_array($data['sizes'])) {
-            throw new InvalidArgumentException('Invalid "sizes" in Icon data.');
+        $src = $data['src'];
+        $mimeType = null;
+        if (isset($data['mimeType'])) {
+            if (!\is_string($data['mimeType'])) {
+                throw new InvalidArgumentException('Invalid "mimeType" in Icon data.');
+            }
+            $mimeType = $data['mimeType'];
         }
-
+        $sizes = null;
+        if (isset($data['sizes'])) {
+            if (!\is_array($data['sizes']) || !array_is_list($data['sizes'])) {
+                throw new InvalidArgumentException('Invalid "sizes" in Icon data.');
+            }
+            $sizes = [];
+            foreach ($data['sizes'] as $item) {
+                if (!\is_string($item)) {
+                    throw new InvalidArgumentException('Invalid "sizes" in Icon data.');
+                }
+                $value = $item;
+                $sizes[] = $value;
+            }
+        }
         $theme = null;
         if (isset($data['theme'])) {
-            if (!\is_string($data['theme']) || null === $theme = IconTheme::tryFrom($data['theme'])) {
+            $theme = \is_string($data['theme']) ? IconTheme::tryFrom($data['theme']) : null;
+            if (null === $theme) {
                 throw new InvalidArgumentException('Invalid "theme" in Icon data.');
             }
         }
 
-        return new self($data['src'], $data['mimeType'] ?? null, $data['sizes'] ?? null, $theme);
-    }
-
-    /**
-     * Hydrates an "icons" list, rejecting entries that are not objects.
-     *
-     * @param array<mixed> $icons
-     * @param string       $context the surrounding schema type, used for the error message
-     *
-     * @return self[]
-     */
-    public static function listFromArray(array $icons, string $context): array
-    {
-        return array_map(
-            static function (mixed $icon) use ($context): self {
-                if (!\is_array($icon)) {
-                    throw new InvalidArgumentException(\sprintf('Each entry in "icons" of %s data must be an array.', $context));
-                }
-
-                return self::fromArray($icon);
-            },
-            $icons,
+        return new self(
+            src: $src,
+            mimeType: $mimeType,
+            sizes: $sizes,
+            theme: $theme,
         );
     }
 
     /**
-     * @return IconData
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
@@ -123,7 +113,7 @@ class Icon implements \JsonSerializable
         }
 
         if (null !== $this->sizes) {
-            $data['sizes'] = $this->sizes;
+            $data['sizes'] = array_values($this->sizes);
         }
 
         if (null !== $this->theme) {

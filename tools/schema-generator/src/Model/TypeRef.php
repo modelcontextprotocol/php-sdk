@@ -96,10 +96,11 @@ final class TypeRef
 
     /**
      * @param list<string> $members
+     * @param ?self        $listOf  set when a list of items is accepted as well
      */
-    public static function union(array $members): self
+    public static function union(array $members, ?self $listOf = null): self
     {
-        return new self(self::UNION, members: $members);
+        return new self(self::UNION, items: $listOf, members: $members);
     }
 
     /**
@@ -109,7 +110,7 @@ final class TypeRef
     {
         return match ($this->kind) {
             self::REF => [(string) $this->name],
-            self::UNION => $this->members,
+            self::UNION => [...$this->members, ...($this->items?->referencedTypes() ?? [])],
             self::LIST => $this->items?->referencedTypes() ?? [],
             default => [],
         };

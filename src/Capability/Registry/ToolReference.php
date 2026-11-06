@@ -12,7 +12,7 @@
 namespace Mcp\Capability\Registry;
 
 use Mcp\Capability\Formatter\ToolResultFormatter;
-use Mcp\Schema\Content\Content;
+use Mcp\Schema\Content\ContentBlock;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\Tool;
 
@@ -48,7 +48,7 @@ class ToolReference extends ElementReference
      *
      * @param mixed $toolExecutionResult the raw value returned by the tool's PHP method
      *
-     * @return Content[] the content items for CallToolResult
+     * @return ContentBlock[] the content items for CallToolResult
      *
      * @throws \JsonException if JSON encoding fails for non-Content array/object results
      */
@@ -88,7 +88,7 @@ class ToolReference extends ElementReference
             }
 
             foreach ($toolExecutionResult as $item) {
-                if ($item instanceof Content) {
+                if ($item instanceof ContentBlock) {
                     // Content items are already reflected in the result's `content`
                     // array; an array holding one or more of them isn't structured
                     // data. This holds in every revision — it is a duplication rule,
@@ -100,7 +100,7 @@ class ToolReference extends ElementReference
             return $toolExecutionResult;
         }
 
-        if (\is_object($toolExecutionResult) && !($toolExecutionResult instanceof Content)) {
+        if (\is_object($toolExecutionResult) && !($toolExecutionResult instanceof ContentBlock)) {
             $jsonResult = json_encode(
                 $toolExecutionResult,
                 \JSON_PRETTY_PRINT | \JSON_UNESCAPED_SLASHES | \JSON_UNESCAPED_UNICODE | \JSON_THROW_ON_ERROR | \JSON_INVALID_UTF8_SUBSTITUTE

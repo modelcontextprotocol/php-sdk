@@ -14,64 +14,92 @@ namespace Mcp\Schema\Content;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * Represents text resource contents in MCP.
- *
  * @phpstan-type TextResourceContentsData array{
  *     uri: string,
- *     mimeType?: string|null,
+ *     mimeType?: string,
  *     text: string,
- *     _meta?: array<string, mixed>
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class TextResourceContents extends ResourceContents
+final class TextResourceContents implements ResourceContents
 {
     /**
-     * @param string                $uri      the URI of the resource or sub-resource
-     * @param string|null           $mimeType the MIME type of the resource or sub-resource
-     * @param string                $text     The text of the item. This must only be set if the item can actually be represented as text (not binary data).
-     * @param ?array<string, mixed> $meta     Optional metadata
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
      */
     public function __construct(
-        string $uri,
-        ?string $mimeType,
+        public readonly string $uri,
+        public readonly ?string $mimeType,
         public readonly string $text,
-        ?array $meta = null,
+        public readonly ?array $meta = null,
     ) {
-        parent::__construct($uri, $mimeType, $meta);
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('TextResourceContents "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param TextResourceContentsData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['uri']) || !\is_string($data['uri'])) {
-            throw new InvalidArgumentException('Missing or invalid "uri" for TextResourceContents.');
+        if (!isset($data['uri'])) {
+            throw new InvalidArgumentException('Missing "uri" in TextResourceContents data.');
         }
-        if (!isset($data['text']) || !\is_string($data['text'])) {
-            throw new InvalidArgumentException('Missing or invalid "text" for TextResourceContents.');
+        if (!\is_string($data['uri'])) {
+            throw new InvalidArgumentException('Invalid "uri" in TextResourceContents data.');
+        }
+        $uri = $data['uri'];
+        $mimeType = null;
+        if (isset($data['mimeType'])) {
+            if (!\is_string($data['mimeType'])) {
+                throw new InvalidArgumentException('Invalid "mimeType" in TextResourceContents data.');
+            }
+            $mimeType = $data['mimeType'];
+        }
+        if (!isset($data['text'])) {
+            throw new InvalidArgumentException('Missing "text" in TextResourceContents data.');
+        }
+        if (!\is_string($data['text'])) {
+            throw new InvalidArgumentException('Invalid "text" in TextResourceContents data.');
+        }
+        $text = $data['text'];
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in TextResourceContents data.');
+            }
+            $meta = $data['_meta'];
         }
 
-        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
-            throw new InvalidArgumentException('Invalid "mimeType" for TextResourceContents.');
-        }
-        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
-            throw new InvalidArgumentException('Invalid "_meta" for TextResourceContents.');
-        }
-
-        return new self($data['uri'], $data['mimeType'] ?? null, $data['text'], $data['_meta'] ?? null);
+        return new self(
+            uri: $uri,
+            mimeType: $mimeType,
+            text: $text,
+            meta: $meta,
+        );
     }
 
     /**
-     * @return TextResourceContentsData
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        return [
-            'text' => $this->text,
-            ...parent::jsonSerialize(),
+        $data = [
+            'uri' => $this->uri,
         ];
+
+        if (null !== $this->mimeType) {
+            $data['mimeType'] = $this->mimeType;
+        }
+
+        $data['text'] = $this->text;
+
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
+
+        return $data;
     }
 }

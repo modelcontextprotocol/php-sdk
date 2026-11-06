@@ -12,141 +12,108 @@
 namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Concern\EmbeddedResourceFactories;
 
 /**
- * Represents embedded resource content within a message.
+ * The contents of a resource, embedded into a prompt or tool call result.
  *
  * @phpstan-import-type AnnotationsData from Annotations
- * @phpstan-import-type TextResourceContentsData from TextResourceContents
  * @phpstan-import-type BlobResourceContentsData from BlobResourceContents
+ * @phpstan-import-type TextResourceContentsData from TextResourceContents
  *
- * @phpstan-type EmbeddedResourceData = array{
- *     type: 'resource',
+ * @phpstan-type EmbeddedResourceData array{
  *     resource: TextResourceContentsData|BlobResourceContentsData,
- *     annotations?: AnnotationsData
+ *     type: 'resource',
+ *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class EmbeddedResource extends Content
+final class EmbeddedResource implements ContentBlock
 {
+    use EmbeddedResourceFactories;
+
+    public const TYPE = 'resource';
+
+    public readonly string $type;
+
+    /**
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
+     */
     public function __construct(
         public readonly TextResourceContents|BlobResourceContents $resource,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
-        parent::__construct('resource');
+        $this->type = self::TYPE;
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('EmbeddedResource "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param EmbeddedResourceData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (($data['type'] ?? null) !== 'resource') {
-            throw new InvalidArgumentException('Invalid type for EmbeddedResource.');
+        if (!isset($data['resource'])) {
+            throw new InvalidArgumentException('Missing "resource" in EmbeddedResource data.');
         }
-        if (!isset($data['resource']) || !\is_array($data['resource'])) {
-            throw new InvalidArgumentException('Missing or invalid "resource" field for EmbeddedResource.');
+        if (!\is_array($data['resource'])) {
+            throw new InvalidArgumentException('Invalid "resource" in EmbeddedResource data.');
         }
-
-        $resourceData = $data['resource'];
-        if (isset($resourceData['text'])) {
-            $resourceInstance = TextResourceContents::fromArray($resourceData);
-        } elseif (isset($resourceData['blob'])) {
-            $resourceInstance = BlobResourceContents::fromArray($resourceData);
+        if (\array_key_exists('text', $data['resource'])) {
+            $resource = TextResourceContents::fromArray($data['resource']);
+        } elseif (\array_key_exists('blob', $data['resource'])) {
+            $resource = BlobResourceContents::fromArray($data['resource']);
         } else {
-            throw new InvalidArgumentException('EmbeddedResource "resource" field must contain "text" or "blob".');
+            throw new InvalidArgumentException('Invalid "resource" in EmbeddedResource data.');
+        }
+        if (isset($data['type']) && self::TYPE !== $data['type']) {
+            throw new InvalidArgumentException('Invalid "type" in EmbeddedResource data.');
+        }
+        $annotations = null;
+        if (isset($data['annotations'])) {
+            if (!\is_array($data['annotations'])) {
+                throw new InvalidArgumentException('Invalid "annotations" in EmbeddedResource data.');
+            }
+            $annotations = Annotations::fromArray($data['annotations']);
+        }
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in EmbeddedResource data.');
+            }
+            $meta = $data['_meta'];
         }
 
         return new self(
-            $resourceInstance,
-            Annotations::tryFromArray($data['annotations'] ?? null, 'EmbeddedResource'),
+            resource: $resource,
+            annotations: $annotations,
+            meta: $meta,
         );
     }
 
-    public static function fromText(string $uri, string $text, ?string $mimeType = 'text/plain', ?Annotations $annotations = null): self
-    {
-        $textContent = new TextResourceContents($uri, $mimeType, $text);
-
-        return new self($textContent, $annotations);
-    }
-
-    public static function fromBlob(string $uri, string $base64Blob, string $mimeType, ?Annotations $annotations = null): self
-    {
-        $blobContent = new BlobResourceContents($uri, $mimeType, $base64Blob);
-
-        return new self($blobContent, $annotations);
-    }
-
-    public static function fromFile(string $uri, string $path, ?string $explicitMimeType = null, ?Annotations $annotations = null): self
-    {
-        if (!file_exists($path) || !is_readable($path)) {
-            throw new InvalidArgumentException(\sprintf('File not found or not readable: "%s".', $path));
-        }
-        $content = file_get_contents($path);
-        if (false === $content) {
-            throw new RuntimeException(\sprintf('Could not read file: "%s".', $path));
-        }
-
-        $guessedMimeType = $explicitMimeType ?? mime_content_type($path) ?: 'application/octet-stream';
-
-        if (self::isTextMimeTypeHeuristic($guessedMimeType) && mb_check_encoding($content, 'UTF-8')) {
-            $resourceContent = new TextResourceContents($uri, $guessedMimeType, $content);
-        } else {
-            $resourceContent = new BlobResourceContents($uri, $guessedMimeType, base64_encode($content));
-        }
-
-        return new self($resourceContent, $annotations);
-    }
-
     /**
-     * @param resource $stream
-     */
-    public static function fromStream(string $uri, $stream, string $mimeType, ?Annotations $annotations = null): self
-    {
-        $content = stream_get_contents($stream);
-        if (false === $content) {
-            throw new RuntimeException('Could not read stream.');
-        }
-
-        return new self(new BlobResourceContents($uri, $mimeType, base64_encode($content)), $annotations);
-    }
-
-    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?Annotations $annotations = null): self
-    {
-        $content = file_get_contents($file->getPathname());
-        if (false === $content) {
-            throw new RuntimeException(\sprintf('Could not read file: "%s".', $file->getPathname()));
-        }
-
-        return new self(new BlobResourceContents($uri, $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null), base64_encode($content)), $annotations);
-    }
-
-    /**
-     * @return array{
-     *     type: 'resource',
-     *     resource: TextResourceContents|BlobResourceContents,
-     *     annotations?: Annotations,
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
         $data = [
-            'type' => 'resource',
+            'type' => self::TYPE,
             'resource' => $this->resource,
         ];
+
         if (null !== $this->annotations) {
             $data['annotations'] = $this->annotations;
         }
 
-        return $data;
-    }
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
 
-    private static function isTextMimeTypeHeuristic(string $mimeType): bool
-    {
-        return str_starts_with($mimeType, 'text/')
-            || \in_array(strtolower($mimeType), ['application/json', 'application/xml', 'application/javascript', 'application/yaml']);
+        return $data;
     }
 }

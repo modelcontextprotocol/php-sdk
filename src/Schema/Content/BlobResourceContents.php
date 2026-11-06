@@ -12,94 +12,97 @@
 namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Schema\Concern\BlobResourceContentsFactories;
 
 /**
- * Represents blob resource contents in MCP.
- *
  * @phpstan-type BlobResourceContentsData array{
  *     uri: string,
- *     mimeType?: string|null,
+ *     mimeType?: string,
  *     blob: string,
- *     _meta?: array<string, mixed>
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class BlobResourceContents extends ResourceContents
+final class BlobResourceContents implements ResourceContents
 {
+    use BlobResourceContentsFactories;
+
     /**
-     * @param string                $uri      the URI of the resource or sub-resource
-     * @param string|null           $mimeType the MIME type of the resource or sub-resource
-     * @param string                $blob     a base64-encoded string representing the binary data of the item
-     * @param ?array<string, mixed> $meta     Optional metadata
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
      */
     public function __construct(
-        string $uri,
-        ?string $mimeType,
+        public readonly string $uri,
+        public readonly ?string $mimeType,
         public readonly string $blob,
-        ?array $meta = null,
+        public readonly ?array $meta = null,
     ) {
-        parent::__construct($uri, $mimeType, $meta);
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('BlobResourceContents "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param BlobResourceContentsData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['uri']) || !\is_string($data['uri'])) {
-            throw new InvalidArgumentException('Missing or invalid "uri" for BlobResourceContents.');
+        if (!isset($data['uri'])) {
+            throw new InvalidArgumentException('Missing "uri" in BlobResourceContents data.');
         }
-        if (!isset($data['blob']) || !\is_string($data['blob'])) {
-            throw new InvalidArgumentException('Missing or invalid "blob" for BlobResourceContents.');
+        if (!\is_string($data['uri'])) {
+            throw new InvalidArgumentException('Invalid "uri" in BlobResourceContents data.');
+        }
+        $uri = $data['uri'];
+        $mimeType = null;
+        if (isset($data['mimeType'])) {
+            if (!\is_string($data['mimeType'])) {
+                throw new InvalidArgumentException('Invalid "mimeType" in BlobResourceContents data.');
+            }
+            $mimeType = $data['mimeType'];
+        }
+        if (!isset($data['blob'])) {
+            throw new InvalidArgumentException('Missing "blob" in BlobResourceContents data.');
+        }
+        if (!\is_string($data['blob'])) {
+            throw new InvalidArgumentException('Invalid "blob" in BlobResourceContents data.');
+        }
+        $blob = $data['blob'];
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in BlobResourceContents data.');
+            }
+            $meta = $data['_meta'];
         }
 
-        if (isset($data['mimeType']) && !\is_string($data['mimeType'])) {
-            throw new InvalidArgumentException('Invalid "mimeType" for BlobResourceContents.');
-        }
-        if (isset($data['_meta']) && !\is_array($data['_meta'])) {
-            throw new InvalidArgumentException('Invalid "_meta" for BlobResourceContents.');
-        }
-
-        return new self($data['uri'], $data['mimeType'] ?? null, $data['blob'], $data['_meta'] ?? null);
+        return new self(
+            uri: $uri,
+            mimeType: $mimeType,
+            blob: $blob,
+            meta: $meta,
+        );
     }
 
     /**
-     * @param resource              $stream
-     * @param ?array<string, mixed> $meta   Optional metadata
-     * */
-    public static function fromStream(string $uri, $stream, string $mimeType, ?array $meta = null): self
-    {
-        $blob = stream_get_contents($stream);
-        if (false === $blob) {
-            throw new InvalidArgumentException('Could not read stream.');
-        }
-
-        return new self($uri, $mimeType, base64_encode($blob), $meta);
-    }
-
-    /**
-     * @param ?array<string, mixed> $meta Optional metadata
-     * */
-    public static function fromSplFileInfo(string $uri, \SplFileInfo $file, ?string $explicitMimeType = null, ?array $meta = null): self
-    {
-        $mimeType = $explicitMimeType ?? (mime_content_type($file->getPathname()) ?: null);
-        $blob = file_get_contents($file->getPathname());
-        if (false === $blob) {
-            throw new InvalidArgumentException(\sprintf('Could not read file: "%s".', $file->getPathname()));
-        }
-
-        return new self($uri, $mimeType, base64_encode($blob), $meta);
-    }
-
-    /**
-     * @return BlobResourceContentsData
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        return [
-            'blob' => $this->blob,
-            ...parent::jsonSerialize(),
+        $data = [
+            'uri' => $this->uri,
         ];
+
+        if (null !== $this->mimeType) {
+            $data['mimeType'] = $this->mimeType;
+        }
+
+        $data['blob'] = $this->blob;
+
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
+
+        return $data;
     }
 }

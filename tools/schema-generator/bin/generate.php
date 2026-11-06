@@ -48,9 +48,7 @@ foreach (array_keys($files) as $path) {
         $outdated[] = $path;
     }
 }
-$committedFiles = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($generator->outputDirectory(), FilesystemIterator::SKIP_DOTS));
-foreach ($committedFiles as $file) {
-    $path = substr($file->getPathname(), strlen($generator->outputDirectory()) + 1);
+foreach ($generator->generatedFiles($generator->outputDirectory()) as $path) {
     if (!isset($files[$path])) {
         $outdated[] = $path.' (no longer generated)';
     }

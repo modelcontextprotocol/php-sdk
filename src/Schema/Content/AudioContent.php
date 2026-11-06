@@ -12,109 +12,111 @@
 namespace Mcp\Schema\Content;
 
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\RuntimeException;
 use Mcp\Schema\Annotations;
+use Mcp\Schema\Concern\AudioContentFactories;
 
 /**
- * Represents audio content in MCP.
+ * Audio provided to or from an LLM.
  *
  * @phpstan-import-type AnnotationsData from Annotations
  *
- * @phpstan-type AudioContentData = array{
- *     type: 'audio',
+ * @phpstan-type AudioContentData array{
  *     data: string,
  *     mimeType: string,
+ *     type: 'audio',
  *     annotations?: AnnotationsData,
+ *     _meta?: array<string, mixed>,
  * }
  *
- * @author Kyrian Obikwelu <koshnawaza@gmail.com>
+ * Generated from the MCP specification by tools/schema-generator, do not edit.
  */
-class AudioContent extends Content
+final class AudioContent implements ContentBlock, SamplingMessageContentBlock
 {
+    use AudioContentFactories;
+
+    public const TYPE = 'audio';
+
+    public readonly string $type;
+
+    /**
+     * @param array<string, mixed>|null $meta since protocol revision 2025-06-18
+     */
     public function __construct(
         public readonly string $data,
         public readonly string $mimeType,
         public readonly ?Annotations $annotations = null,
+        public readonly ?array $meta = null,
     ) {
-        parent::__construct('audio');
+        $this->type = self::TYPE;
+        if (null !== $this->meta && [] !== $this->meta && array_is_list($this->meta)) {
+            throw new InvalidArgumentException('AudioContent "_meta" must be a map, not a list.');
+        }
     }
 
     /**
-     * @param AudioContentData|array<mixed> $data
+     * @param array<mixed> $data
      */
     public static function fromArray(array $data): self
     {
-        if (!isset($data['data']) || !\is_string($data['data'])) {
-            throw new InvalidArgumentException('Missing or invalid "data" in AudioContent data.');
+        if (!isset($data['data'])) {
+            throw new InvalidArgumentException('Missing "data" in AudioContent data.');
         }
-        if (!isset($data['mimeType']) || !\is_string($data['mimeType'])) {
-            throw new InvalidArgumentException('Missing or invalid "mimeType" in AudioContent data.');
+        if (!\is_string($data['data'])) {
+            throw new InvalidArgumentException('Invalid "data" in AudioContent data.');
+        }
+        $dataValue = $data['data'];
+        if (!isset($data['mimeType'])) {
+            throw new InvalidArgumentException('Missing "mimeType" in AudioContent data.');
+        }
+        if (!\is_string($data['mimeType'])) {
+            throw new InvalidArgumentException('Invalid "mimeType" in AudioContent data.');
+        }
+        $mimeType = $data['mimeType'];
+        if (isset($data['type']) && self::TYPE !== $data['type']) {
+            throw new InvalidArgumentException('Invalid "type" in AudioContent data.');
+        }
+        $annotations = null;
+        if (isset($data['annotations'])) {
+            if (!\is_array($data['annotations'])) {
+                throw new InvalidArgumentException('Invalid "annotations" in AudioContent data.');
+            }
+            $annotations = Annotations::fromArray($data['annotations']);
+        }
+        $meta = null;
+        if (isset($data['_meta'])) {
+            if (!\is_array($data['_meta'])) {
+                throw new InvalidArgumentException('Invalid "_meta" in AudioContent data.');
+            }
+            $meta = $data['_meta'];
         }
 
         return new self(
-            $data['data'],
-            $data['mimeType'],
-            Annotations::tryFromArray($data['annotations'] ?? null, 'AudioContent')
+            data: $dataValue,
+            mimeType: $mimeType,
+            annotations: $annotations,
+            meta: $meta,
         );
     }
 
     /**
-     * Create a new AudioContent from a file path.
-     *
-     * @param string       $path        Path to the audio file
-     * @param string|null  $mimeType    Optional MIME type override
-     * @param ?Annotations $annotations Optional annotations describing the content
-     *
-     * @throws InvalidArgumentException If the file doesn't exist
-     */
-    public static function fromFile(string $path, ?string $mimeType = null, ?Annotations $annotations = null): self
-    {
-        if (!file_exists($path)) {
-            throw new InvalidArgumentException(\sprintf('Audio file not found: "%s".', $path));
-        }
-
-        $content = file_get_contents($path);
-        if (false === $content) {
-            throw new RuntimeException(\sprintf('Could not read audio file: "%s".', $path));
-        }
-        $data = base64_encode($content);
-        $detectedMime = $mimeType ?? mime_content_type($path) ?: 'application/octet-stream';
-
-        return new self($data, $detectedMime, $annotations);
-    }
-
-    /**
-     * Create a new AudioContent from a string.
-     *
-     * @param string       $data        The audio data
-     * @param string       $mimeType    MIME type of the audio
-     * @param ?Annotations $annotations Optional annotations describing the content
-     */
-    public static function fromString(string $data, string $mimeType, ?Annotations $annotations = null): self
-    {
-        return new self(base64_encode($data), $mimeType, $annotations);
-    }
-
-    /**
-     * @return array{
-     *     type: 'audio',
-     *     data: string,
-     *     mimeType: string,
-     *     annotations?: Annotations,
-     * }
+     * @return array<string, mixed>
      */
     public function jsonSerialize(): array
     {
-        $result = [
-            'type' => 'audio',
+        $data = [
+            'type' => self::TYPE,
             'data' => $this->data,
             'mimeType' => $this->mimeType,
         ];
 
         if (null !== $this->annotations) {
-            $result['annotations'] = $this->annotations;
+            $data['annotations'] = $this->annotations;
         }
 
-        return $result;
+        if (null !== $this->meta) {
+            $data['_meta'] = [] === $this->meta ? new \stdClass() : $this->meta;
+        }
+
+        return $data;
     }
 }
