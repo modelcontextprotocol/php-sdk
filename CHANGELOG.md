@@ -7,6 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
+* Modern tools with an `outputSchema` send and validate a null result as structured content, with JSON text `null` alongside it. Schema-less null results and handshake-era automatic wrapping still omit structured content.
 * [BC Break] Require `phpdocumentor/reflection-docblock` `^6.0`, and with it `phpdocumentor/type-resolver` `^2.0` and `phpstan/phpdoc-parser` `^2.0`. Older versions cannot parse types like `non-empty-array<T>`, and the SDK silently ignores such a `@param`.
 * Require `psr/container` `^1.1`, as `Container` is not compatible with `1.0`.
 * [BC Break] `DocBlockParser::parseDocBlock()` no longer accepts `null`; pass `ReflectionMethod::getDocComment()` as is
@@ -34,6 +35,10 @@ All notable changes to `mcp/sdk` will be documented in this file.
 ### Client
 
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
+
+### Schema
+
+* [BC Break] `CallToolResult` preserves explicit `structuredContent: null` in construction and decoding. Calls that used null for omission must omit the argument (use `meta: $meta` for metadata) or pass `UndefinedValue::Value`. An explicit null that violates the output schema becomes a tool error, and strict handshake-era clients can reject it. `hasStructuredContent()` distinguishes absent content from null; text-only `success()` and `error()` results remain absent.
 
 0.9.0
 -----

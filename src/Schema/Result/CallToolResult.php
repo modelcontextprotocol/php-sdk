@@ -18,6 +18,7 @@ use Mcp\Schema\Content\EmbeddedResource;
 use Mcp\Schema\Content\ImageContent;
 use Mcp\Schema\Content\ResourceLink;
 use Mcp\Schema\Content\TextContent;
+use Mcp\Schema\Enum\UndefinedValue;
 use Mcp\Schema\JsonRpc\ResultInterface;
 
 /**
@@ -36,6 +37,10 @@ use Mcp\Schema\JsonRpc\ResultInterface;
  */
 class CallToolResult implements ResultInterface
 {
+    public readonly mixed $structuredContent;
+
+    private readonly bool $structuredContentPresent;
+
     /**
      * Create a new CallToolResult.
      *
@@ -49,14 +54,22 @@ class CallToolResult implements ResultInterface
     public function __construct(
         public readonly array $content,
         public readonly bool $isError = false,
-        public readonly mixed $structuredContent = null,
+        mixed $structuredContent = UndefinedValue::Value,
         public readonly ?array $meta = null,
     ) {
+        $this->structuredContentPresent = UndefinedValue::Value !== $structuredContent;
+        $this->structuredContent = $this->structuredContentPresent ? $structuredContent : null;
+
         foreach ($this->content as $item) {
             if (!$item instanceof Content) {
                 throw new InvalidArgumentException('Content must be an array of Content objects.');
             }
         }
+    }
+
+    public function hasStructuredContent(): bool
+    {
+        return $this->structuredContentPresent;
     }
 
     /**
@@ -67,7 +80,7 @@ class CallToolResult implements ResultInterface
      */
     public static function success(array $content, ?array $meta = null): self
     {
-        return new self($content, false, null, $meta);
+        return new self($content, meta: $meta);
     }
 
     /**
@@ -78,7 +91,7 @@ class CallToolResult implements ResultInterface
      */
     public static function error(array $content, ?array $meta = null): self
     {
-        return new self($content, true, null, $meta);
+        return new self($content, true, meta: $meta);
     }
 
     /**
@@ -123,7 +136,7 @@ class CallToolResult implements ResultInterface
         return new self(
             $contents,
             $data['isError'] ?? false,
-            $data['structuredContent'] ?? null,
+            \array_key_exists('structuredContent', $data) ? $data['structuredContent'] : UndefinedValue::Value,
             $data['_meta'] ?? null
         );
     }
@@ -143,7 +156,7 @@ class CallToolResult implements ResultInterface
             'isError' => $this->isError,
         ];
 
-        if (null !== $this->structuredContent) {
+        if ($this->hasStructuredContent()) {
             $result['structuredContent'] = $this->structuredContent;
         }
 
