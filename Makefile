@@ -1,4 +1,4 @@
-.PHONY: deps-stable deps-low cs phpstan tests unit-tests integration-tests interop-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
+.PHONY: deps-stable deps-low cs phpstan schema-generate schema-check schema-update tests unit-tests integration-tests interop-tests coverage ci ci-stable ci-lowest conformance-tests conformance-server conformance-client conformance-draft conformance-draft-server conformance-draft-client docs docs-guides docs-api docs-serve
 
 # The 2026-07-28 scenarios ship on the `alpha` dist-tag; `latest` (0.1.x) has
 # none of them. Pinned to the same version CI runs (see
@@ -22,6 +22,17 @@ cs:
 
 phpstan:
 	vendor/bin/phpstan --memory-limit=-1
+
+schema-generate:
+	php tools/schema-generator/bin/generate.php
+
+schema-check:
+	php tools/schema-generator/bin/generate.php --check
+
+# make schema-update REF=<commit-or-tag of modelcontextprotocol/modelcontextprotocol>
+schema-update:
+	tools/schema-generator/update-spec.sh $(REF)
+	php tools/schema-generator/bin/generate.php
 
 tests:
 	vendor/bin/phpunit
@@ -75,9 +86,9 @@ coverage:
 
 ci: ci-stable
 
-ci-stable: deps-stable cs phpstan tests
+ci-stable: deps-stable cs phpstan schema-check tests
 
-ci-lowest: deps-low cs phpstan tests
+ci-lowest: deps-low cs phpstan schema-check tests
 
 # The published site is the guides (Zensical) with the phpDocumentor API
 # reference mounted at /api/. `zensical build` wipes site/, so it runs first.

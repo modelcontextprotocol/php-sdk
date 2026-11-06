@@ -7,6 +7,7 @@ parameters:
         - examples/
         - src/
         - tests/
+        - tools/schema-generator/
     excludePaths:
         - examples/cli/vendor/* (?)
         - tests/Unit/Capability/Discovery/Fixtures/

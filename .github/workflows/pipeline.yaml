@@ -263,6 +263,9 @@ jobs:
       - name: PHPStan
         run: vendor/bin/phpstan analyse
 
+      - name: Generated schema classes
+        run: make schema-check
+
       # Only the phpDocumentor half: this job is PHP-only, and the Zensical
       # guides are built (strictly) by the Documentation workflow.
       - name: Documentation
