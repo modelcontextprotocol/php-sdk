@@ -379,7 +379,8 @@ final class OpenTelemetryFiberContext implements FiberContextInterface
 }
 
 $server = Server::builder()
-    ->setFiberContext(new OpenTelemetryFiberContext());
+    ->setFiberContext(new OpenTelemetryFiberContext())
+    ->build();
 ```
 
 The returned closure must call `$handler` once and return its result. The `finally` block also runs when the server
