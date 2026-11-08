@@ -231,7 +231,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $issuer = self::origin($endpoint);
         $this->logger->info('No protected resource metadata; falling back to treating the server as its own authorization server.', ['issuer' => $issuer]);
 
-        return $this->discovery->discoverAuthorizationServer($issuer) ?? AuthorizationServerMetadata::forLegacyServer($issuer);
+        return $this->discovery->discoverLegacyAuthorizationServer($issuer)
+            ?? throw new AuthorizationException(\sprintf('The authorization server metadata of "%s" could not be read, and only a 404 falls back to the fixed endpoints.', $issuer));
     }
 
     /**

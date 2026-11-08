@@ -431,6 +431,91 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertNotNull($this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp'));
     }
 
+    #[TestDox('a legacy server gets its fixed endpoints only when every metadata location answers 404')]
+    public function testLegacyDiscoveryGuessesAfterA404(): void
+    {
+        $metadata = $this->discovery(self::answering(new Response(404)))->discoverLegacyAuthorizationServer('https://mcp.example.com');
+
+        $this->assertSame('https://mcp.example.com/token', $metadata?->tokenEndpoint);
+    }
+
+    /**
+     * @return iterable<string, array{Response}>
+     */
+    public static function brokenMetadataProvider(): iterable
+    {
+        yield 'a server error' => [new Response(500)];
+        yield 'a forbidden answer' => [new Response(403)];
+        yield 'a redirect' => [new Response(307, ['Location' => 'http://evil.example.com/'])];
+        yield 'another issuer' => [self::json([
+            'issuer' => 'https://evil.example.com',
+            'authorization_endpoint' => 'https://evil.example.com/authorize',
+            'token_endpoint' => 'https://evil.example.com/token',
+        ])];
+        yield 'a malformed document' => [self::json(['issuer' => 'https://mcp.example.com'])];
+    }
+
+    #[DataProvider('brokenMetadataProvider')]
+    #[TestDox('a legacy server keeps its metadata problem and gets no guessed endpoints: $_dataName')]
+    public function testLegacyDiscoveryDoesNotGuessAfterAnotherAnswer(Response $response): void
+    {
+        $this->assertNull($this->discovery(self::answering($response))->discoverLegacyAuthorizationServer('https://mcp.example.com'));
+    }
+
+    #[TestDox('a legacy server that answers 404 at one location and fails at the next gets no guessed endpoints')]
+    public function testLegacyDiscoveryNeedsA404FromEveryLocation(): void
+    {
+        $client = new class implements ClientInterface {
+            private int $requests = 0;
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                return new Response(1 === ++$this->requests ? 404 : 500);
+            }
+        };
+
+        $this->assertNull($this->discovery($client)->discoverLegacyAuthorizationServer('https://mcp.example.com'));
+    }
+
+    #[TestDox('a legacy server that cannot be reached gets no guessed endpoints')]
+    public function testLegacyDiscoveryDoesNotGuessAfterATransportFailure(): void
+    {
+        $client = new class implements ClientInterface {
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                throw new class('unreachable') extends \RuntimeException implements ClientExceptionInterface {};
+            }
+        };
+
+        $this->assertNull($this->discovery($client)->discoverLegacyAuthorizationServer('https://mcp.example.com'));
+    }
+
+    #[TestDox('a legacy server that publishes metadata keeps it')]
+    public function testLegacyDiscoveryPrefersPublishedMetadata(): void
+    {
+        $client = self::answering(self::json([
+            'issuer' => 'https://mcp.example.com',
+            'authorization_endpoint' => 'https://mcp.example.com/oauth/authorize',
+            'token_endpoint' => 'https://mcp.example.com/oauth/token',
+        ]));
+
+        $this->assertSame('https://mcp.example.com/oauth/token', $this->discovery($client)->discoverLegacyAuthorizationServer('https://mcp.example.com')?->tokenEndpoint);
+    }
+
+    private static function answering(ResponseInterface $response): ClientInterface
+    {
+        return new class($response) implements ClientInterface {
+            public function __construct(private readonly ResponseInterface $response)
+            {
+            }
+
+            public function sendRequest(RequestInterface $request): ResponseInterface
+            {
+                return $this->response;
+            }
+        };
+    }
+
     private function discovery(ClientInterface $client): MetadataDiscovery
     {
         return new MetadataDiscovery($client, new Psr17Factory());

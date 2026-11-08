@@ -147,6 +147,7 @@ The client treats the MCP server and its metadata as untrusted input. It stops w
 | The authorization response has no `state`, or another `state` | It doesn't answer the request of this client |
 | `iss` doesn't match the issuer, or is missing although the server announced it | The response may come from another server |
 | The authorization server has another issuer than `setExpectedIssuer()` | It would receive the client's credentials |
+| With `setLegacyDiscovery(true)`, a metadata location answers anything but a `404` and gives no usable metadata | The client only uses the fixed endpoints after a `404` |
 | The server has no protected resource metadata, without `setLegacyDiscovery(true)` | There is nothing to check the authorization server against |
 
 The client ignores a `resource_metadata` URL on another origin than the MCP server and looks at the well-known URLs instead. It only sends a token to the resource it was issued for.
