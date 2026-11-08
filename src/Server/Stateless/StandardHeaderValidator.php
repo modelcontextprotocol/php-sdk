@@ -30,6 +30,9 @@ final class StandardHeaderValidator
     public const NAME_HEADER = McpHeader::NAME;
     public const PARAM_HEADER_PREFIX = McpHeader::PARAM_PREFIX;
 
+    // The spec's limit for mirrored integers, beyond which doubles lose precision.
+    private const MAX_SAFE_INTEGER = 2 ** 53 - 1;
+
     public function __construct(
         private readonly ?RegistryInterface $registry = null,
     ) {
@@ -251,10 +254,12 @@ final class StandardHeaderValidator
             default => null,
         };
 
-        // A non-scalar cannot be mirrored at all, so the annotation on it is
-        // the tool definition's problem rather than this request's.
         if (null === $expected) {
-            return null;
+            return \sprintf('%s header is present, but the body argument cannot be mirrored.', $headerName);
+        }
+
+        if ((\is_int($argument) || \is_float($argument)) && abs($argument) > self::MAX_SAFE_INTEGER) {
+            return \sprintf('%s header mirrors the body argument "%s", which is outside the safe integer range.', $headerName, $expected);
         }
 
         // Numerically for numbers, so "42.0" and "42" agree — the spec asks for
@@ -262,8 +267,8 @@ final class StandardHeaderValidator
         // argument's actual type (not is_numeric, which a numeric-looking
         // string like "042" would also satisfy) and a decimal header (not
         // "4e1"), so a string argument keeps its exact-match comparison.
-        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/', $decoded)) {
-            return (float) $decoded === (float) $argument
+        if ((\is_int($argument) || \is_float($argument)) && 1 === preg_match('/^-?\d+(?:\.\d+)?$/D', $decoded)) {
+            return self::isSameNumber($decoded, $argument)
                 ? null
                 : \sprintf('%s header "%s" does not match the body argument "%s".', $headerName, $decoded, $expected);
         }
@@ -273,6 +278,16 @@ final class StandardHeaderValidator
         }
 
         return null;
+    }
+
+    private static function isSameNumber(string $decimal, int|float $argument): bool
+    {
+        // A fraction too small for a float still makes it a different integer.
+        if (floor($argument) === (float) $argument && 1 !== preg_match('/^-?\d+(?:\.0+)?$/D', $decimal)) {
+            return false;
+        }
+
+        return (float) $decimal === (float) $argument;
     }
 
     /**

@@ -78,8 +78,8 @@ mismatch. See [Schema generation](../servers/schemas.md) for where a hand-writte
 `inputSchema` fits.
 
 The server refuses a `tools/call` with `-32020` when the header and the argument don't match.
-This includes an `Mcp-Param-*` header sent without the argument in the body, and an argument
-sent without its header.
+This includes an `Mcp-Param-*` header sent without the argument in the body, an argument sent
+without its header, and a mirrored number outside the safe integer range of ±(2^53-1).
 
 ## How a request is routed
 
