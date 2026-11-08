@@ -108,21 +108,58 @@ final class FiberContextTest extends TestCase
         $this->assertSame('parent', $context->current());
     }
 
-    public function testContextIsReleasedWhenAStreamIsAbandoned(): void
+    #[DataProvider('modes')]
+    public function testContextIsReleasedWhenAStreamIsAbandoned(string $mode): void
     {
         $context = new RecordingFiberContext();
-        $server = $this->builder($context)->addTool(static function (RequestContext $request) use ($context): string {
+        $builder = $this->builder($context)->addTool(static function (RequestContext $request) use ($context): string {
             $request->getClientGateway()->progress(1, 2);
 
             return $context->current();
-        }, name: 'probe')->buildStateless();
-        $response = $this->post($server, $this->call(true));
-        $this->assertSame(1, $context->created);
-        $this->assertSame(0, $context->released);
+        }, name: 'probe');
+        $server = 'standalone' === $mode ? $builder->buildStateless() : $builder->build();
+        $session = 'legacy' === $mode ? $this->post($server, $this->initialize())->getHeaderLine('Mcp-Session-Id') : null;
+        $created = $context->created;
+        $released = $context->released;
+
+        $response = $this->post($server, $this->call('legacy' !== $mode), $session);
+        $this->assertSame($created + 1, $context->created);
+        $this->assertSame($released, $context->released);
         unset($response);
 
-        $this->assertSame(1, $context->released);
+        $this->assertSame($released + 1, $context->released);
         $this->assertSame('parent', $context->current());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function modes(): iterable
+    {
+        foreach (['legacy', 'modern', 'standalone'] as $mode) {
+            yield $mode => [$mode];
+        }
+    }
+
+    #[DataProvider('modes')]
+    public function testAFailingWrapAnswersWithAnInternalError(string $mode): void
+    {
+        $context = new RecordingFiberContext();
+        $called = false;
+        $builder = $this->builder($context)->addTool(static function () use (&$called): string {
+            $called = true;
+
+            return 'unreachable';
+        }, name: 'probe');
+        $server = 'standalone' === $mode ? $builder->buildStateless() : $builder->build();
+        $session = 'legacy' === $mode ? $this->post($server, $this->initialize())->getHeaderLine('Mcp-Session-Id') : null;
+        $context->wrapFailure = new RuntimeException('wrap failed');
+
+        $body = $this->consume($this->post($server, $this->call('legacy' !== $mode), $session));
+
+        $this->assertStringContainsString('"code":-32603', $body);
+        $this->assertStringNotContainsString('wrap failed', $body);
+        $this->assertFalse($called);
     }
 
     public function testContextIsReleasedWhenElicitationDiscardsTheFiber(): void
@@ -147,7 +184,7 @@ final class FiberContextTest extends TestCase
     }
 
     #[DataProvider('eras')]
-    public function testStdioUsesTheFactory(bool $modern): void
+    public function testStdioUsesTheFiberContext(bool $modern): void
     {
         $context = new RecordingFiberContext();
         $builder = $this->builder($context)->addTool(static function (RequestContext $request) use ($context): string {
