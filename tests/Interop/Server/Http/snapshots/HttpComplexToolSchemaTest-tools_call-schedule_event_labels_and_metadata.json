@@ -1,0 +1,30 @@
+{
+  "content": [
+    {
+      "type": "text",
+      "text": "{\n    \"success\": true,\n    \"message\": \"Event \\\"Release Planning\\\" scheduled successfully for \\\"2024-12-10\\\".\",\n    \"event_details\": {\n        \"title\": \"Release Planning\",\n        \"date\": \"2024-12-10\",\n        \"type\": \"meeting\",\n        \"time\": \"All day\",\n        \"priority\": \"Normal\",\n        \"attendees\": [],\n        \"invites_will_be_sent\": false,\n        \"labels\": {\n            \"team\": \"platform\"\n        },\n        \"metadata\": {\n            \"source\": \"crm\",\n            \"tags\": [],\n            \"custom\": {}\n        }\n    }\n}"
+    }
+  ],
+  "structuredContent": {
+    "success": true,
+    "message": "Event \"Release Planning\" scheduled successfully for \"2024-12-10\".",
+    "event_details": {
+      "title": "Release Planning",
+      "date": "2024-12-10",
+      "type": "meeting",
+      "time": "All day",
+      "priority": "Normal",
+      "attendees": [],
+      "invites_will_be_sent": false,
+      "labels": {
+        "team": "platform"
+      },
+      "metadata": {
+        "source": "crm",
+        "tags": [],
+        "custom": {}
+      }
+    }
+  },
+  "isError": false
+}

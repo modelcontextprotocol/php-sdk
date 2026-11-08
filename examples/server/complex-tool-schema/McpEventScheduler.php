@@ -27,13 +27,15 @@ final class McpEventScheduler
      * Schedules a new event.
      * The inputSchema for this tool will reflect all parameter types and defaults.
      *
-     * @param string        $title       the title of the event
-     * @param string        $date        the date of the event (YYYY-MM-DD)
-     * @param EventType     $type        the type of event
-     * @param string|null   $time        the time of the event (HH:MM), optional
-     * @param EventPriority $priority    The priority of the event. Defaults to Normal.
-     * @param string[]|null $attendees   an optional list of attendee email addresses
-     * @param bool          $sendInvites send calendar invites to attendees? Defaults to true if attendees are provided
+     * @param string                $title       the title of the event
+     * @param string                $date        the date of the event (YYYY-MM-DD)
+     * @param EventType             $type        the type of event
+     * @param string|null           $time        the time of the event (HH:MM), optional
+     * @param EventPriority         $priority    The priority of the event. Defaults to Normal.
+     * @param string[]|null         $attendees   an optional list of attendee email addresses
+     * @param bool                  $sendInvites send calendar invites to attendees? Defaults to true if attendees are provided
+     * @param array<string, string> $labels      labels of the event by name
+     * @param \stdClass|null        $metadata    free-form data stored with the event, exactly as sent
      *
      * @return array<string, mixed> confirmation of the scheduled event
      */
@@ -46,6 +48,8 @@ final class McpEventScheduler
         EventPriority $priority = EventPriority::Normal,
         ?array $attendees = null,
         bool $sendInvites = true,
+        array $labels = [],
+        ?\stdClass $metadata = null,
     ): array {
         $this->logger->info("Tool 'schedule_event' called", compact('title', 'date', 'type', 'time', 'priority', 'attendees', 'sendInvites'));
 
@@ -59,6 +63,14 @@ final class McpEventScheduler
             'attendees' => $attendees ?? [],
             'invites_will_be_sent' => ($attendees && $sendInvites),
         ];
+
+        if ([] !== $labels) {
+            $eventDetails['labels'] = $labels;
+        }
+
+        if (null !== $metadata) {
+            $eventDetails['metadata'] = $metadata;
+        }
 
         // In a real app, this would interact with a calendar service
         $this->logger->info('Event scheduled', ['details' => $eventDetails]);

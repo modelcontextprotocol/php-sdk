@@ -77,6 +77,20 @@ final class HttpComplexToolSchemaTest extends HttpInspectorSnapshotTestCase
                 ],
                 'testName' => 'schedule_event_low_priority',
             ],
+            'Schedule Event (Labels and Metadata)' => [
+                'method' => 'tools/call',
+                'options' => [
+                    'toolName' => 'schedule_event',
+                    'toolArgs' => [
+                        'title' => 'Release Planning',
+                        'date' => '2024-12-10',
+                        'type' => 'meeting',
+                        'labels' => ['team' => 'platform'],
+                        'metadata' => ['source' => 'crm', 'tags' => [], 'custom' => new \stdClass()],
+                    ],
+                ],
+                'testName' => 'schedule_event_labels_and_metadata',
+            ],
         ];
     }
 
