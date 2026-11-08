@@ -123,7 +123,7 @@ final class OAuthAuthenticatorTest extends TestCase
 
         $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
         $rejected = $authenticator->authenticate($this->request());
-        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403));
+        $authenticator->handleChallenge($rejected, $server->challenge(['mcp:write'], 403, 'insufficient_scope'));
 
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
     }
@@ -294,6 +294,35 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->expectExceptionMessage('state parameter');
 
         $authenticator->handleChallenge($this->request(), $server->challenge());
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('forbiddenChallengeProvider')]
+    #[TestDox('a 403 that does not ask for more scopes leaves the user out of it')]
+    public function testDeclinesAForbiddenResponseWithoutInsufficientScope(array $headers): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $requested = $server->requested;
+
+        $sent = $authenticator->authenticate($this->request());
+
+        $this->assertFalse($authenticator->handleChallenge($sent, new Response(403, $headers)));
+        $this->assertSame($requested, $server->requested);
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    /**
+     * @return iterable<string, array{array<string, string>}>
+     */
+    public static function forbiddenChallengeProvider(): iterable
+    {
+        yield 'no challenge' => [[]];
+        yield 'a challenge without an error' => [['WWW-Authenticate' => 'Bearer scope="admin"']];
+        yield 'another error' => [['WWW-Authenticate' => 'Bearer error="invalid_token"']];
     }
 
     #[TestDox('a stored token is reused instead of sending the user through the browser again')]

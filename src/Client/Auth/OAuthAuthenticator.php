@@ -87,6 +87,12 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     public function handleChallenge(RequestInterface $request, ResponseInterface $response): bool
     {
         $challenge = AuthorizationChallenge::fromResponse($response);
+
+        // Signing in again only helps a 403 that asks for more scopes.
+        if (403 === $response->getStatusCode() && 'insufficient_scope' !== $challenge->getError()) {
+            return false;
+        }
+
         $endpoint = self::canonicalize((string) $request->getUri());
 
         // Metadata fetched over plain http can be forged and the token would travel in the clear.
