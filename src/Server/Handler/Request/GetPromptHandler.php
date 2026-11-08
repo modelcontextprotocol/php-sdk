@@ -16,6 +16,7 @@ use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -74,6 +75,8 @@ final class GetPromptHandler implements RequestHandlerInterface
         } catch (MissingRequiredClientCapabilityException $e) {
             // Not a handler failure — the request was unservable, and the client
             // needs to retry declaring the capability. Rendered as -32021.
+            throw $e;
+        } catch (SessionRequiredException $e) {
             throw $e;
         } catch (PromptGetException $e) {
             $this->logger->error(\sprintf('Error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);

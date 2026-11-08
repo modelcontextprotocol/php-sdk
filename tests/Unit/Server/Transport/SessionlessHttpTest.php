@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\LogicException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -138,7 +138,7 @@ final class SessionlessHttpTest extends TestCase
         $response = $this->send('POST', $this->request('tools/call', ['name' => $tool, 'arguments' => new \stdClass()]));
 
         $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
-        $this->assertSame('Requests to the client need a session; configure one with Builder::setSession().', self::decode($response)['result']['content'][0]['text']);
+        $this->assertSame(['code' => -32603, 'message' => 'Requests to the client need a session; configure one with Builder::setSession().'], self::decode($response)['error']);
         $this->assertLessThan(5, microtime(true) - $started);
     }
 
@@ -153,6 +153,27 @@ final class SessionlessHttpTest extends TestCase
         yield 'list-roots' => ['list-roots', 'listRoots()'];
     }
 
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[TestDox('a request to the client from $method tells the client that it needs a session')]
+    #[DataProvider('provideOtherHandlersAskingTheClient')]
+    public function testOtherHandlersTellTheClientThatTheyNeedASession(string $method, array $params): void
+    {
+        $response = $this->send('POST', $this->request($method, $params));
+
+        $this->assertSame(['code' => -32603, 'message' => 'Requests to the client need a session; configure one with Builder::setSession().'], self::decode($response)['error']);
+    }
+
+    /**
+     * @return iterable<string, array{string, array<string, mixed>}>
+     */
+    public static function provideOtherHandlersAskingTheClient(): iterable
+    {
+        yield 'prompts/get' => ['prompts/get', ['name' => 'ask', 'arguments' => new \stdClass()]];
+        yield 'resources/read' => ['resources/read', ['uri' => 'config://ask']];
+    }
+
     #[TestDox('a request to the client after a notification fails loud too')]
     public function testRequestToTheClientAfterANotificationFailsLoud(): void
     {
@@ -161,7 +182,7 @@ final class SessionlessHttpTest extends TestCase
         $stream = $this->readStream($response);
 
         $this->assertStringContainsString('notifications\/progress', $stream);
-        $this->assertStringContainsString('"text":"Requests to the client need a session; configure one with Builder::setSession()."', $stream);
+        $this->assertStringContainsString('"message":"Requests to the client need a session; configure one with Builder::setSession()."', $stream);
         $this->assertLessThan(5, microtime(true) - $started);
     }
 
@@ -242,7 +263,10 @@ final class SessionlessHttpTest extends TestCase
 
         $this->assertSame('remembered', self::decode($remember)['result']['content'][0]['text']);
         $this->assertSame('forgotten', self::decode($recall)['result']['content'][0]['text']);
-        $this->assertSame(-32603, self::decode($save)['error']['code']);
+        $this->assertSame([
+            'code' => -32603,
+            'message' => 'Nothing in a session outlives its request without a session store; configure one with Builder::setSession().',
+        ], self::decode($save)['error']);
     }
 
     #[TestDox('the modern era is served as before')]
@@ -278,14 +302,14 @@ final class SessionlessHttpTest extends TestCase
 
                 return 'done';
             }, 'notify')
-            ->addTool(static fn (RequestContext $context): string => self::refusal(static fn () => $context->getClientGateway()->elicit('Name?', self::schema(), 5)), 'elicit')
-            ->addTool(static fn (RequestContext $context): string => self::refusal(static fn () => $context->getClientGateway()->elicitUrl('Sign in', 'https://example.com/consent', 5)), 'elicit-url')
-            ->addTool(static fn (RequestContext $context): string => self::refusal(static fn () => $context->getClientGateway()->sample('Hi', timeout: 5)), 'sample')
-            ->addTool(static fn (RequestContext $context): string => self::refusal(static fn () => $context->getClientGateway()->listRoots(5)), 'list-roots')
+            ->addTool(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->elicit('Name?', self::schema(), 5)), 'elicit')
+            ->addTool(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->elicitUrl('Sign in', 'https://example.com/consent', 5)), 'elicit-url')
+            ->addTool(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->sample('Hi', timeout: 5)), 'sample')
+            ->addTool(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->listRoots(5)), 'list-roots')
             ->addTool(static function (RequestContext $context): string {
                 $context->getClientGateway()->notify(new ProgressNotification('p', 0.5));
 
-                return self::refusal(static fn () => $context->getClientGateway()->elicit('Name?', self::schema(), 5));
+                return self::answered($context->getClientGateway()->elicit('Name?', self::schema(), 5));
             }, 'notify-then-elicit')
             ->addTool(static fn (): InputRequiredResult => new InputRequiredResult(['name' => ElicitRequest::forForm('Name?', self::schema())]), 'ask-for-input')
             ->addTool(static fn (RequestContext $context): string => $context->getProtocolVersion()->value, 'protocol-version')
@@ -303,7 +327,14 @@ final class SessionlessHttpTest extends TestCase
                 return 'saved';
             }, 'save')
             ->addResource(static fn (): string => '{}', 'config://app', 'app-config')
+            ->addResource(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->elicit('Name?', self::schema(), 5)), 'config://ask', 'ask-resource')
+            ->addPrompt(static fn (RequestContext $context): string => self::answered($context->getClientGateway()->elicit('Name?', self::schema(), 5)), 'ask')
             ->build();
+    }
+
+    private static function answered(mixed $answer): string
+    {
+        return 'answered';
     }
 
     /**
@@ -313,7 +344,7 @@ final class SessionlessHttpTest extends TestCase
     {
         try {
             $ask();
-        } catch (LogicException $e) {
+        } catch (SessionRequiredException $e) {
             return $e->getMessage();
         }
 

@@ -11,7 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Session;
 
-use Mcp\Exception\LogicException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Server\Session\EphemeralSession;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -40,7 +40,7 @@ final class EphemeralSessionTest extends TestCase
         $session = new EphemeralSession();
         $session->set('cart.items', 2);
 
-        $this->expectException(LogicException::class);
+        $this->expectException(SessionRequiredException::class);
         $this->expectExceptionMessage('Nothing in a session outlives its request without a session store; configure one with Builder::setSession().');
 
         $session->save();

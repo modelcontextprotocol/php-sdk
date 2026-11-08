@@ -13,8 +13,8 @@ namespace Mcp\Server;
 
 use Mcp\Exception\ClientException;
 use Mcp\Exception\InvalidArgumentException;
-use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\ImageContent;
@@ -163,8 +163,8 @@ class ClientGateway
      *
      * @return CreateSamplingMessageResult The sampling response
      *
-     * @throws ClientException if the client request results in an error message
-     * @throws LogicException  if the server runs without sessions
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Integrate with an LLM provider's API directly instead.
@@ -235,8 +235,8 @@ class ClientGateway
      *
      * @return ElicitResult The elicitation response containing the user's action and any provided content
      *
-     * @throws ClientException if the client request results in an error message
-     * @throws LogicException  if the server runs without sessions
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120, ?string $key = null): ElicitResult
     {
@@ -257,7 +257,7 @@ class ClientGateway
      *
      * @throws ClientException          if the client request results in an error message
      * @throws InvalidArgumentException if the client did not declare url-mode elicitation
-     * @throws LogicException           if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function elicitUrl(string $message, string $url, int $timeout = 120, ?string $key = null): ElicitResult
     {
@@ -282,8 +282,8 @@ class ClientGateway
      *
      * @return ListRootsResult The roots exposed by the client
      *
-     * @throws ClientException if the client request results in an error message
-     * @throws LogicException  if the server runs without sessions
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Pass directories or files through tool arguments, resource URIs or server
@@ -313,7 +313,7 @@ class ClientGateway
      *
      * @return bool True if the client supports roots, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsRoots(): bool
     {
@@ -332,7 +332,7 @@ class ClientGateway
      *
      * @return bool True if the client supports elicitation, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsElicitation(): bool
     {
@@ -351,7 +351,7 @@ class ClientGateway
      *
      * @return bool True if the client supports sampling, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSampling(): bool
     {
@@ -371,7 +371,7 @@ class ClientGateway
      *
      * @return bool True if the client supports tool-enabled sampling, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSamplingTools(): bool
     {
@@ -386,7 +386,7 @@ class ClientGateway
      *
      * @return bool True if the client supports sampling context, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSamplingContext(): bool
     {
@@ -401,7 +401,7 @@ class ClientGateway
      *
      * @return bool True if the client supports url-mode elicitation, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsElicitationUrl(): bool
     {
@@ -418,7 +418,7 @@ class ClientGateway
      *
      * @return bool True if the client advertised the extension, false otherwise
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsExtension(ExtensionIdentifier|string $id): bool
     {
@@ -472,8 +472,8 @@ class ClientGateway
      *
      * @return Response<array<string, mixed>>|Error The client's response message
      *
-     * @throws RuntimeException If Fiber support is not available
-     * @throws LogicException   if the server runs without sessions
+     * @throws RuntimeException         If Fiber support is not available
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @internal
      */
@@ -510,12 +510,12 @@ class ClientGateway
      *
      * @return array<string, mixed>
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     private function clientCapabilities(): array
     {
         if ($this->session instanceof EphemeralSessionInterface) {
-            throw new LogicException('The client capabilities need a session; configure one with Builder::setSession().');
+            throw new SessionRequiredException('The client capabilities need a session; configure one with Builder::setSession().');
         }
 
         return (array) $this->session->get('client_capabilities', []);
@@ -524,12 +524,12 @@ class ClientGateway
     /**
      * The client answers in a POST of its own, which a server without sessions cannot match to the request waiting for it.
      *
-     * @throws LogicException if the server runs without sessions
+     * @throws SessionRequiredException if the server runs without sessions
      */
     private function assertClientCanBeAsked(): void
     {
         if ($this->session instanceof EphemeralSessionInterface) {
-            throw new LogicException('Requests to the client need a session; configure one with Builder::setSession().');
+            throw new SessionRequiredException('Requests to the client need a session; configure one with Builder::setSession().');
         }
     }
 }

@@ -17,8 +17,8 @@ use Mcp\Event\NotificationEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
-use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\JsonRpc\Error;
@@ -154,7 +154,7 @@ final class ProtocolTest extends TestCase
             sessionless: true,
         );
 
-        $this->expectException(LogicException::class);
+        $this->expectException(SessionRequiredException::class);
         $this->expectExceptionMessage('Messages sent outside a request need a session; configure one with Builder::setSession().');
 
         $protocol->sendNotification(new ProgressNotification('p', 0.5), new EphemeralSession());
@@ -171,7 +171,7 @@ final class ProtocolTest extends TestCase
             sessionless: true,
         );
 
-        $this->expectException(LogicException::class);
+        $this->expectException(SessionRequiredException::class);
         $this->expectExceptionMessage('Messages sent outside a request need a session; configure one with Builder::setSession().');
 
         $protocol->sendRequest(new PingRequest(), 10, new EphemeralSession());

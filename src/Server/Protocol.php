@@ -18,10 +18,10 @@ use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Event\ServerRequestEvent;
 use Mcp\Exception\InvalidInputMessageException;
-use Mcp\Exception\LogicException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Exception\SessionLockException;
 use Mcp\Exception\SessionLockTimeoutException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -670,12 +670,12 @@ class Protocol
     }
 
     /**
-     * @throws LogicException for the session of a server without sessions, which has no stream to deliver queued messages on
+     * @throws SessionRequiredException for the session of a server without sessions, which has no stream to deliver queued messages on
      */
     private static function assertQueueable(SessionInterface $session): void
     {
         if ($session instanceof EphemeralSessionInterface) {
-            throw new LogicException('Messages sent outside a request need a session; configure one with Builder::setSession().');
+            throw new SessionRequiredException('Messages sent outside a request need a session; configure one with Builder::setSession().');
         }
     }
 
@@ -1008,7 +1008,7 @@ class Protocol
         // The fiber holds the only copy of its session, which is never stored.
         if ($this->isSessionless($transport)) {
             if ($yieldedValue instanceof RequestSuspension) {
-                throw new LogicException('Requests to the client need a session; configure one with Builder::setSession().');
+                throw new SessionRequiredException('Requests to the client need a session; configure one with Builder::setSession().');
             }
 
             $this->queueFiberOutgoing($transport, $yieldedValue->notification);
@@ -1179,6 +1179,9 @@ class Protocol
         if ($e instanceof \InvalidArgumentException) {
             $this->logger->warning(\sprintf('Invalid argument: %s', $e->getMessage()), ['exception' => $e]);
             $error = Error::forInvalidParams($e->getMessage(), $request->getId());
+        } elseif ($e instanceof SessionRequiredException) {
+            $this->logger->error($e->getMessage(), ['exception' => $e]);
+            $error = Error::forInternalError($e->getMessage(), $request->getId());
         } else {
             $this->logger->error(\sprintf('Uncaught exception: %s', $e->getMessage()), ['exception' => $e]);
             $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $request->getId());

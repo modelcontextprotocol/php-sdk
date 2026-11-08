@@ -11,7 +11,7 @@
 
 namespace Mcp\Server\Session;
 
-use Mcp\Exception\LogicException;
+use Mcp\Exception\SessionRequiredException;
 
 /**
  * The session of one request on a server built without {@see \Mcp\Server\Builder::setSession()}.
@@ -26,10 +26,10 @@ final class EphemeralSession extends Session implements EphemeralSessionInterfac
     }
 
     /**
-     * @throws LogicException always, as nothing in this session outlives its request
+     * @throws SessionRequiredException always, as nothing in this session outlives its request
      */
     public function save(): never
     {
-        throw new LogicException('Nothing in a session outlives its request without a session store; configure one with Builder::setSession().');
+        throw new SessionRequiredException('Nothing in a session outlives its request without a session store; configure one with Builder::setSession().');
     }
 }
