@@ -21,6 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
@@ -55,6 +56,19 @@ final class ClientRegistrationTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
 
         ClientRegistration::fromResponse(['client_secret' => 'secret']);
+    }
+
+    /**
+     * @param array<string, string> $response
+     */
+    #[TestWith([['client_id' => 'issued']])]
+    #[TestWith([['client_id' => 'issued', 'token_endpoint_auth_method' => 'client_secret_basic']])]
+    #[TestDox('a registration without a secret is a public client, whatever was requested')]
+    public function testNoSecretMeansAPublicClient(array $response): void
+    {
+        $registration = ClientRegistration::fromResponse($response, TokenEndpointAuthMethod::ClientSecretBasic);
+
+        $this->assertSame(TokenEndpointAuthMethod::None, $registration->tokenEndpointAuthMethod);
     }
 
     #[TestDox('a secret with an expiry is treated as expired once it passes')]

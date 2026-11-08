@@ -58,9 +58,10 @@ final class ClientRegistration implements \JsonSerializable
 
         $secret = \is_string($response['client_secret'] ?? null) ? $response['client_secret'] : null;
 
-        // A server that echoes back a method has the final say; one that stays silent
-        // accepted what was asked for, which is what $fallback carries.
-        $method = TokenEndpointAuthMethod::tryFrom((string) ($response['token_endpoint_auth_method'] ?? '')) ?? $fallback;
+        // Without a secret there is nothing to authenticate with, whatever the method says.
+        $method = null === $secret
+            ? TokenEndpointAuthMethod::None
+            : TokenEndpointAuthMethod::tryFrom((string) ($response['token_endpoint_auth_method'] ?? '')) ?? $fallback;
 
         $expiresAt = $response['client_secret_expires_at'] ?? null;
 
