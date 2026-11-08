@@ -128,6 +128,13 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
     private function buildErrorResponse(AuthorizationResult $result): ResponseInterface
     {
+        if (503 === $result->getStatusCode()) {
+            $response = $this->responseFactory->createResponse(503);
+            $retryAfter = $result->getRetryAfter();
+
+            return null === $retryAfter ? $response : $response->withHeader('Retry-After', (string) $retryAfter);
+        }
+
         $parts = ['resource_metadata="'.$this->escapeHeaderValue($this->resourceMetadata->getMetadataUrl()).'"'];
 
         $scopes = $result->getScopes() ?? $this->resourceMetadata->getScopesSupported();

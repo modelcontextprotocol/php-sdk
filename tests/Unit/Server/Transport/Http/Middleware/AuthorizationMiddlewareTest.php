@@ -108,6 +108,17 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
         );
     }
 
+    public function testUnavailableValidatorReturnsRetryAfterWithoutChallenging(): void
+    {
+        $validator = $this->validator(AuthorizationResult::unavailable(10));
+
+        $response = $this->middleware($validator)->process($this->request('Bearer abc'), $this->passthroughHandler);
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertFalse($response->hasHeader('WWW-Authenticate'));
+        $this->assertSame('10', $response->getHeaderLine('Retry-After'));
+    }
+
     public function testValidTokenReachesHandlerAsAttribute(): void
     {
         $token = new AccessToken(['mcp:read'], ['sub' => 'user-1']);

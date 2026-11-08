@@ -80,7 +80,7 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
      *
      * Discovery happens on the first token, so an unreachable authorization server
      * does not break building the validator; a failed discovery is cached for a few
-     * seconds, rejecting tokens without retrying. Keys are refetched, rate limited, when a
+     * seconds, reporting validation as unavailable without retrying. Keys are refetched, rate limited, when a
      * token names an unknown key id, so key rotation does not lock clients out until
      * the cache expires. Issuer and JWKS URI must use https, unless they point to a
      * loopback host (`localhost`, `*.localhost`, `127.0.0.0/8` or `::1`).
@@ -141,9 +141,19 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
         // Resolved up front, as discovery and JWKS refetches do I/O that must not run inside the leeway swap below.
         try {
             $keys = null === $this->keysForAlgorithm ? $this->keys : ($this->keysForAlgorithm)($header['alg']);
+        } catch (RuntimeException) {
+            return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
+        }
+
+        try {
             $key = $keys[$keyId] ?? null;
-        } catch (\OutOfBoundsException|\UnexpectedValueException|\InvalidArgumentException|\DomainException|ClientExceptionInterface|RuntimeException) {
-            // JWKS endpoint unreachable or malformed, or discovery failed.
+        } catch (\OutOfBoundsException) {
+            $key = null;
+        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException|ClientExceptionInterface|RuntimeException) {
+            if ($keys instanceof CachedKeySet) {
+                return AuthorizationResult::unavailable();
+            }
+
             $key = null;
         }
 

@@ -38,8 +38,9 @@ use Psr\Http\Message\RequestFactoryInterface;
  */
 final class OidcDiscovery
 {
+    public const FAILURE_TTL = 10;
+
     private const CACHE_KEY_PREFIX = 'mcp_oidc_jwks_uri_';
-    private const FAILURE_TTL = 10;
 
     private ClientInterface $httpClient;
     private RequestFactoryInterface $requestFactory;
