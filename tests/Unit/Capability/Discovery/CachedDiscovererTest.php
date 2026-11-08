@@ -19,6 +19,7 @@ use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Psr\SimpleCache\CacheInterface;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
+use Symfony\Component\Cache\Psr16Cache;
 
 class CachedDiscovererTest extends TestCase
 {
@@ -27,11 +28,12 @@ class CachedDiscovererTest extends TestCase
         $discoverer = new Discoverer();
 
         $cache = $this->createMock(CacheInterface::class);
-        $cache->expects($this->once())
+        // The entry and the index of keys clearCache() deletes.
+        $cache->expects($this->exactly(2))
             ->method('get')
             ->willReturn(null);
 
-        $cache->expects($this->once())
+        $cache->expects($this->exactly(2))
             ->method('set')
             ->willReturn(true);
 
@@ -74,11 +76,11 @@ class CachedDiscovererTest extends TestCase
 
         $cache = $this->createMock(CacheInterface::class);
 
-        $cache->expects($this->exactly(2))
+        $cache->expects($this->exactly(4))
             ->method('get')
             ->willReturn(null);
 
-        $cache->expects($this->exactly(2))
+        $cache->expects($this->exactly(4))
             ->method('set')
             ->willReturn(true);
 
@@ -109,5 +111,53 @@ class CachedDiscovererTest extends TestCase
 
         $cachedDiscoverer->clearCache();
         $this->assertSame([], $pool->getValues());
+    }
+
+    public function testDifferentNamePatternsDoNotShareACacheEntry(): void
+    {
+        $discoverer = $this->createMock(DiscovererInterface::class);
+        $discoverer->expects($this->exactly(2))
+            ->method('discover')
+            ->willReturn(new DiscoveryState());
+
+        $cachedDiscoverer = new CachedDiscoverer($discoverer, new ArrayAdapter(), new NullLogger());
+
+        $cachedDiscoverer->discover('/test/path', ['.'], [], ['*.php']);
+        $cachedDiscoverer->discover('/test/path', ['.'], [], ['*Tool.php']);
+    }
+
+    public function testClearCacheKeepsForeignEntriesOfAPsr6Pool(): void
+    {
+        $pool = new ArrayAdapter();
+        $pool->save($pool->getItem('foreign')->set('kept'));
+
+        $discoverer = $this->createMock(DiscovererInterface::class);
+        $discoverer->expects($this->exactly(2))
+            ->method('discover')
+            ->willReturn(new DiscoveryState());
+
+        (new CachedDiscoverer($discoverer, $pool, new NullLogger()))->discover('/test/path', ['.']);
+        // Another instance, as a cache:clear command in a separate process would be.
+        (new CachedDiscoverer($discoverer, $pool, new NullLogger()))->clearCache();
+        (new CachedDiscoverer($discoverer, $pool, new NullLogger()))->discover('/test/path', ['.']);
+
+        $this->assertSame('kept', $pool->getItem('foreign')->get());
+    }
+
+    public function testClearCacheKeepsForeignEntriesOfAPsr16Cache(): void
+    {
+        $cache = new Psr16Cache(new ArrayAdapter());
+        $cache->set('foreign', 'kept');
+
+        $discoverer = $this->createMock(DiscovererInterface::class);
+        $discoverer->expects($this->exactly(2))
+            ->method('discover')
+            ->willReturn(new DiscoveryState());
+
+        (new CachedDiscoverer($discoverer, $cache, new NullLogger()))->discover('/test/path', ['.']);
+        (new CachedDiscoverer($discoverer, $cache, new NullLogger()))->clearCache();
+        (new CachedDiscoverer($discoverer, $cache, new NullLogger()))->discover('/test/path', ['.']);
+
+        $this->assertSame('kept', $cache->get('foreign'));
     }
 }
