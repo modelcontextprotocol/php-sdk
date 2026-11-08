@@ -77,11 +77,16 @@ server {
         fastcgi_param SCRIPT_FILENAME $document_root/index.php;
         fastcgi_pass unix:/run/php/php-fpm.sock;
     }
+
+    location / {
+        return 404;
+    }
 }
 ```
 
-The location passes every HTTP method to PHP. The transport handles `POST`, `DELETE` and
-`OPTIONS` and answers the others itself.
+The first location passes every HTTP method to PHP. The transport handles `POST`, `DELETE`
+and `OPTIONS` and answers the others itself. The second answers every other path, including
+`/index.php`, which Nginx would otherwise serve as a file, source and all.
 
 Streaming needs no extra configuration. A streamed response carries `X-Accel-Buffering: no`,
 which turns off Nginx's FastCGI buffering for that response, so each event reaches the client
