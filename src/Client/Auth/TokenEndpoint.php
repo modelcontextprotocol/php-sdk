@@ -105,8 +105,7 @@ final class TokenEndpoint
             throw new AuthorizationException(\sprintf('The token request to "%s" failed: %s', $endpoint, $e->getMessage()), 0, $e);
         }
 
-        $body = (string) $response->getBody();
-        $decoded = json_decode($body, true);
+        $decoded = json_decode(ResponseBody::read($response) ?? '', true);
 
         if (200 !== $response->getStatusCode() || !\is_array($decoded)) {
             // Only an error document is quoted back. A 200 that failed to decode is a

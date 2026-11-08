@@ -73,7 +73,7 @@ final class ClientRegistrar
             throw new AuthorizationException(\sprintf('The client registration request to "%s" failed: %s', $metadata->registrationEndpoint, $e->getMessage()), 0, $e);
         }
 
-        $decoded = json_decode((string) $response->getBody(), true);
+        $decoded = json_decode(ResponseBody::read($response) ?? '', true);
 
         if (!\in_array($response->getStatusCode(), [200, 201], true) || !\is_array($decoded)) {
             throw new AuthorizationException(\sprintf('The authorization server refused the client registration with %d.', $response->getStatusCode()));

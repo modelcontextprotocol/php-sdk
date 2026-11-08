@@ -207,7 +207,7 @@ final class MetadataDiscovery
             return null;
         }
 
-        $decoded = json_decode((string) $response->getBody(), true);
+        $decoded = json_decode(ResponseBody::read($response) ?? '', true);
 
         return \is_array($decoded) ? $decoded : null;
     }
