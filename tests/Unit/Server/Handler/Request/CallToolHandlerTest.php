@@ -327,6 +327,21 @@ class CallToolHandlerTest extends TestCase
         }
     }
 
+    public function testToolNotFoundIsLoggedAsCalledButNotAsExecuted(): void
+    {
+        $this->registry->method('getTool')->willThrowException(new ToolNotFoundException('unknown'));
+
+        $this->assertCalledButNotExecuted($this->createCallToolRequest('unknown', []));
+    }
+
+    public function testInvalidArgumentsAreLoggedAsCalledButNotAsExecuted(): void
+    {
+        $toolReference = $this->createToolReference('strict', static fn () => 'unused');
+        $this->registry->method('getTool')->willReturn($toolReference);
+
+        $this->assertCalledButNotExecuted($this->createCallToolRequest('strict', ['example' => 123]));
+    }
+
     public function testHandleWithNullResult(): void
     {
         $request = $this->createCallToolRequest('null_tool', []);
@@ -976,6 +991,28 @@ class CallToolHandlerTest extends TestCase
                 'arguments' => $arguments,
             ],
         ]);
+    }
+
+    private function assertCalledButNotExecuted(CallToolRequest $request): void
+    {
+        $logger = new class extends AbstractLogger {
+            public array $records = [];
+
+            // @phpstan-ignore missingType.parameter (compatible with psr/log 1.x)
+            public function log($level, $message, array $context = []): void
+            {
+                $this->records[] = ['level' => $level, 'message' => (string) $message, 'context' => $context];
+            }
+        };
+        $handler = new CallToolHandler($this->registry, $this->referenceHandler, $logger);
+
+        $this->referenceHandler->expects($this->never())->method('handle');
+
+        $this->assertInstanceOf(Error::class, $handler->handle($request, $this->session));
+
+        $messages = array_column($logger->records, 'message');
+        $this->assertContains('Calling tool', $messages);
+        $this->assertNotContains('Executing tool', $messages);
     }
 
     /**

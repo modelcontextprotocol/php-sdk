@@ -69,7 +69,6 @@ final class CallToolHandler implements RequestHandlerInterface
 
         // The arguments may carry sensitive input, so only the name is logged at info level.
         $this->logger->info('Calling tool', ['name' => $toolName]);
-        $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         try {
             $reference = $this->registry->getTool($toolName);
@@ -89,6 +88,8 @@ final class CallToolHandler implements RequestHandlerInterface
 
             return Error::forInvalidParams($summaryMessage, $request->getId(), ['validation_errors' => $validationErrors]);
         }
+
+        $this->logger->debug('Executing tool', ['name' => $toolName, 'arguments' => $arguments]);
 
         $arguments['_session'] = $session;
         $arguments['_request'] = $request;
