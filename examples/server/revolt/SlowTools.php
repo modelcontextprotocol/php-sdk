@@ -12,6 +12,7 @@
 namespace Mcp\Example\Server\Revolt;
 
 use Amp\Future;
+use Mcp\Server\RequestContext;
 use Psr\Log\LoggerInterface;
 
 use function Amp\async;
@@ -39,12 +40,14 @@ final class SlowTools
      *
      * @param float $seconds how long to wait, at most 5 seconds
      */
-    public function wait(float $seconds): string
+    public function wait(RequestContext $context, float $seconds): string
     {
         $seconds = max(0.0, min($seconds, 5.0));
         $this->logger->info('Waiting on the event loop.', ['seconds' => $seconds]);
 
-        delay($seconds);
+        delay($seconds / 2);
+        $context->getClientGateway()->progress($seconds / 2, $seconds);
+        delay($seconds / 2);
 
         return \sprintf('Waited %s seconds on the event loop.', $seconds);
     }

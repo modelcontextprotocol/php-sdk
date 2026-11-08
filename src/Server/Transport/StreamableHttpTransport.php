@@ -333,7 +333,7 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     {
         $fiber = $this->sessionFiber;
 
-        $callback = function () use ($fiber): void {
+        $chunks = function () use ($fiber): \Generator {
             if (null === $fiber) {
                 return;
             }
@@ -341,17 +341,15 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             try {
                 $this->logger->info('SSE: Starting request processing loop');
 
-                $lastKeepAlive = null;
-
                 while ($fiber->isSuspended()) {
-                    $this->flushOutgoingMessages($this->sessionId);
+                    yield from $this->outgoingFrames();
 
                     $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
                     if (empty($pendingRequests)) {
                         if (null !== $error = $this->resumeHandlerFiber($fiber, $this->sessionId)) {
-                            $this->flushOutgoingMessages($this->sessionId);
-                            $this->writeFinalResult($error);
+                            yield from $this->outgoingFrames();
+                            yield from $this->finalFrame($error);
 
                             return;
                         }
@@ -367,8 +365,8 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
 
                         if (null !== $response) {
                             if (null !== $error = $this->resumeHandlerFiber($fiber, $this->sessionId, $response)) {
-                                $this->flushOutgoingMessages($this->sessionId);
-                                $this->writeFinalResult($error);
+                                yield from $this->outgoingFrames();
+                                yield from $this->finalFrame($error);
 
                                 return;
                             }
@@ -379,35 +377,49 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     }
 
                     if (!$resumed) {
-                        // PHP only notices a dropped peer when it writes, so the
-                        // idle stream writes, or a vanished client would pin this
-                        // worker until the pending request times out. Paced like
-                        // the stateless keep-alive, not at every tick.
-                        $now = microtime(true);
-                        if (null === $lastKeepAlive || $now - $lastKeepAlive >= 0.25) {
-                            $lastKeepAlive = $now;
-                            echo ": keep-alive\n\n";
-                            @ob_flush();
-                            flush();
-                        }
-
-                        if ($this->isConnectionAborted()) {
-                            $this->logger->info('SSE: Client disconnected, dropping the suspended request.');
-
-                            return;
-                        }
-
-                        usleep(100000);
-                    } // Prevent tight loop
+                        // Waiting for the client: an idle turn, which the stream's consumer paces and keeps alive.
+                        yield '';
+                    }
                 }
 
-                $this->handleFiberTermination($fiber);
+                yield from $this->finalFrame($fiber->getReturn());
             } finally {
                 $this->sessionFiber = null;
             }
         };
 
-        $stream = new CallbackStream($callback, $this->logger);
+        $callback = function () use ($chunks): void {
+            $lastKeepAlive = null;
+
+            foreach ($chunks() as $chunk) {
+                if ('' !== $chunk) {
+                    echo $chunk;
+                    @ob_flush();
+                    flush();
+
+                    continue;
+                }
+
+                // PHP spots a dropped peer only by writing, so an idle turn writes a keep-alive, at most every 0.25s.
+                $now = microtime(true);
+                if (null === $lastKeepAlive || $now - $lastKeepAlive >= 0.25) {
+                    $lastKeepAlive = $now;
+                    echo ": keep-alive\n\n";
+                    @ob_flush();
+                    flush();
+                }
+
+                if ($this->isConnectionAborted()) {
+                    $this->logger->info('SSE: Client disconnected, dropping the suspended request.');
+
+                    return;
+                }
+
+                usleep(100000);
+            }
+        };
+
+        $stream = new CallbackStream($callback, $this->logger, $chunks);
         $response = $this->responseFactory->createResponse(200)
             ->withHeader('Content-Type', 'text/event-stream')
             ->withHeader('Cache-Control', 'no-cache')
@@ -428,41 +440,28 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
     }
 
     /**
-     * @param McpFiber $fiber
+     * @return \Generator<int, string>
      */
-    protected function handleFiberTermination(\Fiber $fiber): void
-    {
-        $this->writeFinalResult($fiber->getReturn());
-
-        $this->sessionFiber = null;
-    }
-
-    private function writeFinalResult(mixed $finalResult): void
+    private function finalFrame(mixed $finalResult): \Generator
     {
         if (null === $finalResult) {
             return;
         }
 
         try {
-            $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
-            echo "event: message\n";
-            echo "data: {$encoded}\n\n";
-            @ob_flush();
-            flush();
+            yield "event: message\ndata: ".json_encode($finalResult, \JSON_THROW_ON_ERROR)."\n\n";
         } catch (\JsonException $e) {
             $this->logger->error('SSE: Failed to encode final Fiber result.', ['exception' => $e]);
         }
     }
 
-    protected function flushOutgoingMessages(?Uuid $sessionId): void
+    /**
+     * @return \Generator<int, string>
+     */
+    private function outgoingFrames(): \Generator
     {
-        $messages = $this->getOutgoingMessages($sessionId);
-
-        foreach ($messages as $message) {
-            echo "event: message\n";
-            echo "data: {$message['message']}\n\n";
-            @ob_flush();
-            flush();
+        foreach ($this->getOutgoingMessages($this->sessionId) as $message) {
+            yield "event: message\ndata: {$message['message']}\n\n";
         }
     }
 

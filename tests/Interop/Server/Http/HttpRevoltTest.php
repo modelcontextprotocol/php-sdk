@@ -63,4 +63,18 @@ final class HttpRevoltTest extends HttpInspectorSnapshotTestCase
         $this->assertMatchesRegularExpression('/data: \{[^\n]*"notifications\/subscriptions\/acknowledged"[^\n]*"toolsListChanged":true/', $output);
         $this->assertStringContainsString(": keep-alive\n\n", $output);
     }
+
+    #[TestDox('a handshake-era tool reporting progress is streamed by the server, the progress ahead of the result')]
+    public function testHandshakeEraProgressIsStreamed(): void
+    {
+        $version = ProtocolVersion::V2025_11_25->value;
+        $output = $this->readFor(2.0, ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => [
+            'name' => 'wait',
+            'arguments' => ['seconds' => 0.2],
+            '_meta' => ['progressToken' => 'wait-progress'],
+        ]], ['MCP-Protocol-Version' => $version]);
+
+        $this->assertMatchesRegularExpression('/^HTTP\/1\.1 200 /', $output);
+        $this->assertMatchesRegularExpression('/data: \{[^\n]*"progressToken":"wait-progress"[^\n]*\n\n.*data: \{[^\n]*"id":2,"result"/s', $output);
+    }
 }

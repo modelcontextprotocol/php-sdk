@@ -68,10 +68,9 @@ Its tools wait on the loop with `Amp\delay()`, and other requests are served in 
 php examples/server/reactphp/server.php 127.0.0.1:8000
 ```
 
-Both servers stream `2026-07-28` responses, writing the SSE text they get from `CallbackStream::chunks()`
-themselves. They answer with status `501` when a handshake-era response needs streaming, for example when a
-tool sends a notification. They use an `InMemoryNotificationBus`, without which `subscriptions/listen` carries
-nothing.
+Both servers stream responses in both protocol eras, writing the SSE text they get from `CallbackStream::chunks()`
+themselves, e.g. the progress the `wait` tool reports halfway when the client asks for it. They use an
+`InMemoryNotificationBus`, without which `subscriptions/listen` carries nothing.
 
 ## Debugging
 

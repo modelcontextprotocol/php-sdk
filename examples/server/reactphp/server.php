@@ -40,10 +40,8 @@ use function React\Async\delay;
  *
  *     php examples/server/reactphp/server.php [127.0.0.1:8000]
  *
- * The SSE text of a 2026-07-28 streamed response comes from
- * CallbackStream::chunks(), which this server writes itself. A handshake-era
- * response that needs streaming, when a tool sends a notification (e.g.
- * progress) or waits on the client on a session, is answered with 501.
+ * The SSE text of a streamed response comes from CallbackStream::chunks(),
+ * which this server writes itself.
  */
 
 $address = $argv[1] ?? '127.0.0.1:8000';
@@ -73,10 +71,6 @@ $http = new HttpServer(async(static function (ServerRequestInterface $request) u
         }));
 
         return new Response($response->getStatusCode(), $response->getHeaders(), $stream);
-    }
-
-    if ($body instanceof CallbackStream) {
-        return new Response(Response::STATUS_NOT_IMPLEMENTED, ['Content-Type' => 'text/plain'], 'This server does not support streamed responses.');
     }
 
     return new Response($response->getStatusCode(), $response->getHeaders(), (string) $body);
