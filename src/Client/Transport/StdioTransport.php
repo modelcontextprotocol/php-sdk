@@ -216,7 +216,8 @@ class StdioTransport extends BaseTransport
         }
 
         $process = proc_open(
-            $cmd,
+            // cmd.exe cannot pass every argument on, and escapeshellarg() blanks what it cannot quote.
+            'Windows' === \PHP_OS_FAMILY ? [$this->command, ...$this->args] : $cmd,
             $descriptors,
             $pipes,
             $this->cwd,
@@ -252,6 +253,10 @@ class StdioTransport extends BaseTransport
     private function processInput(): void
     {
         if (null === $this->stdout || !\is_resource($this->stdout)) {
+            return;
+        }
+
+        if (!$this->hasInput($this->stdout)) {
             return;
         }
 
@@ -374,6 +379,22 @@ class StdioTransport extends BaseTransport
     }
 
     /**
+     * @param resource $stream
+     */
+    private function hasInput($stream): bool
+    {
+        $read = [$stream];
+        $write = $except = null;
+
+        // fread() on an idle Windows pipe blocks even in non-blocking mode; a stream that cannot be selected is just read.
+        try {
+            return 0 !== @stream_select($read, $write, $except, 0);
+        } catch (\ValueError) {
+            return true;
+        }
+    }
+
+    /**
      * Read what the server wrote to stderr, keeping its tail to explain a later failure.
      */
     private function processStderr(): void
@@ -385,7 +406,7 @@ class StdioTransport extends BaseTransport
         // A server that never stops writing to stderr must not keep the loop
         // from reading its answers and enforcing timeouts.
         $read = 0;
-        while ($read < self::MAX_STDERR_READ && false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
+        while ($read < self::MAX_STDERR_READ && $this->hasInput($this->stderr) && false !== ($chunk = fread($this->stderr, 8192)) && '' !== $chunk) {
             $read += \strlen($chunk);
             $this->logger->debug('Server stderr', ['output' => trim($chunk)]);
 

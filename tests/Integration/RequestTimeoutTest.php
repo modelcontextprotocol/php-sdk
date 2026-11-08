@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Integration;
 
 use Mcp\Exception\RequestException;
+use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\TestDox;
 
 /**
@@ -19,6 +20,7 @@ use PHPUnit\Framework\Attributes\TestDox;
  *
  * @see Fixture/request_timeout.php for the server under test
  */
+#[Group('os')]
 final class RequestTimeoutTest extends IntegrationTestCase
 {
     #[TestDox('an abandoned response is not handed to the next request')]

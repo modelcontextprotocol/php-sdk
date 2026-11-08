@@ -226,6 +226,20 @@ final class StdioTransportTest extends TestCase
         $this->assertStringStartsWith('The server process was killed by signal 9', $response->message);
     }
 
+    #[TestDox('arguments reach the server unchanged')]
+    public function testArgumentsReachTheServerUnchanged(): void
+    {
+        $argument = 'a"b %PATH% !c! & d';
+        $client = Client::builder()->setInitTimeout(10)->setMaxRetries(0)->build();
+
+        try {
+            $client->connect(new StdioTransport(command: \PHP_BINARY, args: ['-r', 'fwrite(STDERR, $argv[1]); exit(3);', $argument]));
+            $this->fail('Connecting to a server that exits must fail.');
+        } catch (ConnectionException $e) {
+            $this->assertStringEndsWith($argument, $e->getMessage());
+        }
+    }
+
     #[TestDox('a retried connection reports how its own process ended, not the previous one')]
     public function testRetryReportsItsOwnProcess(): void
     {
