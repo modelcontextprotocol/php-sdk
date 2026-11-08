@@ -225,7 +225,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private function discoverLegacyServer(string $endpoint): AuthorizationServerMetadata
     {
         if (!$this->configuration->legacyDiscovery) {
-            throw new AuthorizationException(\sprintf('The server at "%s" published no protected resource metadata, and discovery of pre-2025-06-18 servers is disabled.', $endpoint));
+            throw new AuthorizationException(\sprintf('The server at "%s" published no usable protected resource metadata, and discovery of pre-2025-06-18 servers is disabled.', $endpoint));
         }
 
         $issuer = self::origin($endpoint);
