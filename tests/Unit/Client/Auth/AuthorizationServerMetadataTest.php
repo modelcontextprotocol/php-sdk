@@ -167,6 +167,8 @@ final class AuthorizationServerMetadataTest extends TestCase
         yield 'a fragment' => ['https://auth.example.com#tenant-a'];
         yield 'an empty fragment' => ['https://auth.example.com#'];
         yield 'a path and a query' => ['https://auth.example.com/tenant?x=1'];
+        yield 'userinfo' => ['https://user:secret@auth.example.com'];
+        yield 'userinfo hiding the host behind a backslash' => ['http://evil.example\@localhost'];
         yield 'plain http on a public host' => ['http://auth.example.com'];
         yield 'not a URL' => ['auth.example.com'];
     }
@@ -212,7 +214,7 @@ final class AuthorizationServerMetadataTest extends TestCase
 
     #[DataProvider('invalidLegacyIssuerProvider')]
     #[TestDox('legacy endpoints are not built on: $_dataName')]
-    public function testRefusesALegacyIssuerWithAQueryOrFragment(string $issuer): void
+    public function testRefusesAnInvalidLegacyIssuer(string $issuer): void
     {
         $this->expectException(InvalidArgumentException::class);
 
@@ -226,6 +228,51 @@ final class AuthorizationServerMetadataTest extends TestCase
     {
         yield 'a query' => ['https://mcp.example.com?tenant=a'];
         yield 'a fragment' => ['https://mcp.example.com#frag'];
+        yield 'userinfo hiding the host behind a backslash' => ['http://evil.example\@localhost'];
+    }
+
+    /**
+     * @return iterable<string, array{string, string}>
+     */
+    public static function invalidEndpointProvider(): iterable
+    {
+        foreach (['authorization_endpoint', 'token_endpoint', 'registration_endpoint'] as $endpoint) {
+            yield $endpoint.' with a fragment' => [$endpoint, 'https://auth.example.com/x#frag'];
+            yield $endpoint.' with an empty fragment' => [$endpoint, 'https://auth.example.com/x#'];
+            yield $endpoint.' with a query and a fragment' => [$endpoint, 'https://auth.example.com/x?a=1#frag'];
+            yield $endpoint.' with a user and password' => [$endpoint, 'https://user:secret@auth.example.com/x'];
+            yield $endpoint.' with a user' => [$endpoint, 'https://user@auth.example.com/x'];
+            yield $endpoint.' hiding its host behind a backslash' => [$endpoint, 'http://evil.example\@localhost/x'];
+        }
+    }
+
+    #[DataProvider('invalidEndpointProvider')]
+    #[TestDox('a document is rejected for: $_dataName')]
+    public function testRejectsAnInvalidEndpoint(string $endpoint, string $url): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage($endpoint);
+
+        AuthorizationServerMetadata::fromArray([$endpoint => $url] + [
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
+    }
+
+    #[TestDox('an endpoint may carry a query')]
+    public function testKeepsAnEndpointQuery(): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize?tenant=a',
+            'token_endpoint' => 'https://auth.example.com/token?tenant=a',
+            'registration_endpoint' => 'https://auth.example.com/register?tenant=a',
+        ]);
+
+        $this->assertSame('https://auth.example.com/authorize?tenant=a', $metadata->authorizationEndpoint);
+        $this->assertSame('https://auth.example.com/token?tenant=a', $metadata->tokenEndpoint);
+        $this->assertSame('https://auth.example.com/register?tenant=a', $metadata->registrationEndpoint);
     }
 
     #[TestDox('endpoints that are not HTTPS are refused')]

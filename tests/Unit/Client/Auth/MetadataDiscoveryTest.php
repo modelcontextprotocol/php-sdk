@@ -362,6 +362,28 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertNull($this->discovery($client)->discoverAuthorizationServer($issuer));
     }
 
+    #[TestDox('an invalid endpoint does not stop a later location')]
+    public function testContinuesAfterAnInvalidEndpoint(): void
+    {
+        $client = new RecordingClient([
+            'https://auth.example.com/.well-known/oauth-authorization-server' => self::json([
+                'issuer' => 'https://auth.example.com',
+                'authorization_endpoint' => 'https://auth.example.com/authorize#frag',
+                'token_endpoint' => 'https://auth.example.com/token',
+            ]),
+            'https://auth.example.com/.well-known/openid-configuration' => self::json([
+                'issuer' => 'https://auth.example.com',
+                'authorization_endpoint' => 'https://auth.example.com/oidc/authorize',
+                'token_endpoint' => 'https://auth.example.com/oidc/token',
+            ]),
+        ]);
+
+        $metadata = $this->discovery($client)->discoverAuthorizationServer('https://auth.example.com');
+
+        $this->assertNotNull($metadata);
+        $this->assertSame('https://auth.example.com/oidc/authorize', $metadata->authorizationEndpoint);
+    }
+
     #[TestDox('a transport failure is not fatal, the next location is still tried')]
     public function testSurvivesATransportFailure(): void
     {

@@ -49,9 +49,9 @@ final class AuthorizationServerMetadata
     ) {
         $parts = SecureUrl::parse($issuer, 'authorization server issuer');
 
-        // RFC 8414 section 2 rules out both components in an issuer.
-        if (isset($parts['query']) || isset($parts['fragment'])) {
-            throw new InvalidArgumentException(\sprintf('The authorization server issuer "%s" must not have a query or fragment.', $issuer));
+        // RFC 8414 section 2 rules out a query and fragment; RFC 9110 section 4.2.4 treats untrusted userinfo as an error.
+        if (isset($parts['query']) || isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+            throw new InvalidArgumentException(\sprintf('The authorization server issuer "%s" must not have a query, fragment or userinfo.', $issuer));
         }
     }
 
@@ -75,8 +75,19 @@ final class AuthorizationServerMetadata
         }
 
         foreach (['authorization_endpoint', 'token_endpoint', 'registration_endpoint'] as $endpoint) {
-            if (\is_string($data[$endpoint] ?? null) && !self::isTransportSecure($data[$endpoint])) {
+            if (!\is_string($data[$endpoint] ?? null)) {
+                continue;
+            }
+
+            if (!self::isTransportSecure($data[$endpoint])) {
                 throw new InvalidArgumentException(\sprintf('The authorization server metadata declares "%s" as "%s", which is neither an HTTPS URL nor a loopback address.', $endpoint, $data[$endpoint]));
+            }
+
+            $parts = SecureUrl::parse($data[$endpoint], $endpoint);
+
+            // RFC 6749 sections 3.1 and 3.2 rule out fragments; RFC 9110 section 4.2.4 treats untrusted userinfo as an error.
+            if (isset($parts['fragment']) || isset($parts['user']) || isset($parts['pass'])) {
+                throw new InvalidArgumentException(\sprintf('The authorization server metadata declares "%s" as "%s", which must not have a fragment or userinfo.', $endpoint, $data[$endpoint]));
             }
         }
 
@@ -98,7 +109,7 @@ final class AuthorizationServerMetadata
     /**
      * The fixed endpoints a 2025-03-26 era server without metadata is assumed to expose.
      *
-     * @throws InvalidArgumentException when the issuer is neither https nor loopback, or has a query or fragment
+     * @throws InvalidArgumentException when the issuer is neither https nor loopback, or has a query, fragment or userinfo
      */
     public static function forLegacyServer(string $issuer): self
     {
