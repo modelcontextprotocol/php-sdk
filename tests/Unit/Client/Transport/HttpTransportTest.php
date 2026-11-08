@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Transport;
 use Http\Discovery\Psr18ClientDiscovery;
 use Http\Discovery\Strategy\DiscoveryStrategy;
 use Mcp\Client;
+use Mcp\Client\Auth\BearerToken;
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
 use Mcp\Client\Handler\Notification\LoggingNotificationHandler;
@@ -21,6 +22,7 @@ use Mcp\Client\Protocol;
 use Mcp\Client\State\ClientState;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
+use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\ConnectionException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RequestCancelledException;
@@ -115,6 +117,168 @@ final class HttpTransportTest extends TestCase
 
         $this->assertTrue($client->isConnected());
         $this->assertSame('test-server', $client->getServerInfo()?->name);
+    }
+
+    #[TestDox('every request carries the credentials passed as auth')]
+    public function testAuthAddsCredentialsToEveryRequest(): void
+    {
+        $httpClient = new RecordingHttpClient();
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(1)
+            ->build();
+
+        $client->connect(new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory, auth: new BearerToken('secret')));
+        $client->disconnect();
+
+        $this->assertNotEmpty($httpClient->requests);
+
+        foreach ($httpClient->requests as $request) {
+            $this->assertSame('Bearer secret', $request->getHeaderLine('Authorization'));
+        }
+    }
+
+    /**
+     * @return iterable<string, array{int}>
+     */
+    public static function refusedStatusProvider(): iterable
+    {
+        yield 'unauthorized' => [401];
+        yield 'forbidden' => [403];
+    }
+
+    #[DataProvider('refusedStatusProvider')]
+    #[TestDox('connect() does not retry a refused request and names the challenge ($_dataName)')]
+    public function testConnectReportsARefusal(int $status): void
+    {
+        $httpClient = RecordingHttpClient::queued([new Response($status, ['WWW-Authenticate' => 'Bearer realm="mcp"'])]);
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setInitTimeout(1)
+            ->setMaxRetries(2)
+            ->build();
+
+        try {
+            $client->connect(new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory, auth: new BearerToken('secret')));
+            $this->fail('The client should not have connected.');
+        } catch (ConnectionException $e) {
+            $this->assertInstanceOf(AuthorizationException::class, $e->getPrevious());
+            $this->assertStringContainsString('Bearer realm="mcp"', $e->getMessage());
+        }
+
+        $this->assertCount(1, $httpClient->requests);
+    }
+
+    #[DataProvider('refusedStatusProvider')]
+    #[TestDox('a refused request after connecting fails with an AuthorizationException ($_dataName)')]
+    public function testRequestReportsARefusal(int $status): void
+    {
+        $httpClient = new RecordingHttpClient(static fn (array $message): ?ResponseInterface => 'tools/call' === ($message['method'] ?? null) ? new Response($status) : null);
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(1)
+            ->build();
+
+        $client->connect(new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('No challenge was provided.');
+
+        $client->callTool('fast');
+    }
+
+    #[DataProvider('refusedStatusProvider')]
+    #[TestDox('connect() fails when the server refuses the initialized notification ($_dataName)')]
+    public function testConnectReportsARefusedInitializedNotification(int $status): void
+    {
+        $httpClient = new RecordingHttpClient(static fn (array $message): ?ResponseInterface => 'notifications/initialized' === ($message['method'] ?? null) ? new Response($status) : null);
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(1)
+            ->setMaxRetries(2)
+            ->build();
+
+        try {
+            $client->connect(new HttpTransport('https://example.test/mcp', [], $httpClient, $this->factory, $this->factory));
+            $this->fail('The client should not have connected.');
+        } catch (ConnectionException $e) {
+            $this->assertInstanceOf(AuthorizationException::class, $e->getPrevious());
+        }
+
+        $this->assertFalse($client->isConnected());
+        $this->assertCount(2, $httpClient->messages);
+    }
+
+    #[DataProvider('refusedStatusProvider')]
+    #[TestDox('a refused stream resumption fails the request with the challenge ($_dataName)')]
+    public function testRefusedResumptionReportsTheChallenge(int $status): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new Response($status, ['WWW-Authenticate' => 'Bearer error="invalid_token"']),
+        ], $clock);
+
+        try {
+            $this->runRequest($this->createTransport(httpClient: $httpClient, clock: $clock), 1);
+            $this->fail('The request should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('Bearer error="invalid_token"', $e->getMessage());
+        }
+
+        $this->assertCount(2, $httpClient->requests);
+    }
+
+    #[TestDox('a refused stream resumption during connect() is not retried')]
+    public function testConnectDoesNotRetryARefusedResumption(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new Response(401, ['WWW-Authenticate' => 'Bearer realm="mcp"']),
+        ], $clock);
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(5)
+            ->setMaxRetries(2)
+            ->build();
+
+        try {
+            $client->connect($this->createTransport(httpClient: $httpClient, clock: $clock));
+            $this->fail('The client should not have connected.');
+        } catch (ConnectionException $e) {
+            $this->assertInstanceOf(AuthorizationException::class, $e->getPrevious());
+        }
+
+        $this->assertCount(2, $httpClient->requests);
+    }
+
+    #[TestDox('an authenticator that refuses a stream resumption fails the request without another attempt')]
+    public function testAuthorizationFailureDuringResumptionIsNotRetried(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new AuthorizationException('Sign-in failed.'),
+        ], $clock);
+
+        try {
+            $this->runRequest($this->createTransport(httpClient: $httpClient, clock: $clock), 1);
+            $this->fail('The request should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertSame('Sign-in failed.', $e->getMessage());
+        }
+
+        $this->assertCount(2, $httpClient->requests);
     }
 
     #[TestDox('the server-minted session ID is exposed while connected and cleared on close')]
@@ -498,7 +662,6 @@ final class HttpTransportTest extends TestCase
         yield 'redirect' => [307, 2];
         yield 'session expired' => [404, 2];
         yield 'no GET stream offered' => [405, 2];
-        yield 'unauthorized' => [401, 2];
         yield 'request timeout' => [408, 6];
         yield 'rate limited' => [429, 6];
         yield 'server error' => [503, 6];

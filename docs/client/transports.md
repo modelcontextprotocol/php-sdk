@@ -47,7 +47,7 @@ use Mcp\Client\Transport\HttpTransport;
 
 $transport = new HttpTransport(
     endpoint: 'http://localhost:8000',
-    headers: ['Authorization' => 'Bearer token'],
+    headers: ['X-Tenant' => 'acme'],
 );
 ```
 
@@ -64,6 +64,7 @@ $transport = new HttpTransport(
 - `reconnectPolicy` (ReconnectPolicy|null): How an interrupted SSE stream is resumed (default: 5 attempts, 1–10 s backoff)
 - `clock` (ClockInterface|null): PSR-20 clock used to schedule reconnects (default: a monotonic clock)
 - `maxResponseBodyBytes` (int): Maximum bytes read from a response body that is not an SSE stream (default: 8 MiB)
+- `auth` (AuthenticatorInterface|null): Credentials for a server that requires authorization, see [Sending an access token](#sending-an-access-token)
 
 When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
 
@@ -96,7 +97,7 @@ composer require php-http/guzzle7-adapter
 
 **Error status codes:**
 
-If the server answers with an HTTP error status, the request fails at once with a `RequestException`.
+If the server answers with an HTTP error status, the request fails at once with a `RequestException`. The status `401` or `403` fails with an [`AuthorizationException`](errors.md#authorizationexception).
 
 **Response body size:**
 
@@ -181,6 +182,24 @@ $transport = new HttpTransport('http://localhost:8000', listen: true);
   returns from a stream the server keeps open.
 - A server without a listening stream answers `405`, and the connection carries on without one.
 - On `2026-07-28`, which has no standalone stream, the option does nothing.
+
+### Sending an access token
+
+If you already have an access token (e.g. from a secrets manager), pass it with the `auth` parameter:
+
+```php
+use Mcp\Client\Auth\BearerToken;
+use Mcp\Client\Transport\HttpTransport;
+
+$transport = new HttpTransport(
+    'https://mcp.example.com/mcp',
+    auth: new BearerToken($accessToken),
+);
+```
+
+The transport sends the token in the `Authorization` header of every request. This value replaces an `Authorization` header that you pass with `headers`.
+
+To get credentials in another way, implement `Mcp\Client\Auth\AuthenticatorInterface`. The transport calls `authenticate()` for every request. It calls `handleChallenge()` when the server answers with `401` or `403`. Return `true` to send the request again, at most 3 times, or `false` to give up.
 
 ## Cancellation and deadlines
 
