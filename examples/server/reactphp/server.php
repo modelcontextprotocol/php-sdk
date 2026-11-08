@@ -16,14 +16,20 @@ use Http\Discovery\Psr17Factory;
 use Mcp\Example\Server\ReactPhp\ReactFiberScheduler;
 use Mcp\Example\Server\ReactPhp\SlowTools;
 use Mcp\Server;
+use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Transport\CallbackStream;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Psr\Http\Message\ServerRequestInterface;
+use React\EventLoop\Loop;
 use React\Http\HttpServer;
 use React\Http\Message\Response;
+use React\Promise\Deferred;
 use React\Socket\SocketServer;
+use React\Stream\ThroughStream;
 
 use function React\Async\async;
+use function React\Async\await;
+use function React\Async\delay;
 
 /*
  * An MCP server on the ReactPHP event loop, served by react/http.
@@ -34,10 +40,10 @@ use function React\Async\async;
  *
  *     php examples/server/reactphp/server.php [127.0.0.1:8000]
  *
- * The transport writes streamed responses to the PHP output, which this server
- * doesn't send to the client. So it answers with 501 when a tool sends a
- * notification (e.g. progress) or waits on the client (elicitation, sampling)
- * on a session, and for subscriptions/listen.
+ * The SSE text of a 2026-07-28 streamed response comes from
+ * CallbackStream::chunks(), which this server writes itself. A handshake-era
+ * response that needs streaming, when a tool sends a notification (e.g.
+ * progress) or waits on the client on a session, is answered with 501.
  */
 
 $address = $argv[1] ?? '127.0.0.1:8000';
@@ -46,6 +52,7 @@ $server = Server::builder()
     ->setServerInfo('ReactPHP Server', '1.0.0')
     ->setLogger(logger())
     ->setContainer(container())
+    ->setNotificationBus(new InMemoryNotificationBus())
     ->setFiberScheduler(new ReactFiberScheduler())
     ->addTool([SlowTools::class, 'wait'], 'wait')
     ->addTool([SlowTools::class, 'checkServices'], 'check_services')
@@ -56,6 +63,17 @@ $factory = new Psr17Factory();
 $http = new HttpServer(async(static function (ServerRequestInterface $request) use ($server, $factory): Response {
     $response = $server->run(new StreamableHttpTransport($request, $factory, $factory, logger()));
     $body = $response->getBody();
+    $chunks = $body instanceof CallbackStream ? $body->chunks() : null;
+
+    if (null !== $chunks) {
+        $stream = new ThroughStream();
+        // On the next tick, once the server reads the stream: data written before is lost.
+        Loop::futureTick(static fn () => async(static fn () => pump($chunks, $stream))()->then(null, static function (Throwable $e): void {
+            logger()->error('Streaming the response failed.', ['exception' => $e]);
+        }));
+
+        return new Response($response->getStatusCode(), $response->getHeaders(), $stream);
+    }
 
     if ($body instanceof CallbackStream) {
         return new Response(Response::STATUS_NOT_IMPLEMENTED, ['Content-Type' => 'text/plain'], 'This server does not support streamed responses.');
@@ -64,5 +82,50 @@ $http = new HttpServer(async(static function (ServerRequestInterface $request) u
     return new Response($response->getStatusCode(), $response->getHeaders(), (string) $body);
 }));
 $http->listen(new SocketServer($address));
+
+/**
+ * Writes the chunks to the stream, waiting on the loop on an idle turn and while the client reads slower.
+ *
+ * @param Generator<int, string> $chunks
+ */
+function pump(Generator $chunks, ThroughStream $stream): void
+{
+    foreach ($chunks as $chunk) {
+        // The client went away: dropping the chunks ends the stream.
+        if (!$stream->isWritable()) {
+            return;
+        }
+
+        if (!$stream->write('' === $chunk ? ": keep-alive\n\n" : $chunk)) {
+            drained($stream);
+        }
+
+        if ('' === $chunk) {
+            delay(0.25);
+        }
+    }
+
+    $stream->end();
+}
+
+/**
+ * Waits until the client read what the stream holds, or went away.
+ */
+function drained(ThroughStream $stream): void
+{
+    if (!$stream->isWritable()) {
+        return;
+    }
+
+    $deferred = new Deferred();
+    $done = static function () use ($deferred): void {
+        $deferred->resolve(null);
+    };
+    $stream->on('drain', $done);
+    $stream->on('close', $done);
+    await($deferred->promise());
+    $stream->removeListener('drain', $done);
+    $stream->removeListener('close', $done);
+}
 
 logger()->info(sprintf('ReactPHP MCP server listening on http://%s', $address));

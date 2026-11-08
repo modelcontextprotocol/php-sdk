@@ -1446,6 +1446,9 @@ class StatelessProtocolTest extends TestCase
                     $published = true;
                 }
 
+                // The consumer paces the stream.
+                usleep(50_000);
+
                 continue;
             }
 
@@ -1522,6 +1525,36 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(['notifications/progress', 'notifications/progress'], [$frames[0]['method'], $frames[1]['method']]);
         $this->assertSame(9, $frames[2]['id']);
+    }
+
+    #[TestDox('a listen stream without a subscription lifetime stays open until its consumer drops it')]
+    public function testListenWithoutLifetimeIsNotBounded(): void
+    {
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setCapabilities(new ServerCapabilities(toolsListChanged: true))
+            ->setNotificationBus(new InMemoryNotificationBus())
+            ->setSubscriptionLifetime(0)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handle(json_encode(['jsonrpc' => '2.0', 'id' => 42, 'method' => 'subscriptions/listen', 'params' => [
+            'notifications' => ['toolsListChanged' => true],
+            '_meta' => [RequestMeta::PROTOCOL_VERSION => ProtocolVersion::V2026_07_28->value, RequestMeta::CLIENT_CAPABILITIES => new \stdClass()],
+        ]], \JSON_THROW_ON_ERROR), [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'subscriptions/listen',
+        ]);
+        $this->assertNotNull($result->frames);
+        $frames = ($result->frames)();
+        $start = microtime(true);
+
+        $this->assertSame('notifications/subscriptions/acknowledged', $frames->current()['method']);
+        for ($turn = 0; $turn < 5; ++$turn) {
+            $frames->next();
+            $this->assertNull($frames->current());
+        }
+        $this->assertTrue($frames->valid());
+        $this->assertLessThan(0.5, microtime(true) - $start, 'The stream leaves the waiting between polls to its consumer.');
     }
 
     #[TestDox('an inline listen stream leaves the pacing to its consumer')]
