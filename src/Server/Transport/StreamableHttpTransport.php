@@ -315,8 +315,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                     $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
                     if (empty($pendingRequests)) {
-                        $yielded = $fiber->resume();
-                        $this->handleFiberYield($yielded, $this->sessionId, $fiber);
+                        if (null !== $error = $this->resumeHandlerFiber($fiber, $this->sessionId)) {
+                            $this->flushOutgoingMessages($this->sessionId);
+                            $this->writeFinalResult($error);
+
+                            return;
+                        }
+
                         continue;
                     }
 
@@ -327,8 +332,13 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
                         $response = $this->checkForResponse($requestId, $this->sessionId);
 
                         if (null !== $response) {
-                            $yielded = $fiber->resume($response);
-                            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
+                            if (null !== $error = $this->resumeHandlerFiber($fiber, $this->sessionId, $response)) {
+                                $this->flushOutgoingMessages($this->sessionId);
+                                $this->writeFinalResult($error);
+
+                                return;
+                            }
+
                             $resumed = true;
                             break;
                         }
@@ -388,21 +398,26 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
      */
     protected function handleFiberTermination(\Fiber $fiber): void
     {
-        $finalResult = $fiber->getReturn();
-
-        if (null !== $finalResult) {
-            try {
-                $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
-                echo "event: message\n";
-                echo "data: {$encoded}\n\n";
-                @ob_flush();
-                flush();
-            } catch (\JsonException $e) {
-                $this->logger->error('SSE: Failed to encode final Fiber result.', ['exception' => $e]);
-            }
-        }
+        $this->writeFinalResult($fiber->getReturn());
 
         $this->sessionFiber = null;
+    }
+
+    private function writeFinalResult(mixed $finalResult): void
+    {
+        if (null === $finalResult) {
+            return;
+        }
+
+        try {
+            $encoded = json_encode($finalResult, \JSON_THROW_ON_ERROR);
+            echo "event: message\n";
+            echo "data: {$encoded}\n\n";
+            @ob_flush();
+            flush();
+        } catch (\JsonException $e) {
+            $this->logger->error('SSE: Failed to encode final Fiber result.', ['exception' => $e]);
+        }
     }
 
     protected function flushOutgoingMessages(?Uuid $sessionId): void

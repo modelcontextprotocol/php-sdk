@@ -14,6 +14,7 @@ namespace Mcp\Server\Transport;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\HandlerFibers;
 use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
@@ -141,7 +142,27 @@ abstract class BaseTransport implements TransportInterface
                 return;
             }
 
-            $yielded = $fiber->resume(Error::forInternalError(self::YIELD_FAILED_MESSAGE));
+            $yielded = HandlerFibers::resume($fiber, Error::forInternalError(self::YIELD_FAILED_MESSAGE));
+        }
+    }
+
+    /**
+     * Resumes the session's fiber and handles what it yields next.
+     *
+     * Returns the error answering its request when it cannot be driven further, an event loop
+     * still holding it for instance: the fiber is left to its runtime, and the transport drops it.
+     *
+     * @param McpFiber    $fiber
+     * @param FiberResume $value
+     */
+    protected function resumeHandlerFiber(\Fiber $fiber, ?Uuid $sessionId, Response|Error|null $value = null): ?Error
+    {
+        try {
+            $this->handleFiberYield(HandlerFibers::resume($fiber, $value), $sessionId, $fiber);
+
+            return null;
+        } catch (\Throwable $e) {
+            return HandlerFibers::errorFor($fiber, $e) ?? throw $e;
         }
     }
 

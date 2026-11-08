@@ -30,6 +30,8 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\FiberSchedulerInterface;
+use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
@@ -123,6 +125,7 @@ class Protocol
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
         private readonly ?SessionLockInterface $sessionLock = null,
+        private readonly ?FiberSchedulerInterface $fiberScheduler = null,
     ) {
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
@@ -405,6 +408,8 @@ class Protocol
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
                 $saveResumedSession = $this->saveResumedSession(...);
+                // Weak: freeing this protocol's WeakMaps along with the fiber's state crashes PHP 8.1.
+                $protocol = \WeakReference::create($this);
                 /** @var bool $suspended set by reference once the fiber first suspended */
                 $suspended = false;
 
@@ -412,7 +417,7 @@ class Protocol
                 // re-enters inside it each round rather than needing a new one.
                 // Handled in the fiber, as the transport resumes it outside the catch below.
                 /** @var McpFiber $fiber */
-                $fiber = new \Fiber(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
+                $fiber = HandlerFibers::create(static function () use ($handler, $request, $session, $shim, $codec, $dispatchResult, $errorForThrowable, $saveResumedSession, &$suspended): Response|Error {
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
@@ -427,9 +432,9 @@ class Protocol
                     }
 
                     return $result;
-                });
+                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session));
 
-                $result = $fiber->start();
+                $result = HandlerFibers::start($fiber);
 
                 if ($fiber->isSuspended()) {
                     $beforeSuspension = $session->all();

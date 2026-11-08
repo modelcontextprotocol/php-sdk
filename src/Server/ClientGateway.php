@@ -39,6 +39,7 @@ use Mcp\Schema\Result\ElicitResult;
 use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolChoice;
+use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -99,7 +100,7 @@ class ClientGateway
      */
     public function notify(Notification $notification): void
     {
-        $result = \Fiber::suspend(new NotificationSuspension($notification, $this->session->getId()->toRfc4122()));
+        $result = HandlerFibers::suspend(new NotificationSuspension($notification, $this->session->getId()->toRfc4122()));
 
         if ($result instanceof Error) {
             throw new ClientException($result);
@@ -470,7 +471,7 @@ class ClientGateway
      */
     private function suspend(Request $request, int $timeout, ?string $key = null): Response|Error
     {
-        $response = \Fiber::suspend(new RequestSuspension($request, $this->session->getId()->toRfc4122(), $timeout, $key));
+        $response = HandlerFibers::suspend(new RequestSuspension($request, $this->session->getId()->toRfc4122(), $timeout, $key));
 
         if (!$response instanceof Response && !$response instanceof Error) {
             throw new RuntimeException('Transport returned an unexpected payload; expected a Response or Error message.');
