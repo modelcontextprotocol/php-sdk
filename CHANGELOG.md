@@ -68,6 +68,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix the stdio client hanging on Windows while the server stays silent, without enforcing its timeouts: `StdioTransport` now reads only once `stream_select()` reports output. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * [BC Break] Remove JSON-RPC batch support: a JSON array from the server is dropped with a warning. Batching was removed from MCP in `2025-06-18`.
 * [BC Break] Fix `HttpTransport` reading a response body that is not an SSE stream without a limit, which could exhaust client memory on a large body. It now reads up to the new `maxResponseBodyBytes` argument (default: 8 MiB): a successful response over that limit fails the request, and an error status keeps its body cut at the limit. Raise the limit if your server sends larger results.
+* [BC Break] `HttpTransport` turns off redirects on a discovered `symfony/http-client` client and treats every `3xx` answer as an error that names the status and target. An endpoint that is reached through a redirect stops working, so configure its final URL. A client you pass must not follow redirects to another origin.
 * Fix `Client::connect()` leaving the previous transport open when called again: it closes the current transport first, so no stdio process or HTTP session is left behind.
 
 ### JSON-RPC

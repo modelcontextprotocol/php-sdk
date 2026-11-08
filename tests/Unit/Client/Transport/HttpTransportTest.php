@@ -11,6 +11,8 @@
 
 namespace Mcp\Tests\Unit\Client\Transport;
 
+use Http\Discovery\Psr18ClientDiscovery;
+use Http\Discovery\Strategy\DiscoveryStrategy;
 use Mcp\Client;
 use Mcp\Client\CancellationTokenInterface;
 use Mcp\Client\Configuration;
@@ -41,6 +43,9 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\HttpClient\MockHttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
+use Symfony\Component\HttpClient\Response\MockResponse;
 
 final class HttpTransportTest extends TestCase
 {
@@ -515,6 +520,264 @@ final class HttpTransportTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $this->runRequest($transport, 1));
         $this->assertCount($requests, $httpClient->requests);
+    }
+
+    #[TestDox('a discovered Symfony client keeps its configuration and stops following redirects')]
+    public function testDiscoveredClientKeepsItsConfiguration(): void
+    {
+        if (!(new \ReflectionClass(Psr18Client::class))->hasMethod('withOptions')) {
+            $this->markTestSkipped('Psr18Client has no withOptions() before symfony/http-client 6.2.');
+        }
+
+        $maxRedirects = null;
+        $mock = new MockHttpClient(static function (string $method, string $url, array $options) use (&$maxRedirects): MockResponse {
+            $maxRedirects = $options['max_redirects'];
+
+            return new MockResponse('', ['http_code' => 202]);
+        });
+
+        $strategy = new class implements DiscoveryStrategy {
+            public static ClientInterface $client;
+
+            public static function getCandidates($type): array
+            {
+                return ClientInterface::class === $type ? [['class' => static fn (): ClientInterface => self::$client, 'condition' => true]] : [];
+            }
+        };
+        $strategy::$client = new Psr18Client($mock);
+
+        $strategies = [...Psr18ClientDiscovery::getStrategies()];
+        Psr18ClientDiscovery::prependStrategy($strategy::class);
+
+        try {
+            $transport = new HttpTransport('http://localhost/mcp', requestFactory: $this->factory, streamFactory: $this->factory);
+        } finally {
+            Psr18ClientDiscovery::setStrategies($strategies);
+        }
+
+        $transport->send('{"jsonrpc":"2.0","method":"notifications/initialized"}');
+
+        $this->assertSame(0, $maxRedirects);
+    }
+
+    #[TestDox('a reconnect answered with a redirect names its status and target')]
+    public function testReconnectRedirectIsNamed(): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new Response(307, ['Location' => 'https://other.test/mcp']),
+        ], $clock);
+
+        $result = $this->runRequest($this->createTransport(httpClient: $httpClient, clock: $clock), 1);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP 307', $result->message);
+        $this->assertStringContainsString('https://other.test/mcp', $result->message);
+    }
+
+    /**
+     * @return iterable<string, array{int, array<string, string>, string}>
+     */
+    public static function redirectProvider(): iterable
+    {
+        foreach ([301, 302, 303, 307, 308] as $status) {
+            yield \sprintf('HTTP %d', $status) => [$status, ['Location' => 'https://other.test/mcp'], ''];
+        }
+
+        yield 'a body carrying the answer' => [307, ['Location' => 'https://other.test/mcp', 'Content-Type' => 'application/json'], '{"jsonrpc":"2.0","id":%d,"result":{"content":[]}}'];
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    #[DataProvider('redirectProvider')]
+    #[TestDox('a redirect fails the call at once, naming status and target: $_dataName')]
+    public function testRedirectFailsTheCallAtOnce(int $status, array $headers, string $body): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message) use ($status, $headers, $body): ?ResponseInterface {
+            if ('moved' !== ($message['params']['name'] ?? null)) {
+                return null;
+            }
+
+            return new Response($status, $headers, \sprintf($body, $message['id']));
+        });
+
+        $client = Client::builder()->setClientInfo('test', '1')->setProtocolVersion(ProtocolVersion::V2025_11_25)->setRequestTimeout(30)->build();
+        $client->connect(new HttpTransport('http://localhost/mcp', [], $httpClient, $this->factory, $this->factory));
+
+        try {
+            $client->callTool('moved');
+            $this->fail('Expected the call to fail.');
+        } catch (RequestException $e) {
+            $this->assertStringContainsString(\sprintf('HTTP %d', $status), $e->getMessage());
+            $this->assertStringContainsString('https://other.test/mcp', $e->getMessage());
+        }
+
+        $this->assertSame('next call', $client->callTool('fast')->content[0]->text ?? null);
+        $client->disconnect();
+    }
+
+    /**
+     * @return iterable<string, array{ProtocolVersion, ?ProtocolVersion, string}>
+     */
+    public static function connectRedirectProvider(): iterable
+    {
+        yield 'the probe, with a fallback' => [ProtocolVersion::V2026_07_28, ProtocolVersion::V2025_11_25, 'server/discover'];
+        yield 'the probe, without a fallback' => [ProtocolVersion::V2026_07_28, null, 'server/discover'];
+        yield 'the handshake' => [ProtocolVersion::V2025_11_25, ProtocolVersion::V2025_11_25, 'initialize'];
+    }
+
+    #[DataProvider('connectRedirectProvider')]
+    #[TestDox('a redirect fails connect() at once, without a retry or a fallback: $_dataName')]
+    public function testRedirectFailsConnect(ProtocolVersion $version, ?ProtocolVersion $fallback, string $redirectedMethod): void
+    {
+        $httpClient = new RecordingHttpClient(static function (array $message) use ($redirectedMethod): ResponseInterface {
+            if ($redirectedMethod === ($message['method'] ?? null)) {
+                return new Response(307, ['Location' => 'https://other.test/mcp']);
+            }
+
+            if ('initialize' !== ($message['method'] ?? null)) {
+                return new Response(202);
+            }
+
+            return new Response(200, ['Content-Type' => 'application/json'], (string) json_encode(['jsonrpc' => '2.0', 'id' => $message['id'], 'result' => [
+                'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                'capabilities' => new \stdClass(),
+                'serverInfo' => ['name' => 'legacy-server', 'version' => '1.0.0'],
+            ]]));
+        });
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion($version)
+            ->setFallbackProtocolVersion($fallback)
+            ->setInitTimeout(5)
+            ->build();
+
+        try {
+            $client->connect($this->createTransport(httpClient: $httpClient));
+            $this->fail('connect() must not succeed on a redirect.');
+        } catch (ConnectionException $e) {
+            $this->assertStringStartsWith('Initialization failed: Server answered with HTTP 307 to https://other.test/mcp', $e->getMessage());
+        }
+
+        $this->assertSame([$redirectedMethod], array_column($httpClient->messages, 'method'));
+    }
+
+    /**
+     * @return iterable<string, array{ProtocolVersion}>
+     */
+    public static function connectResumptionProvider(): iterable
+    {
+        yield 'the probe' => [ProtocolVersion::V2026_07_28];
+        yield 'the handshake' => [ProtocolVersion::V2025_11_25];
+    }
+
+    #[DataProvider('connectResumptionProvider')]
+    #[TestDox('a redirected resumption fails connect() at once, without a retry or a fallback: $_dataName')]
+    public function testRedirectedResumptionFailsConnect(ProtocolVersion $version): void
+    {
+        $clock = new SteppingClock();
+        $httpClient = RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'text/event-stream'], "id: event-0\ndata:\n\n"),
+            new Response(307, ['Location' => 'https://other.test/mcp']),
+        ], $clock);
+
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion($version)
+            ->setFallbackProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(5)
+            ->build();
+
+        try {
+            $client->connect($this->createTransport(httpClient: $httpClient, clock: $clock));
+            $this->fail('connect() must not succeed on a redirect.');
+        } catch (ConnectionException $e) {
+            $this->assertStringContainsString('HTTP 307 to https://other.test/mcp', $e->getMessage());
+        }
+
+        $this->assertSame(['POST', 'GET'], array_map(static fn (RequestInterface $request): string => $request->getMethod(), $httpClient->requests));
+    }
+
+    #[TestDox('a redirect without a Location header still names its status')]
+    public function testRedirectWithoutLocationNamesTheStatus(): void
+    {
+        $httpClient = RecordingHttpClient::queued([new Response(304)]);
+
+        $result = $this->runRequest($this->createTransport(httpClient: $httpClient), 1);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP 304', $result->message);
+    }
+
+    #[TestDox('a redirect of a notification is reported, as nobody waits for its answer')]
+    public function testRedirectOfNotificationIsReported(): void
+    {
+        $transport = $this->createTransport(httpClient: RecordingHttpClient::queued([new Response(307, ['Location' => 'https://other.test/mcp'])]));
+
+        $errors = [];
+        $transport->onError(static function (\Throwable $error) use (&$errors): void {
+            $errors[] = $error;
+        });
+
+        $transport->send('{"jsonrpc":"2.0","method":"notifications/initialized"}');
+
+        $this->assertCount(1, $errors);
+        $this->assertInstanceOf(ConnectionException::class, $errors[0]);
+        $this->assertStringContainsString('HTTP 307', $errors[0]->getMessage());
+        $this->assertStringContainsString('https://other.test/mcp', $errors[0]->getMessage());
+    }
+
+    #[TestDox('a redirect of the listening stream is reported and the connection carries on')]
+    public function testRedirectOfListenStreamIsReported(): void
+    {
+        $transport = new HttpTransport(
+            'https://example.test/mcp',
+            httpClient: RecordingHttpClient::queued([new Response(307, ['Location' => 'https://other.test/mcp'])]),
+            requestFactory: $this->factory,
+            streamFactory: $this->factory,
+            listen: true,
+        );
+
+        $errors = [];
+        $transport->onError(static function (\Throwable $error) use (&$errors): void {
+            $errors[] = $error;
+        });
+        $transport->onInitialize(static fn () => null);
+
+        $transport->connect();
+
+        $this->assertCount(1, $errors);
+        $this->assertInstanceOf(ConnectionException::class, $errors[0]);
+        $this->assertStringContainsString('HTTP 307', $errors[0]->getMessage());
+        $this->assertStringContainsString('https://other.test/mcp', $errors[0]->getMessage());
+    }
+
+    #[TestDox('a redirect of the closing DELETE is reported and the session is forgotten')]
+    public function testRedirectOfCloseIsReported(): void
+    {
+        $transport = $this->createTransport(httpClient: RecordingHttpClient::queued([
+            new Response(200, ['Content-Type' => 'application/json', 'Mcp-Session-Id' => 'session'], '{"jsonrpc":"2.0","id":1,"result":{}}'),
+            new Response(307, ['Location' => 'https://other.test/mcp']),
+        ]));
+
+        $errors = [];
+        $transport->onError(static function (\Throwable $error) use (&$errors): void {
+            $errors[] = $error;
+        });
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"method":"initialize"}');
+        $this->assertSame('session', $transport->getSessionId());
+
+        $transport->close();
+
+        $this->assertNull($transport->getSessionId());
+        $this->assertCount(1, $errors);
+        $this->assertInstanceOf(ConnectionException::class, $errors[0]);
+        $this->assertStringContainsString('HTTP 307', $errors[0]->getMessage());
+        $this->assertStringContainsString('https://other.test/mcp', $errors[0]->getMessage());
     }
 
     #[TestDox('a reconnect answered with 404 expires the session like any session-bound request')]

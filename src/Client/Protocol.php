@@ -319,8 +319,12 @@ class Protocol
         \assert(null !== $this->envelope);
 
         if ($probe instanceof Error) {
-            if (\is_array($probe->data) && (true === ($probe->data[TransportInterface::CONNECTION_LOST] ?? null) || true === ($probe->data[TransportInterface::RESPONSE_TOO_LARGE] ?? null))) {
-                return $probe;
+            if (\is_array($probe->data)) {
+                foreach ([TransportInterface::CONNECTION_LOST, TransportInterface::RESPONSE_TOO_LARGE, TransportInterface::REDIRECTED] as $marker) {
+                    if (true === ($probe->data[$marker] ?? null)) {
+                        return $probe;
+                    }
+                }
             }
 
             if (Error::UNSUPPORTED_PROTOCOL_VERSION !== $probe->code) {
