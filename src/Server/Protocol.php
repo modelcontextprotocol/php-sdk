@@ -408,6 +408,8 @@ class Protocol
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
                 $saveResumedSession = $this->saveResumedSession(...);
+                // Weak: freeing this protocol's WeakMaps along with the fiber's state crashes PHP 8.1.
+                $protocol = \WeakReference::create($this);
                 /** @var bool $suspended set by reference once the fiber first suspended */
                 $suspended = false;
 
@@ -430,7 +432,7 @@ class Protocol
                     }
 
                     return $result;
-                }, $this->fiberScheduler, static fn (\Throwable $e): Error => $errorForThrowable($e, $request, $session));
+                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session));
 
                 $result = HandlerFibers::start($fiber);
 

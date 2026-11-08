@@ -30,7 +30,7 @@ final class HandlerFiberState
     private ?\Throwable $throwable = null;
 
     /**
-     * @param (\Closure(\Throwable): Error)|null $errorForFailure
+     * @param (\Closure(\Throwable): ?Error)|null $errorForFailure
      */
     public function __construct(
         private readonly ?FiberSchedulerInterface $scheduler,

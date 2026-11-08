@@ -41,8 +41,8 @@ final class HandlerFibers
      *
      * @template TReturn
      *
-     * @param \Closure(): TReturn                $handler
-     * @param (\Closure(\Throwable): Error)|null $errorForFailure answers the request when the fiber cannot be driven further
+     * @param \Closure(): TReturn                 $handler
+     * @param (\Closure(\Throwable): ?Error)|null $errorForFailure answers the request when the fiber cannot be driven further
      *
      * @return \Fiber<mixed, mixed, TReturn, mixed>
      */
