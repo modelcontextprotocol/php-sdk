@@ -62,15 +62,8 @@ final class InMemoryNotificationBus implements NotificationBusInterface
 
     public function since(int $cursor): array
     {
-        // Entries hold every sequence from the oldest kept one up to $this->next.
-        $oldest = $this->next - \count($this->entries);
-
-        if ($cursor <= $oldest) {
-            return [array_values($this->entries), $this->next];
-        }
-
         $found = [];
-        for ($sequence = $cursor; $sequence < $this->next; ++$sequence) {
+        for ($sequence = max($cursor, $this->next - \count($this->entries)); $sequence < $this->next; ++$sequence) {
             $found[] = $this->entries[$sequence];
         }
 

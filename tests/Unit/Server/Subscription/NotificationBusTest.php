@@ -182,6 +182,27 @@ class NotificationBusTest extends TestCase
         $this->assertSame($bus->cursor(), $next);
     }
 
+    /**
+     * @param \Closure(int): NotificationBusInterface $createBus
+     */
+    #[DataProvider('boundedBuses')]
+    #[TestDox('a subscriber inside a backlog that dropped entries reads only what it has not seen')]
+    public function testASubscriberInsideATrimmedBacklogReadsOnlyNewEntries(\Closure $createBus): void
+    {
+        $bus = $createBus(2);
+
+        $bus->publish(new ToolListChangedNotification());
+        $bus->publish(new PromptListChangedNotification());
+        $cursor = $bus->cursor();
+        $bus->publish(new ResourceUpdatedNotification('file:///a'));
+
+        [$found, $next] = $bus->since($cursor);
+
+        $this->assertCount(1, $found);
+        $this->assertInstanceOf(ResourceUpdatedNotification::class, $found[0]);
+        $this->assertSame($bus->cursor(), $next);
+    }
+
     #[DataProvider('buses')]
     #[TestDox('a subscriber ahead of the bus is handed back the bus cursor')]
     public function testASubscriberAheadOfTheBusIsBroughtBack(NotificationBusInterface $bus): void
