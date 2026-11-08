@@ -11,7 +11,6 @@
 
 namespace Mcp\Server\Transport;
 
-use Mcp\Schema\JsonRpc\Error;
 use Psr\Http\Message\StreamInterface;
 
 /**
@@ -26,11 +25,6 @@ use Psr\Http\Message\StreamInterface;
  */
 trait ReadsBoundedBody
 {
-    private function bodyTooLargeError(int $maxBytes): Error
-    {
-        return Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $maxBytes));
-    }
-
     /**
      * Returns the body contents, or `null` when the payload exceeds $maxBytes.
      *

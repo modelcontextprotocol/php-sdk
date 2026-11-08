@@ -12,6 +12,7 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
@@ -104,7 +105,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
 
                     return $this->responseFactory->createResponse(413)
                         ->withHeader('Content-Type', 'application/json')
-                        ->withBody($this->streamFactory->createStream(json_encode($this->bodyTooLargeError($this->maxBodyBytes), \JSON_THROW_ON_ERROR)));
+                        ->withBody($this->streamFactory->createStream(json_encode(Error::forBodyTooLarge($this->maxBodyBytes), \JSON_THROW_ON_ERROR)));
                 }
 
                 // Handed on byte for byte: the transport reads the body again.
