@@ -34,6 +34,7 @@ final class StructuredNullTest extends IntegrationTestCase
         $result = $client->callTool('serialized_null');
 
         $this->assertFalse($result->isError);
+        $this->assertEquals(new TextContent('null'), $result->content[0]);
         $this->assertTrue($result->hasStructuredContent());
         $this->assertNull($result->structuredContent);
     }
@@ -59,16 +60,23 @@ final class StructuredNullTest extends IntegrationTestCase
         $this->assertNull($result->structuredContent);
     }
 
-    public function testModernNullResultsAreValidatedAgainstTheOutputSchema(): void
+    public function testModernNullResultIsValidatedAgainstTheOutputSchema(): void
     {
         $client = $this->connect('structured_null', $this->clientBuilder()->setProtocolVersion(ProtocolVersion::V2026_07_28));
+        $result = $client->callTool('invalid_null');
 
-        foreach (['invalid_null', 'invalid_explicit_null'] as $tool) {
-            $result = $client->callTool($tool);
+        $this->assertTrue($result->isError);
+        $this->assertFalse($result->hasStructuredContent());
+    }
 
-            $this->assertTrue($result->isError, $tool);
-            $this->assertFalse($result->hasStructuredContent());
-        }
+    #[DataProvider('provideEras')]
+    public function testExplicitNullIsValidatedAgainstTheOutputSchema(ProtocolVersion $era): void
+    {
+        $client = $this->connect('structured_null', $this->clientBuilder()->setProtocolVersion($era));
+        $result = $client->callTool('invalid_explicit_null');
+
+        $this->assertTrue($result->isError);
+        $this->assertFalse($result->hasStructuredContent());
     }
 
     #[DataProvider('provideEras')]
