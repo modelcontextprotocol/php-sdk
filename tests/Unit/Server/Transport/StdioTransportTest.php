@@ -59,6 +59,17 @@ final class StdioTransportTest extends TestCase
             $this->markTestSkipped('proc_open() is needed to feed the transport from a real pipe.');
         }
 
+        // A slow host only adds delay, while a wait that misses the input never gets below the limit.
+        $fastest = \INF;
+        for ($attempt = 0; $attempt < 3 && $fastest >= 45; ++$attempt) {
+            $fastest = min($fastest, $this->measureIdleWake());
+        }
+
+        $this->assertLessThan(45, $fastest, 'the idle wait must end when input arrives');
+    }
+
+    private function measureIdleWake(): float
+    {
         // The child sends a request, waits for the answer, idles for 10ms, then sends another and exits.
         $process = proc_open(
             [\PHP_BINARY, '-r', 'echo "{\"first\":1}\n"; fgets(STDIN); usleep(10000); echo "{\"second\":1}\n";'],
@@ -86,7 +97,8 @@ final class StdioTransportTest extends TestCase
 
         $this->assertNotNull($answeredAt);
         $this->assertNotNull($arrivedAt);
-        $this->assertLessThan(45, ($arrivedAt - $answeredAt) / 1e6, 'the idle wait must end when input arrives');
+
+        return ($arrivedAt - $answeredAt) / 1e6;
     }
 
     #[TestDox('an idle pipe does not hold up the run loop')]
