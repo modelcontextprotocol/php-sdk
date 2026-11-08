@@ -477,7 +477,7 @@ $server = Server::builder()
 | `setHeaderValidator()` | headerValidation? | Toggle the SEP-2243 standard-header check on the modern leg of `build()` and on `buildStateless()` |
 | `setDiscovery()` | basePath, scanDirs?, excludeDirs?, cache?, namePatterns? | Configure attribute discovery |
 | `setDiscoverer()` | discoverer | Replace the class that scans for attributes (the discovery `cache` is then not used) |
-| `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Configure session management, see [Sessions](sessions.md) |
+| `setSession()` | sessionStore?, sessionManager?, gcProbability?, gcDivisor? | Turn on sessions over HTTP and configure them, see [Sessions](sessions.md) |
 | `setSessionLock()` | sessionLock | Serialize the concurrent requests of one session, see [Sessions](sessions.md#concurrent-requests) |
 | `setLogger()` | logger | Set PSR-3 logger |
 | `setContainer()` | container | Set PSR-11 container |

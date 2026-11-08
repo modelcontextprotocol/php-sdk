@@ -63,7 +63,8 @@ final class RequestContext
      * The protocol revision this request is served under.
      *
      * Modern revisions declare it per request in `_meta`, handshake ones negotiate
-     * it once and keep it on the session. Neither is guaranteed to be present — a
+     * it once and keep it on the session, which a server without sessions fills from
+     * the `MCP-Protocol-Version` header. Neither is guaranteed to be present — a
      * transport may skip `initialize` entirely — so this falls back to the newest
      * handshake revision, whose rules hold for every revision below it too.
      */

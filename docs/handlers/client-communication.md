@@ -53,7 +53,8 @@ $context->getTraceContext();        // traceparent / tracestate / baggage, verba
 To check a capability in both [protocol eras](../protocol-versions.md), use the probes of `ClientGateway`:
 `supportsElicitation()`, `supportsSampling()`, `supportsRoots()`, the sub-capability variants and
 `supportsExtension()`. They read what the client declared during the handshake, or what the current
-`2026-07-28` request declared.
+`2026-07-28` request declared. On a server [without sessions](../run/sessions.md#serving-without-sessions), they
+return `false` for handshake-era clients, and asking the client throws a `SessionRequiredException`.
 
 On `2026-07-28`, the SDK copies the W3C trace context onto every notification the request sends on its response
 stream. The values are plain strings, so reading them needs no OpenTelemetry package.

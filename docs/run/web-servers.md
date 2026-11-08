@@ -56,8 +56,9 @@ Besides `mcp/sdk`, this needs a PSR-17 implementation, `laminas/laminas-httphand
 
 Three settings decide whether clients get through:
 
-* **Sessions.** PHP keeps nothing in memory from one request to the next, so the default
-  `InMemorySessionStore` loses a session when the request that created it ends.
+* **Sessions.** A server built without `setSession()` has
+  [no sessions](sessions.md#serving-without-sessions). PHP keeps nothing in memory from one
+  request to the next, so `InMemorySessionStore` loses a session when the request that created it ends.
   `FileSessionStore` keeps sessions on disk, and `FileSessionLock` on the same directory
   serializes the requests of one session: without it, two requests of one session that run on
   two workers at the same time overwrite each other's changes, and tool calls an agent sends

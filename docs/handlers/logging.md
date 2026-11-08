@@ -13,6 +13,10 @@ Level **warning** is the default level, so anything below it is dropped until th
     notifications at all.
 
 !!! note
+    A server [without sessions](../run/sessions.md#serving-without-sessions) doesn't offer logging to handshake-era
+    clients and drops their log messages.
+
+!!! note
     Only the message is forwarded to the client. A PSR-3 `$context` array is accepted for interface compatibility
     but is **not** sent — interpolate anything you need into the message itself.
 

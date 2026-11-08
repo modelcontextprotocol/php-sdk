@@ -19,6 +19,7 @@ use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Schema\Result\InitializeResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server\Configuration;
+use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
 
 /**
@@ -54,6 +55,11 @@ final class InitializeHandler implements RequestHandlerInterface
         // List changes reach clients only through `subscriptions/listen`, which
         // the handshake era does not have.
         $capabilities = ($this->configuration->capabilities ?? new ServerCapabilities())->withoutListChanged();
+
+        // Resource updates reach the client outside a request, and the log level is kept between requests.
+        if ($session instanceof EphemeralSessionInterface) {
+            $capabilities = $capabilities->withoutSessionFeatures();
+        }
 
         return new Response(
             $request->getId(),

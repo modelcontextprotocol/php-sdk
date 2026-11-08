@@ -14,6 +14,7 @@ namespace Mcp\Server;
 use Mcp\Exception\ClientException;
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\Content\AudioContent;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Content\ImageContent;
@@ -40,6 +41,7 @@ use Mcp\Schema\Result\ListRootsResult;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolChoice;
 use Mcp\Server\Fiber\HandlerFibers;
+use Mcp\Server\Session\EphemeralSessionInterface;
 use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
@@ -111,7 +113,8 @@ class ClientGateway
      * Convenience method to send a logging notification to the client.
      *
      * Messages below the level the client set are dropped; without one, the
-     * level defaults to warning.
+     * level defaults to warning. Without sessions, `logging` is not offered, so
+     * all messages are dropped.
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Log to stderr (stdio) or use OpenTelemetry instead.
@@ -119,6 +122,11 @@ class ClientGateway
     public function log(LoggingLevel $level, mixed $data, ?string $logger = null): void
     {
         trigger_deprecation('mcp/sdk', '0.8', 'MCP logging is deprecated since protocol revision 2026-07-28 (SEP-2577); log to stderr or use OpenTelemetry instead.');
+
+        // A server must not emit log messages without declaring `logging`.
+        if ($this->session instanceof EphemeralSessionInterface) {
+            return;
+        }
 
         $minimumLevel = LoggingLevel::tryFrom($this->session->get(Protocol::SESSION_LOGGING_LEVEL, '')) ?? LoggingLevel::Warning;
         if (!$level->isAtLeast($minimumLevel)) {
@@ -161,7 +169,8 @@ class ClientGateway
      *
      * @return CreateSamplingMessageResult The sampling response
      *
-     * @throws ClientException if the client request results in an error message
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Integrate with an LLM provider's API directly instead.
@@ -232,7 +241,8 @@ class ClientGateway
      *
      * @return ElicitResult The elicitation response containing the user's action and any provided content
      *
-     * @throws ClientException if the client request results in an error message
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function elicit(string $message, ElicitationSchema $requestedSchema, int $timeout = 120, ?string $key = null): ElicitResult
     {
@@ -253,9 +263,12 @@ class ClientGateway
      *
      * @throws ClientException          if the client request results in an error message
      * @throws InvalidArgumentException if the client did not declare url-mode elicitation
+     * @throws SessionRequiredException if the server runs without sessions
      */
     public function elicitUrl(string $message, string $url, int $timeout = 120, ?string $key = null): ElicitResult
     {
+        $this->assertClientCanBeAsked();
+
         // URL mode only exists from 2025-11-25 on, and only for clients declaring it
         if (!$this->supportsElicitationUrl()) {
             throw new InvalidArgumentException('The client did not declare the "elicitation.url" capability, so it cannot be sent a url-mode elicitation.');
@@ -275,7 +288,8 @@ class ClientGateway
      *
      * @return ListRootsResult The roots exposed by the client
      *
-     * @throws ClientException if the client request results in an error message
+     * @throws ClientException          if the client request results in an error message
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @deprecated since protocol revision 2026-07-28 (SEP-2577), earliest removal 2027-07-28.
      *             Pass directories or files through tool arguments, resource URIs or server
@@ -450,7 +464,8 @@ class ClientGateway
      *
      * @return Response<array<string, mixed>>|Error The client's response message
      *
-     * @throws RuntimeException If Fiber support is not available
+     * @throws RuntimeException         If Fiber support is not available
+     * @throws SessionRequiredException if the server runs without sessions
      *
      * @internal
      */
@@ -471,6 +486,8 @@ class ClientGateway
      */
     private function suspend(Request $request, int $timeout, ?string $key = null): Response|Error
     {
+        $this->assertClientCanBeAsked();
+
         $response = HandlerFibers::suspend(new RequestSuspension($request, $this->session->getId()->toRfc4122(), $timeout, $key));
 
         if (!$response instanceof Response && !$response instanceof Error) {
@@ -478,5 +495,17 @@ class ClientGateway
         }
 
         return $response;
+    }
+
+    /**
+     * The client answers in a POST of its own, which a server without sessions cannot match to the request waiting for it.
+     *
+     * @throws SessionRequiredException if the server runs without sessions
+     */
+    private function assertClientCanBeAsked(): void
+    {
+        if ($this->session instanceof EphemeralSessionInterface) {
+            throw new SessionRequiredException('Requests to the client need a session; configure one with Builder::setSession().');
+        }
     }
 }

@@ -15,6 +15,7 @@ use Mcp\Capability\Discovery\SchemaValidator;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -143,6 +144,8 @@ final class CallToolHandler implements RequestHandlerInterface
         } catch (MissingRequiredClientCapabilityException $e) {
             // Not a tool failure — the request was unservable, and the client
             // needs to retry declaring the capability. Rendered as -32021.
+            throw $e;
+        } catch (SessionRequiredException $e) {
             throw $e;
         } catch (ToolCallException $e) {
             $this->logger->debug(\sprintf('Error while executing tool "%s": "%s".', $toolName, $e->getMessage()), [

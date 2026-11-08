@@ -17,6 +17,7 @@ use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
+use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -95,6 +96,8 @@ final class ReadResourceHandler implements RequestHandlerInterface
         } catch (MissingRequiredClientCapabilityException $e) {
             // Not a handler failure — the request was unservable, and the client
             // needs to retry declaring the capability. Rendered as -32021.
+            throw $e;
+        } catch (SessionRequiredException $e) {
             throw $e;
         } catch (ResourceReadException $e) {
             $this->logger->error(\sprintf('Error while reading resource "%s": "%s".', $uri, $e->getMessage()), ['exception' => $e]);
