@@ -133,13 +133,15 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         $client = $this->resolveClient($metadata, $scopes);
-        $token = $this->refresh($stored, $metadata, $client, $needed);
+        // A refresh can't widen a grant (RFC 6749 section 6), so a step-up needs a new authorization.
+        $token = 'insufficient_scope' === $challenge->getError() ? null : $this->refresh($stored, $metadata, $client, $needed);
 
         if (null === $token) {
             [$token, $scopes] = $this->grantWithFallback($metadata, $client, $scopes, $resource);
+            $token = $token->withGrantedScopes($scopes);
         }
 
-        $this->token = $token->withGrantedScopes($scopes);
+        $this->token = $token;
         $this->audience = $audience;
         $this->requestedScopes = $scopes;
         $this->storage->saveToken($metadata->issuer, $resource, $this->token);
@@ -348,10 +350,14 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return null;
         }
 
-        // A server may rotate the refresh token, or leave the old one in place.
-        return null === $token->refreshToken
-            ? new AccessToken($token->accessToken, $token->tokenType, $token->expiresAt, $stored->refreshToken, $token->scopes)
-            : $token;
+        // A response may leave out the refresh token and the scope, and both then stay as they were.
+        return new AccessToken(
+            $token->accessToken,
+            $token->tokenType,
+            $token->expiresAt,
+            $token->refreshToken ?? $stored->refreshToken,
+            [] === $token->scopes ? $stored->scopes : $token->scopes,
+        );
     }
 
     /**

@@ -620,6 +620,47 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertNotContains('https://auth.example.com/token', $server->requested);
     }
 
+    #[TestDox('a step-up challenge authorizes again, even if the token reports no scopes to compare')]
+    public function testStepUpDoesNotRefreshATokenWithoutReportedScopes(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $authenticator = $this->authenticator($server, storage: $storage);
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+        $rejected = $authenticator->authenticate($this->request());
+        $authenticator->handleChallenge($rejected, $server->challenge(['admin'], 403, 'insufficient_scope'));
+
+        $this->assertSame('authorization_code', $server->token['grant_type'] ?? null);
+        $this->assertSame('admin', $server->authorization['scope'] ?? null);
+    }
+
+    #[TestDox('a refreshed token keeps the stored scopes when the response names none')]
+    public function testRefreshKeepsTheStoredScopes(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token', ['mcp:read', 'mcp:write']));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame(['mcp:read', 'mcp:write'], $storage->getToken('https://auth.example.com', self::ENDPOINT)?->scopes);
+    }
+
+    #[TestDox('a refresh does not record scopes the authorization server did not grant')]
+    public function testRefreshDoesNotInventScopes(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge(['admin']));
+
+        $this->assertSame('refresh_token', $server->token['grant_type'] ?? null);
+        $this->assertSame([], $storage->getToken('https://auth.example.com', self::ENDPOINT)?->scopes);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
