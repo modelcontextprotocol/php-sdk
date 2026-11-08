@@ -638,6 +638,7 @@ final class StreamableHttpTransportTest extends TestCase
     {
         yield 'requests' => ['[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]'];
         yield 'one request' => ['[{"jsonrpc":"2.0","id":2,"method":"ping"}]'];
+        yield 'empty' => ['[]'];
         yield 'notifications' => ['[{"jsonrpc":"2.0","method":"notifications/initialized"}]'];
         yield 'initialize' => ['[{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}]'];
     }

@@ -72,7 +72,8 @@ final class InboundClassifier
             return EraClassification::legacy();
         }
 
-        if ([] !== $decoded && array_is_list($decoded)) {
+        // Decoding to arrays hides the difference between [] and {}, or a list and {"0":...}.
+        if (str_starts_with(ltrim($body), '[')) {
             return EraClassification::reject(Error::forInvalidRequest('JSON-RPC batching is not supported; send one message per request.'), 400);
         }
 

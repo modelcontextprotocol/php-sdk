@@ -78,7 +78,9 @@ final class InboundClassifierTest extends TestCase
             [self::VERSION_HEADER => '2030-01-01'],
         ];
 
-        yield 'an empty JSON array' => ['POST', '[]'];
+        yield 'an empty JSON object' => ['POST', '{}'];
+
+        yield 'a JSON object with numeric keys' => ['POST', '{"0":'.self::message('tools/list').'}'];
 
         yield 'an empty body' => ['POST', ''];
 
@@ -199,6 +201,10 @@ final class InboundClassifierTest extends TestCase
             -32600,
             400,
         ];
+
+        yield 'an empty batch' => ['[]', [], -32600, 400];
+
+        yield 'a batch after leading whitespace' => [" \n[".self::message('tools/list').']', [], -32600, 400];
 
         yield 'a batch of one' => [
             '['.self::message('tools/list').']',
