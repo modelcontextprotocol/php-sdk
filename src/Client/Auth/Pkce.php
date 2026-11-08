@@ -12,12 +12,7 @@
 namespace Mcp\Client\Auth;
 
 /**
- * A Proof Key for Code Exchange pair (RFC 7636).
- *
- * The verifier stays with the client and is replayed at the token endpoint; only its
- * S256 hash travels through the browser, so an authorization code intercepted on the
- * way back is useless on its own. MCP requires S256, and so does this class -- the
- * `plain` method exists in the RFC only for clients that cannot hash.
+ * A Proof Key for Code Exchange pair (RFC 7636), always with S256.
  *
  * @internal
  *

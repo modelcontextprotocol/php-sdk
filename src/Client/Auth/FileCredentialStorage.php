@@ -15,12 +15,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\RuntimeException;
 
 /**
- * Persists credentials as JSON in a single file, so a CLI only has to authorize once.
- *
- * The file holds bearer tokens and, where the authorization server issues them, client
- * secrets, so it is created 0600 and the directory 0700. It is deliberately not
- * encrypted: an application with a keychain or a secrets manager should implement
- * {@see CredentialStorageInterface} against that instead.
+ * Persists credentials unencrypted in a JSON file with the mode 0600, in a directory with the mode 0700.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -105,8 +100,7 @@ final class FileCredentialStorage implements CredentialStorageInterface
         $decoded = false === $contents ? null : json_decode($contents, true);
 
         if (!\is_array($decoded)) {
-            // A truncated or hand-edited file is not worth failing a connection over:
-            // the worst case is one more trip through the authorization flow.
+            // Not worth failing a connection over: the worst case is one more authorization.
             return ['registrations' => [], 'tokens' => []];
         }
 
@@ -162,9 +156,7 @@ final class FileCredentialStorage implements CredentialStorageInterface
             throw new RuntimeException(\sprintf('Could not encode the credentials for "%s".', $this->path));
         }
 
-        // Written to a private temporary file and moved into place, rather than written
-        // in place and then chmod'ed: the file exists for a moment either way, and this
-        // way it never exists world-readable, and never exists half-written.
+        // A private file moved into place is never world-readable or half-written.
         $temporary = @tempnam($directory, '.credentials');
 
         if (false === $temporary) {

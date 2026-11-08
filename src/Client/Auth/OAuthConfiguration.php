@@ -14,11 +14,7 @@ namespace Mcp\Client\Auth;
 use Mcp\Exception\InvalidArgumentException;
 
 /**
- * Everything about how this client wants to authorize, decided before the first request.
- *
- * Built by {@see OAuth}; nothing here is discovered at runtime, which is what keeps the
- * discovered half -- issuers, endpoints, scopes, tokens -- clearly separate from the
- * half the application chose.
+ * What the application decided about authorization before the first request.
  *
  * @internal
  *

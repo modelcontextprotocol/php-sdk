@@ -12,11 +12,7 @@
 namespace Mcp\Client\Auth;
 
 /**
- * Keeps credentials for the lifetime of the process and no longer.
- *
- * The right default for a short-lived script and for tests; a long-lived agent or a CLI
- * a user runs repeatedly wants {@see FileCredentialStorage} so the browser dance happens
- * once rather than every time.
+ * Keeps credentials for the lifetime of the process.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

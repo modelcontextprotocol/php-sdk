@@ -28,11 +28,7 @@ enum TokenEndpointAuthMethod: string
     case ClientSecretPost = 'client_secret_post';
 
     /**
-     * Pick the method to use against a server advertising the given list.
-     *
-     * Preference runs from strongest to weakest, but a client without a secret can only
-     * ever be public, and one that was handed a secret should use it. An authorization
-     * server that advertises nothing is treated as RFC 6749 does: Basic is the default.
+     * Pick the method for the advertised list: no list means Basic (RFC 8414), and a client without a secret is public.
      *
      * @param string[] $supported the server's token_endpoint_auth_methods_supported
      */
@@ -52,8 +48,7 @@ enum TokenEndpointAuthMethod: string
             }
         }
 
-        // Nothing the client can satisfy was advertised. Sending the strongest thing it
-        // has is more useful than refusing outright: servers under-report this field.
+        // Servers under-report this field, so the strongest method is still worth trying.
         return $candidates[0];
     }
 }

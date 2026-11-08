@@ -16,18 +16,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Requests the authorization endpoint directly and reads the code out of the redirect.
- *
- * There is no user and no browser here: the handler plays the user agent itself, asks
- * for the authorization URL, and stops at the `Location` header instead of following it.
- * That only works against an authorization server that grants without an interactive
- * prompt -- a conformance harness, a test double, or an enterprise IdP that has already
- * consented on the user's behalf. Anywhere a human is supposed to approve something,
- * use {@see LoopbackAuthorizationHandler}.
- *
- * The request is made over a plain socket rather than the PSR-18 client on purpose:
- * PSR-18 leaves redirect following to the implementation, and this handler's whole job
- * is to *not* follow the redirect.
+ * Requests the authorization endpoint itself and reads the code from the redirect, for servers that grant without a prompt.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -58,8 +47,7 @@ final class HeadlessAuthorizationHandler implements AuthorizationHandlerInterfac
             }
         }
 
-        // Only the parameter names: the query carries the authorization code, and a
-        // single-use credential in a log file is still a credential in a log file.
+        // Only the names, as the query carries the authorization code.
         $this->logger->debug('Authorization endpoint redirected', ['parameters' => array_keys($callback)]);
 
         return $callback;

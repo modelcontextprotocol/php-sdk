@@ -16,10 +16,6 @@ use Mcp\Exception\InvalidArgumentException;
 /**
  * The client's identity at one authorization server.
  *
- * Whether it was handed out by dynamic registration, configured up front, or is a URL
- * pointing at a client metadata document, everything downstream needs the same three
- * facts: who the client claims to be, what secret it holds, and how it proves it.
- *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class ClientRegistration implements \JsonSerializable

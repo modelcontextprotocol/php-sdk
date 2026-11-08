@@ -12,13 +12,7 @@
 namespace Mcp\Client\Auth;
 
 /**
- * Where the OAuth credentials a client accumulates are kept between requests, and
- * between runs.
- *
- * Everything is keyed by the authorization server's issuer identifier. Credentials are
- * issued by one authorization server and mean nothing at another, so a resource whose
- * metadata starts pointing somewhere new finds an empty store and registers afresh
- * rather than leaking the previous server's client id to the new one.
+ * Keeps OAuth credentials per issuer, so an authorization server never receives those of another.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */

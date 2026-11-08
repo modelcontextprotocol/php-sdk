@@ -12,11 +12,7 @@
 namespace Mcp\Client\Auth;
 
 /**
- * What the client tells an authorization server about itself.
- *
- * The same document is posted to a registration endpoint (RFC 7591) and published at a
- * URL when the server accepts client id metadata documents, so it is modelled once and
- * serialised the same way for both.
+ * What the client tells an authorization server about itself when it registers (RFC 7591).
  *
  * @internal
  *

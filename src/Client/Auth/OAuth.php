@@ -21,26 +21,14 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Fluent builder for the OAuth authenticator an {@see \Mcp\Client\Transport\HttpTransport} uses.
- *
- * The defaults describe the common case -- a local application, a user with a browser,
- * an authorization server that supports dynamic client registration -- so a working
- * setup is one call:
- *
- *     $transport = new HttpTransport($url, auth: OAuth::forApplication('My App')->build());
- *
- * Everything else is a deviation from that: a pre-registered client id, credentials
- * that should outlive the process.
+ * Fluent builder for the OAuth authenticator of an {@see \Mcp\Client\Transport\HttpTransport}.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class OAuth
 {
     /**
-     * Loopback redirect target used unless the application names its own.
-     *
-     * A fixed port because many authorization servers require redirect URIs to be
-     * registered up front, and a random one could never be.
+     * A fixed port, as many authorization servers require redirect URIs to be registered up front.
      */
     public const DEFAULT_REDIRECT_URI = 'http://127.0.0.1:8765/callback';
 
@@ -86,10 +74,7 @@ final class OAuth
     }
 
     /**
-     * Where the authorization server sends the user back to.
-     *
-     * Must match what {@see LoopbackAuthorizationHandler} listens on, and -- for a
-     * pre-registered client -- what the authorization server has on file.
+     * Must match what the authorization handler listens on and, for a pre-registered client, what the server has on file.
      */
     public function setRedirectUri(string $redirectUri): self
     {
@@ -110,10 +95,7 @@ final class OAuth
     }
 
     /**
-     * Only authorize with the authorization server that has this issuer.
-     *
-     * The MCP server names its authorization server, so without this a hostile server could
-     * name its own and receive the client's secret. Required when a client secret is set.
+     * Only authorize with this issuer; required with a client secret, or a hostile MCP server could receive it.
      */
     public function setExpectedIssuer(string $issuer): self
     {
@@ -123,10 +105,7 @@ final class OAuth
     }
 
     /**
-     * Ask for these scopes, rather than whatever the server asks for.
-     *
-     * A step-up challenge still adds the scopes it names, since the server already
-     * refused a token that has only these.
+     * Request these scopes instead of those the server asks for; a step-up challenge still adds its own.
      */
     public function setScopes(string ...$scopes): self
     {
@@ -136,9 +115,7 @@ final class OAuth
     }
 
     /**
-     * Whether to ask for a refresh token where the authorization server offers one.
-     *
-     * On by default: without it every expiry sends the user back to the browser.
+     * Whether to request a refresh token where the authorization server offers one (default: true).
      */
     public function setOfflineAccess(bool $offlineAccess): self
     {
@@ -148,14 +125,7 @@ final class OAuth
     }
 
     /**
-     * Whether to fall back to pre-2025-06-18 discovery for servers that publish no
-     * protected resource metadata.
-     *
-     * Off by default. Every revision of the specification since 2025-06-18 requires a
-     * protected resource server to publish that document, so a server that does not is
-     * either much older than this SDK or is not the server it appears to be -- and
-     * without the document there is nothing to check the authorization server against.
-     * Turn it on knowingly, to reach a server built against 2025-03-26.
+     * Whether to fall back to pre-2025-06-18 discovery for a server without protected resource metadata (default: false).
      */
     public function setLegacyDiscovery(bool $legacyDiscovery): self
     {

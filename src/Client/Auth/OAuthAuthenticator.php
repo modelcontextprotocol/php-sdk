@@ -19,20 +19,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Drives the full MCP authorization flow on behalf of an HTTP client.
- *
- * Nothing happens until a server says no. The first request goes out bare; the 401 that
- * comes back names the resource's metadata, which names the authorization server, which
- * is asked for a client identity, an authorization code, and finally a token. Every step
- * after the first is skipped whenever what it would produce is already on hand, so a
- * warm client sends one request and a cold one sends the whole chain exactly once.
- *
- * Discovery is the exception: it runs again on every challenge rather than being
- * remembered. A resource that has moved to a different authorization server announces it
- * in exactly that document, and noticing is what stops one server's credentials from
- * being offered to another.
- *
- * Build one with {@see OAuth} rather than by hand.
+ * Drives the MCP authorization flow when a server answers with a challenge; build one with {@see OAuth}.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
@@ -43,11 +30,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     private ?AccessToken $token = null;
 
     /**
-     * The resource the current token may be sent to.
-     *
-     * Distinct from $resource, which is what was asked for: an application that
-     * overrides the RFC 8707 resource parameter is choosing which token to obtain, not
-     * granting itself permission to spend it somewhere else.
+     * The resource the current token may be sent to, which an overridden $resource doesn't change.
      */
     private ?string $audience = null;
 
@@ -73,11 +56,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return $request;
         }
 
-        // A token is minted for one resource and means nothing at another, so the
-        // request has to be aimed at the resource this one was obtained for. Normally it
-        // is -- the transport builds one authenticator per endpoint -- but an
-        // authenticator is an ordinary object a caller may reuse, and the cost of one
-        // mistake there is handing a hostile server somebody else's token.
+        // An authenticator may be reused, and another resource must not receive this token.
         if (null === $this->audience || !ProtectedResourceMetadata::isWithin(self::canonicalize((string) $request->getUri()), $this->audience)) {
             return $request;
         }
@@ -108,9 +87,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         if ($metadata->issuer !== $this->issuer) {
-            // A different authorization server is a different world: its predecessor's
-            // client id and tokens are not merely stale there, presenting them would
-            // hand one server credentials that belong to another.
+            // Credentials of one authorization server must never reach another.
             $this->logger->info('Authorization server changed', ['from' => $this->issuer, 'to' => $metadata->issuer]);
             $this->token = null;
             $this->requestedScopes = [];
@@ -170,13 +147,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Work out which resource is being protected, and by whom.
-     *
-     * Two resource identifiers come out of this, and they are not always the same one.
-     * The first is what goes in the RFC 8707 `resource` parameter, which an application
-     * may override. The second is the resource this server actually is, and it is what
-     * the resulting token may be sent to -- an override says which token to ask for, not
-     * where it is safe to spend.
+     * Find the requested resource, the token's audience and the server, on every challenge as a resource may move.
      *
      * @return array{string, string, AuthorizationServerMetadata, ?string[]}
      */
@@ -189,18 +160,13 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         if (!$metadata->covers($endpoint)) {
-            // The document claims tokens for somewhere else. Following it would mean
-            // asking an authorization server for a token bound to a resource the client
-            // is not talking to, and then sending it to one that is -- the exact shape
-            // of a confused-deputy attack.
+            // A token for another resource would be sent to this one: a confused deputy.
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" declares the unrelated resource "%s"; refusing to authorize against it.', $endpoint, $metadata->resource));
         }
 
         $issuer = $this->selectIssuer($endpoint, $metadata->authorizationServers);
 
-        // Checked before the document is fetched, not after: this identifier is a string
-        // the server chose, and building well-known URLs out of it and requesting them is
-        // already a request made on the server's behalf, from wherever the client runs.
+        // Checked before the fetch, as even the request is made on the server's behalf.
         if (!AuthorizationServerMetadata::isTransportSecure($issuer)) {
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names "%s" as its authorization server, which is neither an HTTPS URL nor a loopback address.', $endpoint, $issuer));
         }
@@ -242,15 +208,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * The metadata location named by the challenge, but only when it belongs to the
-     * server that issued the challenge.
-     *
-     * RFC 9728 derives the location from the resource identifier, so a document that
-     * describes this resource lives on this resource. A challenge pointing anywhere else
-     * is asking the client to make a request on the server's behalf -- to a host the
-     * server picked, from wherever the client happens to run, which may be inside a
-     * network the server cannot reach itself. Ignoring it costs nothing: the well-known
-     * locations are probed instead, exactly as for a challenge that named none.
+     * The metadata URL of the challenge, unless it would make the client request another origin on the server's behalf.
      */
     private static function trustedMetadataUrl(string $endpoint, AuthorizationChallenge $challenge): ?string
     {
@@ -268,11 +226,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Fall back to how authorization was discovered before protected resource metadata existed.
-     *
-     * Servers built against the 2025-03-26 revision act as their own authorization
-     * server, either publishing metadata at their root or exposing nothing at all and
-     * relying on the fixed endpoint names that revision spelled out.
+     * Fall back to the discovery of the 2025-03-26 revision, where a server is its own authorization server.
      */
     private function discoverLegacyServer(string $endpoint): AuthorizationServerMetadata
     {
@@ -288,16 +242,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Decide what to ask for.
-     *
-     * The challenge is the most specific thing available and wins; failing that the
-     * resource's own list is asked for in full; failing that the parameter is left off
-     * entirely, because inventing scopes only produces a rejection. Whatever comes out
-     * is unioned with what was previously granted, so a step-up challenge naming only
-     * the missing scope does not quietly drop the ones already held.
-     *
-     * Configured scopes replace that choice. An insufficient_scope challenge still adds
-     * the scopes it names, or the new token would be refused again.
+     * Prefer the scopes of the challenge, then those of the resource, and keep the ones requested before.
      *
      * @param ?string[] $scopesSupported
      *
@@ -319,8 +264,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             return array_values(array_diff($scopes, ['offline_access']));
         }
 
-        // A refresh token is only worth asking for where the authorization server says
-        // it understands the request; sending an unknown scope is an error, not a hint.
+        // An unknown scope is an error, so it is only requested where the server lists it.
         if ($this->configuration->offlineAccess
             && $metadata->supportsScope('offline_access')
             && $metadata->supportsGrant(Grant::RefreshToken->value)
@@ -339,8 +283,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function isUsable(AccessToken $token, array $scopes, RequestInterface $request): bool
     {
-        // The request that was just rejected carried this very token, so the server has
-        // already given its answer about it.
+        // The server just rejected this very token.
         if ($request->getHeaderLine('Authorization') === $token->getAuthorizationHeader()) {
             return false;
         }
@@ -349,11 +292,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Trade a refresh token for a new access token, when there is one and it is enough.
-     *
-     * A step-up challenge asks for scopes the refresh token was never granted, and RFC
-     * 6749 will not widen a grant on refresh, so that case falls through to a fresh
-     * authorization instead.
+     * Trade a refresh token for a new access token, if it covers the scopes.
      *
      * @param string[] $scopes
      */
@@ -390,18 +329,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * Run the grant, giving up the optional refresh-token scope if that is what stood
-     * in the way.
-     *
-     * `offline_access` is asked for on the strength of the authorization server saying
-     * it understands the scope, but understanding it and being willing to grant it to
-     * this client for this user are different questions, and only the second one gets
-     * answered here. Everything else the client asked for was named by the resource or
-     * by the challenge, so there is nothing else to concede.
-     *
-     * The refusal comes from the authorization endpoint, as invalid_scope, or from the
-     * token endpoint when the code is exchanged. Keycloak does the latter, with
-     * not_allowed, for a user who may not have offline tokens.
+     * Run the grant, and retry without offline_access if it was refused (invalid_scope, or not_allowed from Keycloak).
      *
      * @param string[] $scopes
      *
@@ -480,10 +408,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
      */
     private function verifyCallback(array $callback, string $state, AuthorizationServerMetadata $metadata): void
     {
-        // A response that did not carry back the state this client sent did not come from
-        // the request this client made (RFC 6749 section 10.12). Required, not merely
-        // checked when present: the loopback listener accepts a connection from any local
-        // process, and an absent state would let one of them feed the client a code.
+        // RFC 6749 section 10.12: required, as any local process can reach the loopback listener.
         if (!isset($callback['state']) || !hash_equals($state, $callback['state'])) {
             throw new AuthorizationException('The authorization response did not carry back the state parameter this client sent.');
         }
@@ -492,10 +417,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The authorization server denied the request: %s%s', $callback['error'], isset($callback['error_description']) ? ' ('.$callback['error_description'].')' : ''));
         }
 
-        // RFC 9207: where the issuer is named it must be the one the flow was started
-        // with, compared as a string with no normalisation -- the whole point is to
-        // catch a response mixed in from a second, attacker-controlled server. Where the
-        // server said it would name one, its absence is just as suspicious.
+        // RFC 9207: compared as a string, and required if the server announced it, to catch a mix-up.
         if (isset($callback['iss'])) {
             if ($callback['iss'] !== $metadata->issuer) {
                 throw new AuthorizationException(\sprintf('The authorization response names the issuer "%s", but the flow was started with "%s".', $callback['iss'], $metadata->issuer));
@@ -553,8 +475,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
     }
 
     /**
-     * The canonical URI a token is requested for: no fragment, and nothing a server
-     * would not recognise as its own identity.
+     * The canonical URI a token is requested for, without a fragment.
      */
     private static function canonicalize(string $url): string
     {

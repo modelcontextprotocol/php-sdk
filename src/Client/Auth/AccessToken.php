@@ -21,10 +21,7 @@ use Mcp\Exception\InvalidArgumentException;
 final class AccessToken implements \JsonSerializable
 {
     /**
-     * Seconds of headroom before the nominal expiry at which the token is treated as stale.
-     *
-     * Without it a token that expires while the request is in flight would be sent anyway,
-     * costing a round trip and a challenge to learn what was already known.
+     * Seconds before the nominal expiry at which a token counts as expired, so it doesn't expire in flight.
      */
     private const EXPIRY_LEEWAY_SECONDS = 30;
 
@@ -81,16 +78,12 @@ final class AccessToken implements \JsonSerializable
     /**
      * Whether every one of the given scopes was granted.
      *
-     * Authorization servers may narrow what was asked for, so "we requested it" and
-     * "we hold it" are different questions.
-     *
      * @param string[] $scopes
      */
     public function covers(array $scopes): bool
     {
         if ([] === $this->scopes) {
-            // The server did not report a scope, which per RFC 6749 means it granted
-            // exactly what was requested. Nothing can be ruled out from here.
+            // RFC 6749 section 5.1: no reported scope means that what was requested was granted.
             return true;
         }
 
@@ -98,11 +91,7 @@ final class AccessToken implements \JsonSerializable
     }
 
     /**
-     * Record what was granted when the authorization server did not say.
-     *
-     * RFC 6749 section 5.1 makes the scope field optional precisely when the grant
-     * matches the request, so the requested set is the granted set -- writing it down
-     * is what lets a later challenge be told apart from a token that is simply stale.
+     * Record the requested scopes when the server reported none (RFC 6749 section 5.1).
      *
      * @param string[] $scopes
      */

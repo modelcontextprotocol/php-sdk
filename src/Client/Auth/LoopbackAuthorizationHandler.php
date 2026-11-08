@@ -18,13 +18,6 @@ use Psr\Log\NullLogger;
 /**
  * Opens the user's browser and catches the redirect on a loopback listener.
  *
- * This is the flow a desktop or command line application wants: the redirect URI points
- * at `http://127.0.0.1:<port>/...`, the handler listens there for exactly as long as the
- * authorization takes, shows the user a "you can close this tab" page, and hands the
- * query parameters back. Loopback redirects are what OAuth 2.1 recommends for native
- * applications, and unlike a pasted code they keep the authorization code off the
- * user's clipboard and out of their shell history.
- *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
 final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterface
@@ -92,9 +85,7 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
     }
 
     /**
-     * Answer one connection, returning its query parameters when it is the callback.
-     *
-     * Any local process or web page can reach this port, so everything else is answered and ignored.
+     * Answer one connection, and return its query parameters only for the callback, as anyone local can connect.
      *
      * @param resource $connection
      *
@@ -160,9 +151,7 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
             return;
         }
 
-        // The SDK only ever passes an endpoint it has already validated, but this string
-        // reaches the desktop's protocol-handler dispatcher, so it is worth not relying
-        // on that staying true.
+        // This string reaches the desktop's protocol handler, so it is checked again here.
         if (!AuthorizationServerMetadata::isTransportSecure($url)) {
             throw new AuthorizationException(\sprintf('Refusing to open "%s": an authorization URL must be HTTPS, or HTTP on a loopback address.', $url));
         }

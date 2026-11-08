@@ -22,11 +22,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Exchanges whatever the client is holding for an access token.
- *
- * All four grants land here, and so do all four ways of proving which client is asking:
- * the difference between them is a handful of form fields and one header, which is why
- * they share one place rather than one class each.
+ * Exchanges an authorization code or a refresh token for an access token.
  *
  * @internal
  *
@@ -55,8 +51,7 @@ final class TokenEndpoint
 
         switch ($client->tokenEndpointAuthMethod) {
             case TokenEndpointAuthMethod::ClientSecretBasic:
-                // RFC 6749 section 2.3.1: both halves are form-urlencoded before being
-                // joined, so a secret containing a colon survives the round trip.
+                // RFC 6749 section 2.3.1: form-urlencoded before joining, so a secret may contain a colon.
                 $authorization = 'Basic '.base64_encode(rawurlencode($client->clientId).':'.rawurlencode((string) $client->clientSecret));
                 break;
 
@@ -108,10 +103,7 @@ final class TokenEndpoint
         $decoded = json_decode(ResponseBody::read($response) ?? '', true);
 
         if (200 !== $response->getStatusCode() || !\is_array($decoded)) {
-            // Only an error document is quoted back. A 200 that failed to decode is a
-            // successful token response in a shape this client cannot read, and putting
-            // its body in the message would put a live access token into every log the
-            // exception reaches.
+            // Only an error document is quoted, as an unreadable 200 may carry a live token.
             $message = \sprintf('The authorization server answered the token request with %d%s.', $response->getStatusCode(), match (true) {
                 200 === $response->getStatusCode() => ', and a body this client could not read as JSON', \is_array($decoded) => ': '.self::describeError($decoded), default => '',
             });

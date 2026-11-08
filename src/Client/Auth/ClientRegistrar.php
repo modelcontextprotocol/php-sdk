@@ -21,11 +21,7 @@ use Psr\Log\LoggerInterface;
 use Psr\Log\NullLogger;
 
 /**
- * Registers the client with an authorization server on the fly (RFC 7591).
- *
- * MCP clients meet servers they have never seen before, so asking an administrator to
- * pre-provision a client id for each one does not scale. Where the authorization server
- * publishes a registration endpoint, the client creates its own identity instead.
+ * Registers the client with an authorization server (RFC 7591).
  *
  * @internal
  *
