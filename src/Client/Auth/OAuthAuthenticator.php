@@ -92,6 +92,8 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             $this->token = null;
             $this->requestedScopes = [];
             $this->offlineAccessRefused = false;
+        } elseif ($resource !== $this->resource) {
+            $this->requestedScopes = [];
         }
 
         $this->issuer = $metadata->issuer;

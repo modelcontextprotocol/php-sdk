@@ -899,6 +899,19 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('mcp:read mcp:write', $server->authorization['scope'] ?? null);
     }
 
+    #[TestDox('the scopes of one resource are not requested for another')]
+    public function testDoesNotCarryScopesToAnotherResource(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server);
+        $authenticator->handleChallenge($this->request(), $server->challenge(['mcp:read']));
+
+        $server->resource = 'https://mcp.example.com/other';
+        $authenticator->handleChallenge((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/other'), $server->challenge(['other:read']));
+
+        $this->assertSame('other:read', $server->authorization['scope'] ?? null);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
