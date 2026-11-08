@@ -696,7 +696,7 @@ final class StatelessProtocol
      */
     private function run(RequestHandlerInterface $handler, Request $request, Session $session, RequestMeta $meta): \Generator
     {
-        $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler);
+        $fiber = HandlerFibers::create(static fn (): mixed => $handler->handle($request, $session), $this->fiberScheduler, logger: $this->logger);
         $input = $session->get(InputContext::class);
         // The codec bound to this request, which dispatch() put on the session.
         $codec = $session->get(RequestStateCodec::class);

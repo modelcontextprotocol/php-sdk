@@ -11,10 +11,17 @@
 
 namespace Mcp\Tests\Unit\Server\Fiber;
 
+use Mcp\Event\ErrorEvent;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\Request;
+use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\Notification\ToolListChangedNotification;
+use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Server;
+use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\SessionInterface;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StdioTransport;
 use Mcp\Server\Transport\StreamableHttpTransport;
@@ -22,6 +29,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\EventDispatcher\EventDispatcherInterface;
 
 /**
  * A tool awaiting I/O under an event loop, over HTTP, in both protocol eras.
@@ -86,6 +94,132 @@ final class EventLoopToolCallTest extends TestCase
 
         $this->assertStringContainsString('notifications\/tools\/list_changed', $output);
         $this->assertMatchesRegularExpression('/"id":2,"error":\{"code":-32603/', $output);
+    }
+
+    #[TestDox('without a scheduler in the 2026-07-28 era, a tool awaiting I/O after a notification still ends its stream with an error')]
+    public function testWithoutASchedulerTheModernStreamEndsWithAnError(): void
+    {
+        $version = ProtocolVersion::V2026_07_28->value;
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $this->post($this->notifyingServer(scheduled: false), [
+                'jsonrpc' => '2.0',
+                'id' => 1,
+                'method' => 'tools/call',
+                'params' => ['name' => 'lookup', 'arguments' => new \stdClass(), '_meta' => [
+                    RequestMeta::PROTOCOL_VERSION => $version,
+                    RequestMeta::CLIENT_CAPABILITIES => new \stdClass(),
+                ]],
+            ], ['MCP-Protocol-Version' => $version, 'Mcp-Method' => 'tools/call', 'Mcp-Name' => 'lookup']);
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertStringContainsString('notifications/tools/list_changed', $output);
+        $this->assertMatchesRegularExpression('/"id":1,"error":\{"code":-32603/', $output);
+    }
+
+    #[TestDox('a handler finishing after its request was answered fires no events and is logged')]
+    public function testAHandlerOutlivingItsRequestFiresNoEvents(): void
+    {
+        $logger = new RecordingLogger();
+        $events = [];
+        $dispatcher = new class($events) implements EventDispatcherInterface {
+            /** @param list<string> $events */
+            public function __construct(public array &$events)
+            {
+            }
+
+            public function dispatch(object $event): object
+            {
+                $this->events[] = $event::class;
+
+                return $event;
+            }
+        };
+        $loop = $this->loop;
+        $server = Server::builder()
+            ->setServerInfo('event-loop-server', '1.0.0')
+            ->setLogger($logger)
+            ->setEventDispatcher($dispatcher)
+            ->addTool(static fn (): string => 'lookup:'.$loop->await('found'), name: 'lookup', description: 'Looks something up')
+            ->build();
+
+        $answer = $this->call($server, false);
+        $this->assertSame(-32603, $answer['error']['code'] ?? null);
+        $this->assertContains(ErrorEvent::class, $events);
+
+        $events = [];
+        $this->loop->drain();
+
+        $this->assertSame([], $events);
+        $this->assertContains('A request handler finished after its request was answered.', $logger->messages);
+    }
+
+    #[DataProvider('eras')]
+    #[TestDox('what a handler throws after its request was answered is logged')]
+    public function testAHandlerThrowingAfterItsRequestIsLogged(bool $modern): void
+    {
+        $logger = new RecordingLogger();
+        $loop = $this->loop;
+        $server = Server::builder()
+            ->setServerInfo('event-loop-server', '1.0.0')
+            ->setLogger($logger)
+            ->addRequestHandler(new class($loop) implements RequestHandlerInterface {
+                public function __construct(private readonly FakeEventLoop $loop)
+                {
+                }
+
+                public function supports(Request $request): bool
+                {
+                    return $request instanceof CallToolRequest;
+                }
+
+                public function handle(Request $request, SessionInterface $session): Response|Error
+                {
+                    $this->loop->await(null);
+
+                    throw new \DomainException('The lookup failed.');
+                }
+            })
+            ->addTool(static fn (): string => 'unused', name: 'lookup', description: 'Looks something up')
+            ->build();
+
+        $answer = $this->call($server, $modern);
+        $this->assertSame(-32603, $answer['error']['code'] ?? null);
+
+        $logger->messages = [];
+        $this->loop->drain();
+
+        $this->assertSame(['A request handler failed after its request was answered: The lookup failed.'], $logger->messages);
+    }
+
+    #[TestDox('a gateway call after the request was answered throws instead of leaving the handler suspended')]
+    public function testAGatewayCallOfAnAbandonedHandlerIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $loop = $this->loop;
+        $server = Server::builder()
+            ->setServerInfo('event-loop-server', '1.0.0')
+            ->setLogger($logger)
+            ->addTool(static function (RequestContext $context) use ($loop): string {
+                $loop->await(null);
+                $context->getClientGateway()->notify(new ToolListChangedNotification());
+
+                return 'unreachable';
+            }, name: 'lookup', description: 'Looks something up')
+            ->build();
+
+        $this->call($server, false);
+        $logger->messages = [];
+        $this->loop->drain();
+
+        $this->assertContains('A request handler finished after its request was answered.', $logger->messages);
     }
 
     #[TestDox('a tool awaiting I/O around a notification streams the notification and its result')]
