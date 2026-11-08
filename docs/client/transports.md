@@ -108,17 +108,18 @@ $transport = new HttpTransport('http://localhost:8000', maxResponseBodyBytes: 64
 ```
 
 - A successful response over the limit fails the request with a `RequestException`, and the transport
-  closes the body.
+  closes the body. During `connect()`, it throws a `ConnectionException`.
 - An error status over the limit fails the request as usual. The transport reads the body up to the
-  limit, and it may log that part.
+  limit, and it may log the first 4 KiB.
 - SSE streams have their own limit: `maxSseBufferBytes` limits the size of one incomplete event.
 
 This limit applies to what the transport reads from the PSR-18 client. What the client does before
 it returns the response depends on the client:
 
-- `symfony/http-client` returns before the whole body has arrived. When the transport closes the
-  body, the download stops. On a fast connection, more than the limit may already have arrived by
-  then and be stored in `php://temp`.
+- `symfony/http-client` returns before the whole body has arrived and stores what arrives in
+  `php://temp`. When the transport closes the body, the download stops. If the server sends without
+  a pause on a very fast connection, the transport can't close the body until it ends, so the whole
+  body is stored on disk. To limit this, set the `max_duration` option of the client.
 - `php-http/guzzle7-adapter` and `php-http/curl-client` write the whole body to `php://temp` before
   they return. The transport still uses limited memory, but the client downloads the whole body,
   stores it on disk and blocks until the body ends. Configure a timeout on these clients to limit

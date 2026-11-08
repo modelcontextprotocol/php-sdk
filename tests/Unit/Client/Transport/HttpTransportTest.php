@@ -1159,6 +1159,8 @@ final class HttpTransportTest extends TestCase
         $this->assertInstanceOf(Error::class, $result);
         $this->assertSame(Error::INTERNAL_ERROR, $result->code);
         $this->assertStringContainsString('1024 byte limit', $result->message);
+        $this->assertStringContainsString('maxResponseBodyBytes', $result->message);
+        $this->assertStringNotContainsString('ended', $result->message);
         $this->assertSame([], $messages);
         $this->assertLessThanOrEqual(1025, $body->bytesRead);
         $this->assertTrue($body->closed);
@@ -1243,6 +1245,52 @@ final class HttpTransportTest extends TestCase
         );
 
         $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+    }
+
+    #[TestDox('a refused message logs at most 4 KiB of the body, without splitting a character')]
+    public function testLoggedErrorBodyIsCappedOnACharacterBoundary(): void
+    {
+        $logged = null;
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            'Server refused a message',
+            $this->callback(static function (array $context) use (&$logged): bool {
+                $logged = $context['body'];
+
+                return true;
+            }),
+        );
+
+        // The odd prefix makes the cut at 4096 bytes fall inside a two-byte character.
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], 'a'.str_repeat('é', 3000))]),
+            logger: $logger,
+        );
+
+        $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
+
+        $this->assertIsString($logged);
+        $this->assertLessThanOrEqual(4096, \strlen($logged));
+        $this->assertGreaterThan(4090, \strlen($logged));
+        $this->assertSame(1, preg_match('//u', $logged));
+    }
+
+    #[TestDox('a response over the body limit during connect() fails with a ConnectionException')]
+    public function testBodyOverTheLimitDuringConnect(): void
+    {
+        $client = Client::builder()
+            ->setClientInfo('test-client', '1.0.0')
+            ->setProtocolVersion(ProtocolVersion::V2025_11_25)
+            ->setInitTimeout(5)
+            ->build();
+
+        $this->expectException(ConnectionException::class);
+        $this->expectExceptionMessage('maxResponseBodyBytes');
+
+        $client->connect($this->createTransport(
+            httpClient: new RecordingHttpClient(static fn (array $message): ResponseInterface => new Response(200, ['Content-Type' => 'application/json'], new OversizedStream(1024 * 1024))),
+            maxResponseBodyBytes: 1024,
+        ));
     }
 
     #[TestDox('the response body limit must be a positive number of bytes')]

@@ -92,6 +92,8 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     public const DEFAULT_MAX_RESPONSE_BODY_BYTES = 8 * 1024 * 1024;
 
+    private const MAX_LOGGED_BODY_BYTES = 4096;
+
     private readonly SseParser $sseParser;
 
     private readonly SseParser $listenParser;
@@ -292,7 +294,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if ($truncated) {
-            $this->failUnanswered($data, \sprintf('the body exceeds the %d byte limit', $this->maxResponseBodyBytes));
+            $this->failRequest($data, \sprintf('The response body exceeds the %d byte limit. Raise the "maxResponseBodyBytes" argument of HttpTransport to accept it.', $this->maxResponseBodyBytes));
 
             return;
         }
@@ -366,13 +368,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     private function failUnanswered(string $sent, string $reason): void
     {
+        $this->failRequest($sent, 'The response ended without answering the request: '.$reason);
+    }
+
+    private function failRequest(string $sent, string $message): void
+    {
         $requestId = self::requestIdOf($sent);
         if (null === $requestId || null === $this->state) {
             return;
         }
 
-        $this->logger->warning('Response ended without answering the request', ['request_id' => $requestId, 'reason' => $reason]);
-        $this->state->storeResponse($requestId, Error::forInternalError('The response ended without answering the request: '.$reason, $requestId)->jsonSerialize());
+        $this->logger->warning($message, ['request_id' => $requestId]);
+        $this->state->storeResponse($requestId, Error::forInternalError($message, $requestId)->jsonSerialize());
     }
 
     /**
@@ -402,7 +409,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if ((!\is_string($requestId) && !\is_int($requestId)) || null === $this->state) {
-            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => $body]);
+            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => self::bodyExcerpt($body)]);
 
             return;
         }
@@ -412,6 +419,18 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
             : Error::forInvalidRequest(\sprintf('Server answered with HTTP %d%s.', $status, '' !== $reason ? ' '.$reason : ''), $requestId);
 
         $this->state->storeResponse($requestId, $error->jsonSerialize());
+    }
+
+    private static function bodyExcerpt(string $body): string
+    {
+        if (\strlen($body) <= self::MAX_LOGGED_BODY_BYTES) {
+            return $body;
+        }
+
+        $excerpt = substr($body, 0, self::MAX_LOGGED_BODY_BYTES);
+
+        // Drops the last character, as the cut may have split it.
+        return preg_replace('/[\xC0-\xFF][\x80-\xBF]*\z/', '', $excerpt) ?? $excerpt;
     }
 
     /**
