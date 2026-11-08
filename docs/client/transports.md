@@ -64,7 +64,7 @@ $transport = new HttpTransport(
 - `reconnectPolicy` (ReconnectPolicy|null): How an interrupted SSE stream is resumed (default: 5 attempts, 1–10 s backoff)
 - `clock` (ClockInterface|null): PSR-20 clock used to schedule reconnects (default: a monotonic clock)
 - `maxResponseBodyBytes` (int): Maximum bytes read from a response body that is not an SSE stream (default: 8 MiB)
-- `auth` (AuthenticatorInterface|null): Credentials for a server that requires authorization, see [Sending an access token](#sending-an-access-token)
+- `auth` (AuthenticatorInterface|null): Credentials for a server that requires authorization, see [Authorization](authorization.md)
 
 When an SSE connection closes before its JSON-RPC response arrives, the transport resumes it with a GET request carrying the latest `Last-Event-ID`. A server-provided SSE `retry` value controls the delay; otherwise the fallback delay doubles from 1 second up to 10 seconds. Completed requests and explicitly closed transports are not reconnected. A server-provided `retry` value is not capped, so a long one leaves the request waiting until its timeout. A reconnect answered with a redirect or a client error (e.g. `404` for an expired session or `405` without GET support) fails the request at once; only `408`, `429`, server errors and a successful answer that is not an event stream are retried. Protocol version `2026-07-28` removed stream resumption, so there an interrupted stream fails the request at once.
 
@@ -185,7 +185,7 @@ $transport = new HttpTransport('http://localhost:8000', listen: true);
 
 ### Sending an access token
 
-If you already have an access token (e.g. from a secrets manager), pass it with the `auth` parameter:
+If you already have an access token (e.g. from a secrets manager), pass it with the `auth` parameter. To get a token through OAuth, see [Authorization](authorization.md).
 
 ```php
 use Mcp\Client\Auth\BearerToken;

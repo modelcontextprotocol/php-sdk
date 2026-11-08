@@ -7,7 +7,7 @@ all client errors in one place. All classes below live in the `Mcp\Exception` na
 | --- | --- |
 | `ConnectionException` | `connect()` fails on every attempt, an HTTP request fails on the network level, or you call a method before `connect()` |
 | `RequestException` | the server answers with an error, the request reaches the default request timeout (code `-32603`, message `Request timed out`), the server answers with an HTTP error status other than `401` or `403`, or the STDIO server process exits while you wait for an answer |
-| `AuthorizationException` | the server answers a request, a notification or the resumption of an event stream with the HTTP status `401` or `403` |
+| `AuthorizationException` | the server answers a request, a notification or the resumption of an event stream with the HTTP status `401` or `403`, or the [OAuth flow](authorization.md) fails |
 | `TimeoutException` | the `timeoutSeconds` deadline of a `callTool()` call expires |
 | `RequestCancelledException` | the cancellation token of a `callTool()` call is canceled, see [Cancellation and deadlines](transports.md#cancellation-and-deadlines) |
 | `InvalidArgumentException` | `callTool()` gets a `timeoutSeconds` that is not finite and positive, `readResource()` gets an empty URI, the builder gets an invalid timeout, retry count or fallback revision, the request can't be encoded as JSON (for example invalid UTF-8 in tool arguments), or the server returns a malformed result (also from `connect()`) |
@@ -30,7 +30,7 @@ try {
 
 ## AuthorizationException
 
-The message contains the `WWW-Authenticate` header of the response, if the server sends one:
+This exception also reports a failed [authorization](authorization.md) flow. The message of a refused request contains the `WWW-Authenticate` header of the response, if the server sends one:
 
 ```php
 use Mcp\Exception\AuthorizationException;
