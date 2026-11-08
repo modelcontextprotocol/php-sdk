@@ -31,7 +31,7 @@ $request = $psr17Factory->createServerRequestFromGlobals();
 $server = Server::builder()
     ->setServerInfo('HTTP Server', '1.0.0')
     ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
-    ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
+    ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // needed for elicitation, sampling and subscriptions
     ->build();
 
 $transport = new StreamableHttpTransport($request);
@@ -141,7 +141,7 @@ $app->any('/mcp', function ($request, $response) {
     $server = Server::builder()
         ->setServerInfo('My MCP Server', '1.0.0')
         ->setDiscovery(__DIR__, ['.'], excludeDirs: ['vendor'])
-        ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // HTTP needs persistent sessions
+        ->setSession(new FileSessionStore(__DIR__ . '/sessions')) // needed for elicitation, sampling and subscriptions
         ->build();
 
     $transport = new StreamableHttpTransport($request);
@@ -156,15 +156,16 @@ The transport handles all HTTP methods automatically:
 
 - **POST**: Send MCP requests
 - **GET**: Not implemented (returns 405)
-- **DELETE**: End session
+- **DELETE**: End session (returns 405 without sessions)
 - **OPTIONS**: CORS preflight
 
 You should route **all methods** to your MCP endpoint, not just POST.
 
 ## Session Management
 
-Over HTTP, the server needs a session store that keeps sessions between requests. See
-[Sessions over HTTP](sessions.md#sessions-over-http).
+Over HTTP, a server has sessions only when you call `setSession()` with a store that keeps them between requests. See
+[Sessions over HTTP](sessions.md#sessions-over-http). A server without sessions has
+[limits](sessions.md#serving-without-sessions).
 
 ## Recommended Route
 

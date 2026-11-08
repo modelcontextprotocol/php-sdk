@@ -74,26 +74,25 @@ served on a session of its own that is dropped once the request is answered; it 
 `EphemeralSessionInterface`, which a handler can check for. A `Mcp-Session-Id` the client sends anyway is ignored.
 `GET` and `DELETE` are answered with HTTP `405`, as there is no stream to open and no session to end.
 
-What a session carries from one request to the next is gone, and what needs it fails loud instead of silently
-doing nothing:
+What a session carries from one request to the next is gone. This changes what your handlers can do:
 
-- Requests to the client: `elicit()`, `elicitUrl()`, `sample()` and `listRoots()` of the `ClientGateway` throw a
-  `LogicException` right away. The client answers them in a POST of its own, which cannot be matched to the request
-  that waits for the answer. A handler returning an `InputRequiredResult` is answered with an error for the same
-  reason.
-- `resources/subscribe`, `resources/unsubscribe` and `logging/setLevel` are answered with a `-32603` error, and
-  `initialize` does not offer resource subscriptions.
-- `Protocol::sendRequest()` and `Protocol::sendNotification()` throw a `LogicException`, as there is no stream to
-  deliver a message sent outside a request.
-- The capabilities the client declared on `initialize` are not known to later requests, so `supportsElicitation()`
-  and the other checks of the `ClientGateway` throw a `LogicException`.
+- `elicit()`, `elicitUrl()`, `sample()` and `listRoots()` of the `ClientGateway` throw a
+  `SessionRequiredException`. The client answers them in a POST of its own, and the server cannot match that POST to
+  the waiting request. If your handler doesn't catch the exception, the client gets a `-32603` error with its message.
+- A handler that returns an `InputRequiredResult` gets a `-32603` error for the same reason. With
+  `withoutInputRequiredShim()`, the SDK sends the result [as it is](../handlers/input-required.md).
+- `supportsElicitation()` and the other checks of the `ClientGateway`, including `supportsExtension()`, return `false`,
+  so your handler can fall back to another result.
+- `initialize` offers neither resource subscriptions nor logging. `resources/subscribe`, `resources/unsubscribe` and
+  `logging/setLevel` get a `-32603` error. The `ClientLogger` and `ClientGateway::log()` drop all messages.
+- `Protocol::sendRequest()` and `Protocol::sendNotification()` throw a `SessionRequiredException`, as there is no
+  stream to deliver a message sent outside a request.
 - What a handler sets on the session is gone on the next request, and `SessionInterface::save()` throws a
-  `LogicException`.
+  `SessionRequiredException`.
 
 `RequestContext::getProtocolVersion()` returns the revision the `MCP-Protocol-Version` header names, or
-`2025-03-26` when the header is absent, as the specification asks. Notifications sent while a request runs, like
-progress and log messages, still reach the client on that request's stream. Servers that need the rest call
-`setSession()`.
+`2025-03-26` when the header is absent, as the specification asks. Progress and other notifications you send while a
+request runs still reach the client on that request's stream. Call `setSession()` if your server needs the rest.
 
 The modern (`2026-07-28`) era has no sessions to begin with and is not affected, and neither is stdio, where the
 connection holds the one session.

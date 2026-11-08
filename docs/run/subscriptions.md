@@ -4,7 +4,8 @@
 > [Protocol versions](../protocol-versions.md). Handshake-era clients use `resources/subscribe`, which the
 > same server still answers. The notification bus below doesn't reach them, and the server doesn't send
 > them change notifications by itself. Over HTTP, a notification queued for them goes out with the
-> response to their next `POST` request, and an HTTP `GET` is answered with `405`.
+> response to their next `POST` request, and an HTTP `GET` is answered with `405`. Over HTTP, `resources/subscribe`
+> needs [sessions](sessions.md#serving-without-sessions).
 
 `subscriptions/listen` replaces the HTTP `GET` stream and `resources/subscribe`. The client
 opens a long-lived POST whose response stream carries the notification types it asked for;

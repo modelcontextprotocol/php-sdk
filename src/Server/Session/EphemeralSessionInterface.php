@@ -16,6 +16,8 @@ namespace Mcp\Server\Session;
  *
  * The server refuses what would have to outlast the request on it, like requests to the client and
  * resource subscriptions.
+ *
+ * @author Ruud Kamphuis <ruudk@users.noreply.github.com>
  */
 interface EphemeralSessionInterface extends SessionInterface
 {

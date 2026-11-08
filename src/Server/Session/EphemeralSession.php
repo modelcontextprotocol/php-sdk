@@ -17,6 +17,8 @@ use Mcp\Exception\SessionRequiredException;
  * The session of one request on a server built without {@see \Mcp\Server\Builder::setSession()}.
  *
  * It lives as long as its request and is never stored, so it cannot be saved.
+ *
+ * @author Ruud Kamphuis <ruudk@users.noreply.github.com>
  */
 final class EphemeralSession extends Session implements EphemeralSessionInterface
 {

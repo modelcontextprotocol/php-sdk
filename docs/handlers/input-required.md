@@ -46,7 +46,8 @@ anything other than elicitation.
 > request open, so it holds a worker for as long as the user takes — and
 > `withoutInputRequiredShim()` turns it off. The SDK then sends the `InputRequiredResult` as it
 > is, and a handshake-era client cannot act on it. See
-> [Server builder](../run/server-builder.md).
+> [Server builder](../run/server-builder.md). Over HTTP, the shim needs
+> [sessions](../run/sessions.md#serving-without-sessions).
 
 ```php
 use Mcp\Schema\Content\TextContent;
