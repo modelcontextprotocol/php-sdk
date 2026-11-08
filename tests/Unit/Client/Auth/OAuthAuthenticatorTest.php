@@ -620,6 +620,39 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertNotContains('https://auth.example.com/token', $server->requested);
     }
 
+    #[TestDox('the expected issuer is chosen wherever the resource lists it')]
+    public function testChoosesTheExpectedIssuerFromTheList(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->otherAuthorizationServers = ['https://other.example.com'];
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setExpectedIssuer('https://auth.example.com'));
+
+        $this->assertTrue($authenticator->handleChallenge($this->request(), $server->challenge()));
+
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+        $this->assertSame([], array_filter($server->requested, static fn (string $url): bool => str_contains($url, 'other.example.com')));
+    }
+
+    #[TestDox('an authorization server that is not expected is not even contacted')]
+    public function testDoesNotContactAnUnexpectedIssuer(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setExpectedIssuer('https://trusted.example.com'));
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The unexpected issuer was not refused.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('https://trusted.example.com', $e->getMessage());
+        }
+
+        $this->assertSame(['https://mcp.example.com/.well-known/oauth-protected-resource/mcp'], $server->requested);
+    }
+
     #[TestDox('an expected issuer also binds a client without a secret')]
     public function testExpectedIssuerBindsAPublicClient(): void
     {
@@ -743,6 +776,9 @@ final class FakeOAuthServer implements ClientInterface
     /** @var array<string, string> */
     public array $token = [];
 
+    /** @var string[] */
+    public array $otherAuthorizationServers = [];
+
     private int $issued = 0;
 
     /**
@@ -799,7 +835,7 @@ final class FakeOAuthServer implements ClientInterface
             'https://mcp.example.com/custom/location.json',
             'https://mcp.example.com/.well-known/oauth-protected-resource/mcp' => self::json(array_filter([
                 'resource' => $this->resource,
-                'authorization_servers' => [$this->authorizationServer],
+                'authorization_servers' => [...$this->otherAuthorizationServers, $this->authorizationServer],
                 'scopes_supported' => $this->resourceScopes,
             ], static fn (mixed $value): bool => null !== $value)),
 

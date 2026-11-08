@@ -174,11 +174,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
             throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" declares the unrelated resource "%s"; refusing to authorize against it.', $endpoint, $metadata->resource));
         }
 
-        $issuer = $metadata->authorizationServers[0] ?? null;
-
-        if (null === $issuer) {
-            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names no authorization server.', $endpoint));
-        }
+        $issuer = $this->selectIssuer($endpoint, $metadata->authorizationServers);
 
         // Checked before the document is fetched, not after: this identifier is a string
         // the server chose, and building well-known URLs out of it and requesting them is
@@ -194,6 +190,28 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return [$this->configuration->resource ?? $metadata->resource, $metadata->resource, $server, $metadata->scopesSupported];
+    }
+
+    /**
+     * @param string[] $authorizationServers
+     */
+    private function selectIssuer(string $endpoint, array $authorizationServers): string
+    {
+        if ([] === $authorizationServers) {
+            throw new AuthorizationException(\sprintf('The protected resource metadata for "%s" names no authorization server.', $endpoint));
+        }
+
+        $expected = $this->configuration->expectedIssuer;
+
+        if (null === $expected) {
+            return $authorizationServers[0];
+        }
+
+        if (!\in_array($expected, $authorizationServers, true)) {
+            throw new AuthorizationException(\sprintf('The server at "%s" names the authorization servers "%s", but only "%s" is expected.', $endpoint, implode('", "', $authorizationServers), $expected));
+        }
+
+        return $expected;
     }
 
     /**
