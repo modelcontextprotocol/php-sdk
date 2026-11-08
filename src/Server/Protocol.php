@@ -30,6 +30,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\EventLoopSessionLock;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -111,6 +112,8 @@ class Protocol
      */
     private array $droppedAwaitedRequestIds = [];
 
+    private readonly ?SessionLockInterface $sessionLock;
+
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
@@ -124,9 +127,10 @@ class Protocol
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
-        private readonly ?SessionLockInterface $sessionLock = null,
+        ?SessionLockInterface $sessionLock = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
     ) {
+        $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
     }

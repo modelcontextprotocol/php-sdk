@@ -21,6 +21,7 @@ use Mcp\Server;
 use Mcp\Server\Builder;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\FileSessionLock;
 use Mcp\Server\Stateless\RequestMeta;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
@@ -204,6 +205,150 @@ final class RealEventLoopTest extends TestCase
         ]);
 
         $this->assertSame(-32603, $answer['error']['code'] ?? null);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('a request of a locked session waits on the loop until the request holding the lock is done')]
+    public function testARequestWaitsForTheSessionLock(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $server = $this->lockedBuilder($scheduler)
+            ->addTool(static function () use ($sleep): string {
+                $sleep(0.05);
+
+                return 'slow done';
+            }, name: 'slow', description: 'Answers late')
+            ->addTool(static fn (): string => 'quick done', name: 'quick', description: 'Answers right away')
+            ->build();
+
+        $answers = [];
+        $headers = null;
+        $run([
+            function () use ($server, &$headers, &$answers): void {
+                $headers = $this->handshake($server);
+                $answers[] = $this->text($this->handshakeCall($server, $headers, 'slow', 3));
+            },
+            function () use ($server, &$headers, &$answers, $sleep): void {
+                while (null === $headers) {
+                    $sleep(0.001);
+                }
+                $sleep(0.01);
+                $answers[] = $this->text($this->handshakeCall($server, $headers, 'quick', 4));
+            },
+        ]);
+
+        $this->assertSame(['slow done', 'quick done'], $answers);
+    }
+
+    /**
+     * @param \Closure(float): void                  $sleep
+     * @param \Closure(list<\Closure(): void>): void $run
+     */
+    #[DataProvider('runtimes')]
+    #[TestDox('a resumed request keeps its session write while another request of the session holds the lock')]
+    public function testAResumedRequestKeepsItsSessionWrite(FiberSchedulerInterface $scheduler, \Closure $sleep, \Closure $run): void
+    {
+        $server = $this->lockedBuilder($scheduler)
+            ->addTool(static function (RequestContext $context) use ($sleep): string {
+                $context->getClientGateway()->notify(new ToolListChangedNotification());
+                $sleep(0.03);
+                $context->getSession()->set('written', true);
+
+                return 'writer done';
+            }, name: 'writer', description: 'Writes to the session after a notification')
+            ->addTool(static function () use ($sleep): string {
+                $sleep(0.1);
+
+                return 'holder done';
+            }, name: 'holder', description: 'Holds the session lock')
+            ->addTool(static fn (RequestContext $context): string => json_encode($context->getSession()->get('written'), \JSON_THROW_ON_ERROR), name: 'reader', description: 'Reads the session')
+            ->build();
+
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+
+        $answers = [];
+        $headers = null;
+        try {
+            $run([
+                function () use ($server, &$headers): void {
+                    $headers = $this->handshake($server);
+                    (string) $this->handshakeCall($server, $headers, 'writer', 2)->getBody();
+                },
+                function () use ($server, &$headers, &$answers, $sleep): void {
+                    while (null === $headers) {
+                        $sleep(0.001);
+                    }
+                    $sleep(0.01);
+                    $answers[] = $this->text($this->handshakeCall($server, $headers, 'holder', 3));
+                    $sleep(0.05);
+                    $answers[] = $this->text($this->handshakeCall($server, $headers, 'reader', 4));
+                },
+            ]);
+        } finally {
+            ob_end_flush();
+        }
+
+        $this->assertSame(['holder done', 'true'], $answers);
+        $this->assertMatchesRegularExpression('/"id":2,"result".*writer done/', $output);
+    }
+
+    private function lockedBuilder(FiberSchedulerInterface $scheduler): Builder
+    {
+        $directory = sys_get_temp_dir().'/mcp-event-loop-'.bin2hex(random_bytes(4));
+
+        return $this->builder($scheduler)->setSessionLock(new FileSessionLock($directory));
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function handshake(Server $server): array
+    {
+        $version = ProtocolVersion::V2025_11_25->value;
+        $response = $this->post($server, ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => [
+            'protocolVersion' => $version,
+            'capabilities' => new \stdClass(),
+            'clientInfo' => ['name' => 'event-loop-client', 'version' => '1.0.0'],
+        ]], []);
+        $headers = ['Mcp-Session-Id' => $response->getHeaderLine('Mcp-Session-Id'), 'MCP-Protocol-Version' => $version];
+        $this->post($server, ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'], $headers);
+
+        return $headers;
+    }
+
+    /**
+     * @param array<string, string> $headers
+     */
+    private function handshakeCall(Server $server, array $headers, string $tool, int $id): ResponseInterface
+    {
+        return $this->post($server, ['jsonrpc' => '2.0', 'id' => $id, 'method' => 'tools/call', 'params' => ['name' => $tool, 'arguments' => new \stdClass()]], $headers);
+    }
+
+    /**
+     * @param array<string, mixed>  $message
+     * @param array<string, string> $headers
+     */
+    private function post(Server $server, array $message, array $headers): ResponseInterface
+    {
+        $request = $this->factory->createServerRequest('POST', 'http://localhost/')
+            ->withHeader('Host', 'localhost')
+            ->withHeader('Content-Type', 'application/json')
+            ->withHeader('Accept', 'application/json, text/event-stream')
+            ->withBody($this->factory->createStream(json_encode($message, \JSON_THROW_ON_ERROR)));
+
+        foreach ($headers as $name => $value) {
+            $request = $request->withHeader($name, $value);
+        }
+
+        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory));
     }
 
     private function builder(FiberSchedulerInterface $scheduler): Builder
