@@ -107,12 +107,13 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 
         $jwksUri = null;
         $keySets = [];
-        $validator->keysForAlgorithm = static function (string $algorithm) use ($issuer, $cache, $httpClient, $requestFactory, &$jwksUri, &$keySets): CachedKeySet {
+        $jwksClient = new RateLimitedJwksClient($httpClient, $cache);
+        $validator->keysForAlgorithm = static function (string $algorithm) use ($issuer, $cache, $httpClient, $jwksClient, $requestFactory, &$jwksUri, &$keySets): CachedKeySet {
             $jwksUri ??= (new OidcDiscovery($cache, $httpClient, $requestFactory))->getJwksUri($issuer);
 
             // One set per algorithm, so a key without `alg` (as Entra publishes them) is
             // tagged with the token's - which already passed the allowlist.
-            return $keySets[$algorithm] ??= new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cache, 3600, true, $algorithm);
+            return $keySets[$algorithm] ??= new CachedKeySet($jwksUri, $jwksClient, $requestFactory, $cache, 3600, false, $algorithm);
         };
 
         return $validator;

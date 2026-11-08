@@ -98,7 +98,7 @@ final class AuthorizationResult
         return new self(false, 400, $error ?? 'invalid_request', $errorDescription, null, null);
     }
 
-    /** @param non-negative-int|null $retryAfter Suggested delay before retrying, in seconds */
+    /** @param int|null $retryAfter Suggested non-negative delay before retrying, in seconds */
     public static function unavailable(?int $retryAfter = null): self
     {
         return new self(false, 503, null, null, null, null, $retryAfter);

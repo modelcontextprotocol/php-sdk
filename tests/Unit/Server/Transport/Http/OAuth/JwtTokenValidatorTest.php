@@ -325,6 +325,25 @@ final class JwtTokenValidatorTest extends TestCase
         $this->assertFalse($response->hasHeader('Retry-After'));
     }
 
+    public function testRateLimitedJwksRefreshIsUnavailable(): void
+    {
+        $factory = new Psr17Factory();
+        $metadata = $factory->createStream(json_encode(['issuer' => self::ISSUER, 'jwks_uri' => self::ISSUER.'/jwks'], \JSON_THROW_ON_ERROR));
+        $client = $this->createMock(ClientInterface::class);
+        $client->expects($this->exactly(11))->method('sendRequest')->willReturn(
+            $factory->createResponse()->withBody($metadata),
+            ...array_fill(0, 10, $factory->createResponse(503)),
+        );
+        $cache = new ArrayAdapter();
+        $token = $this->token([]);
+
+        for ($attempt = 0; $attempt < 11; ++$attempt) {
+            $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+
+            $this->assertSame(503, $validator->validate($token)->getStatusCode());
+        }
+    }
+
     public function testFromIssuerTagsKeysWithoutAlgorithmPerToken(): void
     {
         $ec = openssl_pkey_new(['private_key_type' => \OPENSSL_KEYTYPE_EC, 'curve_name' => 'prime256v1']);
