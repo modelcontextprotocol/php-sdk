@@ -312,12 +312,10 @@ class ClientGateway
      * capabilities to determine if roots/list requests are supported.
      *
      * @return bool True if the client supports roots, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsRoots(): bool
     {
-        $capabilities = $this->clientCapabilities();
+        $capabilities = (array) $this->session->get('client_capabilities', []);
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('roots', $capabilities);
@@ -331,12 +329,10 @@ class ClientGateway
      * to determine if elicitation/create requests are supported.
      *
      * @return bool True if the client supports elicitation, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsElicitation(): bool
     {
-        $capabilities = $this->clientCapabilities();
+        $capabilities = (array) $this->session->get('client_capabilities', []);
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('elicitation', $capabilities);
@@ -350,12 +346,10 @@ class ClientGateway
      * sampling/createMessage requests are supported.
      *
      * @return bool True if the client supports sampling, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSampling(): bool
     {
-        $capabilities = $this->clientCapabilities();
+        $capabilities = (array) $this->session->get('client_capabilities', []);
 
         // MCP spec: capability presence indicates support (value is typically {} or [])
         return \array_key_exists('sampling', $capabilities);
@@ -370,8 +364,6 @@ class ClientGateway
      * {@see self::sample()}.
      *
      * @return bool True if the client supports tool-enabled sampling, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSamplingTools(): bool
     {
@@ -385,8 +377,6 @@ class ClientGateway
      * only be sent when the client advertised `sampling.context`.
      *
      * @return bool True if the client supports sampling context, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsSamplingContext(): bool
     {
@@ -400,8 +390,6 @@ class ClientGateway
      * that existed before URL elicitation — so url mode has to be named explicitly.
      *
      * @return bool True if the client supports url-mode elicitation, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsElicitationUrl(): bool
     {
@@ -417,8 +405,6 @@ class ClientGateway
      * to a text-only result otherwise.
      *
      * @return bool True if the client advertised the extension, false otherwise
-     *
-     * @throws SessionRequiredException if the server runs without sessions
      */
     public function supportsExtension(ExtensionIdentifier|string $id): bool
     {
@@ -433,7 +419,7 @@ class ClientGateway
      */
     private function hasSubCapability(string $capability, string $name): bool
     {
-        $capabilities = $this->clientCapabilities();
+        $capabilities = (array) $this->session->get('client_capabilities', []);
         $declared = $capabilities[$capability] ?? null;
 
         if (\is_array($declared)) {
@@ -503,22 +489,6 @@ class ClientGateway
         }
 
         return $response;
-    }
-
-    /**
-     * The capabilities the client declared on `initialize`, which only a session keeps for later requests.
-     *
-     * @return array<string, mixed>
-     *
-     * @throws SessionRequiredException if the server runs without sessions
-     */
-    private function clientCapabilities(): array
-    {
-        if ($this->session instanceof EphemeralSessionInterface) {
-            throw new SessionRequiredException('The client capabilities need a session; configure one with Builder::setSession().');
-        }
-
-        return (array) $this->session->get('client_capabilities', []);
     }
 
     /**

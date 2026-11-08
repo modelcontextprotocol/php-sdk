@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
-use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\ProtocolVersion;
@@ -266,14 +265,36 @@ final class SessionlessHttpTest extends TestCase
         yield 'absent' => [[StreamableHttpTransport::PROTOCOL_VERSION_HEADER => null], ProtocolVersion::DEFAULT_HEADER_VERSION->value];
     }
 
-    #[TestDox('a client capability check fails loud, as the capabilities the client declared on initialize are not known to later requests')]
-    public function testClientCapabilityCheckFailsLoud(): void
+    #[TestDox('$check() answers false, so that a handler can fall back, as the client cannot be asked and what it declared is not known')]
+    #[DataProvider('provideClientCapabilityChecks')]
+    public function testClientCapabilityCheckAnswersFalse(string $check): void
     {
         $this->send('POST', $this->initialize());
 
-        $response = $this->send('POST', $this->request('tools/call', ['name' => 'supports-elicitation', 'arguments' => new \stdClass()]));
+        $response = $this->send('POST', $this->request('tools/call', ['name' => 'supports', 'arguments' => ['check' => $check]]));
 
-        $this->assertSame('The client capabilities need a session; configure one with Builder::setSession().', self::decode($response)['result']['content'][0]['text']);
+        $this->assertSame('fallback', self::decode($response)['result']['content'][0]['text']);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideClientCapabilityChecks(): iterable
+    {
+        yield 'supportsRoots' => ['supportsRoots'];
+        yield 'supportsElicitation' => ['supportsElicitation'];
+        yield 'supportsElicitationUrl' => ['supportsElicitationUrl'];
+        yield 'supportsSampling' => ['supportsSampling'];
+        yield 'supportsSamplingTools' => ['supportsSamplingTools'];
+        yield 'supportsSamplingContext' => ['supportsSamplingContext'];
+    }
+
+    #[TestDox('supportsExtension() answers false, so that a tool can fall back to its text-only result')]
+    public function testSupportsExtensionAnswersFalse(): void
+    {
+        $response = $this->send('POST', $this->request('tools/call', ['name' => 'supports-extension', 'arguments' => new \stdClass()]));
+
+        $this->assertSame('text-only', self::decode($response)['result']['content'][0]['text']);
     }
 
     #[TestDox('what a handler sets on the session is gone on the next request, and saving it fails loud')]
@@ -346,7 +367,8 @@ final class SessionlessHttpTest extends TestCase
             }, 'notify-then-suspend-on-request')
             ->addTool(static fn (): InputRequiredResult => new InputRequiredResult(['name' => ElicitRequest::forForm('Name?', self::schema())]), 'ask-for-input')
             ->addTool(static fn (RequestContext $context): string => $context->getProtocolVersion()->value, 'protocol-version')
-            ->addTool(static fn (RequestContext $context): string => self::refusal(static fn (): bool => $context->getClientGateway()->supportsElicitation()), 'supports-elicitation')
+            ->addTool(static fn (RequestContext $context, string $check): string => $context->getClientGateway()->{$check}() ? 'asked' : 'fallback', 'supports')
+            ->addTool(static fn (RequestContext $context): string => $context->getClientGateway()->supportsExtension('io.modelcontextprotocol/ui') ? 'app' : 'text-only', 'supports-extension')
             ->addTool(static function (RequestContext $context): string {
                 $context->getSession()->set('memo', 'remembered');
 
@@ -367,20 +389,6 @@ final class SessionlessHttpTest extends TestCase
 
     private static function answered(mixed $answer): string
     {
-        return 'answered';
-    }
-
-    /**
-     * @param \Closure(): mixed $ask
-     */
-    private static function refusal(\Closure $ask): string
-    {
-        try {
-            $ask();
-        } catch (SessionRequiredException $e) {
-            return $e->getMessage();
-        }
-
         return 'answered';
     }
 
