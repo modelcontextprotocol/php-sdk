@@ -22,6 +22,7 @@ final class RecordingFiberContext implements FiberContextInterface
     public string $parent = 'parent';
     public int $created = 0;
     public int $released = 0;
+    public ?\Throwable $wrapFailure = null;
 
     /** @var \WeakMap<object, string> */
     private \WeakMap $contexts;
@@ -33,6 +34,10 @@ final class RecordingFiberContext implements FiberContextInterface
 
     public function wrap(\Closure $handler): \Closure
     {
+        if (null !== $this->wrapFailure) {
+            throw $this->wrapFailure;
+        }
+
         $context = $this->current();
         ++$this->created;
 

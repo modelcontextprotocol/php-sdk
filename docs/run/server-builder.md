@@ -347,6 +347,7 @@ A fiber scheduler lets handlers await I/O while the event loop serves other requ
 - A [session lock](sessions.md#concurrent-requests) stays held while a handler awaits I/O. Another request of the
   same session in the same process waits on the event loop until the lock is free. This wait has no timeout. If
   another process holds the lock, the lock backend blocks the event loop while it waits, up to its timeout.
+
 ### Fiber Context
 
 Some libraries keep their context per fiber. For example, OpenTelemetry raises a warning when code reads its context
@@ -378,15 +379,30 @@ final class OpenTelemetryFiberContext implements FiberContextInterface
 }
 
 $server = Server::builder()
-    ->setFiberContext(new OpenTelemetryFiberContext());
+    ->setFiberContext(new OpenTelemetryFiberContext())
+    ->build();
 ```
 
 The returned closure must call `$handler` once and return its result. The `finally` block also runs when the server
 discards a suspended fiber.
 
 Under an event loop, every request runs in its own fiber, so OpenTelemetry raises the same warning in `wrap()`. Activate
-a context in that fiber first, for example with `Context::getRoot()->activate()`. Fibers that a handler starts itself
-(e.g. with `Amp\async()`) don't get the context.
+a context in that fiber before you run the server, and detach it in a `finally` block:
+
+```php
+$scope = Context::getRoot()->activate();
+
+try {
+    $response = $server->run($transport);
+} finally {
+    $scope->detach();
+}
+```
+
+Keep the returned scope in a variable. If PHP assertions are enabled, OpenTelemetry raises a notice when a scope is
+destroyed before you detach it.
+
+Fibers that a handler starts itself (e.g. with `Amp\async()`) don't get the context.
 
 ## Complete Example
 
