@@ -247,7 +247,25 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Run after all merges so that when a Schema attribute reshapes the parameter
         // (e.g. to `object`), the array `items` invariant is only enforced on what is
         // genuinely still an array.
-        return $this->ensureArrayItems($mergedSchema);
+        return $this->ensureObjectDefault($this->ensureArrayItems($mergedSchema));
+    }
+
+    /**
+     * An empty PHP array encodes as `[]`, which a client could not send back to an object-only parameter.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private function ensureObjectDefault(array $schema): array
+    {
+        $types = (array) ($schema['type'] ?? []);
+
+        if ([] === ($schema['default'] ?? null) && \in_array('object', $types, true) && !\in_array('array', $types, true)) {
+            $schema['default'] = new \stdClass();
+        }
+
+        return $schema;
     }
 
     /**
@@ -308,12 +326,6 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Add default value only if parameter actually has a default
         if ($paramInfo['has_default']) {
             $paramSchema['default'] = $paramInfo['default_value'];
-
-            // An empty PHP array encodes as `[]`, which a client could not send back to an object-only parameter.
-            $types = (array) ($paramSchema['type'] ?? []);
-            if ([] === $paramSchema['default'] && \in_array('object', $types, true) && !\in_array('array', $types, true)) {
-                $paramSchema['default'] = new \stdClass();
-            }
         }
 
         // Handle enums

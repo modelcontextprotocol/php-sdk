@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
+use Mcp\Capability\Attribute\Schema;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaValidator;
@@ -706,6 +707,43 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertSame('{}', json_encode($properties['nullableMap']['default']));
         $this->assertSame('[]', json_encode($properties['mapOrList']['default']));
         $this->assertSame('[]', json_encode($properties['list']['default']));
+    }
+
+    public function testEmptyDefaultFollowsTheFinalType(): void
+    {
+        $handler = new class {
+            /**
+             * @param array<string, int> $toArray
+             * @param array<string, int> $toDefinition
+             */
+            public function handle(
+                #[Schema(type: 'array')]
+                array $toArray = [],
+                #[Schema(definition: ['type' => 'array'])]
+                array $toDefinition = [],
+                #[Schema(type: 'object')]
+                array $toObject = [],
+            ): void {
+            }
+
+            /**
+             * @param array<string, int> $map
+             */
+            #[Schema(properties: ['map' => ['type' => 'array']])]
+            public function method(array $map = []): void
+            {
+            }
+        };
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'handle'))['properties'];
+
+        $this->assertSame('[]', json_encode($properties['toArray']['default']));
+        $this->assertSame('[]', json_encode($properties['toDefinition']['default']));
+        $this->assertSame('{}', json_encode($properties['toObject']['default']));
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'method'))['properties'];
+
+        $this->assertSame('[]', json_encode($properties['map']['default']));
     }
 
     public function testListOfGenericArraysIsAList(): void

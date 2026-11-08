@@ -73,6 +73,13 @@ final class MessageFactoryTest extends TestCase
         $this->factory->create('{}');
     }
 
+    public function testMalformedJsonAfterAMemberNameStartingWithNulIsAParseError(): void
+    {
+        $this->expectException(\JsonException::class);
+
+        $this->factory->create('{"id":1,"\u0000x":1,}');
+    }
+
     public function testAnObjectWithNumericKeysIsNotABatch(): void
     {
         $this->expectException(InvalidInputMessageException::class);

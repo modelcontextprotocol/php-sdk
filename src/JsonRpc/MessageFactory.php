@@ -127,11 +127,13 @@ final class MessageFactory
 
     /**
      * Valid JSON, but a PHP object cannot hold a property whose name starts with NUL.
+     *
+     * @throws \JsonException when the input is malformed after that name
      */
     private static function invalidMemberName(string $input): InvalidInputMessageException
     {
         $exception = new InvalidInputMessageException('A JSON-RPC message must not have a member name starting with a NUL byte.');
-        $id = json_decode($input, true)['id'] ?? null;
+        $id = json_decode($input, true, flags: \JSON_THROW_ON_ERROR)['id'] ?? null;
 
         if (\is_string($id) || \is_int($id)) {
             $exception->setRequestId($id);
