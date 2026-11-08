@@ -20,6 +20,7 @@ use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Handler\Request\PingHandler;
 use Mcp\Server\Protocol;
 use Mcp\Server\RequestContext;
+use Mcp\Server\Session\FileSessionStore;
 use Mcp\Server\Session\InMemorySessionStore;
 use Mcp\Server\Session\Session;
 use Mcp\Server\Session\SessionManager;
@@ -29,6 +30,7 @@ use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingLogger;
 use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -37,6 +39,8 @@ use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\MiddlewareInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -176,6 +180,7 @@ final class SessionBindingTest extends TestCase
      */
     public static function provideDataWithoutAttributes(): iterable
     {
+        yield 'an empty string' => [''];
         yield 'empty' => ['[]'];
         yield 'not JSON' => ['{'];
         yield 'not a list of attributes' => ['null'];
@@ -188,6 +193,51 @@ final class SessionBindingTest extends TestCase
         $this->store->write($session, $data);
 
         $this->assertSame(404, $this->call($session->toRfc4122(), 'alice.ide.1')->getStatusCode());
+    }
+
+    public function testZeroByteSessionFileIsNotFound(): void
+    {
+        $directory = sys_get_temp_dir().'/mcp-session-binding-'.bin2hex(random_bytes(6));
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setSession(new FileSessionStore($directory))
+            ->addTool(self::whoami(...), name: 'whoami')
+            ->build();
+
+        try {
+            $session = $this->server($server, $this->request('POST', $this->initializeRequest(), 'alice.ide.1'))->getHeaderLine('Mcp-Session-Id');
+            file_put_contents($directory.\DIRECTORY_SEPARATOR.$session, '');
+
+            $this->assertSame(404, $this->server($server, $this->request('POST', $this->toolCall(), 'alice.ide.1', $session))->getStatusCode());
+        } finally {
+            array_map('unlink', glob($directory.'/*') ?: []);
+            rmdir($directory);
+        }
+    }
+
+    public function testRefusalOfAnotherPrincipalIsLoggedAsSuch(): void
+    {
+        $logger = new RecordingLogger();
+        $protocol = $this->protocol(logger: $logger);
+        $session = $this->sessionWithQueuedMessage($protocol);
+
+        $this->post($protocol, self::PING, $session, 'carol');
+
+        $this->assertSame(['Refused a request: the session was opened by another principal.'], $logger->messagesAt('warning'));
+    }
+
+    public function testRefusalOfASessionThatRecordsNoPrincipalIsNotLoggedAsAnotherPrincipal(): void
+    {
+        $logger = new RecordingLogger();
+        $protocol = $this->protocol(logger: $logger);
+        $session = Uuid::v4();
+        $this->store->write($session, '{');
+
+        $this->assertSame(404, $this->post($protocol, self::PING, $session, 'alice')->getStatusCode());
+        $this->assertSame(404, $this->endSession($protocol, $session, 'alice')->getStatusCode());
+
+        $reason = 'the session does not record who opened it, so it was cleared, is corrupt or predates the principal binding.';
+        $this->assertSame(['Refused a request: '.$reason, 'Refused a DELETE: '.$reason], $logger->messagesAt('warning'));
     }
 
     public function testSessionFromBeforeTheUpgradeIsNotFound(): void
@@ -375,13 +425,14 @@ final class SessionBindingTest extends TestCase
         return $this->serve($request, [new PassthroughMiddleware()]);
     }
 
-    private function protocol(int $gcProbability = 0): Protocol
+    private function protocol(int $gcProbability = 0, LoggerInterface $logger = new NullLogger()): Protocol
     {
         return new Protocol(
             requestHandlers: [new PingHandler()],
             notificationHandlers: [],
             messageFactory: MessageFactory::make(),
             sessionManager: new SessionManager($this->store, gcProbability: $gcProbability, gcDivisor: 1),
+            logger: $logger,
         );
     }
 
@@ -402,6 +453,16 @@ final class SessionBindingTest extends TestCase
     private function post(Protocol $protocol, string $input, Uuid $session, string $principal): ResponseInterface
     {
         $request = $this->request('POST', $input, null, $session->toRfc4122())
+            ->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, $principal);
+        $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, middleware: [new PassthroughMiddleware()]);
+        $protocol->connect($transport);
+
+        return $transport->listen();
+    }
+
+    private function endSession(Protocol $protocol, Uuid $session, string $principal): ResponseInterface
+    {
+        $request = $this->request('DELETE', '', null, $session->toRfc4122())
             ->withAttribute(StreamableHttpTransport::PRINCIPAL_ATTRIBUTE, $principal);
         $transport = new StreamableHttpTransport($request, $this->factory, $this->factory, middleware: [new PassthroughMiddleware()]);
         $protocol->connect($transport);

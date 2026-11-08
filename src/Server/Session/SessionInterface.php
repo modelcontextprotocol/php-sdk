@@ -54,7 +54,7 @@ interface SessionInterface extends \JsonSerializable
     public function forget(string $key): void;
 
     /**
-     * Remove all attributes from the session.
+     * Remove all attributes from the session, including who opened it: once saved, the session serves no one.
      */
     public function clear(): void;
 
