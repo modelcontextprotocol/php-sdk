@@ -184,9 +184,18 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
             maxBodyBytes: 10,
         );
 
-        $response = $middleware->process($this->request('Bearer abc', $this->toolCall('x')), $this->passthroughHandler);
+        $handler = $this->capturingHandler();
 
-        $this->assertSame(400, $response->getStatusCode());
+        $response = $middleware->process($this->request('Bearer abc', $this->toolCall('x')), $handler);
+
+        $this->assertSame(413, $response->getStatusCode());
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $this->assertFalse($response->hasHeader('WWW-Authenticate'));
+        $this->assertSame(
+            ['jsonrpc' => '2.0', 'error' =>['code' => -32600, 'message' => 'Request body exceeds the maximum allowed size of 10 bytes.']],
+            json_decode((string) $response->getBody(), true),
+        );
+        $this->assertNull($handler->request);
     }
 
     private function middleware(?AuthorizationTokenValidatorInterface $validator = null, ?ScopePolicy $policy = null): AuthorizationMiddleware

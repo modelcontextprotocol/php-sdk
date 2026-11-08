@@ -108,6 +108,7 @@ $middleware = new AuthorizationMiddleware(
     validator: $validator,         // AuthorizationTokenValidatorInterface
     resourceMetadata: $metadata,   // ProtectedResourceMetadata
     scopePolicy: $scopePolicy,     // ScopePolicy|null, no scope checks if null
+    maxBodyBytes: $maxBodyBytes,   // default: 4 MiB, applies when the ScopePolicy reads the body
 );
 ```
 
@@ -119,6 +120,7 @@ $middleware = new AuthorizationMiddleware(
 | Malformed Bearer token | 400 with `error="invalid_request"` |
 | Invalid/expired token | 401 with `error="invalid_token"` |
 | Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
+| Valid token, body over `maxBodyBytes` while the `ScopePolicy` reads it | 413 with a JSON-RPC error |
 | Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
 
 The `resource_metadata` URL is derived from the configured resource, never from the request's
@@ -142,7 +144,8 @@ $scopePolicy = new ScopePolicy(
 
 On a missing scope the client gets a 403 naming all scopes the request needs, so it can step up
 in a single authorization round trip. Method and tool rules make the middleware read the request
-body; it is handed on to the transport unchanged.
+body; it is handed on to the transport unchanged. The middleware reads it first and has its own
+`maxBodyBytes`, so when you change the limit, [set the same value on both](http.md#request-body-size-limit).
 
 ### ProtectedResourceMetadata
 

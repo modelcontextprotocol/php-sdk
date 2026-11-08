@@ -9,6 +9,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 * [BC Break] Remove JSON-RPC batch support: a JSON array is refused with `-32600`, and HTTP status `400` over HTTP, for every protocol revision. This includes `2025-03-26`, which requires batches and which the server still negotiates. Batching was removed from MCP in `2025-06-18`.
 * [BC Break] `ScopePolicy::requiredFor()` takes one decoded message, renames its parameter from `$payload` to `$message` and returns only the default scopes for a list.
+* [BC Break] `AuthorizationMiddleware` answers a body over its `maxBodyBytes` with `413` and a JSON-RPC error, like the transports, instead of `400` with a `WWW-Authenticate` challenge.
 * [BC Break] Modern tools with an `outputSchema` send and validate a null result as structured content, with JSON text `null` alongside it. A tool whose schema does not allow null, including a `void` tool as PHP hands back null for it, now returns a tool error instead of the text `(null)` and a warning. Schema-less null results and handshake-era automatic wrapping still omit structured content.
 * [BC Break] `ToolReference::extractStructuredContent()` returns `StructuredContent::Absent` when there is no structured content to send, as null is now a value it can return.
 * [BC Break] Require `phpdocumentor/reflection-docblock` `^6.0`, and with it `phpdocumentor/type-resolver` `^2.0` and `phpstan/phpdoc-parser` `^2.0`. Older versions cannot parse types like `non-empty-array<T>`, and the SDK silently ignores such a `@param`.

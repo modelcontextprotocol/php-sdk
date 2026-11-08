@@ -12,6 +12,7 @@
 namespace Mcp\Server\Transport\Http\Middleware;
 
 use Http\Discovery\Psr17FactoryDiscovery;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
@@ -51,7 +52,7 @@ final class AuthorizationMiddleware implements MiddlewareInterface
      * @param AuthorizationTokenValidatorInterface $validator        Token validator implementation
      * @param ProtectedResourceMetadata            $resourceMetadata Metadata of this resource, its URL is advertised in challenges
      * @param ScopePolicy|null                     $scopePolicy      Scopes required per request, none if null
-     * @param int                                  $maxBodyBytes     Upper bound for reading the body when the scope policy inspects it
+     * @param int                                  $maxBodyBytes     Upper bound for reading the body when the scope policy inspects it, a larger body gets 413; set it together with the transport's `maxBodyBytes`
      */
     public function __construct(
         private readonly AuthorizationTokenValidatorInterface $validator,
@@ -95,7 +96,12 @@ final class AuthorizationMiddleware implements MiddlewareInterface
             if ('POST' === $request->getMethod() && $this->scopePolicy->inspectsBody()) {
                 $body = $this->readBoundedBody($request->getBody(), $this->maxBodyBytes);
                 if (null === $body) {
-                    return $this->buildErrorResponse(AuthorizationResult::badRequest('invalid_request', 'Request body is too large.'));
+                    return $this->responseFactory->createResponse(413)
+                        ->withHeader('Content-Type', 'application/json')
+                        ->withBody($this->streamFactory->createStream(json_encode(
+                            Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)),
+                            \JSON_THROW_ON_ERROR,
+                        )));
                 }
 
                 // Handed on byte for byte: the transport reads the body again.
