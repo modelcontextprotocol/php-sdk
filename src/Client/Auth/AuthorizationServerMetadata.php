@@ -30,7 +30,7 @@ final class AuthorizationServerMetadata
      * @param ?string   $registrationEndpoint              where a client can register itself, when the server allows it
      * @param string[]  $scopesSupported                   scopes the server knows about
      * @param ?string[] $grantTypesSupported               grant types the server accepts, or null when it does not say
-     * @param string[]  $tokenEndpointAuthMethodsSupported client authentication methods the token endpoint accepts
+     * @param string[]  $tokenEndpointAuthMethodsSupported client authentication methods the token endpoint accepts, empty when unstated, which RFC 8414 section 2 reads as client_secret_basic
      * @param string[]  $codeChallengeMethodsSupported     PKCE challenge methods the server accepts
      * @param bool      $clientIdMetadataDocumentSupported whether a URL may be used as the client id
      * @param bool      $issuerParameterSupported          whether authorization responses carry an "iss" parameter
