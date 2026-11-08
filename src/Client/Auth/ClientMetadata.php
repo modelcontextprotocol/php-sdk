@@ -18,7 +18,7 @@ namespace Mcp\Client\Auth;
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-final class ClientMetadata implements \JsonSerializable
+final class ClientMetadata
 {
     /**
      * @param string   $clientName      the name shown to the user on the consent screen
@@ -60,18 +60,5 @@ final class ClientMetadata implements \JsonSerializable
             'software_version' => $this->softwareVersion,
             'scope' => $scope,
         ], static fn (mixed $value): bool => null !== $value && [] !== $value);
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    public function jsonSerialize(): array
-    {
-        return $this->toArray(TokenEndpointAuthMethod::None);
-    }
-
-    public function withGrantTypes(string ...$grantTypes): self
-    {
-        return new self($this->clientName, $this->redirectUris, $grantTypes, $this->applicationType, $this->clientUri, $this->softwareId, $this->softwareVersion);
     }
 }
