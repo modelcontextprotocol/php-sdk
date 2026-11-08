@@ -49,6 +49,16 @@ final class ProtectedResourceMetadataTest extends TestCase
         yield 'a dot segment with an encoded slash' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..%2fother', false];
         yield 'a single dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/./mcp', false];
         yield 'a dot segment in the resource' => ['https://mcp.example.com/api/..', 'https://mcp.example.com/api/../mcp', false];
+        yield 'a dot segment before a backslash' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..\admin', false];
+        yield 'a dot segment before an encoded backslash' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..%5cadmin', false];
+        yield 'a dot segment between encoded backslashes' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/%5c..%5cadmin', false];
+        yield 'a nested dot segment with encoded backslashes' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/x%5c..%5c..%5cadmin', false];
+        yield 'a dot segment with a path parameter' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..;/admin', false];
+        yield 'an encoded dot segment with a path parameter' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/%2e%2e;/admin', false];
+        yield 'a dot segment with an encoded semicolon' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..%3b/admin', false];
+        yield 'an encoded backslash without a dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/a%5Cb', true];
+        yield 'a path parameter without a dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/a;v=1/b', true];
+        yield 'dots before a path parameter that are no dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/..foo;v=1', true];
         yield 'dots that are no dot segment' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/a..b/...', true];
         yield 'dots in the query' => ['https://mcp.example.com/api', 'https://mcp.example.com/api/x?y=/../z', true];
 

@@ -129,8 +129,10 @@ final class ProtectedResourceMetadata
 
     private static function hasDotSegment(string $path): bool
     {
-        // Rejected rather than resolved, since the server may resolve them differently than we would.
-        foreach (explode('/', rawurldecode($path)) as $segment) {
+        // Rejected rather than resolved, since the server may resolve them differently than we would, e.g. after a backslash or before a `;`.
+        foreach (explode('/', strtr(rawurldecode($path), '\\', '/')) as $segment) {
+            $segment = explode(';', $segment, 2)[0];
+
             if ('.' === $segment || '..' === $segment) {
                 return true;
             }
