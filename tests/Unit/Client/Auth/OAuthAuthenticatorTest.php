@@ -1371,6 +1371,47 @@ final class OAuthAuthenticatorTest extends TestCase
         $authenticator->handleChallenge($this->request(), $server->challenge());
     }
 
+    #[TestDox('a client metadata URL is the client id where the server supports it')]
+    public function testUsesTheClientMetadataUrlAsClientId(): void
+    {
+        $server = new FakeOAuthServer(clientMetadataDocuments: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientMetadataUrl('https://app.example.com/client.json'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+        $this->assertSame('https://app.example.com/client.json', $server->authorization['client_id'] ?? null);
+        $this->assertSame('https://app.example.com/client.json', $server->token['client_id'] ?? null);
+    }
+
+    #[TestDox('a client metadata URL is ignored where the server does not support it')]
+    public function testRegistersWithoutClientMetadataSupport(): void
+    {
+        $server = new FakeOAuthServer();
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientMetadataUrl('https://app.example.com/client.json'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertContains('https://auth.example.com/register', $server->requested);
+        $this->assertNotSame('https://app.example.com/client.json', $server->authorization['client_id'] ?? null);
+    }
+
+    #[TestDox('a configured client id wins over a client metadata URL')]
+    public function testConfiguredClientIdWinsOverTheClientMetadataUrl(): void
+    {
+        $server = new FakeOAuthServer(clientMetadataDocuments: true);
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')
+            ->setClientCredentials('known-client')
+            ->setExpectedIssuer('https://auth.example.com')
+            ->setClientMetadataUrl('https://app.example.com/client.json'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('known-client', $server->authorization['client_id'] ?? null);
+    }
+
     /**
      * @return iterable<string, array{?string[]}>
      */
@@ -1573,6 +1614,7 @@ final class FakeOAuthServer implements ClientInterface
         private readonly ?array $codeChallengeMethods = ['S256'],
         private readonly ?string $authorizationEndpoint = null,
         private readonly bool $announcesIssuer = true,
+        private readonly bool $clientMetadataDocuments = false,
     ) {
     }
 
@@ -1620,6 +1662,7 @@ final class FakeOAuthServer implements ClientInterface
                 'authorization_endpoint' => null !== $this->authorizationEndpoint ? $this->authorizationEndpoint : ($this->hasAuthorizationEndpoint ? ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/authorize' : null),
                 'token_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/token',
                 'registration_endpoint' => ($this->insecureEndpoints ? 'http' : 'https').'://auth.example.com/register',
+                'client_id_metadata_document_supported' => $this->clientMetadataDocuments,
                 'scopes_supported' => $this->serverScopes,
                 'grant_types_supported' => $this->hasAuthorizationEndpoint ? $this->grantTypes : ['client_credentials'],
                 'code_challenge_methods_supported' => $this->codeChallengeMethods,
