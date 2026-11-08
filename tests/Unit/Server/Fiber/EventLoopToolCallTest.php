@@ -73,6 +73,10 @@ final class EventLoopToolCallTest extends TestCase
 
         $this->assertSame(-32603, $answer['error']['code'] ?? null);
         $this->assertFalse($this->tookTheResult);
+
+        // The call failed, but the loop still resumes the tool.
+        $this->loop->drain();
+        $this->assertTrue($this->tookTheResult);
     }
 
     #[TestDox('without a scheduler, a tool awaiting I/O after a notification still answers over the open stream')]

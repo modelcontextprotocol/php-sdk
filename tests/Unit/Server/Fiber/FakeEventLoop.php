@@ -16,7 +16,8 @@ use Mcp\Server\Fiber\FiberSettlement;
 
 /**
  * The smallest event loop: what a handler awaits suspends its fiber with nothing, as Revolt does, and the
- * loop resumes it with the result on a later turn — from its own context, never from the server's.
+ * loop resumes it with the result on a later turn. Unlike a real loop, wait() runs its turns on the stack
+ * of the fiber that drives the handler.
  */
 final class FakeEventLoop implements FiberSchedulerInterface
 {
@@ -36,6 +37,16 @@ final class FakeEventLoop implements FiberSchedulerInterface
         };
 
         return \Fiber::suspend();
+    }
+
+    /**
+     * Runs the turns left, as a loop does whether or not the server still waits on the fiber.
+     */
+    public function drain(): void
+    {
+        while (null !== $turn = array_shift($this->ready)) {
+            $turn();
+        }
     }
 
     public function wait(FiberSettlement $settlement): void
