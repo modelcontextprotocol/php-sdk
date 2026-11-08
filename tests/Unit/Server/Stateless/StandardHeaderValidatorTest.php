@@ -260,9 +260,11 @@ class StandardHeaderValidatorTest extends TestCase
         yield 'integral float argument' => ['42', 42.0];
         yield 'integral float argument and fraction' => ['42.0', 42.0];
         yield 'negative zero float argument' => ['0', -0.0];
-        yield 'integer beyond the double range' => ['9007199254740993', 9007199254740993];
-        yield 'float beyond the double range' => ['9007199254740992', 9007199254740992.0];
+        yield 'largest safe integer' => ['9007199254740991', 9007199254740991];
+        yield 'smallest safe integer' => ['-9007199254740991', -9007199254740991];
+        yield 'largest safe integer as float argument' => ['9007199254740991', 9007199254740991.0];
         yield 'non-integral float argument' => ['1.5', 1.5];
+        yield 'long decimal rounding to a non-integral float argument' => ['1.50000000000000000001', 1.5];
     }
 
     #[DataProvider('numericMismatches')]
@@ -280,19 +282,42 @@ class StandardHeaderValidatorTest extends TestCase
      */
     public static function numericMismatches(): iterable
     {
-        yield 'integers sharing a double' => ['9007199254740992', 9007199254740993];
-        yield 'integers sharing a double, the other way around' => ['9007199254740993', 9007199254740992];
-        yield 'negative integers sharing a double' => ['-9007199254740992', -9007199254740993];
-        yield 'integers near PHP_INT_MAX' => ['9223372036854775806', \PHP_INT_MAX];
-        yield 'integer and float sharing a double' => ['9007199254740993', 9007199254740992.0];
+        yield 'header beyond the safe range' => ['9007199254740992', 9007199254740991];
+        yield 'header beyond the integer range' => ['18446744073709551616', 42];
         yield 'fraction rounding up' => ['41.99999999999999999999', 42];
         yield 'fraction rounding down' => ['42.00000000000000000001', 42];
         yield 'fraction rounding to an integral float' => ['41.99999999999999999999', 42.0];
         yield 'wrapped trailing newline' => ['=?base64?NDIK?=', 42];
     }
 
+    #[DataProvider('unsafeIntegers')]
+    public function testArgumentOutsideTheSafeIntegerRangeIsRefused(string $header, int|float $argument): void
+    {
+        $this->assertStringContainsString('outside the safe integer range', (string) (new StandardHeaderValidator(self::registryWithMirroredTool()))->validate(
+            'tools/call',
+            ['name' => 'mirrored', 'arguments' => ['retries' => $argument]],
+            ['Mcp-Method' => 'tools/call', 'Mcp-Name' => 'mirrored', 'Mcp-Param-Retries' => $header],
+        ));
+    }
+
+    /**
+     * @return iterable<string, array{string, int|float}>
+     */
+    public static function unsafeIntegers(): iterable
+    {
+        yield 'just above' => ['9007199254740992', 9007199254740992];
+        yield 'just below' => ['-9007199254740992', -9007199254740992];
+        yield 'integers sharing a double' => ['9007199254740992', 9007199254740993];
+        yield 'float argument' => ['9007199254740992', 9007199254740992.0];
+        yield 'PHP_INT_MAX' => ['9223372036854775807', \PHP_INT_MAX];
+        yield 'PHP_INT_MIN' => ['-9223372036854775808', \PHP_INT_MIN];
+        yield 'beyond the integer range' => ['18446744073709551616', 18446744073709551616.0];
+        yield 'non-decimal header' => ['1e23', 1e23];
+        yield 'infinity' => ['1', \INF];
+    }
+
     #[DataProvider('nonScalarArguments')]
-    public function testNonScalarArgumentDisagreesWithHeader(array|object $argument): void
+    public function testNonScalarArgumentDisagreesWithHeader(array $argument): void
     {
         $this->assertStringContainsString('cannot be mirrored', (string) (new StandardHeaderValidator(self::registryWithMirroredTool()))->validate(
             'tools/call',
@@ -302,12 +327,13 @@ class StandardHeaderValidatorTest extends TestCase
     }
 
     /**
-     * @return iterable<string, array{array<mixed>|object}>
+     * @return iterable<string, array{array<mixed>}>
      */
     public static function nonScalarArguments(): iterable
     {
         yield 'list' => [[8]];
-        yield 'object' => [(object) ['id' => 8]];
+        yield 'object' => [['id' => 8]];
+        yield 'empty' => [[]];
     }
 
     #[TestDox('a numeric-looking string argument keeps its exact-match comparison')]

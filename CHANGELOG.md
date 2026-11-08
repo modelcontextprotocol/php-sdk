@@ -61,7 +61,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * Fix a modern-era result that cannot be encoded as JSON, e.g. tool or resource text that is not valid UTF-8, escaping as an uncaught `JsonException` or ending a stream without an answer: the client gets `-32603`, with HTTP status `500` or as the last frame of a stream, and the failure is logged and dispatched as an `ErrorEvent`. Outside a stream, an error message that is not valid UTF-8 has the invalid bytes replaced.
 * Fix a stdio server on Windows ending by itself after about 13.5 hours without input, when `fgets()` on the idle pipe reported a false EOF: `StdioTransport` now reads only once `stream_select()` reports input, which also keeps the run loop going while idle. Requires PHP 8.5, as `stream_select()` on Windows reports an idle pipe as readable before that.
 * Fix `StdioTransport` throwing a `ValueError` on an input that cannot be selected, like `php://memory`.
-* Fix `StandardHeaderValidator` accepting an `Mcp-Param-*` header that does not match the body: integers beyond 2^53 and long decimals that round to the same float, and object or array arguments, are refused with `-32020`.
+* Fix `StandardHeaderValidator` accepting an `Mcp-Param-*` header that does not match the body: a fraction that rounds to an integer argument and object or array arguments are refused with `-32020`, and so is a mirrored argument outside the safe integer range of ±(2^53-1).
 
 ### Client
 

@@ -30,6 +30,8 @@ final class StandardHeaderValidator
     public const NAME_HEADER = McpHeader::NAME;
     public const PARAM_HEADER_PREFIX = McpHeader::PARAM_PREFIX;
 
+    private const MAX_SAFE_INTEGER = 9007199254740991;
+
     public function __construct(
         private readonly ?RegistryInterface $registry = null,
     ) {
@@ -255,6 +257,10 @@ final class StandardHeaderValidator
             return \sprintf('%s header is present, but the body argument cannot be mirrored.', $headerName);
         }
 
+        if ((\is_int($argument) || \is_float($argument)) && abs($argument) > self::MAX_SAFE_INTEGER) {
+            return \sprintf('%s header mirrors the body argument "%s", which is outside the safe integer range.', $headerName, $expected);
+        }
+
         // Numerically for numbers, so "42.0" and "42" agree — the spec asks for
         // this, and a client's JSON writer is free to pick either. Gated on the
         // argument's actual type (not is_numeric, which a numeric-looking
@@ -275,18 +281,12 @@ final class StandardHeaderValidator
 
     private static function isSameNumber(string $decimal, int|float $argument): bool
     {
-        if (\is_float($argument) && floor($argument) !== $argument) {
-            return (float) $decimal === $argument;
-        }
-
-        // As digits, since distinct integers beyond 2^53 share a float.
-        if (1 !== preg_match('/^(-?)0*(\d+?)(?:\.0+)?$/D', $decimal, $parts)) {
+        // A fraction too small for a float still makes it a different integer.
+        if (floor($argument) === (float) $argument && 1 !== preg_match('/^-?\d+(?:\.0+)?$/D', $decimal)) {
             return false;
         }
 
-        $normalized = ('0' === $parts[2] ? '' : $parts[1]).$parts[2];
-
-        return $normalized === (\is_int($argument) ? (string) $argument : \sprintf('%.0F', $argument + 0.0));
+        return (float) $decimal === (float) $argument;
     }
 
     /**
