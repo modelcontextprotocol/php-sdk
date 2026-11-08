@@ -73,17 +73,19 @@ jobs:
         uses: shivammathur/setup-php@v2
         with:
           php-version: '8.5'
+          extensions: fileinfo
           coverage: "none"
 
       - name: Install Composer
+        id: composer
         uses: "ramsey/composer-install@v4"
 
       - name: Unit tests
-        run: vendor/bin/phpunit --testsuite=unit
+        run: php vendor/bin/phpunit --testsuite=unit
 
       - name: Stdio integration tests
-        if: ${{ !cancelled() }}
-        run: vendor/bin/phpunit --testsuite=integration --filter "HandshakeTest|DeadServerTest|StdioShutdownTest"
+        if: ${{ !cancelled() && steps.composer.outcome == 'success' }}
+        run: php vendor/bin/phpunit --testsuite=integration --filter "HandshakeTest|DeadServerTest|StdioShutdownTest"
 
   integration:
     runs-on: ubuntu-latest
