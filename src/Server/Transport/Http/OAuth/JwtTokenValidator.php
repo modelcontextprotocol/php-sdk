@@ -20,6 +20,7 @@ use Firebase\JWT\SignatureInvalidException;
 use Http\Discovery\Psr17FactoryDiscovery;
 use Http\Discovery\Psr18ClientDiscovery;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\JwksRefreshRateLimitException;
 use Mcp\Exception\RuntimeException;
 use Mcp\Server\Authorization\AccessToken;
 use Psr\Cache\CacheItemPoolInterface;
@@ -148,11 +149,15 @@ final class JwtTokenValidator implements AuthorizationTokenValidatorInterface
 
         try {
             $key = $keys[$keyId] ?? null;
+        } catch (JwksRefreshRateLimitException $e) {
+            return AuthorizationResult::unavailable($e->retryAfter);
+        } catch (ClientExceptionInterface) {
+            return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
         } catch (\OutOfBoundsException) {
             $key = null;
-        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException|ClientExceptionInterface|RuntimeException) {
+        } catch (\UnexpectedValueException|\InvalidArgumentException|\DomainException|RuntimeException) {
             if ($keys instanceof CachedKeySet) {
-                return AuthorizationResult::unavailable();
+                return AuthorizationResult::unavailable(OidcDiscovery::FAILURE_TTL);
             }
 
             $key = null;

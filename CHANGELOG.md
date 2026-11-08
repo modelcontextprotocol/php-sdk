@@ -7,7 +7,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 
 ### Server
 
-* [BC Break] Return HTTP `503` without a Bearer challenge when JWT issuer discovery fails or the signing keys cannot be fetched, including when `JwtTokenValidator::fromIssuer()` suppresses a refresh at its rate limit. Discovery failures include `Retry-After` based on the discovery backoff. Invalid tokens and unknown keys from a healthy endpoint still receive `401`.
+* [BC Break] Return HTTP `503` with `Retry-After` and without a Bearer challenge when JWT issuer discovery fails or the signing keys cannot be fetched. `JwtTokenValidator::fromIssuer()` also returns `503` for an unknown key id once its refresh rate limit is reached. Invalid tokens still receive `401`, as do unknown keys from a healthy endpoint below the rate limit.
 * [BC Break] Remove JSON-RPC batch support: a JSON array is refused with `-32600`, and HTTP status `400` over HTTP, for every protocol revision. This includes `2025-03-26`, which requires batches and which the server still negotiates. Batching was removed from MCP in `2025-06-18`.
 * [BC Break] `ScopePolicy::requiredFor()` takes one decoded message, renames its parameter from `$payload` to `$message` and returns only the default scopes for a list.
 * [BC Break] `AuthorizationMiddleware` answers a body over its `maxBodyBytes` with `413` and a JSON-RPC error, like the transports, instead of `400` with a `WWW-Authenticate` challenge.

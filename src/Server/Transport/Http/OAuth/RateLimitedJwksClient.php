@@ -40,7 +40,7 @@ final class RateLimitedJwksClient implements ClientInterface
         $window = $item->isHit() ? $item->get() : ['attempts' => 0, 'expiresAt' => time() + 60];
 
         if (++$window['attempts'] > 10) {
-            throw new JwksRefreshRateLimitException('JWKS refresh rate limit reached.');
+            throw new JwksRefreshRateLimitException(max(1, $window['expiresAt'] - time()));
         }
 
         $this->cache->save($item->set($window)->expiresAt(new \DateTimeImmutable('@'.$window['expiresAt'])));

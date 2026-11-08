@@ -20,4 +20,9 @@ use Psr\Http\Client\ClientExceptionInterface;
  */
 final class JwksRefreshRateLimitException extends \RuntimeException implements ExceptionInterface, ClientExceptionInterface
 {
+    public function __construct(
+        public readonly int $retryAfter,
+    ) {
+        parent::__construct('JWKS refresh rate limit reached.');
+    }
 }

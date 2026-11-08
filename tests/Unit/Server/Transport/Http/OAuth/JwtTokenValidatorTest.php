@@ -290,6 +290,43 @@ final class JwtTokenValidatorTest extends TestCase
 
         $this->assertSame(503, $result->getStatusCode());
         $this->assertNull($result->getError());
+        $this->assertSame(10, $result->getRetryAfter());
+    }
+
+    public function testCachedKeyStaysUsableWhileJwksIsDown(): void
+    {
+        $factory = new Psr17Factory();
+        $cache = new ArrayAdapter();
+        $warm = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, new CachedKeySet('https://auth.example.com/jwks', $this->jwksClient($factory), $factory, $cache, 3600, true, 'RS256'));
+        $this->assertTrue($warm->validate($this->token([]))->isAllowed());
+
+        $client = $this->createStub(ClientInterface::class);
+        $client->method('sendRequest')->willReturn($factory->createResponse(503));
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, new CachedKeySet('https://auth.example.com/jwks', $client, $factory, $cache, 3600, true, 'RS256'));
+
+        $this->assertTrue($validator->validate($this->token([]))->isAllowed());
+        $this->assertSame(503, $validator->validate(JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'rotated'))->getStatusCode());
+    }
+
+    public function testCustomKeySetTransportFailureIsUnavailable(): void
+    {
+        $failure = new class('Connection refused') extends \RuntimeException implements ClientExceptionInterface {};
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $this->throwingKeySet($failure));
+
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(503, $result->getStatusCode());
+        $this->assertSame(10, $result->getRetryAfter());
+    }
+
+    public function testCustomKeySetOtherFailureIsUnauthorized(): void
+    {
+        $validator = new JwtTokenValidator(self::ISSUER, self::AUDIENCE, $this->throwingKeySet(new \UnexpectedValueException('Bad key')));
+
+        $result = $validator->validate($this->token([]));
+
+        $this->assertSame(401, $result->getStatusCode());
+        $this->assertSame('Token signing key could not be resolved.', $result->getErrorDescription());
     }
 
     /**
@@ -322,7 +359,7 @@ final class JwtTokenValidatorTest extends TestCase
 
         $this->assertSame(503, $response->getStatusCode());
         $this->assertFalse($response->hasHeader('WWW-Authenticate'));
-        $this->assertFalse($response->hasHeader('Retry-After'));
+        $this->assertSame('10', $response->getHeaderLine('Retry-After'));
     }
 
     public function testRateLimitedJwksRefreshIsUnavailable(): void
@@ -339,9 +376,26 @@ final class JwtTokenValidatorTest extends TestCase
 
         for ($attempt = 0; $attempt < 11; ++$attempt) {
             $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, $cache, $client, $factory);
+            $result = $validator->validate($token);
 
-            $this->assertSame(503, $validator->validate($token)->getStatusCode());
+            $this->assertSame(503, $result->getStatusCode());
         }
+
+        $this->assertGreaterThanOrEqual(1, $result->getRetryAfter());
+        $this->assertLessThanOrEqual(60, $result->getRetryAfter());
+    }
+
+    public function testUnknownKeyIdAtRateLimitIsUnavailable(): void
+    {
+        $factory = new Psr17Factory();
+        $validator = JwtTokenValidator::fromIssuer(self::ISSUER, self::AUDIENCE, new ArrayAdapter(), $this->jwksClient($factory), $factory);
+        $token = JWT::encode($this->claims([]), self::$privateKey, 'RS256', 'rotated');
+
+        for ($attempt = 0; $attempt < 10; ++$attempt) {
+            $this->assertSame(401, $validator->validate($token)->getStatusCode());
+        }
+
+        $this->assertSame(503, $validator->validate($token)->getStatusCode());
     }
 
     public function testFromIssuerTagsKeysWithoutAlgorithmPerToken(): void
@@ -466,6 +520,36 @@ final class JwtTokenValidatorTest extends TestCase
                 return null === $body
                     ? $this->factory->createResponse(404)
                     : $this->factory->createResponse(200)->withBody($this->factory->createStream(json_encode($body, \JSON_THROW_ON_ERROR)));
+            }
+        };
+    }
+
+    /**
+     * @return \ArrayAccess<string, Key>
+     */
+    private function throwingKeySet(\Throwable $failure): \ArrayAccess
+    {
+        return new class($failure) implements \ArrayAccess {
+            public function __construct(private \Throwable $failure)
+            {
+            }
+
+            public function offsetExists(mixed $offset): bool
+            {
+                throw $this->failure;
+            }
+
+            public function offsetGet(mixed $offset): Key
+            {
+                throw $this->failure;
+            }
+
+            public function offsetSet(mixed $offset, mixed $value): void
+            {
+            }
+
+            public function offsetUnset(mixed $offset): void
+            {
             }
         };
     }
