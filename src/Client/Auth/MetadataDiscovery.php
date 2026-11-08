@@ -43,6 +43,12 @@ final class MetadataDiscovery
     public function discoverProtectedResource(string $resourceUrl, ?string $metadataUrl = null): ?ProtectedResourceMetadata
     {
         foreach (null !== $metadataUrl ? [$metadataUrl] : self::protectedResourceCandidates($resourceUrl) as $candidate) {
+            if (!AuthorizationServerMetadata::isTransportSecure($candidate)) {
+                $this->logger->error('Refusing protected resource discovery: the metadata URL is neither an HTTPS URL nor a loopback address.', ['url' => $candidate]);
+
+                continue;
+            }
+
             $document = $this->fetch($candidate);
 
             if (null === $document) {

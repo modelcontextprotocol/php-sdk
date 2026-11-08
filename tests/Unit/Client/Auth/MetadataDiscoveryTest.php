@@ -384,6 +384,39 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertSame('https://auth.example.com/oidc/authorize', $metadata->authorizationEndpoint);
     }
 
+    #[TestDox('a metadata URL that is neither https nor loopback is not even requested')]
+    public function testRefusesAnInsecureMetadataUrl(): void
+    {
+        $url = 'http://mcp.example.com/custom/location.json';
+        $client = new RecordingClient([
+            $url => self::json(['resource' => 'https://mcp.example.com/mcp']),
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverProtectedResource('https://mcp.example.com/mcp', $url));
+        $this->assertSame([], $client->requested);
+    }
+
+    #[TestDox('resource metadata is not guessed over plain http')]
+    public function testRefusesInsecureResourceMetadataLocations(): void
+    {
+        $client = new RecordingClient([
+            'http://mcp.example.com/.well-known/oauth-protected-resource' => self::json(['resource' => 'https://mcp.example.com']),
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverProtectedResource('http://mcp.example.com/mcp'));
+        $this->assertSame([], $client->requested);
+    }
+
+    #[TestDox('resource metadata on a loopback host may use plain http')]
+    public function testAllowsLoopbackResourceMetadata(): void
+    {
+        $client = new RecordingClient([
+            'http://localhost:8000/.well-known/oauth-protected-resource/mcp' => self::json(['resource' => 'http://localhost:8000/mcp']),
+        ]);
+
+        $this->assertNotNull($this->discovery($client)->discoverProtectedResource('http://localhost:8000/mcp'));
+    }
+
     #[TestDox('a transport failure is not fatal, the next location is still tried')]
     public function testSurvivesATransportFailure(): void
     {
