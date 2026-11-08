@@ -57,8 +57,9 @@ Two settings decide whether clients get through:
 * **Sessions.** PHP keeps nothing in memory from one request to the next, so the default
   `InMemorySessionStore` loses a session when the request that created it ends.
   `FileSessionStore` keeps sessions on disk. Its directory must be writable by the user
-  PHP-FPM runs as, `www-data` on Debian and Ubuntu. See [Sessions over HTTP](sessions.md#sessions-over-http) for stores shared across
-  hosts and [Concurrent requests](sessions.md#concurrent-requests) for the session lock.
+  PHP-FPM runs as, `www-data` on Debian and Ubuntu. See
+  [Sessions over HTTP](sessions.md#sessions-over-http) for stores shared across hosts and
+  [Concurrent requests](sessions.md#concurrent-requests) for the session lock.
 * **Allowed hosts.** `DnsRebindingProtectionMiddleware` accepts `localhost`, `127.0.0.1` and
   `[::1]` by default and answers any other `Host` with `403`. List the host names your clients
   connect to, see [DNS rebinding protection](http.md#dns-rebinding-protection).
@@ -138,10 +139,13 @@ A PHP-FPM worker handles one request at a time, and some MCP requests stay open:
 `PHP_CLI_SERVER_WORKERS=4` to try such handlers locally.
 
 An open stream writes a keep-alive comment every 250 ms, so the read timeouts of Nginx and
-Apache don't end it. On Linux, `max_execution_time` counts only the time PHP spends executing,
-not the time it waits, so it doesn't end a waiting stream either. PHP-FPM's
-`request_terminate_timeout` counts real time and kills the worker, and the client receives no
-closing message. Keep `setSubscriptionLifetime()` below it.
+Apache don't end it. Neither does
+[`max_execution_time`](https://www.php.net/manual/en/info.configuration.php#ini.max-execution-time)
+in a non-thread-safe build, the one distributions ship as PHP-FPM: it counts CPU time, not the
+time a stream spends waiting. A thread-safe build counts elapsed time since PHP 8.3 and ends
+the stream with a fatal error. PHP-FPM's `request_terminate_timeout` counts elapsed time in
+every build and kills the worker. In both cases the client receives no closing message, so
+keep `setSubscriptionLifetime()` below these limits.
 
 ## The GET stream
 

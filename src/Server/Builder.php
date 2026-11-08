@@ -347,9 +347,11 @@ final class Builder
      * server closes it gracefully.
      *
      * The real ceiling is the runtime's: under PHP-FPM a stream cannot outlive
-     * `max_execution_time`, and a value above it buys a killed worker instead
-     * of a longer subscription. Pass `0` for "until the client or the runtime
-     * ends it", which is what a persistent runtime wants.
+     * `request_terminate_timeout`, and a value above it buys a killed worker
+     * instead of a longer subscription. `max_execution_time` counts CPU time in
+     * a non-thread-safe build and does not end a waiting stream; a thread-safe
+     * build counts elapsed time since PHP 8.3 and does. Pass `0` for "until the
+     * client or the runtime ends it", which is what a persistent runtime wants.
      */
     public function setSubscriptionLifetime(float $seconds): self
     {
