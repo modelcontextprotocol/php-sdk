@@ -18,6 +18,29 @@ class InvalidInputMessageException extends \InvalidArgumentException implements 
 {
     private string|int|null $requestId = null;
 
+    private ?string $invalidParamsMethod = null;
+
+    /**
+     * The message is a well-formed request whose params do not fit its method.
+     */
+    public static function forInvalidParams(string $message, string $method, ?\Throwable $previous = null): self
+    {
+        $exception = new self($message, 0, $previous);
+        $exception->invalidParamsMethod = $method;
+
+        return $exception;
+    }
+
+    public function isInvalidParams(): bool
+    {
+        return null !== $this->invalidParamsMethod;
+    }
+
+    public function isInvalidParamsOf(string $method): bool
+    {
+        return $method === $this->invalidParamsMethod;
+    }
+
     public function getRequestId(): string|int|null
     {
         return $this->requestId;

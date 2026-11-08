@@ -47,11 +47,12 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Answer malformed JSON and an `initialize` sent with a session id with HTTP `400`, and a failure before the session is checked with `500`, instead of `200`. Such an answer no longer carries, or removes, the messages queued for the session in `Mcp-Session-Id`.
 * [BC Break] Keep the JSON types of `tools/call` arguments, so validation sees what the client sent: `{}` and `{"0":"x"}` are objects, `[]` and `["x"]` are arrays. Nested JSON objects in `CallToolRequest::$arguments` and in the arguments of `ToolHandlerInterface::execute()` are `\stdClass`.
 * [BC Break] Tool parameters without a type, or typed `mixed`, receive nested JSON objects as `\stdClass`. Parameters typed `array` still receive arrays at every level. Parameters typed `object` or `\stdClass`, which always failed with a `TypeError`, receive `\stdClass`.
-* [BC Break] Reject `tools/call` when `arguments` is not a JSON object with `-32600`, including `"arguments": []`.
+* [BC Break] Reject `tools/call` when `arguments` is not a JSON object with `-32602`, including `"arguments": []`.
 * [BC Break] Reject `tools/call` with `-32600` when its message has a member name starting with a NUL byte, as its arguments cannot keep their JSON types then.
 * [BC Break] `array<string, T>` parameters generate `{"type": "object"}` instead of `{"type": "array"}`, and `array<int, T>` parameters accept a JSON array or a JSON object.
 * [BC Break] Add `SessionInterface::isUnreadable()`, which a custom session implements. A session the store holds without attributes, because a handler cleared it or its data is corrupt, is answered with `404` so the client opens a new one; only a session the store fails to return is answered with `503`. `FileSessionStore::exists()` no longer reports a zero-byte file.
 * Fix a resource whose text is not valid UTF-8 (e.g. a Latin-1 `.txt` file) failing `resources/read` with an internal error or an uncaught `JsonException`: `ResourceResultFormatter` now sends it as a blob with the same MIME type.
+* [BC Break] Answer a request of a known method whose params do not fit it (e.g. `tools/call` without `name`) with `-32602` (Invalid params) instead of `-32600` (Invalid request), as JSON-RPC requires. `Request::fromArray()` throws the new `InvalidParamsException`, a subclass of `InvalidArgumentException`, and `InvalidInputMessageException::isInvalidParams()` tells the protocols which code to send. A malformed envelope and an unknown method keep their codes.
 
 ### Client
 

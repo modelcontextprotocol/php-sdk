@@ -287,6 +287,35 @@ final class MessageFactoryTest extends TestCase
         $this->factory->create($json);
     }
 
+    public function testMissingRequiredParamIsInvalidParams(): void
+    {
+        $exception = $this->invalidInput('{"jsonrpc": "2.0", "method": "prompts/get", "id": 7, "params": {}}');
+
+        $this->assertTrue($exception->isInvalidParams());
+        $this->assertSame(7, $exception->getRequestId());
+    }
+
+    public function testMalformedEnvelopeIsNotInvalidParams(): void
+    {
+        $exception = $this->invalidInput('{"jsonrpc": "1.0", "method": "prompts/get", "id": 7, "params": {"name": "a"}}');
+
+        $this->assertFalse($exception->isInvalidParams());
+    }
+
+    public function testParamsOfTheWrongTypeAreNotInvalidParams(): void
+    {
+        $exception = $this->invalidInput('{"jsonrpc": "2.0", "method": "prompts/get", "id": 7, "params": "name"}');
+
+        $this->assertFalse($exception->isInvalidParams());
+    }
+
+    public function testUnknownMethodIsNotInvalidParams(): void
+    {
+        $exception = $this->invalidInput('{"jsonrpc": "2.0", "method": "unknown/method", "id": 1}');
+
+        $this->assertFalse($exception->isInvalidParams());
+    }
+
     public function testUnknownNotificationMethod(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "notifications/unknown"}';
@@ -510,5 +539,16 @@ final class MessageFactoryTest extends TestCase
         $result = $this->factory->create($json);
 
         $this->assertInstanceOf(PingRequest::class, $result);
+    }
+
+    private function invalidInput(string $json): InvalidInputMessageException
+    {
+        try {
+            $this->factory->create($json);
+        } catch (InvalidInputMessageException $e) {
+            return $e;
+        }
+
+        $this->fail('The input should have been refused.');
     }
 }

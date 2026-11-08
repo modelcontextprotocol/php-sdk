@@ -184,7 +184,7 @@ final class StdioDualEraTest extends TestCase
         $params = ['name' => 'echo', 'arguments' => json_decode($json, flags: \JSON_THROW_ON_ERROR)];
 
         foreach (self::eraOpenings($params) as $messages) {
-            $this->assertSame(Error::INVALID_REQUEST, $this->serve(self::builder(), $messages)[2]['error']['code']);
+            $this->assertSame(Error::INVALID_PARAMS, $this->serve(self::builder(), $messages)[2]['error']['code']);
         }
     }
 

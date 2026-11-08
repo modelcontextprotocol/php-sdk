@@ -344,13 +344,16 @@ class Protocol
      * Handle an invalid message from the transport.
      *
      * @param TransportInterface<mixed> $transport
+     * @param array<string, mixed>      $context
      */
-    private function handleInvalidMessage(TransportInterface $transport, InvalidInputMessageException $exception, SessionInterface $session): void
+    private function handleInvalidMessage(TransportInterface $transport, InvalidInputMessageException $exception, ?SessionInterface $session, array $context = []): void
     {
         $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
-        $error = Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
-        $this->sendResponse($transport, $error, $session);
+        $error = $exception->isInvalidParams()
+            ? Error::forInvalidParams($exception->getMessage(), $exception->getRequestId())
+            : Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
+        $this->sendResponse($transport, $error, $session, $context);
     }
 
     /**
@@ -1159,6 +1162,12 @@ class Protocol
         }
 
         if (!$sessionId) {
+            if ($message instanceof InvalidInputMessageException && $message->isInvalidParamsOf(InitializeRequest::getMethod())) {
+                $this->handleInvalidMessage($transport, $message, null, ['status_code' => 400]);
+
+                return null;
+            }
+
             // Echo the id so a client probing with `server/discover` can correlate the refusal.
             $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', self::findRequestId($message));
             $this->sendResponse($transport, $error, null, ['status_code' => 400]);

@@ -373,6 +373,69 @@ final class ProtocolTest extends TestCase
         $this->assertArrayNotHasKey('id', $decoded, 'Unrecoverable parse error must omit id, not fabricate one');
     }
 
+    public function testMissingRequiredParamReturnsInvalidParams(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc": "2.0", "id": 3, "method": "prompts/get", "params": {}}', Uuid::v4());
+
+        $this->assertCount(1, $transport->sent);
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertEquals(Error::INVALID_PARAMS, $message['error']['code']);
+        $this->assertSame(3, $message['id']);
+    }
+
+    #[TestDox('An initialize with invalid params is answered with -32602 and opens no session')]
+    public function testInitializeWithInvalidParamsReturnsInvalidParams(): void
+    {
+        $this->sessionManager->expects($this->never())->method('create');
+
+        $transport = new RecordingTransport();
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc": "2.0", "id": 4, "method": "initialize", "params": {}}', null);
+
+        $this->assertCount(1, $transport->sent);
+        $this->assertSame(400, $transport->sent[0]['context']['status_code']);
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertSame(Error::INVALID_PARAMS, $message['error']['code']);
+        $this->assertSame(4, $message['id']);
+    }
+
+    #[TestDox('A request with invalid params still needs a session unless it is an initialize')]
+    public function testOtherRequestWithInvalidParamsWithoutSessionStaysRefused(): void
+    {
+        $transport = new RecordingTransport();
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc": "2.0", "id": 5, "method": "prompts/get", "params": {}}', null);
+
+        $this->assertCount(1, $transport->sent);
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertSame(Error::INVALID_REQUEST, $message['error']['code']);
+        $this->assertSame(5, $message['id']);
+    }
+
     #[TestDox('Invalid message structure returns error')]
     public function testInvalidMessageStructureReturnsError(): void
     {

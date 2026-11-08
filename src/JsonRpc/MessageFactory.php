@@ -13,6 +13,7 @@ namespace Mcp\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\InvalidParamsException;
 use Mcp\Exception\UnknownMethodException;
 use Mcp\Schema;
 use Mcp\Schema\JsonRpc\Error;
@@ -169,6 +170,8 @@ final class MessageFactory
             }
 
             return $messageClass::fromArray($data);
+        } catch (InvalidParamsException $e) {
+            throw InvalidInputMessageException::forInvalidParams($e->getMessage(), $data['method'], $e);
         } catch (InvalidArgumentException $e) {
             throw new InvalidInputMessageException($e->getMessage(), 0, $e);
         }
