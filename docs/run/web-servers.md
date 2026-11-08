@@ -105,7 +105,7 @@ and `OPTIONS` and answers the others itself. The second answers every other path
 
 `client_max_body_size` lifts Nginx's limit on request bodies from 1 MB to the 4 MiB the
 transport accepts by default, see [Request body size limit](http.md#request-body-size-limit).
-Below it, Nginx answers a larger `POST` with `413` before PHP sees it. Apache's
+With a lower limit, Nginx answers a larger `POST` with `413` before PHP sees it. Apache's
 `LimitRequestBody` is far above that by default.
 
 Streaming needs no extra configuration. A streamed response carries `X-Accel-Buffering: no`,
@@ -168,6 +168,10 @@ A PHP-FPM worker handles one request at a time, and some MCP requests stay open:
   acknowledges such a stream with nothing and closes it at once: the server announces
   `listChanged` only once it has a notification bus, and under PHP-FPM that bus must be shared
   across workers, see [The notification bus](subscriptions.md#the-notification-bus).
+* While a tool runs, the session lock makes the other requests of its session wait, and each
+  of them holds a worker. After 30 seconds, they are answered with `503`. If your tools run
+  longer, pass a higher timeout to `FileSessionLock`, see
+  [Concurrent requests](sessions.md#concurrent-requests).
 
 `php -S` runs a single worker, so the first case hangs there as well. Start it with
 `PHP_CLI_SERVER_WORKERS=4` to try such handlers locally.
@@ -176,8 +180,12 @@ An open stream writes a keep-alive comment every 250 ms, so the read timeouts of
 server don't end it. A tool that computes, or waits for anything but the client, sends nothing
 while it runs, and the read timeout ends its request with a `504`: Nginx's
 `fastcgi_read_timeout` after 60 seconds, Apache's `ProxyTimeout`, which falls back to `Timeout`
-(60 seconds compiled in, 300 in the configuration Debian and Ubuntu ship). Raise them in the
-location that serves the endpoint when a tool legitimately runs longer.
+(60 seconds compiled in, 300 in the configuration Debian and Ubuntu ship).
+
+When a tool legitimately runs longer, raise `fastcgi_read_timeout` in the Nginx location. In
+Apache, add `timeout=` to the `ProxySet` line, for example `ProxySet flushpackets=on timeout=300`.
+`ProxyTimeout` and `Timeout` also work in the `VirtualHost` block, but Apache refuses to start
+with them in a `Location` or `Directory` block.
 
 [`max_execution_time`](https://www.php.net/manual/en/info.configuration.php#ini.max-execution-time)
 doesn't end a waiting stream in a non-thread-safe build on Linux, the one distributions ship
