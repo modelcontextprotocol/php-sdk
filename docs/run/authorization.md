@@ -120,7 +120,7 @@ $middleware = new AuthorizationMiddleware(
 | Missing Authorization header or another scheme | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
 | Malformed Bearer token | 400 with `error="invalid_request"` |
 | Invalid/expired token | 401 with `error="invalid_token"` |
-| Token cannot be checked, e.g. the authorization server is down | 503 with `Retry-After` and no `WWW-Authenticate` challenge, so the client keeps its token |
+| Token cannot be checked, e.g. the authorization server is down | 503 with `Retry-After` and no `WWW-Authenticate` challenge |
 | Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
 | Valid token, body over `maxBodyBytes` while the `ScopePolicy` reads it | 413 with a JSON-RPC error |
 | Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
@@ -414,8 +414,9 @@ AuthorizationResult::unavailable(30);
 
 ## Browser Clients
 
-The default `CorsMiddleware` exposes `WWW-Authenticate`, so browser-based clients can read the
-challenge and discover the authorization server. Allow their origins via `allowedOrigins`.
+The default `CorsMiddleware` exposes `WWW-Authenticate` and `Retry-After`, so browser-based clients can
+read the challenge, discover the authorization server and wait before they retry. Allow their origins
+via `allowedOrigins`.
 
 `AuthorizationMiddleware` lets `OPTIONS` requests pass without a token, because a browser sends
 no credentials with a CORS preflight. Keep `CorsMiddleware` before it in the list, as
