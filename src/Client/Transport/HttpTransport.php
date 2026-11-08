@@ -87,6 +87,11 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      */
     public const DEFAULT_MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
 
+    /**
+     * Default cap on the bytes read from a response body that is not an SSE stream.
+     */
+    public const DEFAULT_MAX_RESPONSE_BODY_BYTES = 8 * 1024 * 1024;
+
     private readonly SseParser $sseParser;
 
     private readonly SseParser $listenParser;
@@ -96,23 +101,24 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     private readonly ClockInterface $clock;
 
     /**
-     * @param string                       $endpoint          The MCP server endpoint URL
-     * @param array<string, string>        $headers           Additional headers to send
-     * @param ClientInterface|null         $httpClient        PSR-18 HTTP client (auto-discovered if null)
-     * @param RequestFactoryInterface|null $requestFactory    PSR-17 request factory (auto-discovered if null)
-     * @param StreamFactoryInterface|null  $streamFactory     PSR-17 stream factory (auto-discovered if null)
-     * @param int                          $maxSseBufferBytes Maximum bytes buffered while waiting for a complete
-     *                                                        SSE event. A server that never sends the "\n\n" event
-     *                                                        delimiter would otherwise grow the buffer without bound
-     *                                                        and exhaust client memory; reaching the cap aborts the
-     *                                                        stream instead. Raise it for servers that legitimately
-     *                                                        emit single events larger than the default.
-     * @param bool                         $listen            Open the standalone GET stream after the handshake (2025
-     *                                                        revisions only). Needs a PSR-18 client that streams
-     *                                                        response bodies; see docs/client/transports.md.
-     * @param ReconnectPolicy|null         $reconnectPolicy   How an SSE stream that closed before its response
-     *                                                        arrived is resumed (default: 5 attempts, 1-10 s backoff)
-     * @param ClockInterface|null          $clock             Clock for scheduling reconnects (default: a monotonic clock)
+     * @param string                       $endpoint             The MCP server endpoint URL
+     * @param array<string, string>        $headers              Additional headers to send
+     * @param ClientInterface|null         $httpClient           PSR-18 HTTP client (auto-discovered if null)
+     * @param RequestFactoryInterface|null $requestFactory       PSR-17 request factory (auto-discovered if null)
+     * @param StreamFactoryInterface|null  $streamFactory        PSR-17 stream factory (auto-discovered if null)
+     * @param int                          $maxSseBufferBytes    Maximum bytes buffered while waiting for a complete
+     *                                                           SSE event. A server that never sends the "\n\n" event
+     *                                                           delimiter would otherwise grow the buffer without bound
+     *                                                           and exhaust client memory; reaching the cap aborts the
+     *                                                           stream instead. Raise it for servers that legitimately
+     *                                                           emit single events larger than the default.
+     * @param bool                         $listen               Open the standalone GET stream after the handshake (2025
+     *                                                           revisions only). Needs a PSR-18 client that streams
+     *                                                           response bodies; see docs/client/transports.md.
+     * @param ReconnectPolicy|null         $reconnectPolicy      How an SSE stream that closed before its response
+     *                                                           arrived is resumed (default: 5 attempts, 1-10 s backoff)
+     * @param ClockInterface|null          $clock                Clock for scheduling reconnects (default: a monotonic clock)
+     * @param int                          $maxResponseBodyBytes Maximum bytes read from a response body that is not an SSE stream
      */
     public function __construct(
         private readonly string $endpoint,
@@ -125,8 +131,13 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         private readonly bool $listen = false,
         ?ReconnectPolicy $reconnectPolicy = null,
         ?ClockInterface $clock = null,
+        private readonly int $maxResponseBodyBytes = self::DEFAULT_MAX_RESPONSE_BODY_BYTES,
     ) {
         parent::__construct($logger);
+
+        if ($maxResponseBodyBytes < 1) {
+            throw new InvalidArgumentException(\sprintf('The maximum response body size must be a positive number of bytes, got %d.', $maxResponseBodyBytes));
+        }
 
         $this->sseParser = new SseParser($maxSseBufferBytes);
         $this->listenParser = new SseParser($maxSseBufferBytes);
@@ -255,7 +266,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
 
         if ($response->getStatusCode() >= 400) {
             try {
-                $body = $response->getBody()->getContents();
+                $body = $this->readResponseBody($response->getBody());
             } catch (\RuntimeException) {
                 // The status alone still tells what went wrong.
                 $body = '';
@@ -273,9 +284,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         try {
-            $body = $response->getBody()->getContents();
+            $body = $this->readResponseBody($response->getBody(), $truncated);
         } catch (\RuntimeException $e) {
             $this->failUnanswered($data, $e->getMessage());
+
+            return;
+        }
+
+        if ($truncated) {
+            $this->failUnanswered($data, \sprintf('the body exceeds the %d byte limit', $this->maxResponseBodyBytes));
 
             return;
         }
@@ -288,6 +305,36 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         if (null !== ($requestId = self::requestIdOf($data)) && !($dispatched && self::answers($body, $requestId))) {
             $this->failUnanswered($data, '' === trim($body) ? 'empty body' : 'no answer in the body');
         }
+    }
+
+    /**
+     * The body cut at its limit, closing the stream when there is more to it.
+     *
+     * @param-out bool $truncated set to whether the body exceeds the limit
+     */
+    private function readResponseBody(StreamInterface $stream, ?bool &$truncated = null): string
+    {
+        $truncated = false;
+        $body = '';
+
+        // One byte past the limit tells a body over it from one that fills it.
+        while (\strlen($body) <= $this->maxResponseBodyBytes && !$stream->eof()) {
+            $chunk = $stream->read(min(8192, $this->maxResponseBodyBytes + 1 - \strlen($body)));
+            if ('' === $chunk) {
+                break;
+            }
+
+            $body .= $chunk;
+        }
+
+        if (\strlen($body) > $this->maxResponseBodyBytes) {
+            $truncated = true;
+            $stream->close();
+
+            return substr($body, 0, $this->maxResponseBodyBytes);
+        }
+
+        return $body;
     }
 
     /**
