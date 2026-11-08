@@ -163,9 +163,6 @@ class NotificationBusTest extends TestCase
     /**
      * @param \Closure(int): NotificationBusInterface $createBus
      */
-    /**
-     * @param \Closure(int): NotificationBusInterface $createBus
-     */
     #[DataProvider('boundedBuses')]
     #[TestDox('a subscriber that fell behind the backlog reads the newest entries, oldest first')]
     public function testAFallenBehindSubscriberReadsTheNewestInOrder(\Closure $createBus): void
@@ -196,6 +193,9 @@ class NotificationBusTest extends TestCase
         $this->assertSame($bus->cursor(), $next);
     }
 
+    /**
+     * @param \Closure(int): NotificationBusInterface $createBus
+     */
     #[DataProvider('boundedBuses')]
     #[TestDox('a backlog below one entry is refused')]
     public function testZeroBacklogIsRefused(\Closure $createBus): void
