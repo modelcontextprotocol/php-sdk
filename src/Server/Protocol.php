@@ -1204,7 +1204,7 @@ class Protocol
      *
      * A session that does not record who opened it serves no one.
      *
-     * @throws SessionStoreException when the session exists but its data cannot be read
+     * @throws SessionStoreException when the store holds the session but fails to return it
      */
     private function servesPrincipal(SessionInterface $session, ?string $principal): bool
     {
@@ -1212,7 +1212,7 @@ class Protocol
             return true;
         }
 
-        if ([] === $session->all()) {
+        if ($session->isUnreadable()) {
             throw new SessionStoreException(\sprintf('Session "%s" could not be read.', $session->getId()->toRfc4122()));
         }
 

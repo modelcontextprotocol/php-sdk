@@ -11,6 +11,7 @@
 
 namespace Mcp\Server\Session;
 
+use Mcp\Exception\SessionStoreException;
 use Symfony\Component\Uid\Uuid;
 
 /**
@@ -69,6 +70,13 @@ interface SessionInterface extends \JsonSerializable
      * @return array<string, mixed>
      */
     public function all(): array;
+
+    /**
+     * Whether the store holds this session but failed to return it, unlike a session without attributes.
+     *
+     * @throws SessionStoreException if the store cannot be reached
+     */
+    public function isUnreadable(): bool;
 
     /**
      * Set all attributes of the session, typically for hydration.

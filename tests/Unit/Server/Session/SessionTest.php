@@ -353,6 +353,34 @@ class SessionTest extends TestCase
         $this->assertTrue($session->save());
     }
 
+    public function testNewSessionIsNotUnreadable(): void
+    {
+        $this->assertFalse((new Session(new InMemorySessionStore()))->isUnreadable());
+    }
+
+    public function testSessionTheStoreHoldsAndReturnsIsNotUnreadable(): void
+    {
+        $store = new InMemorySessionStore();
+        $id = Uuid::v4();
+        $store->write($id, '[]');
+
+        $this->assertFalse((new Session($store, $id))->isUnreadable());
+    }
+
+    public function testSessionTheStoreHoldsButFailsToReturnIsUnreadable(): void
+    {
+        $store = new class extends InMemorySessionStore {
+            public function read(Uuid $id): string|false
+            {
+                return false;
+            }
+        };
+        $id = Uuid::v4();
+        $store->write($id, '{"key":"value"}');
+
+        $this->assertTrue((new Session($store, $id))->isUnreadable());
+    }
+
     public function testAllReturnsEmptyArrayForNullPayload(): void
     {
         $store = $this->getMockBuilder(InMemorySessionStore::class)

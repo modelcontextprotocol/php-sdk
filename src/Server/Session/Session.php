@@ -184,6 +184,13 @@ class Session implements SessionInterface
         return $this->readData();
     }
 
+    public function isUnreadable(): bool
+    {
+        $this->readData();
+
+        return !$this->stored && $this->store->exists($this->id);
+    }
+
     public function hydrate(array $attributes): void
     {
         $this->data = $attributes;

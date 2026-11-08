@@ -48,6 +48,7 @@ All notable changes to `mcp/sdk` will be documented in this file.
 * [BC Break] Reject `tools/call` when `arguments` is not a JSON object with `-32600`, including `"arguments": []`.
 * [BC Break] Reject `tools/call` with `-32600` when its message has a member name starting with a NUL byte, as its arguments cannot keep their JSON types then.
 * [BC Break] `array<string, T>` parameters generate `{"type": "object"}` instead of `{"type": "array"}`, and `array<int, T>` parameters accept a JSON array or a JSON object.
+* [BC Break] Add `SessionInterface::isUnreadable()`, which a custom session implements. A session the store holds without attributes, because a handler cleared it or its data is corrupt, is answered with `404` so the client opens a new one; only a session the store fails to return is answered with `503`.
 
 ### Client
 

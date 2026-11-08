@@ -59,6 +59,7 @@ final class SessionBindingTest extends TestCase
             ->setServerInfo('test', '1.0.0')
             ->setSession($this->store)
             ->addTool(self::whoami(...), name: 'whoami')
+            ->addTool(self::forget(...), name: 'forget')
             ->build();
     }
 
@@ -157,6 +158,36 @@ final class SessionBindingTest extends TestCase
         $this->store->unavailable = false;
 
         $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
+    }
+
+    public function testSessionClearedByAHandlerIsNotFound(): void
+    {
+        $session = $this->initialize('alice.ide.1');
+        $forget = json_encode(['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => ['name' => 'forget', 'arguments' => new \stdClass()]], \JSON_THROW_ON_ERROR);
+
+        $this->assertSame(200, $this->serve($this->request('POST', $forget, 'alice.ide.1', $session))->getStatusCode());
+
+        $this->assertSame(404, $this->call($session, 'alice.ide.1')->getStatusCode());
+        $this->assertSame(404, $this->serve($this->request('DELETE', '', 'alice.ide.1', $session))->getStatusCode());
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideDataWithoutAttributes(): iterable
+    {
+        yield 'empty' => ['[]'];
+        yield 'not JSON' => ['{'];
+        yield 'not a list of attributes' => ['null'];
+    }
+
+    #[DataProvider('provideDataWithoutAttributes')]
+    public function testSessionWhoseDataHoldsNoAttributesIsNotFound(string $data): void
+    {
+        $session = Uuid::v4();
+        $this->store->write($session, $data);
+
+        $this->assertSame(404, $this->call($session->toRfc4122(), 'alice.ide.1')->getStatusCode());
     }
 
     public function testSessionFromBeforeTheUpgradeIsNotFound(): void
@@ -299,6 +330,13 @@ final class SessionBindingTest extends TestCase
 
         $this->assertSame('anonymous', $this->text($this->call($session, null, $passthrough)));
         $this->assertSame(404, $this->call($session, 'alice.ide.1')->getStatusCode());
+    }
+
+    public static function forget(RequestContext $context): string
+    {
+        $context->getSession()->clear();
+
+        return 'forgotten';
     }
 
     public static function whoami(RequestContext $context): string
