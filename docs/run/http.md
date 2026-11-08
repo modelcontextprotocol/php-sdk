@@ -207,17 +207,11 @@ When the request stream advertises a size, the transport rejects it up-front. Ot
 unknown size) the body is read incrementally and aborted as soon as it crosses the cap, so an unbounded stream cannot
 exhaust memory. A value below `1` throws `InvalidArgumentException`.
 
-## JSON-RPC Batch Size Limit
+## JSON-RPC Batches
 
-A JSON-RPC batch (top-level array) is capped at 100 messages. Oversized batches are rejected before any
-message is constructed, so a single small request cannot amplify into arbitrarily many operations. The cap
-lives on `Mcp\JsonRpc\MessageFactory` and is not currently configurable through the builder — a server built
-with `Server::builder()` always uses the default of 100.
-
-Single-message vs batch is determined from the decoded JSON type — a JSON object is a single message, a JSON array
-is a batch. Scalars, empty payloads, and non-object batch elements are returned as `InvalidInputMessageException`
-entries (the existing per-message error contract), not parse errors or crashes. A `maxBatchSize` below `1` throws
-`InvalidArgumentException`.
+The SDK doesn't support JSON-RPC batches. The server answers a JSON array with HTTP status `400` and error
+code `-32600`. This applies to every protocol version, including `2025-03-26`, the one revision that requires
+batches. Send one message per request.
 
 ## Custom PSR-15 Middleware
 

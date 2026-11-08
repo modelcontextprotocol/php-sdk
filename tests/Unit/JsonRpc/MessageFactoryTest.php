@@ -11,7 +11,6 @@
 
 namespace Mcp\Tests\Unit\JsonRpc;
 
-use Mcp\Exception\InvalidArgumentException;
 use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
@@ -42,11 +41,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "method": "prompts/get", "params": {"name": "create_story"}, "id": 123}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var GetPromptRequest $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(GetPromptRequest::class, $result);
         $this->assertSame('prompts/get', $result::getMethod());
         $this->assertSame('create_story', $result->name);
@@ -57,11 +53,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "method": "ping", "id": "abc-123"}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var PingRequest $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(PingRequest::class, $result);
         $this->assertSame('ping', $result::getMethod());
         $this->assertSame('abc-123', $result->getId());
@@ -71,11 +64,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "method": "notifications/cancelled", "params": {"requestId": 12345}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var CancelledNotification $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(CancelledNotification::class, $result);
         $this->assertSame('notifications/cancelled', $result::getMethod());
         $this->assertSame(12345, $result->requestId);
@@ -85,11 +75,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "method": "notifications/initialized"}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var InitializedNotification $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(InitializedNotification::class, $result);
         $this->assertSame('notifications/initialized', $result::getMethod());
     }
@@ -98,11 +85,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": 456, "result": {"content": [{"type": "text", "text": "Hello"}]}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var Response<array<string, mixed>> $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame(456, $result->getId());
         $this->assertIsArray($result->result);
@@ -113,11 +97,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": "response-1", "result": {"status": "ok"}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var Response<array<string, mixed>> $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(Response::class, $result);
         $this->assertSame('response-1', $result->getId());
         $this->assertEquals(['status' => 'ok'], $result->result);
@@ -127,11 +108,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": 789, "error": {"code": -32601, "message": "Method not found"}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var Error $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(Error::class, $result);
         $this->assertSame(789, $result->getId());
         $this->assertSame(-32601, $result->code);
@@ -143,11 +121,8 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": "err-1", "error": {"code": -32600, "message": "Invalid request"}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var Error $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(Error::class, $result);
         $this->assertSame('err-1', $result->getId());
         $this->assertSame(-32600, $result->code);
@@ -158,47 +133,10 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": {"code": -32000, "message": "Server error", "data": {"details": "Something went wrong"}}}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var Error $result */
-        $result = $results[0];
+        $result = $this->factory->create($json);
         $this->assertInstanceOf(Error::class, $result);
         $this->assertEquals(['details' => 'Something went wrong'], $result->data);
-    }
-
-    public function testBatchRequests(): void
-    {
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": "prompts/get", "params": {"name": "test"}, "id": 2},
-            {"jsonrpc": "2.0", "method": "notifications/initialized"}
-        ]';
-
-        $results = $this->factory->create($json);
-
-        $this->assertCount(3, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(GetPromptRequest::class, $results[1]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[2]);
-    }
-
-    public function testBatchWithMixedMessages(): void
-    {
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "id": 2, "result": {"status": "ok"}},
-            {"jsonrpc": "2.0", "id": 3, "error": {"code": -32600, "message": "Invalid"}},
-            {"jsonrpc": "2.0", "method": "notifications/initialized"}
-        ]';
-
-        $results = $this->factory->create($json);
-
-        $this->assertCount(4, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(Response::class, $results[1]);
-        $this->assertInstanceOf(Error::class, $results[2]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[3]);
     }
 
     public function testInvalidJson(): void
@@ -212,55 +150,50 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"method": "ping", "id": 1}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('jsonrpc');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('jsonrpc', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testInvalidJsonRpcVersion(): void
     {
         $json = '{"jsonrpc": "1.0", "method": "ping", "id": 1}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('jsonrpc');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('jsonrpc', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testMissingAllIdentifyingFields(): void
     {
         $json = '{"jsonrpc": "2.0", "params": {}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('missing');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('missing', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testUnknownMethod(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "unknown/method", "id": 1}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('Unknown method');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('Unknown method', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testUnknownNotificationMethod(): void
     {
         $json = '{"jsonrpc": "2.0", "method": "notifications/unknown"}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('Unknown method');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('Unknown method', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testNotificationMethodUsedAsRequest(): void
@@ -269,11 +202,10 @@ final class MessageFactoryTest extends TestCase
         // The fromArray validation will handle any issues
         $json = '{"jsonrpc": "2.0", "method": "notifications/initialized", "id": 1}';
 
-        $results = $this->factory->create($json);
-
-        $this->assertCount(1, $results);
         // The notification class will reject the id in fromArray validation
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->expectException(InvalidInputMessageException::class);
+
+        $this->factory->create($json);
     }
 
     public function testErrorMissingId(): void
@@ -282,51 +214,30 @@ final class MessageFactoryTest extends TestCase
         // could not be read off the request it answers.
         $json = '{"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid"}}';
 
-        $results = $this->factory->create($json);
+        $result = $this->factory->create($json);
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(Error::class, $results[0]);
-        $this->assertNull($results[0]->getId());
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertNull($result->getId());
     }
 
     public function testErrorMissingCode(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": {"message": "Invalid"}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('code');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('code', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testErrorMissingMessage(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": {"code": -32600}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('message');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('message', $results[0]->getMessage());
-    }
-
-    public function testBatchWithErrors(): void
-    {
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "params": {}, "id": 2},
-            {"jsonrpc": "2.0", "method": "unknown/method", "id": 3},
-            {"jsonrpc": "2.0", "method": "notifications/initialized"}
-        ]';
-
-        $results = $this->factory->create($json);
-
-        $this->assertCount(4, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[2]);
-        $this->assertInstanceOf(InitializedNotification::class, $results[3]);
+        $this->factory->create($json);
     }
 
     public function testMakeFactoryWithDefaultMessages(): void
@@ -334,10 +245,9 @@ final class MessageFactoryTest extends TestCase
         $factory = MessageFactory::make();
         $json = '{"jsonrpc": "2.0", "method": "ping", "id": 1}';
 
-        $results = $factory->create($json);
+        $result = $factory->create($json);
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
+        $this->assertInstanceOf(PingRequest::class, $result);
     }
 
     public function testMakeFactoryParsesElicitationCreate(): void
@@ -345,11 +255,8 @@ final class MessageFactoryTest extends TestCase
         $factory = MessageFactory::make();
         $json = '{"jsonrpc": "2.0", "method": "elicitation/create", "id": 1, "params": {"message": "Your name?", "requestedSchema": {"type": "object", "properties": {"name": {"type": "string", "title": "Name"}}, "required": ["name"]}}}';
 
-        $results = $factory->create($json);
-
-        $this->assertCount(1, $results);
         /** @var ElicitRequest $result */
-        $result = $results[0];
+        $result = $factory->create($json);
         $this->assertInstanceOf(ElicitRequest::class, $result);
         $this->assertSame('elicitation/create', $result::getMethod());
         $this->assertSame('Your name?', $result->message);
@@ -360,11 +267,10 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "id": true, "result": {"status": "ok"}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('id');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('id', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testErrorWithNullId(): void
@@ -372,99 +278,109 @@ final class MessageFactoryTest extends TestCase
         // JSON-RPC 2.0 spells the same thing as an explicit null.
         $json = '{"jsonrpc": "2.0", "id": null, "error": {"code": -32600, "message": "Invalid"}}';
 
-        $results = $this->factory->create($json);
+        $result = $this->factory->create($json);
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(Error::class, $results[0]);
-        $this->assertNull($results[0]->getId());
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertNull($result->getId());
     }
 
     public function testErrorWithInvalidIdType(): void
     {
         $json = '{"jsonrpc": "2.0", "id": {"not": "an id"}, "error": {"code": -32600, "message": "Invalid"}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('id');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('id', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testResponseWithNonArrayResult(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "result": "not an array"}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('result');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('result', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testErrorWithNonArrayErrorField(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": "not an object"}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('error');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('error', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testErrorWithInvalidCodeType(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": {"code": "not-a-number", "message": "Invalid"}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('code');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('code', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
     public function testErrorWithInvalidMessageType(): void
     {
         $json = '{"jsonrpc": "2.0", "id": 1, "error": {"code": -32600, "message": 123}}';
 
-        $results = $this->factory->create($json);
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('message');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('message', $results[0]->getMessage());
+        $this->factory->create($json);
     }
 
-    public function testScalarJsonIsRejected(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideInputsThatAreNotOneObject(): iterable
     {
-        $results = $this->factory->create('5');
-
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        yield 'integer' => ['5'];
+        yield 'string' => ['"hello"'];
+        yield 'null' => ['null'];
+        yield 'empty object' => ['{}'];
+        yield 'empty array' => ['[]'];
+        yield 'list of scalars' => ['[1, 2]'];
+        yield 'batch' => ['[{"jsonrpc": "2.0", "method": "ping", "id": 1}, {"jsonrpc": "2.0", "method": "ping", "id": 2}]'];
+        yield 'batch of one' => ['[{"jsonrpc": "2.0", "method": "ping", "id": 1}]'];
     }
 
-    public function testStringJsonIsRejected(): void
+    #[DataProvider('provideInputsThatAreNotOneObject')]
+    public function testInputThatIsNotOneObjectIsRejected(string $input): void
     {
-        $results = $this->factory->create('"hello"');
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('must be a single JSON object');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        $this->factory->create($input);
     }
 
-    public function testEmptyBatchIsRejected(): void
+    /**
+     * @return iterable<string, array{string, string|int|null}>
+     */
+    public static function provideInvalidMessagesAndTheirIds(): iterable
     {
-        $results = $this->factory->create('[]');
-
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
+        yield 'integer id' => ['{"jsonrpc": "2.0", "method": "unknown/method", "id": 7}', 7];
+        yield 'string id' => ['{"jsonrpc": "2.0", "method": "unknown/method", "id": "a"}', 'a'];
+        yield 'no id' => ['{"jsonrpc": "2.0", "method": "unknown/method"}', null];
+        yield 'malformed id' => ['{"jsonrpc": "2.0", "method": "unknown/method", "id": [1]}', null];
     }
 
-    public function testBatchElementMustBeObject(): void
+    #[DataProvider('provideInvalidMessagesAndTheirIds')]
+    public function testInvalidMessageCarriesItsRequestId(string $input, string|int|null $id): void
     {
-        $results = $this->factory->create('[1, 2]');
+        try {
+            $this->factory->create($input);
+        } catch (InvalidInputMessageException $e) {
+            $this->assertSame($id, $e->getRequestId());
 
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
+            return;
+        }
+
+        $this->fail('The message should have been rejected.');
     }
 
     /**
@@ -481,72 +397,18 @@ final class MessageFactoryTest extends TestCase
     #[DataProvider('provideNonStringMethods')]
     public function testNonStringMethodIsRejected(string $method): void
     {
-        $results = $this->factory->create(\sprintf('{"jsonrpc": "2.0", "id": 1, "method": %s}', $method));
+        $this->expectException(InvalidInputMessageException::class);
+        $this->expectExceptionMessage('"method" must be a string');
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('"method" must be a string', $results[0]->getMessage());
-    }
-
-    public function testBatchWithNonStringMethodStillYieldsTheValidMessages(): void
-    {
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": {}, "id": 2}
-        ]';
-
-        $results = $this->factory->create($json);
-
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[1]);
+        $this->factory->create(\sprintf('{"jsonrpc": "2.0", "id": 1, "method": %s}', $method));
     }
 
     public function testLeadingWhitespaceObjectIsParsedAsSingleMessage(): void
     {
         $json = "  \n  {\"jsonrpc\": \"2.0\", \"method\": \"ping\", \"id\": 1}";
 
-        $results = $this->factory->create($json);
+        $result = $this->factory->create($json);
 
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-    }
-
-    public function testBatchSizeExceedingMaxIsRejected(): void
-    {
-        $factory = new MessageFactory([PingRequest::class], maxBatchSize: 2);
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": "ping", "id": 2},
-            {"jsonrpc": "2.0", "method": "ping", "id": 3}
-        ]';
-
-        $results = $factory->create($json);
-
-        $this->assertCount(1, $results);
-        $this->assertInstanceOf(InvalidInputMessageException::class, $results[0]);
-        $this->assertStringContainsString('batch', $results[0]->getMessage());
-    }
-
-    public function testBatchSizeWithinMaxIsAccepted(): void
-    {
-        $factory = new MessageFactory([PingRequest::class], maxBatchSize: 2);
-        $json = '[
-            {"jsonrpc": "2.0", "method": "ping", "id": 1},
-            {"jsonrpc": "2.0", "method": "ping", "id": 2}
-        ]';
-
-        $results = $factory->create($json);
-
-        $this->assertCount(2, $results);
-        $this->assertInstanceOf(PingRequest::class, $results[0]);
-        $this->assertInstanceOf(PingRequest::class, $results[1]);
-    }
-
-    public function testNonPositiveMaxBatchSizeThrows(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-
-        new MessageFactory([PingRequest::class], maxBatchSize: 0);
+        $this->assertInstanceOf(PingRequest::class, $result);
     }
 }

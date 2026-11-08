@@ -632,11 +632,11 @@ final class HttpTransportTest extends TestCase
             new Response(200, [
                 'Content-Type' => 'text/event-stream',
                 'Mcp-Session-Id' => 'session-1',
-            ], "id: batch\nretry: 0\ndata: [{$payload}]\n\n"),
+            ], "id: resumable\nretry: 0\ndata: {$payload}\n\n"),
         ], $clock);
         $transport = $this->createTransport(httpClient: $httpClient, clock: $clock);
 
-        $result = $this->runRequest($transport, 1, '[{"jsonrpc":"2.0","id":1,"method":"tools/call"}]');
+        $result = $this->runRequest($transport, 1, '{"jsonrpc":"2.0","id":1,"result":{}}');
 
         $this->assertInstanceOf(JsonRpcResponse::class, $result);
         $this->assertCount(1, $httpClient->requests);

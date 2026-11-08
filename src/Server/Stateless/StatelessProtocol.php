@@ -454,28 +454,21 @@ final class StatelessProtocol
     private function dispatch(string $method, array $decoded, RequestMeta $meta, string|int|null $id, bool $wantsStream = false, ?AccessToken $accessToken = null): StatelessResult
     {
         try {
-            $messages = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
-        } catch (\Throwable $e) {
-            $this->logger->warning('Rejected an unparseable modern-era request.', ['method' => $method, 'exception' => $e]);
-
-            return StatelessResult::error($this->unknownMethod($method, $id), 404);
-        }
-
-        $request = $messages[0] ?? null;
-
-        // The factory hands back an exception object rather than throwing one,
-        // distinguishing a genuinely unknown method (-32601, the client should
-        // stop asking) from a known method the message could not otherwise be
-        // parsed into (-32600, the request itself is malformed).
-        if ($request instanceof InvalidInputMessageException) {
-            $unknownMethod = \sprintf('Unknown method "%s".', $method) === $request->getMessage();
+            $request = $this->messageFactory->create(json_encode($decoded, \JSON_THROW_ON_ERROR));
+        } catch (InvalidInputMessageException $e) {
+            // An unknown method (-32601) tells the client to stop asking; a malformed request (-32600) does not.
+            $unknownMethod = \sprintf('Unknown method "%s".', $method) === $e->getMessage();
 
             return StatelessResult::error(
                 $unknownMethod
                     ? $this->unknownMethod($method, $id)
-                    : Error::forInvalidRequest($request->getMessage(), $id),
+                    : Error::forInvalidRequest($e->getMessage(), $id),
                 $unknownMethod ? 404 : 400,
             );
+        } catch (\Throwable $e) {
+            $this->logger->warning('Rejected an unparseable modern-era request.', ['method' => $method, 'exception' => $e]);
+
+            return StatelessResult::error($this->unknownMethod($method, $id), 404);
         }
 
         if (!$request instanceof Request) {

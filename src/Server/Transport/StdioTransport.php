@@ -12,6 +12,7 @@
 namespace Mcp\Server\Transport;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\InvalidInputMessageException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
@@ -230,11 +231,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         $decoded = json_decode($message, true);
         // Only a request with a usable id may settle the era; anything else is left to the dispatcher.
-        $request = \is_array($decoded) && !array_is_list($decoded) && \is_string($decoded['method'] ?? null)
+        $request = \is_array($decoded) && \is_string($decoded['method'] ?? null)
             && (\is_string($decoded['id'] ?? null) || \is_int($decoded['id'] ?? null)) ? $decoded : null;
 
         // Only the handshake era sends requests to the client, so elsewhere a response answers nothing.
-        if (false !== $this->modern && \is_array($decoded) && !array_is_list($decoded) && !isset($decoded['method'])
+        if (false !== $this->modern && \is_array($decoded) && !isset($decoded['method'])
             && (\array_key_exists('result', $decoded) || \array_key_exists('error', $decoded))) {
             $this->logger->warning('StdioTransport ignored a response outside the handshake era.', [
                 'id' => $decoded['id'] ?? null,
@@ -291,7 +292,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
 
         // stdio has no stream to close, so this is how a client ends a subscriptions/listen.
         if (\is_array($decoded) && self::CANCELLED_NOTIFICATION === ($decoded['method'] ?? null) && !isset($decoded['id'])) {
-            [$cancellation] = MessageFactory::make()->create($message);
+            try {
+                $cancellation = MessageFactory::make()->create($message);
+            } catch (InvalidInputMessageException) {
+                $cancellation = null;
+            }
 
             if (!$cancellation instanceof CancelledNotification) {
                 $this->logger->debug('StdioTransport ignored a malformed cancellation.');

@@ -24,6 +24,7 @@ use Mcp\Exception\SessionLockTimeoutException;
 use Mcp\Exception\SessionStoreException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
+use Mcp\Schema\JsonRpc\MessageInterface;
 use Mcp\Schema\JsonRpc\Notification;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -197,8 +198,6 @@ class Protocol
      * Returns null when the input carries no request at all, in which case it consists of
      * notifications and client responses only, and JSON-RPC forbids answering it: an error
      * under a response's id would read as the answer to the client's own request of that id.
-     * A batch resolves to the empty id because its failure cannot be attributed to one of
-     * its requests.
      */
     private static function findResponseId(string $input): string|int|null
     {
@@ -212,19 +211,9 @@ class Protocol
             return null;
         }
 
-        if (!array_is_list($data)) {
-            $id = $data['id'] ?? null;
+        $id = $data['id'] ?? null;
 
-            return isset($data['method']) && (\is_string($id) || \is_int($id)) ? $id : null;
-        }
-
-        foreach ($data as $message) {
-            if (\is_array($message) && isset($message['id'], $message['method'])) {
-                return '';
-            }
-        }
-
-        return null;
+        return isset($data['method']) && (\is_string($id) || \is_int($id)) ? $id : null;
     }
 
     /**
@@ -238,13 +227,16 @@ class Protocol
         $this->sessionManager->gc();
 
         try {
-            $messages = $this->messageFactory->create($input);
+            $message = $this->messageFactory->create($input);
         } catch (\JsonException $e) {
             $this->logger->warning('Failed to decode json message.', ['exception' => $e]);
             $error = Error::forParseError($e->getMessage());
             $this->sendResponse($transport, $error, null);
 
             return;
+        } catch (InvalidInputMessageException $e) {
+            // Answered within the session like any other message, after it was resolved.
+            $message = $e;
         }
 
         // Taken before the session is read and held until it is saved, so no other request of
@@ -269,7 +261,7 @@ class Protocol
         }
 
         try {
-            $this->handleMessages($transport, $sessionId, $messages, $accessToken);
+            $this->handleMessage($transport, $sessionId, $message, $accessToken);
         } finally {
             if ($takesLock) {
                 $this->releaseSessionLock($sessionId);
@@ -279,35 +271,31 @@ class Protocol
 
     /**
      * @param TransportInterface<mixed> $transport
-     * @param array<int, mixed>         $messages
      */
-    private function handleMessages(TransportInterface $transport, ?Uuid $sessionId, array $messages, ?AccessToken $accessToken): void
+    private function handleMessage(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message, ?AccessToken $accessToken): void
     {
-        $session = $this->resolveSession($transport, $sessionId, $messages);
+        $session = $this->resolveSession($transport, $sessionId, $message);
         if (null === $session) {
             return;
         }
 
-        foreach ($messages as $message) {
-            // Guarded per message so one faulty message cannot suppress the rest of a batch.
-            try {
-                if ($message instanceof InvalidInputMessageException) {
-                    $this->handleInvalidMessage($transport, $message, $session);
-                } elseif ($message instanceof Request) {
-                    $this->handleRequest($transport, $message, $session, $accessToken);
-                } elseif ($message instanceof Response || $message instanceof Error) {
-                    $this->handleResponse($message, $session);
-                } elseif ($message instanceof Notification) {
-                    $this->handleNotification($message, $session);
-                }
-            } catch (\Throwable $e) {
-                $this->logger->error(\sprintf('Uncaught exception while handling message: %s', $e->getMessage()), ['exception' => $e]);
+        try {
+            if ($message instanceof InvalidInputMessageException) {
+                $this->handleInvalidMessage($transport, $message, $session);
+            } elseif ($message instanceof Request) {
+                $this->handleRequest($transport, $message, $session, $accessToken);
+            } elseif ($message instanceof Response || $message instanceof Error) {
+                $this->handleResponse($message, $session);
+            } elseif ($message instanceof Notification) {
+                $this->handleNotification($message, $session);
+            }
+        } catch (\Throwable $e) {
+            $this->logger->error(\sprintf('Uncaught exception while handling message: %s', $e->getMessage()), ['exception' => $e]);
 
-                // Only a request may be answered; a notification or a response must not produce one.
-                if ($message instanceof Request) {
-                    $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $message->getId());
-                    $this->sendResponse($transport, $error, $session);
-                }
+            // Only a request may be answered; a notification or a response must not produce one.
+            if ($message instanceof Request) {
+                $error = Error::forInternalError(self::INTERNAL_ERROR_MESSAGE, $message->getId());
+                $this->sendResponse($transport, $error, $session);
             }
         }
 
@@ -1093,37 +1081,14 @@ class Protocol
     }
 
     /**
-     * @param array<int, mixed> $messages
-     */
-    private function hasInitializeRequest(array $messages): bool
-    {
-        foreach ($messages as $message) {
-            if ($message instanceof InitializeRequest) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
      * Resolves and validates the session based on the request context.
      *
      * @param TransportInterface<mixed> $transport
      * @param Uuid|null                 $sessionId The session ID from the transport
-     * @param array<int,mixed>          $messages  The parsed messages
      */
-    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, array $messages): ?SessionInterface
+    private function resolveSession(TransportInterface $transport, ?Uuid $sessionId, MessageInterface|InvalidInputMessageException $message): ?SessionInterface
     {
-        if ($this->hasInitializeRequest($messages)) {
-            // Spec: An initialize request must not be part of a batch.
-            if (\count($messages) > 1) {
-                $error = Error::forInvalidRequest('The "initialize" request MUST NOT be part of a batch.');
-                $this->sendResponse($transport, $error, null);
-
-                return null;
-            }
-
+        if ($message instanceof InitializeRequest) {
             // Spec: An initialize request must not have a session ID.
             if ($sessionId) {
                 $error = Error::forInvalidRequest('A session ID MUST NOT be sent with an "initialize" request.');
@@ -1144,7 +1109,7 @@ class Protocol
 
         if (!$sessionId) {
             // Echo the id so a client probing with `server/discover` can correlate the refusal.
-            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', self::findRequestId($messages));
+            $error = Error::forInvalidRequest('A valid session id is REQUIRED for non-initialize requests.', self::findRequestId($message));
             $this->sendResponse($transport, $error, null, ['status_code' => 400]);
 
             return null;
@@ -1158,7 +1123,7 @@ class Protocol
                 'session_id' => $sessionId->toRfc4122(),
                 'exception' => $e,
             ]);
-            $error = Error::forInternalError('Session store is unavailable.', self::findRequestId($messages));
+            $error = Error::forInternalError('Session store is unavailable.', self::findRequestId($message));
             $this->sendResponse($transport, $error, null, ['status_code' => 503]);
 
             return null;
@@ -1175,16 +1140,13 @@ class Protocol
     }
 
     /**
-     * The id of a single request, so a refusal of the whole input can be correlated with it.
-     *
-     * @param array<int,mixed> $messages
+     * The id of a request, so a refusal of the input can be correlated with it.
      */
-    private static function findRequestId(array $messages): string|int|null
+    private static function findRequestId(MessageInterface|InvalidInputMessageException $message): string|int|null
     {
         return match (true) {
-            1 !== \count($messages) => null,
-            $messages[0] instanceof Request => $messages[0]->getId(),
-            $messages[0] instanceof InvalidInputMessageException => $messages[0]->getRequestId(),
+            $message instanceof Request => $message->getId(),
+            $message instanceof InvalidInputMessageException => $message->getRequestId(),
             default => null,
         };
     }

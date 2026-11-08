@@ -24,6 +24,7 @@ use Mcp\Client\Transport\HeaderAwareTransportInterface;
 use Mcp\Client\Transport\HttpTransport;
 use Mcp\Client\Transport\TransportInterface;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\InvalidInputMessageException;
 use Mcp\Exception\RequestCancelledException;
 use Mcp\Exception\TimeoutException;
 use Mcp\JsonRpc\MessageFactory;
@@ -848,21 +849,19 @@ class Protocol
         $this->logger->debug('Received message', ['input' => $input]);
 
         try {
-            $messages = $this->messageFactory->create($input);
-        } catch (\JsonException $e) {
+            $message = $this->messageFactory->create($input);
+        } catch (\JsonException|InvalidInputMessageException $e) {
             $this->logger->warning('Failed to parse message', ['exception' => $e]);
 
             return;
         }
 
-        foreach ($messages as $message) {
-            if ($message instanceof Response || $message instanceof Error) {
-                $this->handleResponse($message);
-            } elseif ($message instanceof Request) {
-                $this->handleRequest($message);
-            } elseif ($message instanceof Notification) {
-                $this->handleNotification($message);
-            }
+        if ($message instanceof Response || $message instanceof Error) {
+            $this->handleResponse($message);
+        } elseif ($message instanceof Request) {
+            $this->handleRequest($message);
+        } elseif ($message instanceof Notification) {
+            $this->handleNotification($message);
         }
     }
 

@@ -66,6 +66,37 @@ class NotificationBusTest extends TestCase
         }];
     }
 
+    /**
+     * @return iterable<string, array{NotificationBusInterface, \Closure(string): mixed}>
+     */
+    public static function busesWithRawAccess(): iterable
+    {
+        $cache = self::arrayCache();
+        yield 'psr-16' => [new Psr16NotificationBus($cache, prefix: 'bus.'), static fn (string $raw) => $cache->set('bus.0', $raw)];
+
+        $pool = new ArrayAdapter();
+        yield 'psr-6' => [new Psr6NotificationBus($pool, prefix: 'bus.'), static fn (string $raw) => $pool->save($pool->getItem('bus.0')->set($raw))];
+    }
+
+    /**
+     * @param \Closure(string): mixed $overwriteFirstEntry
+     */
+    #[DataProvider('busesWithRawAccess')]
+    #[TestDox('an unreadable entry is dropped without losing the ones after it')]
+    public function testUnreadableEntryIsDropped(NotificationBusInterface $bus, \Closure $overwriteFirstEntry): void
+    {
+        $cursor = $bus->cursor();
+        $bus->publish(new ToolListChangedNotification());
+        $bus->publish(new PromptListChangedNotification());
+
+        $overwriteFirstEntry('[{"jsonrpc":"2.0","method":"notifications/tools/list_changed"}]');
+
+        [$found] = $bus->since($cursor);
+
+        $this->assertCount(1, $found);
+        $this->assertInstanceOf(PromptListChangedNotification::class, $found[0]);
+    }
+
     #[DataProvider('buses')]
     #[TestDox('a subscriber reads what is published after it opened')]
     public function testReadsForwardFromItsCursor(NotificationBusInterface $bus): void

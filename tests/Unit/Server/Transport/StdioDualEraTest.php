@@ -62,6 +62,19 @@ final class StdioDualEraTest extends TestCase
         $this->assertSame('hi', $answers[2]['result']['content'][0]['text']);
     }
 
+    #[TestDox('a batch is refused without running its messages or settling the era')]
+    public function testBatchIsRefused(): void
+    {
+        $call = ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/call', 'params' => ['name' => 'echo', 'arguments' => ['text' => 'hi']]];
+
+        $lines = $this->exchange(self::builder(), [[$call, $call], self::modern(2, 'server/discover')]);
+
+        $this->assertCount(2, $lines);
+        $this->assertSame(Error::INVALID_REQUEST, $lines[0]['error']['code']);
+        $this->assertStringContainsString('batching', $lines[0]['error']['message']);
+        $this->assertSame([ProtocolVersion::V2026_07_28->value], $lines[1]['result']['supportedVersions']);
+    }
+
     #[TestDox('a handshake after a modern opening is refused, naming the modern revisions')]
     public function testHandshakeAfterModernOpeningIsRefused(): void
     {
@@ -458,7 +471,7 @@ final class StdioDualEraTest extends TestCase
     }
 
     /**
-     * @param list<array<string, mixed>> $messages
+     * @param list<array<array-key, mixed>> $messages
      *
      * @return list<array<string, mixed>>
      */

@@ -631,48 +631,37 @@ final class StreamableHttpTransportTest extends TestCase
         }
     }
 
-    #[TestDox('a batch streamed over SSE still carries the responses that did not suspend')]
-    public function testStreamedBatchCarriesItsOtherResponses(): void
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function provideBatches(): iterable
+    {
+        yield 'requests' => ['[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]'];
+        yield 'one request' => ['[{"jsonrpc":"2.0","id":2,"method":"ping"}]'];
+        yield 'notifications' => ['[{"jsonrpc":"2.0","method":"notifications/initialized"}]'];
+        yield 'initialize' => ['[{"jsonrpc":"2.0","id":2,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}]'];
+    }
+
+    #[DataProvider('provideBatches')]
+    #[TestDox('a batch is refused with a 400, also in a session that negotiated 2025-03-26: $_dataName')]
+    public function testBatchIsRefused(string $batch): void
     {
         $store = new InterleavingSessionStore();
-        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
+        $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
             ->getHeaderLine(StreamableHttpTransport::SESSION_HEADER);
 
-        $response = $this->post($store, '[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"progress","arguments":{},"_meta":{"progressToken":"p"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', $sessionId);
+        $response = $this->post($store, $batch, $sessionId);
 
-        $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
-
-        // The stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
-        $output = '';
-        ob_start(static function (string $chunk) use (&$output): string {
-            $output .= $chunk;
-
-            return '';
-        });
-        try {
-            $response->getBody()->getContents();
-        } finally {
-            ob_end_flush();
-        }
-
-        $this->assertMatchesRegularExpression('/"id":3,"result".*"progressToken":"p".*"id":2,"result"/s', $output);
+        $this->assertSame(400, $response->getStatusCode());
+        $this->assertSame('application/json', $response->getHeaderLine('Content-Type'));
+        $answer = json_decode((string) $response->getBody(), true);
+        $this->assertArrayNotHasKey(0, $answer);
+        $this->assertSame(Error::INVALID_REQUEST, $answer['error']['code']);
+        $this->assertStringContainsString('batching', $answer['error']['message']);
     }
 
-    /**
-     * @return iterable<string, array{string, list<int>}>
-     */
-    public static function provideRequestsMeetingQueuedNotifications(): iterable
-    {
-        yield 'single request' => ['{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', [2]];
-        yield 'batch' => ['[{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}},{"jsonrpc":"2.0","id":3,"method":"ping"}]', [2, 3]];
-    }
-
-    /**
-     * @param list<int> $ids
-     */
-    #[DataProvider('provideRequestsMeetingQueuedNotifications')]
-    #[TestDox('a request meeting queued notifications is answered as SSE with them first, then its responses')]
-    public function testQueuedNotificationsGoOutOnAStreamBeforeTheResponses(string $body, array $ids): void
+    #[TestDox('a request meeting queued notifications is answered as SSE with them first, then its response')]
+    public function testQueuedNotificationsGoOutOnAStreamBeforeTheResponse(): void
     {
         $store = new InterleavingSessionStore();
         $sessionId = $this->post($store, '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}')
@@ -686,7 +675,7 @@ final class StreamableHttpTransportTest extends TestCase
         ]]);
         $session->save();
 
-        $response = $this->post($store, $body, $sessionId);
+        $response = $this->post($store, '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"echo","arguments":{"text":"a"}}}', $sessionId);
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('text/event-stream', $response->getHeaderLine('Content-Type'));
@@ -695,7 +684,7 @@ final class StreamableHttpTransportTest extends TestCase
         preg_match_all('/^data: (.+)$/m', (string) $response->getBody(), $matches);
         $messages = array_map(static fn (string $data): array => json_decode($data, true), $matches[1]);
         $this->assertSame(
-            ['notifications/resources/updated', ...$ids],
+            ['notifications/resources/updated', 2],
             array_map(static fn (array $message): string|int => $message['method'] ?? $message['id'], $messages),
         );
 

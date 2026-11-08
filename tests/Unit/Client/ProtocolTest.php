@@ -628,6 +628,19 @@ final class ProtocolTest extends TestCase
         $this->assertSame(['prog-1'], $seen);
     }
 
+    #[TestDox('a batch from the server is dropped with a warning')]
+    public function testBatchFromTheServerIsDropped(): void
+    {
+        $transport = new InterruptingTransport();
+        $protocol = new Protocol(logger: $logger = new CollectingLogger());
+        $protocol->connect($transport, $this->createConfiguration(ProtocolVersion::V2025_11_25));
+
+        $protocol->processMessage('[{"jsonrpc":"2.0","id":7,"method":"ping"}]');
+
+        $this->assertSame([], $transport->messages);
+        $this->assertCount(1, $logger->warnings);
+    }
+
     #[TestDox('a request that cannot be encoded as JSON fails with an SDK exception and leaves the client usable')]
     public function testUnencodableRequestThrowsInvalidArgument(): void
     {

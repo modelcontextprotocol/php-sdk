@@ -110,10 +110,10 @@ final class Psr16NotificationBus implements NotificationBusInterface
             }
 
             try {
-                foreach ($this->messageFactory->create($raw) as $message) {
-                    if ($message instanceof Notification) {
-                        $found[] = $message;
-                    }
+                $message = $this->messageFactory->create($raw);
+
+                if ($message instanceof Notification) {
+                    $found[] = $message;
                 }
             } catch (\Throwable $e) {
                 $this->logger->warning('Dropped an unreadable notification from the bus.', ['sequence' => $sequence, 'exception' => $e]);
