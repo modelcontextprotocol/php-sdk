@@ -13,6 +13,7 @@ namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\OAuthErrorException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestFactoryInterface;
@@ -112,9 +113,15 @@ final class TokenEndpoint
             // successful token response in a shape this client cannot read, and putting
             // its body in the message would put a live access token into every log the
             // exception reaches.
-            throw new AuthorizationException(\sprintf('The authorization server answered the token request with %d%s.', $response->getStatusCode(), match (true) {
+            $message = \sprintf('The authorization server answered the token request with %d%s.', $response->getStatusCode(), match (true) {
                 200 === $response->getStatusCode() => ', and a body this client could not read as JSON', \is_array($decoded) => ': '.self::describeError($decoded), default => '',
-            }));
+            });
+
+            if (\is_array($decoded) && \is_string($decoded['error'] ?? null)) {
+                throw new OAuthErrorException($message, $decoded['error']);
+            }
+
+            throw new AuthorizationException($message);
         }
 
         return $decoded;

@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Client\Auth;
 use Mcp\Client\Auth\AccessToken;
 use Mcp\Client\Auth\AuthorizationHandlerInterface;
 use Mcp\Client\Auth\ClientRegistrar;
+use Mcp\Client\Auth\ClientRegistration;
 use Mcp\Client\Auth\InMemoryCredentialStorage;
 use Mcp\Client\Auth\MetadataDiscovery;
 use Mcp\Client\Auth\OAuth;
@@ -661,6 +662,92 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame([], $storage->getToken('https://auth.example.com', self::ENDPOINT)?->scopes);
     }
 
+    #[TestDox('a new redirect URI gets a new registration, as the old one would be refused')]
+    public function testRegistersAgainForAnotherRedirectUri(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('old-client', dynamic: true, redirectUris: ['http://127.0.0.1:9999/callback']));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('registered-client', $server->authorization['client_id'] ?? null);
+        $this->assertSame([OAuth::DEFAULT_REDIRECT_URI], $storage->getClientRegistration('https://auth.example.com')?->redirectUris);
+    }
+
+    #[TestDox('a registration for the same redirect URI is reused')]
+    public function testReusesARegistrationForTheSameRedirectUri(): void
+    {
+        $server = new FakeOAuthServer();
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('stored-client', dynamic: true, redirectUris: [OAuth::DEFAULT_REDIRECT_URI]));
+
+        $this->authenticator($server, storage: $storage)->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+        $this->assertSame('stored-client', $server->authorization['client_id'] ?? null);
+    }
+
+    #[TestDox('a registered client the authorization server no longer knows registers again')]
+    public function testRegistersAgainWhenTheClientIsUnknown(): void
+    {
+        $server = new FakeOAuthServer(refreshTokens: true);
+        $server->unknownClient = 'forgotten-client';
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('forgotten-client', dynamic: true));
+        $storage->saveToken('https://auth.example.com', self::ENDPOINT, new AccessToken('expired', 'Bearer', time() - 60, 'a-refresh-token'));
+
+        $authenticator = $this->authenticator($server, storage: $storage);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertContains('https://auth.example.com/register', $server->requested);
+        $this->assertSame('registered-client', $server->token['client_id'] ?? null);
+        $this->assertSame('authorization_code', $server->token['grant_type'] ?? null);
+        $this->assertSame('registered-client', $storage->getClientRegistration('https://auth.example.com')?->clientId);
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
+    #[TestDox('a code the unknown client cannot exchange fails once, and the next attempt registers again')]
+    public function testDropsAnUnknownClientAfterTheCodeExchange(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->unknownClient = 'forgotten-client';
+        $storage = new InMemoryCredentialStorage();
+        $storage->saveClientRegistration('https://auth.example.com', new ClientRegistration('forgotten-client', dynamic: true));
+        $authenticator = $this->authenticator($server, storage: $storage);
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The unknown client should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('invalid_client', $e->getMessage());
+        }
+
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+        $this->assertNull($storage->getClientRegistration('https://auth.example.com'));
+
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $this->assertSame('registered-client', $server->token['client_id'] ?? null);
+    }
+
+    #[TestDox('a client that was not registered dynamically is not replaced when it is unknown')]
+    public function testDoesNotReplaceAConfiguredClient(): void
+    {
+        $server = new FakeOAuthServer();
+        $server->unknownClient = 'known-client';
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setClientCredentials('known-client'));
+
+        try {
+            $authenticator->handleChallenge($this->request(), $server->challenge());
+            $this->fail('The unknown client should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertStringContainsString('invalid_client', $e->getMessage());
+        }
+
+        $this->assertNotContains('https://auth.example.com/register', $server->requested);
+    }
+
     #[TestDox('the expected issuer is chosen wherever the resource lists it')]
     public function testChoosesTheExpectedIssuerFromTheList(): void
     {
@@ -820,6 +907,8 @@ final class FakeOAuthServer implements ClientInterface
     /** @var string[] */
     public array $otherAuthorizationServers = [];
 
+    public ?string $unknownClient = null;
+
     private int $issued = 0;
 
     /**
@@ -936,6 +1025,10 @@ final class FakeOAuthServer implements ClientInterface
         }
         $this->token = $flat;
         $scope = $this->authorization['scope'] ?? '';
+
+        if (null !== $this->unknownClient && $this->unknownClient === ($form['client_id'] ?? null)) {
+            return self::json(['error' => 'invalid_client'], 401);
+        }
 
         // Keycloak accepts offline_access at the authorization endpoint, and only refuses it
         // here, for a user who may not have offline tokens.

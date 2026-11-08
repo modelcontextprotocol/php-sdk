@@ -12,6 +12,7 @@
 namespace Mcp\Client\Auth;
 
 use Mcp\Exception\AuthorizationException;
+use Mcp\Exception\OAuthErrorException;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Log\LoggerInterface;
@@ -134,10 +135,29 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $client = $this->resolveClient($metadata, $scopes);
         // A refresh can't widen a grant (RFC 6749 section 6), so a step-up needs a new authorization.
-        $token = 'insufficient_scope' === $challenge->getError() ? null : $this->refresh($stored, $metadata, $client, $needed);
+        $refreshable = 'insufficient_scope' === $challenge->getError() ? null : $stored;
+
+        try {
+            $token = $this->refresh($refreshable, $metadata, $client, $needed);
+        } catch (OAuthErrorException) {
+            $this->logger->info('The authorization server no longer knows this client; registering it again.', ['issuer' => $metadata->issuer]);
+            $this->storage->forget($metadata->issuer);
+            $token = null;
+            $client = $this->resolveClient($metadata, $scopes);
+        }
 
         if (null === $token) {
-            [$token, $scopes] = $this->grantWithFallback($metadata, $client, $scopes, $resource);
+            try {
+                [$token, $scopes] = $this->grantWithFallback($metadata, $client, $scopes, $resource);
+            } catch (AuthorizationException $e) {
+                // The user already went through the browser once, so only the next attempt registers again.
+                if (self::isForgottenClient($e, $client)) {
+                    $this->storage->forget($metadata->issuer);
+                }
+
+                throw $e;
+            }
+
             $token = $token->withGrantedScopes($scopes);
         }
 
@@ -192,6 +212,11 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         return [$this->configuration->resource ?? $metadata->resource, $metadata->resource, $server, $metadata->scopesSupported];
+    }
+
+    private static function isForgottenClient(AuthorizationException $e, ClientRegistration $client): bool
+    {
+        return $client->dynamic && $e instanceof OAuthErrorException && 'invalid_client' === $e->error;
     }
 
     /**
@@ -345,6 +370,10 @@ final class OAuthAuthenticator implements AuthenticatorInterface
                 'resource' => $this->resource,
             ]));
         } catch (AuthorizationException $e) {
+            if (self::isForgottenClient($e, $client)) {
+                throw $e;
+            }
+
             $this->logger->info('Refreshing the access token failed; falling back to a new authorization.', ['exception' => $e]);
 
             return null;
@@ -502,7 +531,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $stored = $this->storage->getClientRegistration($metadata->issuer);
 
-        if (null !== $stored && !$stored->isExpired()) {
+        if (null !== $stored && !$stored->isExpired() && $this->matchesRedirectUris($stored)) {
             return $stored;
         }
 
@@ -516,6 +545,11 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         $this->storage->saveClientRegistration($metadata->issuer, $registration);
 
         return $registration;
+    }
+
+    private function matchesRedirectUris(ClientRegistration $registration): bool
+    {
+        return [] === $registration->redirectUris || $registration->redirectUris === $this->configuration->clientMetadata->redirectUris;
     }
 
     /**

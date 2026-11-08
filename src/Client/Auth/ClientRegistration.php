@@ -31,6 +31,7 @@ final class ClientRegistration implements \JsonSerializable
      * @param bool                    $dynamic                 whether this came from dynamic client registration,
      *                                                         and may therefore be re-created at will
      * @param ?int                    $clientSecretExpiresAt   unix timestamp the secret expires at, 0/null when it does not
+     * @param string[]                $redirectUris            the redirect URIs this client was registered with, empty when unknown
      */
     public function __construct(
         public readonly string $clientId,
@@ -38,6 +39,7 @@ final class ClientRegistration implements \JsonSerializable
         public readonly TokenEndpointAuthMethod $tokenEndpointAuthMethod = TokenEndpointAuthMethod::None,
         public readonly bool $dynamic = false,
         public readonly ?int $clientSecretExpiresAt = null,
+        public readonly array $redirectUris = [],
     ) {
         if ('' === trim($clientId)) {
             throw new InvalidArgumentException('The client id must not be empty.');
@@ -47,10 +49,11 @@ final class ClientRegistration implements \JsonSerializable
     /**
      * Build a registration from a parsed RFC 7591 registration response.
      *
-     * @param array<string, mixed>    $response the parsed registration response
-     * @param TokenEndpointAuthMethod $fallback the method to assume when the server does not echo one back
+     * @param array<string, mixed>    $response     the parsed registration response
+     * @param TokenEndpointAuthMethod $fallback     the method to assume when the server does not echo one back
+     * @param string[]                $redirectUris the redirect URIs that were registered
      */
-    public static function fromResponse(array $response, TokenEndpointAuthMethod $fallback = TokenEndpointAuthMethod::None): self
+    public static function fromResponse(array $response, TokenEndpointAuthMethod $fallback = TokenEndpointAuthMethod::None, array $redirectUris = []): self
     {
         if (!isset($response['client_id']) || !\is_string($response['client_id'])) {
             throw new InvalidArgumentException('The client registration response is missing a string "client_id".');
@@ -71,6 +74,7 @@ final class ClientRegistration implements \JsonSerializable
             $method,
             true,
             is_numeric($expiresAt) && 0 !== (int) $expiresAt ? (int) $expiresAt : null,
+            $redirectUris,
         );
     }
 
@@ -90,6 +94,7 @@ final class ClientRegistration implements \JsonSerializable
             'token_endpoint_auth_method' => $this->tokenEndpointAuthMethod->value,
             'dynamic' => $this->dynamic,
             'client_secret_expires_at' => $this->clientSecretExpiresAt,
+            'redirect_uris' => $this->redirectUris,
         ], static fn (mixed $value): bool => null !== $value);
     }
 
@@ -104,6 +109,7 @@ final class ClientRegistration implements \JsonSerializable
             TokenEndpointAuthMethod::tryFrom((string) ($data['token_endpoint_auth_method'] ?? '')) ?? TokenEndpointAuthMethod::None,
             (bool) ($data['dynamic'] ?? false),
             isset($data['client_secret_expires_at']) && is_numeric($data['client_secret_expires_at']) ? (int) $data['client_secret_expires_at'] : null,
+            array_values(array_filter((array) ($data['redirect_uris'] ?? []), 'is_string')),
         );
     }
 }

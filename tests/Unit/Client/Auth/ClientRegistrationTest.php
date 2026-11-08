@@ -71,6 +71,14 @@ final class ClientRegistrationTest extends TestCase
         $this->assertSame(TokenEndpointAuthMethod::None, $registration->tokenEndpointAuthMethod);
     }
 
+    #[TestDox('the redirect URIs of a registration survive being stored')]
+    public function testRedirectUrisSurviveStoring(): void
+    {
+        $registration = ClientRegistration::fromResponse(['client_id' => 'issued'], redirectUris: ['http://127.0.0.1:8765/callback']);
+
+        $this->assertSame(['http://127.0.0.1:8765/callback'], ClientRegistration::fromArray($registration->jsonSerialize())->redirectUris);
+    }
+
     #[TestDox('a secret with an expiry is treated as expired once it passes')]
     public function testSecretExpiry(): void
     {
