@@ -22,6 +22,7 @@ use Mcp\Server\Handler\ResourceHandlerInterface;
 use Mcp\Server\Handler\ToolHandlerInterface;
 use Mcp\Server\Session\SessionInterface;
 use PHPUnit\Framework\TestCase;
+use Psr\Container\ContainerInterface;
 use Symfony\Component\Uid\Uuid;
 
 final class ReferenceHandlerTest extends TestCase
@@ -404,6 +405,93 @@ final class ReferenceHandlerTest extends TestCase
         $this->expectExceptionMessage('Invalid handler type');
 
         (new ReferenceHandler(new Container()))->handle(new ElementReference('app.unknown'), [
+            '_session' => $this->createMock(SessionInterface::class),
+        ]);
+    }
+
+    public function testHandlePrefersContainerServiceOverFunctionOfTheSameName(): void
+    {
+        $container = new Container();
+        $container->set('strtoupper', new InvokableHandlerFixture());
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('strtoupper'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'string' => 'function',
+            'who' => 'service',
+        ]);
+
+        $this->assertSame('hi service', $result);
+    }
+
+    public function testHandleCallsFunctionUnknownToContainer(): void
+    {
+        $result = (new ReferenceHandler(new Container()))->handle(new ElementReference('strtoupper'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'string' => 'function',
+        ]);
+
+        $this->assertSame('FUNCTION', $result);
+    }
+
+    public function testHandleResolvesArrayCallableServiceFromContainer(): void
+    {
+        $container = $this->createStub(ContainerInterface::class);
+        $container->method('has')->willReturn(true);
+        $container->method('get')->willReturn([new ArrayHandlerFixture(), 'greet']);
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('app.array_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'who' => 'array',
+        ]);
+
+        $this->assertSame('hi array', $result);
+    }
+
+    public function testHandleResolvesStringCallableServiceFromContainer(): void
+    {
+        $container = $this->createStub(ContainerInterface::class);
+        $container->method('has')->willReturn(true);
+        $container->method('get')->willReturn('strtoupper');
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('app.string_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+            'string' => 'function',
+        ]);
+
+        $this->assertSame('FUNCTION', $result);
+    }
+
+    public function testHandleInjectsClientGatewayIntoContainerService(): void
+    {
+        $container = new Container();
+        $container->set('app.gateway_handler', static fn (ClientGateway $gateway): string => $gateway::class);
+
+        $result = (new ReferenceHandler($container))->handle(new ElementReference('app.gateway_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+        ]);
+
+        $this->assertSame(ClientGateway::class, $result);
+    }
+
+    public function testHandleNamesContainerServiceWhenRequiredArgumentIsMissing(): void
+    {
+        $container = new Container();
+        $container->set('app.greet_handler', new InvokableHandlerFixture());
+
+        $this->expectException(RegistryException::class);
+        $this->expectExceptionMessage('Missing required argument `who` for app.greet_handler.');
+
+        (new ReferenceHandler($container))->handle(new ElementReference('app.greet_handler'), [
+            '_session' => $this->createMock(SessionInterface::class),
+        ]);
+    }
+
+    public function testHandleRefusesClassWithoutInvokeMethod(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage(\sprintf('Handler "%s" is not invokable.', ArrayHandlerFixture::class));
+
+        (new ReferenceHandler(new Container()))->handle(new ElementReference(ArrayHandlerFixture::class), [
             '_session' => $this->createMock(SessionInterface::class),
         ]);
     }

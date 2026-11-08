@@ -56,13 +56,6 @@ final class ReferenceHandler implements ReferenceHandlerInterface
                 return $instance(...$arguments);
             }
 
-            if (\function_exists($reference->handler)) {
-                $reflection = new \ReflectionFunction($reference->handler);
-                $arguments = $this->prepareArguments($reflection, $arguments);
-
-                return \call_user_func($reference->handler, ...$arguments);
-            }
-
             if (null !== $this->container && $this->container->has($reference->handler)) {
                 $service = $this->container->get($reference->handler);
 
@@ -72,7 +65,14 @@ final class ReferenceHandler implements ReferenceHandlerInterface
 
                 $service = $service(...);
 
-                return $service(...$this->prepareArguments(new \ReflectionFunction($service), $arguments));
+                return $service(...$this->prepareArguments(new \ReflectionFunction($service), $arguments, $reference->handler));
+            }
+
+            if (\function_exists($reference->handler)) {
+                $reflection = new \ReflectionFunction($reference->handler);
+                $arguments = $this->prepareArguments($reflection, $arguments);
+
+                return \call_user_func($reference->handler, ...$arguments);
             }
         }
 
@@ -114,7 +114,7 @@ final class ReferenceHandler implements ReferenceHandlerInterface
      *
      * @return array<int, mixed>
      */
-    private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments): array
+    private function prepareArguments(\ReflectionFunctionAbstract $reflection, array $arguments, ?string $handlerName = null): array
     {
         $finalArgs = [];
 
@@ -171,9 +171,9 @@ final class ReferenceHandler implements ReferenceHandlerInterface
             } elseif ($parameter->isOptional()) {
                 continue;
             } else {
-                $reflectionName = $reflection instanceof \ReflectionMethod
+                $reflectionName = $handlerName ?? ($reflection instanceof \ReflectionMethod
                     ? $reflection->class.'::'.$reflection->name
-                    : 'Closure';
+                    : 'Closure');
                 throw RegistryException::internalError("Missing required argument `{$paramName}` for {$reflectionName}.");
             }
         }

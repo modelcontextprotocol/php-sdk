@@ -51,6 +51,9 @@ $server = Server::builder()
 3. **Class instance and method name**: `[$instance, 'methodName']` - the given, already-constructed object is invoked as-is. Use this for handlers the container cannot build, e.g. those with scalar constructor arguments or dependencies wired at runtime
 4. **Invokable class name**: `InvokableClass::class` - class must be constructable through the container and have `__invoke` method
 
+!!! note
+    A [custom loader](../run/server-builder.md) can also pass a service id from your container (e.g. `app.weather_handler`) as the handler. The service must be callable. `addTool()`, `addResource()`, `addResourceTemplate()` and `addPrompt()` don't accept service ids, and `build()` throws a `ConfigurationException`.
+
 ### Manual Tool Registration
 
 ```php
