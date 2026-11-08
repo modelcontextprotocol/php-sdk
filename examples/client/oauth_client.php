@@ -46,8 +46,9 @@ $client = Client::builder()
 
 $auth = OAuth::forApplication('MCP PHP SDK Example')
     // The realm this example ships pre-registers a public client, so there is nothing
-    // to register. Drop this line against a server that offers dynamic registration.
+    // to register. Drop these lines against a server that offers dynamic registration.
     ->setClientCredentials('mcp-client')
+    ->setExpectedIssuer('http://localhost:8180/realms/mcp')
     // Keycloak rejects the "mcp:read" scope the server advertises, and adds it to the token by default.
     ->setScopes('openid')
     ->setCredentialStorage(new FileCredentialStorage(__DIR__.'/.oauth-credentials.json'))

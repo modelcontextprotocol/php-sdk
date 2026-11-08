@@ -96,11 +96,11 @@ If an administrator created a client for you, or if the authorization server doe
 OAuth::forApplication('My App')
     // the secret is optional
     ->setClientCredentials('my-client-id', 'my-client-secret')
-    // required with a secret
+    // required
     ->setExpectedIssuer('https://auth.example.com');
 ```
 
-The MCP server names its authorization server. Without an expected issuer, a hostile MCP server could name its own and receive your secret. Pass the `issuer` value from the metadata of your authorization server. If you set a secret without an expected issuer, `build()` throws an `InvalidArgumentException`.
+The MCP server names its authorization server. Without an expected issuer, a hostile MCP server could name its own and receive your secret. It could also send the user to your authorization server with your client ID and receive the authorization code. Pass the `issuer` value from the metadata of your authorization server. If you set a client ID without an expected issuer, `build()` throws an `InvalidArgumentException`.
 
 The client reads from the metadata of the authorization server how to send the secret.
 

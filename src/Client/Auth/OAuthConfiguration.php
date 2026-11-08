@@ -35,7 +35,7 @@ final class OAuthConfiguration
      *                                        should not be derived from the endpoint being called
      * @param ?string        $expectedIssuer  the only authorization server to authorize with
      *
-     * @throws InvalidArgumentException when a client secret is set without an expected issuer
+     * @throws InvalidArgumentException when a client id is set without an expected issuer
      */
     public function __construct(
         public readonly ClientMetadata $clientMetadata,
@@ -48,8 +48,8 @@ final class OAuthConfiguration
         public readonly ?string $resource = null,
         public readonly ?string $expectedIssuer = null,
     ) {
-        if (null !== $clientSecret && null === $expectedIssuer) {
-            throw new InvalidArgumentException('A client secret needs an expected issuer, or a hostile MCP server could receive it. Call OAuth::setExpectedIssuer().');
+        if (null !== $clientId && null === $expectedIssuer) {
+            throw new InvalidArgumentException('A configured client needs an expected issuer, or a hostile MCP server could receive its authorization codes and secret. Call OAuth::setExpectedIssuer().');
         }
     }
 }

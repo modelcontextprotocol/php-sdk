@@ -138,10 +138,7 @@ function buildAuthenticator(string $url, string $scenario, array $context, Psr\L
     // passes the credentials an administrator would have configured.
     if (isset($context['client_id'])) {
         $oauth->setClientCredentials($context['client_id'], $context['client_secret'] ?? null);
-
-        if (isset($context['client_secret'])) {
-            $oauth->setExpectedIssuer(discoverIssuer($url));
-        }
+        $oauth->setExpectedIssuer(discoverIssuer($url));
     }
 
     // These two scenarios are 2025-03-26 servers: no protected resource metadata, and

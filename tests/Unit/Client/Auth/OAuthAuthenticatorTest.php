@@ -737,7 +737,7 @@ final class OAuthAuthenticatorTest extends TestCase
     {
         $server = new FakeOAuthServer();
         $server->unknownClient = 'known-client';
-        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setClientCredentials('known-client'));
+        $authenticator = $this->authenticator($server, configuration: OAuth::forApplication('test')->setClientCredentials('known-client')->setExpectedIssuer('https://auth.example.com'));
 
         try {
             $authenticator->handleChallenge($this->request(), $server->challenge());

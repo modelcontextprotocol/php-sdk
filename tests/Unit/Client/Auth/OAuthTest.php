@@ -22,6 +22,7 @@ use Mcp\Exception\InvalidArgumentException;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
+use PHPUnit\Framework\Attributes\TestWith;
 use PHPUnit\Framework\TestCase;
 use Psr\Http\Client\ClientInterface;
 use Symfony\Component\HttpClient\MockHttpClient;
@@ -81,19 +82,21 @@ final class OAuthTest extends TestCase
         $this->assertSame([0], array_values(array_unique($seen)));
     }
 
-    #[TestDox('a client secret needs an expected issuer')]
-    public function testClientSecretNeedsAnExpectedIssuer(): void
+    #[TestWith(['client', 'secret'])]
+    #[TestWith(['client', null])]
+    #[TestDox('a configured client needs an expected issuer')]
+    public function testConfiguredClientNeedsAnExpectedIssuer(string $clientId, ?string $clientSecret): void
     {
         $this->expectException(InvalidArgumentException::class);
         $this->expectExceptionMessage('expected issuer');
 
-        OAuth::forApplication('My App')->setClientCredentials('client', 'secret')->build();
+        OAuth::forApplication('My App')->setClientCredentials($clientId, $clientSecret)->build();
     }
 
-    #[TestDox('a client id without a secret needs no expected issuer')]
-    public function testPublicClientNeedsNoExpectedIssuer(): void
+    #[TestDox('a client that registers itself needs no expected issuer')]
+    public function testDynamicRegistrationNeedsNoExpectedIssuer(): void
     {
-        $configuration = $this->configurationOf(OAuth::forApplication('My App')->setClientCredentials('client'));
+        $configuration = $this->configurationOf(OAuth::forApplication('My App'));
 
         $this->assertNull($configuration->expectedIssuer);
     }

@@ -95,7 +95,7 @@ final class OAuth
     }
 
     /**
-     * Only authorize with this issuer; required with a client secret, or a hostile MCP server could receive it.
+     * Only authorize with this issuer; required with a configured client, or a hostile MCP server could receive its codes and secret.
      */
     public function setExpectedIssuer(string $issuer): self
     {

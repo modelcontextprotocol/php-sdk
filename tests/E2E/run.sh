@@ -53,5 +53,6 @@ done
 
 echo "Running the client..."
 MCP_E2E_ENDPOINT="http://localhost:$mcp_port/mcp" \
+MCP_E2E_ISSUER="http://localhost:$keycloak_port/realms/mcp-e2e" \
 MCP_E2E_CREDENTIALS="$directory/sessions/credentials.json" \
     php "$directory/client.php"

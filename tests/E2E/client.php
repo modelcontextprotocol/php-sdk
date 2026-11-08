@@ -33,6 +33,7 @@ use Mcp\Exception\ConnectionException;
 use Mcp\Tests\E2E\BrowserAuthorizationHandler;
 
 $endpoint = getenv('MCP_E2E_ENDPOINT') ?: 'http://localhost:8001/mcp';
+$issuer = getenv('MCP_E2E_ISSUER') ?: 'http://localhost:8181/realms/mcp-e2e';
 $username = getenv('MCP_E2E_USERNAME') ?: 'demo';
 $password = getenv('MCP_E2E_PASSWORD') ?: 'demo123';
 $credentialsFile = getenv('MCP_E2E_CREDENTIALS') ?: sys_get_temp_dir().'/mcp-e2e-credentials.json';
@@ -46,7 +47,7 @@ $check = static function (string $what, bool $passed, string $detail = '') use (
     fwrite(\STDOUT, sprintf("%s %s%s\n", $passed ? '  ok  ' : ' FAIL ', $what, '' === $detail ? '' : ' -- '.$detail));
 };
 
-$connect = static function (FileCredentialStorage $storage) use ($endpoint, $username, $password): Client {
+$connect = static function (FileCredentialStorage $storage) use ($endpoint, $issuer, $username, $password): Client {
     $client = Client::builder()
         ->setClientInfo('mcp-client-auth-e2e', '1.0.0')
         ->setInitTimeout(30)
@@ -57,6 +58,7 @@ $connect = static function (FileCredentialStorage $storage) use ($endpoint, $use
         // Keycloak's realm import registers this public client with loopback redirect
         // URIs; a server offering dynamic registration would need none of this.
         ->setClientCredentials('mcp-client')
+        ->setExpectedIssuer($issuer)
         ->setAuthorizationHandler(new BrowserAuthorizationHandler($username, $password))
         ->setCredentialStorage($storage)
         ->build()));
