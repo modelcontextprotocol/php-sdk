@@ -110,7 +110,7 @@ final class ResourceResultFormatter
         if (\is_string($readResult)) {
             $mimeType = $mimeType ?? $this->guessMimeTypeFromString($readResult);
 
-            return [new TextResourceContents($uri, $mimeType, $readResult, $meta)];
+            return [$this->textOrBlob($uri, $mimeType, $readResult, $meta)];
         }
 
         if (\is_resource($readResult) && 'stream' === get_resource_type($readResult)) {
@@ -135,7 +135,7 @@ final class ResourceResultFormatter
         if (\is_array($readResult) && isset($readResult['text']) && \is_string($readResult['text'])) {
             $mimeType = $readResult['mimeType'] ?? $mimeType ?? 'text/plain';
 
-            return [new TextResourceContents($uri, $mimeType, $readResult['text'], $meta)];
+            return [$this->textOrBlob($uri, $mimeType, $readResult['text'], $meta)];
         }
 
         if ($readResult instanceof \SplFileInfo && $readResult->isFile() && $readResult->isReadable()) {
@@ -145,7 +145,7 @@ final class ResourceResultFormatter
                     throw new RuntimeException(\sprintf('Could not read file: "%s".', $readResult->getPathname()));
                 }
 
-                return [new TextResourceContents($uri, $mimeType, $text, $meta)];
+                return [$this->textOrBlob($uri, $mimeType, $text, $meta)];
             }
 
             return [BlobResourceContents::fromSplFileInfo($uri, $readResult, $mimeType, $meta)];
@@ -174,6 +174,19 @@ final class ResourceResultFormatter
         }
 
         throw new RuntimeException(\sprintf('Cannot format resource read result for URI "%s". Handler method returned unhandled type: ', $uri).\gettype($readResult));
+    }
+
+    /**
+     * Text that is not valid UTF-8 cannot be sent as JSON, so it is sent as a blob with the same MIME
+     * type instead of failing the whole read.
+     */
+    private function textOrBlob(string $uri, string $mimeType, string $content, mixed $meta): ResourceContents
+    {
+        if (1 !== preg_match('//u', $content)) {
+            return new BlobResourceContents($uri, $mimeType, base64_encode($content), $meta);
+        }
+
+        return new TextResourceContents($uri, $mimeType, $content, $meta);
     }
 
     /**
