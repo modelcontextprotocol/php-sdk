@@ -430,7 +430,7 @@ class Protocol
                     }
 
                     return $result;
-                }, $this->fiberScheduler);
+                }, $this->fiberScheduler, static fn (\Throwable $e): Error => $errorForThrowable($e, $request, $session));
 
                 $result = HandlerFibers::start($fiber);
 

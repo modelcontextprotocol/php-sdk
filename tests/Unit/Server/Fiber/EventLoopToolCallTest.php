@@ -12,8 +12,11 @@
 namespace Mcp\Tests\Unit\Server\Fiber;
 
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Notification\ToolListChangedNotification;
 use Mcp\Server;
+use Mcp\Server\RequestContext;
 use Mcp\Server\Stateless\RequestMeta;
+use Mcp\Server\Transport\StdioTransport;
 use Mcp\Server\Transport\StreamableHttpTransport;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -70,6 +73,113 @@ final class EventLoopToolCallTest extends TestCase
 
         $this->assertSame(-32603, $answer['error']['code'] ?? null);
         $this->assertFalse($this->tookTheResult);
+    }
+
+    #[TestDox('without a scheduler, a tool awaiting I/O after a notification still answers over the open stream')]
+    public function testWithoutASchedulerTheStreamEndsWithAnError(): void
+    {
+        $output = $this->stream($this->notifyingServer(scheduled: false), 2);
+
+        $this->assertStringContainsString('notifications\/tools\/list_changed', $output);
+        $this->assertMatchesRegularExpression('/"id":2,"error":\{"code":-32603/', $output);
+    }
+
+    #[TestDox('a tool awaiting I/O around a notification streams the notification and its result')]
+    public function testAToolAwaitingIoAroundANotificationStreamsBoth(): void
+    {
+        $output = $this->stream($this->notifyingServer(scheduled: true), 2);
+
+        $this->assertStringContainsString('notifications\/tools\/list_changed', $output);
+        $this->assertMatchesRegularExpression('/"id":2,"result".*lookup:found/', $output);
+    }
+
+    #[TestDox('without a scheduler over stdio, a tool awaiting I/O after a notification fails its call and the server goes on')]
+    public function testWithoutASchedulerStdioFailsTheCallAndGoesOn(): void
+    {
+        $messages = [
+            ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => [
+                'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                'capabilities' => new \stdClass(),
+                'clientInfo' => ['name' => 'event-loop-client', 'version' => '1.0.0'],
+            ]],
+            ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'],
+            ['jsonrpc' => '2.0', 'id' => 2, 'method' => 'tools/call', 'params' => ['name' => 'lookup', 'arguments' => new \stdClass()]],
+            ['jsonrpc' => '2.0', 'id' => 3, 'method' => 'ping'],
+        ];
+
+        $input = fopen('php://temp', 'r+');
+        $this->assertIsResource($input);
+        fwrite($input, implode("\n", array_map(static fn (array $message): string => json_encode($message, \JSON_THROW_ON_ERROR), $messages))."\n");
+        rewind($input);
+
+        $path = tempnam(sys_get_temp_dir(), 'mcp');
+        $this->assertIsString($path);
+        $output = fopen($path, 'w');
+        $this->assertIsResource($output);
+
+        try {
+            $this->notifyingServer(scheduled: false)->run(new StdioTransport($input, $output));
+            $written = (string) file_get_contents($path);
+        } finally {
+            unlink($path);
+        }
+
+        $this->assertMatchesRegularExpression('/"id":2,"error":\{"code":-32603/', $written);
+        $this->assertMatchesRegularExpression('/"id":3,"result"/', $written);
+    }
+
+    private function notifyingServer(bool $scheduled): Server
+    {
+        $loop = $this->loop;
+        $builder = Server::builder()
+            ->setServerInfo('event-loop-server', '1.0.0')
+            ->addTool(static function (RequestContext $context) use ($loop): string {
+                $context->getClientGateway()->notify(new ToolListChangedNotification());
+
+                return 'lookup:'.$loop->await('found');
+            }, name: 'lookup', description: 'Looks something up');
+
+        if ($scheduled) {
+            $builder->setFiberScheduler($loop);
+        }
+
+        return $builder->build();
+    }
+
+    private function stream(Server $server, int $id): string
+    {
+        $session = $this->post($server, [
+            'jsonrpc' => '2.0',
+            'id' => 1,
+            'method' => 'initialize',
+            'params' => [
+                'protocolVersion' => ProtocolVersion::V2025_11_25->value,
+                'capabilities' => new \stdClass(),
+                'clientInfo' => ['name' => 'event-loop-client', 'version' => '1.0.0'],
+            ],
+        ])['session'];
+        $headers = ['Mcp-Session-Id' => $session, 'MCP-Protocol-Version' => ProtocolVersion::V2025_11_25->value];
+        $this->post($server, ['jsonrpc' => '2.0', 'method' => 'notifications/initialized'], $headers);
+
+        // The stream calls ob_flush() itself, so the output is captured by a handler, not a plain buffer.
+        $output = '';
+        ob_start(static function (string $chunk) use (&$output): string {
+            $output .= $chunk;
+
+            return '';
+        });
+        try {
+            $this->post($server, [
+                'jsonrpc' => '2.0',
+                'id' => $id,
+                'method' => 'tools/call',
+                'params' => ['name' => 'lookup', 'arguments' => new \stdClass()],
+            ], $headers);
+        } finally {
+            ob_end_flush();
+        }
+
+        return $output;
     }
 
     private function server(bool $scheduled): Server

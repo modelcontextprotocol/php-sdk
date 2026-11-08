@@ -12,6 +12,7 @@
 namespace Mcp\Server\Fiber;
 
 use Mcp\Exception\LogicException;
+use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 
@@ -40,13 +41,14 @@ final class HandlerFibers
      *
      * @template TReturn
      *
-     * @param \Closure(): TReturn $handler
+     * @param \Closure(): TReturn                $handler
+     * @param (\Closure(\Throwable): Error)|null $errorForFailure answers the request when the fiber cannot be driven further
      *
      * @return \Fiber<mixed, mixed, TReturn, mixed>
      */
-    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null): \Fiber
+    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null, ?\Closure $errorForFailure = null): \Fiber
     {
-        $state = new HandlerFiberState($scheduler);
+        $state = new HandlerFiberState($scheduler, $errorForFailure);
         $fiber = new \Fiber(static function () use ($handler, $state): mixed {
             try {
                 return $handler();
@@ -82,6 +84,16 @@ final class HandlerFibers
     public static function resume(\Fiber $fiber, mixed $value = null): mixed
     {
         return self::step($fiber, static fn (): mixed => $fiber->resume($value));
+    }
+
+    /**
+     * The error answering the request of $fiber, which could not be driven further; null if it has none.
+     *
+     * @param \Fiber<mixed, mixed, mixed, mixed> $fiber
+     */
+    public static function errorFor(\Fiber $fiber, \Throwable $failure): ?Error
+    {
+        return (self::states()[$fiber] ?? null)?->errorFor($failure);
     }
 
     /**

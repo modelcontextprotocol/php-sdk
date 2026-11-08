@@ -146,6 +146,26 @@ abstract class BaseTransport implements TransportInterface
         }
     }
 
+    /**
+     * Resumes the session's fiber and handles what it yields next.
+     *
+     * Returns the error answering its request when it cannot be driven further, an event loop
+     * still holding it for instance: the fiber is left to its runtime, and the transport drops it.
+     *
+     * @param McpFiber    $fiber
+     * @param FiberResume $value
+     */
+    protected function resumeHandlerFiber(\Fiber $fiber, ?Uuid $sessionId, Response|Error|null $value = null): ?Error
+    {
+        try {
+            $this->handleFiberYield(HandlerFibers::resume($fiber, $value), $sessionId, $fiber);
+
+            return null;
+        } catch (\Throwable $e) {
+            return HandlerFibers::errorFor($fiber, $e) ?? throw $e;
+        }
+    }
+
     protected function handleMessage(string $payload, ?Uuid $sessionId, ?AccessToken $accessToken = null): void
     {
         if (\is_callable($this->messageListener)) {

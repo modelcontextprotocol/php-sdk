@@ -16,7 +16,6 @@ use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\Notification\CancelledNotification;
-use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Stateless\StatelessProtocol;
 use Mcp\Server\Transport\Stdio\RunnerControl;
 use Mcp\Server\Transport\Stdio\RunnerControlInterface;
@@ -380,8 +379,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     private function processFibers(): void
     {
         foreach ($this->fibers as $key => $fiber) {
-            if ($fiber->isSuspended()) {
-                $this->resumeFiber($fiber);
+            if ($fiber->isSuspended() && null !== $error = $this->resumeFiber($fiber)) {
+                unset($this->fibers[$key]);
+                $this->flushOutgoingMessages();
+                $this->writeError($error);
+
+                continue;
             }
 
             if ($fiber->isTerminated()) {
@@ -394,15 +397,12 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
     /**
      * @param McpFiber $fiber
      */
-    private function resumeFiber(\Fiber $fiber): void
+    private function resumeFiber(\Fiber $fiber): ?Error
     {
         $pendingRequests = $this->getPendingRequests($this->sessionId, $fiber);
 
         if (empty($pendingRequests)) {
-            $yielded = HandlerFibers::resume($fiber);
-            $this->handleFiberYield($yielded, $this->sessionId, $fiber);
-
-            return;
+            return $this->resumeHandlerFiber($fiber, $this->sessionId);
         }
 
         foreach ($pendingRequests as $pending) {
@@ -411,12 +411,11 @@ class StdioTransport extends BaseTransport implements StatelessAwareTransportInt
             $response = $this->checkForResponse($requestId, $this->sessionId);
 
             if (null !== $response) {
-                $yielded = HandlerFibers::resume($fiber, $response);
-                $this->handleFiberYield($yielded, $this->sessionId, $fiber);
-
-                return;
+                return $this->resumeHandlerFiber($fiber, $this->sessionId, $response);
             }
         }
+
+        return null;
     }
 
     /**

@@ -12,6 +12,7 @@
 namespace Mcp\Server\Fiber;
 
 use Mcp\Exception\LogicException;
+use Mcp\Schema\JsonRpc\Error;
 
 /**
  * What the server knows of one handler fiber: whether, and on what, it is suspended for the server.
@@ -28,9 +29,21 @@ final class HandlerFiberState
 
     private ?\Throwable $throwable = null;
 
+    /**
+     * @param (\Closure(\Throwable): Error)|null $errorForFailure
+     */
     public function __construct(
         private readonly ?FiberSchedulerInterface $scheduler,
+        private readonly ?\Closure $errorForFailure = null,
     ) {
+    }
+
+    /**
+     * The error answering the request of this fiber, which could not be driven further.
+     */
+    public function errorFor(\Throwable $failure): ?Error
+    {
+        return null === $this->errorForFailure ? null : ($this->errorForFailure)($failure);
     }
 
     public function isParked(): bool
