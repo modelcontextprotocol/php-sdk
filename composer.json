@@ -57,6 +57,9 @@
     "phpunit/phpunit": "^10.5",
     "psr/cache": "^1.0 || ^2.0 || ^3.0",
     "psr/simple-cache": "^2.0 || ^3.0",
+    "react/async": "^4.3",
+    "react/http": "^1.11",
+    "react/promise": "^3.0",
     "revolt/event-loop": "^1.0",
     "symfony/cache": "^5.4 || ^6.4 || ^7.3 || ^8.0",
     "symfony/console": "^5.4 || ^6.4 || ^7.3 || ^8.0",
@@ -91,6 +94,7 @@
       "Mcp\\Example\\Server\\McpApps\\": "examples/server/mcp-apps/",
       "Mcp\\Example\\Server\\OAuthKeycloak\\": "examples/server/oauth-keycloak/",
       "Mcp\\Example\\Server\\OAuthMicrosoft\\": "examples/server/oauth-microsoft/",
+      "Mcp\\Example\\Server\\ReactPhp\\": "examples/server/reactphp/",
       "Mcp\\Example\\Server\\Revolt\\": "examples/server/revolt/",
       "Mcp\\Example\\Server\\SchemaShowcase\\": "examples/server/schema-showcase/",
       "Mcp\\Tests\\": "tests/"

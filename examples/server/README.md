@@ -62,6 +62,15 @@ Its tools wait on the loop with `Amp\delay()`, and other requests are served in 
 `RevoltFiberScheduler` set with `Builder::setFiberScheduler()` makes this work, see
 [Fiber Scheduler](../../docs/run/server-builder.md#fiber-scheduler).
 
+`reactphp/server.php` is the same server on the ReactPHP event loop with `react/http`:
+
+```bash
+php examples/server/reactphp/server.php 127.0.0.1:8000
+```
+
+Both servers answer with status `501` when a response needs streaming, for example when a tool sends a
+notification.
+
 ## Debugging
 
 You can enable debug output by setting the `DEBUG` environment variable to `1`, and additionally log to a file by
