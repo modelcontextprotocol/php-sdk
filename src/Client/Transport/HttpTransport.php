@@ -267,14 +267,15 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $contentType = strtolower($response->getHeaderLine('Content-Type'));
 
         if ($response->getStatusCode() >= 400) {
+            $truncated = false;
             try {
-                $body = $this->readResponseBody($response->getBody());
+                $body = $this->readResponseBody($response->getBody(), $truncated);
             } catch (\RuntimeException) {
                 // The status alone still tells what went wrong.
                 $body = '';
             }
 
-            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $body);
+            $this->handleErrorStatus($data, $response->getStatusCode(), $response->getReasonPhrase(), $body, $truncated);
 
             return;
         }
@@ -314,7 +315,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
      *
      * @param-out bool $truncated set to whether the body exceeds the limit
      */
-    private function readResponseBody(StreamInterface $stream, ?bool &$truncated = null): string
+    private function readResponseBody(StreamInterface $stream, ?bool &$truncated): string
     {
         $truncated = false;
         $body = '';
@@ -396,11 +397,12 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
     /**
      * Fails a request refused at the HTTP level at once, rather than at its timeout.
      */
-    private function handleErrorStatus(string $sent, int $status, string $reason, string $body): void
+    private function handleErrorStatus(string $sent, int $status, string $reason, string $body, bool $truncated): void
     {
         $request = json_decode($sent, true);
         $requestId = \is_array($request) && \array_key_exists('method', $request) ? ($request['id'] ?? null) : null;
-        $answer = '' === trim($body) ? null : json_decode($body, true);
+        // A cut body can still parse as JSON, so it is only fit for the log.
+        $answer = $truncated || '' === trim($body) ? null : json_decode($body, true);
 
         if (\is_array($answer) && null !== $requestId && ($answer['id'] ?? null) === $requestId && self::isWellFormedAnswer($answer)) {
             $this->handleMessage($body);
@@ -409,7 +411,7 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         }
 
         if ((!\is_string($requestId) && !\is_int($requestId)) || null === $this->state) {
-            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => self::bodyExcerpt($body)]);
+            $this->logger->warning('Server refused a message', ['status' => $status, 'body' => self::bodyExcerpt($body, $truncated)]);
 
             return;
         }
@@ -421,9 +423,9 @@ class HttpTransport extends BaseTransport implements HeaderAwareTransportInterfa
         $this->state->storeResponse($requestId, $error->jsonSerialize());
     }
 
-    private static function bodyExcerpt(string $body): string
+    private static function bodyExcerpt(string $body, bool $truncated): string
     {
-        if (\strlen($body) <= self::MAX_LOGGED_BODY_BYTES) {
+        if (!$truncated && \strlen($body) <= self::MAX_LOGGED_BODY_BYTES) {
             return $body;
         }
 

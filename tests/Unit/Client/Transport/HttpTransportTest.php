@@ -1247,8 +1247,18 @@ final class HttpTransportTest extends TestCase
         $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
     }
 
-    #[TestDox('a refused message logs at most 4 KiB of the body, without splitting a character')]
-    public function testLoggedErrorBodyIsCappedOnACharacterBoundary(): void
+    /**
+     * @return iterable<string, array{int, int}>
+     */
+    public static function loggedBodyLimitProvider(): iterable
+    {
+        yield 'cut by the log cap' => [HttpTransport::DEFAULT_MAX_RESPONSE_BODY_BYTES, 4096];
+        yield 'cut by the body limit' => [1024, 1024];
+    }
+
+    #[DataProvider('loggedBodyLimitProvider')]
+    #[TestDox('a refused message logs a capped body without splitting a character: $_dataName')]
+    public function testLoggedErrorBodyIsCappedOnACharacterBoundary(int $maxResponseBodyBytes, int $expectedCap): void
     {
         $logged = null;
         $logger = $this->createMock(LoggerInterface::class);
@@ -1261,18 +1271,53 @@ final class HttpTransportTest extends TestCase
             }),
         );
 
-        // The odd prefix makes the cut at 4096 bytes fall inside a two-byte character.
+        // The odd prefix makes a cut at an even byte count fall inside a two-byte character.
         $transport = $this->createTransport(
             httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], 'a'.str_repeat('é', 3000))]),
+            maxResponseBodyBytes: $maxResponseBodyBytes,
             logger: $logger,
         );
 
         $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
 
         $this->assertIsString($logged);
-        $this->assertLessThanOrEqual(4096, \strlen($logged));
-        $this->assertGreaterThan(4090, \strlen($logged));
+        $this->assertLessThanOrEqual($expectedCap, \strlen($logged));
+        $this->assertGreaterThan($expectedCap - 6, \strlen($logged));
         $this->assertSame(1, preg_match('//u', $logged));
+    }
+
+    #[TestDox('an error status body cut at the limit is not read as an answer, even when the cut part is valid JSON')]
+    public function testCutErrorBodyIsNotDispatched(): void
+    {
+        $answer = '{"jsonrpc":"2.0","id":1,"result":{}}';
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'application/json'], $answer.'garbage')]),
+            maxResponseBodyBytes: \strlen($answer),
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertStringContainsString('HTTP 500', $result->message);
+        $this->assertSame([], $messages);
+    }
+
+    #[TestDox('an error status body of exactly the limit is still read as an answer')]
+    public function testErrorBodyAtTheLimitIsDispatched(): void
+    {
+        $answer = '{"jsonrpc":"2.0","id":1,"error":{"code":-32000,"message":"Refused"}}';
+        $transport = $this->createTransport(
+            httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'application/json'], $answer)]),
+            maxResponseBodyBytes: \strlen($answer),
+        );
+
+        $messages = [];
+        $result = $this->runRequest($transport, 1, messages: $messages);
+
+        $this->assertInstanceOf(Error::class, $result);
+        $this->assertSame('Refused', $result->message);
+        $this->assertSame([$answer], $messages);
     }
 
     #[TestDox('a response over the body limit during connect() fails with a ConnectionException')]
