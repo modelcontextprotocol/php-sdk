@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Capability\Discovery;
 
+use Mcp\Capability\Attribute\Schema;
 use Mcp\Capability\Discovery\DocBlockParser;
 use Mcp\Capability\Discovery\SchemaGenerator;
 use Mcp\Capability\Discovery\SchemaValidator;
@@ -445,7 +446,7 @@ final class SchemaGeneratorTest extends TestCase
         $this->assertSame('{}', json_encode($schema['properties']['genericArray']['items']));
         $this->assertEquals(['type' => 'array', 'description' => 'Array of strings', 'items' => ['type' => 'string']], $schema['properties']['stringArray']);
         $this->assertEquals(['type' => 'array', 'description' => 'Array of integers', 'items' => ['type' => 'integer']], $schema['properties']['intArray']);
-        $this->assertEquals(['type' => 'array', 'description' => 'Mixed array map', 'items' => new \stdClass()], $schema['properties']['mixedMap']);
+        $this->assertEquals(['type' => 'object', 'description' => 'Mixed array map'], $schema['properties']['mixedMap']);
         $this->assertArrayHasKey('type', $schema['properties']['objectLikeArray']);
         $this->assertEquals('object', $schema['properties']['objectLikeArray']['type']);
         $this->assertArrayHasKey('properties', $schema['properties']['objectLikeArray']);
@@ -684,5 +685,84 @@ final class SchemaGeneratorTest extends TestCase
             'type' => 'object',
             'additionalProperties' => true,
         ], $schema);
+    }
+
+    public function testEmptyDefaultOfAMapIsAnObject(): void
+    {
+        $handler = new class {
+            /**
+             * @param array<string, int>      $map
+             * @param array<string, int>|null $nullableMap
+             * @param array<int, string>      $mapOrList
+             * @param string[]                $list
+             */
+            public function handle(array $map = [], ?array $nullableMap = [], array $mapOrList = [], array $list = []): void
+            {
+            }
+        };
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'handle'))['properties'];
+
+        $this->assertSame('{}', json_encode($properties['map']['default']));
+        $this->assertSame('{}', json_encode($properties['nullableMap']['default']));
+        $this->assertSame('[]', json_encode($properties['mapOrList']['default']));
+        $this->assertSame('[]', json_encode($properties['list']['default']));
+    }
+
+    public function testEmptyDefaultFollowsTheFinalType(): void
+    {
+        $handler = new class {
+            /**
+             * @param array<string, int> $toArray
+             * @param array<string, int> $toDefinition
+             */
+            public function handle(
+                #[Schema(type: 'array')]
+                array $toArray = [],
+                #[Schema(definition: ['type' => 'array'])]
+                array $toDefinition = [],
+                #[Schema(type: 'object')]
+                array $toObject = [],
+            ): void {
+            }
+
+            /**
+             * @param array<string, int> $map
+             */
+            #[Schema(properties: ['map' => ['type' => 'array']])]
+            public function method(array $map = []): void
+            {
+            }
+        };
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'handle'))['properties'];
+
+        $this->assertSame('[]', json_encode($properties['toArray']['default']));
+        $this->assertSame('[]', json_encode($properties['toDefinition']['default']));
+        $this->assertSame('{}', json_encode($properties['toObject']['default']));
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'method'))['properties'];
+
+        $this->assertSame('[]', json_encode($properties['map']['default']));
+    }
+
+    public function testListOfGenericArraysIsAList(): void
+    {
+        $handler = new class {
+            /**
+             * @param array<string, int>[]      $maps
+             * @param array<string, int>[]|null $nullableMaps
+             * @param array<int>[]              $lists
+             */
+            public function handle($maps, $nullableMaps, $lists): void
+            {
+            }
+        };
+
+        $properties = $this->schemaGenerator->generate(new \ReflectionMethod($handler, 'handle'))['properties'];
+
+        $this->assertSame('array', $properties['maps']['type']);
+        $this->assertSame(['array', 'null'], $properties['nullableMaps']['type']);
+        $this->assertSame('array', $properties['lists']['type']);
     }
 }

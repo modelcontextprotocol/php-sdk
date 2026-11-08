@@ -57,6 +57,19 @@
             "type": "boolean",
             "description": "send calendar invites to attendees? Defaults to true if attendees are provided",
             "default": true
+          },
+          "labels": {
+            "type": "object",
+            "description": "labels of the event by name",
+            "default": {}
+          },
+          "metadata": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "description": "free-form data stored with the event, exactly as sent",
+            "default": null
           }
         },
         "required": [

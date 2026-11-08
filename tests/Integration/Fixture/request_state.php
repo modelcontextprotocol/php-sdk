@@ -23,21 +23,14 @@ use Mcp\Schema\Content\TextContent;
 use Mcp\Schema\Elicitation\ElicitationSchema;
 use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\Role;
-use Mcp\Schema\JsonRpc\Request;
-use Mcp\Schema\JsonRpc\Response;
-use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\ElicitRequest;
 use Mcp\Schema\Result\CallToolResult;
 use Mcp\Schema\Result\InputRequiredResult;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
-use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\FileSessionStore;
-use Mcp\Server\Session\SessionInterface;
-use Mcp\Server\Stateless\InputContext;
 use Mcp\Server\Stateless\OriginatingRequestBinder;
-use Mcp\Server\Stateless\RequestStateCodec;
 use Mcp\Server\Transport\Http\Middleware\AuthorizationMiddleware;
 use Mcp\Server\Transport\Http\Middleware\PassthroughMiddleware;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
@@ -107,29 +100,6 @@ $builder = Server::builder()
         name: 'report',
         description: 'Reports progress before the two asks, so its rounds answer as a stream.',
     )
-    ->addRequestHandler(new class implements RequestHandlerInterface {
-        public function supports(Request $request): bool
-        {
-            return $request instanceof CallToolRequest && 'raw' === $request->name;
-        }
-
-        // Skips schema validation, which refuses member names only a handler like this one gets to see.
-        public function handle(Request $request, SessionInterface $session): Response
-        {
-            assert($request instanceof CallToolRequest);
-            $input = $session->get(InputContext::class);
-            $codec = $session->get(RequestStateCodec::class);
-            assert($codec instanceof RequestStateCodec);
-
-            if ($input instanceof InputContext && true === ($input->requestState()['asked'] ?? null)) {
-                return new Response($request->getId(), new CallToolResult([new TextContent((string) json_encode($request->arguments['options'] ?? null))]));
-            }
-
-            $schema = new ElicitationSchema(['v' => new StringSchemaDefinition('Value')], ['v']);
-
-            return new Response($request->getId(), new InputRequiredResult(['v' => new ElicitRequest('Sure?', $schema)], requestState: $codec->mint(['asked' => true])));
-        }
-    })
     ->addPrompt(
         static fn (RequestContext $context, string $topic): array => [new PromptMessage(Role::User, new TextContent(sprintf('brief on %s, approved by %s', $topic, $approver($context))))],
         name: 'brief',

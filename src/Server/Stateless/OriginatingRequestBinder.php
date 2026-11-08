@@ -59,8 +59,8 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
     public function bind(Request $request, ?AccessToken $accessToken): string
     {
         [$target, $arguments] = match (true) {
-            $request instanceof CallToolRequest => [$request->name, $request->arguments],
-            $request instanceof GetPromptRequest => [$request->name, $request->arguments ?? []],
+            $request instanceof CallToolRequest => [$request->name, self::canonical($request->arguments, true)],
+            $request instanceof GetPromptRequest => [$request->name, self::canonical($request->arguments ?? [])],
             $request instanceof ReadResourceRequest => [$request->uri, []],
             default => [null, []],
         };
@@ -68,7 +68,7 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
         return self::encode([
             'method' => $request::getMethod(),
             'target' => $target,
-            'arguments' => hash('sha256', self::encode(self::canonical($arguments))),
+            'arguments' => hash('sha256', self::encode($arguments)),
             'principal' => null === $accessToken ? null : $this->principal($accessToken),
         ]);
     }
@@ -112,19 +112,23 @@ final class OriginatingRequestBinder implements RequestStateBinderInterface
      * and the handler see: a map with numeric keys out of order, e.g.
      * `{"1": "B", "0": "A"}`, must not sort into the list `["A", "B"]`. Not
      * cast to an object, as `json_encode()` drops object members whose name
-     * starts with NUL. The arguments are decoded into PHP arrays,
-     * so a numeric-key object whose members arrive in list order is a list
-     * to the whole SDK and binds as one. Numbers bind by value: `1` and `1.0`
+     * starts with NUL. A `\stdClass` is a map whatever its keys, as tool
+     * arguments keep their JSON types. Numbers bind by value: `1` and `1.0`
      * encode alike, so a client re-encoding a number does not break its retry.
      */
-    private static function canonical(mixed $value): mixed
+    private static function canonical(mixed $value, bool $isMap = false): mixed
     {
+        if ($value instanceof \stdClass) {
+            $value = get_object_vars($value);
+            $isMap = true;
+        }
+
         if (!\is_array($value)) {
             return $value;
         }
 
-        if (array_is_list($value)) {
-            return array_map(self::canonical(...), $value);
+        if (!$isMap && array_is_list($value)) {
+            return array_map(static fn (mixed $item): mixed => self::canonical($item), $value);
         }
 
         ksort($value, \SORT_STRING);

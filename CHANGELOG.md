@@ -42,6 +42,11 @@ All notable changes to `mcp/sdk` will be documented in this file.
   * Fix a handler still running after its request was answered, e.g. without a fiber scheduler: it no longer fires `ResponseEvent` or `ErrorEvent`, what it throws is logged, and calling the `ClientGateway` throws.
 * [BC Break] Bind handshake-era sessions to the principal that opened them: `AccessToken::getPrincipal()`, or the `StreamableHttpTransport::PRINCIPAL_ATTRIBUTE` request attribute when set. Requests of another principal, and to sessions opened before the upgrade, are answered with `404`, and to a session the store cannot read with `503`. `Protocol::processInput()`, the transports' `handleMessage()`, `handleSessionEnd()`, `handlePostRequest()` and `handleDeleteRequest()`, and the `onMessage()` and `onSessionEnd()` listeners take a `?string $principal` as last argument.
 * [BC Break] Answer malformed JSON and an `initialize` sent with a session id with HTTP `400`, and a failure before the session is checked with `500`, instead of `200`. Such an answer no longer carries, or removes, the messages queued for the session in `Mcp-Session-Id`.
+* [BC Break] Keep the JSON types of `tools/call` arguments, so validation sees what the client sent: `{}` and `{"0":"x"}` are objects, `[]` and `["x"]` are arrays. Nested JSON objects in `CallToolRequest::$arguments` and in the arguments of `ToolHandlerInterface::execute()` are `\stdClass`.
+* [BC Break] Tool parameters without a type, or typed `mixed`, receive nested JSON objects as `\stdClass`. Parameters typed `array` still receive arrays at every level. Parameters typed `object` or `\stdClass`, which always failed with a `TypeError`, receive `\stdClass`.
+* [BC Break] Reject `tools/call` when `arguments` is not a JSON object with `-32600`, including `"arguments": []`.
+* [BC Break] Reject `tools/call` with `-32600` when its message has a member name starting with a NUL byte, as its arguments cannot keep their JSON types then.
+* [BC Break] `array<string, T>` parameters generate `{"type": "object"}` instead of `{"type": "array"}`, and `array<int, T>` parameters accept a JSON array or a JSON object.
 
 ### Client
 

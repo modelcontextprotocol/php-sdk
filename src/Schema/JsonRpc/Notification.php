@@ -12,12 +12,13 @@
 namespace Mcp\Schema\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\JsonRpc\Json;
 
 /**
  * @phpstan-type NotificationData array{
  *     jsonrpc: string,
  *     method: string,
- *     params?: array<string, mixed>|null
+ *     params?: array<string, mixed>|\stdClass|null
  * }
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
@@ -42,15 +43,15 @@ abstract class Notification implements HasMethodInterface, MessageInterface
         if (!isset($data['method']) || !\is_string($data['method'])) {
             throw new InvalidArgumentException('Invalid or missing "method" for Notification.');
         }
-        $params = $data['params'] ?? null;
+        $params = Json::objectsToArrays($data['params'] ?? null);
         if (null !== $params && !\is_array($params)) {
             throw new InvalidArgumentException('"params" for Notification must be an array/object or null.');
         }
 
         $notification = static::fromParams($params);
 
-        if (isset($data['params']['_meta'])) {
-            $notification->meta = $data['params']['_meta'];
+        if (isset($params['_meta'])) {
+            $notification->meta = $params['_meta'];
         }
 
         return $notification;

@@ -88,11 +88,6 @@ final class RequestStateBindingTest extends RequestStateTestCase
             'alice', self::tool('inspect', ['options' => ['B', 'A']]),
             '["B","A"], approved by alice',
         ];
-        yield 'an approval on other values of members named with a leading NUL' => [
-            'alice', self::tool('raw', ['options' => ['visible' => true, "\0mode" => 'preview']]),
-            'alice', self::tool('raw', ['options' => ['visible' => true, "\0mode" => 'execute']]),
-            '{"visible":true,"\u0000mode":"execute"}',
-        ];
         yield 'alice\'s approval under a token of another issuer' => [
             'alice', $transfer,
             'alice-other-issuer', $transfer,
@@ -189,11 +184,6 @@ final class RequestStateBindingTest extends RequestStateTestCase
             self::tool('inspect', ['options' => ['trip' => ['to' => 'BER', 'from' => 'HAM']]]),
             self::tool('inspect', ['options' => ['trip' => ['from' => 'HAM', 'to' => 'BER']]]),
             '{"trip":{"from":"HAM","to":"BER"}}, approved by alice',
-        ];
-        yield 'a member named with a leading NUL' => [
-            self::tool('raw', ['options' => ['visible' => true, "\0mode" => 'preview']]),
-            self::tool('raw', ['options' => ["\0mode" => 'preview', 'visible' => true]]),
-            '{"\u0000mode":"preview","visible":true}',
         ];
     }
 

@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Stateless;
 
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\Request\CallToolRequest;
 use Mcp\Schema\Request\GetPromptRequest;
@@ -122,6 +123,35 @@ class OriginatingRequestBinderTest extends TestCase
             $binder->bind(self::call(arguments: json_decode($first, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
             $binder->bind(self::call(arguments: json_decode($retry, true, flags: \JSON_THROW_ON_ERROR)), self::token()),
         );
+    }
+
+    /**
+     * @return iterable<string, array{string, string, bool}>
+     */
+    public static function decodedArguments(): iterable
+    {
+        yield 'nested member order' => ['{"trip": {"to": "BER", "from": "HAM"}}', '{"trip": {"from": "HAM", "to": "BER"}}', true];
+        yield 'root member order' => ['{"to": "BER", "from": "HAM"}', '{"from": "HAM", "to": "BER"}', true];
+        yield 'numeric root member order' => ['{"0": "A", "1": "B"}', '{"1": "B", "0": "A"}', true];
+        yield 'numeric nested member order' => ['{"items": {"0": "A", "1": "B"}}', '{"items": {"1": "B", "0": "A"}}', true];
+        yield 'empty object and empty array' => ['{"items": {}}', '{"items": []}', false];
+        yield 'numeric-key object and list' => ['{"items": {"0": "A"}}', '{"items": ["A"]}', false];
+    }
+
+    #[DataProvider('decodedArguments')]
+    #[TestDox('arguments bind as they arrive from the wire: $_dataName')]
+    public function testArgumentsDecodedFromTheWire(string $first, string $retry, bool $same): void
+    {
+        $binder = new OriginatingRequestBinder();
+        $bind = static function (string $arguments) use ($binder): string {
+            $json = \sprintf('{"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"book","arguments":%s}}', $arguments);
+            $request = MessageFactory::make()->create($json);
+            self::assertInstanceOf(CallToolRequest::class, $request);
+
+            return $binder->bind($request, self::token());
+        };
+
+        $this->assertSame($same, $bind($first) === $bind($retry));
     }
 
     #[TestDox('a token without a subject fails closed: no two requests bind to the same value')]

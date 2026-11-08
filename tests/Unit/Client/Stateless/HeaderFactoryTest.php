@@ -40,7 +40,7 @@ final class HeaderFactoryTest extends TestCase
     #[TestDox('names the subject of a request that addresses one')]
     public function testNameHeader(): void
     {
-        $payload = ['method' => 'tools/call', 'params' => ['name' => 'search', 'arguments' => []]];
+        $payload = ['method' => 'tools/call', 'params' => ['name' => 'search', 'arguments' => new \stdClass()]];
 
         $this->assertSame('search', $this->headersFor($payload)['Mcp-Name']);
         $this->assertNull($this->validate($payload));

@@ -247,7 +247,25 @@ final class SchemaGenerator implements SchemaGeneratorInterface
         // Run after all merges so that when a Schema attribute reshapes the parameter
         // (e.g. to `object`), the array `items` invariant is only enforced on what is
         // genuinely still an array.
-        return $this->ensureArrayItems($mergedSchema);
+        return $this->ensureObjectDefault($this->ensureArrayItems($mergedSchema));
+    }
+
+    /**
+     * An empty PHP array encodes as `[]`, which a client could not send back to an object-only parameter.
+     *
+     * @param array<string, mixed> $schema
+     *
+     * @return array<string, mixed>
+     */
+    private function ensureObjectDefault(array $schema): array
+    {
+        $types = (array) ($schema['type'] ?? []);
+
+        if ([] === ($schema['default'] ?? null) && \in_array('object', $types, true) && !\in_array('array', $types, true)) {
+            $schema['default'] = new \stdClass();
+        }
+
+        return $schema;
     }
 
     /**
@@ -805,8 +823,8 @@ final class SchemaGenerator implements SchemaGeneratorInterface
             return $pseudoTypes;
         }
 
-        // A non-empty map with string keys is a JSON object; it cannot be the `[]` that an empty `{}` decodes to.
-        if (preg_match('/^non-empty-array\s*</', $normalizedType)) {
+        // The key type of a generic array decides between a JSON array and a JSON object.
+        if (preg_match('/^(?:non-empty-)?array\s*<.*>$/s', $normalizedType)) {
             return (array) $this->mapTypeToSchema($normalizedType)['type'];
         }
 

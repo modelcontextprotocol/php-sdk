@@ -988,7 +988,7 @@ class CallToolHandlerTest extends TestCase
             'id' => 'test-request-'.uniqid(),
             'params' => [
                 'name' => $name,
-                'arguments' => $arguments,
+                'arguments' => (object) $arguments,
             ],
         ]);
     }
