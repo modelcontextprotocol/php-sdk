@@ -1057,6 +1057,10 @@ class Protocol
 
             return $this->dispatchEvent(new ErrorEvent($result, $request, $session, null))->getError();
         } catch (\Throwable $e) {
+            if (HandlerFibers::isAbandoned()) {
+                throw $e;
+            }
+
             return $this->errorForThrowable($e, $request, $session);
         }
     }

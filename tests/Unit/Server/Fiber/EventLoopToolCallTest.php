@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\Server\Fiber;
 
 use Mcp\Event\ErrorEvent;
+use Mcp\Event\ResponseEvent;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -197,6 +198,49 @@ final class EventLoopToolCallTest extends TestCase
         $this->loop->drain();
 
         $this->assertSame(['A request handler failed after its request was answered: The lookup failed.'], $logger->messages);
+    }
+
+    #[TestDox('what a response listener throws after the request was answered is logged and fires no event')]
+    public function testAResponseListenerThrowingAfterTheRequestIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $events = [];
+        $loop = $this->loop;
+        $dispatcher = new class($events, $loop) implements EventDispatcherInterface {
+            /** @param list<string> $events */
+            public function __construct(public array &$events, private readonly FakeEventLoop $loop)
+            {
+            }
+
+            public function dispatch(object $event): object
+            {
+                $this->events[] = $event::class;
+
+                if ($event instanceof ResponseEvent && $event->getRequest() instanceof CallToolRequest) {
+                    $this->loop->await(null);
+
+                    throw new \DomainException('The listener failed.');
+                }
+
+                return $event;
+            }
+        };
+        $server = Server::builder()
+            ->setServerInfo('event-loop-server', '1.0.0')
+            ->setLogger($logger)
+            ->setEventDispatcher($dispatcher)
+            ->addTool(static fn (): string => 'found', name: 'lookup', description: 'Looks something up')
+            ->build();
+
+        $answer = $this->call($server, false);
+        $this->assertSame(-32603, $answer['error']['code'] ?? null);
+
+        $events = [];
+        $logger->messages = [];
+        $this->loop->drain();
+
+        $this->assertSame([], $events);
+        $this->assertSame(['A request handler failed after its request was answered: The listener failed.'], $logger->messages);
     }
 
     #[TestDox('a gateway call after the request was answered throws instead of leaving the handler suspended')]
