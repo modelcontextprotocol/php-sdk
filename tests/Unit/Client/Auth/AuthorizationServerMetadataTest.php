@@ -71,7 +71,7 @@ final class AuthorizationServerMetadataTest extends TestCase
     public static function authorizationEndpointRequiredProvider(): iterable
     {
         yield 'no grant list' => [[]];
-        yield 'an empty grant list' => [['grant_types_supported' => []]];
+        yield 'a null grant list' => [['grant_types_supported' => null]];
         yield 'the authorization code grant' => [['grant_types_supported' => ['client_credentials', 'authorization_code']]];
         yield 'the implicit grant' => [['grant_types_supported' => ['implicit']]];
     }
@@ -117,6 +117,44 @@ final class AuthorizationServerMetadataTest extends TestCase
 
         $this->assertTrue($metadata->supportsGrant('authorization_code'));
         $this->assertFalse($metadata->supportsGrant('refresh_token'));
+    }
+
+    /**
+     * @return iterable<string, array{mixed}>
+     */
+    public static function noUsableGrantListProvider(): iterable
+    {
+        yield 'an empty list' => [[]];
+        yield 'a bare string' => ['authorization_code'];
+        yield 'a list without strings' => [[123]];
+    }
+
+    #[DataProvider('noUsableGrantListProvider')]
+    #[TestDox('a stated grant list does not fall back to the default: $_dataName')]
+    public function testStatedGrantListHasNoDefault(mixed $grantTypes): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+            'grant_types_supported' => $grantTypes,
+        ]);
+
+        $this->assertFalse($metadata->supportsGrant('authorization_code'));
+        $this->assertFalse($metadata->supportsGrant('refresh_token'));
+    }
+
+    #[TestDox('an empty grant list needs no authorization endpoint')]
+    public function testEmptyGrantListNeedsNoAuthorizationEndpoint(): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => 'https://auth.example.com',
+            'token_endpoint' => 'https://auth.example.com/token',
+            'grant_types_supported' => [],
+        ]);
+
+        $this->assertNull($metadata->authorizationEndpoint);
+        $this->assertFalse($metadata->supportsGrant('authorization_code'));
     }
 
     #[TestDox('endpoints that are not HTTPS are refused')]
@@ -205,5 +243,7 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertSame('https://mcp.example.com/token', $metadata->tokenEndpoint);
         $this->assertSame('https://mcp.example.com/register', $metadata->registrationEndpoint);
         $this->assertFalse($metadata->issuerParameterSupported);
+        $this->assertTrue($metadata->supportsGrant('authorization_code'));
+        $this->assertFalse($metadata->supportsGrant('refresh_token'));
     }
 }

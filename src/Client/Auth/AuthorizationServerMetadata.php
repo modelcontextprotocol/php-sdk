@@ -24,16 +24,16 @@ use Mcp\Server\Transport\Http\OAuth\SecureUrl;
 final class AuthorizationServerMetadata
 {
     /**
-     * @param string   $issuer                            the issuer identifier, which must match how the document was found
-     * @param ?string  $authorizationEndpoint             where the user is sent to approve the request, when a supported grant uses it
-     * @param string   $tokenEndpoint                     where codes and refresh tokens are exchanged
-     * @param ?string  $registrationEndpoint              where a client can register itself, when the server allows it
-     * @param string[] $scopesSupported                   scopes the server knows about
-     * @param string[] $grantTypesSupported               grant types the server accepts
-     * @param string[] $tokenEndpointAuthMethodsSupported client authentication methods the token endpoint accepts
-     * @param string[] $codeChallengeMethodsSupported     PKCE challenge methods the server accepts
-     * @param bool     $clientIdMetadataDocumentSupported whether a URL may be used as the client id
-     * @param bool     $issuerParameterSupported          whether authorization responses carry an "iss" parameter
+     * @param string    $issuer                            the issuer identifier, which must match how the document was found
+     * @param ?string   $authorizationEndpoint             where the user is sent to approve the request, when a supported grant uses it
+     * @param string    $tokenEndpoint                     where codes and refresh tokens are exchanged
+     * @param ?string   $registrationEndpoint              where a client can register itself, when the server allows it
+     * @param string[]  $scopesSupported                   scopes the server knows about
+     * @param ?string[] $grantTypesSupported               grant types the server accepts, or null when it does not say
+     * @param string[]  $tokenEndpointAuthMethodsSupported client authentication methods the token endpoint accepts
+     * @param string[]  $codeChallengeMethodsSupported     PKCE challenge methods the server accepts
+     * @param bool      $clientIdMetadataDocumentSupported whether a URL may be used as the client id
+     * @param bool      $issuerParameterSupported          whether authorization responses carry an "iss" parameter
      */
     public function __construct(
         public readonly string $issuer,
@@ -41,7 +41,7 @@ final class AuthorizationServerMetadata
         public readonly string $tokenEndpoint,
         public readonly ?string $registrationEndpoint = null,
         public readonly array $scopesSupported = [],
-        public readonly array $grantTypesSupported = [],
+        public readonly ?array $grantTypesSupported = null,
         public readonly array $tokenEndpointAuthMethodsSupported = [],
         public readonly array $codeChallengeMethodsSupported = [],
         public readonly bool $clientIdMetadataDocumentSupported = false,
@@ -57,11 +57,11 @@ final class AuthorizationServerMetadata
      */
     public static function fromArray(array $data): self
     {
-        $grantTypes = self::strings($data['grant_types_supported'] ?? null);
+        $grantTypes = isset($data['grant_types_supported']) ? self::strings($data['grant_types_supported']) : null;
         $requiredFields = ['issuer', 'token_endpoint'];
 
         // RFC 8414 section 2 requires this endpoint only when a supported grant uses it.
-        if ([] === $grantTypes || [] !== array_intersect($grantTypes, ['authorization_code', 'implicit'])) {
+        if (null === $grantTypes || [] !== array_intersect($grantTypes, ['authorization_code', 'implicit'])) {
             $requiredFields[] = 'authorization_endpoint';
         }
 
@@ -111,7 +111,7 @@ final class AuthorizationServerMetadata
     public function supportsGrant(string $grantType): bool
     {
         // RFC 8414 section 2 also defaults to implicit, which OAuth 2.1 removed.
-        return [] === $this->grantTypesSupported
+        return null === $this->grantTypesSupported
             ? 'authorization_code' === $grantType
             : \in_array($grantType, $this->grantTypesSupported, true);
     }
