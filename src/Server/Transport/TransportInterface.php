@@ -83,6 +83,7 @@ interface TransportInterface
      *
      * The transport calls this when a client disconnects or explicitly ends their session.
      * The principal identifies who ended it, if the transport authenticates requests.
+     * The listener throws a {@see \Mcp\Exception\SessionStoreException} when it cannot tell who opened the session.
      *
      * @param callable(Uuid $sessionId, ?string $principal): bool $listener The callback function to execute when destroying a session, returning false when the session does not exist
      */

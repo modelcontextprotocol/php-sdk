@@ -55,7 +55,7 @@ class InMemoryTransport extends BaseTransport
         }
 
         $this->logger->info('InMemoryTransport finished processing.');
-        $this->handleSessionEnd($this->sessionId);
+        $this->endSessionOnShutdown($this->sessionId);
 
         $this->sessionId = null;
 
@@ -69,7 +69,7 @@ class InMemoryTransport extends BaseTransport
 
     public function close(): void
     {
-        $this->handleSessionEnd($this->sessionId);
+        $this->endSessionOnShutdown($this->sessionId);
         $this->sessionId = null;
     }
 }

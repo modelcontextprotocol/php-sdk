@@ -74,6 +74,8 @@ class Protocol
 
     public const SESSION_LOGGING_LEVEL = '_mcp.logging_level';
 
+    private const SESSION_NOT_FOUND_MESSAGE = 'Session not found or has expired.';
+
     /** Session key for the fingerprint of the principal that opened the session, null when it was opened without one */
     private const SESSION_PRINCIPAL = '_mcp.principal';
 
@@ -260,7 +262,15 @@ class Protocol
         if ($takesLock) {
             // Who opened the session is checked before waiting for the lock too, so that another
             // principal can neither tell the session is busy nor keep it busy.
-            if (!$this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal)) {
+            try {
+                $serves = $this->servesPrincipal($this->sessionManager->createWithId($sessionId), $principal);
+            } catch (SessionStoreException $e) {
+                $this->refuseUnavailableStore($transport, $sessionId, self::findResponseId($input), $e);
+
+                return;
+            }
+
+            if (!$serves) {
                 $this->refuseOtherPrincipal($transport, $sessionId);
 
                 return;
@@ -1155,19 +1165,13 @@ class Protocol
         try {
             $exists = $this->sessionManager->exists($sessionId);
         } catch (SessionStoreException $e) {
-            // Not a 404: the session may well exist, so the client should retry instead of re-initializing.
-            $this->logger->error('Session store is unavailable.', [
-                'session_id' => $sessionId->toRfc4122(),
-                'exception' => $e,
-            ]);
-            $error = Error::forInternalError('Session store is unavailable.', self::findRequestId($message));
-            $this->sendResponse($transport, $error, null, ['status_code' => 503]);
+            $this->refuseUnavailableStore($transport, $sessionId, self::findRequestId($message), $e);
 
             return null;
         }
 
         if (!$exists) {
-            $error = Error::forInvalidRequest('Session not found or has expired.');
+            $error = Error::forInvalidRequest(self::SESSION_NOT_FOUND_MESSAGE);
             $this->sendResponse($transport, $error, null, ['status_code' => 404]);
 
             return null;
@@ -1175,7 +1179,15 @@ class Protocol
 
         $session = $this->sessionManager->createWithId($sessionId);
 
-        if (!$this->servesPrincipal($session, $principal)) {
+        try {
+            $serves = $this->servesPrincipal($session, $principal);
+        } catch (SessionStoreException $e) {
+            $this->refuseUnavailableStore($transport, $sessionId, self::findRequestId($message), $e);
+
+            return null;
+        }
+
+        if (!$serves) {
             $this->refuseOtherPrincipal($transport, $sessionId);
 
             return null;
@@ -1187,11 +1199,35 @@ class Protocol
     /**
      * Whether the session serves the principal: the one that opened it, or no principal for a session opened without one.
      *
-     * A session that does not record who opened it, for example because the store failed to read it, serves no one.
+     * A session that does not record who opened it serves no one.
+     *
+     * @throws SessionStoreException when the session exists but its data cannot be read
      */
     private function servesPrincipal(SessionInterface $session, ?string $principal): bool
     {
-        return $session->get(self::SESSION_PRINCIPAL, false) === self::fingerprint($principal);
+        if ($session->get(self::SESSION_PRINCIPAL, false) === self::fingerprint($principal)) {
+            return true;
+        }
+
+        if ([] === $session->all()) {
+            throw new SessionStoreException(\sprintf('Session "%s" could not be read.', $session->getId()->toRfc4122()));
+        }
+
+        return false;
+    }
+
+    /**
+     * Not a 404: the session may well exist, so the client should retry instead of re-initializing.
+     *
+     * @param TransportInterface<mixed> $transport
+     */
+    private function refuseUnavailableStore(TransportInterface $transport, Uuid $sessionId, string|int|null $requestId, SessionStoreException $exception): void
+    {
+        $this->logger->error('Session store is unavailable.', [
+            'session_id' => $sessionId->toRfc4122(),
+            'exception' => $exception,
+        ]);
+        $this->sendResponse($transport, Error::forInternalError('Session store is unavailable.', $requestId), null, ['status_code' => 503]);
     }
 
     /**
@@ -1204,7 +1240,7 @@ class Protocol
         ]);
 
         // Answered like an unknown session, so that another principal cannot tell the session exists.
-        $error = Error::forInvalidRequest('Session not found or has expired.');
+        $error = Error::forInvalidRequest(self::SESSION_NOT_FOUND_MESSAGE);
         $this->sendResponse($transport, $error, null, ['status_code' => 404]);
     }
 
@@ -1229,6 +1265,8 @@ class Protocol
      * Ends a session at the request of a client, which must be the principal that opened it.
      *
      * @return bool false when the session does not exist, or is another principal's
+     *
+     * @throws SessionStoreException when who opened the session cannot be established; the session is not ended
      */
     private function endSession(Uuid $sessionId, ?string $principal = null): bool
     {

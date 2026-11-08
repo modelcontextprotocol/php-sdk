@@ -11,6 +11,7 @@
 
 namespace Mcp\Tests\Unit\Server\Transport;
 
+use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
@@ -22,6 +23,7 @@ use Mcp\Server\Transport\Http\OAuth\AuthorizationResult;
 use Mcp\Server\Transport\Http\OAuth\AuthorizationTokenValidatorInterface;
 use Mcp\Server\Transport\Http\OAuth\ProtectedResourceMetadata;
 use Mcp\Server\Transport\StreamableHttpTransport;
+use Mcp\Tests\Unit\Server\Session\Fixture\RecordingSessionLock;
 use Nyholm\Psr7\Factory\Psr17Factory;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
@@ -106,17 +108,54 @@ final class SessionBindingTest extends TestCase
         $this->assertSame(404, $this->call($session, 'alice.ide.1')->getStatusCode());
     }
 
-    public function testSessionThatCannotBeReadServesNoRequestWithoutPrincipal(): void
+    public function testSessionThatCannotBeReadIsRetriedByEveryone(): void
     {
         $session = $this->initialize('alice.ide.1');
         $passthrough = [new PassthroughMiddleware()];
 
         $this->store->unreadable = true;
-        $this->assertSame(404, $this->call($session, null, $passthrough)->getStatusCode());
-        $this->serve($this->request('DELETE', '', null, $session), $passthrough);
+        $this->assertSame(503, $this->call($session, 'alice.ide.1')->getStatusCode());
+        $this->assertSame(503, $this->call($session, null, $passthrough)->getStatusCode());
+        $this->assertSame(503, $this->serve($this->request('DELETE', '', 'alice.ide.1', $session))->getStatusCode());
+        $this->assertSame(503, $this->serve($this->request('DELETE', '', null, $session), $passthrough)->getStatusCode());
         $this->store->unreadable = false;
 
         $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
+    }
+
+    public function testSessionThatCannotBeReadIsRetriedWithASessionLock(): void
+    {
+        $log = [];
+        $server = Server::builder()
+            ->setServerInfo('test', '1.0.0')
+            ->setSession($this->store)
+            ->setSessionLock(new RecordingSessionLock($log))
+            ->build();
+        $session = $this->server($server, $this->request('POST', $this->initializeRequest(), 'alice.ide.1'))->getHeaderLine('Mcp-Session-Id');
+        $log = [];
+
+        $this->store->unreadable = true;
+        $this->assertSame(503, $this->server($server, $this->request('POST', $this->toolCall(), 'alice.ide.1', $session))->getStatusCode());
+        $this->assertSame([], $log);
+    }
+
+    public function testDeleteDuringAStoreOutageKeepsTheSession(): void
+    {
+        $session = $this->initialize('alice.ide.1');
+
+        $this->store->unavailable = true;
+        $this->assertSame(503, $this->serve($this->request('DELETE', '', 'alice.ide.1', $session))->getStatusCode());
+        $this->store->unavailable = false;
+
+        $this->assertSame('alice', $this->text($this->call($session, 'alice.ide.1')));
+    }
+
+    public function testSessionFromBeforeTheUpgradeIsNotFound(): void
+    {
+        $session = Uuid::v4();
+        $this->store->write($session, json_encode(['initialized' => true], \JSON_THROW_ON_ERROR));
+
+        $this->assertSame(404, $this->call($session->toRfc4122(), 'alice.ide.1')->getStatusCode());
     }
 
     public function testPrincipalSetByTheApplicationBindsTheSession(): void
@@ -240,6 +279,11 @@ final class SessionBindingTest extends TestCase
         return $this->serve($request, [new PassthroughMiddleware()]);
     }
 
+    private function server(Server $server, ServerRequestInterface $request): ResponseInterface
+    {
+        return $server->run(new StreamableHttpTransport($request, $this->factory, $this->factory, middleware: [$this->authorization()]));
+    }
+
     private function initialize(string $token): string
     {
         $session = $this->serve($this->request('POST', $this->initializeRequest(), $token))->getHeaderLine('Mcp-Session-Id');
@@ -341,10 +385,21 @@ final class SessionBindingTest extends TestCase
 
 /**
  * Finds sessions but fails to read them while $unreadable is set, like a cache that is reachable but fails on get().
+ * Fails to look them up while $unavailable is set, like a cache that is down.
  */
 final class UnreadableSessionStore extends InMemorySessionStore
 {
     public bool $unreadable = false;
+    public bool $unavailable = false;
+
+    public function exists(Uuid $id): bool
+    {
+        if ($this->unavailable) {
+            throw new SessionStoreException('Session store is unavailable.');
+        }
+
+        return parent::exists($id);
+    }
 
     public function read(Uuid $id): string|false
     {

@@ -13,6 +13,7 @@ namespace Mcp\Server\Transport;
 
 use Http\Discovery\Psr17FactoryDiscovery;
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\SessionStoreException;
 use Mcp\Schema\Enum\ProtocolVersion;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Authorization\AccessToken;
@@ -253,7 +254,15 @@ class StreamableHttpTransport extends BaseTransport implements StatelessAwareTra
             return $this->createErrorResponse(Error::forInvalidRequest(self::SESSION_HEADER.' header is required.'), 400);
         }
 
-        if (!$this->handleSessionEnd($this->sessionId, $principal)) {
+        try {
+            $ended = $this->handleSessionEnd($this->sessionId, $principal);
+        } catch (SessionStoreException $e) {
+            $this->logger->error('Session store is unavailable.', ['session_id' => $this->sessionId->toRfc4122(), 'exception' => $e]);
+
+            return $this->createErrorResponse(Error::forInternalError('Session store is unavailable.'), 503);
+        }
+
+        if (!$ended) {
             return $this->createErrorResponse(Error::forInvalidRequest('Session not found or has expired.'), 404);
         }
 
