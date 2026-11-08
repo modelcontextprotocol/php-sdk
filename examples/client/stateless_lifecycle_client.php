@@ -95,6 +95,11 @@ foreach ($client->listTools()->tools as $tool) {
 echo "\nA plain call:\n";
 echo '  '.text($client->callTool('get_weather', ['city' => 'Munich']))."\n";
 
+echo "\nStructured content can be a value, an explicit null or absent:\n";
+echo '  known user:   '.structured($client->callTool('find_user', ['id' => 'ada']))."\n";
+echo '  unknown user: '.structured($client->callTool('find_user', ['id' => 'nobody']))."\n";
+echo '  plain tool:   '.structured($client->callTool('get_weather', ['city' => 'Munich']))."\n";
+
 echo "\nA call the server cannot finish in one round:\n";
 // One call from here. Two on the wire: the server returns its question, the
 // handler above answers it, and the client retries carrying both the answer and
@@ -109,4 +114,10 @@ function text(CallToolResult $result): string
     $first = $result->content[0] ?? null;
 
     return $first instanceof TextContent ? $first->text : '(no text)';
+}
+
+/** The structured content of a tool result, telling an explicit null from an absent field. */
+function structured(CallToolResult $result): string
+{
+    return $result->hasStructuredContent() ? json_encode($result->structuredContent, \JSON_THROW_ON_ERROR) : '(absent)';
 }

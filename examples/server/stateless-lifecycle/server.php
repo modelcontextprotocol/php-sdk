@@ -104,6 +104,20 @@ $server = Server::builder()
         description: 'Reports the weather for a city',
     )
 
+    // A lookup that can come back empty. This revision allows any JSON value as
+    // structured content, so a schema that allows null gets an explicit null. A
+    // handshake-era client only sees the null in `content`.
+    ->addTool(
+        static fn (string $id): ?array => ['ada' => ['name' => 'Ada Lovelace']][$id] ?? null,
+        name: 'find_user',
+        description: 'Finds a user by id, or returns null if there is none',
+        outputSchema: [
+            'type' => ['object', 'null'],
+            'properties' => ['name' => ['type' => 'string']],
+            'required' => ['name'],
+        ],
+    )
+
     // Progress and logging both travel on this request's own response stream.
     // The client opts into each: progress by sending `_meta.progressToken`,
     // logging by sending `_meta["io.modelcontextprotocol/logLevel"]`. Without
