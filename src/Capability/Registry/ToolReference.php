@@ -14,6 +14,7 @@ namespace Mcp\Capability\Registry;
 use Mcp\Capability\Formatter\ToolResultFormatter;
 use Mcp\Schema\Content\Content;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Enum\UndefinedValue;
 use Mcp\Schema\Tool;
 
 /**
@@ -71,7 +72,7 @@ class ToolReference extends ElementReference
      *                                              newest handshake revision, whose stricter rule is what
      *                                              every revision reachable through `initialize` requires
      *
-     * @return mixed the structured content, or null if not extractable
+     * @return mixed the structured content, which may be null, or {@see UndefinedValue::Value} if there is none to send
      *
      * @throws \JsonException if JSON encoding fails for non-Content array/object results
      */
@@ -84,7 +85,7 @@ class ToolReference extends ElementReference
             // SEP-2106 do not allow as `structuredContent` — strict clients reject
             // the whole tool call when one is sent.
             if ($objectOnly && array_is_list($toolExecutionResult)) {
-                return null;
+                return UndefinedValue::Value;
             }
 
             foreach ($toolExecutionResult as $item) {
@@ -93,7 +94,7 @@ class ToolReference extends ElementReference
                     // array; an array holding one or more of them isn't structured
                     // data. This holds in every revision — it is a duplication rule,
                     // not a shape rule.
-                    return null;
+                    return UndefinedValue::Value;
                 }
             }
 
@@ -115,31 +116,31 @@ class ToolReference extends ElementReference
             }
 
             // A plain object always encodes to a JSON object, but `JsonSerializable`
-            // can hand back anything, scalars included.
+            // can hand back anything, scalars and null included.
             if (!\is_array($decoded)) {
-                return $this->acceptsScalarStructuredContent($objectOnly) ? $decoded : null;
+                return $this->acceptsNonObjectStructuredContent($objectOnly) ? $decoded : UndefinedValue::Value;
             }
 
             if ($objectOnly && array_is_list($decoded)) {
-                return null;
+                return UndefinedValue::Value;
             }
 
             return $decoded;
         }
 
-        // A scalar is structured content only from SEP-2106 on, and only when the
-        // tool declared an outputSchema: without one, every string-returning tool
+        // A scalar or null is structured content only from SEP-2106 on, and only when
+        // the tool declared an outputSchema: without one, every string-returning tool
         // would start advertising a duplicate of its own `content`.
-        return $this->acceptsScalarStructuredContent($objectOnly) && \is_scalar($toolExecutionResult)
+        return $this->acceptsNonObjectStructuredContent($objectOnly) && (null === $toolExecutionResult || \is_scalar($toolExecutionResult))
             ? $toolExecutionResult
-            : null;
+            : UndefinedValue::Value;
     }
 
     /**
      * Whether the negotiated revision and the tool's own declaration together allow
      * a non-object `structuredContent`.
      */
-    private function acceptsScalarStructuredContent(bool $objectOnly): bool
+    private function acceptsNonObjectStructuredContent(bool $objectOnly): bool
     {
         return !$objectOnly && null !== $this->tool->outputSchema;
     }

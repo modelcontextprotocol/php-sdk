@@ -109,15 +109,6 @@ final class CallToolHandler implements RequestHandlerInterface
             if (!$result instanceof CallToolResult) {
                 $structuredContent = $reference->extractStructuredContent($result, $protocolVersion);
 
-                $explicitNull = null === $structuredContent
-                    && !$protocolVersion->requiresObjectStructuredContent()
-                    && null !== $reference->tool->outputSchema
-                    && (null === $result || ($result instanceof \JsonSerializable && 'null' === json_encode($result, \JSON_THROW_ON_ERROR)));
-
-                if (null === $structuredContent && !$explicitNull) {
-                    $structuredContent = UndefinedValue::Value;
-                }
-
                 if (UndefinedValue::Value === $structuredContent && null !== $reference->tool->outputSchema) {
                     $this->logger->warning('Tool declares an "outputSchema" but returned a value that cannot be sent as "structuredContent"; the value is only carried in "content".', [
                         'name' => $toolName,
@@ -125,7 +116,7 @@ final class CallToolHandler implements RequestHandlerInterface
                     ]);
                 }
 
-                $content = $explicitNull ? [new TextContent('null')] : $reference->formatResult($result);
+                $content = null === $structuredContent ? [new TextContent('null')] : $reference->formatResult($result);
                 $result = new CallToolResult($content, structuredContent: $structuredContent);
             } elseif ($protocolVersion->requiresObjectStructuredContent()
                 && $result->hasStructuredContent()

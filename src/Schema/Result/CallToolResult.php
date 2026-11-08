@@ -48,7 +48,8 @@ class CallToolResult implements ResultInterface
      * @param bool                      $isError           Whether the tool execution resulted in an error.  If not set, this is assumed to be false (the call was successful).
      * @param mixed                     $structuredContent Structured result of the call. Any JSON value — object, array,
      *                                                     string, number, boolean or null — conforming to the tool's
-     *                                                     outputSchema when one is declared.
+     *                                                     outputSchema when one is declared. Omit it or pass
+     *                                                     {@see UndefinedValue::Value} to leave the field out.
      * @param array<string, mixed>|null $meta              Optional metadata
      */
     public function __construct(
