@@ -55,6 +55,11 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         parse_str((string) parse_url($authorizationUrl, \PHP_URL_QUERY), $query);
         $state = \is_string($query['state'] ?? null) ? $query['state'] : null;
 
+        // Windows lets a second listener bind a port that is in use.
+        if ('Windows' === \PHP_OS_FAMILY && self::isPortInUse($host, $port)) {
+            throw new AuthorizationException(\sprintf('Could not listen on "%s:%d" for the authorization redirect: the port is in use.', $host, $port));
+        }
+
         $server = @stream_socket_server(\sprintf('tcp://%s:%d', $host, $port), $errorCode, $errorMessage);
 
         if (false === $server) {
@@ -132,6 +137,19 @@ final class LoopbackAuthorizationHandler implements AuthorizationHandlerInterfac
         fclose($connection);
 
         return $isCallback ? $callback : null;
+    }
+
+    private static function isPortInUse(string $host, int $port): bool
+    {
+        $connection = @stream_socket_client(\sprintf('tcp://%s:%d', $host, $port), $errorCode, $errorMessage, 1);
+
+        if (false === $connection) {
+            return false;
+        }
+
+        fclose($connection);
+
+        return true;
     }
 
     private function open(string $url): void

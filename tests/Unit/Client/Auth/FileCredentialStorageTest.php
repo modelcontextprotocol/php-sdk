@@ -90,6 +90,10 @@ final class FileCredentialStorageTest extends TestCase
     #[TestDox('the file is not readable by anyone else')]
     public function testFilePermissions(): void
     {
+        if ('Windows' === \PHP_OS_FAMILY) {
+            $this->markTestSkipped('Windows has no POSIX file modes.');
+        }
+
         $storage = new FileCredentialStorage($this->path);
         $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('token'));
 
@@ -102,6 +106,10 @@ final class FileCredentialStorageTest extends TestCase
     #[TestDox('the credentials are never world-readable, not even briefly')]
     public function testFileIsNeverExposedWhileBeingWritten(): void
     {
+        if ('Windows' === \PHP_OS_FAMILY) {
+            $this->markTestSkipped('Windows has no POSIX file modes.');
+        }
+
         $storage = new FileCredentialStorage($this->path);
         $storage->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('first'));
 
@@ -159,6 +167,10 @@ final class FileCredentialStorageTest extends TestCase
     #[TestDox('the lock file is as private as the credentials')]
     public function testLockFilePermissions(): void
     {
+        if ('Windows' === \PHP_OS_FAMILY) {
+            $this->markTestSkipped('Windows has no POSIX file modes.');
+        }
+
         (new FileCredentialStorage($this->path))->saveToken('https://auth.example.com', 'https://mcp.example.com/mcp', new AccessToken('one'));
 
         clearstatcache();
