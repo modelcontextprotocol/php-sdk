@@ -21,6 +21,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\ServerRequestInterface;
 use Psr\Http\Server\RequestHandlerInterface;
+use Psr\Log\LoggerInterface;
 
 /**
  * @author Volodymyr Panivko <sveneld300@gmail.com>
@@ -175,6 +176,11 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
 
     public function testOversizedBodyIsRejected(): void
     {
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())
+            ->method('warning')
+            ->with('Rejected POST body exceeding the maximum allowed size.', ['limit' => 10]);
+
         $middleware = new AuthorizationMiddleware(
             $this->validator(AuthorizationResult::allow(new AccessToken())),
             $this->metadata(),
@@ -182,6 +188,7 @@ final class AuthorizationMiddlewareTest extends MiddlewareTestCase
             $this->factory,
             $this->factory,
             maxBodyBytes: 10,
+            logger: $logger,
         );
 
         $handler = $this->capturingHandler();

@@ -109,6 +109,7 @@ $middleware = new AuthorizationMiddleware(
     resourceMetadata: $metadata,   // ProtectedResourceMetadata
     scopePolicy: $scopePolicy,     // ScopePolicy|null, no scope checks if null
     maxBodyBytes: $maxBodyBytes,   // default: 4 MiB, applies when the ScopePolicy reads the body
+    logger: $logger,               // PSR-3, default: NullLogger, gets a warning for a body over the limit
 );
 ```
 

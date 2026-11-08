@@ -116,10 +116,7 @@ final class StatelessHttpTransport
         if (null === $payload) {
             $this->logger->warning('Rejected POST body exceeding the maximum allowed size.', ['limit' => $this->maxBodyBytes]);
 
-            return $this->json(
-                json_encode(Error::forInvalidRequest(\sprintf('Request body exceeds the maximum allowed size of %d bytes.', $this->maxBodyBytes)), \JSON_THROW_ON_ERROR),
-                413,
-            );
+            return $this->json(json_encode($this->bodyTooLargeError($this->maxBodyBytes), \JSON_THROW_ON_ERROR), 413);
         }
 
         $headers = [];
