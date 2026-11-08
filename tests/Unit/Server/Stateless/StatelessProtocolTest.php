@@ -323,13 +323,13 @@ class StatelessProtocolTest extends TestCase
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
     }
 
-    #[TestDox('a known method with malformed params is an invalid request, not an unknown method')]
+    #[TestDox('a known method with malformed params is invalid params, not an unknown method')]
     public function testMalformedRequestIsNotAnUnknownMethod(): void
     {
         $answer = self::call(self::protocol(), 'tools/list', ['cursor' => [1]]);
 
         $this->assertSame(400, $answer['status']);
-        $this->assertSame(Error::INVALID_REQUEST, $answer['body']['error']['code']);
+        $this->assertSame(Error::INVALID_PARAMS, $answer['body']['error']['code']);
     }
 
     #[TestDox('a request class that crashes while hydrating is answered without leaking the failure')]
@@ -530,6 +530,15 @@ class StatelessProtocolTest extends TestCase
 
         $body = json_decode($result->toJson(), true, flags: \JSON_THROW_ON_ERROR);
         $this->assertSame(Error::MISSING_REQUIRED_CLIENT_CAPABILITY, $body['error']['code']);
+    }
+
+    #[TestDox('a known method with a missing required param is Invalid params, not Invalid request')]
+    public function testMissingRequiredParamIsInvalidParams(): void
+    {
+        $answer = self::call(self::protocol(), 'tools/call');
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(-32602, $answer['body']['error']['code']);
     }
 
     #[TestDox('a server-initiated request this revision removed is refused')]

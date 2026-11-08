@@ -12,6 +12,7 @@
 namespace Mcp\Schema\JsonRpc;
 
 use Mcp\Exception\InvalidArgumentException;
+use Mcp\Exception\InvalidParamsException;
 use Mcp\JsonRpc\Json;
 
 /**
@@ -56,7 +57,13 @@ abstract class Request implements HasMethodInterface, MessageInterface
             throw new InvalidArgumentException('"params" for Request must be an array/object or null.');
         }
 
-        $request = static::fromParams($params);
+        try {
+            $request = static::fromParams($params);
+        } catch (InvalidParamsException $e) {
+            throw $e;
+        } catch (InvalidArgumentException $e) {
+            throw new InvalidParamsException($e->getMessage(), $e->getCode(), $e);
+        }
         $request->id = $data['id'];
 
         if (isset($params['_meta'])) {

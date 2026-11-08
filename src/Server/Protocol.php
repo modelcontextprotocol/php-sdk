@@ -349,7 +349,9 @@ class Protocol
     {
         $this->logger->warning('Failed to create message.', ['exception' => $exception]);
 
-        $error = Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
+        $error = $exception->isInvalidParams()
+            ? Error::forInvalidParams($exception->getMessage(), $exception->getRequestId())
+            : Error::forInvalidRequest($exception->getMessage(), $exception->getRequestId());
         $this->sendResponse($transport, $error, $session);
     }
 

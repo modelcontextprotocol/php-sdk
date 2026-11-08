@@ -374,6 +374,28 @@ final class ProtocolTest extends TestCase
     }
 
     #[TestDox('Invalid message structure returns error')]
+    public function testMissingRequiredParamReturnsInvalidParams(): void
+    {
+        $session = $this->createMock(SessionInterface::class);
+        $this->sessionManager->method('createWithId')->willReturn($session);
+        $this->sessionManager->method('exists')->willReturn(true);
+
+        $transport = new RecordingTransport();
+        $protocol = new Protocol(
+            requestHandlers: [],
+            notificationHandlers: [],
+            messageFactory: MessageFactory::make(),
+            sessionManager: $this->sessionManager,
+        );
+
+        $protocol->processInput($transport, '{"jsonrpc": "2.0", "id": 3, "method": "prompts/get", "params": {}}', Uuid::v4());
+
+        $this->assertCount(1, $transport->sent);
+        $message = json_decode($transport->sent[0]['message'], true);
+        $this->assertEquals(Error::INVALID_PARAMS, $message['error']['code']);
+        $this->assertSame(3, $message['id']);
+    }
+
     public function testInvalidMessageStructureReturnsError(): void
     {
         $session = $this->createMock(SessionInterface::class);

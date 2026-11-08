@@ -464,7 +464,11 @@ final class StatelessProtocol
         } catch (UnknownMethodException) {
             return StatelessResult::error($this->unknownMethod($method, $id), 404);
         } catch (InvalidInputMessageException $e) {
-            return StatelessResult::error(Error::forInvalidRequest($e->getMessage(), $id), 400);
+            $error = $e->isInvalidParams()
+                ? Error::forInvalidParams($e->getMessage(), $id)
+                : Error::forInvalidRequest($e->getMessage(), $id);
+
+            return StatelessResult::error($error, 400);
         } catch (\Throwable $e) {
             $this->logger->warning('Rejected an unparseable modern-era request.', ['method' => $method, 'exception' => $e]);
 
