@@ -43,6 +43,7 @@ use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\ClientGateway;
 use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
@@ -58,6 +59,7 @@ use Mcp\Server\Wire\CachePolicy;
 use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
+use Mcp\Tests\Unit\Server\Fiber\RecordingLogger;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
@@ -1505,6 +1507,41 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(200, $result->httpStatus);
         $this->assertSame('ok', json_decode($result->toJson(), true)['result']['content'][0]['text']);
+    }
+
+    #[TestDox('a handler failing in a finally after it asked the client is logged, not lost')]
+    public function testAFailureAfterAQuestionIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $handler = new class implements RequestHandlerInterface {
+            public function supports(Request $request): bool
+            {
+                return $request instanceof CallToolRequest;
+            }
+
+            public function handle(Request $request, SessionInterface $session): never
+            {
+                try {
+                    (new ClientGateway($session, $request))->elicit('name?', new ElicitationSchema(['n' => new StringSchemaDefinition('N')], ['n']));
+                } finally {
+                    throw new \RuntimeException('The cleanup failed.');
+                }
+            }
+        };
+        $protocol = Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->setLogger($logger)
+            ->addRequestHandler($handler)
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
+
+        $result = $protocol->handleInline(self::inlineRequest('tools/call', [
+            'name' => 'asks',
+            'arguments' => new \stdClass(),
+            '_meta' => [RequestMeta::CLIENT_CAPABILITIES => ['elicitation' => new \stdClass()]],
+        ]));
+
+        $this->assertSame('input_required', json_decode($result->toJson(), true)['result']['resultType']);
+        $this->assertCount(1, array_keys($logger->messages, 'A request handler failed while its fiber was discarded.', true));
     }
 
     #[TestDox('an inline request streams its progress without being asked to')]

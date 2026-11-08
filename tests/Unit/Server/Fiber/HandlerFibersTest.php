@@ -22,6 +22,7 @@ use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Log\LogLevel;
 
 final class HandlerFibersTest extends TestCase
 {
@@ -98,11 +99,12 @@ final class HandlerFibersTest extends TestCase
     public function testWhatTheHandlerThrowsWhileTheRuntimeDrivesItReachesTheServer(): void
     {
         $loop = new FakeEventLoop();
+        $logger = new RecordingLogger();
         $fiber = HandlerFibers::create(static function () use ($loop): never {
             $loop->await(null);
 
             throw new \DomainException(LoggingLevel::Error->value);
-        }, $loop);
+        }, $loop, logger: $logger);
 
         try {
             HandlerFibers::start($fiber);
@@ -112,6 +114,7 @@ final class HandlerFibersTest extends TestCase
         }
 
         $this->assertTrue($fiber->isTerminated());
+        $this->assertSame([], $logger->messages);
     }
 
     #[TestDox('a scheduler waking the server while the handler still runs fails with what to do about it')]
@@ -144,6 +147,27 @@ final class HandlerFibersTest extends TestCase
         $this->assertStringContainsString('FiberSchedulerInterface::wait()', $failure->getMessage());
         $this->assertTrue($driver->isTerminated());
         $this->assertTrue($handler->isTerminated());
+    }
+
+    #[TestDox('a handler failing while its dropped fiber unwinds is logged, not lost')]
+    public function testAFailureWhileADroppedFiberUnwindsIsLogged(): void
+    {
+        $logger = new RecordingLogger();
+        $failure = new \RuntimeException('The cleanup failed.');
+        $fiber = HandlerFibers::create(static function () use ($failure): void {
+            try {
+                HandlerFibers::suspend(new NotificationSuspension(new ToolListChangedNotification(), 'session'));
+            } finally {
+                throw $failure;
+            }
+        }, logger: $logger);
+
+        HandlerFibers::start($fiber);
+        unset($fiber);
+
+        $this->assertSame(['A request handler failed while its fiber was discarded.'], $logger->messages);
+        $this->assertSame($failure, $logger->contexts[0]['exception']);
+        $this->assertSame([LogLevel::ERROR], $logger->levels);
     }
 
     #[TestDox('a fiber the server did not create is started and resumed as is')]

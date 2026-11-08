@@ -156,6 +156,7 @@ final class HandlerFibers
         }
 
         $state->unparked();
+        $state->driven();
 
         try {
             $suspended = $step();
@@ -174,6 +175,8 @@ final class HandlerFibers
             }
 
             throw $e;
+        } finally {
+            $state->released();
         }
 
         if ($fiber->isTerminated()) {
