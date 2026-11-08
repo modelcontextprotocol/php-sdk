@@ -15,6 +15,7 @@ use Mcp\Event\ErrorEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\Exception\ResourceReadException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextResourceContents;
@@ -539,6 +540,85 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(400, $answer['status']);
         $this->assertSame(-32602, $answer['body']['error']['code']);
+    }
+
+    /**
+     * @return iterable<string, array{0: string, 1: array<string, mixed>}>
+     */
+    public static function resultsJsonCannotCarry(): iterable
+    {
+        yield 'a tool returning such a string' => ['tools/call', ['name' => 'latin1_tool', 'arguments' => new \stdClass()]];
+        yield 'a resource returning its own text contents' => ['resources/read', ['uri' => 'test://latin1-contents']];
+        yield 'a resource returning its own result' => ['resources/read', ['uri' => 'test://latin1-result']];
+    }
+
+    /**
+     * @param array<string, mixed> $params
+     */
+    #[DataProvider('resultsJsonCannotCarry')]
+    #[TestDox('a result that is not valid UTF-8 is answered with an internal error: $method')]
+    public function testResultJsonCannotCarryIsAnInternalError(string $method, array $params): void
+    {
+        $name = $params['name'] ?? $params['uri'];
+
+        $answer = self::call(self::unencodableProtocol(), $method, $params, [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => $method,
+            'Mcp-Name' => $name,
+        ]);
+
+        $this->assertSame(500, $answer['status']);
+        $this->assertSame(Error::INTERNAL_ERROR, $answer['body']['error']['code']);
+        $this->assertSame('Internal server error.', $answer['body']['error']['message']);
+    }
+
+    #[TestDox('a streamed result that is not valid UTF-8 ends the stream with an internal error')]
+    public function testStreamedResultJsonCannotCarryIsAnInternalError(): void
+    {
+        $result = self::callStreaming(self::unencodableProtocol(), 'latin1_progress_tool', ['progressToken' => 'tok-1']);
+
+        $this->assertTrue($result->isStream());
+
+        $last = self::frames($result)[1];
+
+        $this->assertSame(Error::INTERNAL_ERROR, $last['error']['code']);
+        $this->assertSame(7, $last['id']);
+    }
+
+    #[TestDox('an error message that is not valid UTF-8 still reaches the client')]
+    public function testErrorMessageJsonCannotCarryIsSubstituted(): void
+    {
+        $answer = self::call(self::unencodableProtocol(), 'resources/read', ['uri' => 'test://latin1-error'], [
+            'MCP-Protocol-Version' => ProtocolVersion::V2026_07_28->value,
+            'Mcp-Method' => 'resources/read',
+            'Mcp-Name' => 'test://latin1-error',
+        ]);
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::INTERNAL_ERROR, $answer['body']['error']['code']);
+        $this->assertSame("caf\u{FFFD}", $answer['body']['error']['message']);
+    }
+
+    private static function unencodableProtocol(): StatelessProtocol
+    {
+        return Server::builder()
+            ->setServerInfo('test-server', '1.0.0')
+            ->addTool(static fn (): string => "caf\xE9", name: 'latin1_tool', description: 'Returns Latin-1 text')
+            ->addTool(
+                static function (RequestContext $context): string {
+                    $context->getClientGateway()->progress(1, 1, 'done');
+
+                    return "caf\xE9";
+                },
+                name: 'latin1_progress_tool',
+                description: 'Reports progress, then returns Latin-1 text',
+            )
+            ->addResource(static fn (): TextResourceContents => new TextResourceContents('test://latin1-contents', 'text/plain', "caf\xE9"), 'test://latin1-contents', 'latin1_contents')
+            ->addResource(static fn (): ReadResourceResult => new ReadResourceResult([new TextResourceContents('test://latin1-result', 'text/plain', "caf\xE9")]), 'test://latin1-result', 'latin1_result')
+            ->addResource(static function (): string {
+                throw new ResourceReadException("caf\xE9");
+            }, 'test://latin1-error', 'latin1_error')
+            ->buildStateless([ProtocolVersion::V2026_07_28]);
     }
 
     #[TestDox('a server-initiated request this revision removed is refused')]

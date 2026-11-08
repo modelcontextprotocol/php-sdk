@@ -26,14 +26,12 @@ final class StatelessResult
 {
     /**
      * @param (\Closure(): \Generator<mixed>)|null $frames set instead of $message when the answer is a stream
-     * @param array<string, mixed>|null            $body   a result body already through the wire codec
      */
     private function __construct(
         public readonly ?MessageInterface $message,
         public readonly int $httpStatus,
         public readonly ?\Closure $frames = null,
-        private readonly ?array $body = null,
-        private readonly string|int|null $id = null,
+        private readonly ?string $json = null,
         private readonly bool $bodyless = false,
     ) {
     }
@@ -43,10 +41,16 @@ final class StatelessResult
      * plain array, since no result class models the fields it added.
      *
      * @param array<string, mixed> $body
+     *
+     * @throws \JsonException when the body cannot be encoded, e.g. text that is not valid UTF-8
      */
     public static function ok(string|int $id, array $body): self
     {
-        return new self(null, 200, null, $body, $id);
+        return new self(null, 200, json: json_encode([
+            'jsonrpc' => MessageInterface::JSONRPC_VERSION,
+            'id' => $id,
+            'result' => $body,
+        ], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES));
     }
 
     public static function error(Error $error, int $httpStatus): self
@@ -92,12 +96,8 @@ final class StatelessResult
 
     public function toJson(): string
     {
-        if (null !== $this->body) {
-            return json_encode([
-                'jsonrpc' => MessageInterface::JSONRPC_VERSION,
-                'id' => $this->id,
-                'result' => $this->body,
-            ], \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+        if (null !== $this->json) {
+            return $this->json;
         }
 
         if ($this->bodyless) {
@@ -108,6 +108,6 @@ final class StatelessResult
             throw new \LogicException('A streaming or empty result has no single JSON body; check isStream()/isEmpty() first.');
         }
 
-        return json_encode($this->message, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES);
+        return json_encode($this->message, \JSON_THROW_ON_ERROR | \JSON_UNESCAPED_SLASHES | \JSON_INVALID_UTF8_SUBSTITUTE);
     }
 }
