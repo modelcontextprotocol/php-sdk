@@ -5,6 +5,9 @@ All notable changes to `mcp/sdk` will be documented in this file.
 0.11.0
 ------
 
+* [BC Break] `Builder::setLazyLoading(true)` now also defers loading into a registry passed to `setRegistry()`, which any `RegistryInterface` supports. A registry you read directly stays empty until the server first reads it; without the call it is still loaded at build.
+* [BC Break] Detect the server capabilities when a request asks for them, so `initialize`, `server/discover` and `subscriptions/listen` run a pending load. The server advertises what the registry holds, and no longer every kind for a custom loader or discovery that was not loaded yet. While a load is still running, it advertises all kinds. `Configuration::$capabilities` is replaced by `Configuration::capabilities()`, and the constructor also takes a closure.
+* Add `DeferredRegistryInterface`, so the builder loads a custom registry without announcing the load as list changes, and no longer depends on the concrete `Registry`.
 * Split `RegistryInterface` by role into `ElementCatalogInterface`, `ElementResolverInterface` and `ElementWriterInterface`, which it extends. Request handlers depend on the role they use, so a handler can run against a catalog or resolver alone.
 
 0.10.0

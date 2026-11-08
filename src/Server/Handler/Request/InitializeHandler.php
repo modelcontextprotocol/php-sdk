@@ -54,7 +54,7 @@ final class InitializeHandler implements RequestHandlerInterface
 
         // List changes reach clients only through `subscriptions/listen`, which
         // the handshake era does not have.
-        $capabilities = ($this->configuration->capabilities ?? new ServerCapabilities())->withoutListChanged();
+        $capabilities = ($this->configuration?->capabilities() ?? new ServerCapabilities())->withoutListChanged();
 
         // Resource updates reach the client outside a request, and the log level is kept between requests.
         if ($session instanceof EphemeralSessionInterface) {

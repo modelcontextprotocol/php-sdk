@@ -25,18 +25,23 @@ use Mcp\Schema\ServerCapabilities;
 class Configuration
 {
     /**
-     * @param Implementation     $serverInfo      info about this MCP server application
-     * @param ServerCapabilities $capabilities    capabilities of this MCP server application
-     * @param int                $paginationLimit maximum number of items to return for list methods
-     * @param string|null        $instructions    instructions describing how to use the server and its features
+     * @param Implementation                                      $serverInfo      info about this MCP server application
+     * @param ServerCapabilities|(\Closure(): ServerCapabilities) $capabilities    capabilities of this MCP server application, or what resolves them for each request
+     * @param int                                                 $paginationLimit maximum number of items to return for list methods
+     * @param string|null                                         $instructions    instructions describing how to use the server and its features
      */
     public function __construct(
         public readonly Implementation $serverInfo,
-        public readonly ServerCapabilities $capabilities,
+        private readonly ServerCapabilities|\Closure $capabilities,
         public readonly int $paginationLimit = 50,
         public readonly ?string $instructions = null,
         public readonly ?ProtocolVersion $protocolVersion = null,
     ) {
+    }
+
+    public function capabilities(): ServerCapabilities
+    {
+        return $this->capabilities instanceof \Closure ? ($this->capabilities)() : $this->capabilities;
     }
 
     /**

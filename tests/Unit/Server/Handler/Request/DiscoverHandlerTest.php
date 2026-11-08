@@ -45,7 +45,7 @@ class DiscoverHandlerTest extends TestCase
         $this->assertSame('d-1', $response->getId());
         $this->assertInstanceOf(DiscoverResult::class, $response->result);
         $this->assertSame([ProtocolVersion::V2026_07_28], $response->result->supportedVersions);
-        $this->assertSame($configuration->capabilities, $response->result->capabilities);
+        $this->assertSame($configuration->capabilities(), $response->result->capabilities);
         $this->assertSame('Call list_tools first.', $response->result->instructions);
     }
 

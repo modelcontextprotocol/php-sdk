@@ -40,7 +40,7 @@ use Psr\Log\NullLogger;
  *
  * @author Kyrian Obikwelu <koshnawaza@gmail.com>
  */
-final class Registry implements RegistryInterface
+final class Registry implements RegistryInterface, DeferredRegistryInterface
 {
     /**
      * @var array<string, ToolReference>
@@ -64,7 +64,8 @@ final class Registry implements RegistryInterface
 
     private bool $loaded = false;
 
-    private bool $loading = false;
+    /** Loads running right now, counted because loads from other fibers may interleave */
+    private int $loading = 0;
 
     public function __construct(
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
@@ -85,7 +86,7 @@ final class Registry implements RegistryInterface
      */
     public function load(): void
     {
-        if ($this->loaded || $this->loading || null === $this->loader) {
+        if ($this->loaded || 0 !== $this->loading || null === $this->loader) {
             return;
         }
 
@@ -94,24 +95,26 @@ final class Registry implements RegistryInterface
         $this->loaded = true;
     }
 
+    public function isLoaded(): bool
+    {
+        return $this->loaded || null === $this->loader;
+    }
+
     /**
      * Runs $loader with the change events its registrations would dispatch suppressed, since they
      * describe the registry filling up rather than changing.
      *
-     * Re-entrant-safe, and failure propagates. Does not mark the registry loaded: $loader is the
-     * caller's, and the one the constructor took is still owed its run.
+     * Always runs $loader, even while another load is running, and failure propagates. Does not
+     * mark the registry loaded: $loader is the caller's, and the one the constructor took is still
+     * owed its run.
      */
     public function loadFrom(LoaderInterface $loader): void
     {
-        if ($this->loading) {
-            return;
-        }
-
-        $this->loading = true;
+        ++$this->loading;
         try {
             $loader->load($this);
         } finally {
-            $this->loading = false;
+            --$this->loading;
         }
     }
 
@@ -418,7 +421,7 @@ final class Registry implements RegistryInterface
      */
     private function dispatch(object $event): void
     {
-        if ($this->loading) {
+        if (0 !== $this->loading) {
             return;
         }
 

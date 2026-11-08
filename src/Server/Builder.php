@@ -26,6 +26,7 @@ use Mcp\Schema\ServerCapabilities;
 use Mcp\Schema\Tool;
 use Mcp\Schema\ToolAnnotations;
 use Mcp\Server\Capability\Completion\ProviderInterface;
+use Mcp\Server\Capability\DeferredRegistryInterface;
 use Mcp\Server\Capability\Discovery\CachedDiscoverer;
 use Mcp\Server\Capability\Discovery\Discoverer;
 use Mcp\Server\Capability\Discovery\DiscovererInterface;
@@ -34,6 +35,7 @@ use Mcp\Server\Capability\Discovery\SchemaValidator;
 use Mcp\Server\Capability\Registry;
 use Mcp\Server\Capability\Registry\Container;
 use Mcp\Server\Capability\Registry\ElementReference;
+use Mcp\Server\Capability\Registry\LazyRegistry;
 use Mcp\Server\Capability\Registry\Loader\ChainLoader;
 use Mcp\Server\Capability\Registry\Loader\DiscoveryLoader;
 use Mcp\Server\Capability\Registry\Loader\ExplicitElementLoader;
@@ -276,7 +278,7 @@ final class Builder
 
     private bool $hasCustomRegistry = false;
 
-    private bool $lazyLoading = true;
+    private ?bool $lazyLoading = null;
 
     private bool $headerValidation = true;
 
@@ -596,8 +598,8 @@ final class Builder
      *
      * Lazy (the default) defers loading to the first registry read so a persistent runtime does not
      * freeze the registry to a source not yet ready at build time. Disable to load eagerly at build.
-     * A registry supplied via setRegistry() is always loaded eagerly; its own constructor loader,
-     * if it has one, still runs on the first read.
+     * A registry supplied via setRegistry() is loaded at build unless lazy loading is asked for explicitly.
+     * Then it stays unloaded until the server first reads it, also for code holding the same instance.
      */
     public function setLazyLoading(bool $lazyLoading = true): self
     {
@@ -1079,7 +1081,8 @@ final class Builder
         $discovery = $parts['configuration'];
         // Without a bus, `subscriptions/listen` delivers nothing; `resources/subscribe` only exists on the handshake.
         if (null === $this->notificationBus && null === $this->serverCapabilities) {
-            $discovery = new Configuration($discovery->serverInfo, $discovery->capabilities->withoutResourcesSubscribe(), $discovery->paginationLimit, $discovery->instructions, $discovery->protocolVersion);
+            $configuration = $discovery;
+            $discovery = new Configuration($discovery->serverInfo, static fn (): ServerCapabilities => $configuration->capabilities()->withoutResourcesSubscribe(), $discovery->paginationLimit, $discovery->instructions, $discovery->protocolVersion);
         }
 
         return new StatelessProtocol(
@@ -1160,35 +1163,31 @@ final class Builder
 
         $chainLoader = new ChainLoader($loaders);
 
-        if ($this->hasCustomRegistry) {
-            // Builder can't inject the loader into an already-constructed instance, so load it eagerly.
-            // Via loadFrom(), which suppresses the change events the load would otherwise dispatch.
+        if ($this->hasCustomRegistry && true === $this->lazyLoading) {
+            $registry = new LazyRegistry($this->registry, $chainLoader);
+        } elseif ($this->hasCustomRegistry) {
             $registry = $this->registry;
-            if ($registry instanceof Registry) {
+            if ($registry instanceof DeferredRegistryInterface) {
                 $registry->loadFrom($chainLoader);
             } else {
                 $chainLoader->load($registry);
             }
-            $eagerlyLoaded = true;
         } else {
             $registry = new Registry($eventDispatcher, $logger, loader: $chainLoader);
-            if (!$this->lazyLoading) {
+            if (false === $this->lazyLoading) {
                 $registry->load();
             }
-            $eagerlyLoaded = !$this->lazyLoading;
         }
 
         $messageFactory = MessageFactory::make(additional: $this->extensionMessages);
         // `server/discover` exists in the modern era only.
         $modernMessageFactory = MessageFactory::make(additional: [...$this->extensionMessages, DiscoverRequest::class]);
 
-        $capabilities = $this->serverCapabilities ?? $this->detectCapabilities($registry, $eagerlyLoaded);
-
         // Extensions enabled via enableExtension() are folded into caller-supplied
         // capabilities too, so setCapabilities() does not silently drop them.
-        if (null !== $this->serverCapabilities && [] !== $this->extensions) {
-            $capabilities = $capabilities->withExtensions($this->extensions);
-        }
+        $capabilities = null === $this->serverCapabilities
+            ? (new RegistryCapabilities($registry, null !== $this->notificationBus, $this->extensions))->detect(...)
+            : ([] !== $this->extensions ? $this->serverCapabilities->withExtensions($this->extensions) : $this->serverCapabilities);
 
         if (null !== $this->protocolVersion && $this->protocolVersion->isModern()) {
             $logger->warning('Configured protocol version cannot be reached through the "initialize" handshake, negotiating the handshake revisions instead.', [
@@ -1232,50 +1231,6 @@ final class Builder
             'requestHandlers' => $requestHandlers,
             'notificationHandlers' => $notificationHandlers,
         ];
-    }
-
-    /**
-     * When loaded, capabilities are read from the registry. When deferred, reading it would force
-     * the load, so they are advertised from the configured sources instead — opaque sources (custom
-     * loaders, discovery) advertise all kinds, and over-advertising is harmless per MCP semantics.
-     */
-    private function detectCapabilities(RegistryInterface $registry, bool $eagerlyLoaded): ServerCapabilities
-    {
-        // Only the bus delivers list changes, and only if the registry publishes to it.
-        $listChanged = null !== $this->notificationBus && $registry->publishesListChanges();
-
-        if ($eagerlyLoaded) {
-            $hasResources = $registry->hasResources() || $registry->hasResourceTemplates();
-
-            return new ServerCapabilities(
-                tools: $registry->hasTools(),
-                toolsListChanged: $listChanged,
-                resources: $hasResources,
-                resourcesSubscribe: $hasResources,
-                resourcesListChanged: $listChanged,
-                prompts: $registry->hasPrompts(),
-                promptsListChanged: $listChanged,
-                logging: true,
-                completions: true,
-                extensions: $this->extensions ?: null,
-            );
-        }
-
-        $hasOpaqueSources = [] !== $this->loaders || null !== $this->discoveryBasePath;
-        $hasResources = [] !== $this->resources || [] !== $this->explicitResources || [] !== $this->resourceTemplates || [] !== $this->explicitResourceTemplates || $hasOpaqueSources;
-
-        return new ServerCapabilities(
-            tools: [] !== $this->tools || [] !== $this->explicitTools || $hasOpaqueSources,
-            toolsListChanged: $listChanged,
-            resources: $hasResources,
-            resourcesSubscribe: $hasResources,
-            resourcesListChanged: $listChanged,
-            prompts: [] !== $this->prompts || [] !== $this->explicitPrompts || $hasOpaqueSources,
-            promptsListChanged: $listChanged,
-            logging: true,
-            completions: true,
-            extensions: $this->extensions ?: null,
-        );
     }
 
     private function createDiscoverer(LoggerInterface $logger): DiscovererInterface
