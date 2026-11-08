@@ -15,6 +15,8 @@ use Mcp\Exception\LogicException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Suspension\RequestSuspension;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * Creates, starts, resumes and suspends the fibers request handlers run in.
@@ -46,12 +48,15 @@ final class HandlerFibers
      *
      * @return \Fiber<mixed, mixed, TReturn, mixed>
      */
-    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null, ?\Closure $errorForFailure = null): \Fiber
+    public static function create(\Closure $handler, ?FiberSchedulerInterface $scheduler = null, ?\Closure $errorForFailure = null, LoggerInterface $logger = new NullLogger()): \Fiber
     {
-        $state = new HandlerFiberState($scheduler, $errorForFailure);
+        $state = new HandlerFiberState($scheduler, $errorForFailure, $logger);
         $fiber = new \Fiber(static function () use ($handler, $state): mixed {
             try {
-                return $handler();
+                $result = $handler();
+                $state->returned();
+
+                return $result;
             } catch (\Throwable $e) {
                 // Thrown while the runtime drives the fiber, it would escape into the runtime: the server rethrows it.
                 $state->threw($e);
@@ -97,13 +102,34 @@ final class HandlerFibers
     }
 
     /**
+     * Whether the request of the current fiber was already answered, as the server could not drive the fiber further.
+     */
+    public static function isAbandoned(): bool
+    {
+        $fiber = \Fiber::getCurrent();
+        if (null === $fiber) {
+            return false;
+        }
+
+        return (self::states()[$fiber] ?? null)?->isAbandoned() ?? false;
+    }
+
+    /**
      * Suspends the current handler fiber for the server, until the server resumes it: how a handler waits on the client.
+     *
+     * @throws LogicException when the request of the fiber was already answered, as nobody would resume it
      */
     public static function suspend(object $suspension): mixed
     {
         $fiber = \Fiber::getCurrent();
         if (null !== $fiber) {
-            (self::states()[$fiber] ?? null)?->parked($suspension);
+            $state = self::states()[$fiber] ?? null;
+
+            if (true === $state?->isAbandoned()) {
+                throw new LogicException('The client gateway cannot be used after the request was answered.');
+            }
+
+            $state?->parked($suspension);
         }
 
         return \Fiber::suspend($suspension);
@@ -121,15 +147,24 @@ final class HandlerFibers
         }
 
         $state->unparked();
-        $suspended = $step();
 
-        // Suspended straight with a server payload, without the gateway: for the server too.
-        if ($fiber->isSuspended() && !$state->isParked() && ($suspended instanceof NotificationSuspension || $suspended instanceof RequestSuspension)) {
-            $state->parked($suspended);
-        }
+        try {
+            $suspended = $step();
 
-        while ($fiber->isSuspended() && !$state->isParked()) {
-            $state->waitForTheRuntime();
+            // Suspended straight with a server payload, without the gateway: for the server too.
+            if ($fiber->isSuspended() && !$state->isParked() && ($suspended instanceof NotificationSuspension || $suspended instanceof RequestSuspension)) {
+                $state->parked($suspended);
+            }
+
+            while ($fiber->isSuspended() && !$state->isParked()) {
+                $state->waitForTheRuntime();
+            }
+        } catch (\Throwable $e) {
+            if (!$fiber->isTerminated()) {
+                $state->abandoned();
+            }
+
+            throw $e;
         }
 
         if ($fiber->isTerminated()) {
@@ -139,6 +174,8 @@ final class HandlerFibers
         }
 
         if (!$fiber->isSuspended()) {
+            $state->abandoned();
+
             throw new LogicException('The fiber scheduler returned while the request handler fiber was still running: wake the waiting fiber on a later turn of the event loop, see FiberSchedulerInterface::wait().');
         }
 

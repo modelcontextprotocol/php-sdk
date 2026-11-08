@@ -338,11 +338,15 @@ A fiber scheduler lets handlers await I/O while the event loop serves other requ
 - On protocol versions up to `2025-11-25`, the same transport blocks the event loop while a handler waits for an
   answer from the client (e.g. `ClientGateway::elicit()`). One process can't receive the answer during that time,
   so the request fails when the wait times out.
+- `StdioTransport` reads the next message after the current handler returned or started to wait for the client.
+  Requests over stdio run one after the other. Your own tasks on the event loop still run in between.
 - Call the `ClientGateway` from the fiber of the handler. A call from another fiber (e.g. in `EventLoop::queue()`)
-  never returns, and the request gets no answer. The same happens if a handler passes a `NotificationSuspension`
-  or `RequestSuspension` to `\Fiber::suspend()` itself after the event loop resumed it.
+  never returns. If the handler waits for that fiber, the request gets no answer. If it doesn't wait, the request
+  gets its answer and the message is lost without an error. A handler that passes a `NotificationSuspension` or
+  `RequestSuspension` to `\Fiber::suspend()` itself after the event loop resumed it gets no answer either.
 - A [session lock](sessions.md#concurrent-requests) stays held while a handler awaits I/O. Another request of the
-  same session in the same process then fails with status `503` and the message `Session lock is unavailable.`
+  same session in the same process waits on the event loop until the lock is free. This wait has no timeout. If
+  another process holds the lock, the lock backend blocks the event loop while it waits, up to its timeout.
 
 ## Complete Example
 

@@ -13,6 +13,8 @@ namespace Mcp\Server\Fiber;
 
 use Mcp\Exception\LogicException;
 use Mcp\Schema\JsonRpc\Error;
+use Psr\Log\LoggerInterface;
+use Psr\Log\NullLogger;
 
 /**
  * What the server knows of one handler fiber: whether, and on what, it is suspended for the server.
@@ -29,12 +31,15 @@ final class HandlerFiberState
 
     private ?\Throwable $throwable = null;
 
+    private bool $abandoned = false;
+
     /**
      * @param (\Closure(\Throwable): ?Error)|null $errorForFailure
      */
     public function __construct(
         private readonly ?FiberSchedulerInterface $scheduler,
         private readonly ?\Closure $errorForFailure = null,
+        private readonly LoggerInterface $logger = new NullLogger(),
     ) {
     }
 
@@ -75,8 +80,34 @@ final class HandlerFiberState
         $this->suspension = null;
     }
 
+    /**
+     * The server answered the request of this fiber and no longer waits for it, while the runtime may still resume it.
+     */
+    public function abandoned(): void
+    {
+        $this->abandoned = true;
+    }
+
+    public function isAbandoned(): bool
+    {
+        return $this->abandoned;
+    }
+
+    public function returned(): void
+    {
+        if ($this->abandoned) {
+            $this->logger->warning('A request handler finished after its request was answered.');
+        }
+    }
+
     public function threw(\Throwable $throwable): void
     {
+        if ($this->abandoned) {
+            $this->logger->error(\sprintf('A request handler failed after its request was answered: %s', $throwable->getMessage()), ['exception' => $throwable]);
+
+            return;
+        }
+
         $this->throwable = $throwable;
     }
 
@@ -101,7 +132,7 @@ final class HandlerFiberState
     public function waitForTheRuntime(): void
     {
         if (null === $this->scheduler) {
-            throw new LogicException('A request handler suspended its fiber for something other than the server, an event loop awaiting I/O for instance: set the runtime\'s fiber scheduler with Builder::setFiberScheduler().');
+            throw new LogicException('A request handler suspended its fiber for something other than the server, an event loop awaiting I/O for instance: set the runtime\'s fiber scheduler with Builder::setFiberScheduler(), or the $fiberScheduler argument of Protocol or StatelessProtocol.');
         }
 
         $this->settlement = new FiberSettlement();

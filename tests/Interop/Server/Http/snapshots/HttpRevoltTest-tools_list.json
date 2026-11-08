@@ -1,0 +1,29 @@
+{
+  "tools": [
+    {
+      "name": "wait",
+      "description": "Waits on the event loop without blocking other requests.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "seconds": {
+            "type": "number",
+            "description": "how long to wait, at most 5 seconds"
+          }
+        },
+        "required": [
+          "seconds"
+        ]
+      }
+    },
+    {
+      "name": "check_services",
+      "description": "Checks all services concurrently, in the time of the slowest one.",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      }
+    }
+  ]
+}
+

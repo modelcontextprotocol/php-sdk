@@ -30,6 +30,7 @@ use Mcp\Schema\JsonRpc\Response;
 use Mcp\Schema\JsonRpc\ResultInterface;
 use Mcp\Schema\Request\InitializeRequest;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Fiber\EventLoopSessionLock;
 use Mcp\Server\Fiber\FiberSchedulerInterface;
 use Mcp\Server\Fiber\HandlerFibers;
 use Mcp\Server\Handler\Notification\NotificationHandlerInterface;
@@ -111,6 +112,8 @@ class Protocol
      */
     private array $droppedAwaitedRequestIds = [];
 
+    private readonly ?SessionLockInterface $sessionLock;
+
     /**
      * @param array<int, RequestHandlerInterface<ResultInterface|array<string, mixed>>> $requestHandlers
      * @param array<int, NotificationHandlerInterface>                                  $notificationHandlers
@@ -124,9 +127,10 @@ class Protocol
         private readonly ?EventDispatcherInterface $eventDispatcher = null,
         private readonly ?InputRequiredShim $inputRequiredShim = null,
         private readonly ?RequestStateCodec $requestStateCodec = null,
-        private readonly ?SessionLockInterface $sessionLock = null,
+        ?SessionLockInterface $sessionLock = null,
         private readonly ?FiberSchedulerInterface $fiberScheduler = null,
     ) {
+        $this->sessionLock = null !== $sessionLock && null !== $fiberScheduler ? new EventLoopSessionLock($sessionLock, $fiberScheduler) : $sessionLock;
         $this->awaitedRequestIds = new \WeakMap();
         $this->fiberOutgoingMessages = new \WeakMap();
     }
@@ -408,7 +412,7 @@ class Protocol
                 $dispatchResult = $this->dispatchResult(...);
                 $errorForThrowable = $this->errorForThrowable(...);
                 $saveResumedSession = $this->saveResumedSession(...);
-                // Weak: freeing this protocol's WeakMaps along with the fiber's state crashes PHP 8.1.
+                // Weak: the fiber's state keeping this protocol alive segfaults PHP 8.1 when both are freed.
                 $protocol = \WeakReference::create($this);
                 /** @var bool $suspended set by reference once the fiber first suspended */
                 $suspended = false;
@@ -421,8 +425,17 @@ class Protocol
                     try {
                         $result = $handler->handle($request, $session);
                         $result = $shim?->fulfill($result, $handler, $request, $session, $codec) ?? $result;
+
+                        if (HandlerFibers::isAbandoned()) {
+                            return $result;
+                        }
+
                         $result = $dispatchResult($result, $request, $session);
                     } catch (\Throwable $e) {
+                        if (HandlerFibers::isAbandoned()) {
+                            throw $e;
+                        }
+
                         $result = $errorForThrowable($e, $request, $session);
                     }
 
@@ -432,7 +445,7 @@ class Protocol
                     }
 
                     return $result;
-                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session));
+                }, $this->fiberScheduler, static fn (\Throwable $e): ?Error => $protocol->get()?->errorForThrowable($e, $request, $session), $this->logger);
 
                 $result = HandlerFibers::start($fiber);
 
@@ -1044,6 +1057,10 @@ class Protocol
 
             return $this->dispatchEvent(new ErrorEvent($result, $request, $session, null))->getError();
         } catch (\Throwable $e) {
+            if (HandlerFibers::isAbandoned()) {
+                throw $e;
+            }
+
             return $this->errorForThrowable($e, $request, $session);
         }
     }
