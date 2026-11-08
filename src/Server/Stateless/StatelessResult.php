@@ -25,7 +25,7 @@ use Mcp\Schema\JsonRpc\MessageInterface;
 final class StatelessResult
 {
     /**
-     * @param (\Closure(): \Generator<mixed>)|null $frames set instead of $message when the answer is a stream
+     * @param (\Closure(): \Generator<mixed>)|null $frames set instead of $message when the answer is a stream; write each frame with {@see self::encodeFrame()}, as a string frame already is JSON
      */
     private function __construct(
         public readonly ?MessageInterface $message,
