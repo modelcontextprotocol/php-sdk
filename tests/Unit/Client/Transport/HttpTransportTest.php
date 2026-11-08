@@ -39,7 +39,6 @@ use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Psr\Http\Message\StreamInterface;
-use Psr\Log\AbstractLogger;
 use Psr\Log\LoggerInterface;
 
 final class HttpTransportTest extends TestCase
@@ -1231,17 +1230,11 @@ final class HttpTransportTest extends TestCase
     #[TestDox('an error status over the body limit logs the body cut at the limit')]
     public function testErrorBodyOverTheLimitIsLoggedTruncated(): void
     {
-        $logger = new class extends AbstractLogger {
-            /** @var list<array<mixed>> */
-            public array $contexts = [];
-
-            public function log($level, string|\Stringable $message, array $context = []): void
-            {
-                if ('Server refused a message' === (string) $message) {
-                    $this->contexts[] = $context;
-                }
-            }
-        };
+        $logger = $this->createMock(LoggerInterface::class);
+        $logger->expects($this->once())->method('warning')->with(
+            'Server refused a message',
+            $this->callback(static fn (array $context): bool => 1024 === \strlen($context['body'])),
+        );
 
         $transport = $this->createTransport(
             httpClient: RecordingHttpClient::queued([new Response(500, ['Content-Type' => 'text/html'], new OversizedStream(1024 * 1024))]),
@@ -1250,9 +1243,6 @@ final class HttpTransportTest extends TestCase
         );
 
         $transport->send('{"jsonrpc":"2.0","id":1,"result":{}}');
-
-        $this->assertCount(1, $logger->contexts);
-        $this->assertSame(1024, \strlen($logger->contexts[0]['body']));
     }
 
     #[TestDox('the response body limit must be a positive number of bytes')]
