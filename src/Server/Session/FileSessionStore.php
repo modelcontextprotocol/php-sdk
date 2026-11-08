@@ -25,7 +25,7 @@ use Symfony\Component\Uid\Uuid;
  */
 class FileSessionStore implements SessionStoreInterface
 {
-    private const WINDOWS_MOVE_ATTEMPTS = 30;
+    private const WINDOWS_MOVE_ATTEMPTS = 10;
 
     public function __construct(
         private readonly string $directory,
