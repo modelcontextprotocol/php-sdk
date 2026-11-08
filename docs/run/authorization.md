@@ -23,7 +23,7 @@ directly. Use an existing IdP (Keycloak, Auth0, Microsoft Entra ID, Okta) or run
 
 Authorization is implemented at the transport level using PSR-15 middleware:
 
-- **AuthorizationMiddleware** - Enforces bearer tokens and scopes, answers 401/403 with a `WWW-Authenticate` challenge
+- **AuthorizationMiddleware** - Enforces bearer tokens and scopes, answers 401/403 with a `WWW-Authenticate` challenge and 503 when it cannot check the token
 - **ProtectedResourceMetadataMiddleware** - Serves the RFC 9728 metadata document
 - **JwtTokenValidator** - Validates JWT access tokens against the authorization server's keys
 - **ScopePolicy** - Declares the scopes a request needs, per method and per tool
@@ -120,6 +120,7 @@ $middleware = new AuthorizationMiddleware(
 | Missing Authorization header or another scheme | 401 with `WWW-Authenticate: Bearer resource_metadata="...", scope="..."` |
 | Malformed Bearer token | 400 with `error="invalid_request"` |
 | Invalid/expired token | 401 with `error="invalid_token"` |
+| Token cannot be checked, e.g. the authorization server is down | 503 with `Retry-After` and no `WWW-Authenticate` challenge, so the client keeps its token |
 | Valid token lacking a required scope | 403 with `error="insufficient_scope"` and every scope the request needs |
 | Valid token, body over `maxBodyBytes` while the `ScopePolicy` reads it | 413 with a JSON-RPC error |
 | Valid token | Passes to the transport, which hands the `AccessToken` to the handlers |
@@ -202,7 +203,10 @@ audience.
 `fromIssuer()` discovers the JWKS URI (RFC 8414, then OpenID Connect Discovery) on the first token
 and caches it and the keys in a PSR-6 pool. An unknown key id triggers a rate-limited refetch, so key
 rotation does not lock clients out. Keys published without `alg`, as Entra ID does, are matched
-against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted):
+against the token's algorithm. Issuer and JWKS URI must use https (loopback hosts excepted).
+
+The refetch limit is 10 requests per minute. At the limit, a token with an unknown key id gets a 503
+until the minute ends. Tokens with a cached key keep working:
 
 ```php
 $validator = JwtTokenValidator::fromIssuer(
@@ -224,13 +228,21 @@ omits `alg`, `CachedKeySet` needs it as last argument:
 
 ```php
 use Firebase\JWT\CachedKeySet;
+use Mcp\Server\Transport\Http\OAuth\RateLimitedJwksClient;
+
+$jwksClient = new RateLimitedJwksClient($httpClient, $cachePool);
 
 $validator = new JwtTokenValidator(
     issuer: 'https://auth.example.com',
     audience: 'https://mcp.example.com/mcp',
-    keys: new CachedKeySet($jwksUri, $httpClient, $requestFactory, $cachePool, 3600, true, 'RS256'),
+    keys: new CachedKeySet($jwksUri, $jwksClient, $requestFactory, $cachePool, 3600, false, 'RS256'),
 );
 ```
+
+!!! warning
+    Use `RateLimitedJwksClient` and keep the `rateLimit` argument of `CachedKeySet` at `false`. At its
+    own limit, `CachedKeySet` reports the key as missing. During an outage, valid tokens then get a
+    401 and clients may ask the user to sign in again.
 
 **The audience must name this MCP server.** Accepting tokens issued for another resource is the
 token passthrough the MCP specification forbids. Configure your authorization server to put the
@@ -395,6 +407,9 @@ AuthorizationResult::forbidden('insufficient_scope', 'Requires admin scope', ['a
 
 // Deny - malformed request (400)
 AuthorizationResult::badRequest('invalid_request', 'Malformed header');
+
+// Deny - the token cannot be checked right now (503), optional Retry-After in seconds
+AuthorizationResult::unavailable(30);
 ```
 
 ## Browser Clients
@@ -457,6 +472,8 @@ others a custom URI; configure the provider to issue tokens for this server.
 The token's `alg` header is not in `algorithms`. Add the algorithm your provider signs with, e.g. `ES256`.
 
 ### Metadata or JWKS discovery fails
+
+The server answers with a 503 and `Retry-After`. To fix the cause:
 
 - Ensure network connectivity to the authorization server over https
 - The `issuer` in the discovered metadata must match the configured issuer verbatim

@@ -14,8 +14,6 @@ namespace Mcp\Exception;
 use Psr\Http\Client\ClientExceptionInterface;
 
 /**
- * @internal
- *
  * @author Erik Thiart
  */
 final class JwksRefreshRateLimitException extends \RuntimeException implements ExceptionInterface, ClientExceptionInterface

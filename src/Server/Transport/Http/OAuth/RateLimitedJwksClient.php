@@ -18,9 +18,7 @@ use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 
 /**
- * Reports a suppressed JWKS refresh as unavailable instead of a missing key.
- *
- * @internal
+ * Limits JWKS requests per URI and throws at the limit, as a {@see \Firebase\JWT\CachedKeySet} with its own rate limit reports the key as missing.
  *
  * @author Erik Thiart
  */
