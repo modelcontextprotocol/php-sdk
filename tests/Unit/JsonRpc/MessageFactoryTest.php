@@ -12,6 +12,7 @@
 namespace Mcp\Tests\Unit\JsonRpc;
 
 use Mcp\Exception\InvalidInputMessageException;
+use Mcp\Exception\UnknownMethodException;
 use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Response;
@@ -280,7 +281,7 @@ final class MessageFactoryTest extends TestCase
     {
         $json = '{"jsonrpc": "2.0", "method": "unknown/method", "id": 1}';
 
-        $this->expectException(InvalidInputMessageException::class);
+        $this->expectException(UnknownMethodException::class);
         $this->expectExceptionMessage('Unknown method');
 
         $this->factory->create($json);

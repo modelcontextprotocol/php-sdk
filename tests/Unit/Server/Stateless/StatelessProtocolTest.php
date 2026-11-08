@@ -15,6 +15,7 @@ use Mcp\Event\ErrorEvent;
 use Mcp\Event\RequestEvent;
 use Mcp\Event\ResponseEvent;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
+use Mcp\JsonRpc\MessageFactory;
 use Mcp\Schema\ClientCapabilities;
 use Mcp\Schema\Content\TextResourceContents;
 use Mcp\Schema\Elicitation\ElicitationSchema;
@@ -22,6 +23,7 @@ use Mcp\Schema\Elicitation\StringSchemaDefinition;
 use Mcp\Schema\Enum\CacheScope;
 use Mcp\Schema\Enum\LoggingLevel;
 use Mcp\Schema\Enum\ProtocolVersion;
+use Mcp\Schema\Implementation;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
 use Mcp\Schema\JsonRpc\Response;
@@ -38,6 +40,7 @@ use Mcp\Schema\Result\ReadResourceResult;
 use Mcp\Schema\ServerCapabilities;
 use Mcp\Server;
 use Mcp\Server\Authorization\AccessToken;
+use Mcp\Server\Configuration;
 use Mcp\Server\Handler\Request\RequestHandlerInterface;
 use Mcp\Server\RequestContext;
 use Mcp\Server\Session\SessionInterface;
@@ -49,6 +52,7 @@ use Mcp\Server\Stateless\StatelessResult;
 use Mcp\Server\Subscription\InMemoryNotificationBus;
 use Mcp\Server\Suspension\NotificationSuspension;
 use Mcp\Server\Wire\CachePolicy;
+use Mcp\Tests\Unit\Fixtures\ThrowingRequest;
 use Mcp\Tests\Unit\Server\Extension\ThingExtension;
 use Mcp\Tests\Unit\Server\Extension\UnservedThingExtension;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -317,6 +321,31 @@ class StatelessProtocolTest extends TestCase
 
         $this->assertSame(404, $answer['status']);
         $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('a known method with malformed params is an invalid request, not an unknown method')]
+    public function testMalformedRequestIsNotAnUnknownMethod(): void
+    {
+        $answer = self::call(self::protocol(), 'tools/list', ['cursor' => [1]]);
+
+        $this->assertSame(400, $answer['status']);
+        $this->assertSame(Error::INVALID_REQUEST, $answer['body']['error']['code']);
+    }
+
+    #[TestDox('a request class that crashes while hydrating is answered without leaking the failure')]
+    public function testCrashWhileHydratingIsAnswered(): void
+    {
+        $protocol = new StatelessProtocol(
+            [],
+            new MessageFactory([ThrowingRequest::class]),
+            new Configuration(new Implementation('test-server', '1.0.0'), new ServerCapabilities()),
+        );
+
+        $answer = self::call($protocol, 'test/throwing');
+
+        $this->assertSame(404, $answer['status']);
+        $this->assertSame(Error::METHOD_NOT_FOUND, $answer['body']['error']['code']);
+        $this->assertStringNotContainsString('must not leak', json_encode($answer['body'], \JSON_THROW_ON_ERROR));
     }
 
     #[TestDox('a handshake-era client opening with "initialize" is told which revisions are served')]
