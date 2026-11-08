@@ -32,4 +32,9 @@ final class RegistryException extends \Exception implements ExceptionInterface
 
         return new self($message, Error::INTERNAL_ERROR, $previous);
     }
+
+    public function isInvalidParams(): bool
+    {
+        return Error::INVALID_PARAMS === $this->getCode();
+    }
 }

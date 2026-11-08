@@ -181,6 +181,25 @@ configure the validator to report more errors, see
 [Customizing the Generator and Validator](#customizing-the-generator-and-validator), the message lists the first three
 and `validation_errors` contains all of them.
 
+After this check, the SDK casts each argument to the type of its parameter. Prompts and resource templates have no input
+schema, so this is the only check for them. If a value can't be cast, your method is not called and the client gets a
+`-32602` error that names the parameter:
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "error": {
+    "code": -32602,
+    "message": "Parameter `quantity`: Cannot cast value to integer. Expected integer representation."
+  }
+}
+```
+
+An `int` parameter refuses numbers beyond the range of a PHP integer (e.g. `9300000000000000000`). A number with a
+fraction part of zero is accepted (e.g. `5.0`). JSON decoding turns a number written this way into a float, so above
+`9007199254740992` it can lose precision before it reaches your method.
+
 The SDK also validates structured tool output against the tool's `outputSchema`, see
 [Output validation](tools.md#output-validation).
 

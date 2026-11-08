@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ToolReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ToolCallException;
 use Mcp\Exception\ToolNotFoundException;
 use Mcp\Schema\Content\TextContent;
@@ -452,6 +453,33 @@ class CallToolHandlerTest extends TestCase
         // Generic exceptions should return Error, not Response
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Error while executing tool', $response->message);
+    }
+
+    public function testHandleAnswersInvalidParamsFromReferenceHandlerWithInvalidParams(): void
+    {
+        $request = $this->createCallToolRequest('order', ['qty' => 'abc']);
+        $this->registry->method('getTool')->willReturn($this->createToolReference('order', static fn () => null));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::invalidParams('Cannot cast value to integer.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+        $this->assertEquals('Cannot cast value to integer.', $response->message);
+    }
+
+    public function testHandleAnswersInternalRegistryErrorWithInternalError(): void
+    {
+        $request = $this->createCallToolRequest('order', []);
+        $this->registry->method('getTool')->willReturn($this->createToolReference('order', static fn () => null));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Handler is not callable.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Error while executing tool', $response->message);
     }

@@ -14,6 +14,7 @@ namespace Mcp\Tests\Unit\Server\Handler\Request;
 use Mcp\Capability\Registry\ReferenceHandlerInterface;
 use Mcp\Capability\Registry\ResourceReference;
 use Mcp\Capability\RegistryInterface;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\ResourceNotFoundException;
 use Mcp\Exception\ResourceReadException;
 use Mcp\Schema\Content\BlobResourceContents;
@@ -248,6 +249,33 @@ class ReadResourceHandlerTest extends TestCase
 
         $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
+        $this->assertEquals('Error while reading resource', $response->message);
+    }
+
+    public function testHandleAnswersInvalidParamsFromReferenceHandlerWithInvalidParams(): void
+    {
+        $request = $this->createReadResourceRequest('item://abc');
+        $this->registry->method('getResource')->willReturn($this->createStub(ResourceReference::class));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::invalidParams('Cannot cast value to integer.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
+        $this->assertEquals($request->getId(), $response->id);
+        $this->assertEquals(Error::INVALID_PARAMS, $response->code);
+        $this->assertEquals('Cannot cast value to integer.', $response->message);
+    }
+
+    public function testHandleAnswersInternalRegistryErrorWithInternalError(): void
+    {
+        $request = $this->createReadResourceRequest('item://1');
+        $this->registry->method('getResource')->willReturn($this->createStub(ResourceReference::class));
+        $this->referenceHandler->method('handle')->willThrowException(RegistryException::internalError('Handler is not callable.'));
+
+        $response = $this->handler->handle($request, $this->session);
+
+        $this->assertInstanceOf(Error::class, $response);
         $this->assertEquals(Error::INTERNAL_ERROR, $response->code);
         $this->assertEquals('Error while reading resource', $response->message);
     }

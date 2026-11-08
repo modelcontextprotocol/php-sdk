@@ -16,6 +16,7 @@ use Mcp\Capability\RegistryInterface;
 use Mcp\Exception\MissingRequiredClientCapabilityException;
 use Mcp\Exception\PromptGetException;
 use Mcp\Exception\PromptNotFoundException;
+use Mcp\Exception\RegistryException;
 use Mcp\Exception\SessionRequiredException;
 use Mcp\Schema\JsonRpc\Error;
 use Mcp\Schema\JsonRpc\Request;
@@ -89,6 +90,12 @@ final class GetPromptHandler implements RequestHandlerInterface
             // resource: -32002 was never the code for this.
             return Error::forInvalidParams($e->getMessage(), $request->getId());
         } catch (\Throwable $e) {
+            if ($e instanceof RegistryException && $e->isInvalidParams()) {
+                $this->logger->warning('Invalid arguments for prompt', ['prompt_name' => $promptName, 'exception' => $e]);
+
+                return Error::forInvalidParams($e->getMessage(), $request->getId());
+            }
+
             $this->logger->error(\sprintf('Unexpected error while handling prompt "%s": "%s".', $promptName, $e->getMessage()), ['exception' => $e]);
 
             return Error::forInternalError('Error while handling prompt', $request->getId());
