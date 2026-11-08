@@ -20,6 +20,7 @@ use Nyholm\Psr7\Factory\Psr17Factory;
 use Nyholm\Psr7\Response;
 use PHPUnit\Framework\Attributes\TestDox;
 use PHPUnit\Framework\TestCase;
+use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Client\ClientInterface;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -137,6 +138,22 @@ final class AuthenticatingHttpClientTest extends TestCase
         }
 
         $this->assertFalse($rejected->getBody()->isReadable());
+    }
+
+    #[TestDox('a failed challenge reaches a caller that catches the PSR-18 exception')]
+    public function testFailedChallengeIsAClientException(): void
+    {
+        $inner = $this->createStub(ClientInterface::class);
+        $inner->method('sendRequest')->willReturn(new Response(401));
+
+        $authenticator = $this->createStub(AuthenticatorInterface::class);
+        $authenticator->method('authenticate')->willReturnArgument(0);
+        $authenticator->method('handleChallenge')->willThrowException(new AuthorizationException('Sign-in failed.'));
+
+        $this->expectException(ClientExceptionInterface::class);
+
+        (new AuthenticatingHttpClient($inner, $authenticator))
+            ->sendRequest((new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/mcp'));
     }
 
     #[TestDox('a body that fails to seek leaves no rejected response open')]

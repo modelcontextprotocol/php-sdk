@@ -11,11 +11,13 @@
 
 namespace Mcp\Exception;
 
+use Psr\Http\Client\ClientExceptionInterface;
+
 /**
  * Thrown when a client cannot obtain the credentials a protected MCP server demands.
  *
  * @author Christopher Hertel <mail@christopher-hertel.de>
  */
-class AuthorizationException extends \RuntimeException implements ExceptionInterface
+class AuthorizationException extends \RuntimeException implements ExceptionInterface, ClientExceptionInterface
 {
 }
