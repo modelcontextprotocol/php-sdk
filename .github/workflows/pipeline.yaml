@@ -79,6 +79,9 @@ jobs:
       - name: Install Composer
         id: composer
         uses: "ramsey/composer-install@v4"
+        with:
+          # phpdocumentor/shim fails to import its GPG key here, and the tests do not need it.
+          composer-options: --no-plugins
 
       - name: Unit tests
         run: php vendor/bin/phpunit --testsuite=unit
