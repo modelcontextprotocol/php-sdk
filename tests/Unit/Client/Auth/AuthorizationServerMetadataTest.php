@@ -157,6 +157,77 @@ final class AuthorizationServerMetadataTest extends TestCase
         $this->assertFalse($metadata->supportsGrant('authorization_code'));
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidIssuerProvider(): iterable
+    {
+        yield 'a query' => ['https://auth.example.com?tenant=a'];
+        yield 'an empty query' => ['https://auth.example.com?'];
+        yield 'a fragment' => ['https://auth.example.com#tenant-a'];
+        yield 'an empty fragment' => ['https://auth.example.com#'];
+        yield 'a path and a query' => ['https://auth.example.com/tenant?x=1'];
+        yield 'plain http on a public host' => ['http://auth.example.com'];
+        yield 'not a URL' => ['auth.example.com'];
+    }
+
+    #[DataProvider('invalidIssuerProvider')]
+    #[TestDox('a document naming an invalid issuer is rejected: $_dataName')]
+    public function testRejectsAnInvalidIssuer(string $issuer): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        AuthorizationServerMetadata::fromArray([
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function validIssuerProvider(): iterable
+    {
+        yield 'a host' => ['https://auth.example.com'];
+        yield 'a terminating slash' => ['https://auth.example.com/'];
+        yield 'a path' => ['https://auth.example.com/tenant/a'];
+        yield 'a port and a path' => ['https://auth.example.com:8443/tenant/'];
+        yield 'a loopback host over http' => ['http://localhost:8080'];
+        yield 'IPv6 loopback over http' => ['http://[::1]:8080'];
+    }
+
+    #[DataProvider('validIssuerProvider')]
+    #[TestDox('a document may name the issuer: $_dataName')]
+    public function testAcceptsAValidIssuer(string $issuer): void
+    {
+        $metadata = AuthorizationServerMetadata::fromArray([
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
+
+        $this->assertSame($issuer, $metadata->issuer);
+    }
+
+    #[DataProvider('invalidLegacyIssuerProvider')]
+    #[TestDox('legacy endpoints are not built on: $_dataName')]
+    public function testRefusesALegacyIssuerWithAQueryOrFragment(string $issuer): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+
+        AuthorizationServerMetadata::forLegacyServer($issuer);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidLegacyIssuerProvider(): iterable
+    {
+        yield 'a query' => ['https://mcp.example.com?tenant=a'];
+        yield 'a fragment' => ['https://mcp.example.com#frag'];
+    }
+
     #[TestDox('endpoints that are not HTTPS are refused')]
     public function testRejectsInsecureEndpoints(): void
     {

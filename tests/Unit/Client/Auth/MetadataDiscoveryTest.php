@@ -336,6 +336,32 @@ final class MetadataDiscoveryTest extends TestCase
         $this->assertSame([$url], $client->requested);
     }
 
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function invalidIssuerProvider(): iterable
+    {
+        yield 'a query' => ['https://auth.example.com?tenant=a'];
+        yield 'a fragment' => ['https://auth.example.com#tenant-a'];
+    }
+
+    #[DataProvider('invalidIssuerProvider')]
+    #[TestDox('a document repeating an invalid advertised issuer is discarded: $_dataName')]
+    public function testRejectsAnInvalidIssuerEvenWhenItMatches(string $issuer): void
+    {
+        $document = self::json([
+            'issuer' => $issuer,
+            'authorization_endpoint' => 'https://auth.example.com/authorize',
+            'token_endpoint' => 'https://auth.example.com/token',
+        ]);
+        $client = new RecordingClient([
+            'https://auth.example.com/.well-known/oauth-authorization-server' => $document,
+            'https://auth.example.com/.well-known/openid-configuration' => $document,
+        ]);
+
+        $this->assertNull($this->discovery($client)->discoverAuthorizationServer($issuer));
+    }
+
     #[TestDox('a transport failure is not fatal, the next location is still tried')]
     public function testSurvivesATransportFailure(): void
     {

@@ -47,8 +47,11 @@ final class AuthorizationServerMetadata
         public readonly bool $clientIdMetadataDocumentSupported = false,
         public readonly bool $issuerParameterSupported = false,
     ) {
-        if ('' === trim($issuer)) {
-            throw new InvalidArgumentException('The authorization server metadata must name an issuer.');
+        $parts = SecureUrl::parse($issuer, 'authorization server issuer');
+
+        // RFC 8414 section 2 rules out both components in an issuer.
+        if (isset($parts['query']) || isset($parts['fragment'])) {
+            throw new InvalidArgumentException(\sprintf('The authorization server issuer "%s" must not have a query or fragment.', $issuer));
         }
     }
 
@@ -95,7 +98,7 @@ final class AuthorizationServerMetadata
     /**
      * The fixed endpoints a 2025-03-26 era server without metadata is assumed to expose.
      *
-     * @throws InvalidArgumentException when the issuer is neither https nor loopback
+     * @throws InvalidArgumentException when the issuer is neither https nor loopback, or has a query or fragment
      */
     public static function forLegacyServer(string $issuer): self
     {
