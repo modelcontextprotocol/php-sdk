@@ -118,7 +118,6 @@ final class OAuthAuthenticator implements AuthenticatorInterface
 
         $this->issuer = $metadata->issuer;
         $this->resource = $resource;
-        $this->audience = $audience;
 
         $scopes = $this->selectScopes($challenge, $scopesSupported, $metadata);
         // The resource never requires offline_access, which only gets a refresh token.
@@ -128,6 +127,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         if (null !== $stored && $this->isUsable($stored, $needed, $request)) {
             $this->logger->debug('Reusing a stored access token', ['issuer' => $metadata->issuer, 'resource' => $resource]);
             $this->token = $stored;
+            $this->audience = $audience;
 
             return true;
         }
@@ -140,6 +140,7 @@ final class OAuthAuthenticator implements AuthenticatorInterface
         }
 
         $this->token = $token->withGrantedScopes($scopes);
+        $this->audience = $audience;
         $this->requestedScopes = $scopes;
         $this->storage->saveToken($metadata->issuer, $resource, $this->token);
 

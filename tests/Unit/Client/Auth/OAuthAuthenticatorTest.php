@@ -375,6 +375,44 @@ final class OAuthAuthenticatorTest extends TestCase
         $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
     }
 
+    #[TestDox('a failed authorization for another resource does not make the token available to it')]
+    public function testFailedAuthorizationKeepsTheTokenBoundToItsResource(): void
+    {
+        $server = new FakeOAuthServer();
+        $handler = new class(new StubAuthorizationHandler($server)) implements AuthorizationHandlerInterface {
+            public bool $fails = false;
+
+            public function __construct(private readonly AuthorizationHandlerInterface $handler)
+            {
+            }
+
+            public function authorize(string $authorizationUrl, string $redirectUri): array
+            {
+                if ($this->fails) {
+                    throw new AuthorizationException('The user canceled the authorization.');
+                }
+
+                return $this->handler->authorize($authorizationUrl, $redirectUri);
+            }
+        };
+        $authenticator = $this->authenticator($server, $handler);
+        $authenticator->handleChallenge($this->request(), $server->challenge());
+
+        $elsewhere = (new Psr17Factory())->createRequest('POST', 'https://mcp.example.com/other');
+        $server->resource = 'https://mcp.example.com/other';
+        $handler->fails = true;
+
+        try {
+            $authenticator->handleChallenge($elsewhere, $server->challenge());
+            $this->fail('The authorization should have failed.');
+        } catch (AuthorizationException $e) {
+            $this->assertSame('The user canceled the authorization.', $e->getMessage());
+        }
+
+        $this->assertSame('', $authenticator->authenticate($elsewhere)->getHeaderLine('Authorization'));
+        $this->assertSame('Bearer access-token-1', $authenticator->authenticate($this->request())->getHeaderLine('Authorization'));
+    }
+
     #[TestDox('an authorization response with no state at all is refused')]
     public function testRejectsAMissingState(): void
     {
@@ -669,7 +707,7 @@ final class FakeOAuthServer implements ClientInterface
      * @param ?string[] $codeChallengeMethods
      */
     public function __construct(
-        private readonly string $resource = 'https://mcp.example.com/mcp',
+        public string $resource = 'https://mcp.example.com/mcp',
         private readonly ?array $resourceScopes = null,
         private readonly array $serverScopes = [],
         private readonly bool $insecureEndpoints = false,
